@@ -99,7 +99,7 @@ export const runWorkflow = onCall(
       // — que envelhece — dentro do barramento. `hasPermission(...)` responde NÃO aqui, e o gesto
       // síncrono que precisa dele é a Action (`runAction`), que roda em processo. A IDENTIDADE vai:
       // quem pediu a execução é um fato, e é o autor do que o fluxo gravar.
-      const actorPermissions = await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
+      const actorPermissions = await requirePermission(tenantId, request.auth, PERMISSION_AUTOMATION_RUN);
 
       const definition = await di.getWorkflowDefinitionRepository().findByRef(tenantId, targetWorkflowId);
       if (!definition) {

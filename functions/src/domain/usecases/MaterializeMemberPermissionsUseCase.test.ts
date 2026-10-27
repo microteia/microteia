@@ -5,10 +5,13 @@ import { buildPermissionCatalog } from '../schema/access';
 import type { PermissionCatalogCache } from '../../data/services/PermissionCatalogCache';
 import { KERNEL_CATALOG_FINGERPRINT } from '../schema/access';
 import { makeMaterializeMemberPermissionsUseCase } from './MaterializeMemberPermissionsUseCase';
+import type { MemberMfaPolicy } from '../schema/memberMfa';
+import { DEFAULT_MEMBER_MFA_POLICY } from '../schema/memberMfa';
 
 type Doc = Record<string, unknown>;
 
 interface FakeState {
+  mfaPolicy?: MemberMfaPolicy;
   tenants: Record<string, Doc>;
   roles: Record<string, Record<string, Doc>>;
   members: Record<string, Record<string, Doc>>;
@@ -75,7 +78,9 @@ const baseState = (): FakeState => ({
 });
 
 const run = async (state: FakeState, tenantId = 't1', userIds?: string[]) =>
-  makeMaterializeMemberPermissionsUseCase(fakeDb(state), cache()).execute({
+  makeMaterializeMemberPermissionsUseCase(fakeDb(state), cache(), {
+    get: async () => state.mfaPolicy ?? DEFAULT_MEMBER_MFA_POLICY,
+  }).execute({
     tenantId,
     ...(userIds ? { userIds } : {}),
   });
@@ -157,5 +162,54 @@ describe('MaterializeMemberPermissionsUseCase', () => {
     state.members.t1.ana.permissionsCatalog = 'digital-de-outra-versao';
     expect(await run(state, 't1', ['ana'])).toBe(1);
     expect(state.members.t1.ana.permissionsCatalog).toBe(KERNEL_CATALOG_FINGERPRINT);
+  });
+
+  describe('exigência de segundo fator', () => {
+    const policy = (extra: Partial<MemberMfaPolicy>): MemberMfaPolicy =>
+      ({ ...DEFAULT_MEMBER_MFA_POLICY, enabled: true, reverifyMinutes: 60, ...extra });
+
+    it('sem política, nenhum documento de membro ganha o campo', async () => {
+      const state = baseState();
+      await run(state);
+      expect(Object.values(state.members.t1).every((doc) => !('mfa' in doc))).toBe(true);
+    });
+
+    it('por PERMISSÃO olha o conjunto efetivo: a recebida por dependência também conta, e o dono entra', async () => {
+      const state = baseState();
+      state.mfaPolicy = policy({ permissions: ['person.read'] });
+      await run(state);
+      expect(state.members.t1.ana.mfa).toEqual({ maxAgeSeconds: 3600 });
+      expect(state.members.t1.owner.mfa).toEqual({ maxAgeSeconds: 3600 });
+      expect(state.members.t1.bruno).not.toHaveProperty('mfa');
+    });
+
+    it('por PERFIL alcança só quem o tem', async () => {
+      const state = baseState();
+      state.mfaPolicy = policy({ roleIds: ['r-fin'] });
+      await run(state);
+      expect(state.members.t1.ana.mfa).toEqual({ maxAgeSeconds: 3600 });
+      expect(state.members.t1.owner).not.toHaveProperty('mfa');
+    });
+
+    it('é idempotente com a exigência, e desligar a política a retira', async () => {
+      const state = baseState();
+      state.mfaPolicy = policy({ everyone: true });
+      expect(await run(state)).toBe(3);
+      expect(await run(state)).toBe(0);
+
+      state.mfaPolicy = { ...state.mfaPolicy, enabled: false };
+      expect(await run(state)).toBe(3);
+      expect(Object.values(state.members.t1).every((doc) => doc.mfa === null)).toBe(true);
+      expect(await run(state)).toBe(0);
+    });
+
+    it('mudar o intervalo regrava, porque é o que a regra compara', async () => {
+      const state = baseState();
+      state.mfaPolicy = policy({ everyone: true });
+      await run(state);
+      state.mfaPolicy = policy({ everyone: true, reverifyMinutes: 15 });
+      expect(await run(state, 't1', ['ana'])).toBe(1);
+      expect(state.members.t1.ana.mfa).toEqual({ maxAgeSeconds: 900 });
+    });
   });
 });

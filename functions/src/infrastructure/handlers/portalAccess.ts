@@ -64,8 +64,8 @@ export const invitePortalUser = onCall({ region: REGION, cors: true }, async (re
   const subject = parsePortalSubjectKey(subjectKey);
   if (!subject) throw new HttpsError('invalid-argument', '@core.tenant/portal.subject.invalid');
 
-  const granted = await requirePermission(tenantId, userId, PERMISSION_PORTAL_MANAGE);
-  await requirePermission(tenantId, userId, collectionPermissionId(subject.collection, 'read'));
+  const granted = await requirePermission(tenantId, request.auth!, PERMISSION_PORTAL_MANAGE);
+  await requirePermission(tenantId, request.auth!, collectionPermissionId(subject.collection, 'read'));
 
   try {
     const di = getDI();
@@ -99,7 +99,7 @@ export const revokePortalUser = onCall({ region: REGION, cors: true }, async (re
   const guest = inviteId ? { inviteId } : { userId: requireString(data.userId, '@core.tenant/portal.user.required') };
   const subjectKey = typeof data.subjectKey === 'string' && data.subjectKey !== '' ? data.subjectKey : null;
 
-  const granted = await requirePermission(tenantId, userId, PERMISSION_PORTAL_MANAGE);
+  const granted = await requirePermission(tenantId, request.auth!, PERMISSION_PORTAL_MANAGE);
   try {
     const actor = await identifyActor(userId, 'ui', granted);
     await getDI().getRevokePortalUserUseCase().execute({

@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
+import { requireMemberSession } from './shared/requirePermission';
 
 interface CallAIRequest {
   tenantId: string;
@@ -18,6 +19,9 @@ export const callAIProxy = onCall(
     if (!tenantId || !iaQuestion) {
       throw new HttpsError('invalid-argument', '@core.automation/handler.params.missing');
     }
+
+    // O caso de uso cobra a permissão; a sessão — o segundo fator que o escritório exigir — é cobrada aqui.
+    await requireMemberSession(tenantId, request.auth);
 
     try {
       const di = getDI();

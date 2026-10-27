@@ -32,7 +32,7 @@ export const detectWorkflows = onCall(
 
     try {
       const di = getDI();
-      await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_MANAGE);
+      await requirePermission(tenantId, request.auth, PERMISSION_AUTOMATION_MANAGE);
 
       const credentials = await di.getAIConnectionRepository().getCredentialsById(tenantId, connectionId);
 

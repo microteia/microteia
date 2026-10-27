@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
 import { domainErrorCode } from '../../domain/errors/DomainError';
+import { requireMemberSession } from './shared/requirePermission';
 
 interface RemoveTenantMemberRequest {
   tenantId?: string;
@@ -19,6 +20,9 @@ export const removeTenantMember = onCall(
     if (!tenantId || !userId) {
       throw new HttpsError('invalid-argument', 'Dados incompletos.');
     }
+
+    // O caso de uso cobra a permissão; a sessão — o segundo fator que o escritório exigir — é cobrada aqui.
+    await requireMemberSession(tenantId, request.auth);
 
     try {
       const di = getDI();

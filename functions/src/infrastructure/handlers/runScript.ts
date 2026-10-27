@@ -101,7 +101,7 @@ export const runScript = onCall(
     }
 
     const di = getDI();
-    const actorPermissions = await requirePermission(tenantId, request.auth.uid, PERMISSION_AUTOMATION_RUN);
+    const actorPermissions = await requirePermission(tenantId, request.auth, PERMISSION_AUTOMATION_RUN);
 
     const params = inputParams ?? [];
     const coerced = coerceProvidedParams(params, providedParams ?? {});

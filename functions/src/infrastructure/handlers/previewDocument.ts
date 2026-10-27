@@ -54,7 +54,7 @@ export const previewDocument = onCall(
       throw new HttpsError('invalid-argument', '@core.documents/render.request-invalid');
     }
 
-    const permissions = await requirePermission(tenantId, request.auth.uid, PERMISSION_DOCUMENT_TEMPLATES_MANAGE);
+    const permissions = await requirePermission(tenantId, request.auth, PERMISSION_DOCUMENT_TEMPLATES_MANAGE);
 
     // Erro de FORMA não tem leitura nenhuma; o de gramática tem, e a mesclagem aponta onde ficou a lacuna.
     const [shape] = documentTemplateIssues(template).filter((issue) => !isGrammarIssue(issue));

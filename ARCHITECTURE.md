@@ -97,7 +97,9 @@ npm run verify          # typecheck + lint + verify-schemas
 | `AIConnection` | `tenants/{tenantId}/aiConnections/{id}` | Sim |
 | `AIConnectionSecret` | `tenants/{tenantId}/aiConnections/{id}/secrets/current` | Sim (chave de API — nunca trafega para o frontend) |
 | `Tenant` | `tenants/{tenantId}` | — |
-| `TenantMember` | `tenants/{tenantId}/members/{uid}` | Sim |
+| `TenantMember` | `tenants/{tenantId}/members/{uid}` | Sim (`permissions` e `mfa` são materializados pelo servidor; o cliente não os escreve) |
+| Política de segundo fator do escritório (EV-07) | `memberMfaPolicies/{tenantId}` | Não (raiz; só servidor — `manageMemberMfa` é a porta) |
+| Segundo fator da PESSOA (segredo TOTP, hashes dos códigos de recuperação, tentativas) | `mfaFactors/{uid}` | Não (raiz; só servidor — nenhuma regra a libera) |
 | `Role` (perfil de acesso) | `tenants/{tenantId}/roles/{roleId}` | Sim |
 | `DocumentTypeConfig` (compartilhado por todas as telas que anexam documento) | `tenants/{tenantId}/documentTypes/{id}` | Sim |
 | `DocumentTemplate` (modelo de documento do ESCRITÓRIO; os de pacote vêm de `document.template`) | `tenants/{tenantId}/documentTemplates/{key}` — o id É a chave | Sim |
@@ -188,6 +190,7 @@ Todo o onboarding de um usuário novo (`users/{uid}`, `userProfiles/{uid}` e o t
 
 - `functions/src/infrastructure/handlers/onUserCreated.ts` — trigger `functions.auth.user().onCreate()` (API **v1** do `firebase-functions`; triggers de Auth `onCreate`/`onDelete` ainda não têm equivalente em v2). Dispara automaticamente logo após a criação da conta no Firebase Auth (Google, Facebook ou e-mail/senha — antes mesmo da verificação de e-mail).
 - `BootstrapUserUseCase` (`functions/src/domain/usecases/BootstrapUserUseCase.ts`), idempotente: `createUserIfMissing` cria `users/{uid}` (role `USER`) só se ainda não existir — se já existir (reexecução do trigger), a função **retorna sem fazer nada**, para não duplicar tenant; `createUserProfileIfMissing` cria `userProfiles/{uid}` vazio; em seguida cria o tenant (`ITenantRepository.createTenant`, com o nome `${displayName}(${email})` e `memberLimit: 1, memberCount: 0`) e adiciona o próprio usuário **sem perfil algum** (`roleIds: []`) via `addMemberIfWithinLimit` (mesma transação atômica descrita abaixo) — resultado final: `memberLimit: 1`, `memberCount: 1`. Todo usuário sempre tem exatamente 1 tenant (o seu) ao final do bootstrap; todo tenant sempre tem um `ownerId`.
+- **O autocadastro pode ser desligado pela instalação** (`SELF_SERVICE_TENANTS=false` no `.env.<projectId>`): a conta nova não ganha escritório, recebe `origin: 'invitation'` (o sinal de "provisionado" para o `waitForProvisioning`) e espera ser adicionada. A primeira conta da instalação ganha o dela de qualquer jeito. Ver "Segundo fator de membro e autocadastro de escritório (EV-07)".
 - **Client não cria mais nada disso.** `users`/`tenants` negam `create` do client nas Security Rules (`allow create: if false`). O `AuthContext` (`src/stores/AuthContext.tsx`) não faz mais `createUserProfile` — em vez disso, `IUserRepository.waitForProvisioning` (`src/data/repositories/FirebaseUserRepository.ts`) abre um `onSnapshot` em `users/{uid}` e só resolve quando o documento existir **e** `tenantIds` não estiver vazio (sinal de que o bootstrap terminou), com timeout de 20s. Para quem já loga há tempos isso resolve quase instantaneamente (documento já existe); no primeiro login, cobre a espera pela Cloud Function. `TenantStore` (`src/stores/TenantStore.tsx`) não cria mais tenant algum — se `getTenantsForUser` retornar vazio nesse ponto (não deveria, dado o `waitForProvisioning`), trata como falha de provisionamento (`initError`) em vez de criar um tenant no client.
 
 ### `TenantMember` não é entidade de domínio — não use como alvo de FK
@@ -658,6 +661,11 @@ confiar nela. Divergir por alguns segundos é o comportamento correto: a tela of
 usuário, propagação só na renovação do token, revogação lenta. O documento de membro não tem nenhuma
 dessas restrições.
 
+> A claim `mfaAt` do segundo fator (EV-07) não contradiz isso: ela não é claim de USUÁRIO
+> (`setCustomUserClaims`), e sim da SESSÃO — vai no `createCustomToken` que abre a sessão depois do
+> código. É um número só, vale só para a sessão que provou o fator, e nenhuma das quatro restrições se
+> aplica. O que diz SE o fator é exigido continua no documento de membro (`mfa`).
+
 A materialização é recalculada por quatro gatilhos — membro (quando `roleIds` muda), perfil, tela e
 extensão instalada (os dois últimos mudam o catálogo). Ela **não grava quando o resultado é igual**,
 o que a torna idempotente e, sobretudo, impede o laço: gravar no documento de membro dispara o
@@ -887,6 +895,7 @@ regra que tem uma decisão a defender:
 | `backendState.test.ts` | o cliente lê e nunca escreve: escrita liberada deixaria forjar a lista de órfãs do provisionamento |
 | `portalReprojections.test.ts` | o job da reprojeção: lê só quem tem `portal.manage`; ninguém grava do cliente |
 | `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
+| `memberMfa.test.ts` | o segundo fator: sem `mfa` no membro, nada muda; exigido, a sessão sem `mfaAt` não lê nem grava (mas lê o próprio escritório e o próprio documento de membro); a prova vencida lê e não grava; o curinga do dono não pula o fator; o `SYSTEM` não é alcançado; ninguém apaga `mfa` do membro; política e fator fechados ao cliente; o Storage segue a mesma conta |
 | `memberVisibility.test.ts` | a visibilidade por registro: só o registro que nomeia o membro, pelo campo simples ou pelo `multi` (e o mapa forjado não passa); a consulta sem filtro recusada e a do repositório aceita, inclusive com o filtro do pai; supervisão derivada, nomeada, dono e `SYSTEM`; declaração malformada fecha; alterar e excluir pedem ver, criar não; anotações, documentos e arquivos seguem o registro; quem só desenha telas não muda nem exclui a declaração |
 
 Ela fica **fora do `npm test`**, com configuração própria (`vitest.rules.config.ts`), porque exige um
@@ -912,6 +921,180 @@ dono continua podendo tudo dentro do dele.
 `functions/src/domain/usecases/MaterializeMemberPermissionsUseCase.ts` ·
 `functions/src/infrastructure/handlers/{materializeMemberPermissions,syncTenantPermissions,shared/requirePermission}.ts` ·
 `functions/src/domain/engine/expression/builtins/accessFns.ts`
+
+---
+
+## Segundo fator de membro e autocadastro de escritório (EV-07)
+
+Duas portas de ENTRADA que a plataforma não tinha. Nenhuma das duas muda nada para quem não as liga: sem
+documento em `memberMfaPolicies/{tenantId}`, nenhum membro ganha o campo `mfa` e as regras respondem como
+antes; sem `SELF_SERVICE_TENANTS`, o cadastro abre escritório como sempre.
+
+### O que foi decidido, e o que foi recusado
+
+O roteiro pedia MFA "verificado no login" com as regras cobrando "a claim correspondente". Três desenhos
+foram pesados:
+
+| Desenho | Por que não (ou por que sim) |
+|---|---|
+| MFA nativo do Identity Platform (TOTP do Firebase) | exige atualizar o projeto do escritório para o Identity Platform — irreversível e cobrado —, vale para a conta em TODOS os escritórios, não tem códigos de recuperação e não permite exigir por escritório. Recusado |
+| Prova gravada num DOCUMENTO (`users/{uid}.mfaVerifiedAt`) | o documento é da CONTA, não da sessão: a sessão aberta com a senha roubada herdaria a prova feita no celular da vítima. Recusado — é exatamente o ataque que o fator existe para barrar |
+| Claim de USUÁRIO (`setCustomUserClaims`) | o mesmo defeito do documento (vale para todas as sessões) mais os quatro do RBAC. Recusado |
+| **Claim de SESSÃO** (`createCustomToken(uid, { mfaAt })`) | só a sessão que provou carrega; mesma conta (`uid`), então o Firebase não avisa troca de usuário e o espaço de trabalho não desmonta; funciona com QUALQUER primeiro fator (senha, Google, SSO); TOTP e códigos de recuperação ficam sob controle do kernel. **Adotado** |
+
+O custo do adotado é o mesmo da entrada do portal por OIDC: `createCustomToken` assina com a conta de
+serviço das functions (`iam.serviceAccounts.signBlob`) — o pré-requisito manual `portal-identity-signing`
+passou a citar as duas features. Uma instalação sem a assinatura não tranca ninguém: ver "A trava contra
+trancar a si mesmo".
+
+### As peças
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| Fonte única | `domain/schema/memberMfa.ts` (sincronizado) | política, exigência, `mfaSessionIssue` (a mesma conta das regras), formatos de código, URI `otpauth://` |
+| TOTP | `functions/src/domain/services/totp.ts` | RFC 4226/6238 sobre HMAC-SHA1 INJETADO; devolve o PASSO aceito (o reuso é recusado por `lastStep`); códigos de recuperação sorteados por rejeição. Testado contra os vetores das duas RFCs |
+| Fator da pessoa | `mfaFactors/{uid}` | segredo base32, segredo pendente (10 min), SHA-256 de cada código de recuperação, `lastStep`, falhas e trava — tudo numa transação |
+| Política do escritório | `memberMfaPolicies/{tenantId}` | `enabled`, `everyone`, `roleIds`, `permissions`, `reverifyMinutes` (5 a 10080) |
+| Exigência materializada | `members/{uid}.mfa = { maxAgeSeconds }` | `MaterializeMemberPermissionsUseCase` a calcula junto com `permissions`, do MESMO conjunto efetivo, e a põe na mesma guarda de idempotência |
+| Callable da pessoa | `secondFactor` (`status`, `enroll`, `confirm`, `verify`, `recovery-codes`) | exige só pertencer ao escritório; abre a sessão com a claim |
+| Callable do escritório | `manageMemberMfa` (`overview`, `save`, `reset`) | `mfa.manage` (exige `members.manage`); valida, recompõe os membros e audita |
+| Casca | `presentation/components/layout/TenantEntryGate/` | entre `TenantStoreProvider` e o resto da pilha: pede o código, cadastra, mostra os códigos, pede de novo quando vence |
+| Gestos de dentro | `stores/useSecondFactorFlow.ts` + `ui/SecondFactorPanel/` | Segurança e Perfil cadastram, trocam o celular e sorteiam códigos pela MESMA casca |
+| Tela | `TenantSettings/SecurityTab/` | a política, quem precisa e quem já cadastrou, zerar o fator de alguém |
+
+### O fator é da PESSOA; a exigência é do ESCRITÓRIO
+
+O aplicativo autenticador está no bolso de alguém e vale em todo escritório de que ela participa. Quem
+decide se um escritório o EXIGE é a política dele. Duas consequências:
+
+- **Por perfil ou por PERMISSÃO.** Por permissão olha o conjunto EFETIVO — quem recebe `dte.issue` por
+  dependência pode o mesmo que quem a recebe marcada. Pelo mesmo motivo o DONO entra em toda política por
+  permissão: o curinga detém todas. Não há nome de perfil no código: a política guarda ids de perfis do
+  escritório, e é ele quem os escolhe. Por isso o guia de autoria (§13) pede que a capacidade com efeito
+  legal tenha permissão PRÓPRIA — é nela que o escritório aponta a regra.
+- **Zerar o fator de alguém é cruzar escritórios.** O administrador do escritório A que apagasse o fator
+  de quem também participa do B abriria a porta do B a quem tem a senha. Por isso o `reset` só é aceito
+  para quem participa de UM escritório só (`users/{uid}.tenantIds`); o resto é do `SYSTEM`.
+
+### Ler e agir são perguntas diferentes
+
+| Sessão | Ler | Gravar / chamar callable |
+|---|---|---|
+| membro sem `mfa` | sim | sim |
+| `mfa` exigido, sem `mfaAt` | **não** (só o próprio escritório e o próprio documento de membro) | não |
+| `mfaAt` há menos de `maxAgeSeconds` | sim | sim |
+| `mfaAt` vencido | **sim** | não |
+
+O "reexigido após o tempo configurado" vale para AGIR. Ler continua, e é de propósito: as assinaturas
+`onSnapshot` da tela aberta morreriam com a primeira recusa, e o pedido de código desmontaria a tela de
+quem está no meio de um formulário. Vencida a prova, a casca abre o pedido POR CIMA do espaço de
+trabalho; fechado, sobra uma faixa — e as regras continuam recusando a gravação até o código.
+
+As três pontas fazem a MESMA conta:
+
+| Onde | Como |
+|---|---|
+| `firestore.rules` | `sessionSatisfiesMfa(member)` dentro de `isTenantMember` — a leitura é a mesma do `exists()` e de `memberPermissions()`, então custa zero leituras a mais. `belongsToTenant` é o pertencimento CRU, usado só no `get` do escritório e do próprio documento de membro. `isTenantOwner` também cobra: o curinga não pula o fator. `request.method` separa ler de agir |
+| `storage.rules` | `sessionSatisfiesMfa(member, acting)` — o Storage não tem `request.method`; toda permissão que não termina em `.read` é tratada como agir (errar para esse lado só pede o código mais cedo) |
+| Callables | `requirePermission(tenantId, caller, …)`, `requireAnyPermission`, `isOfficeMember` e `requireMemberSession` recebem `CallerAuth` (`uid` + `token`), e não mais o `uid`: o tipo obriga cada chamada a trazer o token. Toda callable conta como AGIR. A recusa diz o motivo (`mfa.session.missing`/`expired`, `details.secondFactor`) em vez de "falta permissão" |
+
+O `SYSTEM` não é alcançado por política de escritório — nem nas regras (`isSystemAdmin()` é o primeiro
+termo de `can`) nem nas callables (consultado só quando a sessão falharia). A conta global deve ser
+protegida pelo provedor de entrada; o pré-requisito `self-service-tenants` diz isso a quem instala.
+
+A superfície de servidor das extensões (`requireInstalledExtension`) recebe o mesmo cuidado:
+`CallerRequest.auth` ganhou `token`, opcional no tipo (todo `onCall` já o tem) e lido pelo portão.
+Um `request` montado à mão sem token é recusado para quem a política alcança — falha fechada.
+
+O acesso de agente de IA (MCP) se autentica pelo PRÓPRIO token, não pela sessão: por isso
+`grantedPermissions` não olha `mfaAt`, e quem cobra o fator é a EMISSÃO (`issueAgentGrant`, nas duas
+portas — a aba e o consentimento OAuth). Acessos emitidos antes de a política existir continuam valendo
+até serem revogados na aba de Agentes de IA.
+
+### Entrar no escritório
+
+`TenantStore.applyTenant` lê JUNTAS três coisas — a exigência (o próprio documento de membro), a claim
+da sessão (`IAuthRepository.getSecondFactorVerifiedAt`) e a lista de membros —, para que quem nunca ligou
+a política não espere nada a mais. Exigido e não provado, a lista NEM é olhada (as regras a recusam, e a
+recusa não é falha a mostrar): `secondFactor` fica no contexto e o `TenantEntryGate` toma a tela. Os
+stores do espaço de trabalho não montam enquanto isso.
+
+`completeSecondFactor(token)` chama `signInWithCustomToken` — a MESMA conta, então o `onAuthStateChanged`
+não dispara e nada é reprovisionado —, relê a claim e carrega os membros. Uma assinatura no próprio
+documento de membro percebe a política que muda com a tela aberta.
+
+O `TenantEntryGate` mostra em PÁGINA o que impede a entrada (escritório nenhum; fator exigido e não
+provado) e em MODAL o que acontece com o espaço de trabalho aberto (o pedido vencido; os gestos de
+`useSecondFactorFlow`). Os códigos de recuperação só fecham DEPOIS de a pessoa marcar que os guardou —
+abrir a sessão antes tiraria a tela que os mostra, e eles não aparecem de novo.
+
+### O que protege o quê
+
+| Ameaça | Resposta |
+|---|---|
+| Força bruta nos 6 dígitos | 5 erros seguidos travam o fator por 15 min, contados na MESMA transação da tentativa; a trava vai à Auditoria (`HIGH`) |
+| Código visto por cima do ombro | o passo aceito é gravado (`lastStep`); ele e todo anterior são recusados |
+| Senha roubada de quem JÁ tem fator | a sessão dela não tem `mfaAt`; trocar o aplicativo (`enroll` com fator ativo) e sortear códigos exigem prova de menos de 15 min (`MFA_STEP_UP_SECONDS`) |
+| Senha roubada de quem AINDA NÃO cadastrou | o primeiro cadastro não tem o que provar — é o limite de todo TOTP por autocadastro. O cadastro vai à Auditoria, e a aba Segurança mostra quem precisa e ainda não cadastrou: cadastrar logo é o que fecha a janela |
+| Celular perdido | dez códigos de recuperação (SHA-256 com o `uid` como sal; uso único; uso vai à Auditoria como `HIGH`), e depois deles o `reset` por quem tem `mfa.manage` — ou pelo `SYSTEM`, para quem participa de mais de um escritório |
+| Apagar a exigência do próprio documento | `mfa` está entre as chaves que nenhum cliente escreve em `members` |
+| Ler o segredo | `mfaFactors` e `memberMfaPolicies` são `read, write: false` |
+
+### A trava contra trancar a si mesmo
+
+Gravar uma política que ALCANÇA quem grava exige que essa sessão tenha provado o fator há pouco
+(`mfa.policy.verify-first`). Isso prova duas coisas de uma vez: que a pessoa tem o aplicativo, e que a
+instalação consegue ASSINAR a sessão — sem a permissão de assinatura, ninguém mais entraria, e quem ligou
+seria o primeiro a saber, não o último. É por isso que o painel pessoal (`SecondFactorPanel`) mora no
+alto da aba Segurança: quem vai ligar a regra para todos cadastra o próprio fator ali mesmo.
+
+### Auditoria
+
+Linhas na Auditoria do escritório em que a pessoa está entrando (`entity: memberMfa`): cadastro (`LOW`),
+troca de aplicativo (`HIGH`), cada verificação (`LOW`), uso de código de recuperação (`HIGH`, com os
+restantes), códigos novos (`LOW`), trava (`HIGH`), `reset` (`HIGH`), e a política — ligar e apertar
+`LOW`, estreitar quem precisa ou alargar o intervalo `HIGH`, desligar `CRITICAL`. Quem a política
+alcança muda a FRASE (`…everyone.text`), e não um parâmetro: "todos" gravado como parâmetro seria uma
+palavra nossa fora do alcance da tradução.
+
+### Autocadastro de escritório — `SELF_SERVICE_TENANTS`
+
+O roteiro pedia `auth.selfServiceTenants` no `microteia.yaml`. Ele mora no `.env.<projectId>`, pela
+divisão que a instalação já faz: o `.yaml` é estado que os comandos do Console escrevem; o `.env` é o
+que uma pessoa decide e digita, e é o único dos dois que chega às functions — com o `provision`
+percebendo a troca e redeployando quem o carrega. É o segundo parâmetro opcional do kernel, ao lado de
+`AUDIT_ARCHIVE_BUCKET`.
+
+| Valor | Efeito |
+|---|---|
+| vazio, `true` | como sempre: cada conta nova ganha o seu escritório |
+| `false` | a conta nova não ganha escritório; `users/{uid}.origin = 'invitation'` diz ao navegador que o provisionamento terminou |
+| qualquer outro | lido como `false`, com erro no log: quem escreveu `off` quis desligar |
+
+Vale para QUALQUER provedor de entrada, e não só senha: numa instalação compartilhada, uma conta Google
+abrindo escritório é o mesmo risco. A PRIMEIRA conta da instalação (a que nasce `SYSTEM`) ganha
+escritório de qualquer jeito — só a transação de criação sabe se ela é a primeira, e por isso o carimbo
+`invitation` vem DEPOIS (`IUserRepository.setOrigin`).
+
+Desligar o autocadastro sem outra porta congelaria a instalação no número de escritórios que ela tinha.
+A porta é `createOrganization` (só `SYSTEM`; Gestão de Acessos › Escritórios › Novo escritório): abre o
+escritório em nome de uma conta que já existe, pelo MESMO `openOwnedTenant` do bootstrap — limite de
+membros, prefixo sorteado e dono sem perfil não divergem —, recusa convidado do portal como dono e deixa
+a criação na Auditoria do escritório novo.
+
+A conta sem escritório (desligado o autocadastro, ou removida de todos) não é mais "falha de
+provisionamento": `TenantStore.awaitingOrganization` e a casca explicam e esperam.
+
+### Arquivos-chave
+
+`domain/schema/memberMfa.ts` · `functions/src/domain/services/totp.ts` ·
+`functions/src/domain/usecases/{MemberMfaUseCases,CreateOrganizationUseCase,BootstrapUserUseCase,MaterializeMemberPermissionsUseCase}.ts` ·
+`functions/src/data/repositories/FirestoreMemberMfaRepositories.ts` ·
+`functions/src/infrastructure/handlers/{memberMfa,createOrganization,shared/requirePermission}.ts` ·
+`functions/src/infrastructure/settings/selfServiceTenants.ts` · `firestore.rules` · `storage.rules` ·
+`stores/{TenantStore.tsx,useTenant.ts,useSecondFactorFlow.ts}` ·
+`presentation/components/layout/TenantEntryGate/` · `presentation/components/ui/SecondFactorPanel/` ·
+`presentation/pages/TenantSettings/SecurityTab/` · `rules-tests/memberMfa.test.ts`
 
 ---
 

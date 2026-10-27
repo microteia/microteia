@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
 import { domainErrorCode } from '../../domain/errors/DomainError';
+import { requireMemberSession } from './shared/requirePermission';
 
 interface AddTenantMemberRequest {
   tenantId?: string;
@@ -23,6 +24,9 @@ export const addTenantMember = onCall(
     if (!tenantId || !userId || !displayName || !email) {
       throw new HttpsError('invalid-argument', 'Dados do membro incompletos.');
     }
+
+    // O caso de uso cobra a permissão; a sessão — o segundo fator que o escritório exigir — é cobrada aqui.
+    await requireMemberSession(tenantId, request.auth);
 
     try {
       const di = getDI();

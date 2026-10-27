@@ -9,7 +9,7 @@ import {
 import { PERMISSION_AGENT_MANAGE } from '../../domain/schema/access/kernelPermissions';
 import { UNRESTRICTED_PERMISSION, grants } from '../../domain/schema/access/memberPermissions';
 import { getDI } from '../di/container';
-import { grantedPermissions, requirePermission } from '../handlers/shared/requirePermission';
+import { grantedPermissions, requireMemberSession, requirePermission } from '../handlers/shared/requirePermission';
 
 /**
  * A configuração pela qual o escritório decide se qualquer membro emite um acesso para si.
@@ -31,6 +31,11 @@ export interface IssueAgentGrantInput {
   tenantId: string;
   /** Quem emite. É o conjunto DELE que limita o teto, e é ele que vira `userId` do acesso. */
   userId: string;
+  /**
+   * As claims da sessão de quem emite. Um acesso de agente é uma credencial que dura além da sessão: o
+   * membro de quem o escritório exige segundo fator só o emite de uma sessão que o provou.
+   */
+  session: Record<string, unknown>;
   name: string;
   permissions: string[];
   expiresInDays?: number | null;
@@ -65,6 +70,8 @@ export const issueAgentGrant = async (input: IssueAgentGrantInput): Promise<Issu
     throw new HttpsError('failed-precondition', '@core.access/agent.not-enabled');
   }
 
+  const caller = { uid: userId, token: input.session };
+  await requireMemberSession(tenantId, caller);
   const held = await grantedPermissions(tenantId, userId);
   // Frase PRÓPRIA, e não `permission.denied`: aquela interpola `{permission}`, e aqui não há uma —
   // não falta uma permissão específica, falta qualquer uma. Reusá-la mostraria `{permission}` cru.
@@ -72,7 +79,7 @@ export const issueAgentGrant = async (input: IssueAgentGrantInput): Promise<Issu
 
   const settings = await di.getTenantSettingsRepository().getTenantValues(tenantId);
   if (settings[SELF_SERVICE_SETTING] === false) {
-    await requirePermission(tenantId, userId, PERMISSION_AGENT_MANAGE);
+    await requirePermission(tenantId, caller, PERMISSION_AGENT_MANAGE);
   }
 
   const label = typeof input.name === 'string' ? input.name.trim() : '';

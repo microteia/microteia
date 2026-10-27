@@ -103,7 +103,7 @@ export const manageNotificationEmail = onCall(
     if (!tenantId) throw new HttpsError('invalid-argument', '@core.automation/handler.tenant.missing');
 
     const userId = request.auth.uid;
-    await requirePermission(tenantId, userId, PERMISSION_SETTINGS_MANAGE);
+    await requirePermission(tenantId, request.auth, PERMISSION_SETTINGS_MANAGE);
     const repository = getDI().getNotificationEmailConfigRepository();
 
     switch (op) {

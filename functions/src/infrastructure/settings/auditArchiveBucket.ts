@@ -8,4 +8,4 @@ import { defineString } from 'firebase-functions/params';
  * Um nome declarado, e não um derivado do projeto: um nome previsível poderia ser criado por OUTRA
  * pessoa, num projeto dela, e receber a auditoria de quem nunca o configurou.
  */
-export const AUDIT_ARCHIVE_BUCKET = defineString('AUDIT_ARCHIVE_BUCKET', { default: '', description: 'Bucket with locked retention for the daily audit archive. Empty: the archive is unavailable.' });
+export const AUDIT_ARCHIVE_BUCKET: ReturnType<typeof defineString> = defineString('AUDIT_ARCHIVE_BUCKET', { default: '', description: 'Bucket with locked retention for the daily audit archive. Empty: the archive is unavailable.' });

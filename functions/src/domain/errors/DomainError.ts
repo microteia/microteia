@@ -19,27 +19,30 @@ export type DomainErrorCode =
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
+  /** O que a frase interpola. A callable os manda como `details` do `HttpsError`, que é onde o cliente os procura. */
+  readonly params?: Record<string, string>;
 
-  constructor(code: DomainErrorCode, message: string) {
+  constructor(code: DomainErrorCode, message: string, params?: Record<string, string>) {
     super(message);
     this.name = 'DomainError';
     this.code = code;
+    this.params = params;
   }
 }
 
-export const permissionDenied = (message: string): DomainError =>
-  new DomainError('permission-denied', message);
+export const permissionDenied = (message: string, params?: Record<string, string>): DomainError =>
+  new DomainError('permission-denied', message, params);
 
 export const notFound = (message: string): DomainError => new DomainError('not-found', message);
 
-export const invalidArgument = (message: string): DomainError =>
-  new DomainError('invalid-argument', message);
+export const invalidArgument = (message: string, params?: Record<string, string>): DomainError =>
+  new DomainError('invalid-argument', message, params);
 
 export const alreadyExists = (message: string): DomainError =>
   new DomainError('already-exists', message);
 
-export const failedPrecondition = (message: string): DomainError =>
-  new DomainError('failed-precondition', message);
+export const failedPrecondition = (message: string, params?: Record<string, string>): DomainError =>
+  new DomainError('failed-precondition', message, params);
 
 /**
  * O código de um erro qualquer, ou `null` quando ele não é de domínio. `null` é o que o handler

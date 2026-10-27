@@ -37,12 +37,12 @@ export const revokeAgentGrant = onCall(
     // Um acesso que não existe responde como falta de permissão, e não como "não encontrado": dizer
     // qual é qual permitiria descobrir quais ids existem naquele escritório.
     if (grant === null) {
-      await requirePermission(tenantId, userId, PERMISSION_AGENT_MANAGE);
+      await requirePermission(tenantId, request.auth, PERMISSION_AGENT_MANAGE);
       return { revoked: false };
     }
 
     if (grant.userId !== userId) {
-      await requirePermission(tenantId, userId, PERMISSION_AGENT_MANAGE);
+      await requirePermission(tenantId, request.auth, PERMISSION_AGENT_MANAGE);
     }
 
     return { revoked: await repository.revoke(tenantId, grantId, userId) };

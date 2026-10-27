@@ -1,6 +1,7 @@
 import type { AuditAction, AuditLog, AuditSeverity, ScreenDefinition } from '../../../domain/entities';
 import type { TranslateFn, useLabel } from '../../shared/i18n/useT';
 import { AUDIT_RETENTION_COLLECTION } from '../../../domain/schema/auditRetention';
+import { MFA_AUDIT_ENTITY } from '../../../domain/schema/memberMfa';
 
 /**
  * As entidades que o backend audita por nome próprio HOJE — nada além disso.
@@ -19,6 +20,7 @@ export const ENTITY_KEYS: Record<string, string> = {
   Tenant: 'audit.entity.tenant',
   Workflow: 'audit.entity.workflow',
   [AUDIT_RETENTION_COLLECTION]: 'audit.entity.audit-retention',
+  [MFA_AUDIT_ENTITY]: 'audit.entity.member-mfa',
   FRONTEND: 'audit.entity.frontend',
   SYSTEM: 'audit.entity.system',
 };

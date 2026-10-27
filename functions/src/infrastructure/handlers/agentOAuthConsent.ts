@@ -101,6 +101,7 @@ export const consentAgentAuthRequest = onCall(
     const { grantId } = await issueAgentGrant({
       tenantId,
       userId: request.auth.uid,
+      session: request.auth.token,
       name: pending.clientName,
       permissions,
       expiresInDays,

@@ -19,6 +19,9 @@ vi.mock('../di/container', () => ({
   getDI: () => ({
     getTenantMemberRepository: () => ({
       getMemberPermissions: async (_tenantId: string, userId: string) => permissionsByUser[userId] ?? [],
+      getMemberAccess: async (_tenantId: string, userId: string) => (permissionsByUser[userId]
+        ? { userId, displayName: '', email: '', roleIds: [], permissions: permissionsByUser[userId], mfa: null }
+        : null),
     }),
     getUserRepository: () => ({ getUserRole: async () => null }),
     getTenantRepository: () => ({ getById: async () => null }),
@@ -160,7 +163,7 @@ describe('requireReportAccess — o RBAC no servidor', () => {
   it('exige a leitura da coleção-fonte', async () => {
     // Um agregado sobre linhas que o leitor não pode ver é como um relatório vaza dado: a contagem
     // de salários acima de X não mostra nenhum salário e revela todos.
-    const error = await denied(requireReportAccess(spec, await schema(), 't1', 'ana'));
+    const error = await denied(requireReportAccess(spec, await schema(), 't1', { uid: 'ana', token: {} }));
 
     expect(error.code).toBe('permission-denied');
   });
@@ -170,7 +173,7 @@ describe('requireReportAccess — o RBAC no servidor', () => {
 
     // Devolve o conjunto CONCEDIDO, e não `void`: é ele que o `hasPermission` de um filtro por
     // expressão consulta, e uma segunda leitura do mesmo documento de membro seria desperdício.
-    await expect(requireReportAccess(spec, await schema(), 't1', 'ana'))
+    await expect(requireReportAccess(spec, await schema(), 't1', { uid: 'ana', token: {} }))
       .resolves.toEqual(['lancamentos.read']);
   });
 
@@ -184,11 +187,11 @@ describe('requireReportAccess — o RBAC no servidor', () => {
       shape: { kind: 'summary', groupBy: [{ dimension: 'cidade' }], values: ['total'] },
     };
 
-    const error = await denied(requireReportAccess(comHop, await schema(), 't1', 'ana'));
+    const error = await denied(requireReportAccess(comHop, await schema(), 't1', { uid: 'ana', token: {} }));
     expect(error.code).toBe('permission-denied');
 
     permissionsByUser.ana = ['lancamentos.read', 'clientes.read'];
-    await expect(requireReportAccess(comHop, await schema(), 't1', 'ana'))
+    await expect(requireReportAccess(comHop, await schema(), 't1', { uid: 'ana', token: {} }))
       .resolves.toEqual(['lancamentos.read', 'clientes.read']);
   });
 
@@ -198,11 +201,11 @@ describe('requireReportAccess — o RBAC no servidor', () => {
     permissionsByUser.ana = ['lancamentos.read'];
     const restrito: ReportSpec = { ...spec, access: { permission: 'lancamentos.margem' } };
 
-    const error = await denied(requireReportAccess(restrito, await schema(), 't1', 'ana'));
+    const error = await denied(requireReportAccess(restrito, await schema(), 't1', { uid: 'ana', token: {} }));
     expect(error.code).toBe('permission-denied');
 
     permissionsByUser.ana = ['lancamentos.read', 'lancamentos.margem'];
-    await expect(requireReportAccess(restrito, await schema(), 't1', 'ana')).resolves.toBeDefined();
+    await expect(requireReportAccess(restrito, await schema(), 't1', { uid: 'ana', token: {} })).resolves.toBeDefined();
   });
 });
 
@@ -610,7 +613,7 @@ describe('runReportQuery', () => {
       permissionsByUser.ana = ['lancamentos.read'];
 
       const error = await denied(
-        requireReportAccess(com('cliente.cidade == "Recife"'), schema, 't1', 'ana'),
+        requireReportAccess(com('cliente.cidade == "Recife"'), schema, 't1', { uid: 'ana', token: {} }),
       );
       expect(error.code).toBe('permission-denied');
     });
