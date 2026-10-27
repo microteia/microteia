@@ -32,6 +32,8 @@ import {
 import { readPortalReprojectionState } from '../../domain/schema/portalReprojection';
 import { asPortalVerifiedIdentity } from '../../domain/schema/portalIdentity';
 import { getBucket } from '../../infrastructure/firebase/initFirebase';
+import { recordDocumentStoragePath } from '../../domain/services/recordDocumentHash';
+import { recordDocumentLinkState } from '../../domain/services/recordDocumentLinks';
 import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
 
 const SCREENS_TTL_MS = 30_000;
@@ -302,7 +304,12 @@ export class FirebasePortalRepository implements IPortalRepository {
       .collection('documents').doc(documentId).get();
     if (!snapshot.exists) return null;
     const data = snapshot.data() ?? {};
-    return { ...toSharedDocument(snapshot.id, data), portalShared: data.portalShared === true && !data.deletedBy };
+    return {
+      ...toSharedDocument(snapshot.id, data),
+      portalShared: data.portalShared === true && !data.deletedBy,
+      storagePath: recordDocumentStoragePath({ tenantId, parent: collection, parentId: recordId }, data),
+      link: recordDocumentLinkState(data),
+    };
   }
 
   async getDocumentProjections(tenantId: string, projectionId: string): Promise<Map<string, PortalDocumentProjection>> {

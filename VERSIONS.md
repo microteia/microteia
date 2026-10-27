@@ -6,6 +6,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 <!-- Nova entrada vai aqui, acima das anteriores, no formato:
 
+#### [9.166.0] — 2026-10-26
+
+- Novo, na aba Portal de cada tela: o escritório pode entregar os documentos ao cliente por links que valem só alguns minutos. A cada abertura, o acesso é conferido de novo; quem tem o convite revogado deixa de abrir os documentos assim que o último link recebido vence, mesmo que o tenha guardado.
+- Ao ligar esse recurso, os links permanentes que já tinham sido entregues ao cliente deixam de funcionar; os da equipe do escritório continuam abrindo normalmente.
+- Quem não ligar o recurso não percebe mudança nenhuma.
+
 #### [0.0.9] — AAAA-MM-DD
 
 - Descrição elegante da mudança, em linguagem simples.

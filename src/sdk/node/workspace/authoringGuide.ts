@@ -48,6 +48,9 @@ import {
   PORTAL_GUEST_NOTIFY_SINCE_KERNEL,
   PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL,
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
+  PORTAL_DOCUMENT_LINKS_SINCE_KERNEL,
+  PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES,
+  PORTAL_DOCUMENT_LINK_MAX_MINUTES,
 } from '../../../domain/schema/portal';
 import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
@@ -763,6 +766,33 @@ portal: { subject: { field: 'client' }, fields: ['description', 'amount', 'dueDa
   disappears from their portal the moment it is saved.
 - Requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. An older kernel ignores the condition and
   would show every record, so the package gate refuses the package without it.
+
+#### Document links that expire — \`documentLinks\`
+
+A shared document reaches the guest as a link. Without this declaration it is the file's PERMANENT link:
+whoever keeps it opens the file forever, revoked invitation included. When what you deliver is evidence
+or secrecy — a tax notice, a medical report, a legal act —, ask for short-lived links instead:
+
+\`\`\`ts
+portal: { subject: { field: 'company' }, fields: ['number'], documents: true, documentLinks: { expiresInMinutes: 10 } }
+\`\`\`
+
+- Each time the guest opens a document, the server checks the invitation, the record and the share mark
+  NOW, and hands out a signed link valid for \`expiresInMinutes\` (1 to ${PORTAL_DOCUMENT_LINK_MAX_MINUTES};
+  anything else means ${PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES}). Revoking the invitation makes the links already
+  handed out useless as soon as they expire — no link outlives that window.
+- **Permanent links handed out before are replaced.** Turning it on starts a pass over the screen's records
+  that swaps the download token of every document that was ever shared; the office's own links follow
+  the new token. A document shared for the first time afterwards keeps its token — it never left.
+- A \`file\` field in \`fields\` stops reaching the portal: its value IS a permanent link. The package
+  gate does not refuse it; the organization's Portal tab says so.
+- Nothing changes for your views: \`usePortalDocuments().open\` already asks for the link at click time.
+- The functions sign with the service account they run as, which needs
+  \`iam.serviceAccounts.signBlob\` — the same permission \`microteia grant-signing\` grants for signing in.
+  Without it the guest cannot open documents of that screen, and the log of \`getPortalDocumentUrl\`
+  says why.
+- Requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\`. An older kernel ignores the declaration and
+  would hand guests the permanent link, so the package gate refuses the package without it.
 
 #### Links point at the collection
 
@@ -1846,7 +1876,7 @@ every member who reads the collection would read every record, so \`check\` refu
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
 | \`editWindow\` | how long after creation the record may still be changed — and, with \`delete: true\`, deleted. Its documents freeze with it. Enforced by the security rules, not only the form; see "Edit window" above |
 | \`memberVisibility\` | which members read EACH record: the ones it names in a member reference (\`userFields\`), plus whoever has \`bypassPermission\` — or the derived \`<collection>.${READ_ALL_ACTION}\`. Enforced by the security rules and every server path that hands a record to a person; see "Record visibility" above |
-| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10) |
+| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10). \`documentLinks: { expiresInMinutes }\` hands guests short-lived signed document links instead of the permanent one (section 4); requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\` |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 
 ### Option lists

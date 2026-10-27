@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { MarketplacePlugin, TemplateField } from '../../entities/MarketplacePlugin';
-import { PORTAL_VISIBLE_WHEN_SINCE_KERNEL } from '../../schema/portal';
+import {
+  PORTAL_DOCUMENT_LINKS_SINCE_KERNEL,
+  PORTAL_DOCUMENT_LINK_MAX_MINUTES,
+  PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
+} from '../../schema/portal';
 import { packagePortalIssues } from './pluginPortal';
 import { packageIssues } from './pluginReferences';
 
@@ -42,5 +46,33 @@ describe('visibleWhen no pacote', () => {
     expect(packagePortalIssues(pkg('kind == "revenue"'))).toEqual([
       { message: '@core.marketplace/issue.portal.visible-when.unknown', messageParams: { screen: 'entries', field: 'kind' } },
     ]);
+  });
+});
+
+describe('documentLinks no pacote', () => {
+  const withLinks = (documentLinks: { expiresInMinutes: number }, kernel = `^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}`): MarketplacePlugin => {
+    const base = pkg(undefined, kernel);
+    return { ...base, screens: base.screens!.map((screen) => ({ ...screen, portal: { ...screen.portal!, documents: true, documentLinks } })) };
+  };
+
+  it('com o kernel que a entende e a validade no intervalo, passa', () => {
+    expect(packagePortalIssues(withLinks({ expiresInMinutes: 15 }))).toEqual([]);
+  });
+
+  it('o kernel anterior é recusa: ele ignoraria a declaração e entregaria o link permanente', () => {
+    expect(packageIssues(withLinks({ expiresInMinutes: 15 }, '^2.76.0'))).toContainEqual({
+      message: '@core.marketplace/issue.portal.document-links.kernel',
+      messageParams: { screen: 'entries', minimum: PORTAL_DOCUMENT_LINKS_SINCE_KERNEL },
+    });
+  });
+
+  it('a validade fora de 1 a 60 minutos, ou não inteira, é recusa', () => {
+    const issue = {
+      message: '@core.marketplace/issue.portal.document-links.minutes',
+      messageParams: { screen: 'entries', maximum: String(PORTAL_DOCUMENT_LINK_MAX_MINUTES) },
+    };
+    expect(packagePortalIssues(withLinks({ expiresInMinutes: 0 }))).toEqual([issue]);
+    expect(packagePortalIssues(withLinks({ expiresInMinutes: 61 }))).toEqual([issue]);
+    expect(packagePortalIssues(withLinks({ expiresInMinutes: 2.5 }))).toEqual([issue]);
   });
 });

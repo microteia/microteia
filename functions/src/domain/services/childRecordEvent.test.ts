@@ -52,6 +52,17 @@ describe('childRecordEvent', () => {
       .toMatchObject({ changeType: 'updated', name: 'b' });
   });
 
+  it('a troca do token do link permanente não publica — o arquivo é o mesmo', () => {
+    const before = { name: 'a.pdf', url: 'https://f/a?token=old' };
+    const after = { name: 'a.pdf', url: 'https://f/a?token=new', portalLinkSeal: 'new' };
+    expect(childRecordEvent({ ...base, before, after })).toBeNull();
+  });
+
+  it('numa nota, `url` é dado como outro qualquer', () => {
+    const event = childRecordEvent({ ...base, kind: 'note', before: { url: 'a' }, after: { url: 'b' } });
+    expect(event?.payload.changeType).toBe('updated');
+  });
+
   it('pai apagado ou sem tela leva só o id', () => {
     expect(childRecordEvent({ ...base, parentData: null, before: null, after: { name: 'a' } })?.payload.parent)
       .toEqual({ id: 'p1' });

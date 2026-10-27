@@ -18,6 +18,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.166.0] — 2026-10-26
+
+- feat(portal): `portal.documentLinks: { expiresInMinutes }` — EV-12. `getPortalDocumentUrl` keeps its checks (invitation, `audience`, current subject keys, share mark, `portal.documents`) and, when the screen declares it, returns a V4 signed read URL (`IRecordDocumentLinks.sign` → `getSignedUrl`, `inline` disposition with the document name) valid for 1–60 minutes (anything else falls back to 10, never to the permanent link) instead of the document's permanent `url`. Revoking an invitation makes already-issued links useless once they expire, with no per-guest state. Without the declaration nothing changes and nothing is written.
+- feat(portal): download-token SEAL on record documents (`portalLinkSeal`, `functions/src/domain/services/recordDocumentLinks.ts`): sealed = the token in `url` never reached a guest; pending = a rotation chose a token and has not finished. Turning `documentLinks` on is part of `portalShape`, so the existing reprojection pass rotates — in every record of the collection, projected or not — the token of every document ever shared (`portalSharedAt` present, including unshared ones): token chosen in a transaction, then `setMetadata`, then `url`; concurrent rotations converge on the same token. A document shared for the first time on a signed screen is sealed without rotation (`projectPortalDocument` now receives `before`); handing the permanent link out on an unsigned screen removes the seal first. Rotation writes (`url`, `portalLinkSeal` = `RECORD_DOCUMENT_LINK_STAMPS`) publish no `document.saved` and write no audit line (documents only).
+- feat(portal): an exposed `file` field is withheld from the projection and from the shell context on a signed screen (`portalWithheldFileFields`) — its value is a permanent link. The Form Design Portal tab gets the toggle and the minutes, and refuses to save while a `file` field is exposed or the minutes are out of range.
+- feat(kernel): `KERNEL_VERSION` 2.77.0. `PORTAL_DOCUMENT_LINKS_SINCE_KERNEL`; a package declaring `documentLinks` without `kernel: "^2.77.0"` is refused (`issue.portal.document-links.kernel`) — an older kernel would drop the key and hand guests the permanent link — and so is `expiresInMinutes` outside 1–60 (`issue.portal.document-links.minutes`). AUTHORING §4 documents it.
+- refactor(documents): `recordDocumentStoragePath` extracted from the hash stamper; signing and rotation only touch a path inside the record's own folder.
+- docs(kernel/manifest): `portal-identity-signing` covers the third use of `iam.serviceAccounts.signBlob`. Without it signing fails closed and the log of `getPortalDocumentUrl` points to `microteia grant-signing`.
+- Deploy: `deploy:portal`, `deploy:workflow` (`onDocumentChange`) and `deploy:audit` (`auditNestedEntityChange`). No rules or index change.
+
 #### [9.165.1] — 2026-10-26
 
 - docs(kernel/manifest): the manual prerequisite `portal-identity-signing` points to `microteia grant-signing` (Console 2.31.0 or newer) before the manual `gcloud` commands, and says `microteia deploy` reports when the permission is missing. No runtime change.

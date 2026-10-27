@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.31.1] — 2026-10-26
+
+- docs(kernel/manifest): the optional prerequisite `portal-identity-signing` now names a third feature that signs with the functions' runtime account: a portal screen declaring `documentLinks` hands guests V4 signed URLs, and without `iam.serviceAccounts.signBlob` the guest cannot open its documents (the denial shows in the log of `getPortalDocumentUrl`). `microteia grant-signing` grants the same permission for all three.
+
 #### [2.31.0] — 2026-10-26
 
 - feat(grant-signing): new command. Portal sign-in through an identity provider and member two-step verification open sessions with `createCustomToken`, which needs the functions' runtime account to sign (`iam.serviceAccounts.signBlob`). `microteia grant-signing` reads the account the functions actually run as (`gcloud functions describe secondFactor`; the default compute account only when that function is not deployed), checks whether `iamcredentials.googleapis.com` is enabled and whether the account holds `roles/iam.serviceAccountTokenCreator` on itself without a condition, prints the missing `gcloud` steps, asks before running them, and reads the state again afterwards. `--check` only reads; `--yes` skips the question; without a terminal and without `--yes` it refuses. A permission error names the roles needed and hands over the commands.

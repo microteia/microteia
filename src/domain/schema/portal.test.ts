@@ -13,6 +13,7 @@ import {
   portalOwnerOf,
   parsePortalSubjectKey,
   portalDeclarationIssues,
+  portalDocumentLinkMinutes,
   portalExposedTitle,
   portalFieldKeys,
   portalUploadTypes,
@@ -415,5 +416,46 @@ describe('visibilidade por registro — visibleWhen', () => {
     expect(portalDeclarationIssues(screen, [company, screen])).toContainEqual(
       { message: '@core.records/portal.issue.edit.when.field.unknown', messageParams: { field: 'stage' } },
     );
+  });
+});
+
+describe('link curto de documento — documentLinks', () => {
+  const signed = (documentLinks: unknown, fields = ['number', 'receipt']): PortalScreenLike => ({
+    ...invoice,
+    fields: [...invoice.fields, { key: 'receipt', type: 'file' }],
+    portal: asPortalDeclaration({ subject: { field: 'companyId' }, fields, documents: true, documentLinks }),
+  });
+
+  it('ausente, a tela entrega o link permanente — o comportamento de antes', () => {
+    expect(asPortalDeclaration({ subject: 'self', fields: ['name'] })).not.toHaveProperty('documentLinks');
+    expect(portalDocumentLinkMinutes(company)).toBeNull();
+  });
+
+  it('a validade declarada vale; a inválida cai na padrão, nunca no link permanente', () => {
+    expect(portalDocumentLinkMinutes(signed({ expiresInMinutes: 5 }))).toBe(5);
+    expect(portalDocumentLinkMinutes(signed({}))).toBe(10);
+    expect(portalDocumentLinkMinutes(signed({ expiresInMinutes: 0 }))).toBe(10);
+    expect(portalDocumentLinkMinutes(signed({ expiresInMinutes: 61 }))).toBe(10);
+    expect(portalDocumentLinkMinutes(signed({ expiresInMinutes: '5' }))).toBe(10);
+  });
+
+  it('o que não é objeto não liga a declaração', () => {
+    expect(asPortalDeclaration({ subject: 'self', fields: ['name'], documentLinks: true })).not.toHaveProperty('documentLinks');
+    expect(asPortalDeclaration({ subject: 'self', fields: ['name'], documentLinks: [] })).not.toHaveProperty('documentLinks');
+  });
+
+  it('o valor do campo de arquivo exposto não sai na projeção', () => {
+    const data = { number: 'NF-1', receipt: 'https://files/x?token=t' };
+    expect(projectPortalData(signed({ expiresInMinutes: 5 }), data)).toEqual({ number: 'NF-1' });
+    expect(projectPortalData({ ...signed({ expiresInMinutes: 5 }), portal: { ...signed({}).portal!, documentLinks: null } }, data))
+      .toEqual(data);
+  });
+
+  it('a aba avisa da validade fora do intervalo e do campo de arquivo que não vai sair', () => {
+    expect(portalDeclarationIssues(signed({ expiresInMinutes: 90 }), [company])).toEqual([
+      { message: '@core.records/portal.issue.document-links.minutes', messageParams: { maximum: '60' } },
+      { message: '@core.records/portal.issue.document-links.file-field', messageParams: { field: 'receipt' } },
+    ]);
+    expect(portalDeclarationIssues(signed({ expiresInMinutes: 5 }, ['number']), [company])).toEqual([]);
   });
 });

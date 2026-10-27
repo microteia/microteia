@@ -36,11 +36,14 @@ import {
   portalUploadTypes,
   PORTAL_UPLOAD_MAX_BYTES,
   parsePortalSubjectKey,
+  portalDocumentLinkMinutes,
   portalFieldKeys,
   portalRecordDocId,
   portalSubjectKey,
   portalTargetScreen,
+  portalWithheldFileFields,
 } from '../schema/portal';
+import type { IRecordDocumentLinks } from '../repositories/IRecordDocumentLinks';
 import { isValidPortalSubject } from './PortalProjectionUseCases';
 import type { IPortalIdentityConfigRepository, IPortalIdentityRepository, PortalIdentityInvite } from '../repositories/IPortalIdentity';
 import { asPortalRequiredClaim, portalAttestedClaims, portalClaimKey } from '../schema/portalIdentity';
@@ -376,8 +379,16 @@ export type GetPortalDocumentUrlUseCase = {
  * daqui para quem passou pelas três.
  *
  * Toda recusa é a mesma: dizer qual das três faltou ajudaria a descobrir o que existe no escritório.
+ *
+ * Com `portal.documentLinks`, a URL é ASSINADA e vence em minutos: revogar o convite torna inútil a que
+ * já saiu assim que ela vence. Sem a declaração, sai o link permanente — e, se o token dele estava
+ * selado, o selo cai antes: ele deixou de ser um token que nunca saiu (`recordDocumentLinks`).
  */
-export const makeGetPortalDocumentUrlUseCase = (repo: IPortalRepository): GetPortalDocumentUrlUseCase => ({
+export const makeGetPortalDocumentUrlUseCase = (
+  repo: IPortalRepository,
+  links: IRecordDocumentLinks,
+  now: () => Date = () => new Date(),
+): GetPortalDocumentUrlUseCase => ({
   execute: async ({ tenantId, userId, projectionId, documentId }) => {
     const denied = permissionDenied('@core.tenant/portal.document.unavailable');
     const guest = activeGuest(await repo.getPortalUser(tenantId, userId));
@@ -392,8 +403,30 @@ export const makeGetPortalDocumentUrlUseCase = (repo: IPortalRepository): GetPor
     if (screen?.portal?.documents !== true) throw denied;
 
     const document = await repo.getRecordDocument(tenantId, projection.collection, projection.recordId, documentId);
-    if (!document || !document.portalShared || !document.url) throw denied;
-    return document.url;
+    if (!document || !document.portalShared) throw denied;
+    const ref = { tenantId, collection: projection.collection, recordId: projection.recordId, documentId };
+
+    const minutes = portalDocumentLinkMinutes(screen);
+    if (minutes === null) {
+      if (!document.url) throw denied;
+      // Sem tirar o selo, a próxima vez que a tela ligar o link curto não trocaria este token.
+      if (document.link !== 'unsealed') await links.unseal(ref);
+      return document.url;
+    }
+
+    if (!document.storagePath) throw denied;
+    if (document.link !== 'sealed') {
+      // O token permanente pode ter saído antes da declaração: trocá-lo aqui adianta a passada. A falha
+      // não segura o link curto — ele não depende do token —, e a passada tenta de novo.
+      await links.rotate(ref).catch((error: unknown) => {
+        console.error(`[portal] Falha ao trocar o token de ${projection.collection}/${projection.recordId}/${documentId}:`, error);
+      });
+    }
+    return links.sign({
+      storagePath: document.storagePath,
+      fileName: document.name,
+      expiresAt: new Date(now().getTime() + minutes * 60_000),
+    });
   },
 });
 
@@ -631,7 +664,9 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
       tenantName: tenant.name,
       logoURL: tenant.logoURL,
       screens: screens.map((screen) => {
-        const exposed = new Set(portalFieldKeys(screen));
+        // O campo `file` de uma tela com link curto não sai na projeção: anunciá-lo seria uma coluna vazia.
+        const withheld = new Set(portalWithheldFileFields(screen));
+        const exposed = new Set(portalFieldKeys(screen).filter((key) => !withheld.has(key)));
         const fillable = new Set(portalCreateFieldKeys(screen));
         const editable = new Set(portalEditFieldKeys(screen));
         const link = portalLinkOf(screen);

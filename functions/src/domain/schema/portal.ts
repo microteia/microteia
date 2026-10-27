@@ -58,6 +58,17 @@ export const PORTAL_GUEST_NOTIFY_SINCE_KERNEL = '2.63.0';
 export const PORTAL_AUTOMATION_INVITES_SINCE_KERNEL = '2.73.0';
 
 /**
+ * O kernel a partir do qual `documentLinks` é lido. Um kernel anterior DESCARTA a chave e entrega ao
+ * convidado o link PERMANENTE do arquivo — o contrário do que a declaração pediu. Por isso o pacote que a
+ * usa tem de exigir este kernel.
+ */
+export const PORTAL_DOCUMENT_LINKS_SINCE_KERNEL = '2.77.0';
+
+/** Validade do link curto quando a declaração não diz outra, e o teto que ela pode pedir. */
+export const PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES = 10;
+export const PORTAL_DOCUMENT_LINK_MAX_MINUTES = 60;
+
+/**
  * Quantos convites NOVOS as automações de um escritório fazem por hora, somadas. O convite que já
  * existia não conta. É freio de abuso e de laço — uma automação que regrava o próprio registro —, não
  * de uso: o credenciamento em massa passa, em levas.
@@ -137,6 +148,19 @@ export interface PortalDeclaration {
    * `portal` só é gravada por quem tem `portal.manage` (ou instala o pacote), e a regra já cobra isso.
    */
   invites?: { automation: boolean } | null;
+  /**
+   * O convidado recebe link CURTO de documento — assinado, válido por `expiresInMinutes`, emitido a cada
+   * abertura depois de conferir convite, registro e marca —, nunca o link permanente do arquivo. Revogar
+   * o convite torna inúteis os links já emitidos assim que vencem. Ausente, vale o link permanente.
+   *
+   * Ligada, também tira da projeção o valor dos campos `file` expostos: ele É um link permanente.
+   */
+  documentLinks?: PortalDocumentLinksDeclaration | null;
+}
+
+export interface PortalDocumentLinksDeclaration {
+  /** 1 a `PORTAL_DOCUMENT_LINK_MAX_MINUTES`; fora disso, `PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES`. */
+  expiresInMinutes: number;
 }
 
 export interface PortalEditDeclaration {
@@ -244,6 +268,15 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     }
     : null;
 
+  const rawLinks = raw.documentLinks as Record<string, unknown> | null | undefined;
+  const documentLinks = rawLinks && typeof rawLinks === 'object' && !Array.isArray(rawLinks)
+    ? {
+      expiresInMinutes: typeof rawLinks.expiresInMinutes === 'number'
+        ? rawLinks.expiresInMinutes
+        : PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES,
+    }
+    : null;
+
   return {
     subject,
     fields,
@@ -254,7 +287,24 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ...(edit ? { edit } : {}),
     ...(raw.notifyOffice === false ? { notifyOffice: false } : {}),
     ...(invites ? { invites } : {}),
+    ...(documentLinks ? { documentLinks } : {}),
   };
+};
+
+const isValidDocumentLinkMinutes = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= PORTAL_DOCUMENT_LINK_MAX_MINUTES;
+
+/**
+ * A validade pedida, ou a padrão. A validade inválida NÃO desliga o link curto: quem escreveu a chave
+ * pediu que nada permanente saísse, e errar o número não pode entregar o contrário.
+ */
+const documentLinkMinutesOf = (value: unknown): number =>
+  isValidDocumentLinkMinutes(value) ? value : PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES;
+
+/** Os minutos de validade do link de documento desta tela — `null` quando ela entrega o link permanente. */
+export const portalDocumentLinkMinutes = (screen: PortalScreenLike): number | null => {
+  const links = screen.portal?.documentLinks;
+  return links ? documentLinkMinutesOf(links.expiresInMinutes) : null;
 };
 
 /**
@@ -426,14 +476,26 @@ export const portalFieldKeys = (screen: PortalScreenLike): string[] => {
   return (screen.portal?.fields ?? []).filter((key) => declared.has(key));
 };
 
+/**
+ * Os campos `file` expostos de uma tela com link curto. O valor deles é a URL permanente do arquivo, e
+ * com `documentLinks` ela não sai: o convidado que a guardasse continuaria abrindo o arquivo depois de
+ * ter o convite revogado.
+ */
+export const portalWithheldFileFields = (screen: PortalScreenLike): string[] => {
+  if (portalDocumentLinkMinutes(screen) === null) return [];
+  const exposed = new Set(portalFieldKeys(screen));
+  return screen.fields.filter((field) => field.type === 'file' && exposed.has(field.key)).map((field) => field.key);
+};
+
 /** Só os campos expostos. É a única porta por onde dado do registro sai para o portal. */
 export const projectPortalData = (
   screen: PortalScreenLike,
   data: Record<string, unknown>,
 ): Record<string, unknown> => {
+  const withheld = new Set(portalWithheldFileFields(screen));
   const projected: Record<string, unknown> = {};
   for (const key of portalFieldKeys(screen)) {
-    if (data[key] !== undefined) projected[key] = data[key];
+    if (data[key] !== undefined && !withheld.has(key)) projected[key] = data[key];
   }
   return projected;
 };
@@ -551,6 +613,27 @@ export const portalVisibilityIssues = (screen: PortalScreenLike): PortalDeclarat
   });
 
 /**
+ * Os problemas de `documentLinks`. Nenhum deles abre o que a declaração fechou — no servidor, a validade
+ * inválida cai na padrão, e o campo `file` simplesmente não sai —, mas o escritório não deveria
+ * descobri-los pelo portal: a aba os mostra antes de gravar.
+ */
+export const portalDocumentLinkIssues = (screen: PortalScreenLike): PortalDeclarationIssue[] => {
+  const links = screen.portal?.documentLinks;
+  if (!links) return [];
+  const issues: PortalDeclarationIssue[] = [];
+  if (!isValidDocumentLinkMinutes(links.expiresInMinutes)) {
+    issues.push({
+      message: '@core.records/portal.issue.document-links.minutes',
+      messageParams: { maximum: String(PORTAL_DOCUMENT_LINK_MAX_MINUTES) },
+    });
+  }
+  for (const field of portalWithheldFileFields(screen)) {
+    issues.push({ message: '@core.records/portal.issue.document-links.file-field', messageParams: { field } });
+  }
+  return issues;
+};
+
+/**
  * O que impede a declaração de entregar algo a alguém — conferido ANTES de gravar, para que o
  * escritório saiba na hora. O servidor, diante da mesma declaração, simplesmente não projeta nada: é
  * a resposta fechada, e calada. Aqui ela ganha voz.
@@ -574,6 +657,8 @@ export const portalDeclarationIssues = (
   if (portal.uploads && portal.documents !== true) {
     issues.push({ message: '@core.records/portal.issue.uploads.documents' });
   }
+
+  issues.push(...portalDocumentLinkIssues(screen));
 
   if (portal.invites?.automation && portal.subject !== 'self') {
     issues.push({ message: '@core.records/portal.issue.invites.not-subject' });

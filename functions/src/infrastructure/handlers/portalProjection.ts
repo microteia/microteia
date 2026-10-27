@@ -42,7 +42,9 @@ export const projectPortalDocument = onDocumentWritten(
     try {
       const after = event.data?.after;
       const data = after?.exists ? (after.data() as Record<string, unknown>) : null;
-      await getDI().getProjectPortalDocumentUseCase().execute({ tenantId, collection, recordId, documentId, data });
+      const previous = event.data?.before;
+      const before = previous?.exists ? (previous.data() as Record<string, unknown>) : null;
+      await getDI().getProjectPortalDocumentUseCase().execute({ tenantId, collection, recordId, documentId, data, before });
     } catch (error) {
       console.error(`[portal] Falha ao projetar o documento ${tenantId}/${collection}/${recordId}/${documentId}:`, error);
     }
