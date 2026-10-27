@@ -36,6 +36,14 @@ export const makeGetPortalDocumentUrlUseCase = (repo: IPortalRepository): GetPor
   execute: (tenantId, projectionId, documentId) => repo.getDocumentUrl(tenantId, projectionId, documentId),
 });
 
+export type RecordPortalViewUseCase = {
+  execute: (tenantId: string, projectionId: string) => Promise<void>;
+};
+
+export const makeRecordPortalViewUseCase = (repo: IPortalRepository): RecordPortalViewUseCase => ({
+  execute: (tenantId, projectionId) => repo.recordView(tenantId, projectionId),
+});
+
 export type InvitePortalGuestUseCase = {
   execute: (
     tenantId: string,

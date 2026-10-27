@@ -1221,5 +1221,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // A marca da última abertura registrada de um convidado num registro de tela com
+    // `portal.trackViews` — o freio de uma linha de Auditoria e um evento por janela. De RAIZ porque uma
+    // gravação sob `tenants/{t}` acordaria os gatilhos de toda coleção; FECHADA porque quem a apagasse
+    // registraria a mesma abertura quantas vezes quisesse, e quem a escrevesse silenciaria a próxima.
+    // Só as callables `recordPortalView` e `getPortalDocumentUrl` a tocam.
+    match /portalViewMarks/{markId} {
+      allow read, write: if false;
+    }
+
   }
 }

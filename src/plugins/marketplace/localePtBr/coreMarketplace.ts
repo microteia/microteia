@@ -404,6 +404,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'a automação roda quando uma data chega, e o relógio não consegue rodá-la: {detail} Ela seria instalada ligada e nunca dispararia.',
   'issue.workflow.trigger-kernel':
     'a automação é disparada por "{event}", que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de instalar uma automação que nunca dispara.',
+  'issue.workflow.portal-viewed.untracked':
+    'a automação é disparada por "{event}", mas a tela "{screen}" não registra as aberturas no portal — declare `portal: { ..., trackViews: true }` nela. Sem isso o evento nunca é publicado, e a automação instalaria ligada e nunca dispararia.',
   'issue.step.excluded-trigger':
     'o passo "{step}" ({definition}) não pode compor uma automação disparada por "{event}" — o próprio passo declara que realimentaria esse gatilho. Remova-o, ou dispare a automação por outro evento.',
   'issue.step.delay-nested':
@@ -464,6 +466,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.portal.visible-when.kernel': 'A tela "{screen}" limita quais registros chegam ao portal (`visibleWhen`), o que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo ignora a condição e mostraria todos os registros.',
   'issue.portal.document-links.kernel': 'A tela "{screen}" entrega ao convidado do portal links curtos de documento (`documentLinks`), o que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo ignora a declaração e entregaria ao convidado o link permanente.',
   'issue.portal.document-links.minutes': 'A tela "{screen}" declara `documentLinks.expiresInMinutes` fora de 1 a {maximum}. Informe um número inteiro de minutos nesse intervalo.',
+  'issue.portal.track-views.kernel': 'A tela "{screen}" registra quando o convidado do portal abre os registros dela (`trackViews`), o que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo ignora a declaração: nada seria registrado, e nada diria isso.',
   'issue.edit-window.shape': 'A janela de edição (`editWindow`) da tela "{screen}" precisa ser um objeto: `{ minutes, delete? }`.',
   'issue.edit-window.minutes': 'A janela de edição (`editWindow`) da tela "{screen}" precisa de `minutes` como número inteiro maior que zero.',
   'issue.edit-window.delete': 'A janela de edição (`editWindow`) da tela "{screen}" tem um `delete` que não é verdadeiro nem falso.',

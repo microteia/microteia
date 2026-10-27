@@ -43,6 +43,11 @@ export interface IPortalRepository {
   getDocuments(tenantId: string, projectionId: string): Promise<PortalDocument[]>;
   getDocumentUrl(tenantId: string, projectionId: string, documentId: string): Promise<string>;
   /**
+   * Avisa o servidor de que o convidado abriu este registro — só para a tela que declara
+   * `portal.trackViews`. A leitura da projeção é direta, e o servidor não a vê de outro jeito.
+   */
+  recordView(tenantId: string, projectionId: string): Promise<void>;
+  /**
    * Anexa um documento pelo portal: o arquivo vai para a área de espera do convidado, e a callable o
    * confere e o leva ao registro. Não existe o gesto inverso.
    */

@@ -41,9 +41,11 @@ import {
   portalRecordDocId,
   portalSubjectKey,
   portalTargetScreen,
+  portalTracksViews,
   portalWithheldFileFields,
 } from '../schema/portal';
 import type { IRecordDocumentLinks } from '../repositories/IRecordDocumentLinks';
+import type { TrackPortalView } from './PortalViewUseCases';
 import { isValidPortalSubject } from './PortalProjectionUseCases';
 import type { IPortalIdentityConfigRepository, IPortalIdentityRepository, PortalIdentityInvite } from '../repositories/IPortalIdentity';
 import { asPortalRequiredClaim, portalAttestedClaims, portalClaimKey } from '../schema/portalIdentity';
@@ -388,6 +390,7 @@ export const makeGetPortalDocumentUrlUseCase = (
   repo: IPortalRepository,
   links: IRecordDocumentLinks,
   now: () => Date = () => new Date(),
+  track?: TrackPortalView,
 ): GetPortalDocumentUrlUseCase => ({
   execute: async ({ tenantId, userId, projectionId, documentId }) => {
     const denied = permissionDenied('@core.tenant/portal.document.unavailable');
@@ -400,11 +403,26 @@ export const makeGetPortalDocumentUrlUseCase = (
 
     const screens = await repo.getScreens(tenantId);
     const screen = screens.find((one) => one.collection === projection.collection && one.portal);
-    if (screen?.portal?.documents !== true) throw denied;
+    if (!screen || screen.portal?.documents !== true) throw denied;
 
     const document = await repo.getRecordDocument(tenantId, projection.collection, projection.recordId, documentId);
     if (!document || !document.portalShared) throw denied;
     const ref = { tenantId, collection: projection.collection, recordId: projection.recordId, documentId };
+
+    // Registrar vem ANTES de entregar, e a falha segura a entrega: a tela pediu que todo acesso ao
+    // documento ficasse registrado, e a URL é a única porta para ele — não há "abriu sem registro".
+    if (portalTracksViews(screen)) {
+      if (!track) throw denied;
+      await track({
+        tenantId,
+        userId,
+        email: guest.email,
+        screen,
+        recordId: projection.recordId,
+        projectionId,
+        document: { id: documentId, name: document.name, type: document.type },
+      });
+    }
 
     const minutes = portalDocumentLinkMinutes(screen);
     if (minutes === null) {
@@ -430,6 +448,43 @@ export const makeGetPortalDocumentUrlUseCase = (
   },
 });
 
+export type RecordPortalViewUseCase = {
+  execute: (input: { tenantId: string; userId: string; projectionId: string }) => Promise<{ recorded: boolean }>;
+};
+
+/**
+ * A casca do portal avisa que o convidado ABRIU um registro. A projeção é lida direto do Firestore — o
+ * servidor não vê a leitura —, e por isso a abertura chega por aqui, conferida como o documento é: o
+ * convite está vivo, o registro está no `audience` dele e entre os sujeitos do convite AGORA.
+ *
+ * A tela que não declara `trackViews` responde `recorded: false` sem gravar nada. Não é recusa: o
+ * convidado enxerga o registro, e dizer que não há registro de acesso não revela nada do escritório.
+ */
+export const makeRecordPortalViewUseCase = (
+  repo: IPortalRepository,
+  track: TrackPortalView,
+): RecordPortalViewUseCase => ({
+  execute: async ({ tenantId, userId, projectionId }) => {
+    const denied = permissionDenied('@core.tenant/portal.record.unavailable');
+    const guest = activeGuest(await repo.getPortalUser(tenantId, userId));
+    if (!guest) throw denied;
+
+    const projection = await repo.getProjection(tenantId, projectionId);
+    if (!projection || !guestSees(guest, projection)) throw denied;
+    if (portalRecordDocId(projection.collection, projection.recordId) !== projectionId) throw denied;
+
+    const screens = await repo.getScreens(tenantId);
+    const screen = screens.find((one) => one.collection === projection.collection && one.portal);
+    if (!screen) throw denied;
+    if (!portalTracksViews(screen)) return { recorded: false };
+
+    const outcome = await track({
+      tenantId, userId, email: guest.email, screen, recordId: projection.recordId, projectionId, document: null,
+    });
+    return { recorded: outcome === 'recorded' };
+  },
+});
+
 export interface PortalContextScreen {
   id: string;
   /** O convidado anexa documentos aqui — escolhendo o tipo entre estes, nunca criando um. */
@@ -451,6 +506,8 @@ export interface PortalContextScreen {
   titlePlural: string;
   icon: string;
   documents: boolean;
+  /** A casca avisa o servidor quando o convidado abre um registro desta tela (`portal.trackViews`). */
+  trackViews: boolean;
   fields: PortalScreen['fields'];
 }
 
@@ -689,6 +746,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
           titlePlural: resolve(screen.titlePlural),
           icon: screen.icon,
           documents: screen.portal?.documents === true,
+          trackViews: portalTracksViews(screen),
           fields: screen.fields
             .filter((field) => exposed.has(field.key))
             .map((field) => ({

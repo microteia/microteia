@@ -187,7 +187,9 @@ export const usePortalViewModel = (): PortalViewModel => {
   const [documentsRevision, setDocumentsRevision] = useState(0);
   const [tabChoice, setTabChoice] = useState<{ recordId: string; tab: string }>({ recordId: '', tab: '' });
 
-  const { memberships, membershipsLoading, selectTenant, getDocuments, getDocumentUrl, recordsByCollection, isCollectionLoading } = portal;
+  const {
+    memberships, membershipsLoading, selectTenant, getDocuments, getDocumentUrl, recordView, recordsByCollection, isCollectionLoading,
+  } = portal;
   const screens = useMemo(() => portal.context?.screens ?? [], [portal.context]);
 
   useEffect(() => {
@@ -231,6 +233,14 @@ export const usePortalViewModel = (): PortalViewModel => {
 
   const topRecordId = topRecord?.id ?? null;
   const exposesDocuments = topScreen?.documents === true;
+  const tracksViews = topScreen?.trackViews === true;
+
+  // A abertura conta quando o registro CHEGA à tela — a casca nativa ou a view de extensão de detalhe.
+  // Quem decide se é a mesma abertura de há pouco é o servidor; a falha não atrapalha o convidado.
+  useEffect(() => {
+    if (!topRecordId || !tracksViews) return;
+    recordView(topRecordId).catch(() => undefined);
+  }, [topRecordId, tracksViews, recordView]);
 
   useEffect(() => {
     if (!topRecordId || !exposesDocuments) return;

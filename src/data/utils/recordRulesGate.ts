@@ -15,6 +15,7 @@ import { planRecordKeys } from '../../domain/schema/recordKeys';
 import { declaredRecordKeySignatures } from '../../domain/schema/recordKeyAdoption';
 import { readEditWindow, resolveEditWindow } from '../../domain/schema/editWindow';
 import { readMemberVisibility } from '../../domain/schema/memberVisibility';
+import { asPortalDeclaration } from '../../domain/schema/portal';
 import type { ResolvedEditWindow } from '../../domain/schema/editWindow';
 import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
 import { applyDerivedFields, collectFieldLogicTargets, formatAndValidateRecord } from '../../domain/schema/recordRules';
@@ -169,6 +170,7 @@ export const toSchemaScreens = (
     eventPrefix?: string | null;
     hasDocuments?: boolean;
     hasNotes?: boolean;
+    portal?: unknown;
     origin?: FieldOrigin;
     editWindow?: unknown;
     memberWritableFields?: string[] | null;
@@ -188,6 +190,7 @@ export const toSchemaScreens = (
     eventPrefix: definition.eventPrefix,
     hasDocuments: definition.hasDocuments,
     hasNotes: definition.hasNotes,
+    tracksPortalViews: asPortalDeclaration(definition.portal)?.trackViews === true,
     origin: definition.origin,
     editWindow: readEditWindow(definition.editWindow),
     memberWritableFields: definition.memberWritableFields ?? null,

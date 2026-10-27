@@ -2,6 +2,7 @@ import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/Mar
 import {
   PORTAL_DOCUMENT_LINKS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
+  PORTAL_TRACK_VIEWS_SINCE_KERNEL,
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
   asPortalDeclaration,
   portalVisibilityIssues,
@@ -77,8 +78,24 @@ const documentLinkIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
   return [...minutes, ...kernel];
 };
 
+/**
+ * O `trackViews` das telas do pacote num kernel que o descarta: nenhuma abertura seria registrada, e a
+ * automação que escuta `<prefixo>.portalViewed` nunca rodaria — calada, que é o pior jeito de falhar
+ * para quem declarou justamente para ter prova.
+ */
+const trackViewsIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
+  const tracked = (pkg.screens ?? []).find((screen) => asPortalDeclaration(screen.portal)?.trackViews === true);
+  return tracked && !rangeExcludesBelow(pkg.manifest.kernel ?? '', PORTAL_TRACK_VIEWS_SINCE_KERNEL)
+    ? [{
+      message: '@core.marketplace/issue.portal.track-views.kernel',
+      messageParams: { screen: tracked.key, minimum: PORTAL_TRACK_VIEWS_SINCE_KERNEL },
+    }]
+    : [];
+};
+
 /** O que o portal das telas do pacote declara e o kernel exigido não sustenta — cada um, uma recusa. */
 export const packagePortalIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...visibleWhenIssues(pkg),
   ...documentLinkIssues(pkg),
+  ...trackViewsIssues(pkg),
 ];

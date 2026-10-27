@@ -84,6 +84,8 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'portal.issue.uploads.documents': 'Guests can only attach documents on a screen that shows documents in the portal.',
   'portal.document-links': 'Give guests short-lived document links',
   'portal.document-links.hint': 'Each time a guest opens a document, a new link is issued after checking their access, and it stops working after the minutes below. Revoking an invitation makes the links already issued useless once they expire. Permanent links handed out before are replaced.',
+  'portal.track-views': 'Record when a guest opens a record or a document',
+  'portal.track-views.hint': 'The server writes an Audit trail entry and fires the "Opened in the portal" automation trigger, with the guest and the time. A document is only delivered after it is recorded. The record itself is not changed, and opening the same item again within {minutes} minutes is recorded once.',
   'portal.document-links.minutes': 'Minutes a link stays valid',
   'portal.issue.document-links.minutes': 'A link must be valid for a whole number of minutes, from 1 to {maximum}.',
   'portal.issue.document-links.file-field': 'The file field "{field}" cannot be shown in the portal with short-lived links: its value is a permanent link. Stop showing it, or turn short-lived links off.',

@@ -11,10 +11,11 @@ import {
   eventNameToEntityKey,
   eventNameToRoot,
   getWorkflowEventFields,
+  portalViewedEventName,
   workflowParametersToRoot,
   workflowParametersToFieldOptions,
 } from './eventCatalog';
-import { createSchemaContext, resolvePath, parsePath } from './pathResolver';
+import { createSchemaContext, resolvePath, parsePath, suggestNextSegments } from './pathResolver';
 import { resolveLabel } from './i18n/messageRef';
 import type { MessageCatalog, MessageParams } from './i18n/messages';
 import type { WorkflowParameter } from '../entities/Workflow';
@@ -261,6 +262,70 @@ describe('eventos de nota e documento de qualquer tela', () => {
     expect(getWorkflowEventFields('order_note.deleted', ctx).map((field) => field.path))
       .toEqual(expect.arrayContaining(['title', 'text', 'parent.code']));
     expect(getWorkflowEventFields('unknown_note.saved', ctx)).toEqual([]);
+  });
+});
+
+describe('abertura pelo portal — `<prefixo>.portalViewed`', () => {
+  const screens = [
+    {
+      id: 'notificacoes',
+      collection: 'notices',
+      eventPrefix: 'notice',
+      titleSingular: 'Notificação',
+      titleFieldKey: 'number',
+      tracksPortalViews: true,
+      fields: [
+        { key: 'number', label: 'Número', type: 'text' as const, required: true, order: 0, origin: 'plugin' as const },
+        { key: 'readAt', label: 'Lida em', type: 'date' as const, required: false, order: 1, origin: 'plugin' as const },
+      ],
+    },
+    {
+      id: 'medico',
+      titleSingular: 'Médico',
+      titleFieldKey: 'name',
+      fields: [{ key: 'name', label: 'Nome', type: 'text' as const, required: true, order: 0, origin: 'design' as const }],
+    },
+  ];
+  const ctx = createSchemaContext(screens);
+
+  it('é um gatilho de registro, com o prefixo da tela', () => {
+    expect(portalViewedEventName('notice')).toBe('notice.portalViewed');
+    expect(splitEntityEventName('notice.portalViewed')).toEqual({ prefix: 'notice', action: 'portalViewed' });
+  });
+
+  it('o catálogo o oferece só à coleção cuja tela registra as aberturas', () => {
+    const names = buildWorkflowEventCatalog(ctx).map((e) => e.name);
+    expect(names).toContain('notice.portalViewed');
+    expect(names).not.toContain('medico.portalViewed');
+  });
+
+  it('a tela que registra pode não ser a dona do nome da coleção — vale a coleção', () => {
+    const merged = createSchemaContext([
+      { id: 'notices', titleSingular: 'notices', titleFieldKey: '', fields: [] },
+      ...screens,
+    ]);
+    expect(merged.screens.get('notices')?.tracksPortalViews).toBe(true);
+  });
+
+  it('o payload é o registro mais `portalView`, sem `old` — e os caminhos resolvem com o tipo certo', () => {
+    const paths = getWorkflowEventFields('notice.portalViewed', ctx).map((field) => field.path);
+    expect(paths).toEqual(expect.arrayContaining([
+      'id', 'number', 'readAt', 'portalView.at', 'portalView.email', 'portalView.documentId', 'portalView.documentName',
+      'portalView.documentType',
+    ]));
+    expect(paths).not.toContain('old');
+    const root = eventNameToRoot('notice.portalViewed', ctx)!;
+    expect(resolvePath(ctx, root, parsePath('portalView.at')).node).toMatchObject({ kind: 'scalar', type: 'date' });
+    expect(resolvePath(ctx, root, parsePath('number')).node).toMatchObject({ kind: 'scalar' });
+    expect(resolvePath(ctx, root, parsePath('readAt.portalView')).valid).toBe(false);
+  });
+
+  it('o editor sugere `portalView` só na raiz', () => {
+    const root = eventNameToRoot('notice.portalViewed', ctx)!;
+    expect(suggestNextSegments(ctx, root, []).map((one) => one.insertText)).toEqual(expect.arrayContaining(['id', 'number', 'portalView']));
+    expect(suggestNextSegments(ctx, root, parsePath('portalView')).map((one) => one.insertText))
+      .toEqual(['at', 'email', 'documentId', 'documentName', 'documentType']);
+    expect(suggestNextSegments(ctx, eventNameToRoot('notice.saved', ctx)!, []).map((one) => one.insertText)).not.toContain('portalView');
   });
 });
 

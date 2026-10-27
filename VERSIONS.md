@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.168.0] — 2026-10-27
+
+- Novo, na aba Portal de cada tela: o escritório pode registrar quando o cliente abre um registro ou um documento no portal. Cada abertura vira uma linha na Auditoria, com quem abriu, o quê e quando, pelo relógio do servidor.
+- Com o registro ligado, o documento só é entregue ao cliente depois de a abertura ficar registrada — não existe abertura de documento sem registro.
+- As automações ganham o gatilho "Aberto no portal", para, por exemplo, marcar uma notificação como lida no momento em que o cliente a abre. O que a automação grava fica em nome do cliente que abriu.
+- Abrir o mesmo item de novo em até 30 minutos não gera um novo registro nem dispara a automação outra vez.
+- Quem não ligar o recurso não percebe mudança nenhuma.
+
 #### [9.167.0] — 2026-10-26
 
 - Novo: as automações podem avisar, por e-mail ou SMS, quem ainda não tem acesso ao sistema — como o cliente que ainda não ativou o portal —, usando o e-mail ou o telefone do cadastro. Para isso, o campo precisa ser marcado como "Contato" no Form Design; nenhum outro campo é usado.

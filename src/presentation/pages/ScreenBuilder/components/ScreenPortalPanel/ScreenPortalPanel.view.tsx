@@ -7,6 +7,7 @@ import { InfoBanner } from '../../../../components/ui/InfoBanner';
 import { Input } from '../../../../components/ui/Input';
 import { PortalReprojectionStatus } from '../../../../components/ui/PortalReprojectionStatus';
 import { useT } from '../../../../shared/i18n/useT';
+import { PORTAL_VIEW_REPEAT_MINUTES } from '../../../../../domain/schema/portal';
 import type { PortalFormState, PortalSubjectKind } from './screenPortalForm';
 
 export interface ScreenPortalPanelProps {
@@ -45,6 +46,7 @@ export interface ScreenPortalPanelProps {
   onToggleAutomationInvites: (allowed: boolean) => void;
   onToggleDocumentLinks: (enabled: boolean) => void;
   onDocumentLinkMinutes: (minutes: string) => void;
+  onToggleTrackViews: (enabled: boolean) => void;
 }
 
 /** A aba "Portal" da tela: o que sai do escritório, e para quem. Só desenha o que recebe. */
@@ -176,6 +178,16 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
                 />
               </>
             )}
+          </S.Section>
+
+          <S.Section>
+            <Checkbox
+              checked={form.trackViews}
+              onChange={props.onToggleTrackViews}
+              label={t('portal.track-views')}
+              disabled={readOnly}
+            />
+            <S.Hint>{t('portal.track-views.hint', { minutes: PORTAL_VIEW_REPEAT_MINUTES })}</S.Hint>
           </S.Section>
 
           <S.Section>

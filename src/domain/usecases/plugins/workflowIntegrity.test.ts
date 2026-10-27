@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import type { WorkflowStep } from '../../entities/Workflow';
 import { workflowStepIssues } from './workflowIntegrity';
+import { PORTAL_TRACK_VIEWS_SINCE_KERNEL } from '../../schema/portal';
 
 /**
  * Cada caso aqui é um defeito que COMPILAVA e passava por toda a validação de pacote, e só falava no
@@ -501,5 +502,43 @@ describe('convite e revogação do portal por automação', () => {
       ['@core.marketplace/issue.step.input-kernel', '2.74.0'],
     ]);
     expect(workflowStepIssues(comTela([comClaim], '^2.74.0', aberta))).toEqual([]);
+  });
+});
+
+describe('integridade do gatilho de abertura pelo portal', () => {
+  const comPortal = (trackViews: boolean, kernel = `^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}`, eventName = 'avisos.portalViewed') => {
+    const base = pacote([]);
+    return {
+      ...base,
+      manifest: { ...base.manifest, kernel },
+      screens: [{
+        key: 'avisos',
+        fields: [{ key: 'title', label: 'Título', type: 'text' }],
+        portal: { subject: 'self', fields: ['title'], ...(trackViews ? { trackViews: true } : {}) },
+      }],
+      workflows: [{ ...base.workflows[0], eventName }],
+    } as unknown as MarketplacePlugin;
+  };
+
+  it('aceita o gatilho sobre a tela do pacote que registra as aberturas, com o kernel que o publica', () => {
+    expect(workflowStepIssues(comPortal(true))).toEqual([]);
+  });
+
+  it('recusa o gatilho sobre tela do pacote que não registra — ele nunca dispararia', () => {
+    expect(workflowStepIssues(comPortal(false))).toEqual([expect.objectContaining({
+      message: '@core.marketplace/issue.workflow.portal-viewed.untracked',
+      messageParams: { event: 'avisos.portalViewed', screen: 'avisos' },
+    })]);
+  });
+
+  it('cobra o kernel que admite uma versão sem o evento', () => {
+    expect(workflowStepIssues(comPortal(true, '^2.78.0'))).toEqual([expect.objectContaining({
+      message: '@core.marketplace/issue.workflow.trigger-kernel',
+      messageParams: { event: 'avisos.portalViewed', minimum: PORTAL_TRACK_VIEWS_SINCE_KERNEL },
+    })]);
+  });
+
+  it('a tela de fora do pacote tem só o kernel conferido — a declaração dela não viaja aqui', () => {
+    expect(workflowStepIssues(comPortal(false, `^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}`, 'notices.portalViewed'))).toEqual([]);
   });
 });

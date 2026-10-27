@@ -3,6 +3,7 @@ import type { MarketplacePlugin, TemplateField } from '../../entities/Marketplac
 import {
   PORTAL_DOCUMENT_LINKS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
+  PORTAL_TRACK_VIEWS_SINCE_KERNEL,
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
 } from '../../schema/portal';
 import { packagePortalIssues } from './pluginPortal';
@@ -74,5 +75,27 @@ describe('documentLinks no pacote', () => {
     expect(packagePortalIssues(withLinks({ expiresInMinutes: 0 }))).toEqual([issue]);
     expect(packagePortalIssues(withLinks({ expiresInMinutes: 61 }))).toEqual([issue]);
     expect(packagePortalIssues(withLinks({ expiresInMinutes: 2.5 }))).toEqual([issue]);
+  });
+});
+
+describe('trackViews no pacote', () => {
+  const tracked = (kernel: string): MarketplacePlugin => {
+    const base = pkg(undefined, kernel);
+    return { ...base, screens: base.screens!.map((screen) => ({ ...screen, portal: { ...screen.portal!, trackViews: true } })) };
+  };
+
+  it('com o kernel que a lê, passa', () => {
+    expect(packagePortalIssues(tracked(`^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('o kernel anterior é recusa: ele descartaria a chave e nada seria registrado, calado', () => {
+    expect(packagePortalIssues(tracked('^2.78.0'))).toEqual([{
+      message: '@core.marketplace/issue.portal.track-views.kernel',
+      messageParams: { screen: 'entries', minimum: PORTAL_TRACK_VIEWS_SINCE_KERNEL },
+    }]);
+  });
+
+  it('sem a declaração, nenhum kernel é exigido', () => {
+    expect(packagePortalIssues(pkg(undefined, '^2.0.0'))).toEqual([]);
   });
 });

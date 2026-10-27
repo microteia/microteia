@@ -83,13 +83,15 @@ const portalShape = (data: Record<string, unknown> | undefined): string => {
 
 /**
  * A declaração sem o que não muda projeção nenhuma: quem pode CONVIDAR (`invites`) decide quem entra,
- * não o que cada um vê. Ligar o convite por automação abriria uma passada em toda coleção que chega à
- * tela-sujeito — o custo de plataforma que a fila de reprojeções existe para conter.
+ * não o que cada um vê; registrar as aberturas (`trackViews`) decide o que fica anotado, não o que sai.
+ * Ligar qualquer um dos dois abriria uma passada em toda coleção que chega à tela-sujeito — o custo de
+ * plataforma que a fila de reprojeções existe para conter.
  */
 const projectedPortal = (portal: unknown): unknown => {
   if (!portal || typeof portal !== 'object' || Array.isArray(portal)) return portal ?? null;
   const rest = { ...(portal as Record<string, unknown>) };
   delete rest.invites;
+  delete rest.trackViews;
   return rest;
 };
 
