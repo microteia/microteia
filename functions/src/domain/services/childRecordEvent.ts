@@ -2,6 +2,7 @@ import type { EntityMetadata } from '../schema/entityRegistry';
 import type { ChildRecordKind } from '../schema/eventCatalog';
 import { childRecordEventName } from '../schema/eventCatalog';
 import { RECORD_DOCUMENT_SERVER_STAMPS } from './recordDocumentHash';
+import { RECORD_DOCUMENT_LINK_STAMPS } from './recordDocumentLinks';
 
 export interface ChildRecordWrite {
   kind: ChildRecordKind;
@@ -22,8 +23,11 @@ export interface ChildRecordEvent {
   payload: Record<string, unknown>;
 }
 
-const withoutServerStamps = (data: Record<string, unknown>): Record<string, unknown> =>
-  Object.fromEntries(Object.entries(data).filter(([key]) => !RECORD_DOCUMENT_SERVER_STAMPS.includes(key)));
+const serverStampsOf = (kind: ChildRecordKind): readonly string[] =>
+  kind === 'document' ? [...RECORD_DOCUMENT_SERVER_STAMPS, ...RECORD_DOCUMENT_LINK_STAMPS] : RECORD_DOCUMENT_SERVER_STAMPS;
+
+const withoutServerStamps = (data: Record<string, unknown>, stamps: readonly string[]): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(data).filter(([key]) => !stamps.includes(key)));
 
 /**
  * O evento de uma nota ou de um documento de registro — `<prefixo>_note.saved`, por exemplo.
@@ -33,12 +37,14 @@ const withoutServerStamps = (data: Record<string, unknown>): Record<string, unkn
  * eventos oferece em `parent.*`. Nada aqui conhece coleção pelo nome.
  *
  * `null` quando não há o que publicar: escrita que não mudou nada — ou que só acrescentou o que o
- * servidor carimba depois (o hash do anexo), que já foi no evento da criação.
+ * servidor carimba depois (o hash do anexo, que já foi no evento da criação; a troca do token do link
+ * permanente, que não muda o arquivo).
  */
 export const childRecordEvent = (write: ChildRecordWrite): ChildRecordEvent | null => {
   const { before, after } = write;
   if (!before && !after) return null;
-  if (before && after && JSON.stringify(withoutServerStamps(before)) === JSON.stringify(withoutServerStamps(after))) {
+  const stamps = serverStampsOf(write.kind);
+  if (before && after && JSON.stringify(withoutServerStamps(before, stamps)) === JSON.stringify(withoutServerStamps(after, stamps))) {
     return null;
   }
 

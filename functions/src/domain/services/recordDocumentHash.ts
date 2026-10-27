@@ -27,8 +27,20 @@ export const recordDocumentFileToHash = (
   location: RecordDocumentLocation,
   data: Record<string, unknown> | null,
 ): string | null => {
+  if (!data || typeof data[RECORD_DOCUMENT_HASH_FIELD] === 'string' || data.deletedBy) return null;
+  return recordDocumentStoragePath(location, data);
+};
+
+/**
+ * O caminho do arquivo do documento, só se ele mora na pasta do próprio registro. O `storagePath` é dado
+ * do CLIENTE: sem essa conferência, um documento forjado faria o servidor ler, assinar ou trocar o
+ * token do arquivo de outro registro, ou de outro escritório.
+ */
+export const recordDocumentStoragePath = (
+  location: RecordDocumentLocation,
+  data: Record<string, unknown> | null,
+): string | null => {
   if (!data || RESERVED_COLLECTIONS.has(location.parent)) return null;
-  if (typeof data[RECORD_DOCUMENT_HASH_FIELD] === 'string' || data.deletedBy) return null;
   const storagePath = data.storagePath;
   if (typeof storagePath !== 'string') return null;
   const folder = `tenants/${location.tenantId}/${location.parent}/${location.parentId}/`;

@@ -1,4 +1,6 @@
 import type { IPortalRepository, PortalDocumentProjection, PortalProjection, PortalScreen } from '../repositories/IPortalRepository';
+import type { IRecordDocumentLinks } from '../repositories/IRecordDocumentLinks';
+import { wasEverPortalShared } from '../services/recordDocumentLinks';
 import {
   PORTAL_SUBJECT_MAX_DEPTH,
   evaluatePortalCondition,
@@ -8,6 +10,7 @@ import {
   portalLinkOf,
   portalSubjectKey,
   portalExposedTitle,
+  portalDocumentLinkMinutes,
   portalFieldKeys,
   portalRecordDocId,
   portalScreenOf,
@@ -67,6 +70,9 @@ export interface ProjectPortalRecordInput {
    * Refaz também os documentos projetados — a declaração mudou, e `documents` pode ter sido ligado
    * (traz os já compartilhados) ou desligado (tira os que tinham saído). Na gravação comum, não:
    * cada documento tem o próprio gatilho.
+   *
+   * Com `documentLinks`, é também aqui que o token permanente dos documentos que já foram
+   * compartilhados é trocado: é a passada que a declaração abre, e ela visita todo registro da coleção.
    */
   syncDocuments?: boolean;
   /**
@@ -94,7 +100,22 @@ export type ProjectPortalRecordUseCase = {
  * pedido) são refeitas também: a projeção delas carrega o sujeito antigo, e o convidado de antes
  * continuaria vendo o que já não é dele.
  */
-export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): ProjectPortalRecordUseCase => {
+export const makeProjectPortalRecordUseCase = (
+  repo: IPortalRepository,
+  links?: IRecordDocumentLinks,
+): ProjectPortalRecordUseCase => {
+  /**
+   * O token que pode ter saído com o link permanente é trocado — em TODO registro da coleção, inclusive
+   * o que já não está no portal: o convidado que guardou o link continuaria abrindo o arquivo. A falha
+   * sobe, e a passada conta o registro e tenta de novo.
+   */
+  const rotateExposedTokens = async (tenantId: string, screen: PortalScreen, recordId: string) => {
+    if (!links || portalDocumentLinkMinutes(screen) === null) return;
+    for (const documentId of await links.pendingRotation(tenantId, screen.collection, recordId)) {
+      await links.rotate({ tenantId, collection: screen.collection, recordId, documentId });
+    }
+  };
+
   const project = async (
     tenantId: string,
     screens: PortalScreen[],
@@ -106,6 +127,7 @@ export const makeProjectPortalRecordUseCase = (repo: IPortalRepository): Project
     cascade: boolean,
   ): Promise<void> => {
     const projectionId = portalRecordDocId(screen.collection, recordId);
+    if (syncDocuments && data) await rotateExposedTokens(tenantId, screen, recordId);
     const read = await repo.getStoredProjection(tenantId, projectionId);
     const existing = read?.projection ?? null;
     const screenFor = (entityKey: string) => portalTargetScreen(screens, entityKey);
@@ -251,6 +273,8 @@ export interface ProjectPortalDocumentInput {
   documentId: string;
   /** `null` quando o documento foi apagado. */
   data: Record<string, unknown> | null;
+  /** Como estava antes da gravação — `null` quando ele acabou de nascer. */
+  before?: Record<string, unknown> | null;
 }
 
 export type ProjectPortalDocumentUseCase = {
@@ -261,14 +285,23 @@ export type ProjectPortalDocumentUseCase = {
  * O documento sai do escritório só se a tela expõe documentos, se alguém o marcou como compartilhado,
  * e se o registro dele já está no portal. Faltando qualquer um, a cópia some.
  */
-export const makeProjectPortalDocumentUseCase = (repo: IPortalRepository): ProjectPortalDocumentUseCase => ({
-  execute: async ({ tenantId, collection, recordId, documentId, data }) => {
+export const makeProjectPortalDocumentUseCase = (
+  repo: IPortalRepository,
+  links?: IRecordDocumentLinks,
+): ProjectPortalDocumentUseCase => ({
+  execute: async ({ tenantId, collection, recordId, documentId, data, before = null }) => {
     const screens = await repo.getScreens(tenantId);
     const screen = portalScreenOf(screens, collection);
     if (!screen) return;
     const projectionId = portalRecordDocId(collection, recordId);
 
     const shared = !!data && data.portalShared === true && !data.deletedBy && screen.portal?.documents === true;
+    // Compartilhado pela PRIMEIRA vez numa tela com link curto: o token dele nunca saiu, e o selo evita
+    // que a próxima passada o troque sem necessidade. O que já foi compartilhado antes fica sem selo —
+    // ele pode ter saído —, e a passada o troca.
+    if (shared && links && portalDocumentLinkMinutes(screen) !== null && !wasEverPortalShared(before)) {
+      await links.seal({ tenantId, collection, recordId, documentId });
+    }
     if (!shared || !(await repo.getProjection(tenantId, projectionId))) {
       await repo.deleteDocumentProjection(tenantId, projectionId, documentId);
       return;

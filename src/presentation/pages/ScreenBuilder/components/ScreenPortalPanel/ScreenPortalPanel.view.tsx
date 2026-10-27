@@ -43,6 +43,8 @@ export interface ScreenPortalPanelProps {
   onToggleEditOnlyOwn: (onlyOwn: boolean) => void;
   onToggleNotifyOffice: (notify: boolean) => void;
   onToggleAutomationInvites: (allowed: boolean) => void;
+  onToggleDocumentLinks: (enabled: boolean) => void;
+  onDocumentLinkMinutes: (minutes: string) => void;
 }
 
 /** A aba "Portal" da tela: o que sai do escritório, e para quem. Só desenha o que recebe. */
@@ -154,6 +156,24 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
                     />
                   ))}
                 </S.FieldGrid>
+              </>
+            )}
+            <Checkbox
+              checked={form.documentLinks}
+              onChange={props.onToggleDocumentLinks}
+              label={t('portal.document-links')}
+              disabled={readOnly}
+            />
+            <S.Hint>{t('portal.document-links.hint')}</S.Hint>
+            {form.documentLinks && (
+              <>
+                <S.SectionTitle>{t('portal.document-links.minutes')}</S.SectionTitle>
+                <Input
+                  type="number"
+                  value={form.documentLinkMinutes}
+                  onChange={(event) => props.onDocumentLinkMinutes(event.target.value)}
+                  disabled={readOnly}
+                />
               </>
             )}
           </S.Section>

@@ -469,6 +469,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.portal.visible-when.invalid': 'The portal condition (`visibleWhen`) of the screen "{screen}" is not a valid expression — no record of it would reach the portal.',
   'issue.portal.visible-when.unknown': 'The portal condition (`visibleWhen`) of the screen "{screen}" uses "{field}", which is not a field of that screen.',
   'issue.portal.visible-when.kernel': 'The screen "{screen}" limits which records reach the portal (`visibleWhen`), which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest. An older kernel ignores the condition and would show every record.',
+  'issue.portal.document-links.kernel': 'The screen "{screen}" gives portal guests short-lived document links (`documentLinks`), which only exist from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest. An older kernel ignores the declaration and would hand guests the permanent link.',
+  'issue.portal.document-links.minutes': 'The screen "{screen}" declares `documentLinks.expiresInMinutes` outside 1 to {maximum}. Write a whole number of minutes in that range.',
   'issue.edit-window.shape': 'The edit window (`editWindow`) of the screen "{screen}" must be an object: `{ minutes, delete? }`.',
   'issue.edit-window.minutes': 'The edit window (`editWindow`) of the screen "{screen}" needs `minutes` as a whole number greater than zero.',
   'issue.edit-window.delete': 'The edit window (`editWindow`) of the screen "{screen}" has a `delete` that is not true or false.',

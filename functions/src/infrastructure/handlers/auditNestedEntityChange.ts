@@ -4,6 +4,7 @@ import { resolveNestedEntityConfig } from '../../domain/services/auditableEntiti
 import { computeChangedFields, normalizeAllFields, buildAuditText, resolveSeverity, ACTION_TITLE } from '../../domain/services/auditDiff';
 import { logAuditError } from './shared/logAuditError';
 import { nestedAuditActor } from '../../domain/services/nestedAuditActor';
+import { RECORD_DOCUMENT_LINK_STAMPS } from '../../domain/services/recordDocumentLinks';
 import type { AuditAction } from '../../domain/entities/AuditLog';
 
 /**
@@ -33,7 +34,8 @@ export const auditNestedEntityChange = onDocumentWritten(
       let diff: { before?: Record<string, unknown>; after?: Record<string, unknown> } | undefined;
       let changedKeys: Record<string, unknown> = {};
       if (action === 'UPDATE') {
-        const fieldDiff = computeChangedFields(beforeData, afterData);
+        // A troca do token do link permanente (`portal.documentLinks`) não é alteração de ninguém.
+        const fieldDiff = computeChangedFields(beforeData, afterData, sub === 'documents' ? [...RECORD_DOCUMENT_LINK_STAMPS] : []);
         if (Object.keys(fieldDiff.after).length === 0) return;
         diff = fieldDiff;
         changedKeys = fieldDiff.after;

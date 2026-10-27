@@ -1588,6 +1588,92 @@ A auditoria da troca é a do gatilho da subcoleção (`auditNestedEntityChange`)
 `portalSharedBy` (`nestedAuditActor`) — antes era o `createdBy`, e a linha dizia que o autor do arquivo
 o tinha exposto ao convidado.
 
+### Link curto de documento — `portal.documentLinks` (EV-12)
+
+```ts
+portal: { subject: { field: 'companyId' }, fields: [...], documents: true, documentLinks: { expiresInMinutes: 10 } }
+```
+
+**O problema.** `getPortalDocumentUrl` conferia convite, `audience` e marca — e então entregava o link
+PERMANENTE do arquivo (a `url` com `token=`). O token é portador: não passa por regra nenhuma, e o
+convidado que o guardasse continuava abrindo o arquivo depois de ter o convite revogado. Para quem entrega
+prova ou sigilo (uma intimação fiscal, um laudo), a revogação tinha de valer também para o que já saiu.
+
+**A decisão.** Com a declaração, o convidado nunca recebe o token: a cada abertura, a mesma conferência
+de antes e uma URL V4 ASSINADA (`IRecordDocumentLinks.sign` → `getSignedUrl`), de leitura, que vence em
+`expiresInMinutes` (1 a `PORTAL_DOCUMENT_LINK_MAX_MINUTES` = 60; fora disso, `PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES`
+= 10). Revogar o convite torna inútil o link que já saiu no fim da validade, sem estado por convidado. A
+casca não muda: `openDocument` e `usePortalDocuments().open` já pediam o link no clique.
+
+| Alternativa | Por que não |
+|---|---|
+| Trocar o token de todo documento a cada revogação | custo por revogação proporcional ao que o sujeito tem, e o link do escritório mudaria a todo convite revogado |
+| Entregar os bytes pela callable | teto de resposta da callable abaixo dos 20 MB do anexo; e o leitor de PDF faz pedidos por faixa |
+| Link curto também para os MEMBROS | ver "O que ainda não faz" — exige tirar o `url` do documento e passar toda abertura do escritório por uma callable |
+
+**Por que opcional.** Sem a declaração, nada muda — nem uma gravação: a tela entrega o link permanente,
+como antes. É o caso de exceção, e paga o custo de exceção (uma assinatura por abertura).
+
+**O que saiu antes também é trocado — o SELO.** Ligar a declaração não invalida o token que o convidado já
+recebeu. Cada documento guarda em `portalLinkSeal` o token que, garantidamente, nunca saiu
+(`domain/services/recordDocumentLinks.ts`):
+
+| Estado | Significa | Quem age |
+|---|---|---|
+| selado (`portalLinkSeal` = token da `url`) | o token atual nunca foi entregue a convidado | ninguém |
+| sem selo, já compartilhado (`portalSharedAt` existe) | o token pode ter saído | a passada TROCA o token |
+| pendente (`portalLinkSeal` ≠ token da `url`) | uma troca começou e não terminou | quem o encontra termina, com o MESMO token |
+
+- **A passada é a da reprojeção.** `documentLinks` faz parte de `portalShape`, então ligá-la abre a passada
+  de sempre (`portal_reprojections`), e `project` com `syncDocuments` troca, em TODO registro da coleção —
+  inclusive o que já não está no portal —, o token dos documentos que já foram compartilhados alguma vez,
+  inclusive os recolhidos (`pendingRotation`). A falha sobe e a passada conta o registro, como qualquer
+  outra.
+- **Custo aceito:** enquanto a tela declara `documentLinks`, toda passada dela (qualquer mudança de
+  declaração, ou de `PORTAL_PROJECTION_REVISION`) lê a subcoleção `documents` de cada registro. Só troca o
+  que não está selado — na segunda passada, é só leitura.
+- **A troca converge.** O token é escolhido numa transação e gravado como selo pendente; depois o arquivo
+  recebe o token (`setMetadata`) e por fim a `url` do documento. Duas trocas simultâneas (a passada e uma
+  abertura) usam o mesmo token, e a interrompida é terminada pela próxima.
+- **O documento compartilhado pela primeira vez é selado sem troca** (`projectPortalDocument`, com o
+  `before` do gatilho): o token dele nunca saiu. O recompartilhado fica sem selo — pode ter saído antes —,
+  e a abertura seguinte ou a próxima passada o troca.
+- **Desligar a declaração tira o selo** de cada documento no momento em que o link permanente sai
+  (`unseal`, antes de devolver a `url`). Religar troca de novo exatamente esses.
+- **A troca é silenciosa.** `url` e `portalLinkSeal` são `RECORD_DOCUMENT_LINK_STAMPS`: não publicam
+  `document.saved` (`childRecordEvent`, só para documentos — numa nota, `url` é dado) nem geram linha de
+  auditoria (`auditNestedEntityChange`, só na subcoleção `documents`). O arquivo é o mesmo; a chave mudou.
+- **O escritório segue o token novo**: a aba Documentos lê a `url` do documento, que a troca reescreve. Um
+  link permanente copiado para fora (um e-mail antigo, um campo) deixa de abrir — é o objetivo.
+
+**O campo `file` exposto não sai** (`portalWithheldFileFields`): o valor dele É um link permanente. A
+projeção o omite, o contexto da casca não o anuncia, e a aba Portal do Form Design recusa gravar a
+declaração enquanto ele estiver exposto (`portal.issue.document-links.file-field`) — o escritório escolhe.
+No pacote não é recusa: o servidor fecha sozinho.
+
+**Duas portas, o mesmo dado.** A extensão declara no pacote; o escritório liga na aba Portal do Form
+Design ("Entregar ao convidado links curtos de documento" + minutos). A validade fora do intervalo é aviso
+na aba e recusa no empacotamento (`issue.portal.document-links.minutes`).
+
+**Kernel.** `PORTAL_DOCUMENT_LINKS_SINCE_KERNEL` (2.77.0). Um kernel anterior descarta a chave e entregaria o
+link permanente — falha ABERTO —, por isso o pacote que a declara sem exigir o kernel é recusado
+(`issue.portal.document-links.kernel`), como `visibleWhen`.
+
+**Assinar exige permissão.** O Admin SDK assina pela conta das functions com `iam.serviceAccounts.signBlob`
+— a mesma de `createCustomToken`. O pré-requisito `portal-identity-signing` cita o terceiro uso, e
+`microteia grant-signing` a concede. Sem ela a assinatura falha FECHADO: o convidado não abre o documento, e o
+log de `getPortalDocumentUrl` diz o que rodar. A troca que falha na abertura não segura o link curto (ele
+não depende do token): é registrada, e a passada tenta de novo.
+
+**O caminho é conferido.** Assinar e trocar só valem para o `storagePath` que mora na pasta do próprio
+registro (`recordDocumentStoragePath`, extraída da conferência do hash): o caminho é dado do cliente, e um
+documento forjado faria o servidor assinar o arquivo de outro registro.
+
+Arquivos-chave: `domain/schema/portal.ts` (`documentLinks`, `portalDocumentLinkMinutes`,
+`portalWithheldFileFields`, `portalDocumentLinkIssues`) · `functions/src/domain/services/recordDocumentLinks.ts` ·
+`functions/src/domain/repositories/IRecordDocumentLinks.ts` · `functions/src/data/services/FirebaseRecordDocumentLinks.ts` ·
+`domain/usecases/plugins/pluginPortal.ts` · `ScreenBuilder/components/ScreenPortalPanel/`.
+
 ### Agente de IA e MCP
 
 O convidado não emite acesso de agente: `issueAgentGrant` recusa quem não tem permissão nenhuma, e
@@ -1854,6 +1940,12 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
   registro (gravação pelo portal) e na Auditoria da entrada; o documento leva o autor e `via: 'portal'`.
 - **Nível de confiabilidade fora do token.** Vale a claim que o escritório aponta em `levelClaim`; um
   provedor que só informa o nível numa API própria não é consultado.
+- **Link curto para MEMBROS.** `documentLinks` vale para o convidado. O membro continua lendo a `url`
+  permanente do documento — e o membro removido guarda o que copiou. Fechar isso pede três peças: tirar o
+  token do arquivo e a `url` do documento na gravação (gatilho), uma callable que confira
+  `<coleção>.read` e `memberVisibility` e assine, e a aba Documentos, a API de extensão, `list_documents` e a
+  saída `url` de `render-document` passando a pedir o link na abertura. Downloads e o campo `file` têm o
+  mesmo token, pelo mesmo motivo.
 - **`refEntity` do campo-sujeito** muda pelo Form Design sem `portal.manage` (incluir `fields` na
   regra travaria qualquer edição de campo das telas do portal). Exige que a tela apontada também
   esteja no portal, o que já cobra `portal.manage`.

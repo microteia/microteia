@@ -1,4 +1,4 @@
-import type { PortalDeclaration } from '../../../../../domain/schema/portal';
+import { PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES, type PortalDeclaration } from '../../../../../domain/schema/portal';
 
 export type PortalSubjectKind = 'self' | 'field' | 'parent';
 
@@ -26,6 +26,10 @@ export interface PortalFormState {
   notifyOffice: boolean;
   /** Automações podem convidar para os registros desta tela — só na tela-sujeito. */
   automationInvites: boolean;
+  /** O convidado recebe link curto de documento, válido por `documentLinkMinutes`. */
+  documentLinks: boolean;
+  /** Texto, como o controle o devolve: a declaração recebe o número. */
+  documentLinkMinutes: string;
 }
 
 export const EMPTY_PORTAL_FORM: PortalFormState = {
@@ -45,6 +49,8 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   editOnlyOwn: false,
   notifyOffice: true,
   automationInvites: false,
+  documentLinks: false,
+  documentLinkMinutes: String(PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES),
 };
 
 export const toPortalForm = (portal: PortalDeclaration | null | undefined): PortalFormState => {
@@ -67,7 +73,15 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     editOnlyOwn: portal.edit?.onlyOwn === true,
     notifyOffice: portal.notifyOffice !== false,
     automationInvites: portal.invites?.automation === true,
+    documentLinks: !!portal.documentLinks,
+    documentLinkMinutes: String(portal.documentLinks?.expiresInMinutes ?? PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES),
   };
+};
+
+/** O número digitado — o que não é número cai na validade padrão, e o fora do intervalo vira aviso. */
+const documentLinkMinutesOf = (text: string): number => {
+  const minutes = Number(text.trim());
+  return text.trim() !== '' && Number.isFinite(minutes) ? minutes : PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES;
 };
 
 /** `null` desliga: a tela sai do portal, e o servidor apaga o que tinha projetado dela. */
@@ -94,5 +108,6 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
     ...(form.notifyOffice ? {} : { notifyOffice: false }),
     // Convidar é da tela-sujeito: em outra tela, o servidor nunca aceitaria o convite.
     ...(form.automationInvites && form.subjectKind === 'self' ? { invites: { automation: true } } : {}),
+    ...(form.documentLinks ? { documentLinks: { expiresInMinutes: documentLinkMinutesOf(form.documentLinkMinutes) } } : {}),
   };
 };

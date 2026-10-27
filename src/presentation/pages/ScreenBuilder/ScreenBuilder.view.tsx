@@ -513,6 +513,8 @@ export const ScreenBuilderView: React.FC = () => {
                 onToggleEditOnlyOwn={vm.setPortalEditOnlyOwn}
                 onToggleNotifyOffice={vm.setPortalNotifyOffice}
                 onToggleAutomationInvites={vm.setPortalAutomationInvites}
+                onToggleDocumentLinks={vm.setPortalDocumentLinks}
+                onDocumentLinkMinutes={vm.setPortalDocumentLinkMinutes}
               />
             )}
             {vm.screenModalTab === 'editWindow' && (

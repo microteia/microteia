@@ -196,7 +196,7 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
   },
   {
     id: 'portal-identity-signing',
-    title: 'Let the functions sign sessions, if an organization signs portal guests in with an identity provider or requires two-step verification',
+    title: 'Let the functions sign, if an organization signs portal guests in with an identity provider, requires two-step verification or gives guests short-lived document links',
     detail:
       'Two features open a session the server mints with createCustomToken, which signs with the service '
       + 'account the functions run as: a portal guest who signs in through an OpenID Connect provider '
@@ -206,7 +206,10 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
       + '"iam.serviceAccounts.signBlob" denied in the log of completePortalSignIn or secondFactor. An '
       + 'organization cannot lock itself out by turning two-step verification on before this is done: '
       + 'saving a rule that reaches the person saving it requires that person to have proved the code in '
-      + 'that session, which already needs the signature. With Console 2.31.0 or newer, run microteia '
+      + 'that session, which already needs the signature. A third feature signs with the same account: a '
+      + 'portal screen that declares documentLinks hands guests signed links that expire in minutes, and '
+      + 'without the permission the guest cannot open its documents ("signBlob" denied in the log of '
+      + 'getPortalDocumentUrl). With Console 2.31.0 or newer, run microteia '
       + 'grant-signing: it reads the account the functions actually run as, shows what it would change and '
       + 'asks before changing it (--check only reads), and microteia deploy reports when it is missing. By '
       + 'hand: enable the IAM Service Account Credentials API '

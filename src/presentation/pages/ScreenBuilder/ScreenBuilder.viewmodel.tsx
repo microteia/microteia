@@ -407,6 +407,8 @@ export interface ScreenBuilderViewModel {
   setPortalEditOnlyOwn: (onlyOwn: boolean) => void;
   setPortalNotifyOffice: (notify: boolean) => void;
   setPortalAutomationInvites: (allowed: boolean) => void;
+  setPortalDocumentLinks: (enabled: boolean) => void;
+  setPortalDocumentLinkMinutes: (minutes: string) => void;
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
@@ -1528,6 +1530,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const setPortalNotifyOffice = useCallback((notifyOffice: boolean) => updatePortal({ notifyOffice }), [updatePortal]);
   const setPortalAutomationInvites = useCallback(
     (automationInvites: boolean) => updatePortal({ automationInvites }),
+    [updatePortal],
+  );
+  const setPortalDocumentLinks = useCallback((documentLinks: boolean) => updatePortal({ documentLinks }), [updatePortal]);
+  const setPortalDocumentLinkMinutes = useCallback(
+    (documentLinkMinutes: string) => updatePortal({ documentLinkMinutes }),
     [updatePortal],
   );
   const togglePortalEditField = useCallback((fieldKey: string, editable: boolean) => {
@@ -2704,6 +2711,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setPortalEditOnlyOwn,
     setPortalNotifyOffice,
     setPortalAutomationInvites,
+    setPortalDocumentLinks,
+    setPortalDocumentLinkMinutes,
     toggleChildScreen,
     setChildLinkField,
     iconOptions,

@@ -6,6 +6,7 @@ import {
   samePortalValue,
 } from './PortalProjectionUseCases';
 import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
+import { makeFakeRecordDocumentLinks } from '../repositories/fakeRecordDocumentLinks';
 
 const TENANT = 'salvador';
 
@@ -244,6 +245,133 @@ describe('documento no portal', () => {
 
     await projectDocument.execute({ ...input, data: { name: 'nota.pdf', portalShared: false } });
     expect(projectedDocuments.size).toBe(0);
+  });
+});
+
+describe('link curto de documento — a troca do token que pode ter saído', () => {
+  const signed = (screens = CITY_SCREENS) => screens.map((screen) => (screen.id === 'invoices'
+    ? {
+      ...screen,
+      fields: [...screen.fields, { key: 'receipt', label: 'Receipt', type: 'file' }],
+      portal: { ...screen.portal!, fields: [...screen.portal!.fields, 'receipt'], documentLinks: { expiresInMinutes: 5 } },
+    }
+    : screen)) as typeof CITY_SCREENS;
+
+  const setup = () => {
+    const fake = makeFakePortalRepository(signed());
+    fake.records.set('companies/acme', { name: 'Acme' });
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    const files = makeFakeRecordDocumentLinks(fake.documents, TENANT);
+    const project = makeProjectPortalRecordUseCase(fake.repo, files.links);
+    const projectDocument = makeProjectPortalDocumentUseCase(fake.repo, files.links);
+    return { ...fake, files, project, projectDocument };
+  };
+  const ref = (documentId: string) => ({ tenantId: TENANT, collection: 'invoices', recordId: 'nf1', documentId });
+
+  it('a passada troca o token de todo documento que já foi compartilhado — inclusive o recolhido', async () => {
+    const { documents, records, files, project } = setup();
+    records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme' });
+    files.attach('invoices', 'nf1', 'shared', { portalShared: true, portalSharedAt: 'antes' });
+    files.attach('invoices', 'nf1', 'recolhido', { portalShared: false, portalSharedAt: 'antes' });
+    files.attach('invoices', 'nf1', 'interno');
+    const links = Object.fromEntries([...documents.entries()].map(([key, data]) => [key, String(data.url)]));
+
+    await project.execute({ tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: records.get('invoices/nf1')!, syncDocuments: true });
+
+    expect(files.opens(links['invoices/nf1/shared'])).toBe(false);
+    expect(files.opens(links['invoices/nf1/recolhido'])).toBe(false);
+    expect(files.opens(links['invoices/nf1/interno'])).toBe(true);
+    expect(documents.get('invoices/nf1/interno')).toEqual(expect.objectContaining({ url: links['invoices/nf1/interno'] }));
+    expect(files.opens(String(documents.get('invoices/nf1/shared')?.url))).toBe(true);
+  });
+
+  it('o registro que já não está no portal também tem o token trocado — o link guardado continuaria abrindo', async () => {
+    const { documents, records, files, project } = setup();
+    records.set('invoices/nf1', { number: 'NF-1', companyId: null });
+    files.attach('invoices', 'nf1', 'd1', { portalShared: true, portalSharedAt: 'antes' });
+    const before = String(documents.get('invoices/nf1/d1')?.url);
+    await project.execute({ tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: records.get('invoices/nf1')!, syncDocuments: true });
+    expect(files.opens(before)).toBe(false);
+  });
+
+  it('uma segunda passada não troca de novo: o token novo está selado', async () => {
+    const { documents, records, files, project } = setup();
+    records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme' });
+    files.attach('invoices', 'nf1', 'd1', { portalShared: true, portalSharedAt: 'antes' });
+    const input = { tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: records.get('invoices/nf1')!, syncDocuments: true };
+    await project.execute(input);
+    const rotated = String(documents.get('invoices/nf1/d1')?.url);
+    await project.execute(input);
+    expect(documents.get('invoices/nf1/d1')?.url).toBe(rotated);
+  });
+
+  it('a gravação comum do registro não troca nada — só a passada que a declaração abre', async () => {
+    const { documents, records, files, project } = setup();
+    records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme' });
+    files.attach('invoices', 'nf1', 'd1', { portalShared: true, portalSharedAt: 'antes' });
+    const before = String(documents.get('invoices/nf1/d1')?.url);
+    await project.execute({ tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: records.get('invoices/nf1')! });
+    expect(files.opens(before)).toBe(true);
+  });
+
+  it('a troca pendente é terminada com o MESMO token — duas trocas convergem', async () => {
+    const { documents, files } = setup();
+    files.attach('invoices', 'nf1', 'd1', { portalShared: true, portalSharedAt: 'antes', portalLinkSeal: 'escolhido' });
+    await files.links.rotate(ref('d1'));
+    expect(new URL(String(documents.get('invoices/nf1/d1')?.url)).searchParams.get('token')).toBe('escolhido');
+  });
+
+  it('compartilhado pela PRIMEIRA vez, o documento é selado sem troca — o token dele nunca saiu', async () => {
+    const { documents, records, files, project, projectDocument } = setup();
+    records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme' });
+    await project.execute({ tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: records.get('invoices/nf1')! });
+    files.attach('invoices', 'nf1', 'd1', { portalShared: true, portalSharedAt: 'agora' });
+    const url = String(documents.get('invoices/nf1/d1')?.url);
+
+    await projectDocument.execute({ ...ref('d1'), data: documents.get('invoices/nf1/d1')!, before: null });
+
+    expect(documents.get('invoices/nf1/d1')?.url).toBe(url);
+    expect(await files.links.pendingRotation(TENANT, 'invoices', 'nf1')).toEqual([]);
+  });
+
+  it('compartilhado DE NOVO, fica sem selo: o token pode ter saído antes, e a passada o troca', async () => {
+    const { documents, files, projectDocument } = setup();
+    files.attach('invoices', 'nf1', 'd1', { portalShared: true, portalSharedAt: 'agora' });
+    await projectDocument.execute({
+      ...ref('d1'), data: documents.get('invoices/nf1/d1')!, before: { portalShared: false, portalSharedAt: 'antes' },
+    });
+    expect(await files.links.pendingRotation(TENANT, 'invoices', 'nf1')).toEqual(['d1']);
+  });
+
+  it('o valor do campo de arquivo exposto não sai: ele é um link permanente', async () => {
+    const { projections, records, project } = setup();
+    records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme', receipt: 'https://files.test/x?token=t' });
+    await project.execute({ tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: records.get('invoices/nf1')! });
+    expect(projections.get('invoices__nf1')?.data).toEqual({ number: 'NF-1', companyId: 'acme' });
+  });
+
+  it('sem a declaração, nada muda: nem selo, nem troca, e o campo de arquivo sai como antes', async () => {
+    const fake = makeFakePortalRepository(CITY_SCREENS.map((screen) => (screen.id === 'invoices'
+      ? {
+        ...screen,
+        fields: [...screen.fields, { key: 'receipt', label: 'Receipt', type: 'file' }],
+        portal: { ...screen.portal!, fields: [...screen.portal!.fields, 'receipt'] },
+      }
+      : screen)) as typeof CITY_SCREENS);
+    fake.records.set('companies/acme', { name: 'Acme' });
+    const files = makeFakeRecordDocumentLinks(fake.documents, TENANT);
+    files.attach('invoices', 'nf1', 'd1', { portalShared: true, portalSharedAt: 'antes' });
+    const document = { ...fake.documents.get('invoices/nf1/d1') };
+    const data = { number: 'NF-1', companyId: 'acme', receipt: 'https://files.test/x?token=t' };
+    fake.records.set('invoices/nf1', data);
+
+    await makeProjectPortalRecordUseCase(fake.repo, files.links)
+      .execute({ tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data, syncDocuments: true });
+    await makeProjectPortalDocumentUseCase(fake.repo, files.links)
+      .execute({ ...ref('d1'), data: fake.documents.get('invoices/nf1/d1')!, before: null });
+
+    expect(fake.documents.get('invoices/nf1/d1')).toEqual(document);
+    expect(fake.projections.get('invoices__nf1')?.data).toEqual(expect.objectContaining({ receipt: data.receipt }));
   });
 });
 

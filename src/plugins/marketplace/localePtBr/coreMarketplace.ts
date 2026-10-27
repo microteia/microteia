@@ -462,6 +462,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.portal.visible-when.invalid': 'A condição de portal (`visibleWhen`) da tela "{screen}" não é uma expressão válida — nenhum registro dela chegaria ao portal.',
   'issue.portal.visible-when.unknown': 'A condição de portal (`visibleWhen`) da tela "{screen}" usa "{field}", que não é campo dessa tela.',
   'issue.portal.visible-when.kernel': 'A tela "{screen}" limita quais registros chegam ao portal (`visibleWhen`), o que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo ignora a condição e mostraria todos os registros.',
+  'issue.portal.document-links.kernel': 'A tela "{screen}" entrega ao convidado do portal links curtos de documento (`documentLinks`), o que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo ignora a declaração e entregaria ao convidado o link permanente.',
+  'issue.portal.document-links.minutes': 'A tela "{screen}" declara `documentLinks.expiresInMinutes` fora de 1 a {maximum}. Informe um número inteiro de minutos nesse intervalo.',
   'issue.edit-window.shape': 'A janela de edição (`editWindow`) da tela "{screen}" precisa ser um objeto: `{ minutes, delete? }`.',
   'issue.edit-window.minutes': 'A janela de edição (`editWindow`) da tela "{screen}" precisa de `minutes` como número inteiro maior que zero.',
   'issue.edit-window.delete': 'A janela de edição (`editWindow`) da tela "{screen}" tem um `delete` que não é verdadeiro nem falso.',

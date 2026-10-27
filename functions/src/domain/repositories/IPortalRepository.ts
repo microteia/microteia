@@ -2,6 +2,7 @@ import type { PortalScreenLike } from '../schema/portal';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
 import type { PortalReprojectionState } from '../schema/portalReprojection';
 import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
+import type { RecordDocumentLinkState } from '../services/recordDocumentLinks';
 
 export type { PortalReprojectionState };
 
@@ -98,6 +99,14 @@ export interface SharedRecordDocument extends PortalDocumentProjection {
   url: string;
 }
 
+/** O documento como a entrega ao portal o lê — com o arquivo e o estado do link permanente. */
+export interface RecordDocumentForPortal extends SharedRecordDocument {
+  portalShared: boolean;
+  /** Só o caminho que mora na pasta do próprio registro (`recordDocumentStoragePath`); senão `null`. */
+  storagePath: string | null;
+  link: RecordDocumentLinkState;
+}
+
 export interface ProjectionPage {
   items: Array<{ id: string; subjectKeys: string[]; audience: string[] }>;
   next: string | null;
@@ -175,7 +184,7 @@ export interface IPortalRepository {
     collection: string,
     recordId: string,
     documentId: string,
-  ): Promise<(SharedRecordDocument & { portalShared: boolean }) | null>;
+  ): Promise<RecordDocumentForPortal | null>;
   /** Os documentos já projetados no registro do portal, por id. */
   getDocumentProjections(tenantId: string, projectionId: string): Promise<Map<string, PortalDocumentProjection>>;
   writeDocumentProjection(

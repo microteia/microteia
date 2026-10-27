@@ -1,3 +1,5 @@
+import { recordDocumentStoragePath } from '../services/recordDocumentHash';
+import { recordDocumentLinkState } from '../services/recordDocumentLinks';
 import type {
   IPortalRepository,
   PortalDocumentProjection,
@@ -115,6 +117,8 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
         sha256: null,
         url: String(data.url ?? ''),
         portalShared: data.portalShared === true,
+        storagePath: recordDocumentStoragePath({ tenantId: _t, parent: collection, parentId: recordId }, data),
+        link: recordDocumentLinkState(data),
       };
     },
     clearDocumentProjections: async (_t, id) => {

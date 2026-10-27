@@ -13,6 +13,7 @@ import { makeProjectPortalRecordUseCase } from './PortalProjectionUseCases';
 import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 import type { IPortalAccountService, PortalScreen } from '../repositories/IPortalRepository';
 import { makeFakePortalIdentity } from '../repositories/fakePortalIdentity';
+import { makeFakeRecordDocumentLinks } from '../repositories/fakeRecordDocumentLinks';
 
 const TENANT = 'salvador';
 
@@ -317,7 +318,7 @@ describe('documento compartilhado', () => {
     });
     fake.documents.set('invoices/nf1/d1', { name: 'nota.pdf', url: 'https://files/nota.pdf', portalShared: true });
     fake.documents.set('invoices/nf1/d2', { name: 'interno.pdf', url: 'https://files/interno.pdf', portalShared: false });
-    return { fake, url: makeGetPortalDocumentUrlUseCase(fake.repo) };
+    return { fake, url: makeGetPortalDocumentUrlUseCase(fake.repo, makeFakeRecordDocumentLinks(fake.documents, TENANT).links) };
   };
 
   it('entrega a URL a quem está no audience, só do documento compartilhado', async () => {
@@ -331,6 +332,104 @@ describe('documento compartilhado', () => {
     const { url } = await setup();
     await expect(url.execute({ tenantId: TENANT, userId: 'bia', projectionId: 'invoices__nf1', documentId: 'd1' }))
       .rejects.toThrow('@core.tenant/portal.document.unavailable');
+  });
+});
+
+describe('documento compartilhado com link curto (portal.documentLinks)', () => {
+  const NOW = new Date('2026-10-26T12:00:00.000Z');
+  const signedScreens = (documentLinks: { expiresInMinutes: number } | null) => CITY_SCREENS.map((screen) => (
+    screen.id === 'invoices' ? { ...screen, portal: { ...screen.portal!, ...(documentLinks ? { documentLinks } : {}) } } : screen
+  )) as typeof CITY_SCREENS;
+
+  const setup = async (documentLinks: { expiresInMinutes: number } | null = { expiresInMinutes: 5 }) => {
+    const fake = makeFakePortalRepository(signedScreens(documentLinks));
+    fake.records.set('companies/acme', { name: 'Acme' });
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    fake.records.set('invoices/nf1', { number: 'NF-1', companyId: 'acme' });
+    await makeProjectPortalRecordUseCase(fake.repo).execute({
+      tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: { number: 'NF-1', companyId: 'acme' },
+    });
+    const files = makeFakeRecordDocumentLinks(fake.documents, TENANT);
+    files.attach('invoices', 'nf1', 'd1', { portalShared: true, portalSharedAt: 'antes' });
+    const url = makeGetPortalDocumentUrlUseCase(fake.repo, files.links, () => NOW);
+    const input = { tenantId: TENANT, userId: 'ana', projectionId: 'invoices__nf1', documentId: 'd1' };
+    return { fake, files, url, input };
+  };
+
+  it('entrega a URL assinada, com a validade declarada — nunca o link permanente', async () => {
+    const { fake, files, url, input } = await setup();
+    const permanent = String(fake.documents.get('invoices/nf1/d1')?.url);
+
+    const delivered = await url.execute(input);
+
+    expect(delivered).toContain('https://signed.test/');
+    expect(delivered).not.toBe(permanent);
+    expect(files.signed).toEqual([{
+      storagePath: 'tenants/salvador/invoices/nf1/d1.pdf',
+      fileName: 'd1.pdf',
+      expiresAt: new Date('2026-10-26T12:05:00.000Z'),
+    }]);
+  });
+
+  it('o token permanente que pode ter saído é trocado na primeira abertura, e o novo fica selado', async () => {
+    const { fake, files, url, input } = await setup();
+    const permanent = String(fake.documents.get('invoices/nf1/d1')?.url);
+
+    await url.execute(input);
+
+    expect(files.opens(permanent)).toBe(false);
+    const after = fake.documents.get('invoices/nf1/d1')!;
+    expect(files.opens(String(after.url))).toBe(true);
+    expect(after.portalLinkSeal).toBe(new URL(String(after.url)).searchParams.get('token'));
+  });
+
+  it('a validade fora do intervalo cai na padrão — nunca no link permanente', async () => {
+    const { files, url, input } = await setup({ expiresInMinutes: 600 });
+    await url.execute(input);
+    expect(files.signed[0].expiresAt).toEqual(new Date('2026-10-26T12:10:00.000Z'));
+  });
+
+  it('revogado o convite, nenhum link novo sai', async () => {
+    const { fake, files, url, input } = await setup();
+    fake.users.delete('ana');
+    await expect(url.execute(input)).rejects.toThrow('@core.tenant/portal.document.unavailable');
+    expect(files.signed).toHaveLength(0);
+  });
+
+  it('o documento sem arquivo na pasta do registro não é assinado — o caminho é dado do cliente', async () => {
+    const { fake, files, url, input } = await setup();
+    fake.documents.set('invoices/nf1/d1', { ...fake.documents.get('invoices/nf1/d1'), storagePath: 'tenants/outro/invoices/nf1/d1.pdf' });
+    await expect(url.execute(input)).rejects.toThrow('@core.tenant/portal.document.unavailable');
+    expect(files.signed).toHaveLength(0);
+  });
+
+  it('a troca que falha não segura o link curto', async () => {
+    const { files, fake, input } = await setup();
+    const url = makeGetPortalDocumentUrlUseCase(
+      fake.repo,
+      { ...files.links, rotate: async () => { throw new Error('storage fora'); } },
+      () => NOW,
+    );
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await expect(url.execute(input)).resolves.toContain('https://signed.test/');
+    error.mockRestore();
+  });
+
+  it('sem a declaração sai o link permanente, como antes — e o selo cai, porque o token saiu', async () => {
+    const { fake, files, url, input } = await setup(null);
+    await files.links.seal({ tenantId: TENANT, collection: 'invoices', recordId: 'nf1', documentId: 'd1' });
+    const permanent = String(fake.documents.get('invoices/nf1/d1')?.url);
+
+    expect(await url.execute(input)).toBe(permanent);
+    expect(files.signed).toHaveLength(0);
+    expect(fake.documents.get('invoices/nf1/d1')).not.toHaveProperty('portalLinkSeal');
+  });
+
+  it('sem a declaração e sem selo, nada é gravado — quem não usa o recurso não paga por ele', async () => {
+    const { fake, url, input } = await setup(null);
+    const before = { ...fake.documents.get('invoices/nf1/d1') };
+    await url.execute(input);
+    expect(fake.documents.get('invoices/nf1/d1')).toEqual(before);
   });
 });
 
@@ -771,7 +870,7 @@ describe('o convite vale no instante, não quando o audience for refeito', () =>
     await expect(makeUpdatePortalRecordUseCase(fake.repo, write).execute({
       tenantId: TENANT, userId: 'ana', collection: 'invoices', recordId: 'nf1', data: { amount: 2 },
     })).rejects.toThrow('@core.tenant/portal.edit.denied');
-    await expect(makeGetPortalDocumentUrlUseCase(fake.repo).execute({
+    await expect(makeGetPortalDocumentUrlUseCase(fake.repo, makeFakeRecordDocumentLinks(fake.documents, TENANT).links).execute({
       tenantId: TENANT, userId: 'ana', projectionId: 'invoices__nf1', documentId: 'd1',
     })).rejects.toThrow('@core.tenant/portal.document.unavailable');
     await expect(makeAttachPortalDocumentUseCase(fake.repo, { documentTypes: async () => [{ key: 'Nota', label: 'Nota' }], attach }).execute({
@@ -891,7 +990,7 @@ describe('o convidado suspenso — o escritório desligou o método por que ele 
     await expect(makeSubmitPortalRecordUseCase(fake.repo, write).execute({
       tenantId: TENANT, userId: 'ana', collection: 'invoices', linkRecordId: 'acme', data: { number: '2' },
     })).rejects.toThrow('@core.tenant/portal.create.denied');
-    await expect(makeGetPortalDocumentUrlUseCase(fake.repo).execute({
+    await expect(makeGetPortalDocumentUrlUseCase(fake.repo, makeFakeRecordDocumentLinks(fake.documents, TENANT).links).execute({
       tenantId: TENANT, userId: 'ana', projectionId: 'invoices__nf1', documentId: 'd1',
     })).rejects.toThrow('@core.tenant/portal.document.unavailable');
     expect(write).not.toHaveBeenCalled();

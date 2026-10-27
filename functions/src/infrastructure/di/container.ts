@@ -170,6 +170,8 @@ import type { DispatchNotificationUseCase } from '../../domain/usecases/Dispatch
 import { makeNotificationTextCatalog } from '../notifications/notificationTextCatalog';
 import type { IRecordDocumentWriter } from '../../domain/repositories/IRecordDocumentWriter';
 import { FirebaseRecordDocumentWriter } from '../../data/services/FirebaseRecordDocumentWriter';
+import type { IRecordDocumentLinks } from '../../domain/repositories/IRecordDocumentLinks';
+import { FirebaseRecordDocumentLinks } from '../../data/services/FirebaseRecordDocumentLinks';
 import type { IRecordDocumentHasher } from '../../domain/repositories/IRecordDocumentHasher';
 import { FirebaseRecordDocumentHasher } from '../../data/services/FirebaseRecordDocumentHasher';
 import type { IDownloadWriter } from '../../domain/repositories/IDownloadWriter';
@@ -271,6 +273,7 @@ class DIContainer {
   private vapidKeyStore?: VapidKeyStore;
   private dispatchNotificationUC?: DispatchNotificationUseCase;
   private recordDocumentWriter?: IRecordDocumentWriter;
+  private recordDocumentLinks?: IRecordDocumentLinks;
   private recordDocumentHasher?: IRecordDocumentHasher;
   private downloadWriter?: IDownloadWriter;
   private attachDownloadUC?: AttachDownloadToRecordUseCase;
@@ -352,13 +355,13 @@ class DIContainer {
 
   getProjectPortalRecordUseCase(): ProjectPortalRecordUseCase {
     if (!this.projectPortalRecordUC) {
-      this.projectPortalRecordUC = makeProjectPortalRecordUseCase(this.getPortalRepository());
+      this.projectPortalRecordUC = makeProjectPortalRecordUseCase(this.getPortalRepository(), this.getRecordDocumentLinks());
     }
     return this.projectPortalRecordUC;
   }
 
   getProjectPortalDocumentUseCase(): ProjectPortalDocumentUseCase {
-    return makeProjectPortalDocumentUseCase(this.getPortalRepository());
+    return makeProjectPortalDocumentUseCase(this.getPortalRepository(), this.getRecordDocumentLinks());
   }
 
   getRefreshPortalAudienceUseCase(): RefreshPortalAudienceUseCase {
@@ -465,7 +468,12 @@ class DIContainer {
   }
 
   getPortalDocumentUrlUseCase(): GetPortalDocumentUrlUseCase {
-    return makeGetPortalDocumentUrlUseCase(this.getPortalRepository());
+    return makeGetPortalDocumentUrlUseCase(this.getPortalRepository(), this.getRecordDocumentLinks());
+  }
+
+  getRecordDocumentLinks(): IRecordDocumentLinks {
+    if (!this.recordDocumentLinks) this.recordDocumentLinks = new FirebaseRecordDocumentLinks();
+    return this.recordDocumentLinks;
   }
 
   getUpdatePortalRecordUseCase(): UpdatePortalRecordUseCase {
