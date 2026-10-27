@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.169.2] — 2026-10-27
+
+- fix(sdk/domain): EV-13 — `validate_domain_model` refused with `domain.aggregation.type-mismatch` a `derived` field that copies a reference through `op: 'latest'` (e.g. the current assignee from the latest child's `members` reference), while `validate_plugin` accepted the same declaration in the package. `toPlatform.fieldToDefinition` set `refEntity` only for `semanticType: 'reference'`, so the parent side compared as "reference to (nothing)". It now sets `refEntity` from `target` for every field whose platform `type` is `reference` — the validator and the artifact plan share that translation, so the generated screen also gets the target its picker needs. Fields whose `type` is not `reference` still ignore `target`; differing targets and a derived reference with no target are still refused.
+- docs(sdk/domain): the `target` description in the domain-model JSON Schema (`microteia://domain-model/schema`) now covers any field whose `type` is `reference`.
+
 #### [9.169.1] — 2026-10-27
 
 - fix(sdk/workspace): the seeded `extensions/tsconfig.json` reported 21 errors inside `examples/` on every installation. Seven came from `examples/backend-example/functions/`: `sync` copied it into the workspace without declaring the `firebase-functions` it imports. `sync` now applies the rule `create:function` already followed — when any `functions/` directory exists in the workspace, `examples/` included, it adds `firebase-functions` and `firebase-admin` to `devDependencies` at the versions of the installation's `functions/package.json` (`workspace/functionDependencies.ts`, shared by both); an existing range is never lowered. `unpack` runs `npm install` after `sync`, so they arrive installed.

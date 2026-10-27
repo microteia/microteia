@@ -160,7 +160,9 @@ export const fieldToDefinition = (
   // uma declaração explícita que o autor tenha escrito com o mesmo nome.
   if (field.unique === true) definition.unique = true;
   if (field.lookup) definition.lookupCollection = field.lookup;
-  if (field.semanticType === 'reference' && field.target) {
+  // O alvo segue o que o campo GRAVA, não o que ele significa: um `derived` que copia por `latest`
+  // uma referência grava um id, e sem `refEntity` a tela não sabe abri-lo nem o agregado o compara.
+  if (type === 'reference' && field.target) {
     definition.refEntity = resolve(field.target) ?? field.target;
   }
   if (field.semanticType === 'derived' && field.derivedFrom === 'self' && field.expression) {

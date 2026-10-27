@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.169.2] — 2026-10-27
+
+- Corrigido: um campo que acompanha automaticamente a pessoa indicada no registro mais recente de uma lista (por exemplo, o responsável atual a partir do último encaminhamento) era recusado na validação do modelo, embora a mesma declaração fosse aceita na instalação. Agora o modelo é aceito, e a tela gerada passa a mostrar esse campo como uma ligação para a pessoa, e não como um código solto.
+
 #### [9.169.1] — 2026-10-27
 
 - Corrigido: o diretório de extensões de uma instalação acusava erros nos exemplos que vêm com a Microteia — nas Cloud Functions de exemplo e nos scripts de exemplo. Depois de atualizar, os exemplos passam sem nenhum erro, e os scripts escritos pelo escritório também passam a ser conferidos no editor.

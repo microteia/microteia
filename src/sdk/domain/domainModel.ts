@@ -132,7 +132,10 @@ export interface DomainField {
   /** Como a plataforma o desenha e o grava. Ausente em `reference` e `derived` sobre filhos. */
   type?: CustomFieldType;
   required?: boolean;
-  /** `reference` e `snapshot`: a entidade apontada (nome do modelo ou coleção existente). */
+  /**
+   * `reference` e `snapshot`: a entidade apontada (nome do modelo ou coleção existente). Vale também
+   * para todo campo cujo `type` é `reference` — o `derived` que copia por `latest` uma referência.
+   */
   target?: string;
   /** `reference`: aponta para vários. Ver o limite verificável em `detectors.ts`. */
   multi?: boolean;

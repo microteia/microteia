@@ -97,7 +97,7 @@ export const domainModelJsonSchema = (): Record<string, unknown> => ({
         },
         type: { enum: [...CUSTOM_FIELD_TYPES], description: 'How the platform draws and stores it.' },
         required: { type: 'boolean' },
-        target: { type: 'string', description: 'reference/snapshot: the entity it points at — a name in this model or a collection that already exists.' },
+        target: { type: 'string', description: 'reference/snapshot, or any field whose type is "reference" (a derived latest copying a reference): the entity it points at — a name in this model or a collection that already exists.' },
         multi: { type: 'boolean', description: 'A reference to several records, stored as an array of ids. No aggregation can walk one.' },
         source: { type: 'string', pattern: '^[^.]+\\.[^.]+$', description: 'snapshot: "<Entity>.<field>". Required.' },
         reason: { type: 'string', description: 'snapshot: why the value must not follow the origin. Required.' },

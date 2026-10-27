@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { buildArtifactPlan } from './artifactPlan';
 import { buildDomainCatalog } from './catalog';
 import type { DomainIssue, DomainModel } from './domainModel';
 import { parseDomainModel } from './domainModel';
 import { relationshipSummary } from './storageMapping';
+import { fieldToDefinition } from './toPlatform';
 import { validateDomainModel } from './validateDomainModel';
 import { flatSaleModel, installedScreen, platformField, reference, salesModel, scalar } from './fixtures.test-support';
 
@@ -346,6 +348,92 @@ describe('agregado latest — o valor do filho mais recente', () => {
   it('reprova o campo copiado que o filho não tem', () => {
     const result = check(withLatest({ field: 'nothing', orderBy: [{ path: 'date', dir: 'desc' }] }));
     expect(codes(result.issues)).toContain('domain.aggregation.unknown-child-field');
+  });
+});
+
+describe('agregado latest que copia uma referência', () => {
+  const copyingReference = (parentTarget: string | undefined, childTarget = 'members'): DomainModel => ({
+    version: 1,
+    target: 'screenDefinitions',
+    entities: [
+      {
+        name: 'Ticket',
+        kind: 'entity',
+        collection: 'tickets',
+        titleField: 'subject',
+        fields: [scalar('subject'), {
+          key: 'assignee', label: 'assignee', semanticType: 'derived', derivedFrom: 'children', type: 'reference',
+          ...(parentTarget === undefined ? {} : { target: parentTarget }),
+          aggregation: { from: 'Handoff', via: 'ticketId', op: 'latest', field: 'handedTo', orderBy: [{ path: 'createdAt', dir: 'desc' }] },
+        }],
+      },
+      {
+        name: 'Handoff',
+        kind: 'child',
+        collection: 'handoffs',
+        titleField: 'note',
+        fields: [
+          scalar('note'),
+          reference('handedTo', childTarget),
+          reference('ticketId', 'Ticket'),
+        ],
+      },
+    ],
+    relationships: [
+      { sourceEntity: 'Handoff', targetEntity: 'Ticket', sourceField: 'ticketId', type: 'many-to-one', storage: 'child', ownership: 'composition' },
+      { sourceEntity: 'Handoff', targetEntity: childTarget, sourceField: 'handedTo', type: 'many-to-one', storage: 'reference', ownership: 'association' },
+    ],
+  });
+
+  const assigneeOf = (model: DomainModel) =>
+    buildArtifactPlan(model, EMPTY).screens.find((one) => one.collection === 'tickets')?.fields.find((one) => one.key === 'assignee');
+
+  it('aceita o campo derivado que aponta para o mesmo alvo do campo copiado', () => {
+    expect(errors(check(copyingReference('members')).issues)).toEqual([]);
+  });
+
+  it('leva o alvo do campo derivado até a tela gerada, para que ela desenhe o seletor certo', () => {
+    expect(assigneeOf(copyingReference('members'))).toMatchObject({ type: 'reference', refEntity: 'members' });
+  });
+
+  it('resolve o alvo pelo nome da entidade do modelo, como numa referência comum', () => {
+    const model = copyingReference('Ticket', 'Ticket');
+    expect(errors(check(model).issues)).toEqual([]);
+    expect(assigneeOf(model)?.refEntity).toBe('tickets');
+  });
+
+  it('continua reprovando quando os alvos divergem — o id de um membro não é o id de outra coisa', () => {
+    const result = check(copyingReference('Ticket'));
+    expect(codes(errors(result.issues))).toEqual(['domain.aggregation.type-mismatch']);
+  });
+
+  it('continua reprovando o campo derivado sem alvo, que gravaria um id que ninguém sabe abrir', () => {
+    expect(codes(errors(check(copyingReference(undefined)).issues))).toEqual(['domain.aggregation.type-mismatch']);
+  });
+
+  it('o alvo atravessa a leitura do JSON — é por ali que o modelo chega do agente', () => {
+    const parsed = parseDomainModel(JSON.stringify(copyingReference('members')));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(errors(check(parsed.model).issues)).toEqual([]);
+  });
+
+  it('não dá alvo a campo que não grava referência, mesmo que ele declare um — o que já existia não muda', () => {
+    const resolve = (name: string) => (name === 'members' ? 'members' : undefined);
+    const count = fieldToDefinition(
+      { key: 'handoffs', label: 'handoffs', semanticType: 'derived', derivedFrom: 'children', target: 'members' },
+      0,
+      'design',
+      resolve,
+    );
+    const copy = fieldToDefinition(
+      { key: 'ownerName', label: 'ownerName', semanticType: 'snapshot', type: 'text', target: 'members', source: 'members.name', reason: 'r' },
+      0,
+      'design',
+      resolve,
+    );
+    expect(count.refEntity).toBeUndefined();
+    expect(copy.refEntity).toBeUndefined();
   });
 });
 
