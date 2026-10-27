@@ -77,6 +77,8 @@ export const CORE_RECORDS: Record<string, string> = {
   'portal.issue.uploads.documents': 'O convidado só pode anexar documentos numa tela que mostra os documentos no portal.',
   'portal.document-links': 'Entregar ao convidado links curtos de documento',
   'portal.document-links.hint': 'A cada abertura, um link novo é emitido depois de conferir o acesso do convidado, e ele deixa de funcionar depois dos minutos abaixo. Revogar um convite torna inúteis os links já emitidos assim que vencem. Os links permanentes entregues antes são trocados.',
+  'portal.track-views': 'Registrar quando o convidado abre um registro ou um documento',
+  'portal.track-views.hint': 'O servidor grava uma linha na Auditoria e dispara o gatilho de automação "Aberto no portal", com o convidado e o horário. O documento só é entregue depois de registrado. O registro em si não é alterado, e abrir o mesmo item de novo em até {minutes} minutos é registrado uma vez.',
   'portal.document-links.minutes': 'Minutos de validade do link',
   'portal.issue.document-links.minutes': 'O link deve valer um número inteiro de minutos, de 1 a {maximum}.',
   'portal.issue.document-links.file-field': 'O campo de arquivo "{field}" não pode aparecer no portal com links curtos: o valor dele é um link permanente. Deixe de mostrá-lo, ou desligue os links curtos.',

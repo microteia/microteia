@@ -30,6 +30,8 @@ export interface PortalFormState {
   documentLinks: boolean;
   /** Texto, como o controle o devolve: a declaração recebe o número. */
   documentLinkMinutes: string;
+  /** O servidor registra cada abertura do convidado — Auditoria e o evento `portalViewed`. */
+  trackViews: boolean;
 }
 
 export const EMPTY_PORTAL_FORM: PortalFormState = {
@@ -51,6 +53,7 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   automationInvites: false,
   documentLinks: false,
   documentLinkMinutes: String(PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES),
+  trackViews: false,
 };
 
 export const toPortalForm = (portal: PortalDeclaration | null | undefined): PortalFormState => {
@@ -75,6 +78,7 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     automationInvites: portal.invites?.automation === true,
     documentLinks: !!portal.documentLinks,
     documentLinkMinutes: String(portal.documentLinks?.expiresInMinutes ?? PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES),
+    trackViews: portal.trackViews === true,
   };
 };
 
@@ -109,5 +113,6 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
     // Convidar é da tela-sujeito: em outra tela, o servidor nunca aceitaria o convite.
     ...(form.automationInvites && form.subjectKind === 'self' ? { invites: { automation: true } } : {}),
     ...(form.documentLinks ? { documentLinks: { expiresInMinutes: documentLinkMinutesOf(form.documentLinkMinutes) } } : {}),
+    ...(form.trackViews ? { trackViews: true } : {}),
   };
 };

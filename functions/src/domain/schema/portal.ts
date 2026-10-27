@@ -64,6 +64,20 @@ export const PORTAL_AUTOMATION_INVITES_SINCE_KERNEL = '2.73.0';
  */
 export const PORTAL_DOCUMENT_LINKS_SINCE_KERNEL = '2.77.0';
 
+/**
+ * O kernel a partir do qual `trackViews` é lido e `<prefixo>.portalViewed` é publicado. Um kernel anterior
+ * DESCARTA a chave: nada é registrado e a automação que escuta o evento nunca roda, sem erro nenhum. Por
+ * isso o pacote que a usa tem de exigir este kernel.
+ */
+export const PORTAL_TRACK_VIEWS_SINCE_KERNEL = '2.79.0';
+
+/**
+ * A mesma abertura — o mesmo convidado, o mesmo registro, o mesmo documento — dentro desta janela não é
+ * registrada de novo. A primeira é a que prova; as seguintes seriam ruído na Auditoria e uma execução
+ * de automação a cada clique, e um convidado não pode disparar execuções sem limite.
+ */
+export const PORTAL_VIEW_REPEAT_MINUTES = 30;
+
 /** Validade do link curto quando a declaração não diz outra, e o teto que ela pode pedir. */
 export const PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES = 10;
 export const PORTAL_DOCUMENT_LINK_MAX_MINUTES = 60;
@@ -156,6 +170,15 @@ export interface PortalDeclaration {
    * Ligada, também tira da projeção o valor dos campos `file` expostos: ele É um link permanente.
    */
   documentLinks?: PortalDocumentLinksDeclaration | null;
+  /**
+   * Registrar no SERVIDOR quando o convidado abre um registro desta tela ou obtém o link de um documento
+   * dele: uma linha de Auditoria e o evento `<prefixo>.portalViewed`, com o convidado como ator e o
+   * instante do servidor. Não altera o registro. Ausente, nada é registrado — nem gravado.
+   *
+   * O documento só é entregue DEPOIS de registrado: a URL passa pelo servidor. A abertura do registro é
+   * avisada pela casca do portal, porque a projeção é lida direto do Firestore.
+   */
+  trackViews?: boolean;
 }
 
 export interface PortalDocumentLinksDeclaration {
@@ -288,8 +311,27 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ...(raw.notifyOffice === false ? { notifyOffice: false } : {}),
     ...(invites ? { invites } : {}),
     ...(documentLinks ? { documentLinks } : {}),
+    ...(raw.trackViews === true ? { trackViews: true } : {}),
   };
 };
+
+/** A tela registra as aberturas do convidado (`trackViews`). */
+export const portalTracksViews = (screen: Pick<PortalScreenLike, 'portal'>): boolean => screen.portal?.trackViews === true;
+
+/**
+ * A marca de "já registrado" de uma abertura: o escritório, o convidado, a projeção e — no documento —
+ * o documento. Os ids não têm `/` (são chave de documento do Firestore), e por isso a junção é única.
+ */
+export const portalViewMarkId = (
+  tenantId: string,
+  userId: string,
+  projectionId: string,
+  documentId: string | null,
+): string => [tenantId, userId, projectionId, documentId ?? ''].join('__');
+
+/** A abertura anterior, registrada em `lastAt`, ainda cobre a de agora. */
+export const isRepeatedPortalView = (lastAt: Date | null, now: Date): boolean =>
+  !!lastAt && now.getTime() - lastAt.getTime() < PORTAL_VIEW_REPEAT_MINUTES * 60_000;
 
 const isValidDocumentLinkMinutes = (value: unknown): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= PORTAL_DOCUMENT_LINK_MAX_MINUTES;

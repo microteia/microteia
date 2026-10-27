@@ -28,6 +28,7 @@ export {
   revokePortalUser,
   getPortalContext,
   getPortalDocumentUrl,
+  recordPortalView,
   submitPortalRecord,
   attachPortalDocument,
 } from './infrastructure/handlers/portalAccess';

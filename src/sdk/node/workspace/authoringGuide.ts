@@ -53,6 +53,8 @@ import {
   PORTAL_DOCUMENT_LINKS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES,
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
+  PORTAL_TRACK_VIEWS_SINCE_KERNEL,
+  PORTAL_VIEW_REPEAT_MINUTES,
 } from '../../../domain/schema/portal';
 import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
@@ -795,6 +797,30 @@ portal: { subject: { field: 'company' }, fields: ['number'], documents: true, do
   says why.
 - Requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\`. An older kernel ignores the declaration and
   would hand guests the permanent link, so the package gate refuses the package without it.
+
+#### Knowing that a guest opened it — \`trackViews\`
+
+Reading the portal leaves no trace on the server by default: the guest's browser reads its copy of the
+record directly. When the opening itself matters — the notice that counts as delivered once opened, the
+report the patient must have seen —, ask the server to record it:
+
+\`\`\`ts
+portal: { subject: { field: 'company' }, fields: ['number'], documents: true, trackViews: true }
+\`\`\`
+
+- **Opening a record** of that screen in the portal (the built-in detail or your \`detail\` view) and
+  **getting a document link** of one of its records each write an Audit trail entry and publish
+  \`<collection>.portalViewed\` (section 10), with the guest as the actor and the server's clock. The
+  record is not changed.
+- **A document is only handed out after it is recorded.** If recording fails, the guest does not get the
+  link. The record opening is reported by the portal shell — the server cannot see a direct read —, so
+  treat the DOCUMENT as your evidence and the record opening as a signal.
+- The same guest opening the same record (or the same document) again within ${PORTAL_VIEW_REPEAT_MINUTES} minutes
+  is recorded once.
+- A \`list\` or \`page\` view that shows a record's content by itself is not an opening the kernel can see.
+  Put what must be proven behind the \`detail\` surface or in a document.
+- Requires \`kernel: "^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}"\`. An older kernel ignores the declaration and records
+  nothing, so the package gate refuses the package without it.
 
 #### Links point at the collection
 
@@ -1879,7 +1905,7 @@ every member who reads the collection would read every record, so \`check\` refu
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
 | \`editWindow\` | how long after creation the record may still be changed — and, with \`delete: true\`, deleted. Its documents freeze with it. Enforced by the security rules, not only the form; see "Edit window" above |
 | \`memberVisibility\` | which members read EACH record: the ones it names in a member reference (\`userFields\`), plus whoever has \`bypassPermission\` — or the derived \`<collection>.${READ_ALL_ACTION}\`. Enforced by the security rules and every server path that hands a record to a person; see "Record visibility" above |
-| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10). \`documentLinks: { expiresInMinutes }\` hands guests short-lived signed document links instead of the permanent one (section 4); requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\` |
+| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10). \`documentLinks: { expiresInMinutes }\` hands guests short-lived signed document links instead of the permanent one (section 4); requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\`. \`trackViews: true\` has the server record every time a guest opens a record or gets a document link — an Audit trail entry and \`<collection>.portalViewed\` (sections 4 and 10); requires \`kernel: "^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}"\` |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 
 ### Option lists
@@ -2238,7 +2264,8 @@ the organization designed, for a collection that already exists. Also \`lookup.s
 (with \`lookupCollection\` naming which list), \`<parent>.note.saved\` / \`.deleted\`, the same for
 \`document\`, \`workflow.called\` for a workflow that only exists to be invoked — that one declares
 \`parameters\`, which become the \`event.\` it receives —, \`schedule\` for one the clock starts,
-\`<collection>.dateReached\` for one that runs when a date of a record arrives, and \`audit.recorded\` for
+\`<collection>.dateReached\` for one that runs when a date of a record arrives, \`<collection>.portalViewed\`
+for one that runs when a portal guest opens a record (see below), and \`audit.recorded\` for
 one that reacts to an entry of the organization's Audit trail (\`event.severity\`, \`event.action\`,
 \`event.entity\`… — requires kernel ${WORKFLOW_AUDIT_SINCE_KERNEL} or later). Only entries a PERSON caused fire it: what the kernel
 or an automation writes to the trail never does, which is what keeps the trigger from feeding itself.
@@ -2605,6 +2632,38 @@ signed in by e-mail — so a \`.saved\` workflow, a report or a document templat
 with what assurance. It is a system field: no workflow, script or screen writes it, and the Audit trail
 entry of that write shows it too. In expressions, \`actor.verified\` has the same shape whenever the
 actor is a portal guest who proved an identity, and is \`null\` otherwise.
+
+### A workflow that runs when a guest opens a record — \`portalViewed\`
+
+On a screen that declares \`portal: { ..., trackViews: true }\` (section 4), the server publishes
+\`<collection>.portalViewed\` — with the screen's \`eventPrefix\` when it has one — each time a guest opens
+one of its records in the portal or gets the link of one of its documents:
+
+\`\`\`ts
+{
+  templateId: 'wf-notice-read',
+  name: label('workflow.notice-read'),
+  eventName: 'notices.portalViewed',
+  version: 1,
+  condition: { kind: 'Expression', expression: 'isEmpty(event.readAt)' },
+  steps: [ /* a map + upsert that writes event.portalView.at into a record of yours */ ],
+}
+\`\`\`
+
+- **The payload is the record**, at the root, as in \`.saved\` (no \`old\`, no \`changeType\`), plus
+  \`portalView\`: \`at\` (the server's clock), \`email\` (the guest's invitation), and \`documentId\`,
+  \`documentName\`, \`documentType\` — \`null\` when it was the record that was opened.
+- **The guest is the \`actor\`**: \`actor.via\` is \`"portal"\`, \`actor.verified\` the identity they proved
+  (or \`null\`), and \`hasPermission(...)\` answers false. What the workflow writes is written in the
+  guest's name — \`updatedVia: "portal"\`, with \`portalVerified\`.
+- **Once per window.** The same guest opening the same record, or the same document, again within
+  ${PORTAL_VIEW_REPEAT_MINUTES} minutes publishes nothing. Opening the record and opening a document of it are
+  different openings. Guard the first one in your condition (\`isEmpty(event.readAt)\`) when only the
+  first counts.
+- **Evidence belongs in a record of yours** (section 8, "The audit trail is not your evidence store"): the
+  kernel's Audit trail entry expires with the organization's retention; what this workflow writes stays.
+- The package gate refuses the trigger on a screen of your own package that does not declare
+  \`trackViews\` — it would never fire —, and requires \`kernel: "^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}"\`.
 
 ### Waiting inside a workflow — the \`delay\` step
 

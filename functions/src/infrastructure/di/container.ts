@@ -46,6 +46,7 @@ import type {
 import {
   makeGetPortalContextUseCase,
   makeGetPortalDocumentUrlUseCase,
+  makeRecordPortalViewUseCase,
   makeInvitePortalUserUseCase,
   makeRevokePortalUserUseCase,
   makeSubmitPortalRecordUseCase,
@@ -54,9 +55,14 @@ import {
 } from '../../domain/usecases/PortalAccessUseCases';
 import { portalRecordWriter } from '../portal/portalRecordWriter';
 import { portalActivityNotifier } from '../portal/portalActivityNotifier';
+import { portalViewRecorder } from '../portal/portalViewRecorder';
+import { makeTrackPortalView, type TrackPortalView } from '../../domain/usecases/PortalViewUseCases';
+import type { IPortalViewMarks } from '../../domain/repositories/IPortalViewMarks';
+import { FirebasePortalViewMarks } from '../../data/repositories/FirebasePortalViewMarks';
 import type {
   GetPortalContextUseCase,
   GetPortalDocumentUrlUseCase,
+  RecordPortalViewUseCase,
   InvitePortalUserUseCase,
   RevokePortalUserUseCase,
   SubmitPortalRecordUseCase,
@@ -288,6 +294,7 @@ class DIContainer {
   private dispatchNotificationUC?: DispatchNotificationUseCase;
   private recordDocumentWriter?: IRecordDocumentWriter;
   private recordDocumentLinks?: IRecordDocumentLinks;
+  private portalViewMarks?: IPortalViewMarks;
   private recordDocumentHasher?: IRecordDocumentHasher;
   private downloadWriter?: IDownloadWriter;
   private attachDownloadUC?: AttachDownloadToRecordUseCase;
@@ -482,7 +489,17 @@ class DIContainer {
   }
 
   getPortalDocumentUrlUseCase(): GetPortalDocumentUrlUseCase {
-    return makeGetPortalDocumentUrlUseCase(this.getPortalRepository(), this.getRecordDocumentLinks());
+    return makeGetPortalDocumentUrlUseCase(this.getPortalRepository(), this.getRecordDocumentLinks(), undefined, this.getTrackPortalView());
+  }
+
+  getRecordPortalViewUseCase(): RecordPortalViewUseCase {
+    return makeRecordPortalViewUseCase(this.getPortalRepository(), this.getTrackPortalView());
+  }
+
+  /** O registro das aberturas pelo portal (`portal.trackViews`): a marca da janela, a Auditoria e o evento. */
+  getTrackPortalView(): TrackPortalView {
+    if (!this.portalViewMarks) this.portalViewMarks = new FirebasePortalViewMarks();
+    return makeTrackPortalView({ marks: this.portalViewMarks, record: portalViewRecorder });
   }
 
   getRecordDocumentLinks(): IRecordDocumentLinks {

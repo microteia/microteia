@@ -417,6 +417,7 @@ export interface ScreenBuilderViewModel {
   setPortalAutomationInvites: (allowed: boolean) => void;
   setPortalDocumentLinks: (enabled: boolean) => void;
   setPortalDocumentLinkMinutes: (minutes: string) => void;
+  setPortalTrackViews: (enabled: boolean) => void;
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
@@ -1550,6 +1551,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     (documentLinkMinutes: string) => updatePortal({ documentLinkMinutes }),
     [updatePortal],
   );
+  const setPortalTrackViews = useCallback((trackViews: boolean) => updatePortal({ trackViews }), [updatePortal]);
   const togglePortalEditField = useCallback((fieldKey: string, editable: boolean) => {
     setScreenForm((prev) => ({
       ...prev,
@@ -2741,6 +2743,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setPortalAutomationInvites,
     setPortalDocumentLinks,
     setPortalDocumentLinkMinutes,
+    setPortalTrackViews,
     toggleChildScreen,
     setChildLinkField,
     iconOptions,

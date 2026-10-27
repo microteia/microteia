@@ -100,6 +100,11 @@ export interface SchemaScreen {
    */
   hasNotes?: boolean;
   /**
+   * A tela do portal da coleção registra as aberturas do convidado (`portal.trackViews`). Está no schema
+   * pelo mesmo motivo de `hasNotes`: o catálogo só oferece `<prefixo>.portalViewed` à coleção que o emite.
+   */
+  tracksPortalViews?: boolean;
+  /**
    * De onde a tela veio. Só `builtin` importa aqui: é o que distingue a ÂNCORA de uma coleção (ver
    * `isCollectionAnchor`) de uma tela que alguém de fato declarou.
    */
@@ -213,6 +218,8 @@ const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: 
     // e anexar por automação ou pelo agente é anexar onde a pessoa vai procurar.
     hasDocuments: base.hasDocuments === true || next.hasDocuments === true,
     hasNotes: base.hasNotes === true || next.hasNotes === true,
+    // O portal é da COLEÇÃO: a tela que o declara costuma não ser a dona do nome (`dataCollection`).
+    tracksPortalViews: base.tracksPortalViews === true || next.tracksPortalViews === true,
   };
 };
 

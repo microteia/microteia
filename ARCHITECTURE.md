@@ -112,6 +112,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | Convite do portal por IDENTIDADE (a claim exigida e os sujeitos) | `tenants/{tenantId}/portalIdentityInvites/{id}` | Sim (lê quem tem `portal.manage`; escrita só do servidor) |
 | Configuração de entrada do portal e segredos dos clientes OIDC | `tenants/{tenantId}/secrets/portal-identity` | Sim (só servidor; `managePortalSignIn` é a porta) |
 | Pedido de entrada no portal por OIDC (verificador PKCE, `nonce`) | `portalSignInRequests/{sha256(state)}` | Não (só servidor; TTL em `expiresAt`) |
+| Marca da última abertura registrada pelo portal (`trackViews`) | `portalViewMarks/{tenantId}__{uid}__{projeção}__{documento}` | Não (só servidor; TTL em `expiresAt`) |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
 | `SavedFilter` | `savedFilters/{uid}_{screenKey}` | Não |
@@ -1677,6 +1678,79 @@ Arquivos-chave: `domain/schema/portal.ts` (`documentLinks`, `portalDocumentLinkM
 `functions/src/domain/repositories/IRecordDocumentLinks.ts` · `functions/src/data/services/FirebaseRecordDocumentLinks.ts` ·
 `domain/usecases/plugins/pluginPortal.ts` · `ScreenBuilder/components/ScreenPortalPanel/`.
 
+### Registro de acesso — `portal.trackViews` (EV-10)
+
+```ts
+portal: { subject: { field: 'companyId' }, fields: [...], documents: true, trackViews: true }
+```
+
+**O problema.** O convidado lê a PROJEÇÃO direto do Firestore — o servidor não vê a leitura —, e a URL do
+documento saía da callable sem deixar rastro. Nada no servidor dizia que alguém de fora abriu um registro
+ou um documento. Para quem entrega intimação, laudo ou notificação fiscal, "abriu" é o fato que importa
+(a ciência, a entrega), e até aqui só dava para prová-lo desenhando um gesto explícito na extensão.
+
+**A decisão.** Com a declaração, duas aberturas são registradas no servidor, com o mesmo par de saídas:
+uma linha de Auditoria (o convidado como autor, o registro como link) e o evento `<prefixo>.portalViewed`.
+O registro NÃO é alterado — quem decide se a abertura vira dado é a automação que escuta o evento.
+
+| Abertura | Quem avisa | Garantia |
+|---|---|---|
+| obter o link de um documento | `getPortalDocumentUrl`, que já conferia tudo | **registrar vem antes de entregar**: a falha segura a URL. Não existe "abriu sem registro" |
+| abrir o registro (casca nativa ou view de extensão `detail`) | a casca, pela callable `recordPortalView`, quando o registro aberto chega à tela | é um AVISO do cliente: a leitura é direta, e um cliente adulterado pode não avisar. Conferido como o documento (convite vivo, `audience`, sujeitos AGORA) |
+
+Por isso a prova é o DOCUMENTO; a abertura do registro é sinal. O guia de autoria diz isso à extensão, e
+diz que uma view `list` ou `page` que mostre o conteúdo sozinha não é abertura que o kernel enxerga.
+
+**O evento** é um gatilho de REGISTRO, como `dateReached` (`PORTAL_VIEWED_ACTION` em
+`ENTITY_TRIGGER_ACTIONS`): por isso o prefixo da tela (`eventPrefix`) vale, o empacotamento reescreve o
+prefixo de tela renomeada, a tela vira dependência da automação e o agente o descreve como `record`. O
+payload é o registro na raiz — como no `saved`, sem `old` — mais `portalView` (`at`, `email`, `documentId`,
+`documentName`, `documentType`), que vem por último e não é sobrescrito por um campo homônimo. O catálogo o
+oferece só à coleção cuja tela declara (`SchemaScreen.tracksPortalViews`, lido nas duas traduções de
+tela — `toSchemaScreens` e o `ScreenDefinitionCache`). Os campos de `portalView` resolvem e são sugeridos
+pela raiz de entidade com `extras` (`PathRoot`), que é genérica: chaves que o evento leva ao lado do
+registro, no primeiro segmento.
+
+**O ator é o convidado.** `publishEvent` grava o `PublishedActor` ao lado do payload, e
+`actorFromPublished` passou a aceitar `via: 'portal'` — antes ele DESCARTAVA esse ator — e a levar
+`verified` (só para o convidado: num ator de dentro a chave é descartada). É identidade, não acesso, e por
+isso atravessa: sem ela, o `upsert` da automação gravaria `portalVerified: null`, como se o convidado não
+tivesse provado nada. O que a automação grava sai em nome dele (`updatedVia: 'portal'`); `hasPermission`
+responde não.
+
+**Uma por janela — `portalViewMarks`.** A mesma abertura (escritório, convidado, projeção, documento) em
+até `PORTAL_VIEW_REPEAT_MINUTES` (30) não é registrada de novo. A primeira é a que prova; as seguintes
+seriam ruído e, pior, uma execução de automação por clique que o convidado dispararia sem limite. A marca
+é reservada numa transação ANTES de registrar (duas aberturas simultâneas registram uma vez) e desfeita
+se o registro falhar (senão a próxima seria tomada por repetição de uma que nunca existiu).
+
+| Decisão | Por quê |
+|---|---|
+| coleção de RAIZ `portalViewMarks/{t__uid__projeção__doc}` | uma gravação sob `tenants/{t}/{coleção}` acorda os gatilhos de toda coleção (ver "Uma passada por vez"); abertura não é fato de registro |
+| TTL em `expiresAt` | a marca vencida não serve a ninguém; sem varredura nossa |
+| regra fechada | apagá-la repetiria o registro à vontade; escrevê-la calaria a próxima abertura |
+| `trackViews` fora de `portalShape` | ligar o registro não muda projeção nenhuma — sem passada de reprojeção, como `invites` |
+
+**Opcional, e sem custo para quem não usa.** Sem a declaração não há callable: a casca só chama
+`recordPortalView` quando a tela do contexto diz `trackViews`, e `getPortalDocumentUrl` não lê nem grava
+nada a mais. Os testes cobram "nem a marca é gravada".
+
+**Duas portas, o mesmo dado.** A extensão declara no pacote; o escritório liga na aba Portal do Form
+Design ("Registrar quando o convidado abre um registro ou um documento").
+
+**Kernel.** `PORTAL_TRACK_VIEWS_SINCE_KERNEL` (2.79.0). Um kernel anterior descarta a chave e não publica o
+evento — calado, o pior jeito para quem declarou justamente para ter prova. Por isso o pacote que declara
+`trackViews` sem exigir o kernel é recusado (`issue.portal.track-views.kernel`), e também a automação de
+`portalViewed` (`issue.workflow.trigger-kernel`) — e a de `portalViewed` sobre uma tela do PRÓPRIO pacote
+que não declara `trackViews` (`issue.workflow.portal-viewed.untracked`): instalaria ligada e nunca dispararia.
+
+Arquivos-chave: `domain/schema/portal.ts` (`trackViews`, `portalTracksViews`, `portalViewMarkId`,
+`isRepeatedPortalView`) · `domain/schema/eventCatalog.ts` (`PORTAL_VIEWED_ACTION`) ·
+`functions/src/domain/usecases/PortalViewUseCases.ts` · `PortalAccessUseCases.ts`
+(`makeRecordPortalViewUseCase`, o `track` de `getPortalDocumentUrl`) · `functions/src/domain/services/portalView.ts` ·
+`functions/src/data/repositories/FirebasePortalViewMarks.ts` · `functions/src/infrastructure/portal/portalViewRecorder.ts` ·
+`functions/src/domain/engine/workflowActor.ts`.
+
 ### Agente de IA e MCP
 
 O convidado não emite acesso de agente: `issueAgentGrant` recusa quem não tem permissão nenhuma, e
@@ -1951,6 +2025,9 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
   `<coleção>.read` e `memberVisibility` e assine, e a aba Documentos, a API de extensão, `list_documents` e a
   saída `url` de `render-document` passando a pedir o link na abertura. Downloads e o campo `file` têm o
   mesmo token, pelo mesmo motivo.
+- **Prova da LEITURA do registro.** `trackViews` registra a abertura que a casca avisa; a leitura da
+  projeção é direta, e um cliente adulterado pode não avisar. Prova forte exige que o conteúdo só saia
+  por callable (o documento já sai) — e então a lista e o detalhe passariam a custar uma invocação.
 - **`refEntity` do campo-sujeito** muda pelo Form Design sem `portal.manage` (incluir `fields` na
   regra travaria qualquer edição de campo das telas do portal). Exige que a tela apontada também
   esteja no portal, o que já cobra `portal.manage`.
@@ -6996,6 +7073,7 @@ a separação:
 | `call-workflow` sem esperar | herda | herda, gravada no evento | não — `[]` |
 | `<coleção>.saved` / `.deleted` | — | **não há ator** | — |
 | `schedule` / `<coleção>.dateReached` (relógio do kernel) | — | **não há ator** | — |
+| `<coleção>.portalViewed` (o convidado abriu) | `portal` | o convidado, gravado no evento, com `verified` | não — `[]` |
 
 - **A identidade atravessa o barramento; o acesso não.** `publishEvent` aceita um `PublishedActor` e o
   grava AO LADO do payload (nunca dentro: o payload são os parâmetros, e um parâmetro `actor`
@@ -13840,6 +13918,7 @@ Além dos compostos, o arquivo declara oito `fieldOverrides`:
 | `notification_dispatches` | `expiresAt` | TTL — a marca de "este aviso já saiu" (`dedupKey`) vale o mesmo que o aviso |
 | `downloads` | `expiresAt` | TTL — o arquivo gerado para Downloads vence sozinho; o gatilho `onDownloadDeleted` leva o arquivo do bucket. Sem índice: a lista filtra o vencido no cliente |
 | `portalSignInRequests` | `expiresAt` | TTL — o pedido de entrada no portal por um provedor de identidade que nunca voltou (a pessoa desistiu no provedor). O que volta é apagado ao ser gasto; sem índice, porque só é lido pelo id |
+| `portalViewMarks` | `expiresAt` | TTL — a marca de "esta abertura já foi registrada" vale a janela de repetição (`PORTAL_VIEW_REPEAT_MINUTES`); sem índice, porque só é lida pelo id |
 
 ---
 

@@ -9,6 +9,7 @@ import {
   makeGetPortalDocumentUrlUseCase,
   makeListPortalLinkOptionsUseCase,
   makeListPortalMembershipsUseCase,
+  makeRecordPortalViewUseCase,
   makeSavePortalProfileUseCase,
   makeSubmitPortalRecordUseCase,
   makeUpdatePortalRecordUseCase,
@@ -68,6 +69,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     context: makeGetPortalContextUseCase(portalRepository),
     documents: makeGetPortalDocumentsUseCase(portalRepository),
     documentUrl: makeGetPortalDocumentUrlUseCase(portalRepository),
+    recordView: makeRecordPortalViewUseCase(portalRepository),
     linkOptions: makeListPortalLinkOptionsUseCase(portalRepository),
     submit: makeSubmitPortalRecordUseCase(portalRepository),
     update: makeUpdatePortalRecordUseCase(portalRepository),
@@ -217,6 +219,11 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [tenantId, uc.documentUrl],
   );
 
+  const recordView = useCallback(
+    (projectionId: string) => (tenantId ? uc.recordView.execute(tenantId, projectionId) : Promise.resolve()),
+    [tenantId, uc.recordView],
+  );
+
   const listLinkOptions = useCallback(
     (linkCollection: string) => (tenantId && userId ? uc.linkOptions.execute(tenantId, userId, linkCollection) : Promise.resolve([])),
     [tenantId, userId, uc.linkOptions],
@@ -268,6 +275,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     selectTenant: setTenantId,
     getDocuments,
     getDocumentUrl,
+    recordView,
     subscribeChildren,
     listLinkOptions,
     submit,
@@ -278,7 +286,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     uploadDocument,
   }), [
     memberships, membershipsLoading, membershipsFailed, tenantId, context, contextLoading, error, errorCode,
-    retryContext, retryMemberships, recordsByCollection, isCollectionLoading, getDocuments, getDocumentUrl, subscribeChildren,
+    retryContext, retryMemberships, recordsByCollection, isCollectionLoading, getDocuments, getDocumentUrl, recordView, subscribeChildren,
     listLinkOptions, submit, update, userId, profile, saveProfile, uploadDocument,
   ]);
 

@@ -387,8 +387,8 @@ export interface AgentTriggerDescription {
   kind: AgentWorkflowTrigger;
   /** O prefixo de evento da coleção (`record` e `date-reached`) — o mesmo nome que a tela emite. */
   on?: string;
-  /** `record`: em que gesto sobre o registro. */
-  when?: 'saved' | 'deleted';
+  /** `record`: em que gesto sobre o registro — gravar, excluir, ou o convidado do portal abri-lo. */
+  when?: 'saved' | 'deleted' | 'portalViewed';
   /** `date-reached`: o campo vigiado, o deslocamento em dias e a hora no fuso do escritório. */
   field?: string;
   offset?: string;

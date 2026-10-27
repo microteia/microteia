@@ -175,6 +175,22 @@ export const getPortalDocumentUrl = onCall({ region: REGION, cors: true }, async
 });
 
 /**
+ * A casca avisa que o convidado abriu um registro. Só registra na tela que declara `portal.trackViews`;
+ * nas outras responde `recorded: false` sem gravar nada.
+ */
+export const recordPortalView = onCall({ region: REGION, cors: true }, async (request) => {
+  const userId = authenticated(request.auth);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const tenantId = requireString(data.tenantId, '@core.automation/handler.tenant.missing');
+  const projectionId = requireString(data.projectionId, '@core.tenant/portal.record.unavailable');
+  try {
+    return await getDI().getRecordPortalViewUseCase().execute({ tenantId, userId, projectionId });
+  } catch (error) {
+    throw asHttpsError(error, 'recordPortalView');
+  }
+});
+
+/**
  * O convidado cria um registro — ou, com `recordId`, altera um que é dele. A recusa da VALIDAÇÃO volta já traduzida, e no idioma do convidado:
  * as frases do motor de gravação são do núcleo, e o pacote de idioma do escritório não chega ao
  * portal — sem isto, o convidado de um escritório brasileiro leria o motivo em inglês.

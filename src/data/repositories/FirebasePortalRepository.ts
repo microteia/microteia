@@ -149,6 +149,11 @@ export class FirebasePortalRepository implements IPortalRepository {
     return (await call({ tenantId, projectionId, documentId })).data.url;
   }
 
+  async recordView(tenantId: string, projectionId: string): Promise<void> {
+    const call = httpsCallable<{ tenantId: string; projectionId: string }, { recorded: boolean }>(functions, 'recordPortalView');
+    await call({ tenantId, projectionId });
+  }
+
   async uploadDocument(input: {
     tenantId: string;
     userId: string;

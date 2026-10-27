@@ -330,6 +330,12 @@
       "indexes": []
     },
     {
+      "collectionGroup": "portalViewMarks",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "portalSignInRequests",
       "fieldPath": "expiresAt",
       "ttl": true,

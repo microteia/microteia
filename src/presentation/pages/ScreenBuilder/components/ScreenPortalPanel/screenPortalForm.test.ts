@@ -44,3 +44,18 @@ describe('link curto de documento na aba Portal', () => {
     expect(fromPortalForm(form)?.documentLinks).toEqual({ expiresInMinutes: 90 });
   });
 });
+
+describe('registro de aberturas na aba Portal', () => {
+  it('ida e volta', () => {
+    const portal = { subject: 'self' as const, fields: ['name'], documents: false, trackViews: true };
+    const form = toPortalForm(portal);
+    expect(form.trackViews).toBe(true);
+    expect(fromPortalForm(form)).toEqual(portal);
+  });
+
+  it('desligado, a chave nem é gravada — a declaração de quem não usa o recurso fica como estava', () => {
+    const portal = { subject: 'self' as const, fields: ['name'], documents: false };
+    expect(toPortalForm(portal).trackViews).toBe(false);
+    expect(fromPortalForm(toPortalForm(portal))).toEqual(portal);
+  });
+});

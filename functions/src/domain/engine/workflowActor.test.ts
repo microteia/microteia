@@ -14,4 +14,18 @@ describe('o ator que atravessa o barramento de eventos', () => {
     expect(actorFromPublished({ userId: 'u1' })).toBeUndefined();
     expect(actorFromPublished({ userId: 'u1', via: 'automation' })).toBeUndefined();
   });
+
+  it('o convidado do portal atravessa como ator — sem permissão nenhuma, e com a identidade que provou', () => {
+    const verified = { provider: 'gov', claim: { name: 'cpf', value: '123' }, level: 'high' };
+    const published = toPublishedActor({ userId: 'g1', name: 'Bia', photoURL: '', via: 'portal', permissions: [], verified });
+    expect(published).toEqual({ userId: 'g1', name: 'Bia', photoURL: '', via: 'portal', verified });
+    expect(actorFromPublished(published)).toEqual({ userId: 'g1', name: 'Bia', photoURL: '', via: 'portal', permissions: [], verified });
+  });
+
+  it('identidade verificada só vale para o convidado: num ator de dentro ela é descartada', () => {
+    const verified = { provider: 'gov', claim: null, level: null };
+    expect(toPublishedActor({ userId: 'u1', name: 'Ana', photoURL: '', via: 'ui', permissions: [], verified })).not.toHaveProperty('verified');
+    expect(actorFromPublished({ userId: 'u1', via: 'ui', verified })).not.toHaveProperty('verified');
+    expect(actorFromPublished({ userId: 'g1', via: 'portal', verified: { provider: '' } })).not.toHaveProperty('verified');
+  });
 });

@@ -3,6 +3,7 @@ import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebas
 import {
   collection,
   collectionGroup,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -283,6 +284,19 @@ describe('a entrada com identidade verificada', () => {
       await assertFails(setDoc(doc(asUser(env, uid), 'portalSignInRequests/h2'), { tenantId: TENANT }));
       await assertFails(getDoc(doc(asUser(env, uid), `tenants/${TENANT}/secrets/portal-identity`)));
       await assertFails(setDoc(doc(asUser(env, uid), `tenants/${TENANT}/secrets/portal-identity`), { providers: [] }));
+    }
+  });
+
+  it('a marca de abertura registrada é só do servidor — o convidado não a apaga para repetir, nem a escreve para calar', async () => {
+    const markId = `${TENANT}__ana__invoices__nf1__`;
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore() as unknown as Firestore;
+      await setDoc(doc(db, `portalViewMarks/${markId}`), { tenantId: TENANT, at: new Date() });
+    });
+    for (const uid of ['dono', 'gestor', 'ana']) {
+      await assertFails(getDoc(doc(asUser(env, uid), `portalViewMarks/${markId}`)));
+      await assertFails(deleteDoc(doc(asUser(env, uid), `portalViewMarks/${markId}`)));
+      await assertFails(setDoc(doc(asUser(env, uid), `portalViewMarks/${TENANT}__ana__invoices__nf2__`), { tenantId: TENANT }));
     }
   });
 

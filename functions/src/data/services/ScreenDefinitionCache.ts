@@ -5,6 +5,7 @@ import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import { readEditWindow } from '../../domain/schema/editWindow';
 import { readMemberVisibility } from '../../domain/schema/memberVisibility';
+import { asPortalDeclaration } from '../../domain/schema/portal';
 import type { RecordKeySpec } from '../../domain/schema/recordKeys';
 import type { FieldDefinition, FieldOrigin } from '../../domain/entities/entitySchemas';
 import type { Contribution } from '../../domain/schema/plugin/contribution';
@@ -90,6 +91,7 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
         eventPrefix: typeof data.eventPrefix === 'string' ? data.eventPrefix : undefined,
         hasDocuments: data.hasDocuments === true,
         hasNotes: data.hasNotes === true,
+        tracksPortalViews: asPortalDeclaration(data.portal)?.trackViews === true,
         origin: typeof data.origin === 'string' ? (data.origin as FieldOrigin) : null,
         sourceId: typeof data.sourceId === 'string' ? data.sourceId : null,
         // Sem `keys`, a automação, o agente, o portal e a adoção viam só o açúcar `unique` de campo: a

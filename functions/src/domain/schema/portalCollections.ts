@@ -35,3 +35,10 @@ export const PORTAL_IDENTITY_INVITES_COLLECTION = 'portalIdentityInvites';
  * o verificador do PKCE, o `nonce` e o escritório. Na raiz porque a volta traz só o `state`.
  */
 export const PORTAL_SIGN_IN_REQUESTS_COLLECTION = 'portalSignInRequests';
+/**
+ * Coleção de RAIZ, só do servidor: a marca da última abertura registrada de cada convidado em cada
+ * registro (ou documento) de tela com `portal.trackViews`. Na raiz, e não sob o escritório, porque uma
+ * gravação em `tenants/{t}/{coleção}` acorda os gatilhos de toda coleção — e uma abertura não é fato de
+ * registro nenhum. Some sozinha pelo TTL de `expiresAt`.
+ */
+export const PORTAL_VIEW_MARKS_COLLECTION = 'portalViewMarks';

@@ -15,12 +15,22 @@ import {
   PORTAL_REVOKE_STEP_ID,
   SHARE_DOCUMENTS_STEP_ID,
 } from '../../schema/workflowStepCatalog';
-import { PORTAL_AUTOMATION_INVITES_SINCE_KERNEL, acceptsAutomationInvites, asPortalDeclaration } from '../../schema/portal';
+import {
+  PORTAL_AUTOMATION_INVITES_SINCE_KERNEL,
+  PORTAL_TRACK_VIEWS_SINCE_KERNEL,
+  acceptsAutomationInvites,
+  asPortalDeclaration,
+} from '../../schema/portal';
 import { PORTAL_IDENTITY_CLAIM_SINCE_KERNEL } from '../../schema/portalIdentity';
 
 /** As entradas que fazem do convite um convite por identidade — qualquer uma delas exige o kernel novo. */
 const PORTAL_IDENTITY_CLAIM_INPUTS = ['requiredClaimName', 'requiredClaimValue', 'requiredClaimNormalize'] as const;
-import { CHILD_RECORD_EVENTS_SINCE_KERNEL, splitChildRecordEventName } from '../../schema/eventCatalog';
+import {
+  CHILD_RECORD_EVENTS_SINCE_KERNEL,
+  PORTAL_VIEWED_ACTION,
+  splitChildRecordEventName,
+  splitEntityEventName,
+} from '../../schema/eventCatalog';
 import { WORKFLOW_AUDIT_EVENT, WORKFLOW_AUDIT_SINCE_KERNEL } from '../../schema/workflowAuditTrigger';
 import type { PackageRef, PackageValidationIssue } from './pluginReferences';
 import {
@@ -288,6 +298,7 @@ const workflowIssues = (
     ...triggerIssues(workflow, ref, pkg),
     ...auditTriggerIssues(workflow, ref, pkg),
     ...childEventKernelIssues(workflow, ref, pkg),
+    ...portalViewedIssues(workflow, ref, pkg),
     ...portalSharingKernelIssues(steps, ref, pkg),
     ...portalAccessIssues(steps, ref, pkg),
     ...excludedStepIssues(workflow, steps, ref),
@@ -311,6 +322,36 @@ const childEventKernelIssues = (
         message: '@core.marketplace/issue.workflow.trigger-kernel',
         messageParams: { event: workflow.eventName, minimum: CHILD_RECORD_EVENTS_SINCE_KERNEL },
       }];
+
+/**
+ * O gatilho `<prefixo>.portalViewed` que nunca dispara: num kernel anterior ao evento, ou sobre uma tela
+ * do PRÓPRIO pacote que não registra as aberturas (`portal.trackViews`). A tela de uma dependência ou do
+ * escritório não é conferida daqui — a declaração dela não viaja neste pacote.
+ */
+const portalViewedIssues = (
+  workflow: WorkflowModuleTemplate,
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  const event = splitEntityEventName(workflow.eventName);
+  if (event?.action !== PORTAL_VIEWED_ACTION) return [];
+  const kernel = rangeExcludesBelow(pkg.manifest?.kernel ?? '', PORTAL_TRACK_VIEWS_SINCE_KERNEL)
+    ? []
+    : [{
+        ref,
+        message: '@core.marketplace/issue.workflow.trigger-kernel',
+        messageParams: { event: workflow.eventName, minimum: PORTAL_TRACK_VIEWS_SINCE_KERNEL },
+      }];
+  const screen = (pkg.screens ?? []).find((candidate) => screenEventPrefix(candidate) === event.prefix);
+  const untracked = screen && asPortalDeclaration(screen.portal)?.trackViews !== true
+    ? [{
+        ref,
+        message: '@core.marketplace/issue.workflow.portal-viewed.untracked',
+        messageParams: { event: workflow.eventName, screen: screen.key },
+      }]
+    : [];
+  return [...kernel, ...untracked];
+};
 
 /**
  * Compartilhar documento com o portal por automação — o passo `share-documents` e o `portalShared`

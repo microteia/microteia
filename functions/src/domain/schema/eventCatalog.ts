@@ -15,6 +15,15 @@ import { AUDIT_EVENT_FIELDS, WORKFLOW_AUDIT_EVENT } from './workflowAuditTrigger
 
 export const WORKFLOW_CALLED_EVENT = 'workflow.called';
 
+/**
+ * O convidado do portal abriu o registro, ou obteve o link de um documento dele — publicado pelo
+ * servidor só para a tela que declara `portal.trackViews`. O payload é o registro, como no `saved`, mais
+ * `portalView`; o convidado é o `actor`.
+ */
+export const PORTAL_VIEWED_ACTION = 'portalViewed';
+
+export const portalViewedEventName = (prefix: string): string => `${prefix}.${PORTAL_VIEWED_ACTION}`;
+
 export interface WorkflowEventFieldOption {
   path: string;
   label: string;
@@ -120,17 +129,39 @@ const ENTITY_ENTRY_LABELS: Record<EntityTriggerAction, string> = {
   saved: '@core.automation/event.on-save',
   deleted: '@core.automation/event.on-delete',
   dateReached: '@core.automation/event.on-date-reached',
+  portalViewed: '@core.automation/event.on-portal-viewed',
 };
 
-const entityEntry = (entity: EntityMetadata, action: EntityTriggerAction): WorkflowEventCatalogEntry =>
-  buildEntry(
+/**
+ * A abertura pelo portal, ao lado do registro aberto: quando (o relógio do SERVIDOR), por quem — o
+ * e-mail do convite; o resto da identidade está em `actor` — e, quando foi um documento, qual.
+ * `document` é `null` na abertura do registro.
+ */
+const PORTAL_VIEW_FIELDS: NativeFieldSpec[] = [{
+  key: 'portalView',
+  label: '@core.automation/event-field.portal-view',
+  type: 'object',
+  objectFields: [
+    { key: 'at', label: '@core.automation/event-field.portal-view.at', type: 'date' },
+    { key: 'email', label: '@core.automation/event-field.portal-view.email', type: 'string' },
+    { key: 'documentId', label: '@core.automation/event-field.portal-view.document-id', type: 'string' },
+    { key: 'documentName', label: '@core.automation/event-field.portal-view.document-name', type: 'string' },
+    { key: 'documentType', label: '@core.automation/event-field.portal-view.document-type', type: 'string' },
+  ],
+}];
+
+const entityEntry = (entity: EntityMetadata, action: EntityTriggerAction): WorkflowEventCatalogEntry => {
+  const viewed = action === PORTAL_VIEWED_ACTION;
+  const entry = buildEntry(
     `${entity.eventPrefix}.${action}`,
     ENTITY_ENTRY_LABELS[action],
     action === 'saved',
-    entityEventFields(entity),
+    [...entityEventFields(entity), ...(viewed ? flattenNativeFields(PORTAL_VIEW_FIELDS) : [])],
     { kind: 'entity', entityKey: entity.key },
     { name: entity.labelSingular },
   );
+  return viewed && entry.root.kind === 'entity' ? { ...entry, root: { ...entry.root, extras: PORTAL_VIEW_FIELDS } } : entry;
+};
 
 const LOOKUP_EVENT_FIELDS: NativeFieldSpec[] = [
   { key: 'key', label: '@core.automation/event-field.key', type: 'string' },
@@ -420,9 +451,10 @@ export type EntityEventAction = (typeof ENTITY_EVENT_ACTIONS)[number];
 
 /**
  * Os gatilhos que nascem de um registro de uma coleção: os dois que o PUBLICADOR emite a cada gravação
- * (`saved`/`deleted`) e o que o relógio do kernel emite quando uma data do registro chega.
+ * (`saved`/`deleted`), o que o relógio do kernel emite quando uma data do registro chega e o que o
+ * portal emite quando um convidado o abre.
  */
-export const ENTITY_TRIGGER_ACTIONS = [...ENTITY_EVENT_ACTIONS, DATE_REACHED_ACTION] as const;
+export const ENTITY_TRIGGER_ACTIONS = [...ENTITY_EVENT_ACTIONS, DATE_REACHED_ACTION, PORTAL_VIEWED_ACTION] as const;
 
 export type EntityTriggerAction = (typeof ENTITY_TRIGGER_ACTIONS)[number];
 
@@ -499,7 +531,9 @@ const screenEventEntry = (
 
   const lookup = ctx.lookups.get(collection);
   if (lookup && !isBuiltinLookupCollection(collection)) {
-    return action === DATE_REACHED_ACTION ? undefined : declaredLookupEntry(lookup.collection, lookup.label, action);
+    return action === DATE_REACHED_ACTION || action === PORTAL_VIEWED_ACTION
+      ? undefined
+      : declaredLookupEntry(lookup.collection, lookup.label, action);
   }
   if (isEntityCollection(ctx, collection)) {
     const entity = resolveEntity(ctx, collection);
@@ -554,6 +588,7 @@ export const buildWorkflowEventCatalog = (ctx: SchemaContext): WorkflowEventCata
     if (!entity) continue;
     screenEntries.push(entityEntry(entity, 'saved'), entityEntry(entity, 'deleted'));
     if (entityDateFieldKeys(entity).length > 0) screenEntries.push(entityEntry(entity, DATE_REACHED_ACTION));
+    if (ctx.screens.get(collection)?.tracksPortalViews === true) screenEntries.push(entityEntry(entity, PORTAL_VIEWED_ACTION));
     for (const kind of childKindsOf(ctx, collection)) {
       screenEntries.push(childRecordEntry(entity, kind, 'saved'), childRecordEntry(entity, kind, 'deleted'));
     }
@@ -610,5 +645,6 @@ export const getWorkflowEventFields = (
     ID_FIELD,
     ...(entry.root.hasOld ? [CHANGE_TYPE_FIELD, OLD_FIELD] : []),
     ...entityEventFields(entity),
+    ...flattenNativeFields(entry.root.extras ?? []),
   ];
 };

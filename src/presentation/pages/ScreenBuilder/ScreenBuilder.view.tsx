@@ -515,6 +515,7 @@ export const ScreenBuilderView: React.FC = () => {
                 onToggleAutomationInvites={vm.setPortalAutomationInvites}
                 onToggleDocumentLinks={vm.setPortalDocumentLinks}
                 onDocumentLinkMinutes={vm.setPortalDocumentLinkMinutes}
+                onToggleTrackViews={vm.setPortalTrackViews}
               />
             )}
             {vm.screenModalTab === 'editWindow' && (

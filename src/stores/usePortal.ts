@@ -39,6 +39,8 @@ export interface PortalStoreValue {
   ) => () => void;
   getDocuments: (projectionId: string) => Promise<PortalDocument[]>;
   getDocumentUrl: (projectionId: string, documentId: string) => Promise<string>;
+  /** Avisa o servidor de que o convidado abriu o registro — ver `IPortalRepository.recordView`. */
+  recordView: (projectionId: string) => Promise<void>;
   listLinkOptions: (collection: string) => Promise<PortalLinkOption[]>;
   submit: (collection: string, linkRecordId: string, data: Record<string, unknown>) => Promise<void>;
   /** Altera um registro do convidado — o servidor confere campos, momento e dono. */

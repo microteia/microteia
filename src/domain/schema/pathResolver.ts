@@ -9,9 +9,16 @@ export { createSchemaContext } from './screenEntity';
 
 export const DEFAULT_MAX_FK_DEPTH = 3;
 
+/**
+ * A raiz de um caminho. Na de entidade, `extras` são chaves que o EVENTO leva ao lado do registro, no
+ * mesmo nível — a abertura pelo portal (`portalView`) sobre o próprio registro aberto. Elas são
+ * resolvidas antes dos campos da entidade, só no primeiro segmento.
+ */
 export type PathRoot =
-  | { kind: 'entity'; entityKey: EntityKey; hasOld: boolean }
+  | { kind: 'entity'; entityKey: EntityKey; hasOld: boolean; extras?: NativeFieldSpec[] }
   | { kind: 'fields'; fields: NativeFieldSpec[]; hasOld: boolean };
+
+const rootExtras = (root: PathRoot): NativeFieldSpec[] => (root.kind === 'entity' ? root.extras ?? [] : []);
 
 export type PathSegment = { kind: 'key'; name: string } | { kind: 'index'; index: number };
 
@@ -424,7 +431,12 @@ const walk = (
   const maxFkDepth = options?.maxFkDepth ?? DEFAULT_MAX_FK_DEPTH;
   let state: WalkState = { cursor: rootCursor(ctx, root), hops: [], depth: 0, path: [] };
   for (const segment of segments) {
-    state = stepCursor(ctx, state, segment, root.hasOld, maxFkDepth);
+    const extra = state.path.length === 0 && segment.kind === 'key'
+      ? rootExtras(root).find((field) => field.key === segment.name)
+      : undefined;
+    state = extra
+      ? stepNativeField(ctx, state, extra, segment, maxFkDepth)
+      : stepCursor(ctx, state, segment, root.hasOld, maxFkDepth);
     if (state.error) return state;
   }
   return state;
@@ -609,7 +621,10 @@ export const suggestNextSegments = (
 
   switch (cursor.kind) {
     case 'entity':
-      return entitySuggestions(ctx, cursor, atRoot, root.hasOld);
+      return [
+        ...entitySuggestions(ctx, cursor, atRoot, root.hasOld),
+        ...(atRoot ? rootExtras(root).map((field) => nativeFieldSuggestion(ctx, field)) : []),
+      ];
     case 'entityList': {
       const first: PathSuggestion = {
         insertText: '0',
