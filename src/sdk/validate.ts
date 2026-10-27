@@ -8,6 +8,7 @@ import { workflowStepIssues } from '../domain/usecases/plugins/workflowIntegrity
 import type { NavTargetOwner } from '../domain/usecases/plugins/navTargets';
 import { navTargetIssues } from '../domain/usecases/plugins/navTargets';
 import { navFilterIssues } from '../domain/usecases/plugins/navFilters';
+import { messageRefIssues } from '../domain/usecases/plugins/messageRefs';
 
 /**
  * De qual das três checagens o problema veio. Quem exibe usa isso para escolher a frase — a
@@ -103,6 +104,12 @@ export const validatePluginPackage = (
   // O filtro com que o atalho abre a lista. Uma chave que a lista não reconhece abria a lista inteira,
   // e o selo voltava a contar um recorte que o clique não mostrava.
   ...navFilterIssues(pkg).map((issue) => ({
+    source: 'package' as const,
+    message: issue.message,
+    messageParams: issue.messageParams,
+  })),
+  // O rótulo que parece referência e não é. Sem esta recusa ele instalava, e a tela mostrava a chave crua.
+  ...messageRefIssues(pkg).map((issue) => ({
     source: 'package' as const,
     message: issue.message,
     messageParams: issue.messageParams,

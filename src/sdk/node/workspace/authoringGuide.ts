@@ -1044,6 +1044,10 @@ platform's concept; *Power of attorney* and *Petition* are yours, and only you c
 
 A key with no translation renders as the key itself. Ugly, diagnosable, and never a blank screen.
 
+A key takes only letters, digits, dot and hyphen, starting with a letter or digit: \`option.not-enabled\`,
+never \`option.not_enabled\`. Anything else is not a reference to the platform — the label renders
+exactly as written, and the bundle entry is dropped. \`check\` refuses both sides.
+
 What the organization *typed* — a screen they named, a list option they added — is their data. It
 passes through untranslated, always.
 

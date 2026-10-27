@@ -11020,6 +11020,14 @@ ações, widgets e configurações — dobrando o contrato inteiro para resolver
 da frase (`suporte@microteia.app`) não é referência: o padrão exige o `@` na primeira posição e a barra
 separando namespace e chave.
 
+Namespace e chave aceitam só letra, dígito, ponto e hífen (`isMessageRef`, `isValidMessageKey`). Fora
+disso o rótulo é literal e a entrada do bundle é descartada — tolerância certa em tempo de render, mas
+que escondia o defeito: `@com.acme/option.nao_habilitado` instalava e a tela mostrava o código cru. Por
+isso o portão (`messageRefIssues`, em `validatePluginPackage`) recusa as duas pontas: a chave declarada
+em `i18n.messages` que o catálogo descartaria, e o texto com cara de referência
+(`^@[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$`) que `isMessageRef` não reconhece. A régua é estreita de
+propósito — frase com espaço e e-mail no meio do texto nunca casam com ela.
+
 ### A preferência — `user > tenant > default`, sem mecanismo novo
 
 `core.i18n` contribui a seção `ui.settings` com `i18n.locale` e `i18n.timezone`, ambas

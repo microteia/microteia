@@ -340,6 +340,10 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'The action "{key}" ({where}) runs nothing: declare workflowId (a workflow templateId) or command (a platform record gesture).',
   'issue.package.icon.unknown':
     'Icon "{icon}" ({where}) is not in the platform catalogue. The installation would draw the generic marker instead. Ask the microteia-plugin MCP server for list_icons to see every key.',
+  'issue.package.message.key':
+    'The message key "{key}" ({where}) is discarded on install: a key takes only letters, digits, dot and hyphen, starting with a letter or digit. Write "a-b", not "a_b".',
+  'issue.package.message.reference':
+    'The text "{reference}" ({where}) looks like a message reference but is not one, so the screen would show it as written: the namespace and the key take only letters, digits, dot and hyphen, starting with a letter or digit. Write "a-b", not "a_b".',
   'issue.package.nav.dangling':
     'The menu item "{key}" opens a tab no page draws; to open the list of a screen, use screen: "<screen key>".',
   'issue.package.nav.dangling.screen':

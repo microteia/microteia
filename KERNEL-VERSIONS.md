@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.169.3] — 2026-10-27
+
+- fix(sdk/validate): a message reference or key outside the accepted shape (letters, digits, dot and hyphen) passed `check` and installation, and rendered raw on screen. `@com.acme/option.nao_habilitado` is not a reference to `isMessageRef`, so `resolveLabel` returned it verbatim; and `asMessageBundle` silently dropped the `option.nao_habilitado` entry from `i18n.messages`. Both are the right tolerance at render time and hid the defect at the gate. The new `messageRefIssues` (in `validatePluginPackage`, hence `check`, `build`, the MCP `validate_plugin`, the authoring screen and every import) refuses both sides: `issue.package.message.key` for a declared key the catalog would drop, and `issue.package.message.reference` for any package string shaped like a reference (`^@[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$`) that `isMessageRef` rejects — reported once per reference, with the path where it was found. Sentences, e-mail addresses inside text and view sources never match. The rendering rule itself is unchanged.
+- docs(sdk/workspace): AUTHORING.md §5 states the key shape and that `check` refuses both sides.
+
 #### [9.169.2] — 2026-10-27
 
 - fix(sdk/domain): EV-13 — `validate_domain_model` refused with `domain.aggregation.type-mismatch` a `derived` field that copies a reference through `op: 'latest'` (e.g. the current assignee from the latest child's `members` reference), while `validate_plugin` accepted the same declaration in the package. `toPlatform.fieldToDefinition` set `refEntity` only for `semanticType: 'reference'`, so the parent side compared as "reference to (nothing)". It now sets `refEntity` from `target` for every field whose platform `type` is `reference` — the validator and the artifact plan share that translation, so the generated screen also gets the target its picker needs. Fields whose `type` is not `reference` still ignore `target`; differing targets and a derived reference with no target are still refused.

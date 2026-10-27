@@ -339,6 +339,10 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'A ação "{key}" ({where}) não executa nada: declare workflowId (o templateId de uma automação) ou command (um gesto da plataforma sobre o registro).',
   'issue.package.icon.unknown':
     'O ícone "{icon}" ({where}) não está no catálogo da plataforma. A instalação desenharia o marcador genérico no lugar dele. Peça `list_icons` ao servidor MCP microteia-plugin para ver todas as chaves.',
+  'issue.package.message.key':
+    'A chave de mensagem "{key}" ({where}) é descartada na instalação: uma chave aceita só letras, dígitos, ponto e hífen, começando por letra ou dígito. Escreva "a-b", não "a_b".',
+  'issue.package.message.reference':
+    'O texto "{reference}" ({where}) parece uma referência de mensagem, mas não é, e a tela o mostraria como está escrito: o namespace e a chave aceitam só letras, dígitos, ponto e hífen, começando por letra ou dígito. Escreva "a-b", não "a_b".',
   'issue.package.nav.dangling':
     'O item de menu "{key}" abre uma aba que nenhuma página desenha; para abrir a lista de uma tela, use screen: "<chave da tela>".',
   'issue.package.nav.dangling.screen':

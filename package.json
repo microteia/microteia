@@ -1,7 +1,7 @@
 {
   "name": "microteia",
   "private": true,
-  "version": "9.169.2",
+  "version": "9.169.3",
   "type": "module",
   "bin": {
     "microteia": "cli/lib/index.js"

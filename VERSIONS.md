@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.169.3] — 2026-10-27
+
+- Corrigido: uma extensão que escrevia o identificador de um texto traduzível com sublinhado (por exemplo, numa opção de lista) era aceita na conferência e na instalação, e a tela mostrava o código em vez do texto. Agora a conferência e a instalação recusam esse caso e dizem exatamente onde corrigir.
+
 #### [9.169.2] — 2026-10-27
 
 - Corrigido: um campo que acompanha automaticamente a pessoa indicada no registro mais recente de uma lista (por exemplo, o responsável atual a partir do último encaminhamento) era recusado na validação do modelo, embora a mesma declaração fosse aceita na instalação. Agora o modelo é aceito, e a tela gerada passa a mostrar esse campo como uma ligação para a pessoa, e não como um código solto.
