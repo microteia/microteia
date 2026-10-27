@@ -944,7 +944,12 @@ foram pesados:
 
 O custo do adotado é o mesmo da entrada do portal por OIDC: `createCustomToken` assina com a conta de
 serviço das functions (`iam.serviceAccounts.signBlob`) — o pré-requisito manual `portal-identity-signing`
-passou a citar as duas features. Uma instalação sem a assinatura não tranca ninguém: ver "A trava contra
+passou a citar as duas features. `microteia grant-signing` (Console 2.31.0, `cli/src/console/sessionSigning.ts`)
+lê a conta que as functions REALMENTE usam (`gcloud functions describe secondFactor`; a padrão do Compute
+só quando ela ainda não está no ar — escrever a padrão de cor erraria em silêncio na instalação que usa
+outra), confere a API e o papel sobre a própria conta, mostra os passos e PERGUNTA antes de rodá-los. O
+`deploy` só confere e avisa: conceder é mudar permissão no projeto do escritório, e isso não acontece
+calado dentro de outro comando. Uma instalação sem a assinatura não tranca ninguém: ver "A trava contra
 trancar a si mesmo".
 
 ### As peças

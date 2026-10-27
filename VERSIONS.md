@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.165.1] — 2026-10-26
+
+- Quem cuida da instalação ganhou um comando para liberar, no projeto Firebase, a permissão que a verificação em duas etapas e a entrada no portal por provedor de identidade precisam. Ele mostra o que vai mudar e pede confirmação antes; a publicação de uma versão passa a avisar quando essa permissão falta.
+
 #### [9.165.0] — 2026-10-26
 
 - Verificação em duas etapas: o escritório pode exigir, além da senha ou do provedor de entrada, um código do aplicativo autenticador do celular — de todos os membros, de quem tem certos perfis ou de quem tem certas permissões, como a de emitir um documento. A regra fica em Escritório › Segurança.
