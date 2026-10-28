@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.173.1] — 2026-10-28
+
+- fix(records/reference-options): `useReferenceOptions` labelled an untitled record with the raw `@core.records/record.untitled` reference — no consumer of the options (the form's `SearchSelect`, filters, action parameters, settings) resolves it — and read the subtitle as the stored value, so a `select` showed the option key (`nao_habilitado`) and a `reference` the target's id. 9.38.1 fixed the same on the card, header and tab (`useRecordIdentityText`) but not here (EV-27).
+- fix(records/reference-options): the options are built by the pure `buildReferenceOptions`, which reads title and subtitle by the DISPLAYED value: a `select` by its option label (declared options, then the office's lookup, resolved with `useLabel`; an unknown key shows as is), a `reference` by the target's resolved title (followed transitively, with a cycle guard; a target that is not loaded leaves the text empty, a loaded untitled one reads as untitled), a member by its name. "Untitled" comes from the catalog in the current language. A field the screen does not declare (bound screens) is read as text, as before; the screen-key alias and the members list are unchanged.
+
 #### [9.173.0] — 2026-10-28
 
 - feat(portal): `portal.actions` — a screen offers the record's own actions as one-click buttons on the guest's open record (EV-26). A gesture (accept, confirm, sign) used to require "Edit, tick, save" through `portal.edit`. The declaration lists action KEYS among the screen's `viewActionIds` (the key survives installation; ids are remapped), in button order. Only actions that run a workflow and do not prompt for parameters qualify (`portalOfferableActions`, `portalRecordActions`).

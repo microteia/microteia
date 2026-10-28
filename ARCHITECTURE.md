@@ -5155,6 +5155,17 @@ menção mostram; o subtítulo só entra se o título estiver vazio. `RecordDeta
 dinâmico mostram o TÍTULO DO REGISTRO no cabeçalho (com o nome da tela como fallback), em vez do
 nome da tela sempre.
 
+**Título e subtítulo saem pelo VALOR EXIBIDO, em todas as portas.** Uma seleção grava a chave da
+opção e uma relação grava o id do apontado; nenhum dos dois é o que se lê. O cartão, o cabeçalho e a
+aba resolvem por `useRecordIdentityText` (sobre o `displayValue` da listagem); as OPÇÕES de um campo
+`reference` — seletor do formulário, filtro, parâmetro de ação, Configurações — resolvem por
+`buildReferenceOptions` (`presentation/hooks/`), que `useReferenceOptions` alimenta com os stores, o
+catálogo e as listas do escritório. Ali, a relação é seguida até o título do apontado (com proteção
+contra ciclo: o registro já em resolução responde vazio), o apontado ausente deixa o texto vazio, o
+carregado sem título vira o "sem título" JÁ TRADUZIDO — nunca a referência `@core.records/...`, que
+nenhum consumidor das opções passa por `useLabel` — e a chave sem opção correspondente aparece como
+está, como no cartão. Campo que a tela não declara (tela vinculada) é lido como texto, como antes.
+
 Uma relação pode chegar pelos dois lados — como `fk` do registro e como campo `reference` declarado
 pela tela. `deriveFormFields`/`deriveListRows` descartam a `fk` quando a chave já veio da tela: a
 declaração da tela vence, porque é ela que sobrevive à saída da entidade do kernel.

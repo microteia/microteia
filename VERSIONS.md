@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.173.1] — 2026-10-28
+
+- Ao escolher um registro relacionado no formulário, a lista agora mostra cada opção como ela aparece no cartão: o registro sem nome aparece como "Sem título" no seu idioma, e a linha de apoio mostra o nome da situação ou do registro ligado, em vez de um código interno.
+
 #### [9.173.0] — 2026-10-28
 
 - O convidado do portal agora pode realizar, com um clique, um ato no registro que está vendo — aceitar um termo, confirmar um agendamento, assinar um recibo. O escritório escolhe, na aba Portal da tela, quais das ações do registro aparecem para ele como botões, com o mesmo título, a mesma pergunta de confirmação e as mesmas condições que já usa internamente.
