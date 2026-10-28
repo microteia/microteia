@@ -1,6 +1,6 @@
 import React from 'react';
 import { RiShieldKeyholeLine, RiBuildingLine } from 'react-icons/ri';
-import { useTenantEntryGateViewModel } from './TenantEntryGate.viewmodel';
+import { useSecondFactorFlowHostViewModel, useTenantEntryGateViewModel } from './TenantEntryGate.viewmodel';
 import type { TenantEntryGateViewModel } from './TenantEntryGate.viewmodel';
 import { S } from './TenantEntryGate.styles';
 import { Button } from '../../ui/Button';
@@ -9,6 +9,7 @@ import { Checkbox } from '../../ui/Checkbox';
 import { CopyButton } from '../../ui/CopyButton';
 import { FullPageSpinner, Spinner } from '../../ui/Spinner';
 import { SecondFactorFlowContext } from '../../../../stores/useSecondFactorFlow';
+import { TenantEntryGateContext } from './useTenantEntryGate';
 import { useT } from '../../../shared/i18n/useT';
 import type { TranslateFn } from '../../../shared/i18n/useT';
 
@@ -136,6 +137,7 @@ const TITLE_KEY: Partial<Record<TenantEntryGateViewModel['mode'], string>> = {
  * A porta entre escolher o escritório e o espaço de trabalho. Ela envolve a pilha de stores do espaço de
  * trabalho: enquanto a entrada não está resolvida, nada abaixo dela monta. Resolvida, ela continua ali —
  * é quem pede o código de novo quando a prova vence, e quem atende os gestos de `useSecondFactorFlow`.
+ * O modal desses dois casos é desenhado pelo `SecondFactorFlowHost`, lá dentro, no idioma do escritório.
  */
 export const TenantEntryGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const vm = useTenantEntryGateViewModel();
@@ -197,8 +199,25 @@ export const TenantEntryGate: React.FC<{ children: React.ReactNode }> = ({ child
   }
 
   return (
-    <SecondFactorFlowContext.Provider value={vm.flowApi}>
-      {children}
+    <TenantEntryGateContext.Provider value={vm}>
+      <SecondFactorFlowContext.Provider value={vm.flowApi}>
+        {children}
+      </SecondFactorFlowContext.Provider>
+    </TenantEntryGateContext.Provider>
+  );
+};
+
+/**
+ * O que o `TenantEntryGate` abre por cima do espaço de trabalho já aberto: o pedido de código que venceu,
+ * os gestos de Segurança e do Perfil e a faixa que lembra a prova pendente. Mora dentro do
+ * `TenantLocaleProvider` para falar o idioma do escritório.
+ */
+export const SecondFactorFlowHost: React.FC = () => {
+  const vm = useSecondFactorFlowHostViewModel();
+  const t = useT('core.access');
+
+  return (
+    <>
       {vm.presentation === 'modal' && (
         <Modal title={t(TITLE_KEY[vm.mode] ?? (vm.mode === 'verify' ? 'mfa.gate.reverify.title' : 'mfa.gate.title'))} onClose={vm.closeFlow}>
           <S.ModalBody>
@@ -212,6 +231,6 @@ export const TenantEntryGate: React.FC<{ children: React.ReactNode }> = ({ child
           <Button type="button" size="sm" onClick={vm.reopenReverify}>{t('mfa.gate.reverify.open')}</Button>
         </S.PendingBar>
       )}
-    </SecondFactorFlowContext.Provider>
+    </>
   );
 };

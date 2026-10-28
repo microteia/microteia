@@ -57,7 +57,8 @@ const setup = () => {
       [...members.entries()].filter(([key]) => key.startsWith(`${tenantId}:`)).map(([, value]) => value),
   };
   const now = () => clock.now;
-  const self = makeSecondFactorUseCase({ factors, members: memberRepo, sessions, hmac, random, sha256, now, audit });
+  const logger = { error: vi.fn() };
+  const self = makeSecondFactorUseCase({ factors, members: memberRepo, sessions, hmac, random, sha256, now, audit, logger });
   const tenantIds = new Map<string, string[]>([['ana', ['t1']], ['bia', ['t1', 't2']]]);
   const materialize = vi.fn(async () => 0);
   const manage = makeManageMemberMfaUseCase({
@@ -81,7 +82,7 @@ const setup = () => {
     return { secret: enrollment.secret, session };
   };
 
-  return { clock, factors, policies, sessions, members, logs, self, manage, materialize, tenantIds, seconds, codeFor, advance, enrolled };
+  return { clock, factors, policies, sessions, logger, members, logs, self, manage, materialize, tenantIds, seconds, codeFor, advance, enrolled };
 };
 
 describe('SecondFactorUseCase', () => {
@@ -110,6 +111,42 @@ describe('SecondFactorUseCase', () => {
     // O código de recuperação nunca é gravado — só o hash dele.
     expect(stored.recoveryCodes.some((hash) => session.recoveryCodes!.some((code) => hash.includes(code.replace('-', ''))))).toBe(false);
     expect(s.logs.map((log) => [log.title, log.severity])).toEqual([['@core.access/mfa.audit.enrolled.title', 'LOW']]);
+  });
+
+  it('sem poder assinar a sessão, o cadastro é recusado antes de sortear o segredo', async () => {
+    s.sessions.failing = true;
+    const error = await refusal(s.self.enroll({ tenantId: 't1', actor: ANA, account: 'ana@x.com', issuer: '', sessionVerifiedAt: null }));
+    expect(error.message).toBe('@core.access/mfa.signing.unavailable');
+    expect(s.factors.stored.has('ana')).toBe(false);
+    expect(s.logger.error).toHaveBeenCalledWith(expect.stringContaining('signBlob'));
+  });
+
+  it('a assinatura que falha na confirmação não deixa o fator cadastrado nem gasta tentativa', async () => {
+    const enrollment = await s.self.enroll({ tenantId: 't1', actor: ANA, account: 'ana@x.com', issuer: '', sessionVerifiedAt: null });
+    s.sessions.failing = true;
+
+    const error = await refusal(s.self.confirm({ tenantId: 't1', actor: ANA, code: s.codeFor(enrollment.secret) }));
+
+    expect(error.message).toBe('@core.access/mfa.signing.unavailable');
+    const stored = s.factors.stored.get('ana')!;
+    expect(stored.secret).toBeNull();
+    expect(stored.pending?.secret).toBe(enrollment.secret);
+    expect(stored.failures).toBe(0);
+    expect(s.logs).toEqual([]);
+    expect((await s.self.status({ tenantId: 't1', userId: 'ana' })).enrolled).toBe(false);
+
+    s.sessions.failing = false;
+    const session = await s.self.confirm({ tenantId: 't1', actor: ANA, code: s.codeFor(enrollment.secret) });
+    expect(session.recoveryCodes).toHaveLength(10);
+  });
+
+  it('a assinatura que falha na prova não consome o código', async () => {
+    const { secret } = await s.enrolled();
+    const code = s.codeFor(secret);
+    s.sessions.failing = true;
+    expect((await refusal(s.self.verify({ tenantId: 't1', actor: ANA, code }))).message).toBe('@core.access/mfa.signing.unavailable');
+    s.sessions.failing = false;
+    expect((await s.self.verify({ tenantId: 't1', actor: ANA, code })).usedRecoveryCode).toBe(false);
   });
 
   it('o segredo sorteado vence: confirmar depois do prazo é recusado', async () => {

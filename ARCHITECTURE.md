@@ -957,6 +957,13 @@ outra), confere a API e o papel sobre a própria conta, mostra os passos e PERGU
 calado dentro de outro comando. Uma instalação sem a assinatura não tranca ninguém: ver "A trava contra
 trancar a si mesmo".
 
+**Assina-se ANTES de gravar.** `enroll` testa a assinatura antes de sortear o segredo, e `confirm`/`verify`
+assinam o token antes da transação; a falha vira `@core.access/mfa.signing.unavailable` (e a causa vai ao
+log como `[mfa] session signing failed`). A ordem inversa existiu: `confirm` gravava o fator e os hashes
+dos códigos e só então falhava ao assinar — a pessoa lia "tente de novo", nunca via os códigos, e o fator
+ficava cadastrado com um aplicativo que ela já tinha apagado. O token de uma tentativa recusada nunca sai
+do servidor.
+
 ### As peças
 
 | Peça | Onde | O que faz |
@@ -968,7 +975,7 @@ trancar a si mesmo".
 | Exigência materializada | `members/{uid}.mfa = { maxAgeSeconds }` | `MaterializeMemberPermissionsUseCase` a calcula junto com `permissions`, do MESMO conjunto efetivo, e a põe na mesma guarda de idempotência |
 | Callable da pessoa | `secondFactor` (`status`, `enroll`, `confirm`, `verify`, `recovery-codes`) | exige só pertencer ao escritório; abre a sessão com a claim |
 | Callable do escritório | `manageMemberMfa` (`overview`, `save`, `reset`) | `mfa.manage` (exige `members.manage`); valida, recompõe os membros e audita |
-| Casca | `presentation/components/layout/TenantEntryGate/` | entre `TenantStoreProvider` e o resto da pilha: pede o código, cadastra, mostra os códigos, pede de novo quando vence |
+| Casca | `presentation/components/layout/TenantEntryGate/` | entre `TenantStoreProvider` e o resto da pilha: pede o código, cadastra, mostra os códigos, pede de novo quando vence. O MODAL (com o espaço de trabalho aberto) é desenhado por `SecondFactorFlowHost`, dentro do `TenantLocaleProvider` |
 | Gestos de dentro | `stores/useSecondFactorFlow.ts` + `ui/SecondFactorPanel/` | Segurança e Perfil cadastram, trocam o celular e sorteiam códigos pela MESMA casca |
 | Tela | `TenantSettings/SecurityTab/` | a política, quem precisa e quem já cadastrou, zerar o fator de alguém |
 
@@ -1035,7 +1042,13 @@ documento de membro percebe a política que muda com a tela aberta.
 
 O `TenantEntryGate` mostra em PÁGINA o que impede a entrada (escritório nenhum; fator exigido e não
 provado) e em MODAL o que acontece com o espaço de trabalho aberto (o pedido vencido; os gestos de
-`useSecondFactorFlow`). Os códigos de recuperação só fecham DEPOIS de a pessoa marcar que os guardou —
+`useSecondFactorFlow`). O modal é desenhado pelo `SecondFactorFlowHost`, que lê o estado do gate por
+contexto (`useTenantEntryGate`) e mora dentro do `TenantLocaleProvider`: desenhado no próprio gate, acima da
+pilha, ele não via os pacotes de tradução instalados e saía sempre no idioma-fonte. A PÁGINA continua
+acima da pilha — ali o pacote de tradução ainda não pode ser lido (as regras recusam sem a prova) —, e por
+isso fala o idioma-fonte.
+
+Os códigos de recuperação só fecham DEPOIS de a pessoa marcar que os guardou —
 abrir a sessão antes tiraria a tela que os mostra, e eles não aparecem de novo.
 
 ### O que protege o quê

@@ -797,6 +797,7 @@ class DIContainer {
       sha256: (text) => createHash('sha256').update(text, 'utf8').digest('hex'),
       now: () => new Date(),
       audit: this.getCreateAuditLogUseCase(),
+      logger: { error: (message: string) => console.error(`[mfa] ${message}`) },
     });
   }
 

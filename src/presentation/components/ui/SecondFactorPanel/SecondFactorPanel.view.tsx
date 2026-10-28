@@ -28,6 +28,7 @@ export const SecondFactorPanel: React.FC = () => {
               : t('mfa.panel.not-enrolled')}
           </S.Text>
           {vm.required && <S.Text>{t('mfa.panel.required', { minutes: vm.reverifyMinutes })}</S.Text>}
+          {vm.enrolled && !vm.required && <S.Text>{t('mfa.panel.not-required')}</S.Text>}
           <S.Actions>
             <Button type="button" variant={vm.enrolled ? 'secondary' : 'primary'} size="sm" onClick={vm.setUp}>
               {t(vm.enrolled ? 'mfa.panel.replace' : 'mfa.panel.set-up')}

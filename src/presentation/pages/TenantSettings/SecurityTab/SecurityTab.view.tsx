@@ -72,7 +72,11 @@ export const SecurityTabView: React.FC = () => {
 
           <S.Section>
             <S.Subtitle>{t('mfa.members.title')}</S.Subtitle>
-            <S.Description>{t('mfa.members.summary', { required: vm.requiredCount, missing: vm.missingCount })}</S.Description>
+            <S.Description>
+              {vm.noneRequired
+                ? t('mfa.members.summary.none')
+                : t('mfa.members.summary', { required: vm.requiredCount, missing: vm.missingCount })}
+            </S.Description>
             <S.Table>
               <S.HeaderRow>
                 <span>{t('mfa.members.column.member')}</span>

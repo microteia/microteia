@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.172.1] — 2026-10-28
+
+- fix(mfa): `secondFactor` signs the session (`createCustomToken`) BEFORE writing anything. `confirm` used to commit the factor and the recovery-code hashes and only then mint the token, so an installation without `iam.serviceAccounts.signBlob` answered `internal` while leaving the factor enrolled — with recovery codes nobody ever saw. `enroll` now probes signing before drawing a secret, `confirm`/`verify` sign before the transaction, and a signing failure is `failed-precondition` `@core.access/mfa.signing.unavailable` (the cause still goes to the log as `[mfa] session signing failed`). `SecondFactorDeps` gained `logger`.
+- fix(TenantEntryGate): the modal opened over an open workspace (reverify, set up, replace, new recovery codes) is drawn by the new `SecondFactorFlowHost`, mounted inside `TenantLocaleProvider`. Drawn by the gate itself, above the store stack, it never saw the installed translation packages and always rendered in the source locale.
+- feat(mfa): new messages `mfa.panel.not-required` and `mfa.members.summary.none`, so an enrolled factor in an organization that does not require it no longer reads as enforced.
+
 #### [9.172.0] — 2026-10-28
 
 - feat(sdk/installed-catalog): screens of `installed-catalog.json` may carry `keys` (`RecordKeySpec` without `message` and `status`) and fields may carry `unique: true`; `installedScreenInput` passes both to the catalog, so `resolveEntityKeys` sees the keys of a screen that exists only in the installation (Form Design, third-party extension) and the artifact plan reconciles them instead of proposing `create` on every run. A key with an unknown `kind` or no fields is dropped; an unknown `scope` or normalization option is dropped from it. Additive: `INSTALLED_CATALOG_VERSION` stays 1.

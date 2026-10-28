@@ -15,6 +15,7 @@ import {
   makeRegenerateRecoveryCodesUseCase,
   makeVerifySecondFactorUseCase,
 } from '../../../../domain/usecases/mfa/SecondFactorUseCases';
+import { useTenantEntryGate } from './useTenantEntryGate';
 
 export type TenantEntryGateMode =
   | 'open'
@@ -381,3 +382,6 @@ export const useTenantEntryGateViewModel = (): TenantEntryGateViewModel => {
     reload: () => window.location.reload(),
   };
 };
+
+/** O mesmo estado, lido dentro do espaço de trabalho pelo `SecondFactorFlowHost`. */
+export const useSecondFactorFlowHostViewModel = (): TenantEntryGateViewModel => useTenantEntryGate();

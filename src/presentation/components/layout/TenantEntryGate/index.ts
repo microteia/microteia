@@ -1,1 +1,1 @@
-export { TenantEntryGate } from './TenantEntryGate.view';
+export { SecondFactorFlowHost, TenantEntryGate } from './TenantEntryGate.view';

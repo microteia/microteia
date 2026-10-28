@@ -47,6 +47,7 @@ export interface SecondFactorDeps {
   sha256: (text: string) => string;
   now: () => Date;
   audit: CreateAuditLogUseCase;
+  logger: { error: (message: string) => void };
 }
 
 interface MemberContext {
@@ -172,10 +173,25 @@ export const makeSecondFactorUseCase = (deps: SecondFactorDeps): SecondFactorUse
     throw invalidArgument('@core.access/mfa.code.invalid', { attempts: String(attempt.attemptsLeft) });
   };
 
-  const sessionFor = async (userId: string, attempt: Extract<Attempt, { kind: 'ok' }>, verifiedAt: Date): Promise<SecondFactorSession> => {
+  /**
+   * A sessão é assinada ANTES de qualquer gravação. Assinada depois, a instalação sem
+   * `iam.serviceAccounts.signBlob` confirmava o fator, sorteava os códigos e só então falhava: a pessoa
+   * via "tente de novo", nunca via os códigos, e o fator ficava cadastrado com um aplicativo que ela já
+   * tinha apagado. O token que sobra de uma tentativa recusada nunca sai daqui.
+   */
+  const signSession = async (userId: string, verifiedAt: Date): Promise<string> => {
+    try {
+      return await deps.sessions.mint(userId, seconds(verifiedAt));
+    } catch (cause) {
+      deps.logger.error(`session signing failed: ${cause instanceof Error ? cause.message : String(cause)}`);
+      throw failedPrecondition('@core.access/mfa.signing.unavailable');
+    }
+  };
+
+  const sessionFor = (token: string, attempt: Extract<Attempt, { kind: 'ok' }>, verifiedAt: Date): SecondFactorSession => {
     const at = seconds(verifiedAt);
     return {
-      token: await deps.sessions.mint(userId, at),
+      token,
       verifiedAt: at,
       recoveryCodesLeft: attempt.codesLeft,
       usedRecoveryCode: attempt.recovery,
@@ -203,6 +219,8 @@ export const makeSecondFactorUseCase = (deps: SecondFactorDeps): SecondFactorUse
       // Trocar o aplicativo de quem JÁ tem um exige a prova recente: senão bastaria a senha para pôr o
       // próprio celular no lugar do da vítima. O primeiro cadastro não tem o que provar.
       if (current?.secret) requireStepUp(sessionVerifiedAt);
+      // Sem poder assinar a sessão, a confirmação nunca terminaria — e o QR já estaria no aplicativo.
+      await signSession(actor.userId, deps.now());
 
       const secret = base32Encode(deps.random(MFA_SECRET_BYTES));
       const expiresAt = new Date(deps.now().getTime() + MFA_ENROLLMENT_TTL_SECONDS * 1000);
@@ -218,6 +236,7 @@ export const makeSecondFactorUseCase = (deps: SecondFactorDeps): SecondFactorUse
       const totp = totpCodeOf(code);
       if (!totp) throw invalidArgument('@core.access/mfa.code.format');
       const now = deps.now();
+      const token = await signSession(actor.userId, now);
 
       const attempt = await deps.factors.update<Attempt>(actor.userId, (stored) => {
         if (!stored?.pending || stored.pending.expiresAt.getTime() <= now.getTime()) {
@@ -245,7 +264,7 @@ export const makeSecondFactorUseCase = (deps: SecondFactorDeps): SecondFactorUse
 
       if (attempt.kind !== 'ok') return refuse(tenantId, actor, attempt);
       await deps.audit.execute(auditLine(tenantId, actor, actor.userId, attempt.replaced ? 'replaced' : 'enrolled', attempt.replaced ? 'HIGH' : 'LOW'));
-      return sessionFor(actor.userId, attempt, now);
+      return sessionFor(token, attempt, now);
     },
 
     verify: async ({ tenantId, actor, code }) => {
@@ -254,6 +273,7 @@ export const makeSecondFactorUseCase = (deps: SecondFactorDeps): SecondFactorUse
       const recovery = totp ? null : recoveryCodeOf(code);
       if (!totp && !recovery) throw invalidArgument('@core.access/mfa.code.format');
       const now = deps.now();
+      const token = await signSession(actor.userId, now);
 
       const attempt = await deps.factors.update<Attempt>(actor.userId, (stored) => {
         if (!stored?.secret) return { result: { kind: 'not-enrolled' } };
@@ -282,7 +302,7 @@ export const makeSecondFactorUseCase = (deps: SecondFactorDeps): SecondFactorUse
       await deps.audit.execute(attempt.recovery
         ? auditLine(tenantId, actor, actor.userId, 'recovery-used', 'HIGH', { left: String(attempt.codesLeft) })
         : auditLine(tenantId, actor, actor.userId, 'verified', 'LOW'));
-      return sessionFor(actor.userId, attempt, now);
+      return sessionFor(token, attempt, now);
     },
 
     regenerateRecoveryCodes: async ({ tenantId, actor, sessionVerifiedAt }) => {

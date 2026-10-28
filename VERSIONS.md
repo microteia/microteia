@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.172.1] — 2026-10-28
+
+- Corrigido o cadastro da verificação em duas etapas numa instalação que ainda não tem permissão para assinar sessões: o cadastro dizia "tente de novo", mas ficava registrado sem mostrar os códigos de recuperação. Agora nada é gravado, e a mensagem explica que falta uma permissão a ser concedida pelo administrador da instalação.
+- As janelas da verificação em duas etapas abertas de dentro do escritório (cadastrar, usar outro celular, novos códigos, pedir o código de novo) passam a aparecer no idioma do escritório, e não mais sempre em inglês.
+- A aba Segurança e o Perfil deixam claro quando o escritório ainda não exige a verificação em duas etapas — e que, por isso, o código não é pedido ao entrar.
+
 #### [9.172.0] — 2026-10-28
 
 - O planejamento de uma extensão passou a enxergar também as regras de "valor que não pode se repetir" que existem só no escritório — criadas no desenho de telas ou trazidas por outra extensão já instalada —, em vez de propô-las como novas. Para isso, basta exportar de novo o catálogo do escritório com o Console atualizado; enquanto isso não for feito, o planejamento avisa quais telas podem ter regras que ele não está vendo.

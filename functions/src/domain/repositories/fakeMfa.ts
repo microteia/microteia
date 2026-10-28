@@ -51,8 +51,11 @@ export class FakeMemberMfaPolicyRepository implements IMemberMfaPolicyRepository
 
 export class FakeMfaSessionMinter implements IMfaSessionMinter {
   readonly minted: Array<{ userId: string; verifiedAt: number }> = [];
+  /** A instalação sem `iam.serviceAccounts.signBlob`. */
+  failing = false;
 
   async mint(userId: string, verifiedAt: number): Promise<string> {
+    if (this.failing) throw new Error("Permission 'iam.serviceAccounts.signBlob' denied");
     this.minted.push({ userId, verifiedAt });
     return `token:${userId}:${verifiedAt}`;
   }

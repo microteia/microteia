@@ -56,6 +56,7 @@ export interface SecurityTabViewModel {
   roleOptions: MultiSearchSelectOption[];
   permissionOptions: MultiSearchSelectOption[];
   members: SecurityMemberRow[];
+  noneRequired: boolean;
   requiredCount: string;
   missingCount: string;
   pendingResetName: string;
@@ -211,6 +212,7 @@ export const useSecurityTabViewModel = (): SecurityTabViewModel => {
     roleOptions,
     permissionOptions,
     members,
+    noneRequired: !members.some((row) => row.required),
     requiredCount: String(members.filter((row) => row.required).length),
     missingCount: String(members.filter((row) => row.required && !row.enrolled).length),
     pendingResetName: pendingReset?.name ?? '',
