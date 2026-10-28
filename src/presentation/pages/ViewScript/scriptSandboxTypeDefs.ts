@@ -61,6 +61,13 @@ interface UpsertSpec {
   id?: string;
   /** The fields to write, always at the root of the object — the same for every collection. */
   data: Record<string, unknown>;
+  /**
+   * With no \`id\`, finds the record by the collection's \`primary\` key, computed from \`data\`: found, it is
+   * updated; not found, it is created. Running the same write twice then changes the record instead of being
+   * refused as a duplicate. Off by default; ignored when \`id\` is set or the collection declares no
+   * \`primary\` key.
+   */
+  matchPrimaryKey?: boolean;
 }
 
 interface UpsertResult {

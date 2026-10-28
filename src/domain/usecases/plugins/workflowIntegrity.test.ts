@@ -542,3 +542,29 @@ describe('integridade do gatilho de abertura pelo portal', () => {
     expect(workflowStepIssues(comPortal(false, `^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}`, 'notices.portalViewed'))).toEqual([]);
   });
 });
+
+describe('upsert que endereça pela chave primary', () => {
+  const comKernel = (steps: WorkflowStep[], kernel: string): MarketplacePlugin => {
+    const base = pacote(steps);
+    return { ...base, manifest: { ...base.manifest, kernel } } as unknown as MarketplacePlugin;
+  };
+  const gravar = (upsert: Record<string, unknown>) => passo({
+    id: 'gravar',
+    stepDefinitionId: 'upsert',
+    configuration: { upsert: { kind: 'Literal', value: upsert } },
+  });
+
+  it('exige o kernel em que a opção existe — num anterior ela seria ignorada e o fluxo repetido falharia', () => {
+    const porChave = gravar({ table: 'lotes', source: 'input', matchPrimaryKey: true });
+    const issues = workflowStepIssues(comKernel([porChave], '^2.81.0'));
+    expect(issues.map((issue) => [issue.message, issue.messageParams?.input, issue.messageParams?.minimum])).toEqual([
+      ['@core.marketplace/issue.step.input-kernel', 'upsert.matchPrimaryKey', '2.82.0'],
+    ]);
+    expect(workflowStepIssues(comKernel([porChave], '^2.82.0'))).toEqual([]);
+  });
+
+  it('o upsert sem a opção não cobra kernel nenhum', () => {
+    expect(workflowStepIssues(comKernel([gravar({ table: 'lotes', source: 'input' })], '^2.0.0'))).toEqual([]);
+    expect(workflowStepIssues(comKernel([gravar({ table: 'lotes', source: 'input', matchPrimaryKey: false })], '^2.0.0'))).toEqual([]);
+  });
+});

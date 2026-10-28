@@ -22,6 +22,7 @@ export interface UpsertBuilderControlViewModel {
   setTable: (table: string) => void;
   setSource: (source: string) => void;
   setProperty: (property: string) => void;
+  setMatchPrimaryKey: (match: boolean) => void;
 }
 
 export const useUpsertBuilderControlViewModel = (
@@ -73,5 +74,10 @@ export const useUpsertBuilderControlViewModel = (
     [emit, config],
   );
 
-  return { config, tableOptions, sourceOptions, setTable, setSource, setProperty };
+  const setMatchPrimaryKey = useCallback(
+    (match: boolean) => emit({ ...config, matchPrimaryKey: match || undefined }),
+    [emit, config],
+  );
+
+  return { config, tableOptions, sourceOptions, setTable, setSource, setProperty, setMatchPrimaryKey };
 };

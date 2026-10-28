@@ -35,7 +35,10 @@ export const makeUpsertStepDefinition = (deps: WorkflowMutationDeps): StepDefini
         spec.id = String(id);
       }
 
-      const outcome = await runWorkflowUpsert(spec, context, deps, { ignoreUnwritableFields: true });
+      const outcome = await runWorkflowUpsert(spec, context, deps, {
+        ignoreUnwritableFields: true,
+        matchPrimaryKey: config.matchPrimaryKey === true,
+      });
       if (!outcome.ok) {
         return { success: false, message: outcome.error, messageParams: outcome.errorParams };
       }

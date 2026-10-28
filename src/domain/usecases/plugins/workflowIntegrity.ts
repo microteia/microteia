@@ -22,6 +22,7 @@ import {
   asPortalDeclaration,
 } from '../../schema/portal';
 import { PORTAL_IDENTITY_CLAIM_SINCE_KERNEL } from '../../schema/portalIdentity';
+import { UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL, type UpsertStepConfig } from '../../schema/mutationSpec';
 
 /** As entradas que fazem do convite um convite por identidade — qualquer uma delas exige o kernel novo. */
 const PORTAL_IDENTITY_CLAIM_INPUTS = ['requiredClaimName', 'requiredClaimValue', 'requiredClaimNormalize'] as const;
@@ -301,6 +302,7 @@ const workflowIssues = (
     ...portalViewedIssues(workflow, ref, pkg),
     ...portalSharingKernelIssues(steps, ref, pkg),
     ...portalAccessIssues(steps, ref, pkg),
+    ...upsertMatchKernelIssues(steps, ref, pkg),
     ...excludedStepIssues(workflow, steps, ref),
     ...delayIssues(workflow, steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
@@ -373,6 +375,29 @@ const portalSharingKernelIssues = (
       return [{ ref, message: '@core.marketplace/issue.step.input-kernel', messageParams: { step: step.id, input: 'portalShared', minimum } }];
     }
     return [];
+  });
+};
+
+/**
+ * O `upsert` que endereça pela chave `primary`, num pacote que admite kernel anterior: lá a opção é
+ * ignorada em silêncio, e a segunda execução do fluxo é recusada como duplicata em vez de alterar.
+ */
+const upsertMatchKernelIssues = (
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  if (rangeExcludesBelow(pkg.manifest?.kernel ?? '', UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL)) return [];
+  return steps.flatMap((step): PackageValidationIssue[] => {
+    const config = step.stepDefinitionId === 'upsert' ? step.configuration?.upsert : undefined;
+    if (config?.kind !== 'Literal') return [];
+    const value = config.value as Partial<UpsertStepConfig> | null | undefined;
+    if (value?.matchPrimaryKey !== true) return [];
+    return [{
+      ref,
+      message: '@core.marketplace/issue.step.input-kernel',
+      messageParams: { step: step.id, input: 'upsert.matchPrimaryKey', minimum: UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL },
+    }];
   });
 };
 

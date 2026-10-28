@@ -216,6 +216,9 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'upsert.source.placeholder': 'Select the source…',
   'upsert.property': 'Property (optional)',
   'upsert.property.hint': 'Leave it empty to save the whole object of the source.',
+  'upsert.match-primary-key': 'Find the record by its primary key',
+  'upsert.match-primary-key.hint':
+    'Without an id in the object, the record that already holds the same primary key is updated instead of refused as a duplicate. Lets the step run again without failing.',
   'validate.property.hint': 'Leave it empty to validate the whole object of the source.',
   'parameter.object-fields': 'Object fields',
   'parameter.label.placeholder': 'ex: Order ID',
@@ -588,6 +591,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'data-fn.upsert.description':
     'Inserts or updates a record. Without "id" it inserts a new one; with "id" it updates the existing one. The current organization is applied automatically.',
   'data-fn.upsert.id': 'Optional. Provide it to update an existing record; omit it to insert.',
+  'data-fn.upsert.match-primary-key':
+    'Optional. true, with no "id", finds the record by the primary key of the collection: it updates the one found and inserts when there is none.',
   'data-fn.upsert.returns':
     'id (of the written record), created (true when inserted) and record (the written record).',
   'data-fn.upsert.table': 'The collection to write to (fixed, custom or list).',

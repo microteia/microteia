@@ -23,7 +23,16 @@ export interface UpsertStepConfig {
   table: string;
   source: 'input' | 'event';
   property?: string;
+  /**
+   * Sem `id` no objeto, procura o registro pela chave `primary` da coleção: achado, ALTERA; não achado,
+   * cria — o mesmo endereçamento da importação. Desligado, a segunda gravação com a mesma chave é recusada
+   * como duplicata, que é o comportamento de sempre: ligar é pedir, nunca padrão.
+   */
+  matchPrimaryKey?: boolean;
 }
+
+/** O kernel em que o passo `upsert` e o `upsert()` do Script passaram a endereçar pela chave `primary`. */
+export const UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL = '2.82.0';
 
 export interface RemoveStepConfig {
   table: string;

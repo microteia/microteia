@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.174.0] — 2026-10-28
+
+- feat(automation/upsert): `UpsertStepConfig.matchPrimaryKey` — with no `id` in the object, the `upsert` step finds the record by the collection's `primary` key and updates it; when none holds the key, it creates (EV-28). Until now only the bulk import passed `matchPrimaryKey` to `runWorkflowUpsert`, so a step run twice was refused by the reservation ("Another record already holds the key …") although AUTHORING §8 called the `primary` key an address; a flow that had to be repeatable queried by the key's fields before every write. The workflow builder offers it as a checkbox.
+- feat(automation/script): a script's `upsert({ table, data, matchPrimaryKey: true })` addresses by the `primary` key the same way. Only the literal `true` turns it on; `microteia-sandbox.d.ts` and the data-function reference document it.
+- feat(sdk/validate): `workflowIntegrity` refuses an `upsert` step whose `Literal` config sets `matchPrimaryKey: true` in a package whose `manifest.kernel` admits a kernel below `UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL` (2.82.0) — there the option is ignored and the second run fails (`issue.step.input-kernel`). `KERNEL_VERSION` 2.82.0.
+- Opt-in by design: without the option every write behaves as before — a taken key is refused, `id` still wins, a collection with no `primary` key always creates. The form, `create_record` over MCP and portal creation never address by the key (each one means CREATE; a portal guest must not reach another holder's record).
+- docs(authoring): §8 "A primary key as an address" lists which write addresses by the key and which does not, replacing the claim that every `upsert` did; the step catalog, the `UpsertStepConfig` row, the scripts section and the MCP entity guide say the same.
+
 #### [9.173.1] — 2026-10-28
 
 - fix(records/reference-options): `useReferenceOptions` labelled an untitled record with the raw `@core.records/record.untitled` reference — no consumer of the options (the form's `SearchSelect`, filters, action parameters, settings) resolves it — and read the subtitle as the stored value, so a `select` showed the option key (`nao_habilitado`) and a `reference` the target's id. 9.38.1 fixed the same on the card, header and tab (`useRecordIdentityText`) but not here (EV-27).

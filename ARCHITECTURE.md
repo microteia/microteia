@@ -13096,6 +13096,34 @@ existe daquele lado.
 | `UpsertStep` / `upsert()` de Script | `runWorkflowUpsert` → transação em `FirestoreWorkflowMutationRepository` |
 | Exclusão (inclusive cascata) | as reservas saem no mesmo lote do registro |
 
+### A chave `primary` como endereço
+
+"Endereço" quer dizer: a gravação SEM `id` acha o registro pela chave e o altera, em vez de ser recusada
+como duplicata. Quem faz isso é a opção `matchPrimaryKey` do `runWorkflowUpsert` (ver "Importação em
+massa de registros"), que lê a reserva — `recordKeys/{keyId}` já guarda o `recordId` — e não precisa de consulta nem de
+índice. Por muito tempo só a importação a ligava, e o AUTHORING prometia mais do que o resto entregava: o
+passo "Gravar Registro" acionado de novo falhava na reserva, e a automação que precisava ser repetível
+consultava pelos campos da chave antes de cada gravação.
+
+| Porta | Endereça pela chave | Por quê |
+|---|---|---|
+| Importação | sempre | reprocessar o arquivo é o jeito de retomá-la |
+| Passo `upsert` | com `UpsertStepConfig.matchPrimaryKey: true` | o fluxo DECLARA que é repetível; o construtor visual oferece a caixa |
+| `upsert()` de Script | com `matchPrimaryKey: true` ao lado de `table` e `data` (só o `true` literal) | idem, no código |
+| Formulário | nunca | quem digita está criando; o valor ocupado é erro que a pessoa precisa ver |
+| Agente (`create_record`) | nunca | a ferramenta diz CRIAR; alterar é `update_record`, com `id`, e a recusa da chave já nomeia o valor ocupado |
+| Portal | nunca | o convidado só altera o que a projeção lhe mostra; achar pela chave alteraria registro de outro titular |
+
+**Ligar é pedir, nunca padrão.** Desligado, a segunda gravação com o mesmo valor continua recusada — é o
+que fluxos já publicados esperam, e alguns DEPENDEM disso (a recusa é o "já existe" deles). O `id` no
+objeto continua mandando, e coleção sem chave `primary` grava como sempre.
+
+**O pacote cobra o kernel.** Num kernel anterior a `UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL` (2.82.0) a opção
+seria ignorada em silêncio — o fluxo repetido voltaria a falhar. `workflowIntegrity` reprova o passo
+`upsert` com `matchPrimaryKey: true` num `Literal` quando o `manifest.kernel` admite kernel anterior
+(`issue.step.input-kernel`). O `upsert()` de Script não tem como ser lido estaticamente sem falso-positivo,
+e fica com a nota no AUTHORING.
+
 O planejamento é sempre sobre o registro **completo** — payload mesclado com o que já está gravado. Um
 update parcial de chave composta continua sendo a mesma chave, e planejar sobre o payload sozinho
 reservaria metade dos valores vazios.
@@ -13770,7 +13798,7 @@ todas aditivas — quem não as passa grava exatamente como antes:
 
 | Opção | O que faz | Por que é do núcleo e não da importação |
 |---|---|---|
-| `matchPrimaryKey` | sem `id`, acha o registro pela chave `primary` (lê a reserva em `recordKeys`, que já guarda `recordId`) e ALTERA; não achando, cria | é o que "a chave `primary` é um endereço" sempre prometeu (ver "Chave primária e chave única"). A chave é calculada sobre o valor JÁ formatado pelas regras do campo — o mesmo que a reserva guardou |
+| `matchPrimaryKey` | sem `id`, acha o registro pela chave `primary` (lê a reserva em `recordKeys`, que já guarda `recordId`) e ALTERA; não achando, cria | é o que "a chave `primary` é um endereço" sempre prometeu (ver "Chave primária e chave única"). A chave é calculada sobre o valor JÁ formatado pelas regras do campo — o mesmo que a reserva guardou. A importação a liga sempre; o passo e o Script, quando DECLARAM (ver "A chave `primary` como endereço") |
 | `dryRun` | confere tudo e não grava; a reserva ocupada por OUTRO registro vira a mesma recusa que o `tx.create` daria | simular por outro código seria simular outra coisa |
 | `requireCollectionPermission` | cobra do ator `<coleção>.create` ou `.update` conforme o que a linha VAI fazer | só se sabe se a linha cria ou altera depois de achar o registro pela chave — portanto, dentro do caminho |
 | `enforceRequired` | cobra `required` sobre o registro INTEIRO (gravado + linha), como o formulário | o `upsert` de sempre não cobra, de propósito (a automação grava em etapas); a importação cobra, porque um arquivo de cadastros pela metade é o erro que o formulário existe para impedir |

@@ -7,7 +7,7 @@ import type { QueryOperator, QueryOrderBy, QueryPredicate, QuerySpec } from '../
 import { runWorkflowQuery } from '../query/runWorkflowQuery';
 import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
 import { runWorkflowRemove, runWorkflowUpsert } from '../mutation/runWorkflowMutation';
-import type { WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
+import type { UpsertOptions, WorkflowMutationDeps } from '../mutation/runWorkflowMutation';
 import type { RemoveSpec, UpsertSpec } from '../../../domain/schema/mutationSpec';
 
 import { LocalizedError } from '../../../domain/errors/LocalizedError';
@@ -103,6 +103,11 @@ const buildUpsertSpec = (raw: unknown): UpsertSpec => {
   if (typeof obj.id === 'string' && obj.id.trim() !== '') spec.id = obj.id;
   return spec;
 };
+
+/** Só o `true` literal liga o endereçamento pela chave: o Script que nunca pediu grava como sempre. */
+const buildUpsertOptions = (raw: unknown): UpsertOptions => ({
+  matchPrimaryKey: typeof raw === 'object' && raw !== null && (raw as Record<string, unknown>).matchPrimaryKey === true,
+});
 
 const buildRemoveSpec = (raw: unknown): RemoveSpec => {
   const obj = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
@@ -311,7 +316,7 @@ export async function runScriptSandbox(
     };
     const MUTATION_LIMIT_MESSAGE = '@core.automation/script.mutation-limit';
     registerAsyncBridge('upsert', overMutationLimit, MUTATION_LIMIT_MESSAGE, (arg) =>
-      runWorkflowUpsert(buildUpsertSpec(arg), context, mutationDeps),
+      runWorkflowUpsert(buildUpsertSpec(arg), context, mutationDeps, buildUpsertOptions(arg)),
     );
     registerAsyncBridge('remove', overMutationLimit, MUTATION_LIMIT_MESSAGE, (arg) =>
       runWorkflowRemove(buildRemoveSpec(arg), context, mutationDeps),

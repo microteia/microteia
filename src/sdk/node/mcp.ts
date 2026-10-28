@@ -1599,8 +1599,9 @@ const RESOURCES: ResourceDefinition[] = [
       '| what you declare | what it means |',
       '|---|---|',
       '| `kind: "unique"` | forbids a second record with this value. |',
-      '| `kind: "primary"` | that, plus the key becomes an ADDRESS — an idempotent upsert by natural key, a stable '
-      + 'link. At most one per entity, and never optional. |',
+      '| `kind: "primary"` | that, plus the key becomes an ADDRESS: the import, and an `upsert` step or script `upsert()` '
+      + 'with `matchPrimaryKey: true`, find the record by it and update it instead of refusing a duplicate. At most one '
+      + 'per entity, and never optional. |',
       '| `scope: "parent"` | unique WITHIN one parent record — the item numbered 1 of EACH order. Needs a '
       + 'relationship with storage "child". |',
       '| `normalize` | how two values count as the same: `trim` (on by default), `caseInsensitive`, and '

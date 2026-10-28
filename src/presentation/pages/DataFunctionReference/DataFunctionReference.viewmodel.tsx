@@ -48,6 +48,7 @@ export const DATA_FUNCTIONS: DataFunctionDef[] = [
         description:
           '@core.automation/data-fn.upsert.data',
       },
+      { name: 'matchPrimaryKey', description: '@core.automation/data-fn.upsert.match-primary-key' },
     ],
     returns: '@core.automation/data-fn.upsert.returns',
     example: `const r = await upsert({\n  table: 'news',\n  data: { title: input.title, summary: input.summary },\n});\nlog(r.created, r.id);`,

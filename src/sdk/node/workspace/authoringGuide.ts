@@ -15,6 +15,7 @@ import {
 import { AGGREGATION_OP_SINCE_KERNEL } from '../../../domain/schema/aggregationSpec';
 import { AGGREGATE_BACKFILL_SINCE_KERNEL, AGGREGATION_MAX_CHILDREN } from '../../../domain/schema/aggregateBackfill';
 import { RECORD_KEY_ADOPTION_SINCE_KERNEL } from '../../../domain/schema/recordKeyAdoption';
+import { UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL } from '../../../domain/schema/mutationSpec';
 import { EDIT_WINDOW_DOCUMENTS_SINCE_KERNEL, EDIT_WINDOW_SINCE_KERNEL } from '../../../domain/schema/editWindow';
 import {
   MEMBER_VISIBILITY_MAX_FIELDS,
@@ -337,7 +338,7 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   'ai-detect-workflow': 'Asks a model which callable workflow fits a free text, reading their descriptions. No match is a success with `found` false.',
   'ai-extract-parameters': 'Asks a model to fill the parameters of a target workflow from a free text. Publishes `params`, plus `params.<key>` when the target is a `Literal`.',
   query: 'Asks the database. Publishes `count`, `results`, `first`, plus `first.<projection>`.',
-  upsert: 'Writes one record. An `id` in the object means update, no `id` means insert.',
+  upsert: 'Writes one record. An `id` in the object means update, no `id` means insert — or, with `matchPrimaryKey: true`, update the record that holds the same `primary` key.',
   remove: 'Deletes one record.',
   'render-document': 'Fills a document template (`document.template`, or the organization\'s own on the same key) with a record and attaches the PDF or Word file to its Documents tab. The template names the screen; `recordId` must be a record of it. `portalShared: true` attaches it already shared with the portal (see "Sharing documents with the portal" in section 10). Publishes `documentId`, `name`, `url`, `format` and `emptyFields`.',
   'share-documents': 'Shares the documents a record already has with the portal guests who can see that record (`shared: true`, the default), or stops sharing them (`false`). `collection` and `recordId` name the record; `documentId` narrows it to one document — one not attached to that record fails the step — and `documentType` to one type. Idempotent. Publishes `matched`, `changed` and `shared`.',
@@ -1763,7 +1764,7 @@ must not repeat, or when you need a scope, a comparison, or a value that is requ
 |---|---|
 | \`name\` | stable, and it is what finds the reservation already written for existing records. Renaming a key retires it and declares another |
 | \`kind: 'unique'\` | forbids a second record with this value |
-| \`kind: 'primary'\` | that, plus the key is an ADDRESS: an idempotent \`upsert\` by natural key, a stable link. At most one per screen, and never optional |
+| \`kind: 'primary'\` | that, plus the key is an ADDRESS: a write with no \`id\` can find the record by it, and repeating it changes the record instead of being refused (see "A primary key as an address" below). At most one per screen, and never optional |
 | \`fields\` | keys of fields of THIS screen, in order — and the order is part of the value |
 | \`scope: 'tenant' \\| 'parent'\` | \`tenant\` (default) is the whole organization; \`parent\` is unique WITHIN one parent record — the item numbered 1 of EACH order — and it needs \`parentFieldKey\` |
 | \`normalize\` | how two values count as the same: \`trim\` (on by default), \`caseInsensitive\`, and \`formatPreset\` — \`digits\` makes \`123.456\` and \`123456\` one value |
@@ -1778,7 +1779,26 @@ no window between checking and writing, and it needs no composite index.
 
 **What a key is not.** It is not the document id. The id stays random, because a natural key changes
 — the CPF was typed wrong — and moving a document would break every reference pointing at it. A key
-is an index, not an address.
+is an index: references keep pointing at the id.
+
+**A primary key as an address.** A \`primary\` key lets a write that carries no \`id\` FIND the record:
+the one holding the same key value is updated, and when none does, a record is created. The value is
+compared after the field's own formatting, as the reservation stored it. This is opt-in per write,
+never a default — without it, the second write with the same value is refused as a duplicate, which
+is how every write behaved before:
+
+| Write | Addresses by the \`primary\` key |
+|---|---|
+| bulk import (§8) | always — re-running the same file changes what the first run created |
+| the \`upsert\` step | with \`matchPrimaryKey: true\` in its \`UpsertStepConfig\` |
+| a script's \`upsert()\` | with \`matchPrimaryKey: true\` beside \`table\` and \`data\` |
+| the form, \`create_record\` over MCP, a portal guest | never: each one says CREATE, and a taken value is refused |
+
+An \`id\` in the write still wins, and a collection with no \`primary\` key writes as it always did. Reach
+for it when an automation must be safe to run twice — a batch generated again, an event delivered
+twice — instead of querying by the key's fields before each write. A package whose workflow uses
+\`matchPrimaryKey\` declares \`kernel: '^${UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL}'\` or later, and \`check\`
+refuses one that admits an earlier kernel, where the option is ignored and the second run fails.
 
 **On a collection that already has records**, you write nothing beyond the declaration. A key that
 is new — or whose \`fields\`, \`normalize\`, \`scope\` or \`sparse\` changed, or whose \`formatPreset\`
@@ -2479,7 +2499,7 @@ name suggests.** \`query\` really does take a \`QuerySpec\`; the other four do N
 | Input type | The type inside the \`Literal\` | |
 |---|---|---|
 | \`Query\` | \`QuerySpec\` | \`{ table, where, orderBy?, limit, projections }\` |
-| \`Upsert\` | \`UpsertStepConfig\` | \`{ table, source: 'input' \\| 'event', property? }\` — no \`data\`: the step reads the object from \`source\`, and an \`id\` in it means update |
+| \`Upsert\` | \`UpsertStepConfig\` | \`{ table, source: 'input' \\| 'event', property?, matchPrimaryKey? }\` — no \`data\`: the step reads the object from \`source\`, and an \`id\` in it means update; \`matchPrimaryKey: true\` updates, with no \`id\`, the record that holds the same \`primary\` key (§8) |
 | \`Remove\` | \`RemoveStepConfig\` | \`{ table, id }\` |
 | \`Map\` | \`MapStepConfig\` | \`{ name?, type?, fields: { name, value }[] }\` |
 | \`Validate\` | \`ValidateStepConfig\` | ask \`describe_sdk_type\` |
@@ -2888,6 +2908,9 @@ async function main() {
 
 main();
 \`\`\`
+
+\`upsert({ table, data, matchPrimaryKey: true })\` with no \`id\` updates the record holding the same
+\`primary\` key instead of being refused as a duplicate (see "A primary key as an address" in §8).
 
 In scope: \`input\` (the declared \`inputParams\`), \`actor\` (as in §9 — \`{ id, name, via }\` or \`null\`),
 \`query\`, \`upsert\`, \`remove\`, \`fn.*\` (the expression functions of §9), \`log\` and \`console\`. Nothing else — no \`fetch\`, no \`require\`, no filesystem. The

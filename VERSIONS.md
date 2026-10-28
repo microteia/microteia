@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.174.0] — 2026-10-28
+
+- O passo "Gravar Registro" das automações ganhou a opção "Localizar o registro pela chave primária": acionar de novo a mesma automação atualiza o registro que ela já tinha criado, em vez de falhar por duplicidade. Os scripts ganharam a mesma possibilidade.
+- As automações que já existem continuam funcionando exatamente como antes: a opção só vale onde for marcada.
+
 #### [9.173.1] — 2026-10-28
 
 - Ao escolher um registro relacionado no formulário, a lista agora mostra cada opção como ela aparece no cartão: o registro sem nome aparece como "Sem título" no seu idioma, e a linha de apoio mostra o nome da situação ou do registro ligado, em vez de um código interno.

@@ -1,6 +1,7 @@
 import React from 'react';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { Input } from '../../../../components/ui/Input';
+import { Checkbox } from '../../../../components/ui/Checkbox';
 import { S } from './UpsertBuilderControl.styles';
 import { useUpsertBuilderControlViewModel } from './UpsertBuilderControl.viewmodel';
 import type { UpsertBuilderControlProps } from './UpsertBuilderControl.viewmodel';
@@ -42,6 +43,15 @@ export const UpsertBuilderControl: React.FC<UpsertBuilderControlProps> = (props)
           onChange={vm.setTable}
           placeholder={t('query.table.placeholder')}
         />
+      </S.Section>
+
+      <S.Section>
+        <Checkbox
+          checked={config.matchPrimaryKey === true}
+          onChange={vm.setMatchPrimaryKey}
+          label={t('upsert.match-primary-key')}
+        />
+        <S.Empty>{t('upsert.match-primary-key.hint')}</S.Empty>
       </S.Section>
     </S.Container>
   );

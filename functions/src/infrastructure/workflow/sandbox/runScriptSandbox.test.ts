@@ -12,6 +12,9 @@ import {
   createBusinessCalendarSet,
   type BusinessCalendarSet,
 } from '../../../domain/schema/time/businessDays';
+import { FakeMutationRepository } from '../../../domain/repositories/fakeWorkflowMutationRepository';
+import { fakeScreenProvider } from '../../../domain/repositories/fakeScreenProvider';
+import type { SchemaScreen } from '../../../domain/schema/pathResolver';
 
 const logs: string[] = [];
 
@@ -225,5 +228,48 @@ describe('runScriptSandbox — contas de dias úteis (fn.addBusinessDays e irmã
     await expect(
       runWith(wrapMain('return { ok: fn.isBusinessDay("2026-04-02", "national") };'), {}, null),
     ).rejects.toThrow(/business-days\.error\.unavailable/);
+  });
+});
+
+describe('runScriptSandbox — upsert() pela chave primary', () => {
+  const lotesScreen: SchemaScreen = {
+    id: 'lotes',
+    titleSingular: 'Lote',
+    titleFieldKey: 'codigo',
+    fields: [
+      { key: 'codigo', label: 'Código', type: 'text', required: true, order: 0, origin: 'design' },
+      { key: 'total', label: 'Total', type: 'number', required: false, order: 1, origin: 'design' },
+    ],
+    keys: [{ name: 'codigo', kind: 'primary', fields: ['codigo'] }],
+  };
+
+  const runWithRepo = (js: string, repo: FakeMutationRepository) =>
+    runScriptSandbox(js, {}, makeContext({}), deps, {
+      mutationRepository: repo,
+      screenProvider: fakeScreenProvider([lotesScreen]),
+    });
+
+  const gravarDuasVezes = (opcao: string) => wrapMain(`
+    const first = await upsert({ table: 'lotes', data: { codigo: 'L-1', total: 1 }${opcao} });
+    try {
+      const again = await upsert({ table: 'lotes', data: { codigo: 'L-1', total: 2 }${opcao} });
+      return { first: first.id, again: again.id, created: again.created };
+    } catch (error) {
+      return { first: first.id, refused: String(error) };
+    }`);
+
+  it('matchPrimaryKey: true faz a segunda gravação alterar o mesmo registro', async () => {
+    const repo = new FakeMutationRepository();
+    const out = await runWithRepo(gravarDuasVezes(', matchPrimaryKey: true'), repo);
+    expect(out).toEqual({ first: 'gen-1', again: 'gen-1', created: false });
+    expect(repo.store.get('lotes/gen-1')).toMatchObject({ total: 2 });
+  });
+
+  it('sem a opção — ou com um valor que não é true —, a duplicata continua recusada', async () => {
+    for (const opcao of ['', ", matchPrimaryKey: 'sim'"]) {
+      const repo = new FakeMutationRepository();
+      const out = await runWithRepo(gravarDuasVezes(opcao), repo);
+      expect(out).toEqual({ first: 'gen-1', refused: '@core.automation/mutation.upsert.key-conflict' });
+    }
   });
 });

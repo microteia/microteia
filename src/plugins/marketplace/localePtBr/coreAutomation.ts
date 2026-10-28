@@ -215,6 +215,9 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'upsert.source.placeholder': 'Selecione a origem...',
   'upsert.property': 'Propriedade (opcional)',
   'upsert.property.hint': 'Deixe em branco para gravar o objeto inteiro da origem.',
+  'upsert.match-primary-key': 'Localizar o registro pela chave primária',
+  'upsert.match-primary-key.hint':
+    'Sem id no objeto, o registro que já ocupa a mesma chave primária é alterado em vez de recusado como duplicata. Permite repetir o passo sem falhar.',
   'validate.property.hint': 'Deixe em branco para validar o objeto inteiro da origem.',
   'parameter.object-fields': 'Campos do objeto',
   'parameter.label.placeholder': 'ex: Order ID',
@@ -589,6 +592,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'data-fn.upsert.description':
     'Inclui ou atualiza um registro. Sem "id" inclui um novo; com "id" atualiza o existente. O escritório atual é aplicado automaticamente.',
   'data-fn.upsert.id': 'Opcional. Informe para atualizar um registro existente; omita para incluir.',
+  'data-fn.upsert.match-primary-key':
+    'Opcional. true, sem "id", localiza o registro pela chave primária da coleção: altera o encontrado e inclui quando não há nenhum.',
   'data-fn.upsert.returns':
     'id (do registro gravado), created (true se incluído) e record (registro gravado).',
   'data-fn.upsert.table': 'Cadastro a gravar (fixo, personalizado ou lista).',
