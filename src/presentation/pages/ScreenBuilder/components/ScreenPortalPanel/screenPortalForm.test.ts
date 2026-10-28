@@ -59,3 +59,18 @@ describe('registro de aberturas na aba Portal', () => {
     expect(fromPortalForm(toPortalForm(portal))).toEqual(portal);
   });
 });
+
+describe('ações no portal na aba Portal', () => {
+  it('ida e volta, na ordem escolhida', () => {
+    const portal = { subject: 'self' as const, fields: ['name'], documents: false, actions: ['accept', 'contact'] };
+    const form = toPortalForm(portal);
+    expect(form.actions).toEqual(['accept', 'contact']);
+    expect(fromPortalForm(form)).toEqual(portal);
+  });
+
+  it('sem ação marcada, a chave nem é gravada — a declaração de quem não usa o recurso fica como estava', () => {
+    const portal = { subject: 'self' as const, fields: ['name'], documents: false };
+    expect(toPortalForm(portal).actions).toEqual([]);
+    expect(fromPortalForm({ ...toPortalForm(portal), actions: [] })).toEqual(portal);
+  });
+});

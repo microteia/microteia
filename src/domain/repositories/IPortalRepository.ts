@@ -5,7 +5,9 @@ import type {
   PortalIdentityInvite,
   PortalLinkOption,
   PortalMembership,
+  PortalActionOutcome,
   PortalRecord,
+  PortalRecordAction,
   PortalSignInSettingsView,
 } from '../entities/Portal';
 import type { PortalRequiredClaim, PortalSignInOptions, PortalSignInSettings } from '../schema/portalIdentity';
@@ -47,6 +49,10 @@ export interface IPortalRepository {
    * `portal.trackViews`. A leitura da projeção é direta, e o servidor não a vê de outro jeito.
    */
   recordView(tenantId: string, projectionId: string): Promise<void>;
+  /** Os botões do registro aberto (`portal.actions`), para este convidado e agora. */
+  listRecordActions(tenantId: string, projectionId: string, locale: string): Promise<PortalRecordAction[]>;
+  /** Dispara uma ação do escritório no registro aberto — o servidor confere tudo de novo. */
+  runRecordAction(tenantId: string, projectionId: string, actionId: string, locale: string): Promise<PortalActionOutcome>;
   /**
    * Anexa um documento pelo portal: o arquivo vai para a área de espera do convidado, e a callable o
    * confere e o leva ao registro. Não existe o gesto inverso.

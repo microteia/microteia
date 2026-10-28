@@ -184,6 +184,13 @@ describe('declarar o portal de uma tela', () => {
       screens: {
         [TENANT]: {
           exposta: { titleSingular: 'Empresa', titleFieldKey: 'name', fields: [], portal: { subject: 'self', fields: ['name'] } },
+          comAcoes: {
+            titleSingular: 'Domicílio',
+            titleFieldKey: 'name',
+            fields: [],
+            viewActionIds: ['act-aceite'],
+            portal: { subject: 'self', fields: ['name'], actions: ['aceite'] },
+          },
         },
       },
     });
@@ -206,6 +213,14 @@ describe('declarar o portal de uma tela', () => {
     await assertSucceeds(updateDoc(screen('gestorPortal', 'exposta'), { dataCollection: 'empresas' }));
     // Fora do portal, a coleção continua sendo só Form Design.
     await assertSucceeds(updateDoc(screen('desenhista'), { dataCollection: 'notas' }));
+  });
+
+  it('na tela que oferece ações ao convidado, as ações do registro decidem o que ele dispara', async () => {
+    await assertSucceeds(updateDoc(screen('desenhista', 'comAcoes'), { titleSingular: 'Caixa postal' }));
+    await assertFails(updateDoc(screen('desenhista', 'comAcoes'), { viewActionIds: ['act-aceite', 'act-outra'] }));
+    await assertSucceeds(updateDoc(screen('gestorPortal', 'comAcoes'), { viewActionIds: ['act-aceite', 'act-outra'] }));
+    // Sem ações no portal, as do registro continuam sendo só Form Design — quem já usa não sente nada.
+    await assertSucceeds(updateDoc(screen('desenhista', 'exposta'), { viewActionIds: ['act-x'] }));
   });
 
   it('quem gerencia o portal declara e retira', async () => {

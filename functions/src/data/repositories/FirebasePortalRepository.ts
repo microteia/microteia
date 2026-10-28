@@ -5,6 +5,7 @@ import type {
   IPortalAccountService,
   IPortalInviteQuota,
   IPortalRepository,
+  PortalActionDefinition,
   PortalDocumentProjection,
   PortalFieldOption,
   PortalProjection,
@@ -62,6 +63,7 @@ const toScreen = (id: string, data: DocumentData): PortalScreen => ({
   icon: asString(data.icon),
   parentEntity: asString(data.parentEntity) || null,
   parentFieldKey: asString(data.parentFieldKey) || null,
+  viewActionIds: asStrings(data.viewActionIds),
   portal: asPortalDeclaration(data.portal),
   fields: (Array.isArray(data.fields) ? data.fields as DocumentData[] : [])
     .filter((field) => typeof field?.key === 'string')
@@ -83,6 +85,23 @@ const toScreen = (id: string, data: DocumentData): PortalScreen => ({
       ...(asString(field.lookupCollection) ? { lookupCollection: asString(field.lookupCollection) } : {}),
       ...(field.optionsColored === true ? { optionsColored: true } : {}),
     })),
+});
+
+const asNullableString = (value: unknown): string | null => (typeof value === 'string' && value.trim() !== '' ? value : null);
+
+const toAction = (id: string, data: DocumentData): PortalActionDefinition => ({
+  id,
+  key: asString(data.key),
+  title: asString(data.title, asString(data.key)),
+  icon: asString(data.icon),
+  workflowId: asNullableString(data.workflowId),
+  command: asNullableString(data.command),
+  promptParameters: data.promptParameters === true,
+  enabled: data.enabled !== false,
+  hiddenWhen: asNullableString(data.hiddenWhen),
+  disabledWhen: asNullableString(data.disabledWhen),
+  confirmMessage: asNullableString(data.confirmMessage),
+  danger: data.danger === true,
 });
 
 const toProjection = (data: DocumentData): PortalProjection => ({
@@ -159,6 +178,12 @@ export class FirebasePortalRepository implements IPortalRepository {
   async getRecord(tenantId: string, collection: string, recordId: string) {
     const snapshot = await this.tenant(tenantId).collection(collection).doc(recordId).get();
     return snapshot.exists ? snapshot.data() : undefined;
+  }
+
+  async getActions(tenantId: string, ids: readonly string[]): Promise<PortalActionDefinition[]> {
+    if (ids.length === 0) return [];
+    const snapshots = await this.db.getAll(...ids.map((id) => this.tenant(tenantId).collection('actions').doc(id)));
+    return snapshots.filter((snapshot) => snapshot.exists).map((snapshot) => toAction(snapshot.id, snapshot.data() ?? {}));
   }
 
   async getRecordsReferencing(tenantId: string, collection: string, fieldKey: string, recordId: string, multi: boolean) {

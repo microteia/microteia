@@ -30,6 +30,7 @@ export {
   getPortalContext,
   getPortalDocumentUrl,
   recordPortalView,
+  portalRecordActions,
   submitPortalRecord,
   attachPortalDocument,
 } from './infrastructure/handlers/portalAccess';

@@ -1980,6 +1980,64 @@ Na casca, o formulário de criação serve à edição (`PortalCreateForm` com `
 convidado vê, e campo apagado vai como `null`. Views de extensão usam `canEdit`,
 `usePortalNavigation().edit` e `usePortalUpdate`.
 
+### Um gesto no registro — `portal.actions` (EV-26)
+
+```ts
+portal: { subject: 'self', fields: ['name'], actions: ['accept'] }   // + viewActionIds: ['act-accept']
+```
+
+Criar, alterar e anexar não cobrem o ato que é um GESTO — aceitar, confirmar, assinar. Por `edit`, ele
+vira "Editar, marcar, salvar", e o convidado não percebe o que se espera dele. A tela passa a oferecer,
+no registro aberto, as ações do próprio escritório como botões.
+
+| Decisão | Por quê |
+|---|---|
+| **Referência pela `key`, entre as `viewActionIds` da tela** | a `key` atravessa a instalação intacta; o id é remapeado (`templateId` → id local). Por id, `portal.actions` precisaria da mesma reescrita de `viewActionIds` em instalar, reexportar, desinstalar e validar — cinco caminhos novos para a mesma informação. Restrita ao cabeçalho do registro, a chave não é ambígua entre extensões, e a semântica é a natural: o portal mostra um SUBCONJUNTO das ações do registro |
+| **As condições valem no SERVIDOR** | no escritório, `hiddenWhen`/`disabledWhen` são só desenho — o membro tem as regras do Firestore atrás dele. O convidado não tem nada atrás dele além da condição: o servidor a avalia sobre o registro INTEIRO ao desenhar e de novo ao executar. Estourou, FECHA (esconde, ou desabilita) — o contrário do escritório |
+| **`surface == "portal"`** | é a variável que já distinguia `detail` de `list`: a mesma ação vale só no portal (`hiddenWhen: 'surface != "portal"'`), ou só no escritório. Nenhuma variável nova |
+| **Estado por pedido, não na projeção** | o estado na projeção (como `editable`) envelheceria quando o escritório mudasse a AÇÃO — e `actions` não acorda reprojeção. A callable lê ação e registro a cada pedido; por isso `actions` fica fora de `portalShape` e declarar não abre passada nenhuma |
+| **Uma callable para listar e executar** (`portalRecordActions`) | sem `actionId` devolve os botões; com ele, executa. A consulta que desenha os botões acorda a mesma instância que o clique vai usar |
+| **O fluxo roda como o convidado** | `identifyPortalActor`: `via: 'portal'`, permissão nenhuma, a identidade verificada. Recebe o que recebe no escritório (`action`, `source`, `context`, `recordId`, `isNew: false`), com o `context` lido do registro GRAVADO — o navegador não escolhe com que dados o fluxo roda |
+| **Só o `status` volta** | `result` e os comandos (`merge`, `save`…) são do formulário do escritório, que o portal não tem — e o `result` pode trazer o que a tela não expõe. O texto do escritório e das extensões (título, confirmação, a mensagem do fluxo) volta traduzido pelo servidor, com os pacotes instalados. O fluxo que falha volta como `ERROR` SEM mensagem, e a casca diz `portal.action.failed` — o catálogo do núcleo, no servidor, só existe no idioma-fonte; o motivo fica na execução |
+| **Só ação que roda automação e não pergunta** | comando de tela (`copyLink`, `delete`) e formulário de parâmetros não têm onde acontecer no portal. `portalOfferableActions` é a lista de onde o escritório escolhe; `portalActionIssues` aponta a chave que não serve |
+
+A regra pura mora em `domain/schema/portal.ts` (sincronizada): `portalRecordActions`,
+`portalActionState`, `portalActionIssues`. O escopo das expressões saiu de `actionExpression.ts` para
+`domain/schema/actionScope.ts`, também sincronizado — `actionExpression` continua no front porque
+navega referências (`referenceScope`, front-only de propósito), e o servidor monta o MESMO escopo sem a
+navegação. Os use cases são `PortalActionUseCases.ts` (functions); o executor, `portalActionRunner`
+(o motor do `runAction`).
+
+**Quem decide o quê.** Quais chaves o convidado dispara é de `portal.manage` (a chave `portal` já é
+cobrada pela regra). Na tela que oferece ações, trocar `viewActionIds` também cobra `portal.manage`
+(`firestore.rules`, `rules-tests/portal.test.ts`): é a lista que decide QUAL ação responde por cada
+chave. O que cada ação FAZ — o fluxo, o título, a condição — continua de quem mantém ações e
+automações, a mesma confiança que já existia nas automações que avisam o convidado (`notify` com
+`portalGuests`) ou compartilham documentos com ele.
+
+Na casca, `PortalRecordActions` (MVVM) desenha os botões no registro aberto e ACIMA da view de
+extensão de detalhe, como o "Voltar": a declaração é da tela, não de quem a desenha. A confirmação é a
+`confirmMessage` da ação; o desfecho aparece logo abaixo, e os botões vêm refeitos do servidor depois
+do fluxo (o aceite gravado esconde "Aceitar"). Mudou a projeção, os botões são pedidos de novo.
+
+**Limites conhecidos.** Cada clique é uma execução de automação: o que impede o segundo é o
+`disabledWhen`/`hiddenWhen` que o escritório escreveu (o botão fica travado enquanto a execução corre,
+mas dois cliques simultâneos de abas diferentes passam pela mesma condição).
+
+**A view que desenha as ações ela mesma — `usePortalActions`.** `@microteia/portal` entrega a mesma
+lógica da barra (`usePortalRecordActions`, em `pages/Portal/`): os botões, `loading`, `running` e
+`run(actionId)`, que não pergunta (a confirmação é de quem desenha) e nunca rejeita — devolve
+`{ code, message }` com a frase pronta, a do fluxo ou a do produto. Pedir as ações de um registro o
+ASSUME: `claimActions` (no `PortalNavigationContext`, ao lado da pilha) tira a barra da casca de cima
+daquele registro, e a devolve quando a view sai. A lista é com repetição, e não um conjunto: um detalhe
+e um cartão do mesmo registro assumem duas vezes, e o primeiro a sair não devolve a barra sozinho. Sem
+isso, a view que quisesse os botões no lugar dela os mostraria duas vezes — a dela e a da casca.
+
+`portal.actions` move o `KERNEL_VERSION` (2.81.0) e exige `PORTAL_ACTIONS_SINCE_KERNEL` no pacote
+(`issue.portal.actions.kernel`): o kernel anterior descarta a chave, e o gesto que a extensão pôs no
+portal simplesmente não existiria. A chave que não aponta para uma ação do pacote no cabeçalho da tela,
+que é comando, que pergunta ou que está desligada é recusa (`issue.portal.action.*`).
+
 ### Garantias que a revisão da branch acrescentou
 
 - **O convite vale no instante.** As callables (alterar, anexar, URL de documento, criar dentro de
@@ -5875,7 +5933,7 @@ O escopo das expressões ganhou duas variáveis ortogonais — `surface` diz OND
 
 | Variável | Valores | Significa |
 |---|---|---|
-| `surface` | `detail`, `list`, `parentTab` | cabeçalho do registro, cartão da listagem própria, cartão dentro da aba de outro registro |
+| `surface` | `detail`, `list`, `parentTab`, `portal` | cabeçalho do registro, cartão da listagem própria, cartão dentro da aba de outro registro, registro aberto pelo convidado do portal (`portal.actions`) |
 | `relation` | `none`, `owned`, `related` | o registro não está na aba de ninguém, é FILHO do pai, ou é entidade de topo que apenas aponta para ele |
 
 Existem porque a mesma ação é lida de formas diferentes conforme o lugar. O caso que as motivou: na
@@ -6094,7 +6152,7 @@ Um botão configurável nas telas de dados que dispara um **workflow síncrono**
 
 > **Atenção:** `merge` seguido de `save` exigiu `handleSave(override?: Values)` em `useEntityDetail` — o `handleSave` fecha sobre o `values` do render corrente e não enxergaria o merge recém-aplicado. O dispatcher acumula os valores localmente e os passa adiante.
 
-**Expressões** — `hiddenWhen`/`disabledWhen` são o mesmo par de `FieldLogic` e reusam `evaluateFieldBoolean`; `domain/schema/actionExpression.ts` só monta o escopo. Puramente de UI (o backend não as reavalia). O escopo expõe os campos da tela **na raiz** (como nas expressões de campo) mais os reservados `record`, `isNew`, `isDirty`, `role` — que **sobrescrevem** campos de mesmo nome (um campo `record` segue legível por `record.record`). Reavaliação é síncrona a cada render, então "ao abrir a tela" e "ao mudar um campo" saem de graça.
+**Expressões** — `hiddenWhen`/`disabledWhen` são o mesmo par de `FieldLogic` e reusam `evaluateFieldBoolean`; `domain/schema/actionExpression.ts` só monta o escopo. Puramente de UI (o backend não as reavalia) — salvo no portal, onde o servidor as avalia e as cobra, porque o convidado não tem regra nenhuma atrás dele (ver `portal.actions`). O escopo mora em `actionScope.ts`, compartilhado. O escopo expõe os campos da tela **na raiz** (como nas expressões de campo) mais os reservados `record`, `isNew`, `isDirty`, `role` — que **sobrescrevem** campos de mesmo nome (um campo `record` segue legível por `record.record`). Reavaliação é síncrona a cada render, então "ao abrir a tela" e "ao mudar um campo" saem de graça.
 
 **Superfícies** — na View, `useEntityDetail` chama `useScreenActions` e devolve `screenActions`; o `EntityDetailView` renderiza os botões e o `ConfirmModal` de `confirmMessage`. As 6 telas de detalhe só repassam a prop. No card, `useRecordListViewModel` avalia as expressões **por registro** (funções puras, não hooks — não dá para chamar hook em loop) e usa o mesmo `dispatchActionOutcome`, com `save` mapeado para `updateRecord`. `RecordCardAction` ganhou `iconKey`/`disabled`; a view resolve por `getScreenIcon`. Administração em `Actions`/`ViewAction` (só admin), seleção por tela na aba "Ações" do `ScreenBuilder`.
 

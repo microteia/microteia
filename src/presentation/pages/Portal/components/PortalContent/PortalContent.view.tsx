@@ -7,6 +7,7 @@ import { Button } from '../../../../components/ui/Button';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { PortalCreateForm } from '../PortalCreateForm';
 import { PortalUploadForm } from '../PortalUploadForm';
+import { PortalRecordActions } from '../PortalRecordActions';
 import { PortalProfile } from '../PortalProfile';
 import { useT } from '../../../../shared/i18n/useT';
 
@@ -74,6 +75,7 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
   ) : vm.detailView ? (
     <S.Detail>
       {backButton}
+      {vm.recordActions && <PortalRecordActions {...vm.recordActions} />}
       <vm.detailView.Component collection={vm.detailView.collection} recordId={vm.detailView.recordId} />
     </S.Detail>
   ) : vm.selected ? (
@@ -88,6 +90,7 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
           </Button>
         )}
       </S.DetailHeader>
+      {vm.recordActions && <PortalRecordActions {...vm.recordActions} />}
       <S.Fields>
         {vm.selected.fields.map((field) => (
           <S.Field key={field.key}>

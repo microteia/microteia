@@ -56,6 +56,13 @@ import {
 import { portalRecordWriter } from '../portal/portalRecordWriter';
 import { portalActivityNotifier } from '../portal/portalActivityNotifier';
 import { portalViewRecorder } from '../portal/portalViewRecorder';
+import { portalActionRunner } from '../portal/portalActionRunner';
+import {
+  makeListPortalRecordActionsUseCase,
+  makeRunPortalRecordActionUseCase,
+  type ListPortalRecordActionsUseCase,
+  type RunPortalRecordActionUseCase,
+} from '../../domain/usecases/PortalActionUseCases';
 import { makeTrackPortalView, type TrackPortalView } from '../../domain/usecases/PortalViewUseCases';
 import type { IPortalViewMarks } from '../../domain/repositories/IPortalViewMarks';
 import { FirebasePortalViewMarks } from '../../data/repositories/FirebasePortalViewMarks';
@@ -494,6 +501,14 @@ class DIContainer {
 
   getRecordPortalViewUseCase(): RecordPortalViewUseCase {
     return makeRecordPortalViewUseCase(this.getPortalRepository(), this.getTrackPortalView());
+  }
+
+  getListPortalRecordActionsUseCase(): ListPortalRecordActionsUseCase {
+    return makeListPortalRecordActionsUseCase(this.getPortalRepository());
+  }
+
+  getRunPortalRecordActionUseCase(): RunPortalRecordActionUseCase {
+    return makeRunPortalRecordActionUseCase(this.getPortalRepository(), portalActionRunner);
   }
 
   /** O registro das aberturas pelo portal (`portal.trackViews`): a marca da janela, a Auditoria e o evento. */

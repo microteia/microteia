@@ -1,10 +1,12 @@
 import type { MarketplacePlugin, ScreenModuleTemplate } from '../../entities/MarketplacePlugin';
 import {
+  PORTAL_ACTIONS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINKS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
   PORTAL_TRACK_VIEWS_SINCE_KERNEL,
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
   asPortalDeclaration,
+  portalActionIssues,
   portalDerivedFieldKeys,
   portalVisibilityIssues,
 } from '../../schema/portal';
@@ -109,10 +111,50 @@ const derivedFieldIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
       }));
   });
 
+const PORTAL_ACTION_PACKAGE_MESSAGES: Record<string, string> = {
+  '@core.records/portal.issue.action.unknown': '@core.marketplace/issue.portal.action.unknown',
+  '@core.records/portal.issue.action.disabled': '@core.marketplace/issue.portal.action.disabled',
+  '@core.records/portal.issue.action.not-runnable': '@core.marketplace/issue.portal.action.not-runnable',
+  '@core.records/portal.issue.action.prompts': '@core.marketplace/issue.portal.action.prompts',
+};
+
+/**
+ * As `actions` das telas do pacote: cada chave aponta para uma ação DO PACOTE que a tela põe no
+ * cabeçalho do registro (`viewActionIds`, que no pacote são `templateId`), ligada, que roda uma
+ * automação e não pergunta nada — e o `kernel` que lê a chave. A chave, e não o id, porque a `key`
+ * atravessa a instalação intacta, enquanto o id é remapeado: a declaração não precisa de reescrita.
+ */
+const actionIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
+  const declaring = (pkg.screens ?? []).flatMap((screen) => {
+    const portal = asPortalDeclaration(screen.portal);
+    return portal?.actions?.length ? [{ screen, portal }] : [];
+  });
+  const actions = (pkg.actions ?? []).map((action) => ({ ...action, id: action.templateId }));
+
+  const keys = declaring.flatMap(({ screen, portal }) =>
+    portalActionIssues(
+      { id: screen.key, collection: screen.key, fields: screen.fields, viewActionIds: screen.viewActionIds, portal },
+      actions,
+    ).map((issue): LocalizedIssue => ({
+      message: PORTAL_ACTION_PACKAGE_MESSAGES[issue.message] ?? issue.message,
+      messageParams: { screen: screen.key, action: issue.messageParams?.action ?? '' },
+    })));
+
+  const kernel = declaring.length > 0 && !rangeExcludesBelow(pkg.manifest.kernel ?? '', PORTAL_ACTIONS_SINCE_KERNEL)
+    ? [{
+      message: '@core.marketplace/issue.portal.actions.kernel',
+      messageParams: { screen: declaring[0].screen.key, minimum: PORTAL_ACTIONS_SINCE_KERNEL },
+    }]
+    : [];
+
+  return [...keys, ...kernel];
+};
+
 /** O que o portal das telas do pacote declara e o kernel exigido não sustenta — cada um, uma recusa. */
 export const packagePortalIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...derivedFieldIssues(pkg),
   ...visibleWhenIssues(pkg),
   ...documentLinkIssues(pkg),
   ...trackViewsIssues(pkg),
+  ...actionIssues(pkg),
 ];

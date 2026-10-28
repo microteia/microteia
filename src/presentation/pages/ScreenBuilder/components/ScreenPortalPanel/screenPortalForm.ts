@@ -32,6 +32,8 @@ export interface PortalFormState {
   documentLinkMinutes: string;
   /** O servidor registra cada abertura do convidado — Auditoria e o evento `portalViewed`. */
   trackViews: boolean;
+  /** As CHAVES das ações do registro que o convidado dispara, na ordem dos botões. */
+  actions: string[];
 }
 
 export const EMPTY_PORTAL_FORM: PortalFormState = {
@@ -54,6 +56,7 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   documentLinks: false,
   documentLinkMinutes: String(PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES),
   trackViews: false,
+  actions: [],
 };
 
 export const toPortalForm = (portal: PortalDeclaration | null | undefined): PortalFormState => {
@@ -79,6 +82,7 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     documentLinks: !!portal.documentLinks,
     documentLinkMinutes: String(portal.documentLinks?.expiresInMinutes ?? PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES),
     trackViews: portal.trackViews === true,
+    actions: [...(portal.actions ?? [])],
   };
 };
 
@@ -114,5 +118,6 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
     ...(form.automationInvites && form.subjectKind === 'self' ? { invites: { automation: true } } : {}),
     ...(form.documentLinks ? { documentLinks: { expiresInMinutes: documentLinkMinutesOf(form.documentLinkMinutes) } } : {}),
     ...(form.trackViews ? { trackViews: true } : {}),
+    ...(form.actions.length > 0 ? { actions: form.actions } : {}),
   };
 };

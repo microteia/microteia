@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.173.0] — 2026-10-28
+
+- O convidado do portal agora pode realizar, com um clique, um ato no registro que está vendo — aceitar um termo, confirmar um agendamento, assinar um recibo. O escritório escolhe, na aba Portal da tela, quais das ações do registro aparecem para ele como botões, com o mesmo título, a mesma pergunta de confirmação e as mesmas condições que já usa internamente.
+- Essas ações respeitam as condições do escritório também do lado de fora: um botão que não deve valer naquele momento não aparece, ou aparece desabilitado, e não pode ser acionado de outro jeito.
+
 #### [9.172.2] — 2026-10-28
 
 - Os registros criados pelos convidados no portal passam a nascer com os valores de partida definidos na tela, como acontece quando alguém do escritório cria um registro. Antes, um campo que o convidado não preenchia — como a situação de um pedido — chegava vazio, e as ações e automações que dependiam dele não funcionavam.

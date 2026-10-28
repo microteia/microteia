@@ -1,5 +1,13 @@
 import { createContext, useContext } from 'react';
-import type { PortalContext, PortalDocument, PortalLinkOption, PortalMembership, PortalRecord } from '../domain/entities/Portal';
+import type {
+  PortalActionOutcome,
+  PortalContext,
+  PortalDocument,
+  PortalLinkOption,
+  PortalMembership,
+  PortalRecord,
+  PortalRecordAction,
+} from '../domain/entities/Portal';
 import type { PortalProfile } from '../domain/schema/portal';
 
 export interface PortalStoreValue {
@@ -41,6 +49,10 @@ export interface PortalStoreValue {
   getDocumentUrl: (projectionId: string, documentId: string) => Promise<string>;
   /** Avisa o servidor de que o convidado abriu o registro — ver `IPortalRepository.recordView`. */
   recordView: (projectionId: string) => Promise<void>;
+  /** Os botões do registro aberto (`portal.actions`) — ver `IPortalRepository.listRecordActions`. */
+  listRecordActions: (projectionId: string) => Promise<PortalRecordAction[]>;
+  /** Dispara uma ação do escritório no registro aberto; devolve o status e os botões refeitos. */
+  runRecordAction: (projectionId: string, actionId: string) => Promise<PortalActionOutcome>;
   listLinkOptions: (collection: string) => Promise<PortalLinkOption[]>;
   submit: (collection: string, linkRecordId: string, data: Record<string, unknown>) => Promise<void>;
   /** Altera um registro do convidado — o servidor confere campos, momento e dono. */

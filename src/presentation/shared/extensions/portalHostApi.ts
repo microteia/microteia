@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { HOST_MODULES } from './hostApi';
 import { usePortal } from '../../../stores/usePortal';
-import { usePortalNavigation as useNavigationStore } from '../../../stores/usePortalNavigation';
+import { PortalNavigationContext, usePortalNavigation as useNavigationStore } from '../../../stores/usePortalNavigation';
 import { portalRecordDocId, portalSubjectKey } from '../../../domain/schema/portal';
 import { canEditPortalRecord, type PortalDocument, type PortalRecord, type PortalScreenInfo } from '../../../domain/entities/Portal';
 import { usePortalShellViewModel } from '../../pages/Portal/components/PortalShell/PortalShell.viewmodel';
 import { PortalBrand } from '../../pages/Portal/components/PortalBrand';
 import { PortalUserMenu } from '../../pages/Portal/components/PortalUserMenu';
 import { PortalNotificationBell } from '../../pages/Portal/components/PortalNotificationBell';
+import { usePortalRecordActions, type PortalRecordActionsState } from '../../pages/Portal/usePortalRecordActions';
 
 /** Um registro como a view de portal o recebe: a projeção, endereçada pelo id do REGISTRO. */
 export interface PortalViewRecord {
@@ -139,6 +140,19 @@ const usePortalSubmit = () => usePortal().submit;
 /** Altera um registro pelo portal — o servidor confere campos, momento e dono a cada pedido. */
 const usePortalUpdate = () => usePortal().update;
 
+/**
+ * As ações do escritório no registro (`portal.actions`), para a view que as quer desenhar ela mesma — os
+ * botões no lugar que ela escolhe, a confirmação do jeito dela. Pedir as ações de um registro tira a
+ * barra da casca de cima dele: o gesto aparece num lugar só. Quem decide quais existem, e se rodam, é o
+ * servidor, a cada pedido.
+ */
+const usePortalActions = (collection: string, recordId: string): PortalRecordActionsState => {
+  const claimActions = useContext(PortalNavigationContext)?.claimActions;
+  const projectionId = portalRecordDocId(collection, recordId);
+  useEffect(() => claimActions?.(projectionId), [claimActions, projectionId]);
+  return usePortalRecordActions(collection, recordId);
+};
+
 const portalModule = {
   usePortalScreen,
   usePortalRecords,
@@ -147,6 +161,7 @@ const portalModule = {
   usePortalDocuments,
   usePortalSubmit,
   usePortalUpdate,
+  usePortalActions,
   /** Para um LAYOUT de extensão: a marca, o menu, o usuário, os temas — e o abrir/fechar de cada um. */
   usePortalShell: usePortalShellViewModel,
   PortalBrand,

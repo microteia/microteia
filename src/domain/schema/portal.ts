@@ -12,6 +12,7 @@
  */
 
 import { evaluateFieldBoolean, extractFieldExpressionPaths, fieldExpressionSyntaxError } from './fieldExpression';
+import { ACTION_RESERVED_VARIABLES, PORTAL_ACTION_SURFACE, actionFieldContext } from './actionScope';
 import { RECORD_CREATED_VIA_FIELD, SYSTEM_MANAGED_KEYS } from './mutationSpec';
 import { isSequenceField } from './recordSequence';
 
@@ -64,6 +65,13 @@ export const PORTAL_DOCUMENT_LINKS_SINCE_KERNEL = '2.77.0';
  * isso o pacote que a usa tem de exigir este kernel.
  */
 export const PORTAL_TRACK_VIEWS_SINCE_KERNEL = '2.79.0';
+
+/**
+ * O kernel a partir do qual `actions` é lido. Um kernel anterior DESCARTA a chave: o botão não aparece, e
+ * o gesto que a extensão pôs no portal simplesmente não existe para o convidado. Por isso o pacote que a
+ * usa tem de exigir este kernel.
+ */
+export const PORTAL_ACTIONS_SINCE_KERNEL = '2.81.0';
 
 /**
  * A mesma abertura — o mesmo convidado, o mesmo registro, o mesmo documento — dentro desta janela não é
@@ -173,6 +181,19 @@ export interface PortalDeclaration {
    * avisada pela casca do portal, porque a projeção é lida direto do Firestore.
    */
   trackViews?: boolean;
+  /**
+   * As AÇÕES do escritório que o convidado dispara no registro aberto — pela `key` delas, na ordem em que
+   * os botões aparecem. Só valem as que a tela já põe no cabeçalho do registro (`viewActionIds`): o
+   * portal mostra um SUBCONJUNTO das ações do registro, com o título, o ícone, a confirmação e as
+   * condições (`hiddenWhen`/`disabledWhen`) que o escritório deu a elas.
+   *
+   * O servidor avalia as condições sobre o registro INTEIRO, com `surface == "portal"`, e as cobra de
+   * novo ao executar: o convidado não é de confiança, e a condição é a única coisa entre ele e o fluxo.
+   * O fluxo roda como o convidado (`via: 'portal'`, permissão nenhuma). Só entram as ações que rodam
+   * uma automação e não perguntam nada — um comando de tela ou um formulário de parâmetros não têm
+   * onde acontecer no portal.
+   */
+  actions?: string[] | null;
 }
 
 export interface PortalDocumentLinksDeclaration {
@@ -204,6 +225,8 @@ export interface PortalScreenLike {
   }>;
   parentEntity?: string | null;
   parentFieldKey?: string | null;
+  /** As ações do cabeçalho do registro no escritório — de onde saem as do portal (`portal.actions`). */
+  viewActionIds?: readonly string[] | null;
   portal?: PortalDeclaration | null;
 }
 
@@ -295,6 +318,10 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     }
     : null;
 
+  const actions = Array.isArray(raw.actions)
+    ? [...new Set(raw.actions.filter(isNonEmptyString).map((key) => key.trim()))]
+    : [];
+
   return {
     subject,
     fields,
@@ -307,11 +334,146 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ...(invites ? { invites } : {}),
     ...(documentLinks ? { documentLinks } : {}),
     ...(raw.trackViews === true ? { trackViews: true } : {}),
+    ...(actions.length > 0 ? { actions } : {}),
   };
 };
 
 /** A tela registra as aberturas do convidado (`trackViews`). */
 export const portalTracksViews = (screen: Pick<PortalScreenLike, 'portal'>): boolean => screen.portal?.trackViews === true;
+
+/** O mínimo de uma Action (`ActionDefinition`) que o portal precisa ler. */
+export interface PortalActionLike {
+  id: string;
+  key: string;
+  workflowId?: string | null;
+  command?: string | null;
+  promptParameters?: boolean | null;
+  enabled?: boolean;
+  hiddenWhen?: string | null;
+  disabledWhen?: string | null;
+}
+
+/** Por que uma ação que a tela põe no registro não serve ao portal — `null` quando serve. */
+type PortalActionProblem = 'disabled' | 'not-runnable' | 'prompts';
+
+const portalActionProblem = (action: PortalActionLike): PortalActionProblem | null => {
+  if (action.enabled === false) return 'disabled';
+  if (isNonEmptyString(action.command) || !isNonEmptyString(action.workflowId)) return 'not-runnable';
+  if (action.promptParameters === true) return 'prompts';
+  return null;
+};
+
+/**
+ * As ações do cabeçalho do registro (`viewActionIds`), na ordem dele, indexadas pela `key`. Duas com a
+ * mesma chave: vale a primeira, como no cabeçalho do escritório, que as desenha nessa ordem.
+ */
+const attachedActionsByKey = <T extends PortalActionLike>(
+  screen: PortalScreenLike,
+  actions: readonly T[],
+): Map<string, T> => {
+  const byId = new Map(actions.map((action) => [action.id, action]));
+  const byKey = new Map<string, T>();
+  for (const id of screen.viewActionIds ?? []) {
+    const action = byId.get(id);
+    if (action && !byKey.has(action.key)) byKey.set(action.key, action);
+  }
+  return byKey;
+};
+
+/**
+ * As ações que a tela PODE oferecer no portal — as do cabeçalho do registro, na ordem dele, que estão
+ * ligadas, rodam uma automação e não perguntam nada. É a lista de onde o escritório escolhe.
+ */
+export const portalOfferableActions = <T extends PortalActionLike>(screen: PortalScreenLike, actions: readonly T[]): T[] =>
+  [...attachedActionsByKey(screen, actions).values()].filter((action) => !portalActionProblem(action));
+
+/**
+ * As ações que o convidado pode ver no registro aberto, na ordem da declaração: das que a tela põe no
+ * cabeçalho do registro, as de chave declarada que estão ligadas, rodam uma automação e não perguntam
+ * nada. A declaração que ficou para trás — a ação saiu da tela, virou comando — simplesmente some.
+ */
+export const portalRecordActions = <T extends PortalActionLike>(screen: PortalScreenLike, actions: readonly T[]): T[] => {
+  const attached = attachedActionsByKey(screen, actions);
+  return (screen.portal?.actions ?? []).flatMap((key) => {
+    const action = attached.get(key);
+    return action && !portalActionProblem(action) ? [action] : [];
+  });
+};
+
+/** O que o convidado vê de uma ação neste registro: o botão, o botão apagado, ou nada. */
+export type PortalActionState = 'enabled' | 'disabled' | 'hidden';
+
+export interface PortalActionScope {
+  /** O registro INTEIRO, como está gravado — inclusive o que não sai do escritório. */
+  record: Record<string, unknown>;
+  /** A coleção do registro: o que `<entity>` vira em `hasPermission`. */
+  collection: string;
+  /** O convidado: `user.id` e `user.name` nas expressões. Permissão, nenhuma. */
+  guest: { id: string; name: string };
+  timeZone?: string;
+}
+
+/**
+ * Uma condição da ação, como o SERVIDOR a avalia para o convidado. Fecha na dúvida: a expressão que
+ * estoura esconde ou desabilita — o contrário do escritório, onde ela é só desenho e o membro tem as
+ * regras do Firestore atrás dele. O campo citado que o registro não tem vale `null`, pela razão de
+ * `evaluatePortalCondition`: `accepted != true` sobre o registro sem `accepted` responde sobre o vazio.
+ */
+const portalActionCondition = (expression: string | null | undefined, scope: PortalActionScope): boolean => {
+  if (!expression?.trim()) return false;
+  const reserved = new Set<string>(ACTION_RESERVED_VARIABLES);
+  const absent = extractFieldExpressionPaths(expression)
+    .map((path) => path.split('.')[0])
+    .filter((root) => !reserved.has(root))
+    .map((root) => [root, null] as const);
+  const context = actionFieldContext({
+    values: { ...Object.fromEntries(absent), ...scope.record },
+    record: scope.record,
+    isNew: false,
+    isDirty: false,
+    permissions: [],
+    surface: PORTAL_ACTION_SURFACE,
+    relation: 'none',
+    user: { id: scope.guest.id, name: scope.guest.name, permissions: [] },
+    entity: scope.collection,
+    ...(scope.timeZone ? { timeZone: scope.timeZone } : {}),
+  });
+  return evaluateFieldBoolean(expression, context, true);
+};
+
+/**
+ * O estado da ação para o convidado, neste registro e agora. É o que desenha o botão E o que a execução
+ * cobra: oculta ou desabilitada, ela não roda.
+ */
+export const portalActionState = (action: PortalActionLike, scope: PortalActionScope): PortalActionState => {
+  if (portalActionCondition(action.hiddenWhen, scope)) return 'hidden';
+  if (portalActionCondition(action.disabledWhen, scope)) return 'disabled';
+  return 'enabled';
+};
+
+const PORTAL_ACTION_PROBLEM_MESSAGES: Record<PortalActionProblem, string> = {
+  disabled: '@core.records/portal.issue.action.disabled',
+  'not-runnable': '@core.records/portal.issue.action.not-runnable',
+  prompts: '@core.records/portal.issue.action.prompts',
+};
+
+/**
+ * As ações declaradas que não chegariam ao convidado, cada uma com o motivo: não está no cabeçalho do
+ * registro (ou a chave mudou), está desligada, é um comando de tela, ou pergunta parâmetros. O servidor,
+ * diante delas, só não desenha o botão — calado; aqui o escritório fica sabendo antes de gravar.
+ */
+export const portalActionIssues = (
+  screen: PortalScreenLike,
+  actions: readonly PortalActionLike[],
+): PortalDeclarationIssue[] => {
+  const attached = attachedActionsByKey(screen, actions);
+  return (screen.portal?.actions ?? []).flatMap((key): PortalDeclarationIssue[] => {
+    const action = attached.get(key);
+    if (!action) return [{ message: '@core.records/portal.issue.action.unknown', messageParams: { action: key } }];
+    const problem = portalActionProblem(action);
+    return problem ? [{ message: PORTAL_ACTION_PROBLEM_MESSAGES[problem], messageParams: { action: key } }] : [];
+  });
+};
 
 /**
  * A marca de "já registrado" de uma abertura: o escritório, o convidado, a projeção e — no documento —
@@ -690,10 +852,13 @@ export const portalDocumentLinkIssues = (screen: PortalScreenLike): PortalDeclar
 export const portalDeclarationIssues = (
   screen: PortalScreenLike,
   screens: readonly PortalScreenLike[],
+  /** As ações do escritório. Ausentes, as de `portal.actions` não são conferidas. */
+  actions?: readonly PortalActionLike[],
 ): PortalDeclarationIssue[] => {
   const portal = screen.portal;
   if (!portal) return [];
   const issues: PortalDeclarationIssue[] = [];
+  if (actions) issues.push(...portalActionIssues(screen, actions));
   const declared = new Set(screen.fields.map((field) => field.key));
 
   if (portal.fields.length === 0) issues.push({ message: '@core.records/portal.issue.no-fields' });

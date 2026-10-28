@@ -61,9 +61,9 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * O convite que abre o portal AGORA: existe e não está suspenso. A suspensão é o escritório que
  * desligou o método por que a pessoa entra — o convite continua listado, e não abre nada.
  */
-const activeGuest = <T extends { suspended?: boolean }>(guest: T | null): T | null => (guest && !guest.suspended ? guest : null);
+export const activeGuest = <T extends { suspended?: boolean }>(guest: T | null): T | null => (guest && !guest.suspended ? guest : null);
 
-const guestSees = (
+export const guestSees = (
   guest: { userId: string; subjectKeys: string[] },
   projection: { audience: string[]; subjectKeys: string[] } | null | undefined,
 ): boolean =>
@@ -508,6 +508,8 @@ export interface PortalContextScreen {
   documents: boolean;
   /** A casca avisa o servidor quando o convidado abre um registro desta tela (`portal.trackViews`). */
   trackViews: boolean;
+  /** A tela oferece ações do escritório no registro aberto (`portal.actions`) — a casca pede os botões. */
+  actions: boolean;
   fields: PortalScreen['fields'];
 }
 
@@ -747,6 +749,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
           icon: screen.icon,
           documents: screen.portal?.documents === true,
           trackViews: portalTracksViews(screen),
+          actions: (screen.portal?.actions?.length ?? 0) > 0,
           fields: screen.fields
             .filter((field) => exposed.has(field.key))
             .map((field) => ({

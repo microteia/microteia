@@ -616,6 +616,8 @@ service cloud.firestore {
         // extensões. Compara-se o VALOR (ausente == null): o Form Design reenvia a tela inteira.
         // A visibilidade por registro (`memberVisibility`) segue o mesmo molde, com a permissão
         // `screens.member-visibility`: afrouxá-la entrega registros sigilosos a quem tem a coleção.
+        // Na tela cujo portal oferece ações (`portal.actions`, por CHAVE), as ações do registro
+        // (`viewActionIds`) decidem QUAL ação responde por cada chave — o que o convidado dispara.
         allow update: if (can(tenantId, 'screens.manage') || can(tenantId, 'extensions.manage'))
           && (request.resource.data.get('editWindow', null) == resource.data.get('editWindow', null)
               || can(tenantId, 'screens.edit-window') || can(tenantId, 'extensions.manage'))
@@ -624,6 +626,10 @@ service cloud.firestore {
           && (resource.data.get('portal', null) == null
               || !request.resource.data.diff(resource.data).affectedKeys()
                 .hasAny(['dataCollection', 'parentEntity', 'parentFieldKey', 'titleFieldKey'])
+              || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'))
+          && (resource.data.get('portal', null) == null
+              || resource.data.portal.get('actions', null) == null
+              || request.resource.data.get('viewActionIds', null) == resource.data.get('viewActionIds', null)
               || can(tenantId, 'portal.manage') || can(tenantId, 'extensions.manage'))
           && (request.resource.data.get('memberVisibility', null) == resource.data.get('memberVisibility', null)
               || can(tenantId, 'screens.member-visibility') || can(tenantId, 'extensions.manage'));

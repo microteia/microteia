@@ -53,6 +53,7 @@ const ALL_FUNCTIONS = [
   'getPortalContext',
   'getPortalDocumentUrl',
   'recordPortalView',
+  'portalRecordActions',
   'submitPortalRecord',
   'attachPortalDocument',
   'projectPortalRecord',

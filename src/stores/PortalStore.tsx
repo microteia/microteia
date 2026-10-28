@@ -9,7 +9,9 @@ import {
   makeGetPortalDocumentUrlUseCase,
   makeListPortalLinkOptionsUseCase,
   makeListPortalMembershipsUseCase,
+  makeListPortalRecordActionsUseCase,
   makeRecordPortalViewUseCase,
+  makeRunPortalRecordActionUseCase,
   makeSavePortalProfileUseCase,
   makeSubmitPortalRecordUseCase,
   makeUpdatePortalRecordUseCase,
@@ -70,6 +72,8 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     documents: makeGetPortalDocumentsUseCase(portalRepository),
     documentUrl: makeGetPortalDocumentUrlUseCase(portalRepository),
     recordView: makeRecordPortalViewUseCase(portalRepository),
+    listActions: makeListPortalRecordActionsUseCase(portalRepository),
+    runAction: makeRunPortalRecordActionUseCase(portalRepository),
     linkOptions: makeListPortalLinkOptionsUseCase(portalRepository),
     submit: makeSubmitPortalRecordUseCase(portalRepository),
     update: makeUpdatePortalRecordUseCase(portalRepository),
@@ -224,6 +228,19 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [tenantId, uc.recordView],
   );
 
+  const listRecordActions = useCallback(
+    (projectionId: string) => (tenantId ? uc.listActions.execute(tenantId, projectionId, locale) : Promise.resolve([])),
+    [tenantId, uc.listActions, locale],
+  );
+
+  const runRecordAction = useCallback(
+    (projectionId: string, actionId: string) => {
+      if (!tenantId) return Promise.reject(new Error('@core.tenant/portal.action.unavailable'));
+      return uc.runAction.execute(tenantId, projectionId, actionId, locale);
+    },
+    [tenantId, uc.runAction, locale],
+  );
+
   const listLinkOptions = useCallback(
     (linkCollection: string) => (tenantId && userId ? uc.linkOptions.execute(tenantId, userId, linkCollection) : Promise.resolve([])),
     [tenantId, userId, uc.linkOptions],
@@ -276,6 +293,8 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getDocuments,
     getDocumentUrl,
     recordView,
+    listRecordActions,
+    runRecordAction,
     subscribeChildren,
     listLinkOptions,
     submit,
@@ -287,7 +306,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }), [
     memberships, membershipsLoading, membershipsFailed, tenantId, context, contextLoading, error, errorCode,
     retryContext, retryMemberships, recordsByCollection, isCollectionLoading, getDocuments, getDocumentUrl, recordView, subscribeChildren,
-    listLinkOptions, submit, update, userId, profile, saveProfile, uploadDocument,
+    listRecordActions, runRecordAction, listLinkOptions, submit, update, userId, profile, saveProfile, uploadDocument,
   ]);
 
   return <PortalStoreContext.Provider value={value}>{children}</PortalStoreContext.Provider>;

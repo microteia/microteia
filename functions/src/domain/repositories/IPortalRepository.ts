@@ -1,4 +1,4 @@
-import type { PortalScreenLike } from '../schema/portal';
+import type { PortalActionLike, PortalScreenLike } from '../schema/portal';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
 import type { PortalReprojectionState } from '../schema/portalReprojection';
 import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
@@ -24,6 +24,14 @@ export interface PortalScreen extends PortalScreenLike {
     lookupCollection?: string | null;
     optionsColored?: boolean;
   }>;
+}
+
+/** Uma ação do escritório como o portal a lê — o botão que o convidado vê e o fluxo que ele dispara. */
+export interface PortalActionDefinition extends PortalActionLike {
+  title: string;
+  icon: string;
+  confirmMessage: string | null;
+  danger: boolean;
 }
 
 /** Uma opção de campo `select` como o convidado a recebe: chave, rótulo e — quando há — a cor. */
@@ -125,6 +133,8 @@ export interface IPortalRepository {
   /** As opções que o escritório cadastrou numa lista (`lookupCollection`) — só chave, rótulo e cor. */
   getLookupOptions(tenantId: string, collection: string): Promise<PortalFieldOption[]>;
   getRecord(tenantId: string, collection: string, recordId: string): Promise<Record<string, unknown> | undefined>;
+  /** As ações do escritório com estes ids — a que não existe mais simplesmente não vem. */
+  getActions(tenantId: string, ids: readonly string[]): Promise<PortalActionDefinition[]>;
   /** Os registros que apontam para `recordId` pelo campo — os dependentes que herdam o sujeito dele. */
   getRecordsReferencing(
     tenantId: string,

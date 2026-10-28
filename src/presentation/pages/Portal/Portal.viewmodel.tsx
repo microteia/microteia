@@ -139,6 +139,11 @@ export interface PortalViewModel {
     /** O convidado pode alterar o registro aberto — o rótulo do botão; `null`, sem botão. */
     editLabel: string | null;
   } | null;
+  /**
+   * As ações do escritório no registro aberto (`portal.actions`) — na casca nativa e em volta da view de
+   * extensão de detalhe, como o "Voltar": a declaração é da tela, não de quem a desenha. `null`, sem ações.
+   */
+  recordActions: { collection: string; recordId: string } | null;
   startEdit: () => void;
   openRecord: (collection: string, id: string) => void;
   setActiveTab: (tab: string) => void;
@@ -234,6 +239,10 @@ export const usePortalViewModel = (): PortalViewModel => {
   const topRecordId = topRecord?.id ?? null;
   const exposesDocuments = topScreen?.documents === true;
   const tracksViews = topScreen?.trackViews === true;
+  const recordActions = useMemo(
+    () => (topRecord && topScreen?.actions ? { collection: topRecord.collection, recordId: topRecord.recordId } : null),
+    [topRecord, topScreen],
+  );
 
   // A abertura conta quando o registro CHEGA à tela — a casca nativa ou a view de extensão de detalhe.
   // Quem decide se é a mesma abertura de há pouco é o servidor; a falha não atrapalha o convidado.
@@ -434,6 +443,7 @@ export const usePortalViewModel = (): PortalViewModel => {
     rootCreateLabel: rootScreen?.create ? t('portal.create.new', { screen: rootScreen.titleSingular }) : null,
     emptyScreens: !!portal.context && menuEntries.length === 0,
     selected,
+    recordActions,
     openRecord,
     setActiveTab: (tab: string) => setTabChoice({ recordId: topRecord?.id ?? '', tab }),
     goBack,
