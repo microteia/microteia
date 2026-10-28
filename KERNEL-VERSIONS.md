@@ -18,6 +18,17 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.172.0] — 2026-10-28
+
+- feat(sdk/installed-catalog): screens of `installed-catalog.json` may carry `keys` (`RecordKeySpec` without `message` and `status`) and fields may carry `unique: true`; `installedScreenInput` passes both to the catalog, so `resolveEntityKeys` sees the keys of a screen that exists only in the installation (Form Design, third-party extension) and the artifact plan reconciles them instead of proposing `create` on every run. A key with an unknown `kind` or no fields is dropped; an unknown `scope` or normalization option is dropped from it. Additive: `INSTALLED_CATALOG_VERSION` stays 1.
+- feat(sdk/workspace-catalog): an absent `keys` reads as unknown, never as "no keys" (`keysKnown: false` on the read). `catalogSources` then warns, naming the installation-only collections affected and the `export-catalog` command that closes the gap; a screen shadowed by the workspace is read from its `plugin.ts`, so it never triggers the warning.
+- docs(sdk/workspace): AUTHORING.md says the snapshot carries record keys. No `KERNEL_VERSION` change: what the kernel understands of an installed package is unchanged.
+
+#### [9.171.1] — 2026-10-27
+
+- fix(sdk/domain): the workspace catalog dropped `keys` from every screen read off the authoring directory's `plugin.ts` (`screenFrom`, `packageScreens.ts`), so the artifact plan proposed `create` for every record key the package already declared, on every run — and bumped the version for it. Keys now travel into the catalog stamped with `ownerPluginId`, exactly as installation writes them (`screenModule.ts`); a screen without `keys` reads as before.
+- fix(sdk/domain): the plan reconciled a key by name alone. With declared keys now visible, a key redefined under the same name (other fields, scope, normalization or sparseness) would read as `unchanged`, while installation re-sweeps every stored record under it. `reconcileKey` compares `kind` plus the adoption identity (`recordKeySignature`, `recordKeyAdoption.ts`): a difference is `update` with a `reason` (new optional field of `PlannedScreenKey`); the conflict `message` stays outside the identity, as in the kernel. Keys the package declares and the model omits remain `retainedKeys`, never removed. No `KERNEL_VERSION` change: what the kernel understands of an installed package is unchanged.
+
 #### [9.171.0] — 2026-10-27
 
 - fix(sdk/validate): a field naming a preset that resolves to nothing — `mask` on a `masked` field, `rules.format.preset`, `rules.validate.check` — passed `check` and installation, and at run time an unknown preset is a no-op by design (no mask, no formatting, validation approves). `mask: 'cpf-cnpj'` against the Brasil extension's `cpfCnpj` installed and the field silently had no mask. The new `fieldPresetChecks` (`domain/usecases/plugins/fieldPresetRefs.ts`) resolves each key in the runtime precedence — kernel, the package, declared dependencies, other visible extensions — and `fieldPresetIssues` (in `packageIssues`, hence `check`, `build`, the MCP `validate_plugin`, the authoring screen and every import) refuses only what is wrong everywhere: `issue.package.field.preset.slot`, a kernel or own preset that lacks the part the field uses (`mask: 'digits'`). A key that may live in another extension is never refused by the gate, so packages relying on an extension they do not declare install as before. A `masked` field with no `mask`, and `mask` on any other type, are not checked.

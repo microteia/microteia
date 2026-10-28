@@ -7,11 +7,12 @@ import type { CatalogSourceDocument } from './exportCatalog.js';
 import type { InstalledExtensionRecord } from './installedExtensions.js';
 import { decodeFields, documentId } from './firestoreRest.js';
 import type { FirestoreDocument } from './firestoreRest.js';
-import { readInstalledCatalog } from '../../../src/sdk/node/installedCatalog';
+import { installedScreenInput, readInstalledCatalog } from '../../../src/sdk/node/installedCatalog';
 import { declaredDocumentTemplates } from '../../../src/domain/usecases/plugins/documentStepIntegrity';
 import { documentExamplePlugin } from '../../../src/plugins/marketplace/examples/document-example/plugin';
 import { declaredFieldPresets } from '../../../src/domain/usecases/plugins/fieldPresetRefs';
 import { brasilPlugin } from '../../../src/plugins/marketplace/brasil';
+import { buildDomainCatalog } from '../../../src/sdk/domain/catalog';
 
 /**
  * O RETRATO, montado a partir do que o Firestore devolve — e lido de volta pelo SDK.
@@ -443,6 +444,84 @@ describe('os presets de campo que cada extensão declara', () => {
       expect(read.fieldPresetsKnown).toBe(true);
       expect(read.snapshot?.extensions.find((one) => one.id === brasil.id)?.fieldPresets)
         .toStrictEqual(buildWith([brasil]).extensions[0].fieldPresets);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * As chaves da tela atravessam como esquema: sem elas, o plano propunha como nova, a cada execução, a
+ * chave que o escritório declarou no Form Design ou que uma extensão de terceiro instalou.
+ */
+describe('as chaves de cada tela', () => {
+  const keyed = document('customers', {
+    titleSingular: str('Customer'),
+    titleFieldKey: str('name'),
+    origin: str('design'),
+    enabled: bool(true),
+    keys: arr([
+      map({
+        name: str('customer-name'),
+        kind: str('unique'),
+        fields: arr([str('name')]),
+        normalize: map({ caseInsensitive: bool(true), formatPreset: str('digits') }),
+        sparse: bool(false),
+        // Apresentação e estado: não mudam qual reserva um registro recebe.
+        message: str('@com.example.billing/key.customer-name'),
+        status: str('active'),
+        ownerPluginId: str('com.example.billing'),
+      }),
+      map({ name: str('incomplete'), kind: str('unique'), fields: arr([]) }),
+    ]),
+    fields: arr([
+      map({ key: str('name'), label: str('Nome'), type: str('text'), required: bool(true), order: int(0) }),
+      map({ key: str('email'), label: str('E-mail'), type: str('text'), required: bool(false), order: int(1), unique: bool(true) }),
+    ]),
+  });
+
+  const buildWith = (screens: FirestoreDocument[]) => buildCatalogExport({
+    projectId: 'office-prod',
+    tenant: { id: 'tenant-1', name: 'Escritório Central' },
+    kernelVersion: '2.7.0',
+    exportedAt: EXPORTED_AT,
+    screens: decode(screens), lookups: [], tagLists: [],
+    extensions: [],
+  });
+
+  const CUSTOMER_NAME = {
+    name: 'customer-name',
+    kind: 'unique',
+    fields: ['name'],
+    normalize: { caseInsensitive: true, formatPreset: 'digits' },
+    sparse: false,
+    ownerPluginId: 'com.example.billing',
+  };
+
+  it('leva a forma da chave e o `unique` do campo, nunca a mensagem nem o estado', () => {
+    const [screen] = buildWith([keyed]).screens;
+    expect(screen.keys).toStrictEqual([CUSTOMER_NAME]);
+    expect(screen.fields.map((one) => one.unique)).toStrictEqual([undefined, true]);
+    expect(JSON.stringify(screen)).not.toContain('key.customer-name');
+  });
+
+  it('sem chave, a lista sai vazia — nunca a chave ausente', () => {
+    const [screen] = buildWith([SCREENS[0]]).screens;
+    expect(screen.keys).toStrictEqual([]);
+    expect('keys' in screen).toBe(true);
+  });
+
+  it('o kernel lê as chaves de volta, e o catálogo as resolve como a instalação', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'microteia-export-keys-'));
+    try {
+      writeFileSync(join(directory, CATALOG_FILE), `${JSON.stringify(buildWith([keyed]), null, 2)}\n`);
+      const read = readInstalledCatalog(directory, EXPORTED_AT);
+
+      expect(read.keysKnown).toBe(true);
+      expect(read.snapshot?.screens[0].keys).toStrictEqual([CUSTOMER_NAME]);
+      const catalog = buildDomainCatalog(read.snapshot!.screens.map(installedScreenInput));
+      expect(catalog.entities.find((one) => one.collection === 'customers')?.keys?.map((one) => one.name))
+        .toStrictEqual(['field:email', 'customer-name']);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

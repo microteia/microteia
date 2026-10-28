@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.172.0] — 2026-10-28
+
+- O planejamento de uma extensão passou a enxergar também as regras de "valor que não pode se repetir" que existem só no escritório — criadas no desenho de telas ou trazidas por outra extensão já instalada —, em vez de propô-las como novas. Para isso, basta exportar de novo o catálogo do escritório com o Console atualizado; enquanto isso não for feito, o planejamento avisa quais telas podem ter regras que ele não está vendo.
+
+#### [9.171.1] — 2026-10-27
+
+- O planejamento de uma extensão deixou de propor, a cada execução, a criação de regras de "valor que não pode se repetir" (como CPF ou CNPJ únicos) que a extensão já tinha. Agora ele mostra essas regras como já existentes — e avisa quando uma delas foi redefinida, porque isso faz o sistema reconferir os cadastros já gravados.
+
 #### [9.171.0] — 2026-10-27
 
 - A conferência de uma extensão agora avisa quando um campo usa uma máscara, formatação ou validação pronta que não existe — por exemplo, um nome digitado com grafia diferente da que a extensão Brasil oferece — e sugere o nome certo. Antes, a extensão era instalada e o campo simplesmente ficava sem máscara, sem nenhum aviso.

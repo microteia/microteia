@@ -276,6 +276,7 @@ export const readWorkspaceCatalog = (
 
     const addedCollections: string[] = [];
     const shadowedCollections: string[] = [];
+    const keysUnknown: string[] = [];
 
     for (const screen of snapshot.screens) {
       const input = installedScreenInput(screen);
@@ -285,6 +286,7 @@ export const readWorkspaceCatalog = (
         continue;
       }
       if (!addedCollections.includes(collection)) addedCollections.push(collection);
+      if (screen.keys === undefined && !keysUnknown.includes(collection)) keysUnknown.push(collection);
       screens.push(input);
     }
 
@@ -332,6 +334,15 @@ export const readWorkspaceCatalog = (
         + 'so there is no telling which artifacts of them may be referenced. Do not read the absence of a '
         + `list as "this extension exports nothing". Run "microteia export-catalog --tenant `
         + `${snapshot.tenantId}" with the Console that came with this installation.`,
+      );
+    }
+    // Só pesa sobre a tela que vem SÓ do retrato: a que o workspace também declara é lida do plugin.ts.
+    if (keysUnknown.length > 0) {
+      installedProblems.push(
+        `${INSTALLED_CATALOG_FILE} was taken by a Console that did not record record keys, so a key that `
+        + `exists only in ${snapshot.tenantName} (${keysUnknown.sort().join(', ')}) is not visible, and the plan `
+        + 'proposes it as new. Do not read the absence of keys as "nothing here must be unique". Run '
+        + `"microteia export-catalog --tenant ${snapshot.tenantId}" with the Console that came with this installation.`,
       );
     }
     if (installation.kernelDiffers) {

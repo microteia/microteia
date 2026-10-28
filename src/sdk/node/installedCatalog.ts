@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
 import type { CustomFieldType, FieldAggregation, FieldOrigin } from '../../domain/schema/fieldRules';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
+import type { RecordKeyKind, RecordKeyNormalization, RecordKeyScope, RecordKeySpec } from '../../domain/schema/recordKeys';
+import { RECORD_KEY_KINDS, RECORD_KEY_SCOPES } from '../../domain/schema/recordKeys';
 import type { DocumentTemplateContract } from '../../domain/usecases/plugins/documentStepIntegrity';
 import { documentTemplateContractOf } from '../../domain/usecases/plugins/documentStepIntegrity';
 import type { FieldPresetSlot, OfferedFieldPreset } from '../../domain/usecases/plugins/fieldPresetRefs';
@@ -73,6 +75,7 @@ export interface InstalledCatalogField {
   ownerPluginId?: string | null;
   aggregation?: FieldAggregation | null;
   compute?: string | null;
+  unique?: boolean;
 }
 
 export interface InstalledCatalogScreen {
@@ -90,6 +93,11 @@ export interface InstalledCatalogScreen {
   parentRelation?: ParentRelation | null;
   tagCollection?: string | null;
   eventPrefix?: string | null;
+  /**
+   * As chaves da coleção. **`undefined` é "não registrado", e nunca "sem chave"** — um Console anterior
+   * ao campo não o escrevia; ver `keysKnown`.
+   */
+  keys?: RecordKeySpec[];
   fields: InstalledCatalogField[];
 }
 
@@ -192,6 +200,11 @@ export interface InstalledCatalogRead {
   documentTemplatesKnown: boolean;
   /** O mesmo, para os presets de campo: `false` quando alguma extensão chegou sem `fieldPresets`. */
   fieldPresetsKnown: boolean;
+  /**
+   * O mesmo, para as chaves das telas: `false` quando alguma tela chegou sem `keys`. Aí uma chave que
+   * só existe na instalação não aparece, e o plano a propõe como nova.
+   */
+  keysKnown: boolean;
   /** Por que o arquivo não pôde ser usado — arquivo torto, formato de outra época, campo faltando. */
   problems: string[];
 }
@@ -207,6 +220,7 @@ const ABSENT = (path: string): InstalledCatalogRead => ({
   navGroupsKnown: true,
   documentTemplatesKnown: true,
   fieldPresetsKnown: true,
+  keysKnown: true,
   problems: [],
 });
 
@@ -253,6 +267,42 @@ const readField = (raw: unknown, index: number, screenOrigin: FieldOrigin): Inst
     ...(optionalText(record.ownerPluginId) === null ? {} : { ownerPluginId: optionalText(record.ownerPluginId) }),
     ...(asRecord(record.aggregation) === null ? {} : { aggregation: record.aggregation as FieldAggregation }),
     ...(optionalText(record.compute) === null ? {} : { compute: optionalText(record.compute) }),
+    ...(record.unique === true ? { unique: true } : {}),
+  };
+};
+
+const readNormalization = (value: unknown): RecordKeyNormalization | null => {
+  const record = asRecord(value);
+  if (record === null) return null;
+  const normalization: RecordKeyNormalization = {
+    ...(typeof record.trim === 'boolean' ? { trim: record.trim } : {}),
+    ...(typeof record.caseInsensitive === 'boolean' ? { caseInsensitive: record.caseInsensitive } : {}),
+    ...(optionalText(record.formatPreset) === null ? {} : { formatPreset: optionalText(record.formatPreset) as string }),
+  };
+  return Object.keys(normalization).length > 0 ? normalization : null;
+};
+
+/**
+ * Uma chave do retrato. A que não diz o tipo que o kernel conhece, ou não cita campo nenhum, fica de
+ * fora: entrar com outro tipo faria o plano comparar uma restrição diferente da instalada.
+ */
+const readKey = (raw: unknown): RecordKeySpec | null => {
+  const record = asRecord(raw);
+  if (record === null) return null;
+  const name = text(record.name);
+  const kind = text(record.kind);
+  const fields = list(record.fields).filter((one): one is string => typeof one === 'string' && one !== '');
+  if (name === '' || !(RECORD_KEY_KINDS as readonly string[]).includes(kind) || fields.length === 0) return null;
+  const scope = text(record.scope);
+  const normalize = readNormalization(record.normalize);
+  return {
+    name,
+    kind: kind as RecordKeyKind,
+    fields,
+    ...((RECORD_KEY_SCOPES as readonly string[]).includes(scope) ? { scope: scope as RecordKeyScope } : {}),
+    ...(normalize === null ? {} : { normalize }),
+    ...(typeof record.sparse === 'boolean' ? { sparse: record.sparse } : {}),
+    ...(optionalText(record.ownerPluginId) === null ? {} : { ownerPluginId: optionalText(record.ownerPluginId) }),
   };
 };
 
@@ -276,6 +326,10 @@ const readScreen = (raw: unknown): InstalledCatalogScreen | null => {
     ...(parentRelation(record.parentRelation) === null ? {} : { parentRelation: parentRelation(record.parentRelation) }),
     ...(optionalText(record.tagCollection) === null ? {} : { tagCollection: optionalText(record.tagCollection) }),
     ...(optionalText(record.eventPrefix) === null ? {} : { eventPrefix: optionalText(record.eventPrefix) }),
+    // A chave AUSENTE é o silêncio de um Console antigo; a chave presente e vazia é a resposta "nenhuma".
+    ...(Array.isArray(record.keys)
+      ? { keys: record.keys.map(readKey).filter((one): one is RecordKeySpec => one !== null) }
+      : {}),
     fields: list(record.fields)
       .map((field, index) => readField(field, index, screenOrigin))
       .filter((field): field is InstalledCatalogField => field !== null),
@@ -461,6 +515,7 @@ export const readInstalledCatalog = (root: string, now: Date = new Date()): Inst
     navGroupsKnown: snapshot.extensions.every((one) => one.navGroups !== undefined),
     documentTemplatesKnown: snapshot.extensions.every((one) => one.documentTemplates !== undefined),
     fieldPresetsKnown: snapshot.extensions.every((one) => one.fieldPresets !== undefined),
+    keysKnown: snapshot.screens.every((one) => one.keys !== undefined),
     problems: readable ? [] : [`${INSTALLED_CATALOG_FILE} has no readable "exportedAt", so there is no telling `
       + 'how old it is. Treat every entity it brings as possibly out of date.'],
   };
@@ -477,6 +532,7 @@ export const installedScreenInput = (screen: InstalledCatalogScreen): CatalogScr
   titleSingular: screen.titleSingular,
   ...(screen.titlePlural === undefined ? {} : { titlePlural: screen.titlePlural }),
   titleFieldKey: screen.titleFieldKey,
+  ...(screen.keys === undefined ? {} : { keys: screen.keys }),
   fields: screen.fields.map((field): FieldDefinition => ({
     key: field.key,
     label: field.label,
@@ -490,6 +546,7 @@ export const installedScreenInput = (screen: InstalledCatalogScreen): CatalogScr
     ...(field.section === undefined ? {} : { section: field.section }),
     ...(field.aggregation === undefined ? {} : { aggregation: field.aggregation }),
     ...(field.compute === undefined || field.compute === null ? {} : { logic: { compute: field.compute } }),
+    ...(field.unique === true ? { unique: true } : {}),
     origin: field.origin,
     ...(field.ownerPluginId === undefined ? {} : { ownerPluginId: field.ownerPluginId }),
   })),

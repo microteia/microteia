@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import { validateDomainModel } from '../domain/validateDomainModel';
+import { buildArtifactPlan } from '../domain/artifactPlan';
+import type { DomainModel } from '../domain/domainModel';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
 import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_STALE_DAYS, INSTALLED_CATALOG_VERSION } from './installedCatalog';
 import { RULE_LEDGER_FILE } from '../domain/traceability';
@@ -204,6 +206,7 @@ const SNAPSHOT = {
       titlePlural: 'Customers',
       titleFieldKey: 'name',
       origin: 'design',
+      keys: [],
       fields: [
         { key: 'name', label: 'Name', type: 'text', required: true, order: 0, origin: 'design' },
         { key: 'email', label: 'E-mail', type: 'text', required: false, order: 1, origin: 'design' },
@@ -216,6 +219,7 @@ const SNAPSHOT = {
       titleFieldKey: 'name',
       origin: 'plugin',
       ownerPluginId: 'com.example.billing',
+      keys: [],
       fields: [
         { key: 'name', label: 'Name', type: 'text', required: true, order: 0, origin: 'plugin' },
         { key: 'barcode', label: 'Barcode', type: 'text', required: false, order: 1, origin: 'plugin' },
@@ -318,5 +322,79 @@ describe('o retrato da instalação somado ao catálogo do diretório', () => {
     expect(read.installed).toBeNull();
     expect(read.installedProblems).toHaveLength(1);
     expect(read.catalog.entities.some((one) => one.collection === 'invoiceLines')).toBe(true);
+  });
+});
+
+/**
+ * As chaves da tela que só existe na instalação — a do Form Design, a da extensão de terceiro. Sem
+ * elas, o plano propunha como nova, a cada execução, uma chave que o escritório já tinha.
+ */
+describe('as chaves que o retrato traz', () => {
+  afterEach(() => rmSync(join(workspace, INSTALLED_CATALOG_FILE), { force: true }));
+
+  const nameKey = { name: 'customer-name', kind: 'unique', fields: ['name'], normalize: { caseInsensitive: true } };
+
+  const keyedCustomers = (keys: unknown) => ({
+    ...SNAPSHOT.screens[0],
+    ...(keys === undefined ? {} : { keys }),
+    fields: [
+      SNAPSHOT.screens[0].fields[0],
+      { ...SNAPSHOT.screens[0].fields[1], unique: true },
+    ],
+  });
+
+  const withoutKeys = (screen: (typeof SNAPSHOT.screens)[number]) =>
+    Object.fromEntries(Object.entries(screen).filter(([name]) => name !== 'keys'));
+
+  const keyProblems = (problems: readonly string[]) => problems.filter((one) => one.includes('record keys'));
+
+  const customerModel = (keys: unknown[]): DomainModel => ({
+    version: 1,
+    target: 'screenDefinitions',
+    entities: [{
+      name: 'Customer',
+      kind: 'entity',
+      collection: 'customers',
+      titleField: 'name',
+      keys,
+      fields: [
+        { key: 'name', label: 'Name', semanticType: 'scalar', type: 'text', required: true },
+        { key: 'email', label: 'E-mail', semanticType: 'scalar', type: 'text', unique: true },
+      ],
+    }],
+    relationships: [],
+  } as unknown as DomainModel);
+
+  it('entram no catálogo: a declarada e a do `unique` do campo', () => {
+    writeSnapshot({ screens: [keyedCustomers([nameKey]), SNAPSHOT.screens[1]] });
+    const read = readWorkspaceCatalog(workspace, { now: TAKEN_AT });
+    const customers = read.catalog.entities.find((one) => one.collection === 'customers');
+    expect(customers?.keys?.map((one) => one.name)).toStrictEqual(['field:email', 'customer-name']);
+    expect(keyProblems(read.installedProblems)).toEqual([]);
+  });
+
+  it('o plano reconhece a chave que o escritório já tem, em vez de propô-la de novo', () => {
+    writeSnapshot({ screens: [keyedCustomers([nameKey]), SNAPSHOT.screens[1]] });
+    const plan = buildArtifactPlan(customerModel([nameKey]), readWorkspaceCatalog(workspace, { now: TAKEN_AT }).catalog);
+    const customers = plan.screens.find((one) => one.collection === 'customers');
+    expect(customers?.keys.map((one) => [one.name, one.operation])).toStrictEqual([
+      ['customer-name', 'unchanged'],
+      ['field:email', 'unchanged'],
+    ]);
+  });
+
+  it('retrato de um Console anterior às chaves é lido, e o aviso diz o que não se vê', () => {
+    writeSnapshot({ screens: [withoutKeys(SNAPSHOT.screens[0]), SNAPSHOT.screens[1]] });
+    const read = readWorkspaceCatalog(workspace, { now: TAKEN_AT });
+    expect(read.catalog.entities.some((one) => one.collection === 'customers')).toBe(true);
+    const [warning, ...others] = keyProblems(read.installedProblems);
+    expect(others).toEqual([]);
+    expect(warning).toContain('customers');
+    expect(warning).toContain('export-catalog --tenant tenant-1');
+  });
+
+  it('sem chave só na tela que o workspace também declara, não há o que avisar', () => {
+    writeSnapshot({ screens: [SNAPSHOT.screens[0], withoutKeys(SNAPSHOT.screens[1])] });
+    expect(keyProblems(readWorkspaceCatalog(workspace, { now: TAKEN_AT }).installedProblems)).toEqual([]);
   });
 });

@@ -261,3 +261,72 @@ describe('os modelos de documento do retrato', () => {
     expect(read.snapshot?.extensions[0].documentTemplates).toBeUndefined();
   });
 });
+
+/**
+ * As chaves atravessam como esquema. A ausente é o silêncio de um Console antigo e a vazia é resposta —
+ * a mesma distinção de `exports`, porque "nenhuma chave" é uma afirmação que um retrato velho não fez.
+ */
+describe('as chaves das telas', () => {
+  const customers = (extra: Record<string, unknown>, unique = false): Record<string, unknown> => ({
+    key: 'customers',
+    titleSingular: 'Customer',
+    titleFieldKey: 'name',
+    origin: 'design',
+    fields: [
+      { key: 'name', label: 'Name', type: 'text', required: true, order: 0, origin: 'design' },
+      { key: 'email', label: 'E-mail', type: 'text', required: false, order: 1, origin: 'design', ...(unique ? { unique: true } : {}) },
+    ],
+    ...extra,
+  });
+
+  const KEY = {
+    name: 'customer-name',
+    kind: 'unique',
+    fields: ['name'],
+    scope: 'tenant',
+    normalize: { trim: true, caseInsensitive: true, formatPreset: 'digits' },
+    sparse: false,
+    ownerPluginId: 'com.example.billing',
+  };
+
+  it('a chave viaja inteira, e a tela a carrega para o catálogo', () => {
+    write(snapshot({ screens: [customers({ keys: [KEY] }, true)] }));
+    const read = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(read.keysKnown).toBe(true);
+    expect(read.snapshot?.screens[0].keys).toStrictEqual([KEY]);
+
+    const input = installedScreenInput(read.snapshot!.screens[0]);
+    expect(input.keys).toStrictEqual([KEY]);
+    expect(input.fields[1].unique).toBe(true);
+    expect(input.fields[0].unique).toBeUndefined();
+  });
+
+  it('a lista vazia é resposta; a chave ausente é desconhecida', () => {
+    write(snapshot({ screens: [customers({ keys: [] })] }));
+    const empty = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(empty.keysKnown).toBe(true);
+    expect(empty.snapshot?.screens[0].keys).toStrictEqual([]);
+
+    write(snapshot({ screens: [customers({})] }));
+    const silent = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(silent.keysKnown).toBe(false);
+    expect(silent.snapshot?.screens[0].keys).toBeUndefined();
+    expect('keys' in installedScreenInput(silent.snapshot!.screens[0])).toBe(false);
+  });
+
+  it('a chave que o kernel não reconheceria fica de fora — e o que é desconhecido nela também', () => {
+    write(snapshot({
+      screens: [customers({
+        keys: [
+          { name: 'no-fields', kind: 'unique', fields: [] },
+          { name: '', kind: 'unique', fields: ['name'] },
+          { name: 'other-kind', kind: 'index', fields: ['name'] },
+          { name: 'kept', kind: 'primary', fields: ['name', 42], scope: 'galaxy', normalize: { nothing: true }, message: '@x/y' },
+        ],
+      })],
+    }));
+    expect(readInstalledCatalog(workspace, TAKEN_AT).snapshot?.screens[0].keys).toStrictEqual([
+      { name: 'kept', kind: 'primary', fields: ['name'] },
+    ]);
+  });
+});

@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.33.0] — 2026-10-28
+
+- feat(export-catalog): each screen now carries `keys` — every record key of the collection as `name`, `kind`, `fields`, `scope`, `normalize` and `sparse`, plus `ownerPluginId` when an extension declared it — and each field carries `unique: true` when it is set. The conflict `message` and the deprecated `status` stay out: they do not change which reservation a record gets. Without this, the artifact plan proposed as new, on every run, a key the office declared in the Form Design or a third-party extension installed. Always written, even empty; a snapshot taken by an older Console is read as "keys unknown", and the authoring tools say so.
+
 #### [2.32.0] — 2026-10-27
 
 - feat(export-catalog): each installed extension now carries `fieldPresets` — every `data.field.preset` it declares, as its key and the parts it has (`mask`, `format`, `validate`), never the templates, formatting ops or validation rules. The authoring tools check a field's `mask`, `rules.format.preset` and `rules.validate.check` against it, so a key the dependency does not declare (`cpf-cnpj` for the Brasil extension's `cpfCnpj`) is refused by `check` instead of installing a field that silently has no mask. Always written, even empty; a snapshot taken by an older Console is read as "presets unknown".

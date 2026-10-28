@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { applyPlanToCatalog, buildArtifactPlan } from './artifactPlan';
 import type { ArtifactPlan } from './artifactPlan';
 import { buildDomainCatalog } from './catalog';
+import type { DomainKey } from './domainModel';
+import type { ScreenSourcePackage } from './packageScreens';
+import { packageScreenInputs } from './packageScreens';
 import { validateDomainModel } from './validateDomainModel';
 import type { DomainModel } from './domainModel';
 import { flatSaleModel, installedScreen, platformField, salesModel, scalar } from './fixtures.test-support';
@@ -139,6 +142,96 @@ describe('reconciliação — o plano é um diff, não uma criação', () => {
       taxId: 'create',
     });
     expect(plan.versionBump?.because).toStrictEqual(['update screen "customers"']);
+  });
+});
+
+/**
+ * O CAMINHO DO DISCO. A reconciliação acima passa pelo `applyPlanToCatalog`, que já carregava as
+ * chaves; a sessão seguinte, porém, lê o catálogo dos `plugin.ts` do workspace, por
+ * `packageScreenInputs`. Era ali que as chaves se perdiam, e o plano propunha criar de novo, a cada
+ * execução, toda chave que o pacote já declarava.
+ */
+describe('chaves declaradas no workspace — o plano as reconcilia', () => {
+  const documentKey: DomainKey = { name: 'document', kind: 'unique', fields: ['phone'], normalize: { formatPreset: 'digits' } };
+
+  const keyedModel = (keys: DomainKey[]): DomainModel => {
+    const model = salesModel();
+    const customer = model.entities[0];
+    customer.keys = keys;
+    customer.fields = customer.fields.map((field) => (field.key === 'email' ? { ...field, unique: true } : field));
+    return model;
+  };
+
+  const asWorkspacePackage = (plan: ArtifactPlan): ScreenSourcePackage => ({
+    manifest: { id: plan.extensionId as string },
+    screens: plan.screenInputs.map((input) => ({
+      key: input.key,
+      titleSingular: input.titleSingular,
+      titlePlural: input.titlePlural ?? input.titleSingular,
+      icon: 'list',
+      titleFieldKey: input.titleFieldKey,
+      fields: input.fields,
+      ...(input.keys ? { keys: input.keys } : {}),
+      ...(input.parentEntity ? { parentEntity: input.parentEntity } : {}),
+      ...(input.parentFieldKey ? { parentFieldKey: input.parentFieldKey } : {}),
+      ...(input.parentRelation ? { parentRelation: input.parentRelation } : {}),
+    })),
+  });
+
+  const workspaceCatalog = (pkg: ScreenSourcePackage) => buildDomainCatalog(packageScreenInputs(pkg));
+
+  const customerKeys = (plan: ArtifactPlan) => plan.screens.find((one) => one.collection === 'customers');
+
+  const first = buildArtifactPlan(keyedModel([documentKey]), EMPTY);
+  const installedPackage = asWorkspacePackage(first);
+
+  it('a primeira passada cria as chaves — a declarada e a do `unique` do campo', () => {
+    expect(customerKeys(first)?.keys.map((one) => [one.name, one.operation])).toStrictEqual([
+      ['document', 'create'],
+      ['field:email', 'create'],
+    ]);
+  });
+
+  it('a passada seguinte, lida do plugin.ts, não propõe criar o que o pacote já declara', () => {
+    const second = buildArtifactPlan(keyedModel([documentKey]), workspaceCatalog(installedPackage));
+    const customers = customerKeys(second);
+    expect(customers?.keys.map((one) => [one.name, one.operation])).toStrictEqual([
+      ['document', 'unchanged'],
+      ['field:email', 'unchanged'],
+    ]);
+    expect(customers?.operation).toBe('unchanged');
+    expect(customers?.retainedKeys).toStrictEqual([]);
+    expect(second.versionBump).toBeNull();
+  });
+
+  it('o catálogo do workspace mostra a chave com o dono carimbado, como a instalação a grava', () => {
+    const entity = workspaceCatalog(installedPackage).entities.find((one) => one.collection === 'customers');
+    expect(entity?.keys?.find((one) => one.name === 'document')).toStrictEqual({ ...documentKey, ownerPluginId: 'com.example.sales' });
+  });
+
+  it('a mesma chave redefinida é alteração, não "unchanged" — a instalação varre de novo o que está gravado', () => {
+    const redefined = buildArtifactPlan(keyedModel([{ ...documentKey, fields: ['phone', 'email'] }]), workspaceCatalog(installedPackage));
+    const key = customerKeys(redefined)?.keys.find((one) => one.name === 'document');
+    expect(key?.operation).toBe('update');
+    expect(key?.adoption).toBe('sweep-existing-records');
+    expect(key?.reason).toContain('swept again');
+    expect(customerKeys(redefined)?.operation).toBe('update');
+  });
+
+  it('mudar só a normalização também é alteração: muda qual reserva cada registro recebe', () => {
+    const plan = buildArtifactPlan(keyedModel([{ ...documentKey, normalize: { caseInsensitive: true } }]), workspaceCatalog(installedPackage));
+    expect(customerKeys(plan)?.keys.find((one) => one.name === 'document')?.operation).toBe('update');
+  });
+
+  it('mudar só a mensagem do conflito não é: a reserva é a mesma', () => {
+    const plan = buildArtifactPlan(keyedModel([{ ...documentKey, message: '@com.example.sales/key.document' }]), workspaceCatalog(installedPackage));
+    expect(customerKeys(plan)?.keys.find((one) => one.name === 'document')?.operation).toBe('unchanged');
+  });
+
+  it('a chave que o pacote declara e o modelo não descreve fica — o plano nunca a remove', () => {
+    const plan = buildArtifactPlan(keyedModel([]), workspaceCatalog(installedPackage));
+    expect(customerKeys(plan)?.retainedKeys).toStrictEqual(['document']);
+    expect(customerKeys(plan)?.keys.map((one) => one.name)).toStrictEqual(['field:email']);
   });
 });
 

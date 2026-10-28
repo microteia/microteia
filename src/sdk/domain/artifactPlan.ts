@@ -1,5 +1,7 @@
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
 import type { QueryOrderBy } from '../../domain/schema/querySpec';
+import { CORE_FIELD_RULE_PRESET_CATALOG } from '../../domain/schema/fieldRulePresets';
+import { recordKeySignature } from '../../domain/schema/recordKeyAdoption';
 import type { RecordKeyKind, RecordKeySpec } from '../../domain/schema/recordKeys';
 import type { BusinessRule } from './businessRule';
 import { checkBusinessRule } from './businessRule';
@@ -103,6 +105,8 @@ export interface PlannedScreenKey {
    * instalar a chave, e que ela pode terminar com duplicatas para alguém resolver.
    */
   adoption: 'immediate' | 'sweep-existing-records';
+  /** Por que a operação é o que é, quando não é óbvio. */
+  reason?: string;
 }
 
 export interface PlannedLookup {
@@ -308,6 +312,23 @@ const reconcileField = (
     : { ...planned, operation: 'unchanged' };
 };
 
+/**
+ * A mesma chave é a mesma RESERVA, e quem decide isso é a identidade que a adoção do kernel usa
+ * (`recordKeySignature`) — não o nome. Comparar só o nome dizia "unchanged" a uma chave redefinida
+ * com outros campos, que na instalação dispara uma varredura nova sobre todo registro gravado.
+ */
+const reconcileKey = (
+  planned: RecordKeySpec,
+  current: RecordKeySpec | undefined,
+): Pick<PlannedScreenKey, 'operation' | 'reason'> => {
+  if (current === undefined) return { operation: 'create' };
+  const same = current.kind === planned.kind
+    && recordKeySignature(current, CORE_FIELD_RULE_PRESET_CATALOG) === recordKeySignature(planned, CORE_FIELD_RULE_PRESET_CATALOG);
+  return same
+    ? { operation: 'unchanged' }
+    : { operation: 'update', reason: 'the declaration differs from what is installed; records already written are swept again under the new definition' };
+};
+
 const sameParent = (
   planned: PlannedScreen['parent'],
   existing: CatalogEntity['parent'],
@@ -409,9 +430,9 @@ export const buildArtifactPlan = (
       }));
     }
 
-    const existingKeyNames = new Set((existing?.keys ?? []).map((one) => one.name));
+    const existingKeys = new Map((existing?.keys ?? []).map((one) => [one.name, one]));
     const plannedScreenKeys: PlannedScreenKey[] = screenKeysOf(entity).map((key) => ({
-      operation: existingKeyNames.has(key.name) ? 'unchanged' : 'create',
+      ...reconcileKey(key, existingKeys.get(key.name)),
       name: key.name,
       kind: key.kind,
       fields: [...key.fields],
@@ -420,7 +441,7 @@ export const buildArtifactPlan = (
       adoption: existing === undefined ? 'immediate' : 'sweep-existing-records',
     }));
     const declaredKeyNames = new Set(plannedScreenKeys.map((one) => one.name));
-    const retainedKeys = [...existingKeyNames].filter((name) => !declaredKeyNames.has(name));
+    const retainedKeys = [...existingKeys.keys()].filter((name) => !declaredKeyNames.has(name));
 
     const changed = fields.some((one) => one.operation !== 'unchanged')
       || plannedScreenKeys.some((one) => one.operation !== 'unchanged')

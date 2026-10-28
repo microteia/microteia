@@ -27,6 +27,10 @@ const screenFrom = (template: ScreenModuleTemplate, pluginId: string): CatalogSc
   titleSingular: template.titleSingular,
   titlePlural: template.titlePlural,
   titleFieldKey: template.titleFieldKey,
+  // As chaves que o pacote já declara, com o dono carimbado como a instalação carimba
+  // (`screenModule.ts`). Sem elas o catálogo não as via, e o plano propunha criar de novo, a cada
+  // execução, toda chave que o `plugin.ts` já trazia.
+  ...(template.keys === undefined ? {} : { keys: template.keys.map((key) => ({ ...key, ownerPluginId: pluginId })) }),
   fields: template.fields.map((field) => ({ ...field, origin: 'plugin' as const, ownerPluginId: pluginId })),
   ...(template.parentEntity === undefined ? {} : { parentEntity: template.parentEntity }),
   ...(template.parentFieldKey === undefined ? {} : { parentFieldKey: template.parentFieldKey }),

@@ -71,6 +71,26 @@ export interface CatalogFieldExport {
   ownerPluginId?: string;
   aggregation?: Record<string, unknown>;
   compute?: string;
+  /** O atalho de chave de um campo só — o kernel o desaçucara em `field:<key>`. */
+  unique?: true;
+}
+
+/**
+ * Uma chave da coleção (`ScreenDefinition.keys`): o que não pode se repetir. É esquema, como o campo:
+ * quem modela precisa saber que ela existe antes de propor outra, e o plano a propunha como nova a
+ * cada execução quando ela só existia na instalação.
+ *
+ * A mensagem do conflito NÃO viaja — é apresentação, e não muda qual reserva um registro recebe. O
+ * `status` também não: ele é ignorado pelo kernel desde que a adoção passou a ser estado dele.
+ */
+export interface CatalogKeyExport {
+  name: string;
+  kind: string;
+  fields: string[];
+  scope?: string;
+  normalize?: { trim?: boolean; caseInsensitive?: boolean; formatPreset?: string };
+  sparse?: boolean;
+  ownerPluginId?: string;
 }
 
 export interface CatalogScreenExport {
@@ -91,6 +111,11 @@ export interface CatalogScreenExport {
   parentRelation?: string;
   tagCollection?: string;
   eventPrefix?: string;
+  /**
+   * Sempre escrita, mesmo vazia, pela mesma razão de `CatalogExtensionExport.exports`: a lista vazia diz
+   * "esta tela não tem chave"; a chave ausente é o silêncio de um Console anterior a este campo.
+   */
+  keys: CatalogKeyExport[];
   fields: CatalogFieldExport[];
 }
 
@@ -408,6 +433,38 @@ const fieldExport = (raw: unknown, index: number, screenOrigin: string): Catalog
     ...(text(field.ownerPluginId) === undefined ? {} : { ownerPluginId: text(field.ownerPluginId) as string }),
     ...(asRecord(field.aggregation) === undefined ? {} : { aggregation: asRecord(field.aggregation) as Record<string, unknown> }),
     ...(compute === undefined ? {} : { compute }),
+    ...(field.unique === true ? { unique: true as const } : {}),
+  };
+};
+
+const normalizeExport = (raw: unknown): CatalogKeyExport['normalize'] | undefined => {
+  const normalize = asRecord(raw);
+  if (normalize === undefined) return undefined;
+  const formatPreset = text(normalize.formatPreset);
+  const picked = {
+    ...(typeof normalize.trim === 'boolean' ? { trim: normalize.trim } : {}),
+    ...(typeof normalize.caseInsensitive === 'boolean' ? { caseInsensitive: normalize.caseInsensitive } : {}),
+    ...(formatPreset === undefined ? {} : { formatPreset }),
+  };
+  return Object.keys(picked).length > 0 ? picked : undefined;
+};
+
+/** A chave como o kernel a grava, sem o que é apresentação. Sem nome ou sem campo, não é chave. */
+const keyExport = (raw: unknown): CatalogKeyExport | null => {
+  const key = asRecord(raw);
+  const name = text(key?.name);
+  const kind = text(key?.kind);
+  const fields = (Array.isArray(key?.fields) ? key.fields : []).filter((one): one is string => typeof one === 'string' && one !== '');
+  if (key === undefined || name === undefined || kind === undefined || fields.length === 0) return null;
+  const normalize = normalizeExport(key.normalize);
+  return {
+    name,
+    kind,
+    fields,
+    ...(text(key.scope) === undefined ? {} : { scope: text(key.scope) as string }),
+    ...(normalize === undefined ? {} : { normalize }),
+    ...(typeof key.sparse === 'boolean' ? { sparse: key.sparse } : {}),
+    ...(text(key.ownerPluginId) === undefined ? {} : { ownerPluginId: text(key.ownerPluginId) as string }),
   };
 };
 
@@ -430,6 +487,9 @@ const screenExport = (document: CatalogSourceDocument): CatalogScreenExport => {
     ...(text(data.parentRelation) === undefined ? {} : { parentRelation: text(data.parentRelation) as string }),
     ...(text(data.tagCollection) === undefined ? {} : { tagCollection: text(data.tagCollection) as string }),
     ...(text(data.eventPrefix) === undefined ? {} : { eventPrefix: text(data.eventPrefix) as string }),
+    keys: (Array.isArray(data.keys) ? data.keys : [])
+      .map(keyExport)
+      .filter((key): key is CatalogKeyExport => key !== null),
     fields: fields
       .map((field, index) => fieldExport(field, index, origin))
       .filter((field): field is CatalogFieldExport => field !== null),

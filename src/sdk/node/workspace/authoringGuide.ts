@@ -3847,11 +3847,12 @@ to the project is the Console, so the Console exports a **snapshot** and this di
 
     microteia export-catalog --tenant <tenantId>
 
-It writes \`${INSTALLED_CATALOG_FILE}\` here — screens with their fields, lists of options, tag lists,
-which extensions are installed, and **what each of them declares in \`manifest.exports\`**. Run it from
-the installation root (where \`microteia.yaml\` is); with no \`--tenant\` it lists the offices in the
-project rather than guessing one. It is **git-ignored**, because it carries screen and field names the
-organization typed: that is tenant data, not a product artifact.
+It writes \`${INSTALLED_CATALOG_FILE}\` here — screens with their fields and record keys, lists of
+options, tag lists, which extensions are installed, and **what each of them declares in
+\`manifest.exports\`**. Run it from the installation root (where \`microteia.yaml\` is); with no
+\`--tenant\` it lists the offices in the project rather than guessing one. It is **git-ignored**,
+because it carries screen and field names the organization typed: that is tenant data, not a product
+artifact.
 
 The exported surface is what makes §3 usable from here. Without it you knew an extension was installed
 and had no way to learn the name of anything inside it — and a name you cannot see is a name you cannot

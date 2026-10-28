@@ -3700,6 +3700,19 @@ seguram isso: o campo `version` do arquivo, que o leitor RECUSA quando não é o
 o refaz), e `cli/src/console/exportCatalog.test.ts`, que monta o documento com o exportador e o entrega
 ao leitor do kernel — o percurso real do arquivo, atravessado num teste.
 
+**As chaves da tela viajam** (`keys`, e o `unique` de cada campo), porque são esquema: o que não pode se
+repetir é parte do que a entidade É. Sem elas, uma chave que só existia na instalação — declarada no
+Form Design, ou trazida por extensão de terceiro — era proposta como nova pelo plano a cada execução.
+A mensagem do conflito e o `status` ficam de fora: não mudam qual reserva um registro recebe. A lista é
+sempre escrita, mesmo vazia, e o leitor distingue a vazia ("nenhuma chave") da ausente (Console anterior
+ao campo, `keysKnown: false`): nesse caso o `catalogSources` avisa, nomeando as coleções que vêm só do
+retrato, porque é só sobre elas que a lacuna pesa — a tela sombreada é lida do `plugin.ts`. O campo é
+aditivo, e o `INSTALLED_CATALOG_VERSION` continua 1.
+
+O plano, por sua vez, compara a chave pela identidade da adoção (`recordKeySignature`), e não pelo nome:
+a mesma chave redefinida sob o mesmo nome é `update`, porque a instalação torna a varrer o que está
+gravado.
+
 #### O plano de TELAS — regra em vez de julgamento, e o que fica com a pessoa
 
 `generate_artifact_plan` dizia quais coleções e campos precisavam existir e parava ali. A tela ficava em
@@ -8508,7 +8521,7 @@ visíveis é quem pergunta:
 | Peça | Onde | O que faz |
 |---|---|---|
 | `undeclaredPathSegment` / `undeclaredReportPaths` / `undeclaredQueryPaths` | `sdk/domain/undeclaredPaths.ts` | anda o caminho prefixo a prefixo PELO PRÓPRIO `resolvePath` e devolve o primeiro segmento que sai do esquema sobre uma coleção cuja tela está em mãos. Os caminhos do relatório são os de `reportPaths` (a mesma lista da hidratação e do RBAC); os da consulta, `where` + `orderBy` + `projections` |
-| `packagesSchemaContext` / `packageScreenInputs` | `sdk/domain/packageScreens.ts` | as telas de um conjunto de pacotes na forma do catálogo, com os `screenPatches` por coleção e por `sourceId` — saiu de `workspaceCatalog.ts` para servir também ao teste de extensão, sem disco |
+| `packagesSchemaContext` / `packageScreenInputs` | `sdk/domain/packageScreens.ts` | as telas de um conjunto de pacotes na forma do catálogo, com as `keys` (dono carimbado, como a instalação grava) e os `screenPatches` por coleção e por `sourceId` — saiu de `workspaceCatalog.ts` para servir também ao teste de extensão, sem disco |
 | `undeclaredPathReport` | `sdk/node/undeclaredPaths.ts` | o `check` e o `validate_plugin` AVISAM, com a MESMA origem dos prefixos de evento: o próprio pacote, os `plugin.ts` do workspace e o `installed-catalog.json` |
 
 Três decisões. É **aviso**, nunca recusa — o campo pode ter sido criado depois do retrato. A coleção
