@@ -486,6 +486,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.document.order.invalid': 'The list "{list}" of the document template "{template}" cannot be ordered as declared — {detail}',
   'issue.document.order.unknown': 'The list "{list}" of the document template "{template}" is ordered by "{path}", which is not a field of its screen.',
   'issue.document.order.kernel': 'The list "{list}" of the document template "{template}" is ordered by a list of keys, which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of failing to generate the document.',
+  'issue.portal.field.derived': 'The screen "{screen}" takes the derived field "{field}" (`logic.derive`) to the portal. A derived field is computed when read and never stored, so guests would always see it empty — remove it from `portal.fields` and `portal.create.fields`.',
   'issue.portal.visible-when.invalid': 'The portal condition (`visibleWhen`) of the screen "{screen}" is not a valid expression — no record of it would reach the portal.',
   'issue.portal.visible-when.unknown': 'The portal condition (`visibleWhen`) of the screen "{screen}" uses "{field}", which is not a field of that screen.',
   'issue.portal.visible-when.kernel': 'The screen "{screen}" limits which records reach the portal (`visibleWhen`), which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest. An older kernel ignores the condition and would show every record.',

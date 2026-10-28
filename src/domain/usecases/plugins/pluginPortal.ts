@@ -5,6 +5,7 @@ import {
   PORTAL_TRACK_VIEWS_SINCE_KERNEL,
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
   asPortalDeclaration,
+  portalDerivedFieldKeys,
   portalVisibilityIssues,
 } from '../../schema/portal';
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
@@ -93,8 +94,24 @@ const trackViewsIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
     : [];
 };
 
+/**
+ * O campo derivado levado ao portal: ele nunca é gravado, e o convidado o veria sempre vazio. O pacote
+ * não passa pela aba Portal do Form Design, e por isso a mesma conferência é recusa aqui.
+ */
+const derivedFieldIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
+  (pkg.screens ?? []).flatMap((screen) => {
+    const portal = asPortalDeclaration(screen.portal);
+    if (!portal) return [];
+    return portalDerivedFieldKeys({ id: screen.key, collection: screen.key, fields: fieldsOf(pkg, screen), portal })
+      .map((field): LocalizedIssue => ({
+        message: '@core.marketplace/issue.portal.field.derived',
+        messageParams: { screen: screen.key, field },
+      }));
+  });
+
 /** O que o portal das telas do pacote declara e o kernel exigido não sustenta — cada um, uma recusa. */
 export const packagePortalIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
+  ...derivedFieldIssues(pkg),
   ...visibleWhenIssues(pkg),
   ...documentLinkIssues(pkg),
   ...trackViewsIssues(pkg),

@@ -1005,3 +1005,99 @@ describe('opções da importação — chave primary como endereço, simulação
     });
   });
 });
+
+describe('valor de partida na criação — seedDefaults (portal)', () => {
+  const pedidos: SchemaScreen = {
+    id: 'pedidos',
+    titleSingular: 'Pedido',
+    titleFieldKey: 'assunto',
+    fields: [
+      { key: 'assunto', label: 'Assunto', type: 'text', required: true, order: 0, origin: 'design' },
+      {
+        key: 'situacao', label: 'Situação', type: 'select', required: true, order: 1, origin: 'design', defaultValue: 'pendente',
+        options: [{ key: 'pendente', label: 'Pendente' }, { key: 'atendido', label: 'Atendido' }],
+      },
+      { key: 'canal', label: 'Canal', type: 'text', required: false, order: 2, origin: 'design', defaultValue: 'web', rules: { format: { preset: 'upper' } } },
+      { key: 'etiquetas', label: 'Etiquetas', type: 'select', multi: true, required: false, order: 3, origin: 'design', defaultValue: ['novo'] },
+      { key: 'observacao', label: 'Observação', type: 'text', required: false, order: 4, origin: 'design', defaultValue: 'sem observação' },
+      { key: 'resumo', label: 'Resumo', type: 'text', required: false, order: 5, origin: 'design', logic: { compute: "concat(situacao, '/', canal)" } },
+      { key: 'prazo', label: 'Prazo', type: 'number', required: false, order: 6, origin: 'design', defaultValue: 5, logic: { derive: '1 + 1' } },
+      {
+        key: 'itens', label: 'Itens', type: 'number', required: false, order: 7, origin: 'design', defaultValue: 0,
+        aggregation: { from: 'itensPedido', via: 'pedido', op: 'count' },
+      },
+      {
+        key: 'protocolo', label: 'Protocolo', type: 'text', required: false, order: 8, origin: 'design', defaultValue: 'X',
+        autoValue: { pattern: 'YYYY/000000', sequence: { resetBy: 'year' } },
+      },
+    ],
+  };
+  const pedidosDeps = (repo: FakeMutationRepository): WorkflowMutationDeps => ({
+    mutationRepository: repo,
+    screenProvider: fakeScreenProvider([pedidos]),
+  });
+  const create = (repo: FakeMutationRepository, data: Record<string, unknown>, options = {}) =>
+    runWorkflowUpsert({ table: 'pedidos', data }, context(), pedidosDeps(repo), options);
+
+  it('sem seedDefaults, a criação grava só o que recebeu — quem não pede não muda', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await create(repo, { assunto: 'Aceite' });
+    expect(outcome.ok).toBe(true);
+    expect(repo.createCalls[0].data).not.toHaveProperty('situacao');
+    expect(repo.createCalls[0].data).not.toHaveProperty('canal');
+  });
+
+  it('o campo que o pedido não traz nasce com o padrão, e passa pela regra do campo como o digitado', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await create(repo, { assunto: 'Aceite' }, { seedDefaults: true });
+    expect(outcome.ok).toBe(true);
+    expect(repo.createCalls[0].data).toMatchObject({ situacao: 'pendente', canal: 'WEB', etiquetas: ['novo'] });
+  });
+
+  it('o compute enxerga o padrão semeado — antes, ele calculava sobre o campo vazio', async () => {
+    const repo = new FakeMutationRepository();
+    await create(repo, { assunto: 'Aceite' }, { seedDefaults: true });
+    expect(repo.createCalls[0].data).toMatchObject({ resumo: 'pendente/WEB' });
+  });
+
+  it('o que veio no pedido prevalece, inclusive o vazio: só o AUSENTE recebe o padrão', async () => {
+    const repo = new FakeMutationRepository();
+    await create(repo, { assunto: 'Aceite', situacao: 'atendido', observacao: '' }, { seedDefaults: true });
+    expect(repo.createCalls[0].data).toMatchObject({ situacao: 'atendido', observacao: '' });
+  });
+
+  it('não semeia o que ninguém escreve: derivado, agregado e número sequencial', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await create(repo, { assunto: 'Aceite' }, { seedDefaults: true });
+    expect(outcome.ok).toBe(true);
+    const data = repo.createCalls[0].data;
+    expect(data).not.toHaveProperty('prazo');
+    expect(data).not.toHaveProperty('itens');
+    expect(data).not.toHaveProperty('protocolo');
+  });
+
+  it('a lista semeada é uma cópia: gravar não altera a declaração da tela', async () => {
+    const repo = new FakeMutationRepository();
+    await create(repo, { assunto: 'Aceite' }, { seedDefaults: true });
+    expect(repo.createCalls[0].data?.etiquetas).toEqual(['novo']);
+    expect(repo.createCalls[0].data?.etiquetas).not.toBe(pedidos.fields.find((one) => one.key === 'etiquetas')?.defaultValue);
+  });
+
+  it('alterar não semeia: o campo ausente do registro existente continua ausente', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('pedidos', 'p1', { assunto: 'Antigo' });
+    const outcome = await runWorkflowUpsert(
+      { table: 'pedidos', id: 'p1', data: { assunto: 'Novo' } }, context(), pedidosDeps(repo), { seedDefaults: true },
+    );
+    expect(outcome).toMatchObject({ ok: true, value: { created: false } });
+    expect(repo.store.get('pedidos/p1')).not.toHaveProperty('situacao');
+  });
+
+  it('com enforceRequired, o obrigatório que tem padrão deixa de recusar a criação que não o traz', async () => {
+    const repo = new FakeMutationRepository();
+    const without = await create(repo, { assunto: 'Aceite' }, { enforceRequired: true });
+    const seeded = await create(repo, { assunto: 'Aceite' }, { enforceRequired: true, seedDefaults: true });
+    expect(without).toMatchObject({ ok: false, error: '@core.automation/mutation.upsert.required', errorParams: { field: 'Situação' } });
+    expect(seeded.ok).toBe(true);
+  });
+});

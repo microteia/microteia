@@ -145,6 +145,7 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'portal.documents.unavailable': 'This screen has no Documents tab.',
   'portal.issue.no-fields': 'Choose at least one field to show in the portal.',
   'portal.issue.field.unknown': 'The field "{field}" no longer exists on this screen.',
+  'portal.issue.field.derived': 'The field "{field}" is calculated when the record is read and is never stored, so the portal would always show it empty. Remove it from the portal.',
   'portal.issue.subject.not-reference': '"{field}" is not a reference field, so it cannot say whose the record is.',
   'portal.issue.parent.missing': 'This screen has no parent record. Choose another way of linking its records.',
   'portal.issue.target.no-portal': 'The screen "{screen}" is not in the portal, so these records would reach no one. Add it to the portal first.',

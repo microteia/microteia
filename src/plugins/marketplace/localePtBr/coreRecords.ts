@@ -138,6 +138,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'portal.documents.unavailable': 'Esta tela não tem a aba Documentos.',
   'portal.issue.no-fields': 'Escolha ao menos um campo para mostrar no portal.',
   'portal.issue.field.unknown': 'O campo "{field}" não existe mais nesta tela.',
+  'portal.issue.field.derived': 'O campo "{field}" é calculado na leitura do registro e nunca é gravado, por isso o portal o mostraria sempre vazio. Tire-o do portal.',
   'portal.issue.subject.not-reference': '"{field}" não é um campo de referência, então não diz de quem é o registro.',
   'portal.issue.parent.missing': 'Esta tela não tem registro pai. Escolha outra forma de vincular os registros.',
   'portal.issue.target.no-portal': 'A tela "{screen}" não está no portal, então estes registros não chegariam a ninguém. Coloque-a no portal primeiro.',

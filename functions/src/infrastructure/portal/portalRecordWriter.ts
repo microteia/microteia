@@ -38,7 +38,9 @@ export const portalRecordWriter: PortalRecordWriter = async ({ tenantId, collect
     context,
     { mutationRepository: new FirestoreWorkflowMutationRepository(getDb()), screenProvider: getDI().getScreenDefinitionCache() },
     // Alterar nunca cria: o registro apagado depois da conferência não renasce com os campos do convidado.
-    recordId ? { updateOnly: true } : {},
+    // Criar semeia o padrão do que o convidado não preenche — é o que permite à tela deixar fora de
+    // `create.fields` o campo obrigatório que tem valor de partida (`portalDeclarationIssues`).
+    recordId ? { updateOnly: true } : { seedDefaults: true },
   );
   return outcome.ok
     ? { ok: true, id: outcome.value.id }

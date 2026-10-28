@@ -974,6 +974,13 @@ describe('a seção de documentos', () => {
     expect(guide).toContain(`A package using \`map\` declares \`kernel: '^${LOOKUP_TARGET_MAP_SINCE_KERNEL}'\` or later`);
   });
 
+  it('ensina que a criação pelo portal semeia o padrão, e que o campo derivado não vai ao portal', () => {
+    const guide = authoringGuide(AGENTS);
+
+    expect(guide).toContain('A field the guest does not send starts with its `defaultValue`');
+    expect(guide).toContain('A derived field (`logic.derive`) is computed when read and never stored');
+  });
+
   it('ensina o prefixo, com a versão do kernel derivada', () => {
     const guide = authoringGuide(AGENTS);
 

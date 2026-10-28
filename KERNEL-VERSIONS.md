@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.172.2] — 2026-10-28
+
+- fix(portal): a record created by a portal guest now starts with the `defaultValue` of every field the request does not carry, as the organization's form does. `submitPortalRecord` stored only `create.fields` plus the link, while `portalDeclarationIssues` accepts a required field left out of `create.fields` precisely because it has a default — so that field arrived empty, the action conditioned on it stayed disabled and the workflow comparing it never ran (EV-20). Editing through the portal seeds nothing. No new extension point: KERNEL_VERSION stays 2.80.0.
+- feat(mutation): `runWorkflowUpsert` gains the `seedDefaults` option — on CREATE only, each absent top-level field gets its declared `defaultValue` (`seedFieldDefaults` in `recordRules.ts`) BEFORE the field rules, so the default is coerced, formatted and validated like a typed value and `logic.compute` sees it. Derived, aggregated, sequence and `object` fields are never seeded; a key present in the data, even empty, wins. Additive: workflows, scripts, the agent and the import do not pass it and write exactly as before.
+- fix(portal): a derived field (`logic.derive`) can no longer be taken to the portal. It is computed when read and never stored, and the projection copies the stored document, so an exposed derived field always reached the guest empty, with no warning. `portalDerivedFieldKeys` flags it in `portal.fields` or `portal.create.fields`: the Form Design Portal tab reports `portal.issue.field.derived` (blocking the save when the tab is changed), and a package is refused with `issue.portal.field.derived`. Screens that already expose one keep working as before until their Portal tab is edited.
+- docs(authoring): the `portal.create` entry of the screen reference states that an unsent field starts with its default, and that a derived field cannot be in `fields` nor in `create.fields`.
+
 #### [9.172.1] — 2026-10-28
 
 - fix(mfa): `secondFactor` signs the session (`createCustomToken`) BEFORE writing anything. `confirm` used to commit the factor and the recovery-code hashes and only then mint the token, so an installation without `iam.serviceAccounts.signBlob` answered `internal` while leaving the factor enrolled — with recovery codes nobody ever saw. `enroll` now probes signing before drawing a secret, `confirm`/`verify` sign before the transaction, and a signing failure is `failed-precondition` `@core.access/mfa.signing.unavailable` (the cause still goes to the log as `[mfa] session signing failed`). `SecondFactorDeps` gained `logger`.

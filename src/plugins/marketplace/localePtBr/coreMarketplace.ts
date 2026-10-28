@@ -485,6 +485,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.document.order.invalid': 'A lista "{list}" do modelo de documento "{template}" não pode ser ordenada como foi declarada — {detail}',
   'issue.document.order.unknown': 'A lista "{list}" do modelo de documento "{template}" é ordenada por "{path}", que não é um campo da tela dela.',
   'issue.document.order.kernel': 'A lista "{list}" do modelo de documento "{template}" é ordenada por uma lista de chaves, que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de falhar ao gerar o documento.',
+  'issue.portal.field.derived': 'A tela "{screen}" leva ao portal o campo derivado "{field}" (`logic.derive`). O campo derivado é calculado na leitura e nunca é gravado, por isso o convidado o veria sempre vazio — tire-o de `portal.fields` e de `portal.create.fields`.',
   'issue.portal.visible-when.invalid': 'A condição de portal (`visibleWhen`) da tela "{screen}" não é uma expressão válida — nenhum registro dela chegaria ao portal.',
   'issue.portal.visible-when.unknown': 'A condição de portal (`visibleWhen`) da tela "{screen}" usa "{field}", que não é campo dessa tela.',
   'issue.portal.visible-when.kernel': 'A tela "{screen}" limita quais registros chegam ao portal (`visibleWhen`), o que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo ignora a condição e mostraria todos os registros.',

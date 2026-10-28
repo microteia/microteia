@@ -11,6 +11,8 @@ import {
 } from './fieldExpression';
 import type { FieldLogic, FieldRules, RuleIssue } from './fieldRules';
 import { formatAndValidate } from './fieldRules';
+import { isEmptyRuleValue } from './fieldRulePresets';
+import { isSequenceField } from './recordSequence';
 import { coerceWriteValue, flattenDataLeaves, resolveWritableTable, setValueAtPath } from './mutationSpec';
 import type { SchemaContext } from './pathResolver';
 import { resolveEntity } from './screenEntity';
@@ -317,6 +319,30 @@ export const collectDerivedFieldKeys = (
   table: string,
 ): ReadonlySet<string> =>
   new Set(collectFieldLogicTargets(ctx, table, 'derive').map((target) => target.key));
+
+/**
+ * O registro NOVO com o valor de partida (`defaultValue`) de cada campo que o pedido não trouxe — a
+ * conta de `buildInitialFormValues`, do lado do servidor. Só o campo AUSENTE recebe o padrão: o que
+ * veio, mesmo vazio, é decisão de quem gravou. Fica de fora o que ninguém escreve — o derivado (não
+ * se grava), o agregado (é do recálculo) e o número sequencial (é da transação) — e o campo `object`,
+ * que o formulário também não semeia.
+ */
+export const seedFieldDefaults = (
+  ctx: SchemaContext,
+  table: string,
+  data: Record<string, unknown>,
+): Record<string, unknown> => {
+  const outcome = resolveWritableTable(table, ctx);
+  if (!outcome.ok || outcome.value.kind === 'lookup') return data;
+
+  const seeded = { ...data };
+  for (const field of resolveEntity(ctx, outcome.value.physicalCollection)?.fields ?? []) {
+    if (data[field.key] !== undefined || isEmptyRuleValue(field.defaultValue)) continue;
+    if (field.type === 'object' || field.aggregation || isSequenceField(field) || readLogicSlot(field.logic, 'derive')) continue;
+    seeded[field.key] = Array.isArray(field.defaultValue) ? [...field.defaultValue] : field.defaultValue;
+  }
+  return seeded;
+};
 
 /**
  * Avalia as expressões `logic.derive` sobre um registro JÁ LIDO e devolve a cópia com os valores no

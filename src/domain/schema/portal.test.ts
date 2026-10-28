@@ -186,6 +186,23 @@ describe('problemas da declaração', () => {
     expect(keys({ ...company, portal: { subject: 'self', fields: ['ghost'] } })).toContain('@core.records/portal.issue.field.unknown');
   });
 
+  it('o campo derivado não vai ao portal — nem exposto, nem preenchível: ele nunca é gravado', () => {
+    const orders: PortalScreenLike = {
+      id: 'orders',
+      collection: 'orders',
+      fields: [
+        { key: 'title', type: 'text' },
+        { key: 'age', type: 'number', logic: { derive: 'daysBetween(createdAt, today())' } },
+        { key: 'blank', type: 'text', logic: { derive: '  ' } },
+        { key: 'companyId', type: 'reference', refEntity: 'companies' },
+      ],
+      portal: { subject: { field: 'companyId' }, fields: ['title', 'age', 'blank'], create: { fields: ['title', 'age'] } },
+    };
+    expect(portalDeclarationIssues(orders, [company, orders])).toEqual([
+      { message: '@core.records/portal.issue.field.derived', messageParams: { field: 'age' } },
+    ]);
+  });
+
   it('o campo do sujeito precisa ser referência', () => {
     expect(keys({ ...invoice, portal: { subject: { field: 'number' }, fields: ['number'] } }))
       .toContain('@core.records/portal.issue.subject.not-reference');

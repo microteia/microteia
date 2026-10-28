@@ -200,6 +200,7 @@ export interface PortalScreenLike {
     required?: boolean;
     defaultValue?: unknown;
     autoValue?: unknown;
+    logic?: { derive?: string | null } | null;
   }>;
   parentEntity?: string | null;
   parentFieldKey?: string | null;
@@ -523,6 +524,18 @@ export const portalWithheldFileFields = (screen: PortalScreenLike): string[] => 
   return screen.fields.filter((field) => field.type === 'file' && exposed.has(field.key)).map((field) => field.key);
 };
 
+/**
+ * Os campos DERIVADOS (`logic.derive`) que a declaração leva ao portal — expostos ou preenchíveis. O
+ * derivado é calculado na leitura e nunca gravado, e a projeção copia o gravado: ele chegaria sempre
+ * vazio. Avaliá-lo na projeção congelaria o valor do instante da gravação, que é o que o `derive` existe
+ * para evitar.
+ */
+export const portalDerivedFieldKeys = (screen: PortalScreenLike): string[] => {
+  const derived = new Set(screen.fields.filter((field) => field.logic?.derive?.trim()).map((field) => field.key));
+  return [...new Set([...(screen.portal?.fields ?? []), ...(screen.portal?.create?.fields ?? [])])]
+    .filter((key) => derived.has(key));
+};
+
 /** Só os campos expostos. É a única porta por onde dado do registro sai para o portal. */
 export const projectPortalData = (
   screen: PortalScreenLike,
@@ -686,6 +699,10 @@ export const portalDeclarationIssues = (
   if (portal.fields.length === 0) issues.push({ message: '@core.records/portal.issue.no-fields' });
   for (const key of portal.fields) {
     if (!declared.has(key)) issues.push({ message: '@core.records/portal.issue.field.unknown', messageParams: { field: key } });
+  }
+
+  for (const field of portalDerivedFieldKeys(screen)) {
+    issues.push({ message: '@core.records/portal.issue.field.derived', messageParams: { field } });
   }
 
   issues.push(...portalVisibilityIssues(screen));

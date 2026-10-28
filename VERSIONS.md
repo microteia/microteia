@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.172.2] — 2026-10-28
+
+- Os registros criados pelos convidados no portal passam a nascer com os valores de partida definidos na tela, como acontece quando alguém do escritório cria um registro. Antes, um campo que o convidado não preenchia — como a situação de um pedido — chegava vazio, e as ações e automações que dependiam dele não funcionavam.
+- Campos calculados no momento da consulta não podem mais ser mostrados no portal: como não ficam gravados, o convidado sempre os via em branco. O desenho de telas agora avisa e explica o motivo.
+
 #### [9.172.1] — 2026-10-28
 
 - Corrigido o cadastro da verificação em duas etapas numa instalação que ainda não tem permissão para assinar sessões: o cadastro dizia "tente de novo", mas ficava registrado sem mostrar os códigos de recuperação. Agora nada é gravado, e a mensagem explica que falta uma permissão a ser concedida pelo administrador da instalação.

@@ -50,6 +50,25 @@ describe('visibleWhen no pacote', () => {
   });
 });
 
+describe('campo derivado no portal do pacote', () => {
+  it('é recusa: o convidado o veria sempre vazio, e o pacote não passa pela aba Portal', () => {
+    const base = pkg(undefined);
+    const derived = {
+      ...base,
+      screens: base.screens!.map((screen) => ({
+        ...screen,
+        fields: [...screen.fields, { ...field('age'), logic: { derive: 'daysBetween(createdAt, today())' } }],
+        portal: { ...screen.portal!, fields: ['description', 'age'] },
+      })),
+    };
+    expect(packagePortalIssues(base)).toEqual([]);
+    expect(packageIssues(derived)).toContainEqual({
+      message: '@core.marketplace/issue.portal.field.derived',
+      messageParams: { screen: 'entries', field: 'age' },
+    });
+  });
+});
+
 describe('documentLinks no pacote', () => {
   const withLinks = (documentLinks: { expiresInMinutes: number }, kernel = `^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}`): MarketplacePlugin => {
     const base = pkg(undefined, kernel);

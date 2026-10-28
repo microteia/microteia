@@ -17,7 +17,7 @@ import { RECORD_CREATED_VIA_FIELD, RECORD_UPDATED_VIA_FIELD } from '../../../dom
 import { RECORD_PORTAL_VERIFIED_FIELD, type PortalVerifiedIdentity } from '../../../domain/schema/portalIdentity';
 import { ruleIssueParams } from '../../../domain/schema/fieldRules';
 import type { DescribableIssue } from '../../../domain/schema/fieldRules';
-import { collectDerivedFieldKeys, formatAndValidateRecord, tableMentionsBusinessDays } from '../../../domain/schema/recordRules';
+import { collectDerivedFieldKeys, formatAndValidateRecord, seedFieldDefaults, tableMentionsBusinessDays } from '../../../domain/schema/recordRules';
 import { isEmptyRuleValue } from '../../../domain/schema/fieldRulePresets';
 import { withAmbientTimeZone } from '../../../domain/schema/clockGate';
 import { withAmbientBusinessCalendars } from '../../../domain/schema/time/businessDaysGate';
@@ -145,6 +145,12 @@ export interface UpsertOptions {
    * agregado ou derivado, que ninguém escreve.
    */
   enforceRequired?: boolean;
+  /**
+   * Na CRIAÇÃO, o campo que o pedido não traz nasce com o `defaultValue` declarado, como no formulário
+   * (`seedFieldDefaults`). Fora disto o `upsert` grava só o que recebeu — de propósito: a automação que
+   * sempre gravou sem o padrão não passa a gravá-lo. Alterar não semeia nada.
+   */
+  seedDefaults?: boolean;
 }
 
 interface WritableLeavesOutcome {
@@ -311,8 +317,13 @@ export async function runWorkflowUpsert(
     }
   }
 
+  // Semeado ANTES das regras: o padrão passa pela coerção, pela máscara e pela validação como o valor
+  // digitado, e o `compute` que depende dele o enxerga.
+  const incoming = options.seedDefaults && !existing
+    ? seedFieldDefaults(ctx, effectiveSpec.table, effectiveSpec.data)
+    : effectiveSpec.data;
   const ruled = ambient(() =>
-    formatAndValidateRecord(ctx, effectiveSpec.table, effectiveSpec.data, {
+    formatAndValidateRecord(ctx, effectiveSpec.table, incoming, {
       baseline: existing ?? undefined,
     }),
   );

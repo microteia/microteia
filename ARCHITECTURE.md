@@ -1786,8 +1786,10 @@ projeção em que ele está no `audience` (o item de uma nota) —, e então o s
 vínculo (`buildPortalSubmission`). Qualquer outra chave no pedido, inclusive o próprio vínculo, é
 descartada.
 
-A gravação passa pelo MESMO motor das automações e do agente (`runWorkflowUpsert`): obrigatório,
-máscara, regra, chave única e campo calculado valem igual. O ator é o convidado, com `via: 'portal'`
+A gravação passa pelo MESMO motor das automações e do agente (`runWorkflowUpsert`): máscara, regra,
+chave única e campo calculado valem igual. O `required` é cobrado pela casca (`PortalCreateForm`) sobre
+os campos preenchíveis; o servidor não o cobra (`enforceRequired`), pela mesma razão da automação — e
+porque passar a cobrá-lo recusaria pedidos que views de extensão já fazem. O ator é o convidado, com `via: 'portal'`
 (`RecordWriteVia`/`ActorVia`) e permissão NENHUMA — um `hasPermission` disparado por essa gravação
 responde "não". O resto vem de graça: auditoria, o evento `.saved` (é por uma automação que o escritório
 é avisado) e a projeção de volta ao portal. A recusa de validação volta traduzida pelo servidor, no
@@ -1795,6 +1797,35 @@ idioma do convidado: o pacote de idioma do escritório não chega ao portal.
 
 O Form Design confere antes de gravar: criação na tela-sujeito, nenhum campo preenchível, e campo
 obrigatório sem valor padrão fora dos preenchíveis (`portal.issue.create.*`).
+
+**O campo que o convidado não preenche nasce com o padrão (EV-20).** A conferência acima aceita o
+obrigatório fora de `create.fields` QUANDO ele tem `defaultValue` — e o servidor, porém, gravava só o
+que o convidado mandou: a situação do pedido chegava vazia, a ação que dependia dela ficava desabilitada
+para sempre e a automação que comparava o valor nunca rodava. Agora `portalRecordWriter` cria com
+`seedDefaults` (ver as opções do `runWorkflowUpsert` em "Importação em massa de registros"): todo campo AUSENTE do pedido —
+fora de `create.fields`, ou dentro e deixado em branco, que a casca não envia — recebe o padrão, como no
+formulário do escritório. O que veio no pedido prevalece; derivado, agregado e número sequencial ficam
+de fora, porque ninguém os escreve. Alterar (`portal.edit`) não semeia nada.
+
+A decisão foi semear, e não recusar na publicação o obrigatório com padrão: a recusa quebraria toda tela
+já publicada nessa forma, e o padrão é o que o escritório declarou que o registro novo deve ter. Não há
+`*_SINCE_KERNEL` nem subida do `KERNEL_VERSION`: nada muda no que o kernel entende de um pacote instalado,
+só o que ele faz com uma declaração que já lia.
+
+**Campo calculado e agregado no portal.** O `compute` (gravado) roda no servidor, sobre o registro
+inteiro, na criação e na alteração — e, com o padrão semeado antes das regras, enxerga o campo que o
+convidado não preencheu. O agregado do PAI é refeito pelo gatilho de sempre
+(`recomputeAggregatesOnEntityChange`), que não distingue a origem da gravação, e a gravação do pai refaz
+a projeção dele.
+
+**O campo `derive` NÃO vai ao portal.** Ele é de LEITURA: não é gravado, e a projeção copia o documento
+gravado — exposto, chegaria sempre vazio ao convidado; preenchível, o valor dele seria descartado na
+gravação. Avaliá-lo na projeção congelaria o valor do instante da gravação, que é justamente o que o
+`derive` existe para evitar. Por isso `portalDerivedFieldKeys` (`domain/schema/portal.ts`) aponta o
+derivado em `portal.fields` ou em `portal.create.fields`, e a recusa tem as duas portas da declaração: a
+aba Portal (`portal.issue.field.derived`, que barra o salvamento quando a aba é alterada) e o pacote
+(`packagePortalIssues` → `issue.portal.field.derived`). A tela que já o expunha continua como está até
+alguém mexer na aba Portal — ela já mostrava o campo vazio, e agora o escritório fica sabendo por quê.
 
 ### A tela da EXTENSÃO no portal — `portal.view`
 
@@ -13674,6 +13705,7 @@ todas aditivas — quem não as passa grava exatamente como antes:
 | `dryRun` | confere tudo e não grava; a reserva ocupada por OUTRO registro vira a mesma recusa que o `tx.create` daria | simular por outro código seria simular outra coisa |
 | `requireCollectionPermission` | cobra do ator `<coleção>.create` ou `.update` conforme o que a linha VAI fazer | só se sabe se a linha cria ou altera depois de achar o registro pela chave — portanto, dentro do caminho |
 | `enforceRequired` | cobra `required` sobre o registro INTEIRO (gravado + linha), como o formulário | o `upsert` de sempre não cobra, de propósito (a automação grava em etapas); a importação cobra, porque um arquivo de cadastros pela metade é o erro que o formulário existe para impedir |
+| `seedDefaults` | na CRIAÇÃO, o campo ausente da linha nasce com o `defaultValue` declarado (`seedFieldDefaults`, em `recordRules.ts`), ANTES das regras — o padrão é formatado, validado e visto pelo `compute` como o valor digitado | é a conta de `buildInitialFormValues` do lado do servidor. Quem a pede é o portal (ver "Gravar pelo portal"); a automação não, de propósito: ela sempre gravou só o que o fluxo mandou, e passar a gravar o padrão mudaria em silêncio o que fluxos já publicados produzem |
 
 `IWorkflowMutationRepository.findKeyHolders` é a única leitura nova: de quem é cada reserva. Serve às duas
 primeiras opções.
