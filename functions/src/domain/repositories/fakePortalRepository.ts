@@ -2,6 +2,7 @@ import { recordDocumentStoragePath } from '../services/recordDocumentHash';
 import { recordDocumentLinkState } from '../services/recordDocumentLinks';
 import type {
   IPortalRepository,
+  PortalActionDefinition,
   PortalDocumentProjection,
   PortalFieldOption,
   PortalProjection,
@@ -30,6 +31,7 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
   const staged = new Map<string, { data: Buffer; contentType: string }>();
   const reprojections = new Map<string, PortalReprojectionState>();
   const lookups = new Map<string, PortalFieldOption[]>();
+  const actions = new Map<string, PortalActionDefinition>();
   const homeSettings: PortalHomeSettings = { welcome: '', menu: { order: [], hidden: [] }, widgets: { order: [], hidden: [] }, layout: '' };
 
   const repo: IPortalRepository = {
@@ -37,6 +39,10 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
     getScreens: async () => screens,
     getLookupOptions: async (_t, collection) => lookups.get(collection) ?? [],
     getRecord: async (_t, collection, id) => records.get(`${collection}/${id}`),
+    getActions: async (_t, ids) => ids.flatMap((id) => {
+      const action = actions.get(id);
+      return action ? [action] : [];
+    }),
     getRecordsReferencing: async (_t, collection, fieldKey, recordId) =>
       [...records.entries()]
         .filter(([key, data]) => key.startsWith(`${collection}/`) && data[fieldKey] === recordId)
@@ -162,7 +168,9 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
     hasInvite: async (email) => invites.includes(email),
   };
 
-  return { repo, records, documents, projections, projectedDocuments, users, invites, homeSettings, staged, reprojections, lookups };
+  return {
+    repo, records, documents, projections, projectedDocuments, users, invites, homeSettings, staged, reprojections, lookups, actions,
+  };
 };
 
 const field = (key: string, extra: Partial<PortalScreen['fields'][number]> = {}) => ({ key, label: key, type: 'text', ...extra });

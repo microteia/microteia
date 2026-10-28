@@ -1549,6 +1549,47 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
    */
   export function usePortalUpdate(): (collection: string, recordId: string, data: Record<string, unknown>) => Promise<void>;
 
+  /** An organization action offered on a record (\`portal.actions\`), as the server sees it for this guest NOW. */
+  export interface PortalAction {
+    id: string;
+    /** Already in the guest's language. */
+    title: string;
+    /** An icon key, as in the organization's actions. */
+    icon: string;
+    /** Ask this before running it — \`null\` when the action runs straight away. */
+    confirmMessage: string | null;
+    danger: boolean;
+    /** Visible but not available now: the organization's \`disabledWhen\` holds for this record. */
+    disabled: boolean;
+  }
+
+  /** What running an action gave — the message is ready to show, in the guest's language, never empty. */
+  export interface PortalActionResult {
+    code: 'SUCCESS' | 'WARNING' | 'ERROR';
+    message: string;
+  }
+
+  /**
+   * The organization's actions on a record (\`portal.actions\` of its screen), for a view that draws
+   * them itself — a \`detail\` view, or a home card about one record. Which actions exist, which are
+   * hidden or disabled, and whether a click runs is decided by the SERVER on the whole record, on every
+   * request: the list is fetched again when the record changes and comes back refreshed after each run.
+   *
+   * \`run\` does not ask: show \`confirmMessage\` first when there is one. It never rejects — a refusal or a
+   * failed workflow comes back as \`code: 'ERROR'\` with the message to show. While one action runs,
+   * \`running\` holds its id and no other runs.
+   *
+   * Calling it for a record removes the portal's own action bar from above your \`detail\` view: the
+   * gesture appears in one place only. On a screen without \`portal.actions\`, \`actions\` is empty and
+   * nothing is requested.
+   */
+  export function usePortalActions(collection: string, recordId: string): {
+    actions: PortalAction[];
+    loading: boolean;
+    running: string | null;
+    run(actionId: string): Promise<PortalActionResult>;
+  };
+
   /**
    * Everything a portal LAYOUT needs to draw itself (\`portalView({ surface: 'layout', key, title }, viewKey)\`).
    * The layout component receives the page as \`children\` and places it; brand, menu, user and theme

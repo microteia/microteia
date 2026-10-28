@@ -191,6 +191,52 @@ export const recordPortalView = onCall({ region: REGION, cors: true }, async (re
 });
 
 /**
+ * O catálogo no idioma do convidado — o dele ou o do escritório; senão o de quem convidou, e por fim o
+ * do navegador. O pacote de idioma do escritório não chega ao portal: quem traduz para ele é o servidor.
+ */
+const guestCatalog = async (tenantId: string, userId: string, browserLocale: string) => {
+  const di = getDI();
+  const settings = di.getTenantSettingsRepository();
+  const [own, office, guest] = await Promise.all([
+    settings.getUserValues(tenantId, userId),
+    settings.getTenantValues(tenantId),
+    di.getPortalRepository().getPortalUser(tenantId, userId),
+  ]);
+  return agentCatalog(
+    await di.getInstalledExtensionCache().messageBundles(tenantId),
+    configuredLocale(own, office) ?? guest?.locale ?? (browserLocale || DEFAULT_LOCALE),
+  );
+};
+
+/**
+ * As ações do escritório no registro aberto (`portal.actions`). Sem `actionId`, devolve os botões; com
+ * ele, dispara a ação e devolve o desfecho e os botões refeitos. Uma callable só para as duas coisas
+ * de propósito: a consulta que desenha os botões acorda a mesma instância que o clique vai usar.
+ */
+export const portalRecordActions = onCall({ region: REGION, cors: true }, async (request) => {
+  const userId = authenticated(request.auth);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const tenantId = requireString(data.tenantId, '@core.automation/handler.tenant.missing');
+  const projectionId = requireString(data.projectionId, '@core.tenant/portal.action.unavailable');
+  const actionId = typeof data.actionId === 'string' && data.actionId.trim() !== '' ? data.actionId.trim() : null;
+  try {
+    const di = getDI();
+    const catalog = await guestCatalog(tenantId, userId, typeof data.locale === 'string' ? data.locale : '');
+    const input = {
+      tenantId,
+      userId,
+      projectionId,
+      timeZone: await tenantTimeZone(tenantId, userId),
+      resolve: (value: string) => agentText(catalog, value).text,
+    };
+    if (actionId) return await di.getRunPortalRecordActionUseCase().execute({ ...input, actionId });
+    return { actions: await di.getListPortalRecordActionsUseCase().execute(input) };
+  } catch (error) {
+    throw asHttpsError(error, 'portalRecordActions');
+  }
+});
+
+/**
  * O convidado cria um registro — ou, com `recordId`, altera um que é dele. A recusa da VALIDAÇÃO volta já traduzida, e no idioma do convidado:
  * as frases do motor de gravação são do núcleo, e o pacote de idioma do escritório não chega ao
  * portal — sem isto, o convidado de um escritório brasileiro leria o motivo em inglês.
@@ -216,16 +262,7 @@ export const submitPortalRecord = onCall({ region: REGION, cors: true }, async (
     return await di.getSubmitPortalRecordUseCase().execute({ tenantId, userId, collection, linkRecordId, data: values });
   } catch (error) {
     if (error instanceof PortalSubmissionInvalid) {
-      const settings = di.getTenantSettingsRepository();
-      const [own, office, guest] = await Promise.all([
-        settings.getUserValues(tenantId, userId),
-        settings.getTenantValues(tenantId),
-        di.getPortalRepository().getPortalUser(tenantId, userId),
-      ]);
-      const catalog = agentCatalog(
-        await di.getInstalledExtensionCache().messageBundles(tenantId),
-        configuredLocale(own, office) ?? guest?.locale ?? (browserLocale || DEFAULT_LOCALE),
-      );
+      const catalog = await guestCatalog(tenantId, userId, browserLocale);
       throw new HttpsError('invalid-argument', agentText(catalog, error.message, error.params).text);
     }
     throw asHttpsError(error, 'submitPortalRecord');

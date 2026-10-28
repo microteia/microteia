@@ -2,7 +2,14 @@ import type { IPortalRepository } from '../../repositories/IPortalRepository';
 import type { PortalHomeSettings } from '../../schema/portalExtensionPoints';
 import type { PortalProfile } from '../../schema/portal';
 import type { PortalRequiredClaim } from '../../schema/portalIdentity';
-import type { PortalContext, PortalDocument, PortalLinkOption, PortalMembership } from '../../entities/Portal';
+import type {
+  PortalActionOutcome,
+  PortalContext,
+  PortalDocument,
+  PortalLinkOption,
+  PortalMembership,
+  PortalRecordAction,
+} from '../../entities/Portal';
 
 export type ListPortalMembershipsUseCase = {
   execute: (userId: string) => Promise<PortalMembership[]>;
@@ -42,6 +49,22 @@ export type RecordPortalViewUseCase = {
 
 export const makeRecordPortalViewUseCase = (repo: IPortalRepository): RecordPortalViewUseCase => ({
   execute: (tenantId, projectionId) => repo.recordView(tenantId, projectionId),
+});
+
+export type ListPortalRecordActionsUseCase = {
+  execute: (tenantId: string, projectionId: string, locale: string) => Promise<PortalRecordAction[]>;
+};
+
+export const makeListPortalRecordActionsUseCase = (repo: IPortalRepository): ListPortalRecordActionsUseCase => ({
+  execute: (tenantId, projectionId, locale) => repo.listRecordActions(tenantId, projectionId, locale),
+});
+
+export type RunPortalRecordActionUseCase = {
+  execute: (tenantId: string, projectionId: string, actionId: string, locale: string) => Promise<PortalActionOutcome>;
+};
+
+export const makeRunPortalRecordActionUseCase = (repo: IPortalRepository): RunPortalRecordActionUseCase => ({
+  execute: (tenantId, projectionId, actionId, locale) => repo.runRecordAction(tenantId, projectionId, actionId, locale),
 });
 
 export type InvitePortalGuestUseCase = {

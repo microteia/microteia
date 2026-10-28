@@ -23,7 +23,9 @@ import type {
   PortalIdentityInvite,
   PortalLinkOption,
   PortalMembership,
+  PortalActionOutcome,
   PortalRecord,
+  PortalRecordAction,
   PortalSignInSettingsView,
 } from '../../domain/entities/Portal';
 import { PORTAL_IDENTITY_INVITES_COLLECTION } from '../../domain/schema/portalCollections';
@@ -152,6 +154,22 @@ export class FirebasePortalRepository implements IPortalRepository {
   async recordView(tenantId: string, projectionId: string): Promise<void> {
     const call = httpsCallable<{ tenantId: string; projectionId: string }, { recorded: boolean }>(functions, 'recordPortalView');
     await call({ tenantId, projectionId });
+  }
+
+  async listRecordActions(tenantId: string, projectionId: string, locale: string): Promise<PortalRecordAction[]> {
+    const call = httpsCallable<{ tenantId: string; projectionId: string; locale: string }, { actions: PortalRecordAction[] }>(
+      functions,
+      'portalRecordActions',
+    );
+    return (await call({ tenantId, projectionId, locale })).data.actions;
+  }
+
+  async runRecordAction(tenantId: string, projectionId: string, actionId: string, locale: string): Promise<PortalActionOutcome> {
+    const call = httpsCallable<
+      { tenantId: string; projectionId: string; actionId: string; locale: string },
+      PortalActionOutcome
+    >(functions, 'portalRecordActions');
+    return (await call({ tenantId, projectionId, actionId, locale })).data;
   }
 
   async uploadDocument(input: {

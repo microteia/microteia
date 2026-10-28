@@ -28,7 +28,7 @@ import {
   toEditWindowForm,
 } from './components/ScreenEditWindowPanel/screenEditWindowForm';
 import type { EditWindowFormState } from './components/ScreenEditWindowPanel/screenEditWindowForm';
-import { portalDeclarationIssues, type PortalScreenLike } from '../../../domain/schema/portal';
+import { portalDeclarationIssues, portalOfferableActions, type PortalScreenLike } from '../../../domain/schema/portal';
 import {
   EMPTY_PORTAL_FORM,
   fromPortalForm,
@@ -400,6 +400,7 @@ export interface ScreenBuilderViewModel {
     documentTypeOptions: Array<{ value: string; label: string }>;
     referenceFieldOptions: Array<{ value: string; label: string }>;
     editFieldOptions: Array<{ value: string; label: string }>;
+    actionOptions: Array<{ value: string; label: string }>;
     hasParent: boolean;
     hasDocuments: boolean;
     readOnly: boolean;
@@ -426,6 +427,7 @@ export interface ScreenBuilderViewModel {
   setPortalDocumentLinks: (enabled: boolean) => void;
   setPortalDocumentLinkMinutes: (minutes: string) => void;
   setPortalTrackViews: (enabled: boolean) => void;
+  togglePortalAction: (actionKey: string, offered: boolean) => void;
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
@@ -1498,21 +1500,36 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       fields: one.fields,
       parentEntity: one.parentEntity,
       parentFieldKey: one.parentFieldKey,
+      viewActionIds: one.viewActionIds,
       portal,
     });
     const declaration = fromPortalForm(screenForm.portal);
-    const issues = def && declaration
+    // As ações do registro são as da aba Ações como estão AGORA, gravadas ou não: é o que vai junto.
+    const current = def ? { ...asPortalScreen(def, declaration), viewActionIds: screenForm.viewActionIds } : null;
+    const issues = def && current && declaration
       ? portalDeclarationIssues(
-        asPortalScreen(def, declaration),
-        definitions.map((one) => (one.id === def.id ? asPortalScreen(one, declaration) : asPortalScreen(one))),
+        current,
+        definitions.map((one) => (one.id === def.id ? current : asPortalScreen(one))),
+        actions,
       ).map((issue) => {
         const params = { ...issue.messageParams };
         const screenRef = params.screen ? definitions.find((one) => one.id === params.screen) : undefined;
         if (screenRef) params.screen = label(screenRef.titlePlural);
         if (params.field) params.field = label(fields.find((one) => one.key === params.field)?.label ?? params.field);
+        if (params.action) params.action = label(actions.find((one) => one.key === params.action)?.title ?? params.action);
         return label(issue.message, params);
       })
       : [];
+    // A chave declarada que deixou de servir (saiu da aba Ações, virou comando) continua marcada aqui, com
+    // o aviso acima: sem a caixa, não haveria como desmarcá-la.
+    const offerable = current ? portalOfferableActions(current, actions) : [];
+    const offeredKeys = new Set(offerable.map((action) => action.key));
+    const portalActionOptions = [
+      ...offerable.map((action) => ({ value: action.key, label: label(action.title) })),
+      ...screenForm.portal.actions
+        .filter((key) => !offeredKeys.has(key))
+        .map((key) => ({ value: key, label: label(actions.find((one) => one.key === key)?.title ?? key) })),
+    ];
     const linkField = screenForm.portal.subjectKind === 'field'
       ? screenForm.portal.subjectField
       : screenForm.portal.subjectKind === 'parent' ? def?.parentFieldKey ?? '' : '';
@@ -1528,13 +1545,14 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       editFieldOptions: fields
         .filter((field) => field.key !== linkField && screenForm.portal.fields.includes(field.key))
         .map((field) => ({ value: field.key, label: label(field.label) })),
+      actionOptions: portalActionOptions,
       hasParent: !!def?.parentEntity && !!def.parentFieldKey,
       hasDocuments: !!def?.hasDocuments,
       readOnly: def?.managed === true,
       issues,
       collection: def ? def.dataCollection || def.id : '',
     };
-  }, [screenModal, getDefinitionByKey, definitions, screenForm.portal, label, documentTypes]);
+  }, [screenModal, getDefinitionByKey, definitions, screenForm.portal, screenForm.viewActionIds, actions, label, documentTypes]);
 
   const updatePortal = useCallback((patch: Partial<PortalFormState>) => {
     setScreenForm((prev) => ({ ...prev, portal: { ...prev.portal, ...patch }, portalTouched: true }));
@@ -1571,6 +1589,18 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     [updatePortal],
   );
   const setPortalTrackViews = useCallback((trackViews: boolean) => updatePortal({ trackViews }), [updatePortal]);
+  const togglePortalAction = useCallback((actionKey: string, offered: boolean) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      portalTouched: true,
+      portal: {
+        ...prev.portal,
+        actions: offered
+          ? [...new Set([...prev.portal.actions, actionKey])]
+          : prev.portal.actions.filter((key) => key !== actionKey),
+      },
+    }));
+  }, []);
   const togglePortalEditField = useCallback((fieldKey: string, editable: boolean) => {
     setScreenForm((prev) => ({
       ...prev,
@@ -2800,6 +2830,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setPortalDocumentLinks,
     setPortalDocumentLinkMinutes,
     setPortalTrackViews,
+    togglePortalAction,
     toggleChildScreen,
     setChildLinkField,
     iconOptions,

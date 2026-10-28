@@ -20,6 +20,8 @@ export interface ScreenPortalPanelProps {
   referenceFieldOptions: Array<{ value: string; label: string }>;
   /** Os campos que o convidado pode alterar — os expostos, menos o do vínculo. */
   editFieldOptions: Array<{ value: string; label: string }>;
+  /** As ações do registro que podem rodar no portal, pela chave — rodam uma automação sem perguntar. */
+  actionOptions: Array<{ value: string; label: string }>;
   hasParent: boolean;
   hasDocuments: boolean;
   /** Declarado por uma extensão: o escritório vê, e quem muda é ela. */
@@ -47,6 +49,7 @@ export interface ScreenPortalPanelProps {
   onToggleDocumentLinks: (enabled: boolean) => void;
   onDocumentLinkMinutes: (minutes: string) => void;
   onToggleTrackViews: (enabled: boolean) => void;
+  onToggleAction: (actionKey: string, offered: boolean) => void;
 }
 
 /** A aba "Portal" da tela: o que sai do escritório, e para quem. Só desenha o que recebe. */
@@ -255,6 +258,26 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
                   />
                 )}
               </>
+            )}
+          </S.Section>
+
+          <S.Section>
+            <S.SectionTitle>{t('portal.actions.title')}</S.SectionTitle>
+            <S.Hint>{t('portal.actions.hint')}</S.Hint>
+            {props.actionOptions.length === 0 ? (
+              <S.Hint>{t('portal.actions.empty')}</S.Hint>
+            ) : (
+              <S.FieldGrid>
+                {props.actionOptions.map((option) => (
+                  <Checkbox
+                    key={option.value}
+                    checked={form.actions.includes(option.value)}
+                    onChange={(offered) => props.onToggleAction(option.value, offered)}
+                    label={option.label}
+                    disabled={readOnly}
+                  />
+                ))}
+              </S.FieldGrid>
             )}
           </S.Section>
 

@@ -36,6 +36,13 @@ export interface PortalNavigationValue {
   cancelCreate: () => void;
   submitted: () => void;
   saved: () => void;
+  /**
+   * As projeções cujas ações (`portal.actions`) uma view de EXTENSÃO desenha ela mesma
+   * (`usePortalActions`). A casca não repete a barra dela por cima da view que já as mostra.
+   */
+  claimedActions: string[];
+  /** A view assume as ações do registro; a função devolvida as devolve à casca. */
+  claimActions: (projectionId: string) => () => void;
 }
 
 export const PortalNavigationContext = createContext<PortalNavigationValue | null>(null);

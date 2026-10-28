@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MarketplacePlugin, TemplateField } from '../../entities/MarketplacePlugin';
 import {
+  PORTAL_ACTIONS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINKS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
   PORTAL_TRACK_VIEWS_SINCE_KERNEL,
@@ -116,5 +117,47 @@ describe('trackViews no pacote', () => {
 
   it('sem a declaração, nenhum kernel é exigido', () => {
     expect(packagePortalIssues(pkg(undefined, '^2.0.0'))).toEqual([]);
+  });
+});
+
+describe('ações no portal do pacote', () => {
+  const offering = (actions: string[], kernel = `^${PORTAL_ACTIONS_SINCE_KERNEL}`): MarketplacePlugin => {
+    const base = pkg(undefined, kernel);
+    return {
+      ...base,
+      actions: [
+        { templateId: 'act-confirm', key: 'confirm', title: 'Confirm', icon: 'check', workflowId: 'wf-confirm', danger: false, enabled: true, order: 0 },
+        { templateId: 'act-copy', key: 'copy', title: 'Copy', icon: 'link', command: 'copyLink', danger: false, enabled: true, order: 1 },
+        {
+          templateId: 'act-ask', key: 'ask', title: 'Ask', icon: 'help', workflowId: 'wf-ask', promptParameters: true,
+          danger: false, enabled: true, order: 2,
+        },
+        { templateId: 'act-loose', key: 'loose', title: 'Loose', icon: 'help', workflowId: 'wf-loose', danger: false, enabled: true, order: 3 },
+      ],
+      screens: base.screens!.map((screen) => ({
+        ...screen,
+        viewActionIds: ['act-confirm', 'act-copy', 'act-ask'],
+        portal: { ...screen.portal!, actions },
+      })),
+    };
+  };
+
+  it('a chave de uma ação do cabeçalho que roda uma automação, com o kernel que a lê, passa', () => {
+    expect(packagePortalIssues(offering(['confirm']))).toEqual([]);
+  });
+
+  it('a chave que não está no cabeçalho do registro, o comando e a que pergunta são recusa, cada uma com o motivo', () => {
+    expect(packagePortalIssues(offering(['loose', 'copy', 'ask']))).toEqual([
+      { message: '@core.marketplace/issue.portal.action.unknown', messageParams: { screen: 'entries', action: 'loose' } },
+      { message: '@core.marketplace/issue.portal.action.not-runnable', messageParams: { screen: 'entries', action: 'copy' } },
+      { message: '@core.marketplace/issue.portal.action.prompts', messageParams: { screen: 'entries', action: 'ask' } },
+    ]);
+  });
+
+  it('o kernel anterior é recusa: ele descartaria a chave e os botões não apareceriam', () => {
+    expect(packageIssues(offering(['confirm'], '^2.80.0'))).toContainEqual({
+      message: '@core.marketplace/issue.portal.actions.kernel',
+      messageParams: { screen: 'entries', minimum: PORTAL_ACTIONS_SINCE_KERNEL },
+    });
   });
 });

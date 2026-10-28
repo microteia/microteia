@@ -27,6 +27,8 @@ export interface PortalScreenInfo {
   documents: boolean;
   /** A tela registra no servidor cada abertura de registro do convidado (`portal.trackViews`). */
   trackViews: boolean;
+  /** A tela oferece ações do escritório no registro aberto (`portal.actions`): os botões vêm do servidor. */
+  actions: boolean;
   /** O convidado anexa documentos aqui, escolhendo o tipo entre estes — nunca criando um. */
   uploads: { types: Array<{ key: string; label: string }> } | null;
   /** A tela-pai no portal: os registros desta aparecem DENTRO dos dela, e não soltos no menu. */
@@ -48,6 +50,26 @@ export interface PortalFieldInfo {
   required?: boolean;
   /** As do campo e as da lista do escritório; a cor é token do tema ou hex, e só existe quando há. */
   options?: Array<{ key: string; label: string; color?: string }>;
+}
+
+/**
+ * Um botão do registro aberto no portal — uma ação do escritório, já no idioma do convidado. O estado é o
+ * do registro AGORA, avaliado pelo servidor sobre o registro inteiro: o convidado não vê as condições.
+ */
+export interface PortalRecordAction {
+  id: string;
+  title: string;
+  icon: string;
+  /** A pergunta antes de executar — `null` quando a ação dispara direto. */
+  confirmMessage: string | null;
+  danger: boolean;
+  disabled: boolean;
+}
+
+/** O desfecho de uma ação do portal: só o status do fluxo, e os botões refeitos depois dele. */
+export interface PortalActionOutcome {
+  status: { code: 'SUCCESS' | 'WARNING' | 'ERROR'; message: string };
+  actions: PortalRecordAction[];
 }
 
 /** Um registro a que o novo pode se vincular — dos que o convidado já enxerga. */

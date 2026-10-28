@@ -57,6 +57,7 @@ import {
   PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES,
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
   PORTAL_TRACK_VIEWS_SINCE_KERNEL,
+  PORTAL_ACTIONS_SINCE_KERNEL,
   PORTAL_VIEW_REPEAT_MINUTES,
 } from '../../../domain/schema/portal';
 import {
@@ -690,7 +691,7 @@ menu's order and which entries and cards are visible. Your package never forces 
 A portal view reaches a smaller API: \`@microteia/ui\`, \`@microteia/i18n\`, \`@microteia/format\`,
 \`@microteia/theme\` and \`@microteia/portal\` — \`usePortalRecords(collection, { parent })\`,
 \`usePortalRecord\`, \`usePortalScreen\`, \`usePortalNavigation\`, \`usePortalDocuments\`,
-\`usePortalSubmit\`, \`usePortalUpdate\`. Show an edit gesture only when the record's \`canEdit\` is true
+\`usePortalSubmit\`, \`usePortalUpdate\`, \`usePortalActions\`. Show an edit gesture only when the record's \`canEdit\` is true
 (\`usePortalNavigation().edit\` opens the standard form). \`usePortalNavigation().openRecord(collection,
 recordId)\` opens a record from any surface: inside a menu entry (a \`list\`, \`detail\` or \`page\`) it
 stacks the record over what is open, and Back returns there; from the home (a \`widget\` or the \`home\`)
@@ -826,6 +827,47 @@ portal: { subject: { field: 'company' }, fields: ['number'], documents: true, tr
   Put what must be proven behind the \`detail\` surface or in a document.
 - Requires \`kernel: "^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}"\`. An older kernel ignores the declaration and records
   nothing, so the package gate refuses the package without it.
+
+#### A one-click act on the open record — \`actions\`
+
+Some things a guest does are a GESTURE, not an edit: accept the terms, confirm the appointment, sign
+the receipt. Behind \`edit\` they become "Edit, tick, save", and nobody understands what is expected.
+Offer the record's own action instead:
+
+\`\`\`ts
+actions: [{ templateId: 'act-accept', key: 'accept', title: '@my.ns/action.accept', icon: 'check',
+  workflowId: 'wf-accept', confirmMessage: '@my.ns/action.accept.confirm',
+  hiddenWhen: 'surface != "portal" or accepted == true', enabled: true, danger: false, order: 0 }],
+screens: [{ ..., viewActionIds: ['act-accept'],
+  portal: { subject: 'self', fields: ['name'], actions: ['accept'] } }],
+\`\`\`
+
+- \`portal.actions\` lists action KEYS, in button order, taken from the actions the screen already places
+  on the record (\`viewActionIds\`). The key, not the \`templateId\`: it crosses installation unchanged.
+  The guest sees the title, icon, confirmation and \`danger\` you gave the action.
+- \`hiddenWhen\` and \`disabledWhen\` are evaluated by the SERVER on the WHOLE record — fields the guest
+  never sees included — with \`surface == "portal"\`, \`isNew == false\`, no permissions
+  (\`hasPermission(...)\` is false) and \`user.id\` = the guest. They are checked again when the guest
+  clicks: a hidden or disabled action does not run. An expression that fails hides (or disables) the
+  action. Use \`surface\` to keep a guest's gesture out of the organization's header, or the reverse.
+- The workflow runs AS THE GUEST (\`via: 'portal'\`, the verified identity when there is one) and receives
+  what it receives in the organization: \`action\`, \`source\`, \`context\` — the stored record, never
+  what the browser sends —, \`recordId\` and \`isNew: false\`.
+- Only the \`status\` (code and message) reaches the guest. \`result\` and the local commands (\`merge\`,
+  \`save\`, \`refresh\`…) are for the organization's form and are ignored: change the record in the
+  workflow, and the portal shows the change when it is projected again, seconds later.
+- Only actions that run a workflow and do not ask for parameters can be offered: a \`command\` or
+  \`promptParameters: true\` is refused by the package gate, as is a key that is not on the record.
+- The buttons appear on the built-in detail and above your \`detail\` view. To place them yourself — in
+  your \`detail\` view, or on a home card about one record —, call
+  \`usePortalActions(collection, recordId)\` from \`@microteia/portal\`: it returns \`actions\` (title, icon,
+  \`confirmMessage\`, \`danger\`, \`disabled\`), \`loading\`, \`running\` and \`run(actionId)\`. \`run\` does not
+  ask — show \`confirmMessage\` first — and never rejects: it resolves to \`{ code, message }\`, the message
+  ready to show. Calling it for a record removes the portal's bar from above your view, so the gesture
+  appears once. Requires the same kernel as \`portal.actions\`.
+- Every click is a workflow run: \`disabledWhen\`/\`hiddenWhen\` are what stop the second one — write them.
+- Requires \`kernel: "^${PORTAL_ACTIONS_SINCE_KERNEL}"\`. An older kernel ignores the declaration and shows
+  no button, so the package gate refuses the package without it.
 
 #### Links point at the collection
 
@@ -1915,7 +1957,7 @@ every member who reads the collection would read every record, so \`check\` refu
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
 | \`editWindow\` | how long after creation the record may still be changed — and, with \`delete: true\`, deleted. Its documents freeze with it. Enforced by the security rules, not only the form; see "Edit window" above |
 | \`memberVisibility\` | which members read EACH record: the ones it names in a member reference (\`userFields\`), plus whoever has \`bypassPermission\` — or the derived \`<collection>.${READ_ALL_ACTION}\`. Enforced by the security rules and every server path that hands a record to a person; see "Record visibility" above |
-| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. A field the guest does not send starts with its \`defaultValue\`, as in the organization's form — which is why a required field with a default may stay out of \`create.fields\`. A derived field (\`logic.derive\`) is computed when read and never stored, so it cannot be in \`fields\` nor in \`create.fields\`: the guest would always see it empty, and the package is refused. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10). \`documentLinks: { expiresInMinutes }\` hands guests short-lived signed document links instead of the permanent one (section 4); requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\`. \`trackViews: true\` has the server record every time a guest opens a record or gets a document link — an Audit trail entry and \`<collection>.portalViewed\` (sections 4 and 10); requires \`kernel: "^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}"\` |
+| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. A field the guest does not send starts with its \`defaultValue\`, as in the organization's form — which is why a required field with a default may stay out of \`create.fields\`. A derived field (\`logic.derive\`) is computed when read and never stored, so it cannot be in \`fields\` nor in \`create.fields\`: the guest would always see it empty, and the package is refused. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10). \`documentLinks: { expiresInMinutes }\` hands guests short-lived signed document links instead of the permanent one (section 4); requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\`. \`trackViews: true\` has the server record every time a guest opens a record or gets a document link — an Audit trail entry and \`<collection>.portalViewed\` (sections 4 and 10); requires \`kernel: "^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}"\`. \`actions: [key]\` offers the record's own actions (\`viewActionIds\`, by \`key\`) as buttons on the guest's open record — conditions checked by the server on the whole record with \`surface == "portal"\`, the workflow run as the guest, only its \`status\` returned (section 4); requires \`kernel: "^${PORTAL_ACTIONS_SINCE_KERNEL}"\` |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 
 ### Option lists

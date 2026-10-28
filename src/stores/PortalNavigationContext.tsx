@@ -89,6 +89,17 @@ export const PortalNavigationProvider: React.FC<{ children: React.ReactNode }> =
   const submitted = useCallback(() => update(() => ({ creating: null, justSubmitted: true })), [update]);
   const saved = useCallback(() => update(() => ({ creating: null, justSaved: true })), [update]);
 
+  // Uma lista com repetição, e não um conjunto: duas views do mesmo registro (o detalhe e um cartão)
+  // assumem duas vezes, e a primeira a sair não devolve a barra enquanto a outra continua lá.
+  const [claimedActions, setClaimedActions] = useState<string[]>([]);
+  const claimActions = useCallback((projectionId: string) => {
+    setClaimedActions((current) => [...current, projectionId]);
+    return () => setClaimedActions((current) => {
+      const index = current.indexOf(projectionId);
+      return index === -1 ? current : [...current.slice(0, index), ...current.slice(index + 1)];
+    });
+  }, []);
+
   const value = useMemo(() => ({
     stack: state.stack,
     creating: state.creating,
@@ -102,7 +113,9 @@ export const PortalNavigationProvider: React.FC<{ children: React.ReactNode }> =
     cancelCreate,
     submitted,
     saved,
-  }), [state, returnsHome, openRecord, back, startCreate, startEdit, cancelCreate, submitted, saved]);
+    claimedActions,
+    claimActions,
+  }), [state, returnsHome, openRecord, back, startCreate, startEdit, cancelCreate, submitted, saved, claimedActions, claimActions]);
 
   return <PortalNavigationContext.Provider value={value}>{children}</PortalNavigationContext.Provider>;
 };
