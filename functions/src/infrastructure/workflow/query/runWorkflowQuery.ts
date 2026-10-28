@@ -8,7 +8,7 @@ import type { PathResolution, PathRoot, SchemaContext } from '../../../domain/sc
 import { buildHydrationPlan } from '../../../domain/schema/hydrationPlan';
 import { collectHopRecordRefs, materializeHops, recordKey } from '../../../domain/schema/materialize';
 import type { QueryOrderBy, QueryPredicate, QuerySpec } from '../../../domain/schema/querySpec';
-import { resolveQueryTable, validateQuerySpec } from '../../../domain/schema/querySpec';
+import { QUERY_MAX_RESULTS, QUERY_MAX_SCAN, resolveQueryTable, validateQuerySpec } from '../../../domain/schema/querySpec';
 import { applyDerivedFields, collectDerivedFieldKeys } from '../../../domain/schema/recordRules';
 import { withAmbientTimeZone } from '../../../domain/schema/clockGate';
 import { withAmbientBusinessCalendars } from '../../../domain/schema/time/businessDaysGate';
@@ -21,9 +21,7 @@ import type { ResolvedPredicate as SharedResolvedPredicate } from '../../../doma
 import type { RecordReader } from '../../../domain/schema/memberVisibility';
 import { readerRestriction, resolveMemberVisibility } from '../../../domain/schema/memberVisibility';
 import { readerFetcher, scanVisibleRows } from './readerScope';
-
-const MAX_SCAN = 300;
-const MAX_QUERY_LIMIT = 100;
+import { compareDocumentIds } from './documentIdOrder';
 
 /**
  * Os tetos da consulta, fornecidos por quem chama.
@@ -38,8 +36,8 @@ export interface WorkflowQueryLimits {
 }
 
 export const DEFAULT_WORKFLOW_QUERY_LIMITS: WorkflowQueryLimits = {
-  maxScan: MAX_SCAN,
-  maxResults: MAX_QUERY_LIMIT,
+  maxScan: QUERY_MAX_SCAN,
+  maxResults: QUERY_MAX_RESULTS,
 };
 
 export interface WorkflowQueryDeps {
@@ -63,6 +61,17 @@ export interface WorkflowQueryResult {
    * consulta 5000 registros vê 300 e não tinha como saber.
    */
   complete: boolean;
+  /**
+   * Ficou algo de fora da resposta: o teto de varredura foi atingido, ou mais registros atendiam do que
+   * o `limit` (ou o teto de resultados) deixou levar. É o que separa "são só estes" de "são estes, e há
+   * mais".
+   */
+  hasMore: boolean;
+  /**
+   * Na leitura em páginas (`QuerySpec.page`), o valor de `page.after` da próxima página; `null` quando a
+   * coleção acabou. Fora dela, sempre `null`.
+   */
+  cursor: string | null;
 }
 
 export type WorkflowQueryOutcome =
@@ -107,7 +116,21 @@ const applyDeterministicOrdering = (
  */
 export interface RecordQueryOptions {
   deterministicOrder?: boolean;
+  /** O valor já resolvido de `spec.page.after`, quando a consulta lê em páginas. */
+  pageAfter?: unknown;
 }
+
+type PageCursor = { ok: true; after: string | undefined } | { ok: false };
+
+/**
+ * O cursor recebido. Vazio é a primeira página; um valor que não é texto é RECUSADO, e não tratado
+ * como começo — recomeçar em silêncio faria a automação que percorre a coleção voltar ao início para
+ * sempre.
+ */
+const pageCursor = (value: unknown): PageCursor => {
+  if (value === undefined || value === null || value === '') return { ok: true, after: undefined };
+  return typeof value === 'string' ? { ok: true, after: value } : { ok: false };
+};
 
 /**
  * O caminho como um campo DO DOCUMENTO, ou `null` quando o banco não pode responder por ele.
@@ -256,6 +279,7 @@ export async function runWorkflowQuery(
   limits: WorkflowQueryLimits = DEFAULT_WORKFLOW_QUERY_LIMITS,
 ): Promise<WorkflowQueryOutcome> {
   const values = spec.where.map((predicate) => (predicate.value ? resolveMapping(predicate.value, context) : undefined));
+  const pageAfter = spec.page?.after ? resolveMapping(spec.page.after, context) : undefined;
   return runRecordQuery(
     spec,
     values,
@@ -268,6 +292,7 @@ export async function runWorkflowQuery(
     },
     deps,
     limits,
+    { pageAfter },
   );
 }
 
@@ -305,6 +330,18 @@ export async function runRecordQuery(
       errorParams: { table: spec.table },
     };
   }
+
+  const paging = spec.page !== undefined;
+  const cursor = paging ? pageCursor(options.pageAfter) : { ok: true as const, after: undefined };
+  if (!cursor.ok) {
+    return {
+      ok: false,
+      error: '@core.automation/query.page.cursor-invalid',
+      errorParams: { cursor: JSON.stringify(options.pageAfter) ?? '' },
+    };
+  }
+  const after = cursor.after;
+  const page = paging ? { after } : undefined;
 
   // Campo derivado (`logic.derive`) não existe no documento: ele é avaliado na leitura, logo abaixo.
   // Um predicado sobre ele NUNCA pode virar filtro de igualdade no Firestore — a consulta voltaria
@@ -371,16 +408,26 @@ export async function runRecordQuery(
       restriction,
       scope.reader.uid,
       limits.maxScan,
+      page,
     )
     : null;
   if (byId || restrictedScan) {
     memoryPredicates.push(...predicates.filter((predicate) => !memoryPredicates.includes(predicate)));
   }
-  const requestedIds = documentIds?.slice(0, limits.maxScan) ?? [];
+  // Em páginas, os ids pedidos seguem a mesma ordem da varredura, e só os depois do cursor contam.
+  const pendingIds = documentIds !== null && paging
+    ? documentIds
+      .filter((id) => after === undefined || compareDocumentIds(id, after) > 0)
+      .sort(compareDocumentIds)
+    : documentIds;
+  const requestedIds = pendingIds?.slice(0, limits.maxScan) ?? [];
   const rows = byId
     ? await rowsByDocumentId(requestedIds, tenantId, resolved.physicalCollection, fetcher)
     : restrictedScan?.rows
-      ?? await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, limits.maxScan);
+      ?? await deps.queryRepository.queryByEquality(tenantId, resolved.physicalCollection, equalityFilters, limits.maxScan, page);
+  const complete = byId
+    ? (pendingIds?.length ?? 0) <= limits.maxScan
+    : restrictedScan?.complete ?? rows.length < limits.maxScan;
 
   const pathsToHydrate = [
     ...new Set([
@@ -416,7 +463,19 @@ export async function runRecordQuery(
       ? applyDeterministicOrdering(results, spec.orderBy)
       : applyOrdering(results, spec.orderBy);
   }
-  const limited = results.slice(0, Math.min(spec.limit, limits.maxResults));
+  const cap = Math.min(spec.limit, limits.maxResults);
+  const limited = results.slice(0, cap);
+  const truncated = results.length > cap;
+
+  // O próximo cursor é o último registro CONSUMIDO: o último entregue, quando o corte foi o `limit`; o
+  // último varrido, quando foi o teto de varredura. Como cada página consome pelo menos um registro, a
+  // sequência sempre avança.
+  const lastScannedId = byId ? requestedIds[requestedIds.length - 1] : rows[rows.length - 1]?.id;
+  const nextCursor = !paging
+    ? null
+    : truncated
+      ? String(limited[limited.length - 1].id)
+      : complete ? null : lastScannedId ?? null;
 
   return {
     ok: true,
@@ -425,9 +484,9 @@ export async function runRecordQuery(
       count: limited.length,
       first: limited[0] ?? null,
       scanned: rows.length,
-      complete: byId
-        ? (documentIds?.length ?? 0) <= limits.maxScan
-        : restrictedScan?.complete ?? rows.length < limits.maxScan,
+      complete,
+      hasMore: paging ? nextCursor !== null : truncated || !complete,
+      cursor: nextCursor,
     },
   };
 }

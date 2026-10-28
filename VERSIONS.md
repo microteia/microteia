@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.175.0] — 2026-10-28
+
+- O passo "Buscar Registros" das automações ganhou a opção "Ler em páginas": uma automação agora consegue percorrer uma lista com milhares de registros, uma página por execução, retomando de onde a anterior parou — sem pular nem repetir nenhum. Os scripts ganharam a mesma possibilidade.
+- Quando uma busca encontra mais registros do que consegue devolver de uma vez, o histórico da execução agora avisa, em vez de mostrar só a quantidade entregue. O editor da automação também alerta quando o limite pedido passa do máximo.
+- As automações que já existem continuam funcionando exatamente como antes.
+
 #### [9.174.0] — 2026-10-28
 
 - O passo "Gravar Registro" das automações ganhou a opção "Localizar o registro pela chave primária": acionar de novo a mesma automação atualiza o registro que ela já tinha criado, em vez de falhar por duplicidade. Os scripts ganharam a mesma possibilidade.

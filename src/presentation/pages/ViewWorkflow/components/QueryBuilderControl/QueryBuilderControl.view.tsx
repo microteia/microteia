@@ -4,6 +4,8 @@ import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { MultiSearchSelect } from '../../../../components/ui/MultiSearchSelect';
 import { Input } from '../../../../components/ui/Input';
 import { ExpressionEditor } from '../../../../components/ui/ExpressionEditor';
+import { Checkbox } from '../../../../components/ui/Checkbox';
+import { InfoBanner } from '../../../../components/ui/InfoBanner';
 import { S } from './QueryBuilderControl.styles';
 import { QUERY_VALUE_KIND_KEYS, operatorNeedsValue, useQueryBuilderControlViewModel } from './QueryBuilderControl.viewmodel';
 import type { QueryBuilderControlProps } from './QueryBuilderControl.viewmodel';
@@ -58,6 +60,39 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
           )}
         </S.KindRow>
       </S.ValueEditor>
+    );
+  };
+
+  const renderCursorEditor = (mapping: InputMapping | undefined) => {
+    const kind = mapping?.kind === 'Literal' ? 'Literal' : 'Expression';
+    return (
+      <S.KindRow>
+        <SearchSelect
+          options={QUERY_VALUE_KIND_KEYS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
+          value={kind}
+          onChange={(next) =>
+            vm.setPageAfter(next === 'Literal' ? { kind: 'Literal', value: '' } : { kind: 'Expression', expression: '' })
+          }
+        />
+        {kind === 'Expression' ? (
+          <ExpressionEditor
+            value={mapping?.kind === 'Expression' ? mapping.expression : ''}
+            onChange={(expression) => vm.setPageAfter({ kind: 'Expression', expression })}
+            placeholder={t('query.page.after.placeholder')}
+            eventFields={props.eventFields}
+            pathRoot={props.pathRoot}
+            inputRoot={props.inputRoot}
+            stepOutputFields={props.stepOutputFields}
+            workflowVariables={props.workflowVariables}
+          />
+        ) : (
+          <Input
+            value={mapping?.kind === 'Literal' ? String(mapping.value ?? '') : ''}
+            onChange={(e) => vm.setPageAfter({ kind: 'Literal', value: e.target.value })}
+            placeholder={t('mapping.value.placeholder')}
+          />
+        )}
+      </S.KindRow>
     );
   };
 
@@ -151,6 +186,20 @@ export const QueryBuilderControl: React.FC<QueryBuilderControlProps> = (props) =
                 onChange={(e) => vm.setLimit(Number(e.target.value))}
               />
             </S.LimitRow>
+            {vm.warningsByField.limit && <InfoBanner message={vm.warningsByField.limit} variant="warning" />}
+          </S.Section>
+
+          <S.Section>
+            <S.SectionTitle>{t('query.page')}</S.SectionTitle>
+            <Checkbox checked={vm.paging} onChange={vm.setPaging} label={t('query.page.enable')} />
+            <S.Empty>{t('query.page.hint')}</S.Empty>
+            {vm.paging && (
+              <>
+                <S.SectionTitle>{t('query.page.after')}</S.SectionTitle>
+                {renderCursorEditor(spec.page?.after)}
+              </>
+            )}
+            {vm.issuesByField.page && <S.Issue>{vm.issuesByField.page}</S.Issue>}
           </S.Section>
         </>
       )}

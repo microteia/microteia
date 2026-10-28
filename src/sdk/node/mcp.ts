@@ -76,6 +76,8 @@ import { eventRefReport } from './eventRefs';
 import { documentStepReport } from './documentSteps';
 import { fieldPresetReport } from './fieldPresets';
 import { undeclaredPathReport } from './undeclaredPaths';
+import { queryCeilingReport } from './queryCeilings';
+import { QUERY_MAX_RESULTS, QUERY_MAX_SCAN, QUERY_PAGE_SINCE_KERNEL } from '../../domain/schema/querySpec';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS } from './installedCatalog';
@@ -282,6 +284,28 @@ const describeUndeclaredPaths = (pkg: MarketplacePlugin, root: string): string =
     .join('\n')}`;
 };
 
+const QUERY_CEILINGS_NOTE = [
+  `A query reads at most ${QUERY_MAX_SCAN} documents from the database and returns at most ${QUERY_MAX_RESULTS} records; `
+  + `a larger \`limit\` is cut to ${QUERY_MAX_RESULTS} (validate_plugin and \`check\` warn).`,
+  'Only `eq` on a field stored in the record goes to the database. Every other operator, a path into a referenced '
+  + 'record, a derived field and `orderBy` apply in memory to the documents read — so a range filter or a sort sees '
+  + `the first ${QUERY_MAX_SCAN} documents the \`eq\` filters select, not the whole collection.`,
+  'The step publishes `hasMore`: true when records were left out, by the limit or by the read ceiling.',
+  'To go through a larger collection, read in pages: `page: {}` for the first page, `page: { after: <mapping> }` '
+  + 'for the next. Pages follow the record id, the step publishes `cursor` (null after the last page), and each run '
+  + 'reads the next page — store the cursor where the next run can read it (a field of the record that drives the '
+  + `work, or a parameter of a called workflow). \`orderBy\` is refused with \`page\`. Needs kernel ${QUERY_PAGE_SINCE_KERNEL} or later.`,
+];
+
+/** Os passos `query` com `limit` acima do teto. Aviso, como no `check`: o motor corta, não recusa. */
+const describeQueryCeilings = (pkg: MarketplacePlugin): string => {
+  const findings = queryCeilingReport(pkg);
+  if (findings.length === 0) return '';
+  return `\n\n${findings.length} query step(s) asking for more than a query returns (warnings only, never refused):\n${findings
+    .map((one) => `- ${one.step} (workflow "${one.workflow}") — ${one.detail}`)
+    .join('\n')}`;
+};
+
 // ─── Modelo de domínio ────────────────────────────────────────────────────────
 
 /**
@@ -438,13 +462,13 @@ const TOOLS: ToolDefinition[] = [
       if (typeof input.json === 'string') {
         const parsed = parsePackage(input.json);
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeFieldPresets(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeFieldPresets(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeQueryCeilings(parsed.package)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const path = resolve(root, asString(input.path, 'path'));
       if (path.endsWith('.json')) {
         const parsed = parsePackage(readFileSync(path, 'utf8'));
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeFieldPresets(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeFieldPresets(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeQueryCeilings(parsed.package)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const result = buildPlugin({ entry: path });
       return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`
@@ -453,6 +477,7 @@ const TOOLS: ToolDefinition[] = [
         + describeDocumentSteps(result.package, root)
         + describeFieldPresets(result.package, root)
         + describeUndeclaredPaths(result.package, root)
+        + describeQueryCeilings(result.package)
         + describeRecordSurfaces(result.package, root)
         + describeNavTargets(result.package, root)
         + describeNavGroups(result.package, root)
@@ -693,6 +718,9 @@ const TOOLS: ToolDefinition[] = [
           }
           : {}),
         dynamicOutputs: step.dynamicOutputs ?? null,
+        // Os tetos não aparecem em input nenhum, e foi assim que um `limit: 300` virou 100 sem ninguém
+        // saber. Os números saem das constantes que o motor aplica.
+        ...(step.id === 'query' ? { ceilings: QUERY_CEILINGS_NOTE } : {}),
       });
     },
   },

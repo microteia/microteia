@@ -32,13 +32,38 @@ export interface QueryOrderBy {
   dir: 'asc' | 'desc';
 }
 
+/**
+ * A leitura em PÁGINAS de uma coleção maior que os tetos.
+ *
+ * A página percorre a coleção na ordem do id do documento — a ordem em que o Firestore já entrega uma
+ * consulta só de igualdades —, e por isso o cursor não pede índice composto nenhum: é o id do último
+ * registro que a página consumiu. Presente, a consulta publica `cursor`; ausente, nada muda.
+ */
+export interface QueryPage {
+  /** O `cursor` publicado pela página anterior. Ausente, vazio ou nulo: a primeira página. */
+  after?: InputMapping;
+}
+
 export interface QuerySpec {
   table: string;
   where: QueryPredicate[];
   orderBy?: QueryOrderBy[];
   limit: number;
   projections: string[];
+  page?: QueryPage;
 }
+
+/**
+ * Os tetos de uma consulta de automação. A varredura traz no máximo `QUERY_MAX_SCAN` documentos do
+ * banco — só a igualdade desce, o resto é filtrado em memória sobre eles — e a resposta leva no máximo
+ * `QUERY_MAX_RESULTS`. Moram aqui, e não no backend, porque o guia de autoria, o `check` e o construtor
+ * visual dizem o mesmo número que o motor aplica.
+ */
+export const QUERY_MAX_SCAN = 300;
+export const QUERY_MAX_RESULTS = 100;
+
+/** O kernel em que a consulta passou a ler em páginas (`QuerySpec.page`). */
+export const QUERY_PAGE_SINCE_KERNEL = '2.83.0';
 
 /** Todos os operadores, para quem precisa VALIDAR um operador declarado em vez de executá-lo. */
 export const QUERY_OPERATORS: readonly QueryOperator[] =
@@ -141,5 +166,24 @@ export const validateQuerySpec = (spec: QuerySpec, ctx: SchemaContext): QuerySpe
     issues.push({ field: 'limit', error: '@core.automation/query.limit.invalid' });
   }
 
+  // A página segue a ordem do id; uma ordenação declarada valeria só dentro de cada página, e a
+  // sequência das páginas não seria ordenada por ela. Recusar é dizer isso antes da primeira execução.
+  if (spec.page && (spec.orderBy ?? []).length > 0) {
+    issues.push({ field: 'page', error: '@core.automation/query.page.order-by' });
+  }
+
   return issues;
 };
+
+/**
+ * O que a consulta aceita, mas não entrega como está escrito. Nunca recusa: a automação gravada com
+ * `limit: 300` roda desde sempre devolvendo 100, e passar a reprová-la quebraria quem já a usa.
+ */
+export const querySpecWarnings = (spec: QuerySpec): QuerySpecIssue[] =>
+  Number.isFinite(spec.limit) && spec.limit > QUERY_MAX_RESULTS
+    ? [{
+      field: 'limit',
+      error: '@core.automation/query.limit.above-ceiling',
+      errorParams: { limit: String(spec.limit), max: String(QUERY_MAX_RESULTS), scan: String(QUERY_MAX_SCAN) },
+    }]
+    : [];

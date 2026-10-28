@@ -22,6 +22,13 @@
  * via `cases` sugerido pelo editor, e um com uma tela própria não via a dele). Sem tela nenhuma — o
  * caso do `.d.ts` do SDK — sobra `string`, que é o que o sandbox aceita.
  */
+/**
+ * Os tetos da consulta, repetidos aqui porque este módulo não importa nada. `scriptSandboxTypeDefs.test.ts`
+ * os prende às constantes de `querySpec.ts` — o número que o editor mostra é o que o motor aplica.
+ */
+const QUERY_MAX_RESULTS_TEXT = '100';
+const QUERY_MAX_SCAN_TEXT = '300';
+
 const tableUnion = (collections: string[]): string =>
   [...collections.map((collection) => `'${collection}'`), '(string & {})'].join(' | ');
 
@@ -38,18 +45,38 @@ interface QueryOrderBy {
   dir: 'asc' | 'desc';
 }
 
+interface QueryPage {
+  /** The \`cursor\` the previous page returned. Leave it out, or pass null, for the first page. */
+  after?: string | null;
+}
+
 interface QuerySpec {
   table: ${tableUnion(collections)};
   where?: QueryPredicate[];
+  /** Not allowed with \`page\`: pages follow the record id, so a sort would only hold inside each page. */
   orderBy?: QueryOrderBy[];
+  /** Default 50. A query returns at most ${QUERY_MAX_RESULTS_TEXT} records, whatever it asks for. */
   limit?: number;
   projections?: string[];
+  /**
+   * Reads a collection larger than one query in pages, in record-id order. Each call returns a \`cursor\`;
+   * pass it back as \`after\` to read the next page, until it comes back null.
+   */
+  page?: QueryPage;
 }
 
 interface QueryResult {
   count: number;
   results: Record<string, unknown>[];
   first: Record<string, unknown> | null;
+  /**
+   * Some matching records were left out: more matched than \`limit\`, or the query reached the
+   * ${QUERY_MAX_SCAN_TEXT} records it reads from the database (only \`eq\` filters narrow that read; every other
+   * filter and the sort apply to what was read).
+   */
+  hasMore: boolean;
+  /** With \`page\`, the \`after\` of the next page — null when there is none. Without \`page\`, always null. */
+  cursor: string | null;
 }
 
 /** Reads the organization's records. Always await it. */

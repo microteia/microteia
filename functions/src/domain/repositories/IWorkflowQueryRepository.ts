@@ -14,11 +14,21 @@ export interface WorkflowEqualityFilter {
   op?: '==' | 'array-contains';
 }
 
+export interface WorkflowQueryPage {
+  after?: string;
+}
+
 export interface IWorkflowQueryRepository {
+  /**
+   * `page` pede a leitura em páginas: os documentos em ordem crescente de id, a partir do primeiro
+   * DEPOIS de `page.after` (sem ele, do começo). É a ordem em que o banco já entrega uma consulta só de
+   * igualdades, e por isso não pede índice composto. Ausente, a consulta é a de sempre.
+   */
   queryByEquality: (
     tenantId: string,
     collection: string,
     equalityFilters: WorkflowEqualityFilter[],
     limit: number,
+    page?: WorkflowQueryPage,
   ) => Promise<WorkflowQueryRow[]>;
 }

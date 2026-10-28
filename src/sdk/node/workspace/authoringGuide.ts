@@ -16,6 +16,7 @@ import { AGGREGATION_OP_SINCE_KERNEL } from '../../../domain/schema/aggregationS
 import { AGGREGATE_BACKFILL_SINCE_KERNEL, AGGREGATION_MAX_CHILDREN } from '../../../domain/schema/aggregateBackfill';
 import { RECORD_KEY_ADOPTION_SINCE_KERNEL } from '../../../domain/schema/recordKeyAdoption';
 import { UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL } from '../../../domain/schema/mutationSpec';
+import { QUERY_MAX_RESULTS, QUERY_MAX_SCAN, QUERY_PAGE_SINCE_KERNEL } from '../../../domain/schema/querySpec';
 import { EDIT_WINDOW_DOCUMENTS_SINCE_KERNEL, EDIT_WINDOW_SINCE_KERNEL } from '../../../domain/schema/editWindow';
 import {
   MEMBER_VISIBILITY_MAX_FIELDS,
@@ -2498,7 +2499,7 @@ name suggests.** \`query\` really does take a \`QuerySpec\`; the other four do N
 
 | Input type | The type inside the \`Literal\` | |
 |---|---|---|
-| \`Query\` | \`QuerySpec\` | \`{ table, where, orderBy?, limit, projections }\` |
+| \`Query\` | \`QuerySpec\` | \`{ table, where, orderBy?, limit, projections, page? }\` — see "How much a query reads" below |
 | \`Upsert\` | \`UpsertStepConfig\` | \`{ table, source: 'input' \\| 'event', property?, matchPrimaryKey? }\` — no \`data\`: the step reads the object from \`source\`, and an \`id\` in it means update; \`matchPrimaryKey: true\` updates, with no \`id\`, the record that holds the same \`primary\` key (§8) |
 | \`Remove\` | \`RemoveStepConfig\` | \`{ table, id }\` |
 | \`Map\` | \`MapStepConfig\` | \`{ name?, type?, fields: { name, value }[] }\` |
@@ -2520,6 +2521,54 @@ step. So is \`portalVerified\`, the identity a portal guest proved when the writ
 **\`QuerySpec.where\` uses the operator NAMES**, not the symbols: \`eq\`, \`neq\`, \`lt\`, \`lte\`, \`gt\`,
 \`gte\`, \`in\`, \`contains\`, \`exists\`. An operator outside that set matches no rows at all — the query
 returns nothing and the flow carries on as if the records did not exist.
+
+### How much a query reads — and reading a large collection in pages
+
+A \`query\` step — and a script's \`query()\` — reads at most **${QUERY_MAX_SCAN} documents** from the database
+and returns at most **${QUERY_MAX_RESULTS} records**. A larger \`limit\` is cut to ${QUERY_MAX_RESULTS}; \`check\` warns
+about it, and never refuses, because a flow written that way has always run returning ${QUERY_MAX_RESULTS}.
+
+- **Only \`eq\` goes to the database**, on a field stored in the record (a reference's id included). Every
+  other operator, a path into a referenced record (\`customer.city\`), a derived field and \`orderBy\` are
+  applied in memory, to the documents read. A range filter or a sort sees the first ${QUERY_MAX_SCAN} documents
+  the \`eq\` filters select — not the whole collection. Narrow with \`eq\` first.
+- **\`hasMore\`** — an output of the step, a field of \`query()\`'s result — is \`true\` when records were left
+  out, by the limit or by the read ceiling. A flow that must see everything checks it instead of trusting
+  \`count\`.
+
+When the collection is larger than one query, read it in **pages**:
+
+\`\`\`ts
+configuration: {
+  query: { kind: 'Literal', value: {
+    table: 'recipients',
+    where: [{ path: 'batchId', op: 'eq', value: { kind: 'Expression', expression: 'event.id' } }],
+    limit: ${QUERY_MAX_RESULTS},
+    projections: ['name', 'email'],
+    page: { after: { kind: 'Expression', expression: 'event.cursor' } },   // empty on the first page
+  } },
+},
+\`\`\`
+
+- **Pages follow the record id**, not a field — so \`orderBy\` is refused together with \`page\`. Each page
+  returns up to \`limit\` records and publishes **\`cursor\`**: pass it back as \`page.after\` to read the next
+  page; it is \`null\` after the last one. Every record that matches comes in exactly one page, whatever the
+  filters kept in memory leave out of each read.
+- **One page per run.** A run reads a page, works through it with a \`Loop\`, and leaves the cursor where the
+  next run reads it — typically a field of the record that drives the work (the batch above), written by an
+  \`upsert\` and read back as \`event.cursor\` by a \`schedule\` or a \`<collection>.saved\` workflow. Stop when
+  \`cursor\` is \`null\`.
+- \`page: {}\` or an empty \`after\` reads the first page. An \`after\` that is not a cursor — a number, an object —
+  fails the step instead of starting over, which would read the first page forever.
+- A script pages the same way: \`await query({ table, where, limit, page: { after: cursor } })\` returns
+  \`cursor\` and \`hasMore\`.
+- \`page\` needs kernel ${QUERY_PAGE_SINCE_KERNEL} or later: \`validate_plugin\` refuses it in a package whose \`kernel\`
+  range starts below, where the option is ignored and no cursor is ever published.
+
+**Paging is for the exceptional sweep.** Work that happens once per record is better declared per record: a
+\`<collection>.saved\` workflow on each item — the bulk import (§8) fires it for every row — or \`dateReached\`.
+Each record then gets its own run, its own line in the history and its own failure, instead of one run that
+has to remember where it stopped.
 
 Ask the MCP server rather than guessing any of this: \`microteia://workflow/steps\` for the catalog,
 \`describe_workflow_step\` for one step's exact inputs and outputs, \`list_workflow_events\` for the

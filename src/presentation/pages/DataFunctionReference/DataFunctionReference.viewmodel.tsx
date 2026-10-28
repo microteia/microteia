@@ -21,7 +21,7 @@ export const DATA_FUNCTIONS: DataFunctionDef[] = [
   {
     name: 'query',
     category: '@core.automation/data-fn.category.query',
-    signature: 'query(spec) → Promise<{ count, results, first }>',
+    signature: 'query(spec) → Promise<{ count, results, first, hasMore, cursor }>',
     description:
       '@core.automation/data-fn.query.description',
     params: [
@@ -30,6 +30,7 @@ export const DATA_FUNCTIONS: DataFunctionDef[] = [
       { name: 'orderBy', description: '@core.automation/data-fn.query.order-by' },
       { name: 'limit', description: '@core.automation/data-fn.query.limit' },
       { name: 'projections', description: '@core.automation/data-fn.query.projections' },
+      { name: 'page', description: '@core.automation/data-fn.query.page' },
     ],
     returns: '@core.automation/data-fn.query.returns',
     example: `const r = await query({\n  table: 'news',\n  where: [{ path: 'category', op: 'eq', value: input.category }],\n  projections: ['title', 'summary'],\n  limit: 20,\n});\nlog(r.count, r.first?.title);`,

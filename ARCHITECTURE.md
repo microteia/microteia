@@ -6400,15 +6400,52 @@ outro filtro. Como o usuário escolhe campos arbitrários, pré-criar esses
 `firestore.indexes.json`. Por isso:
 - **Servidor:** apenas predicados `eq`, servidos por índices single-field automáticos → **nunca**
   exige índice composto. Consultado com
-  `limit(MAX_SCAN = 300)`.
+  `limit(QUERY_MAX_SCAN = 300)`.
 - **Memória:** `neq`, ranges (`lt/lte/gt/gte`), `in`, `contains`, `exists`, a **ordenação** e o
-  **`limit` final** (cap `MAX_QUERY_LIMIT = 100`) são aplicados sobre a janela varrida — depois da
+  **`limit` final** (cap `QUERY_MAX_RESULTS = 100`) são aplicados sobre a janela varrida — depois da
   materialização, para permitir filtro em caminhos de FK (ex: `client.apelido`).
 - **Trade-off:** ranges/ordenação operam sobre a janela varrida, não sobre a coleção inteira —
-  adequado à escala por-tenant. Evolução futura: paginação por cursor.
+  adequado à escala por-tenant. Para o caso excepcional, a leitura em páginas (abaixo).
 
-**Saídas:** `results` (lista de registros materializados), `count` e `first`. Passos seguintes leem
-via `output.<stepId>.results` / `.first.client.name` etc. (`dynamicOutputs: runtime-only`).
+Os dois tetos moram em `querySpec.ts` (`QUERY_MAX_SCAN`, `QUERY_MAX_RESULTS`), e não no backend: o
+motor, o AUTHORING §10, o `describe_workflow_step` (`ceilings`), os tipos do sandbox e o construtor
+visual dizem o MESMO número. Um `limit` acima do teto continua sendo cortado sem recusa — reprovar
+quebraria a automação gravada com `limit: 300`, que roda assim desde sempre —, mas deixou de ser
+silencioso: `querySpecWarnings` vira aviso no `check`/`validate_plugin` (`queryCeilingReport`) e no
+construtor (`InfoBanner`), e o resultado diz `hasMore`.
+
+**Leitura em páginas (`QuerySpec.page`, kernel `QUERY_PAGE_SINCE_KERNEL` = 2.83.0, EV-29).** Opt-in:
+sem `page`, nada muda — mesmos resultados, mesma ordem, mesmos tetos. Com ela:
+- **A ordem é a do id do documento.** É a ordem em que o Firestore já entrega uma consulta só de
+  igualdades, então `orderBy(FieldPath.documentId()).startAfter(after)` (em
+  `FirestoreWorkflowQueryRepository`, pelo argumento opcional `page` de `queryByEquality`) **não pede
+  índice composto** — a estratégia índice-free continua intacta. Por isso `orderBy` junto de `page` é
+  recusado em `validateQuerySpec` (`query.page.order-by`): a ordenação valeria só dentro de cada página.
+- **O cursor é o último registro CONSUMIDO**: o último entregue quando o corte foi o `limit` (os que
+  atendiam depois dele voltam na página seguinte), o último varrido quando foi o `QUERY_MAX_SCAN`, e
+  `null` quando a varredura viu tudo. Cada página consome ao menos um registro, então a sequência sempre
+  termina, e cada registro que atende aparece em exatamente uma página.
+- **As três origens da janela seguem a mesma ordem:** a varredura do banco; a leitura por id
+  (`id in [...]`, ordenada e filtrada pelo cursor); e a varredura de quem `memberVisibility` restringe
+  (`scanVisibleRows` com `page`), cuja união é cortada no MENOR último id entre as consultas que bateram
+  no teto — até ali a união é exata. A comparação fora do banco é `compareDocumentIds` (bytes UTF-8, a
+  ordem do Firestore), não o `<` do JavaScript, que discorda dela fora do ASCII.
+- **Cursor inválido é recusa** (`query.page.cursor-invalid`): um número ou objeto em `page.after` falha o
+  passo, em vez de recomeçar da primeira página — recomeçar em silêncio deixaria a automação que percorre
+  a coleção relendo a primeira página para sempre. Vazio, nulo ou ausente é a primeira página.
+- **Uma página por execução.** O motor não guarda o cursor: quem percorre o publica num lugar que a
+  próxima execução lê (campo do registro que conduz o trabalho, parâmetro de um fluxo chamado). Para o
+  trabalho que é POR registro, o AUTHORING recomenda o gatilho por registro (`<coleção>.saved`, que a
+  importação dispara linha a linha, ou `dateReached`) — a página é para a varredura excepcional.
+- **Portão do pacote:** `workflowIntegrity` reprova `page` num pacote que admite kernel anterior a 2.83.0
+  (`issue.step.input-kernel`): lá a opção é ignorada e o cursor nunca é publicado.
+
+**Saídas:** `results` (lista de registros materializados), `count`, `first`, `hasMore` (ficou registro de
+fora — pelo `limit`, pelo teto de resultados ou pelo de varredura) e `cursor` (o `page.after` da próxima
+página; sempre `null` sem `page`). Passos seguintes leem via `output.<stepId>.results` /
+`.first.client.name` etc. (`dynamicOutputs: runtime-only`). Com `hasMore`, a linha do histórico é
+`step.query.found-partial` (sem página) ou `step.query.found-page` (com página) — antes, um `limit: 300`
+devolvia 100 e o histórico dizia só "100 registros encontrados".
 
 ### Como Adicionar uma Função de Expressão
 
@@ -7111,7 +7148,7 @@ O Step `script` executa **código JavaScript do usuário** dentro de um sandbox 
 - **Memória:** todo handle do QuickJS tem `.dispose()` garantido em `finally`; o módulo WASM é cacheado entre invocações.
 - **Marshalling Host↔VM:** JSON com sentinela `{ __date__: ms }` preserva `Date` nos dois sentidos, para que as funções de data em `fn.*` funcionem corretamente.
 
-**Ponte de consulta `query(spec)` (assíncrona).** O global `query` aceita um `QuerySpec` (`{ table, where:[{path,op,value}], orderBy?, limit, projections }`, mesmo formato do Step "Buscar Registros") e devolve `{ count, results, first }`. Reúsa **integralmente** o pipeline do QueryStep, extraído para `functions/src/infrastructure/workflow/query/runWorkflowQuery.ts` (validação, `queryByEquality` enraizado em `tenants/{tenantId}/…`, hidratação de projeções, predicados em memória, ordenação e `limit`); a ponte apenas envolve cada `where[].value` como `InputMapping` `Literal`. **Busca pelo id do documento:** predicado `eq`/`in` sobre o `id` da raiz não desce como filtro de campo (o documento não guarda o próprio id — `id == X` voltava sempre vazio); vira leitura direta por `fetchByIds` (`getAll`), sem varredura nem índice, e os demais predicados do `where` passam a ser avaliados em memória sobre os registros lidos. Vários predicados de id se intersectam; `neq`/`exists` sobre `id` ficam em memória. Vale para todo chamador de `runRecordQuery` — passo, script, relatório, agente e documento. Segurança: escopo por `context.execution.tenantId` (nunca vindo do script), teto de `MAX_QUERIES` consultas por execução, e o deadline total acima. Implementação com `vm.newPromise()` + um loop de bombeamento que intercala `executePendingJobs()` com o `await` das consultas em voo.
+**Ponte de consulta `query(spec)` (assíncrona).** O global `query` aceita um `QuerySpec` (`{ table, where:[{path,op,value}], orderBy?, limit, projections }`, mesmo formato do Step "Buscar Registros") e devolve `{ count, results, first, scanned, complete, hasMore, cursor }` (com `page: { after }`, lê em páginas — ver "Leitura em páginas"). Reúsa **integralmente** o pipeline do QueryStep, extraído para `functions/src/infrastructure/workflow/query/runWorkflowQuery.ts` (validação, `queryByEquality` enraizado em `tenants/{tenantId}/…`, hidratação de projeções, predicados em memória, ordenação e `limit`); a ponte apenas envolve cada `where[].value` como `InputMapping` `Literal`. **Busca pelo id do documento:** predicado `eq`/`in` sobre o `id` da raiz não desce como filtro de campo (o documento não guarda o próprio id — `id == X` voltava sempre vazio); vira leitura direta por `fetchByIds` (`getAll`), sem varredura nem índice, e os demais predicados do `where` passam a ser avaliados em memória sobre os registros lidos. Vários predicados de id se intersectam; `neq`/`exists` sobre `id` ficam em memória. Vale para todo chamador de `runRecordQuery` — passo, script, relatório, agente e documento. Segurança: escopo por `context.execution.tenantId` (nunca vindo do script), teto de `MAX_QUERIES` consultas por execução, e o deadline total acima. Implementação com `vm.newPromise()` + um loop de bombeamento que intercala `executePendingJobs()` com o `await` das consultas em voo.
 
 O script do usuário retorna um objeto (ex.: `main()` no final) que vira os `outputs` do Step. Deps novas: `quickjs-emscripten` (functions) e `sucrase` (frontend). Registro do Step em `registerSteps.ts` + `container.ts` (recebe `IScriptRepository` e os repositórios de query já existentes).
 
@@ -8221,7 +8258,7 @@ e a garantia é estrutural: gatilho e mutirão compartilham os construtores `ach
 este `origemId`?) e o `upsert` inclui quando `input.itemId` é nulo e atualiza quando não é.
 
 **Por que a situação é parâmetro, e não "todos de uma vez".** É teto do MOTOR, não da declaração: o
-Step de consulta varre no máximo `MAX_SCAN` (300) documentos e devolve no máximo `MAX_QUERY_LIMIT`
+Step de consulta varre no máximo `QUERY_MAX_SCAN` (300) documentos e devolve no máximo `QUERY_MAX_RESULTS`
 (100), e **só o operador `eq` é resolvido no servidor** (o resto é filtrado em memória, depois da
 varredura). Filtrar por situação faz a varredura acontecer dentro daquela fatia, em vez de nos 300
 primeiros prazos do escritório. Daí o desenho: uma execução por situação, e o passo final avisa

@@ -208,6 +208,12 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'query.operator.placeholder': 'Operador...',
   'query.expression.placeholder': 'ex: event.status',
   'query.limit': 'Limite',
+  'query.page': 'Páginas',
+  'query.page.enable': 'Ler em páginas',
+  'query.page.hint':
+    'Para uma coleção maior que uma consulta. Cada execução lê a página seguinte, na ordem do id do registro, e publica um cursor; informe-o abaixo para continuar de onde a execução anterior parou. Não combina com ordenação.',
+  'query.page.after': 'Continuar depois de (cursor)',
+  'query.page.after.placeholder': 'ex: event.cursor — vazio na primeira página',
   'remove.record-id': 'Id do registro a excluir',
   'remove.record-id.placeholder': 'Id do registro',
   'remove.expression.placeholder': "ex: query('...').first.id",
@@ -442,6 +448,10 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'script.query-doc.limit.await': 'Sempre use await ao chamar query.',
   'script.query-doc.limit.count': 'No máximo 25 consultas por execução do script.',
   'script.query-doc.limit.scan': 'Os filtros e a ordenação percorrem até 300 registros por consulta.',
+  'script.query-doc.limit.has-more':
+    'hasMore indica que ficaram registros de fora. Para percorrer todos, leia em páginas: page: { after: anterior.cursor }, até cursor ser null.',
+  'script.query-doc.page':
+    'Opcional { after }. Lê em páginas, na ordem do id do registro, e devolve um cursor — passe-o em after na chamada seguinte. Não combina com orderBy.',
   'script.query-doc.limits': 'Limites',
   'script.query-doc.op.contains': 'contém',
   'script.query-doc.op.eq': 'igual a',
@@ -575,8 +585,10 @@ export const CORE_AUTOMATION: Record<string, string> = {
     'Pesquisa registros de qualquer cadastro do escritório (fixo, personalizado ou lista). O escritório atual é aplicado automaticamente.',
   'data-fn.query.limit': 'Máximo de registros retornados.',
   'data-fn.query.order-by': 'Ordenação opcional { path, dir: "asc" | "desc" }.',
+  'data-fn.query.page':
+    'Opcional { after }. Lê em páginas, na ordem do id do registro: passe o cursor do resultado anterior em after, até ele voltar null. Não combina com orderBy.',
   'data-fn.query.projections': 'Campos retornados (inclui campos de referências, ex: "client.name").',
-  'data-fn.query.returns': 'count (quantidade), results (lista) e first (primeiro registro ou null).',
+  'data-fn.query.returns': 'count (quantidade), results (lista), first (primeiro registro ou null), hasMore (true quando ficaram registros de fora) e cursor (com page, o after da próxima página; null quando não há).',
   'data-fn.query.table':
     'Cadastro a consultar: a chave de uma tela.',
   'data-fn.query.where':
@@ -627,6 +639,12 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'path.not-a-list': '"{path}" não é uma lista',
   'path.scalar-has-no-field': '"{path}" é um valor simples e não possui "{field}"',
   'query.filter-value.missing': 'Valor do filtro não informado',
+  'query.limit.above-ceiling':
+    'Uma consulta devolve no máximo {max} registros: um limite de {limit} continua devolvendo {max}. Só os filtros "igual a" restringem os {scan} registros que ela lê do banco. Para percorrer mais, leia em páginas.',
+  'query.page.order-by':
+    'Uma consulta lida em páginas segue a ordem do id do registro e não pode declarar ordenação: ela valeria só dentro de cada página.',
+  'query.page.cursor-invalid':
+    'O cursor da página deve ser o texto publicado por uma página anterior, ou vazio na primeira. Recebido: {cursor}.',
   'query.limit.invalid': 'Limite deve ser um número positivo',
   'query.path.missing': 'Caminho não informado',
   'field-key.empty': 'Nome do campo não pode ser vazio',
@@ -825,6 +843,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.query.label.primeiro-resultado': 'Primeiro resultado',
   'step.query.label.quantidade-encontrada': 'Quantidade encontrada',
   'step.query.label.resultados-lista': 'Resultados (lista)',
+  'step.query.label.has-more': 'Ficaram registros de fora',
+  'step.query.label.cursor': 'Cursor da próxima página',
   'step.query.name': 'Buscar Registros',
   'step.register-audit.description':
     'Grava uma entrada no histórico de auditoria do escritório, sem gerar alerta.',
@@ -1184,6 +1204,9 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.map.built-fields': 'Campos montados',
   'step.map.built-named': 'Objeto "{name}" montado',
   'step.query.found': '{count} registro(s) encontrado(s) em "{table}"',
+  'step.query.found-partial':
+    '{count} registro(s) encontrado(s) em "{table}", e outros ficaram de fora: a consulta chegou ao teto. Leia em páginas para percorrer o restante.',
+  'step.query.found-page': '{count} registro(s) encontrado(s) em "{table}" nesta página; há mais depois do cursor.',
   'step.register-audit.done': 'Auditoria registrada',
   'step.script.done': 'Script "{name}" executado',
   'step.script.none-selected': 'Nenhum Script foi selecionado',

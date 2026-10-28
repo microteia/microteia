@@ -3,6 +3,7 @@ import { FieldPath } from 'firebase-admin/firestore';
 import type {
   IWorkflowQueryRepository,
   WorkflowEqualityFilter,
+  WorkflowQueryPage,
   WorkflowQueryRow,
 } from '../../domain/repositories/IWorkflowQueryRepository';
 import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
@@ -20,11 +21,17 @@ export class FirestoreWorkflowQueryRepository implements IWorkflowQueryRepositor
     collection: string,
     equalityFilters: WorkflowEqualityFilter[],
     limit: number,
+    page?: WorkflowQueryPage,
   ): Promise<WorkflowQueryRow[]> {
     let query: Query<DocumentData> = this.db.collection(`tenants/${tenantId}/${collection}`);
 
     for (const filter of equalityFilters) {
       query = query.where(toFieldPath(filter.path), filter.op ?? '==', filter.value);
+    }
+
+    if (page) {
+      query = query.orderBy(FieldPath.documentId());
+      if (page.after !== undefined) query = query.startAfter(page.after);
     }
 
     const snapshot = await query.limit(limit).get();

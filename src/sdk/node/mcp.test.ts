@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolve } from 'node:path';
 import { mcpPrompts, mcpResourceUris, mcpToolNames, mcpTools, readMcpPrompt, readMcpResource, runMcpTool } from './mcp';
 import { CORE_STEP_DEFINITION_IDS } from '../../domain/schema/workflowStepCatalog';
+import { QUERY_MAX_RESULTS, QUERY_MAX_SCAN, QUERY_PAGE_SINCE_KERNEL } from '../../domain/schema/querySpec';
 import { CUSTOM_FIELD_TYPES } from '../../domain/schema/fieldRules';
 import {
   REPORT_CHART_KINDS,
@@ -125,6 +126,27 @@ describe('o servidor MCP de autoria', () => {
       inputs: { id: string; shape: string | null }[];
     };
     expect(query.inputs.find((one) => one.id === 'query')?.shape).toBe('QuerySpec');
+  });
+
+  /**
+   * Os tetos da consulta não aparecem em input nenhum — e foi assim que um `limit: 300` devolveu 100 sem
+   * ninguém saber. O número é o da constante que o motor aplica, e a saída (a página) vem junto.
+   */
+  it('descreve os tetos da consulta e a leitura em páginas', () => {
+    const query = JSON.parse(runMcpTool('describe_workflow_step', { stepDefinitionId: 'query' }, ROOT)) as {
+      ceilings: string[];
+      outputs: { id: string }[];
+    };
+    const text = query.ceilings.join(' ');
+    expect(text).toContain(`at most ${QUERY_MAX_SCAN} documents`);
+    expect(text).toContain(`returns at most ${QUERY_MAX_RESULTS} records`);
+    expect(text).toMatch(/Only `eq`/);
+    expect(text).toMatch(/`orderBy` is refused with `page`/);
+    expect(text).toContain(QUERY_PAGE_SINCE_KERNEL);
+    expect(query.outputs.map((one) => one.id)).toEqual(expect.arrayContaining(['hasMore', 'cursor']));
+
+    const upsert = JSON.parse(runMcpTool('describe_workflow_step', { stepDefinitionId: 'upsert' }, ROOT)) as Record<string, unknown>;
+    expect(upsert.ceilings).toBeUndefined();
   });
 
   it('diz de qual origem de modelo é cada input do passo "Gerar documento"', () => {

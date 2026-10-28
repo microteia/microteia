@@ -16,6 +16,7 @@ import { fieldPresetReport } from './fieldPresets';
 import { recordSurfaceReport } from './recordSurfaces';
 import { navTargetReport } from './navTargetReport';
 import { undeclaredPathReport } from './undeclaredPaths';
+import { queryCeilingReport } from './queryCeilings';
 import { navGroupReport } from './navGroups';
 import { syncWorkspace } from './workspace/sync';
 import { functionDependencies } from './workspace/functionDependencies';
@@ -221,6 +222,22 @@ const sayUndeclaredPaths = (pkg: MarketplacePlugin, root: string): void => {
 };
 
 /**
+ * Os passos `query` com `limit` acima do que uma consulta devolve. Só avisa, nunca reprova: o motor corta
+ * no teto, e a automação que já roda assim continua rodando.
+ */
+const sayQueryCeilings = (pkg: MarketplacePlugin): void => {
+  const findings = queryCeilingReport(pkg);
+  if (findings.length === 0) return;
+
+  say();
+  say(`  ${DIM}${findings.length} query step(s) asking for more than a query returns${RESET}`);
+  for (const one of findings) {
+    say(`  ${YELLOW}!${RESET} ${one.step} ${DIM}(workflow "${one.workflow}")${RESET}`);
+    say(`     ${DIM}${one.detail}${RESET}`);
+  }
+};
+
+/**
  * Os grupos da barra lateral que o pacote declara ou em que põe item. Só avisa, nunca reprova: o
  * escritório pode ter uma extensão que este diretório não enxerga.
  */
@@ -333,6 +350,7 @@ const build = (args: Args, write: boolean): number => {
     + sayNavTargets(result.package, root) + sayDocumentSteps(result.package, root)
     + sayFieldPresets(result.package, root);
   sayUndeclaredPaths(result.package, root);
+  sayQueryCeilings(result.package);
   sayRecordSurfaces(result.package, root);
   sayNavGroups(result.package, root);
   const outsideNamespace = sayNamespace(manifest.id, root);

@@ -23,6 +23,7 @@ import {
 } from '../../schema/portal';
 import { PORTAL_IDENTITY_CLAIM_SINCE_KERNEL } from '../../schema/portalIdentity';
 import { UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL, type UpsertStepConfig } from '../../schema/mutationSpec';
+import { QUERY_PAGE_SINCE_KERNEL, type QuerySpec } from '../../schema/querySpec';
 
 /** As entradas que fazem do convite um convite por identidade — qualquer uma delas exige o kernel novo. */
 const PORTAL_IDENTITY_CLAIM_INPUTS = ['requiredClaimName', 'requiredClaimValue', 'requiredClaimNormalize'] as const;
@@ -303,6 +304,7 @@ const workflowIssues = (
     ...portalSharingKernelIssues(steps, ref, pkg),
     ...portalAccessIssues(steps, ref, pkg),
     ...upsertMatchKernelIssues(steps, ref, pkg),
+    ...queryPageKernelIssues(steps, ref, pkg),
     ...excludedStepIssues(workflow, steps, ref),
     ...delayIssues(workflow, steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
@@ -397,6 +399,29 @@ const upsertMatchKernelIssues = (
       ref,
       message: '@core.marketplace/issue.step.input-kernel',
       messageParams: { step: step.id, input: 'upsert.matchPrimaryKey', minimum: UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL },
+    }];
+  });
+};
+
+/**
+ * A consulta em páginas, num pacote que admite kernel anterior: lá `page` é ignorado, `cursor` nunca é
+ * publicado, e a automação que percorre a coleção relê a primeira página para sempre.
+ */
+const queryPageKernelIssues = (
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  if (rangeExcludesBelow(pkg.manifest?.kernel ?? '', QUERY_PAGE_SINCE_KERNEL)) return [];
+  return steps.flatMap((step): PackageValidationIssue[] => {
+    const config = step.stepDefinitionId === 'query' ? step.configuration?.query : undefined;
+    if (config?.kind !== 'Literal') return [];
+    const value = config.value as Partial<QuerySpec> | null | undefined;
+    if (value?.page === undefined) return [];
+    return [{
+      ref,
+      message: '@core.marketplace/issue.step.input-kernel',
+      messageParams: { step: step.id, input: 'query.page', minimum: QUERY_PAGE_SINCE_KERNEL },
     }];
   });
 };

@@ -84,13 +84,20 @@ const buildQuerySpec = (raw: unknown): QuerySpec => {
     return { path: typeof ord.path === 'string' ? ord.path : '', dir: ord.dir === 'desc' ? 'desc' : 'asc' };
   });
 
-  return {
+  const spec: QuerySpec = {
     table: typeof obj.table === 'string' ? obj.table : '',
     where,
     orderBy,
     limit: typeof obj.limit === 'number' ? obj.limit : 50,
     projections: Array.isArray(obj.projections) ? obj.projections.filter((x): x is string => typeof x === 'string') : [],
   };
+  // Só um objeto liga a leitura em páginas; o `after` vai como veio, e a consulta recusa o que não é
+  // texto em vez de recomeçar do início.
+  if (typeof obj.page === 'object' && obj.page !== null && !Array.isArray(obj.page)) {
+    const after = (obj.page as Record<string, unknown>).after;
+    spec.page = after === undefined ? {} : { after: { kind: 'Literal', value: after } };
+  }
+  return spec;
 };
 
 const buildUpsertSpec = (raw: unknown): UpsertSpec => {

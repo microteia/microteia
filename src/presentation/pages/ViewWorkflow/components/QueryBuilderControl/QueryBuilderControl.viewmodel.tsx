@@ -6,6 +6,7 @@ import { parsePath, suggestNextSegments } from '../../../../../domain/schema/pat
 import type { PathRoot, SchemaContext } from '../../../../../domain/schema/pathResolver';
 import {
   QUERY_OPERATORS_WITHOUT_VALUE,
+  querySpecWarnings,
   resolveQueryTable,
   validateQuerySpec,
 } from '../../../../../domain/schema/querySpec';
@@ -97,6 +98,9 @@ export interface QueryBuilderControlViewModel {
   pathOptions: SearchSelectOption[];
   operatorOptions: OperatorOption[];
   issuesByField: Record<string, string>;
+  /** O que a consulta aceita, mas não entrega como escrito — o `limit` acima do teto. Nunca impede salvar. */
+  warningsByField: Record<string, string>;
+  paging: boolean;
   setTable: (table: string) => void;
   addFilter: () => void;
   updateFilter: (index: number, predicate: QueryPredicate) => void;
@@ -106,6 +110,8 @@ export interface QueryBuilderControlViewModel {
   updateOrderBy: (index: number, order: QueryOrderBy) => void;
   removeOrderBy: (index: number) => void;
   setLimit: (limit: number) => void;
+  setPaging: (paging: boolean) => void;
+  setPageAfter: (after: InputMapping) => void;
 }
 
 export const useQueryBuilderControlViewModel = (
@@ -156,6 +162,11 @@ export const useQueryBuilderControlViewModel = (
     return map;
   }, [ctx, spec, label]);
 
+  const warningsByField = useMemo<Record<string, string>>(
+    () => Object.fromEntries(querySpecWarnings(spec).map((issue) => [issue.field, label(issue.error, issue.errorParams)])),
+    [spec, label],
+  );
+
   const emit = useCallback((next: QuerySpec) => onChange(next), [onChange]);
 
   const setTable = useCallback(
@@ -202,12 +213,32 @@ export const useQueryBuilderControlViewModel = (
     [emit, spec],
   );
 
+  const setPaging = useCallback(
+    (paging: boolean) => {
+      if (paging) {
+        emit({ ...spec, page: {} });
+        return;
+      }
+      const next: QuerySpec = { ...spec };
+      delete next.page;
+      emit(next);
+    },
+    [emit, spec],
+  );
+
+  const setPageAfter = useCallback(
+    (after: InputMapping) => emit({ ...spec, page: { ...spec.page, after } }),
+    [emit, spec],
+  );
+
   return {
     spec,
     tableOptions,
     pathOptions,
     operatorOptions,
     issuesByField,
+    warningsByField,
+    paging: spec.page !== undefined,
     setTable,
     addFilter,
     updateFilter,
@@ -217,5 +248,7 @@ export const useQueryBuilderControlViewModel = (
     updateOrderBy,
     removeOrderBy,
     setLimit,
+    setPaging,
+    setPageAfter,
   };
 };

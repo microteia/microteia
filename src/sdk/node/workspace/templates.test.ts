@@ -13,6 +13,7 @@ import {
 } from '../../../domain/schema/document';
 import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
 import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
+import { QUERY_MAX_RESULTS, QUERY_MAX_SCAN, QUERY_PAGE_SINCE_KERNEL } from '../../../domain/schema/querySpec';
 import { PACKAGE_ADVISORY_BYTES, PACKAGE_MAX_BYTES } from '../../../domain/usecases/plugins/pluginReferences';
 import { UI_EXTENSION_POINTS } from '../../../domain/schema/ui/uiExtensionPoints';
 import { ACCESS_EXTENSION_POINTS } from '../../../domain/schema/access';
@@ -85,6 +86,21 @@ const AGENTS = {
  * que os autores de extensão mais erravam. Uma tabela derivada sem teste voltaria a ficar incompleta
  * do mesmo jeito: o passo entra no kernel, a linha não entra no guia, e nada acusa.
  */
+/**
+ * Os tetos da consulta valiam no motor e não estavam escritos em lugar nenhum do guia: um lote pedido com
+ * `limit: 300` gerou 100, e o autor só soube pela contagem. O número é derivado, nunca digitado.
+ */
+describe('os tetos da consulta no guia', () => {
+  it('diz quanto a consulta lê e devolve, o que desce ao banco e como ler em páginas', () => {
+    const guide = authoringGuide(AGENTS);
+    expect(guide).toContain(`reads at most **${QUERY_MAX_SCAN} documents**`);
+    expect(guide).toContain(`returns at most **${QUERY_MAX_RESULTS} records**`);
+    expect(guide).toMatch(/\*\*Only `eq` goes to the database\*\*/);
+    expect(guide).toMatch(/`orderBy` is refused together with `page`/);
+    expect(guide).toContain(`\`page\` needs kernel ${QUERY_PAGE_SINCE_KERNEL} or later`);
+  });
+});
+
 describe('a tabela do catálogo de passos', () => {
   it('nomeia todos os passos do kernel, e nenhum a mais', () => {
     const guide = authoringGuide(AGENTS);

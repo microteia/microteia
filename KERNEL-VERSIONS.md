@@ -18,6 +18,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.175.0] — 2026-10-28
+
+- feat(automation/query): `QuerySpec.page` — a query reads a collection larger than its ceilings in pages, in document-id order (EV-29). The step publishes `cursor` (the `page.after` of the next page, `null` after the last one) and `hasMore`. Every matching record comes in exactly one page — with filters applied in memory, with the `limit` cutting mid-window, with `id` lookups and with the `memberVisibility` reader scan (the union is bounded at the smallest last id among the scans that hit the ceiling). Pages use `orderBy(FieldPath.documentId())`, the order equality-only queries already have, so no composite index is needed. `orderBy` together with `page` is refused (`query.page.order-by`); a cursor that is not text fails the step (`query.page.cursor-invalid`) instead of silently restarting from the first page. `IWorkflowQueryRepository.queryByEquality` gains an optional `page` argument.
+- feat(automation/query): every query result carries `hasMore` — true when records were left out by the `limit`, the result ceiling (100) or the read ceiling (300 documents). Until now a `limit: 300` returned 100 and the run history said "100 record(s) found"; the step now logs `step.query.found-partial`. Without `page`, results, order and ceilings are unchanged.
+- feat(automation/script): a script's `query({ …, page: { after } })` pages the same way and returns `cursor` and `hasMore`; `microteia-sandbox.d.ts`, the script editor reference and the data-function reference document both.
+- feat(workflow-builder): the query builder gains "Read in pages" with the cursor mapping, and warns — never blocks — on a `limit` above the ceiling.
+- refactor(query): `QUERY_MAX_SCAN` (300) and `QUERY_MAX_RESULTS` (100) move from `runWorkflowQuery.ts` to `querySpec.ts`, so the engine, AUTHORING, `describe_workflow_step`, the sandbox types and the builder state the same numbers.
+- feat(sdk/validate): `workflowIntegrity` refuses a `query` step with `page` in a package whose `manifest.kernel` admits a kernel below `QUERY_PAGE_SINCE_KERNEL` (2.83.0), where the option is ignored and the first page is read forever (`issue.step.input-kernel`). `check` and `validate_plugin` warn on a `limit` above `QUERY_MAX_RESULTS`. `KERNEL_VERSION` 2.83.0.
+- docs(authoring): §10 "How much a query reads — and reading a large collection in pages" states both ceilings, that only `eq` reaches the database, and when per-record workflows are the better tool; `describe_workflow_step` for `query` publishes `ceilings`. `com.microteia.locale-pt-br` 1.144.0.
+
 #### [9.174.0] — 2026-10-28
 
 - feat(automation/upsert): `UpsertStepConfig.matchPrimaryKey` — with no `id` in the object, the `upsert` step finds the record by the collection's `primary` key and updates it; when none holds the key, it creates (EV-28). Until now only the bulk import passed `matchPrimaryKey` to `runWorkflowUpsert`, so a step run twice was refused by the reservation ("Another record already holds the key …") although AUTHORING §8 called the `primary` key an address; a flow that had to be repeatable queried by the key's fields before every write. The workflow builder offers it as a checkbox.

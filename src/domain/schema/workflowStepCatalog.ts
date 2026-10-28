@@ -817,6 +817,8 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'count', label: '@core.automation/step.query.label.quantidade-encontrada', type: 'Number' },
       { id: 'results', label: '@core.automation/step.query.label.resultados-lista', type: 'String' },
       { id: 'first', label: '@core.automation/step.query.label.primeiro-resultado', type: 'String' },
+      { id: 'hasMore', label: '@core.automation/step.query.label.has-more', type: 'Boolean' },
+      { id: 'cursor', label: '@core.automation/step.query.label.cursor', type: 'String' },
     ],
     dynamicOutputs: {
       kind: 'from-query-projections',

@@ -3,6 +3,7 @@ import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import type { WorkflowStep } from '../../entities/Workflow';
 import { workflowStepIssues } from './workflowIntegrity';
 import { PORTAL_TRACK_VIEWS_SINCE_KERNEL } from '../../schema/portal';
+import { QUERY_PAGE_SINCE_KERNEL } from '../../schema/querySpec';
 
 /**
  * Cada caso aqui é um defeito que COMPILAVA e passava por toda a validação de pacote, e só falava no
@@ -566,5 +567,30 @@ describe('upsert que endereça pela chave primary', () => {
   it('o upsert sem a opção não cobra kernel nenhum', () => {
     expect(workflowStepIssues(comKernel([gravar({ table: 'lotes', source: 'input' })], '^2.0.0'))).toEqual([]);
     expect(workflowStepIssues(comKernel([gravar({ table: 'lotes', source: 'input', matchPrimaryKey: false })], '^2.0.0'))).toEqual([]);
+  });
+});
+
+describe('consulta lida em páginas', () => {
+  const comKernel = (steps: WorkflowStep[], kernel: string): MarketplacePlugin => {
+    const base = pacote(steps);
+    return { ...base, manifest: { ...base.manifest, kernel } } as unknown as MarketplacePlugin;
+  };
+  const buscar = (query: Record<string, unknown>) => passo({
+    id: 'buscar',
+    stepDefinitionId: 'query',
+    configuration: { query: { kind: 'Literal', value: { table: 'lotes', where: [], limit: 100, projections: [], ...query } } },
+  });
+
+  it('exige o kernel em que a página existe — num anterior a primeira página se repetiria para sempre', () => {
+    const emPaginas = buscar({ page: { after: { kind: 'Expression', expression: 'event.cursor' } } });
+    expect(workflowStepIssues(comKernel([emPaginas], '^2.82.0')).map((issue) =>
+      [issue.message, issue.messageParams?.input, issue.messageParams?.minimum])).toEqual([
+      ['@core.marketplace/issue.step.input-kernel', 'query.page', QUERY_PAGE_SINCE_KERNEL],
+    ]);
+    expect(workflowStepIssues(comKernel([emPaginas], `^${QUERY_PAGE_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('a consulta sem página não cobra kernel nenhum', () => {
+    expect(workflowStepIssues(comKernel([buscar({})], '^2.0.0'))).toEqual([]);
   });
 });

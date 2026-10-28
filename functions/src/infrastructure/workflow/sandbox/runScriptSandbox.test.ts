@@ -273,3 +273,53 @@ describe('runScriptSandbox — upsert() pela chave primary', () => {
     }
   });
 });
+
+describe('runScriptSandbox — query() em páginas', () => {
+  const itensScreen: SchemaScreen = {
+    id: 'itens',
+    titleSingular: 'Item',
+    titleFieldKey: 'nome',
+    fields: [{ key: 'nome', label: 'Nome', type: 'text', required: false, order: 0, origin: 'design' }],
+  };
+  const ITENS = Array.from({ length: 7 }, (_, index) => ({ id: `i${index}`, data: { nome: `Item ${index}` } }));
+
+  const pagedDeps: WorkflowQueryDeps = {
+    queryRepository: {
+      queryByEquality: async (_tenantId, _collection, _filters, limit, page) =>
+        ITENS.filter((row) => page?.after === undefined || row.id > page.after).slice(0, limit),
+    },
+    fetcher: { fetchByIds: async () => new Map() },
+    screenProvider: fakeScreenProvider([itensScreen]),
+  };
+
+  const runPaged = (js: string) => runScriptSandbox(js, {}, makeContext({}), pagedDeps, mutationDeps);
+
+  it('percorre a coleção passando o cursor de volta em page.after, até ele voltar null', async () => {
+    const out = await runPaged(wrapMain(`
+      const ids = [];
+      let cursor = null;
+      let pages = 0;
+      do {
+        const r = await query({ table: 'itens', limit: 3, page: { after: cursor } });
+        r.results.forEach((item) => ids.push(item.id));
+        cursor = r.cursor;
+        pages += 1;
+      } while (cursor !== null);
+      return { ids, pages };`));
+    expect(out).toEqual({ ids: ITENS.map((row) => row.id), pages: 3 });
+  });
+
+  it('sem page, o resultado diz hasMore e não publica cursor', async () => {
+    const out = await runPaged(wrapMain(`
+      const r = await query({ table: 'itens', limit: 3 });
+      return { count: r.count, hasMore: r.hasMore, cursor: r.cursor };`));
+    expect(out).toEqual({ count: 3, hasMore: true, cursor: null });
+  });
+
+  it('um cursor que não é texto rejeita a consulta', async () => {
+    const out = await runPaged(wrapMain(`
+      try { await query({ table: 'itens', limit: 3, page: { after: 7 } }); return { ok: true }; }
+      catch (error) { return { refused: String(error) }; }`));
+    expect(out).toEqual({ refused: '@core.automation/query.page.cursor-invalid' });
+  });
+});

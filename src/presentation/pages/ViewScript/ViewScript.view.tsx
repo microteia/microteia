@@ -197,6 +197,13 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       </S.ParamHead>
                       <S.ParamDesc>{t('script.query-doc.projections')}</S.ParamDesc>
                     </S.ParamRow>
+                    <S.ParamRow>
+                      <S.ParamHead>
+                        <S.ParamName>page</S.ParamName>
+                        <S.Pill>{t('core.ui/field.optional')}</S.Pill>
+                      </S.ParamHead>
+                      <S.ParamDesc>{t('script.query-doc.page')}</S.ParamDesc>
+                    </S.ParamRow>
                   </S.ParamList>
                 </S.DocGroup>
 
@@ -258,6 +265,7 @@ const names = r.results.map((item) => item.name);`}</S.Pre>
                     <S.Note>{t('script.query-doc.limit.await')}</S.Note>
                     <S.Note>{t('script.query-doc.limit.count')}</S.Note>
                     <S.Note>{t('script.query-doc.limit.scan')}</S.Note>
+                    <S.Note>{t('script.query-doc.limit.has-more')}</S.Note>
                   </S.NoteList>
                 </S.DocGroup>
               </S.Doc>

@@ -34,11 +34,12 @@ const QUERY_STEP = 'query';
 const isQuerySpec = (value: unknown): value is QuerySpec =>
   typeof value === 'object' && value !== null && typeof (value as QuerySpec).table === 'string';
 
-const querySpecsOf = (pkg: MarketplacePlugin): { workflow: string; spec: QuerySpec }[] =>
+/** Os passos `query` do pacote cuja consulta é um `Literal` — a única forma que dá para ler sem executar. */
+export const querySpecsOf = (pkg: MarketplacePlugin): { workflow: string; step: string; spec: QuerySpec }[] =>
   pkg.workflows.flatMap((workflow) => flattenSteps(workflow.steps).flatMap((step) => {
     const mapping = step.configuration?.query;
     if (step.stepDefinitionId !== QUERY_STEP || mapping?.kind !== 'Literal' || !isQuerySpec(mapping.value)) return [];
-    return [{ workflow: workflow.name, spec: mapping.value }];
+    return [{ workflow: workflow.name, step: step.id, spec: mapping.value }];
   }));
 
 const hasPaths = (pkg: MarketplacePlugin): boolean =>

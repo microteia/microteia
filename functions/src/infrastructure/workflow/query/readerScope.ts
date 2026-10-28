@@ -1,8 +1,9 @@
-import type { IWorkflowQueryRepository, WorkflowEqualityFilter, WorkflowQueryRow } from '../../../domain/repositories/IWorkflowQueryRepository';
+import type { IWorkflowQueryRepository, WorkflowEqualityFilter, WorkflowQueryPage, WorkflowQueryRow } from '../../../domain/repositories/IWorkflowQueryRepository';
 import type { IWorkflowRecordFetcher } from '../../../domain/repositories/IWorkflowRecordFetcher';
 import type { SchemaContext } from '../../../domain/schema/pathResolver';
 import type { MemberVisibilitySpec, RecordReader } from '../../../domain/schema/memberVisibility';
 import { readerRestriction, readerSeesRecord, resolveMemberVisibility } from '../../../domain/schema/memberVisibility';
+import { compareDocumentIds } from './documentIdOrder';
 
 /**
  * A leitura do servidor quando ela é ENTREGUE a uma pessoa — o agente, o relatório, o documento.
@@ -66,10 +67,11 @@ export const scanVisibleRows = async (
   spec: MemberVisibilitySpec,
   uid: string,
   maxScan: number,
+  page?: WorkflowQueryPage,
 ): Promise<ReaderScan> => {
   const scans = await Promise.all(spec.userFields.flatMap((field) => [
-    queryRepository.queryByEquality(tenantId, collection, [...equalityFilters, { path: field, value: uid }], maxScan),
-    queryRepository.queryByEquality(tenantId, collection, [{ path: field, value: uid, op: 'array-contains' }], maxScan),
+    queryRepository.queryByEquality(tenantId, collection, [...equalityFilters, { path: field, value: uid }], maxScan, page),
+    queryRepository.queryByEquality(tenantId, collection, [{ path: field, value: uid, op: 'array-contains' }], maxScan, page),
   ]));
 
   const byId = new Map<string, WorkflowQueryRow>();
@@ -77,8 +79,31 @@ export const scanVisibleRows = async (
     if (!byId.has(row.id)) byId.set(row.id, row);
   }
   const union = [...byId.values()];
+  if (page) return pagedUnion(scans, union, maxScan);
   return {
     rows: union.slice(0, maxScan),
     complete: scans.every((scan) => scan.length < maxScan) && union.length <= maxScan,
+  };
+};
+
+/**
+ * A união em ordem de id, cortada onde todas as varreduras ainda respondem.
+ *
+ * Cada varredura que bateu no teto só garante o que vai até o ÚLTIMO id que ela trouxe; depois dele,
+ * pode haver registro dela que não veio. O corte é o menor desses ids: até ali a união é exata, e o
+ * cursor da página seguinte começa depois do último registro que ficou — sem pular nenhum.
+ */
+const pagedUnion = (scans: WorkflowQueryRow[][], union: WorkflowQueryRow[], maxScan: number): ReaderScan => {
+  const bounds = scans
+    .filter((scan) => scan.length >= maxScan)
+    .map((scan) => scan[scan.length - 1].id)
+    .sort(compareDocumentIds);
+  const bound = bounds[0];
+  const ordered = union
+    .filter((row) => bound === undefined || compareDocumentIds(row.id, bound) <= 0)
+    .sort((left, right) => compareDocumentIds(left.id, right.id));
+  return {
+    rows: ordered.slice(0, maxScan),
+    complete: bound === undefined && ordered.length <= maxScan,
   };
 };

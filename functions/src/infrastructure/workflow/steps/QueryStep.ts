@@ -25,14 +25,24 @@ export const makeQueryStepDefinition = (
         return { success: false, message: outcome.error, messageParams: outcome.errorParams };
       }
 
+      // O histórico da execução diz quando a resposta não é o conjunto inteiro — antes, um `limit: 300`
+      // devolvia 100 e a linha dizia só "100 registros encontrados".
+      const message = !outcome.value.hasMore
+        ? '@core.automation/step.query.found'
+        : spec.page
+          ? '@core.automation/step.query.found-page'
+          : '@core.automation/step.query.found-partial';
+
       return {
         success: true,
-        message: '@core.automation/step.query.found',
+        message,
         messageParams: { count: String(outcome.value.count), table: spec.table },
         outputs: {
           results: outcome.value.results,
           count: outcome.value.count,
           first: outcome.value.first,
+          hasMore: outcome.value.hasMore,
+          cursor: outcome.value.cursor,
         },
       };
     },

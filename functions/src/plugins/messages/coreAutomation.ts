@@ -215,6 +215,12 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'query.operator.placeholder': 'Operator…',
   'query.expression.placeholder': 'ex: event.status',
   'query.limit': 'Limit',
+  'query.page': 'Pages',
+  'query.page.enable': 'Read in pages',
+  'query.page.hint':
+    'For a collection larger than one query. Each run reads the next page, in the order of the record id, and publishes a cursor; pass it back below to continue where the previous run stopped. Not allowed with a sort.',
+  'query.page.after': 'Continue after (cursor)',
+  'query.page.after.placeholder': 'ex: event.cursor — empty on the first page',
   'remove.record-id': 'Id of the record to delete',
   'remove.record-id.placeholder': 'Record id',
   'remove.expression.placeholder': "ex: query('...').first.id",
@@ -449,6 +455,10 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'script.query-doc.limit.await': 'Always use await when calling query.',
   'script.query-doc.limit.count': 'At most 25 queries per script run.',
   'script.query-doc.limit.scan': 'Filters and sorting scan up to 300 records per query.',
+  'script.query-doc.limit.has-more':
+    'hasMore says some records were left out. To go through all of them, read in pages: page: { after: previous.cursor }, until cursor is null.',
+  'script.query-doc.page':
+    'Optional { after }. Reads in pages, in record-id order, and returns a cursor — pass it as after on the next call. Not allowed with orderBy.',
   'script.query-doc.limits': 'Limits',
   'script.query-doc.op.contains': 'contains',
   'script.query-doc.op.eq': 'equal to',
@@ -582,7 +592,9 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'data-fn.query.limit': 'The maximum number of records returned.',
   'data-fn.query.order-by': 'Optional sorting { path, dir: "asc" | "desc" }.',
   'data-fn.query.projections': 'The fields returned (including fields of references, e.g. "client.name").',
-  'data-fn.query.returns': 'count (how many), results (the list) and first (the first record or null).',
+  'data-fn.query.page':
+    'Optional { after }. Reads in pages, in record-id order: pass the cursor of the previous result as after, until it comes back null. Not allowed with orderBy.',
+  'data-fn.query.returns': 'count (how many), results (the list), first (the first record or null), hasMore (true when records were left out) and cursor (with page, the after of the next page; null when there is none).',
   'data-fn.query.table': 'The collection to query: the key of a screen.',
   'data-fn.query.where':
     'A list of { path, op, value } filters. Operators: eq, neq, lt, lte, gt, gte, in, contains, exists.',
@@ -632,6 +644,12 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'path.not-a-list': '"{path}" is not a list',
   'path.scalar-has-no-field': '"{path}" is a plain value and has no "{field}"',
   'query.filter-value.missing': 'The filter value was not provided',
+  'query.limit.above-ceiling':
+    'A query returns at most {max} records, so a limit of {limit} still returns {max}. Only "equal to" filters narrow the {scan} records it reads from the database. To go through more, read in pages.',
+  'query.page.order-by':
+    'A query read in pages follows the order of the record id, and cannot declare a sort: it would only hold inside each page.',
+  'query.page.cursor-invalid':
+    'The page cursor must be the text a previous page published, or empty for the first page. Received: {cursor}.',
   'query.limit.invalid': 'The limit must be a positive number',
   'query.path.missing': 'The path was not provided',
   'field-key.empty': 'The field name cannot be empty',
@@ -829,6 +847,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.query.label.primeiro-resultado': 'First result',
   'step.query.label.quantidade-encontrada': 'How many were found',
   'step.query.label.resultados-lista': 'Results (list)',
+  'step.query.label.has-more': 'More records left out',
+  'step.query.label.cursor': 'Cursor of the next page',
   'step.query.name': 'Find Records',
   'step.register-audit.description':
     'Writes an entry in the organization audit trail, without raising an alert.',
@@ -1187,6 +1207,9 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.map.built-fields': 'Fields built',
   'step.map.built-named': 'Object "{name}" built',
   'step.query.found': '{count} record(s) found in "{table}"',
+  'step.query.found-partial':
+    '{count} record(s) found in "{table}", and more were left out: the query reached its ceiling. Read in pages to go through the rest.',
+  'step.query.found-page': '{count} record(s) found in "{table}" in this page; more remain after the cursor.',
   'step.register-audit.done': 'Audit entry recorded',
   'step.script.done': 'Script "{name}" ran',
   'step.script.none-selected': 'No Script was selected',
