@@ -351,6 +351,12 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'O campo "{field}" de "{screen}" declara um onChangeLookup.map que não é um objeto não vazio de { "<chave do provedor>": "<chave do campo>" }, ambos em texto.',
   'issue.package.field.lookup.map-target':
     'O campo "{field}" de "{screen}" envia "{output}" para "{target}", que não é campo dessa tela. O map recebe a chave de um campo declarado na mesma tela — achatada, como "enderecoLogradouro", nunca "endereco.logradouro".',
+  'issue.package.field.preset.absent':
+    'O campo "{field}" de "{screen}" usa o preset "{preset}" em {path}, que nem o kernel, nem este pacote, nem as dependências dele ({dependencies}) declaram. Em execução, preset desconhecido não faz nada: o campo o perderia sem aviso.',
+  'issue.package.field.preset.absent.suggest':
+    'O campo "{field}" de "{screen}" usa o preset "{preset}" em {path}, que nem o kernel, nem este pacote, nem as dependências dele ({dependencies}) declaram, e o campo o perderia sem aviso. Você quis dizer "{suggestion}"?',
+  'issue.package.field.preset.slot':
+    'O campo "{field}" de "{screen}" usa o preset "{preset}" em {path}, mas "{preset}" (declarado por {owner}) não declara a seção {part}, e o {path} não faria nada nesse campo.',
   'issue.package.icon.unknown':
     'O ícone "{icon}" ({where}) não está no catálogo da plataforma. A instalação desenharia o marcador genérico no lugar dele. Peça `list_icons` ao servidor MCP microteia-plugin para ver todas as chaves.',
   'issue.package.message.key':

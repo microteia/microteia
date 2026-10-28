@@ -8,6 +8,8 @@ import { declaredDocumentTemplates } from '../../domain/usecases/plugins/documen
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import type { ExportedArtifact } from '../../domain/usecases/plugins/crossExtensionRefs';
 import { exportedSurface } from '../../domain/usecases/plugins/crossExtensionRefs';
+import type { OfferedFieldPreset } from '../../domain/usecases/plugins/fieldPresetRefs';
+import { declaredFieldPresets } from '../../domain/usecases/plugins/fieldPresetRefs';
 import type { NavTargetOwner } from '../../domain/usecases/plugins/navTargets';
 import { navTargetOwnerOf } from '../../domain/usecases/plugins/navTargets';
 import type { CatalogException, CatalogScreenInput, DomainCatalog } from '../domain/catalog';
@@ -141,6 +143,8 @@ export interface WorkspaceCatalog {
     navGroups?: DeclaredNavGroup[];
     /** Os modelos de documento que o pacote declara, como contrato — o que um passo de uma irmã cita. */
     documentTemplates?: DocumentTemplateContract[];
+    /** Os presets de campo que o pacote declara — o que o `mask` de uma irmã que o declara pode nomear. */
+    fieldPresets?: OfferedFieldPreset[];
   }[];
   /**
    * Os `plugin.ts` de `examples/`, como CAMINHO e nada mais.
@@ -254,6 +258,7 @@ export const readWorkspaceCatalog = (
         navTargets: navTargetOwnerOf(pkg),
         navGroups: declaredNavGroupsOf(pkg.manifest.contributes),
         documentTemplates: declaredDocumentTemplates(pkg.manifest.contributes),
+        fieldPresets: declaredFieldPresets(pkg.manifest.contributes),
       });
     } catch (error) {
       failures.push({ path: relative(root, entry), error: error instanceof Error ? error.message : String(error) });

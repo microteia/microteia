@@ -210,6 +210,27 @@ describe('os grupos da barra lateral do retrato', () => {
   });
 });
 
+describe('os presets de campo do retrato', () => {
+  const brasil = (fieldPresets: unknown): Record<string, unknown> => ({
+    id: 'com.microteia.brasil', name: 'Brasil', version: '1.2.1', active: true, exports: [], navGroups: [], documentTemplates: [],
+    ...(fieldPresets === undefined ? {} : { fieldPresets }),
+  });
+
+  it('traz a chave e as partes, e descarta a parte que não conhece', () => {
+    write(snapshot({ extensions: [brasil([{ key: 'cpfCnpj', slots: ['mask', 'validate', 'teleporte'] }, { slots: ['mask'] }])] }));
+    const read = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(read.fieldPresetsKnown).toBe(true);
+    expect(read.snapshot?.extensions[0].fieldPresets).toEqual([{ key: 'cpfCnpj', slots: ['mask', 'validate'] }]);
+  });
+
+  it('chave AUSENTE é silêncio de um Console antigo, e os presets deixam de ser conhecidos', () => {
+    write(snapshot({ extensions: [brasil(undefined)] }));
+    const read = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(read.fieldPresetsKnown).toBe(false);
+    expect(read.snapshot?.extensions[0].fieldPresets).toBeUndefined();
+  });
+});
+
 describe('os modelos de documento do retrato', () => {
   const contratos = (documentTemplates: unknown): Record<string, unknown> => ({
     id: 'com.example.docs', name: 'Docs', version: '1.0.0', active: true, exports: [], navGroups: [],

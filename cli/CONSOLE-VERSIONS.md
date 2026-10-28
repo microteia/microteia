@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.32.0] — 2026-10-27
+
+- feat(export-catalog): each installed extension now carries `fieldPresets` — every `data.field.preset` it declares, as its key and the parts it has (`mask`, `format`, `validate`), never the templates, formatting ops or validation rules. The authoring tools check a field's `mask`, `rules.format.preset` and `rules.validate.check` against it, so a key the dependency does not declare (`cpf-cnpj` for the Brasil extension's `cpfCnpj`) is refused by `check` instead of installing a field that silently has no mask. Always written, even empty; a snapshot taken by an older Console is read as "presets unknown".
+
 #### [2.31.1] — 2026-10-26
 
 - docs(kernel/manifest): the optional prerequisite `portal-identity-signing` now names a third feature that signs with the functions' runtime account: a portal screen declaring `documentLinks` hands guests V4 signed URLs, and without `iam.serviceAccounts.signBlob` the guest cannot open its documents (the denial shows in the log of `getPortalDocumentUrl`). `microteia grant-signing` grants the same permission for all three.

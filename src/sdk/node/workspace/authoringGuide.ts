@@ -234,7 +234,9 @@ const FIELD_TYPES: Record<CustomFieldType, string> = {
   masked: 'Text shaped by a named PRESET: `mask` carries the preset\'s key, never a template. '
     + 'Declare your own with `fieldRulePresetContribution` — its `templates` use `#` for a digit, `A` for '
     + 'a letter, `*` for either, and anything else literally (`###.###.###-##`); several templates in one '
-    + 'preset alternate by length.',
+    + 'preset alternate by length. A preset of another extension (`cpfCnpj` of the Brasil extension) needs '
+    + 'that extension in `dependencies`; `check` refuses a key the kernel, your package and the dependencies it '
+    + 'can read do not declare — an unknown key installs and the field silently goes without its mask.',
   reference: 'Points at a record of another screen. `refEntity` is the target — a `key` of a screen in your own package, or a collection that already exists.',
   markdown: 'Rich text, written and rendered as Markdown.',
   file: 'One upload. The value stored is the download URL, so the field stays scalar; `file` restricts extension and size.',
@@ -1681,7 +1683,7 @@ Beyond \`key\`, \`label\`, \`type\`, \`order\` and \`required\`, the properties 
 | \`logic\` | the expressions: \`compute\`, \`validate\`, \`hiddenWhen\`, \`disabledWhen\`, \`onChange\` (§9) |
 | \`logic.onChangeLookup: { provider, map }\` | when the field changes, asks an external provider (\`lookupProviderContribution\` — the Brasil extension publishes \`viacep\`) and fills OTHER fields with the reply. \`map\` names, key by key, the field of THIS screen that receives each value — \`{ street: 'addressStreet', city: 'addressCity' }\` —, which is how a flattened value object (§8.0) gets filled; a provider key left out of \`map\` is discarded. The field that triggers the lookup is never rewritten, and \`check\` refuses a target that is not a field of the screen, or one the platform writes itself (\`compute\`, \`derive\`, \`aggregation\`). Without \`map\`, \`targetPrefix\` writes \`<prefix>.<key>\` — the dotted form §8.0 forbids, kept only for those who already use it; never declare both. Client only. A package using \`map\` declares \`kernel: '^${LOOKUP_TARGET_MAP_SINCE_KERNEL}'\` or later |
 | \`aggregation: { from, via, op, field?, filter?, orderBy? }\` | the value comes from CHILD records — \`op\` is one of ${inlineList(AGGREGATION_OP_NAMES)}. Declared, not inferred, so the engine knows exactly when to recompute. \`latest\` copies \`field\` of the first child that passes \`filter\` after sorting by \`orderBy\` (required with it, and only with it): an empty key sorts last in both directions, ties fall to \`createdAt\` in the direction of the last key and then to the document id, and no matching child makes the field empty (\`null\`). The parent field must have the child field's type, option list, target and cardinality — the value is copied as it is. "The first" is \`latest\` with \`dir: 'asc'\`. A package using \`latest\` declares \`kernel: '^${AGGREGATION_OP_SINCE_KERNEL.latest}'\` or later |
-| \`rules\` | \`validate\` (\`check\`, \`pattern\`, \`minLength\`, \`maxLength\`, \`message\`) and \`format\` (\`preset\`, or \`pattern\` + \`replacement\`). A requirement that depends on other fields is an expression in \`logic.validate\` |
+| \`rules\` | \`validate\` (\`check\`, \`pattern\`, \`minLength\`, \`maxLength\`, \`message\`) and \`format\` (\`preset\`, or \`pattern\` + \`replacement\`). \`check\` and \`format.preset\` name a preset, held like \`mask\` (see \`masked\` above). A requirement that depends on other fields is an expression in \`logic.validate\` |
 | \`showInList\`, \`listLabel\`, \`listIcon\`, \`listOrder\` | whether and how the field appears on the list card |
 | \`filterable\` | the field becomes a filter on the list |
 | \`hiddenInForm\` | keeps a field out of the form without deleting it |
@@ -2518,7 +2520,7 @@ that case, and only for it, a \`notify\` step writes to an ADDRESS read from the
 // the screen says which fields are contacts
 fields: [
   { key: 'email', label: label('field.email'), type: 'text', order: 3, required: false, contact: 'email' },
-  { key: 'mobile', label: label('field.mobile'), type: 'masked', mask: '(00) 00000-0000', order: 4, required: false, contact: 'phone' },
+  { key: 'mobile', label: label('field.mobile'), type: 'masked', mask: 'phone', order: 4, required: false, contact: 'phone' },
 ],
 
 // the step says which of them to reach

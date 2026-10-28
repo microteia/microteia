@@ -10,6 +10,8 @@ import type { FirestoreDocument } from './firestoreRest.js';
 import { readInstalledCatalog } from '../../../src/sdk/node/installedCatalog';
 import { declaredDocumentTemplates } from '../../../src/domain/usecases/plugins/documentStepIntegrity';
 import { documentExamplePlugin } from '../../../src/plugins/marketplace/examples/document-example/plugin';
+import { declaredFieldPresets } from '../../../src/domain/usecases/plugins/fieldPresetRefs';
+import { brasilPlugin } from '../../../src/plugins/marketplace/brasil';
 
 /**
  * O RETRATO, montado a partir do que o Firestore devolve — e lido de volta pelo SDK.
@@ -173,7 +175,7 @@ describe('a exportação do catálogo instalado', () => {
       { collection: 'customerTags', label: 'Etiquetas', ownerPluginId: 'com.example.billing' },
     ]);
     expect(exported.extensions).toStrictEqual([
-      { id: 'com.example.billing', name: 'Billing', version: '2.1.0', active: true, exports: [], navGroups: [], documentTemplates: [] },
+      { id: 'com.example.billing', name: 'Billing', version: '2.1.0', active: true, exports: [], navGroups: [], documentTemplates: [], fieldPresets: [] },
     ]);
   });
 
@@ -391,6 +393,56 @@ describe('os modelos de documento que cada extensão declara', () => {
       expect(read.documentTemplatesKnown).toBe(true);
       expect(read.snapshot?.extensions.find((one) => one.id === documents.id)?.documentTemplates)
         .toStrictEqual(buildWith([documents]).extensions[0].documentTemplates);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * Os presets de campo atravessam como as PARTES que cada um tem: é contra elas que o `mask` de um
+ * campo de outra extensão é conferido. A leitura do Console é uma cópia da do kernel, e este teste é o
+ * que impede as duas de divergirem.
+ */
+describe('os presets de campo que cada extensão declara', () => {
+  const brasil: InstalledExtensionRecord = {
+    ...EXTENSIONS[0],
+    id: brasilPlugin.manifest.id,
+    manifest: JSON.parse(JSON.stringify(brasilPlugin.manifest)) as Record<string, unknown>,
+  };
+
+  const buildWith = (extensions: InstalledExtensionRecord[]) => buildCatalogExport({
+    projectId: 'office-prod',
+    tenant: { id: 'tenant-1', name: 'Escritório Central' },
+    kernelVersion: '2.80.0',
+    exportedAt: EXPORTED_AT,
+    screens: [], lookups: [], tagLists: [],
+    extensions,
+  });
+
+  it('o Console lê o mesmo que o kernel lê do manifesto', () => {
+    const exported = buildWith([brasil]).extensions[0].fieldPresets;
+    const kernel = declaredFieldPresets(brasilPlugin.manifest.contributes)
+      .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+    expect(exported).toStrictEqual(kernel);
+    expect(exported.find((one) => one.key === 'cpfCnpj')?.slots).toStrictEqual(['mask', 'format', 'validate']);
+  });
+
+  it('leva a chave e as partes, nunca o template nem a regra', () => {
+    const written = JSON.stringify(buildWith([brasil]).extensions[0].fieldPresets);
+    expect(written).not.toContain('###');
+    expect(written).not.toContain('isCPF');
+  });
+
+  it('o kernel lê os presets de volta e os considera conhecidos', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'microteia-export-presets-'));
+    try {
+      writeFileSync(join(directory, CATALOG_FILE), `${JSON.stringify(buildWith([brasil, EXTENSIONS[0]]), null, 2)}\n`);
+      const read = readInstalledCatalog(directory, EXPORTED_AT);
+
+      expect(read.fieldPresetsKnown).toBe(true);
+      expect(read.snapshot?.extensions.find((one) => one.id === brasil.id)?.fieldPresets)
+        .toStrictEqual(buildWith([brasil]).extensions[0].fieldPresets);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

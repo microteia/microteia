@@ -12,6 +12,7 @@ import { serveMcp } from './mcp';
 import { crossRefReport } from './referenceable';
 import { eventRefReport } from './eventRefs';
 import { documentStepReport } from './documentSteps';
+import { fieldPresetReport } from './fieldPresets';
 import { recordSurfaceReport } from './recordSurfaces';
 import { navTargetReport } from './navTargetReport';
 import { undeclaredPathReport } from './undeclaredPaths';
@@ -185,6 +186,25 @@ const sayDocumentSteps = (pkg: MarketplacePlugin, root: string): number => {
 };
 
 /**
+ * O preset que um campo nomeia e que o kernel e o próprio pacote não declaram. Conta como problema só o
+ * `refused` — as dependências declaradas foram lidas e não o têm. O que este diretório não enxerga é
+ * dito, nunca recusado: o campo pode funcionar hoje no escritório que tem a extensão certa.
+ */
+const sayFieldPresets = (pkg: MarketplacePlugin, root: string): number => {
+  const findings = fieldPresetReport(pkg, root);
+  if (findings.length === 0) return 0;
+
+  say();
+  say(`  ${DIM}${findings.length} field preset(s) another extension should declare${RESET}`);
+  for (const one of findings) {
+    const mark = one.status === 'ok' ? `${GREEN}ok${RESET}` : one.status === 'refused' ? `${RED}x${RESET}` : `${YELLOW}!${RESET}`;
+    say(`  ${mark} ${one.preset} ${DIM}(${one.path} of ${one.field})${RESET}`);
+    say(`     ${DIM}${one.detail}${RESET}`);
+  }
+  return findings.filter((one) => one.status === 'refused').length;
+};
+
+/**
  * Os caminhos de relatório e de consulta que nenhum campo das telas visíveis declara. Só avisa, nunca
  * reprova: a plataforma os aceita porque o escritório pode ter criado o campo no Form Design.
  */
@@ -310,7 +330,8 @@ const build = (args: Args, write: boolean): number => {
 
   const root = resolve(args.values.get('root') ?? process.cwd());
   const refusedRefs = sayCrossRefs(result.package, root) + sayEventRefs(result.package, root)
-    + sayNavTargets(result.package, root) + sayDocumentSteps(result.package, root);
+    + sayNavTargets(result.package, root) + sayDocumentSteps(result.package, root)
+    + sayFieldPresets(result.package, root);
   sayUndeclaredPaths(result.package, root);
   sayRecordSurfaces(result.package, root);
   sayNavGroups(result.package, root);

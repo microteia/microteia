@@ -74,6 +74,7 @@ import { navTargetReport } from './navTargetReport';
 import { navGroupReport, sameNameDifferentKeys, summarizeNavGroups, visibleNavGroups } from './navGroups';
 import { eventRefReport } from './eventRefs';
 import { documentStepReport } from './documentSteps';
+import { fieldPresetReport } from './fieldPresets';
 import { undeclaredPathReport } from './undeclaredPaths';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
@@ -202,6 +203,22 @@ const describeDocumentSteps = (pkg: MarketplacePlugin, root: string): string => 
     : `${refused.length} of ${findings.length} step(s) generating a document template of another package do NOT fill its contract:`;
   return `\n\n${head}\n${findings
     .map((one) => `- [${one.status}] ${one.templateKey} (step "${one.step}" of ${one.writtenBy}) — ${one.detail}`)
+    .join('\n')}`;
+};
+
+/**
+ * O preset que um campo nomeia e que só outra extensão pode declarar. `refused` é a chave que as
+ * dependências lidas aqui não têm; o que não se enxerga é dito, nunca recusado.
+ */
+const describeFieldPresets = (pkg: MarketplacePlugin, root: string): string => {
+  const findings = fieldPresetReport(pkg, root);
+  if (findings.length === 0) return '';
+  const refused = findings.filter((one) => one.status === 'refused');
+  const head = refused.length === 0
+    ? `${findings.length} field preset(s) another extension should declare, none of them refused here:`
+    : `${refused.length} of ${findings.length} field preset(s) name a preset their dependencies do NOT declare:`;
+  return `\n\n${head}\n${findings
+    .map((one) => `- [${one.status}] ${one.preset} (${one.path} of ${one.field}) — ${one.detail}`)
     .join('\n')}`;
 };
 
@@ -421,19 +438,20 @@ const TOOLS: ToolDefinition[] = [
       if (typeof input.json === 'string') {
         const parsed = parsePackage(input.json);
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeFieldPresets(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const path = resolve(root, asString(input.path, 'path'));
       if (path.endsWith('.json')) {
         const parsed = parsePackage(readFileSync(path, 'utf8'));
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeFieldPresets(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const result = buildPlugin({ entry: path });
       return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`
         + describeCrossRefs(result.package, root)
         + describeEventRefs(result.package, root)
         + describeDocumentSteps(result.package, root)
+        + describeFieldPresets(result.package, root)
         + describeUndeclaredPaths(result.package, root)
         + describeRecordSurfaces(result.package, root)
         + describeNavTargets(result.package, root)

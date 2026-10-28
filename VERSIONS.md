@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.171.0] — 2026-10-27
+
+- A conferência de uma extensão agora avisa quando um campo usa uma máscara, formatação ou validação pronta que não existe — por exemplo, um nome digitado com grafia diferente da que a extensão Brasil oferece — e sugere o nome certo. Antes, a extensão era instalada e o campo simplesmente ficava sem máscara, sem nenhum aviso.
+
 #### [9.170.0] — 2026-10-27
 
 - A busca de endereço pelo CEP agora pode preencher qualquer campo do cadastro: no desenho da tela, escolha para cada informação devolvida (logradouro, bairro, cidade, UF) o campo que a recebe.

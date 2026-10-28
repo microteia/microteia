@@ -155,6 +155,16 @@ export interface CatalogExtensionDocumentTemplate {
   parameters: CatalogExtensionDocumentParameter[];
 }
 
+/**
+ * Um preset de campo que a extensão declara (`data.field.preset`), como as PARTES que ele tem — nunca o
+ * template, o formato nem a regra. É contra ele que o `mask` de um campo de outra extensão é conferido:
+ * `mask: 'cpf-cnpj'` contra o `cpfCnpj` da Brasil instalava, e o campo ficava sem máscara.
+ */
+export interface CatalogExtensionFieldPreset {
+  key: string;
+  slots: ('mask' | 'format' | 'validate')[];
+}
+
 export interface CatalogExtensionExport {
   id: string;
   name: string;
@@ -169,6 +179,8 @@ export interface CatalogExtensionExport {
   navGroups: CatalogExtensionNavGroup[];
   /** Sempre escrita, mesmo vazia, pela mesma razão de `exports`. */
   documentTemplates: CatalogExtensionDocumentTemplate[];
+  /** Sempre escrita, mesmo vazia, pela mesma razão de `exports`. */
+  fieldPresets: CatalogExtensionFieldPreset[];
 }
 
 export interface CatalogExport {
@@ -333,6 +345,34 @@ const documentTemplatesOf = (extension: InstalledExtensionRecord): CatalogExtens
     .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 };
 
+const FIELD_PRESET_POINT = 'data.field.preset';
+
+/**
+ * Os presets de campo de uma cópia instalada. É a mesma leitura que `declaredFieldPresets` faz no
+ * kernel — chave e rótulo obrigatórios, e as partes pelo critério do editor de campo —, repetida porque
+ * o Console não alcança `src/`; o teste que atravessa a fronteira confere as duas.
+ */
+const fieldPresetsOf = (extension: InstalledExtensionRecord): CatalogExtensionFieldPreset[] => {
+  const contributes = Array.isArray(extension.manifest?.contributes) ? extension.manifest.contributes : [];
+  return contributes
+    .map(asRecord)
+    .filter((one): one is Record<string, unknown> => one?.point === FIELD_PRESET_POINT)
+    .flatMap((one): CatalogExtensionFieldPreset[] => {
+      const metadata = asRecord(one.metadata);
+      const key = text(metadata?.key);
+      if (metadata === undefined || key === undefined || text(metadata.label) === undefined) return [];
+      return [{
+        key,
+        slots: [
+          ...(metadata.mask ? ['mask' as const] : []),
+          ...(Array.isArray(metadata.format) && metadata.format.length > 0 ? ['format' as const] : []),
+          ...(metadata.validate ? ['validate' as const] : []),
+        ],
+      }];
+    })
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+};
+
 /**
  * A mesma dedução que a aplicação faz ao ler a tela (`screenDefinitionMapper.ts`): o `origin` gravado
  * quando ele existe, senão `plugin` para quem tem dono e `design` para o que o escritório criou. Ela é
@@ -435,6 +475,7 @@ export const buildCatalogExport = (input: CatalogExportInput): CatalogExport => 
       exports: exportedArtifacts(one),
       navGroups: navGroupsOf(one),
       documentTemplates: documentTemplatesOf(one),
+      fieldPresets: fieldPresetsOf(one),
     }))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   screens: input.screens

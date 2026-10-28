@@ -13821,6 +13821,27 @@ registros que ninguém consegue salvar. Por isso `evaluateFieldBoolean` ganhou o
 `fallback`: os slots de tela (`hiddenWhen`/`disabledWhen`) querem `false`, a validação de preset
 quer `true`.
 
+**A chave é conferida no PACOTE, porque em runtime ela não pode ser (EV-18).** A tolerância acima é a
+certa para o registro, e era ela que escondia o defeito de autoria: `mask: 'cpf-cnpj'` contra o `cpfCnpj`
+da Brasil instalava, e o campo ficava sem máscara sem erro em lugar nenhum. `fieldPresetRefs.ts`
+(`domain/usecases/plugins/`) coleta cada preset que um campo nomeia — `mask` de campo `masked` (o `masked`
+sem `mask` e o `mask` em outro tipo ficam de fora), `rules.format.preset` e `rules.validate.check`, em
+`screens` e `screenPatches` — e o resolve na precedência do catálogo em runtime: kernel, o próprio pacote,
+dependências declaradas, outras extensões visíveis. Um preset que existe mas não tem a PARTE que o campo
+usa (`mask: 'digits'`) é tão inútil quanto um que não existe, e conta igual. Onde a chave é achada decide:
+
+| Situação | Quem confere | Veredito |
+|---|---|---|
+| kernel ou o próprio pacote têm a chave sem a parte pedida | `fieldPresetIssues` (porta única: `check`, MCP, autoria, importação) | recusa (`issue.package.field.preset.slot`) |
+| todas as dependências declaradas foram lidas e nenhuma tem a chave | `fieldPresets.ts` do SDK (`check` / `validate_plugin`), com as irmãs do diretório e o `installed-catalog.json` | recusa (`.absent`, ou `.absent.suggest` com a grafia parecida que existe) |
+| a chave só existe numa extensão que o pacote não declara | idem | aviso — funciona onde ela por acaso estiver instalada |
+| alguma dependência não está à vista, ou o pacote não declara nenhuma | idem | aviso "não dá para conferir" |
+
+A instalação **nunca** recusa a chave que pode morar em outra extensão: ela não enxerga nenhuma, e o pacote
+que hoje usa `cpf` sem declarar a Brasil funciona no escritório que a tem — recusá-lo quebraria quem já
+usa. O retrato leva `fieldPresets` por extensão (`{ key, slots }`, nunca template nem regra — Console
+2.32.0); a chave ausente é silêncio de Console antigo (`fieldPresetsKnown: false`).
+
 **Invariante que garante compatibilidade:** `validate` **nunca roda em valor vazio** (`null`,
 `undefined`, `''`, `[]`) — obrigatoriedade continua sendo assunto exclusivo de `required`. Sem essa
 regra, ligar uma validação quebraria todo registro e workflow que deixa o campo em branco.

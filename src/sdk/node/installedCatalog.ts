@@ -5,6 +5,7 @@ import type { CustomFieldType, FieldAggregation, FieldOrigin } from '../../domai
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
 import type { DocumentTemplateContract } from '../../domain/usecases/plugins/documentStepIntegrity';
 import { documentTemplateContractOf } from '../../domain/usecases/plugins/documentStepIntegrity';
+import type { FieldPresetSlot, OfferedFieldPreset } from '../../domain/usecases/plugins/fieldPresetRefs';
 import type { CatalogScreenInput, ParentRelation } from '../domain/catalog';
 
 /**
@@ -145,6 +146,12 @@ export interface InstalledCatalogExtension {
    * como `exports`, é silêncio de Console antigo.
    */
   documentTemplates?: DocumentTemplateContract[];
+  /**
+   * Os presets de campo que ela declara (`data.field.preset`) — a chave e as partes (`mask`, `format`,
+   * `validate`), nunca o template nem a regra. É contra eles que o `mask` de um campo de outra extensão
+   * é conferido. Ausente, como `exports`, é silêncio de Console antigo.
+   */
+  fieldPresets?: OfferedFieldPreset[];
 }
 
 export interface InstalledCatalogFile {
@@ -183,6 +190,8 @@ export interface InstalledCatalogRead {
   navGroupsKnown: boolean;
   /** O mesmo, para os modelos de documento: `false` quando alguma extensão chegou sem `documentTemplates`. */
   documentTemplatesKnown: boolean;
+  /** O mesmo, para os presets de campo: `false` quando alguma extensão chegou sem `fieldPresets`. */
+  fieldPresetsKnown: boolean;
   /** Por que o arquivo não pôde ser usado — arquivo torto, formato de outra época, campo faltando. */
   problems: string[];
 }
@@ -197,6 +206,7 @@ const ABSENT = (path: string): InstalledCatalogRead => ({
   exportsKnown: true,
   navGroupsKnown: true,
   documentTemplatesKnown: true,
+  fieldPresetsKnown: true,
   problems: [],
 });
 
@@ -319,6 +329,18 @@ const readNavGroup = (raw: unknown): InstalledCatalogNavGroup | null => {
   };
 };
 
+const FIELD_PRESET_SLOTS: readonly FieldPresetSlot[] = ['mask', 'format', 'validate'];
+
+const readFieldPreset = (raw: unknown): OfferedFieldPreset | null => {
+  const record = asRecord(raw);
+  const key = text(record?.key);
+  if (record === null || key === '') return null;
+  return {
+    key,
+    slots: list(record.slots).filter((slot): slot is FieldPresetSlot => FIELD_PRESET_SLOTS.includes(slot as FieldPresetSlot)),
+  };
+};
+
 const readExtension = (raw: unknown): InstalledCatalogExtension | null => {
   const record = asRecord(raw);
   if (record === null) return null;
@@ -342,6 +364,9 @@ const readExtension = (raw: unknown): InstalledCatalogExtension | null => {
             .map(documentTemplateContractOf)
             .filter((one): one is DocumentTemplateContract => one !== null),
         }
+      : {}),
+    ...(Array.isArray(record.fieldPresets)
+      ? { fieldPresets: record.fieldPresets.map(readFieldPreset).filter((one): one is OfferedFieldPreset => one !== null) }
       : {}),
   };
 };
@@ -435,6 +460,7 @@ export const readInstalledCatalog = (root: string, now: Date = new Date()): Inst
     exportsKnown: snapshot.extensions.every((one) => one.exports !== undefined),
     navGroupsKnown: snapshot.extensions.every((one) => one.navGroups !== undefined),
     documentTemplatesKnown: snapshot.extensions.every((one) => one.documentTemplates !== undefined),
+    fieldPresetsKnown: snapshot.extensions.every((one) => one.fieldPresets !== undefined),
     problems: readable ? [] : [`${INSTALLED_CATALOG_FILE} has no readable "exportedAt", so there is no telling `
       + 'how old it is. Treat every entity it brings as possibly out of date.'],
   };

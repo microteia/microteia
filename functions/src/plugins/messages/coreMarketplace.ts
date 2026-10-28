@@ -358,6 +358,12 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'Field "{field}" of "{screen}" declares an onChangeLookup.map that is not a non-empty object of { "<provider key>": "<field key>" }, both as text.',
   'issue.package.field.lookup.map-target':
     'Field "{field}" of "{screen}" sends "{output}" to "{target}", which is not a field of that screen. map takes the key of a field declared in the same screen — flat, such as "addressStreet", never "address.street".',
+  'issue.package.field.preset.absent':
+    'Field "{field}" of "{screen}" names the preset "{preset}" in {path}, which neither the kernel, this package nor its dependencies ({dependencies}) declare. At run time an unknown preset does nothing, so the field would silently lose it.',
+  'issue.package.field.preset.absent.suggest':
+    'Field "{field}" of "{screen}" names the preset "{preset}" in {path}, which neither the kernel, this package nor its dependencies ({dependencies}) declare, so the field would silently lose it. Did you mean "{suggestion}"?',
+  'issue.package.field.preset.slot':
+    'Field "{field}" of "{screen}" names the preset "{preset}" in {path}, but "{preset}" (declared by {owner}) declares no {part} section, so {path} would do nothing on that field.',
   'issue.package.icon.unknown':
     'Icon "{icon}" ({where}) is not in the platform catalogue. The installation would draw the generic marker instead. Ask the microteia-plugin MCP server for list_icons to see every key.',
   'issue.package.message.key':
