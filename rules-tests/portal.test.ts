@@ -302,6 +302,18 @@ describe('a entrada com identidade verificada', () => {
     }
   });
 
+  it('a prova da entrada por identidade é só do servidor — quem a escrevesse seria religado a um convite alheio', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore() as unknown as Firestore;
+      await setDoc(doc(db, 'portalIdentityProofs/portal-id-bia'), { tenantId: TENANT, provider: 'citizen', proofKeys: ['k1'] });
+    });
+    for (const uid of ['dono', 'gestor', 'ana', 'portal-id-bia']) {
+      await assertFails(getDoc(doc(asUser(env, uid), 'portalIdentityProofs/portal-id-bia')));
+      await assertFails(setDoc(doc(asUser(env, uid), `portalIdentityProofs/${uid}`), { tenantId: TENANT, proofKeys: ['k2'] }));
+      await assertFails(deleteDoc(doc(asUser(env, uid), 'portalIdentityProofs/portal-id-bia')));
+    }
+  });
+
   it('a marca de abertura registrada é só do servidor — o convidado não a apaga para repetir, nem a escreve para calar', async () => {
     const markId = `${TENANT}__ana__invoices__nf1__`;
     await env.withSecurityRulesDisabled(async (context) => {

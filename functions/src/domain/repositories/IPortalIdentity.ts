@@ -118,6 +118,27 @@ export interface PortalIdentityBinding {
   /** O `sub` do provedor — é o que a conta representa, e não muda. */
   subject: string;
   verified: PortalVerifiedIdentity;
+  /**
+   * As claims de convite que esta entrada PROVOU, como `portalProofKey` — a prova que sobrevive à
+   * revogação. Vazia, a conta deixa de ter prova.
+   */
+  proofKeys: string[];
+}
+
+/**
+ * A prova da última entrada de uma conta: quem o provedor disse que ela é, e quando. O acesso
+ * (`portalUsers/{uid}`) some com o último sujeito revogado; a prova não — é ela que deixa o convite
+ * refeito para a mesma claim religar a conta, sem esperar a pessoa entrar de novo.
+ */
+export interface PortalIdentityProof {
+  userId: string;
+  provider: string;
+  subject: string;
+  level: string | null;
+  /** O nome que a lista do escritório mostra. */
+  displayName: string;
+  proofKeys: string[];
+  verifiedAt: Date;
 }
 
 export interface IPortalIdentityRepository {
@@ -140,9 +161,20 @@ export interface IPortalIdentityRepository {
   /**
    * Grava o acesso de quem entrou: o convite dele (`portalUsers/{uid}`) com os sujeitos dos convites
    * aceitos e a identidade provada, e a conta nos convites. Os sujeitos são SUBSTITUÍDOS: são sempre
-   * a soma dos convites que a identidade satisfaz agora.
+   * a soma dos convites que a identidade satisfaz agora. A prova da conta é substituída junto, na
+   * mesma escrita (sem `proofKeys`, apagada).
    */
   bind(tenantId: string, binding: PortalIdentityBinding, invites: PortalIdentityInvite[]): Promise<void>;
+  /** A prova da última entrada desta conta, ou `null`. */
+  proofOf(tenantId: string, userId: string): Promise<PortalIdentityProof | null>;
+  /** As contas do escritório cuja última entrada provou esta claim (`portalProofKey`). */
+  proofsFor(tenantId: string, proofKey: string): Promise<PortalIdentityProof[]>;
+  /**
+   * Liga ao convite uma conta que já provou a claim dele, e refaz o acesso da conta — o que o `bind`
+   * faria na próxima entrada. A conta sem acesso o recebe com a identidade DAQUELA prova (provedor,
+   * nível e hora), nunca com uma hora de agora que ninguém atestou.
+   */
+  rebind(tenantId: string, invite: PortalIdentityInvite, proof: PortalIdentityProof, tenantName: string): Promise<void>;
   /**
    * Refaz os sujeitos de uma conta pela soma dos convites a que ela está vinculada; sem nenhum, o
    * acesso deixa de existir. É o que propaga ao convidado o convite alterado depois do aceite.

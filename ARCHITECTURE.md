@@ -1489,12 +1489,34 @@ atestada por algum provedor configurado (`portal.claim.unattested`) — senão n
 | os convites | achados por `claimKey in [...]` e conferidos de novo pela normalização de cada um |
 | o acesso | `portalUsers/{uid}.subjectKeys` é SUBSTITUÍDO pela soma dos convites satisfeitos AGORA (`bind`): o convite revogado não volta no login seguinte, e o que deixou de valer é desfeito |
 | a identidade | `portalUsers/{uid}.identity = { provider, claim, level, subject, verifiedAt }` — `level` é a claim que o escritório apontou (`levelClaim`), como o provedor a escreveu |
+| a prova | `portalIdentityProofs/{uid}` (raiz, fechada) é SUBSTITUÍDA na mesma escrita: provedor, `sub`, nível e as claims de convite que a entrada provou (`proofKeys`). Ver "O convite refeito" abaixo |
 | veio do link de um convite (`?invite=`) e a claim não coincide | recusa `mismatch`, auditada contra aquele convite (contato e NOME da claim) |
 | nenhum convite satisfeito | recusa `not-invited`, auditada |
 
 O sujeito convidado DEPOIS do aceite chega à conta na hora (`syncAccount`). Revogar mexe no CONVITE —
 pelo `userId` da conta, pelo `inviteId` ou pelo e-mail de contato (a automação) —, porque mexer só na
 conta seria desfeito no próximo login.
+
+**O convite refeito religa a conta (EV-25).** Revogar o último sujeito apaga o convite e o acesso
+(`portalUsers/{uid}`), e com o acesso ia junto a única cópia do que a conta tinha provado — o convite
+refeito para o mesmo CPF nascia sem conta, e quem estava com a sessão aberta (Encerrar → Reabrir →
+Credenciar) via "sem acesso" até sair e entrar de novo pelo provedor. A prova passou a viver FORA do
+acesso, em `portalIdentityProofs/{uid}`, e o convite por identidade — a mesma porta da tela e do passo —
+religa a conta cuja prova cobre a claim (`rebind`), com a identidade DAQUELA entrada (provedor, nível,
+hora), como o `bind` faria na próxima.
+
+| Decisão | Por quê |
+|---|---|
+| a prova é da ÚLTIMA entrada, e só de claims que algum convite pediu (`proofKeysOf`): as dos convites satisfeitos agora, mais as da prova anterior que a entrada CONTINUA atestando | a entrada sem convite não deixa no escritório a lista dos documentos de quem sondou; e o e-mail trocado no provedor não religa ninguém pelo e-mail antigo |
+| a chave é `portalProofKey` = `sha256(escritório, claim)` | a prova que sobrevive à revogação não guarda documento em texto; e, já sendo do escritório, achar as contas é um `array-contains` de um campo, sem índice composto |
+| de RAIZ, pelo uid | o uid já é do escritório (`portalIdentityAccountId`); sob `tenants/{t}` a gravação acordaria os gatilhos de toda coleção a cada entrada, e o nome disputaria com uma tela |
+| só religa se o provedor da prova continua configurado e atestando a claim | a prova vale o que vale quem a deu: o escritório que tirou o provedor não o quer mais |
+| `rebind` numa transação, a partir do convite lido nela | o convite revogado entre o convite refeito e a religação não religa ninguém |
+
+Sem prova (a instalação anterior, ou quem nunca entrou), nada muda: a ligação vem na próxima entrada,
+como antes. A prova nasce na primeira entrada depois da atualização. A conta de um provedor que mesmo
+assim chega à casca sem acesso lê "saia e entre de novo pelo provedor", com o botão
+(`portalAccessError`, `no-access-identity`) — e não "use o link do e-mail", que ela não tem.
 
 **O link de e-mail é escolha do escritório, e desligá-lo vale no instante.** Desligado, o convite sem
 claim é recusado (`portal.invite.identity-required`) nas duas portas, e todo `portalUsers` sem
@@ -1522,7 +1544,9 @@ tentado: quem sonda o portal não deixa no escritório uma lista de documentos a
 | assinatura, algoritmos, `kid`, chave girada, `iss`/`aud`/`azp`/`exp`/`nonce`, troca com PKCE e `client_secret_basic`/`post` | `functions/src/infrastructure/portal/oidc/FetchOidcClient.test.ts` |
 | a entrada de ponta a ponta com chaves RSA reais (o verificador corresponde ao desafio; `nonce` trocado e chave intrusa recusados) | `functions/src/infrastructure/portal/portalSignIn.integration.test.ts` |
 | volta única, vencida, conta escopada, `mismatch`, `not-invited`, claim não atestada, `email_verified`, revogação, propagação, `userinfo`, nível, configuração e suspensão | `functions/src/domain/usecases/PortalIdentityUseCases.test.ts` |
-| suspensão nas regras, convite por identidade e pedido de entrada fechados, `portalVerified` não forjável | `rules-tests/portal.test.ts` |
+| o convite refeito religa (e só pela prova da última entrada, de claim convidada, de provedor ainda atestando) | `functions/src/domain/usecases/PortalIdentityUseCases.test.ts` |
+| a casca manda a conta de provedor sem acesso entrar de novo, e a do e-mail ao link | `src/presentation/pages/Portal/portalAccessError.test.ts` |
+| suspensão nas regras, convite por identidade, pedido de entrada e prova fechados, `portalVerified` não forjável | `rules-tests/portal.test.ts` |
 
 **Requisitos da instalação.** `createCustomToken` assina com a conta de serviço das functions: sem
 `iam.serviceAccounts.signBlob` sobre ela (papel *Service Account Token Creator* e a API IAM Service

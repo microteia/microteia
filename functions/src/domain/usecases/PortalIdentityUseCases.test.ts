@@ -5,6 +5,7 @@ import {
   makeManagePortalSignInUseCase,
   makeStartPortalSignInUseCase,
   portalIdentityAccountId,
+  portalProofKey,
   sha256Base64url,
 } from './PortalIdentityUseCases';
 import { makeInvitePortalUserUseCase, makeRevokePortalUserUseCase } from './PortalAccessUseCases';
@@ -320,6 +321,121 @@ describe('a volta do provedor', () => {
     await none.invite('companies/acme');
     await none.signIn();
     expect(none.fake.users.get(userId)?.identity?.level).toBeNull();
+  });
+});
+
+describe('o convite refeito para quem já tinha entrado', () => {
+  const revokeAll = (accessDeps: ReturnType<typeof setup>['accessDeps'], inviteId: string) =>
+    makeRevokePortalUserUseCase(accessDeps).execute({ tenantId: TENANT, guest: { inviteId }, subjectKey: null, actor: FISCAL });
+
+  it('religa na hora a conta que provou a claim, com a identidade daquela entrada — sem pedir outra', async () => {
+    const { invite, signIn, fake, identity, accessDeps } = setup();
+    const first = await invite('companies/acme');
+    await signIn();
+    const userId = await portalIdentityAccountId(TENANT, 'citizen', 'person-1');
+    await revokeAll(accessDeps, first.inviteId!);
+    expect(fake.users.has(userId)).toBe(false);
+
+    const again = await invite('companies/beta', { name: 'nationalId', value: '123.456.789-00', normalize: 'digits' });
+
+    expect(again.userId).toBe(userId);
+    expect(identity.invites.get(again.inviteId!)?.boundUserIds).toEqual([userId]);
+    expect(fake.users.get(userId)).toMatchObject({
+      email: 'bia@acme.com',
+      displayName: 'Bia Lima',
+      subjectKeys: ['companies/beta'],
+      identity: { provider: 'citizen', claim: { name: 'nationalId', value: '12345678900' }, level: 'gold' },
+    });
+    expect(identity.tokens).toHaveLength(1);
+  });
+
+  it('a conta religada é a mesma da próxima entrada, e revogar de novo vale do mesmo jeito', async () => {
+    const { invite, signIn, fake, accessDeps } = setup();
+    await revokeAll(accessDeps, (await invite('companies/acme')).inviteId!);
+    expect(await refusalOf(signIn())).toBe('@core.tenant/portal.signin.not-invited');
+    const again = await invite('companies/acme');
+    await revokeAll(accessDeps, again.inviteId!);
+    expect(fake.users.size).toBe(0);
+
+    await signIn().catch(() => undefined);
+    const third = await invite('companies/beta');
+    await signIn();
+    const userId = await portalIdentityAccountId(TENANT, 'citizen', 'person-1');
+    expect(fake.users.get(userId)?.subjectKeys).toEqual(['companies/beta']);
+
+    await revokeAll(accessDeps, third.inviteId!);
+    expect(fake.users.has(userId)).toBe(false);
+    const fourth = await invite('companies/acme');
+    expect(fourth.userId).toBe(userId);
+    await signIn();
+    expect(fake.users.get(userId)?.subjectKeys).toEqual(['companies/acme']);
+  });
+
+  it('quem entrou sem convite não deixa prova: o convite feito depois espera a entrada', async () => {
+    const { invite, signIn, fake, identity } = setup();
+    expect(await refusalOf(signIn())).toBe('@core.tenant/portal.signin.not-invited');
+    expect(identity.proofs.size).toBe(0);
+
+    const result = await invite('companies/acme');
+    expect(result.userId).toBe('');
+    expect(fake.users.size).toBe(0);
+  });
+
+  it('a entrada recusada depois da revogação mantém a prova da claim que ela continua provando', async () => {
+    const { invite, signIn, fake, accessDeps } = setup();
+    const { inviteId } = await invite('companies/acme');
+    await signIn();
+    await revokeAll(accessDeps, inviteId!);
+    expect(await refusalOf(signIn())).toBe('@core.tenant/portal.signin.not-invited');
+
+    await invite('companies/beta');
+
+    const userId = await portalIdentityAccountId(TENANT, 'citizen', 'person-1');
+    expect(fake.users.get(userId)?.subjectKeys).toEqual(['companies/beta']);
+  });
+
+  it('a prova é da ÚLTIMA entrada: o e-mail trocado no provedor não religa ninguém pelo antigo', async () => {
+    let email = 'Bia@Acme.com';
+    const { invite, signIn, fake, accessDeps } = setup({ claims: () => ({ email, email_verified: true, name: 'Bia' }) });
+    const byEmail = { name: 'email', value: 'bia@acme.com', normalize: 'lowercase' };
+    const { inviteId } = await invite('companies/acme', byEmail);
+    await signIn();
+    await revokeAll(accessDeps, inviteId!);
+
+    email = 'bia@new.com';
+    expect(await refusalOf(signIn())).toBe('@core.tenant/portal.signin.not-invited');
+    const again = await invite('companies/beta', byEmail);
+
+    expect(again.userId).toBe('');
+    expect(fake.users.size).toBe(0);
+  });
+
+  it('o provedor que o escritório tirou não religa: a prova vale o que vale quem a deu', async () => {
+    const other: PortalIdentityProvider = { ...CITIZEN, id: 'other', label: 'Other' };
+    const { invite, signIn, fake, identity, accessDeps } = setup();
+    const { inviteId } = await invite('companies/acme');
+    await signIn();
+    await revokeAll(accessDeps, inviteId!);
+
+    identity.configs.set(TENANT, { settings: { emailLink: true, providers: [other] }, secrets: {} });
+    const again = await invite('companies/beta');
+
+    expect(again.userId).toBe('');
+    expect(fake.users.size).toBe(0);
+    expect(identity.invites.get(again.inviteId!)?.boundUserIds).toEqual([]);
+  });
+
+  it('a prova não religa a conta pela claim de outra pessoa, nem vale em outro escritório', async () => {
+    const { invite, signIn, fake, accessDeps } = setup();
+    const { inviteId } = await invite('companies/acme');
+    await signIn();
+    await revokeAll(accessDeps, inviteId!);
+
+    const someoneElse = await invite('companies/beta', { name: 'nationalId', value: '98765432100', normalize: 'digits' }, 'ze@beta.com');
+
+    expect(someoneElse.userId).toBe('');
+    expect(fake.users.size).toBe(0);
+    expect(await portalProofKey('salvador', 'nationalId=12345678900')).not.toBe(await portalProofKey('recife', 'nationalId=12345678900'));
   });
 });
 

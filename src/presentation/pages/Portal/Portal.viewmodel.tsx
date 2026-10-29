@@ -9,6 +9,7 @@ import { portalSubjectKey } from '../../../domain/schema/portal';
 import { PORTAL_PROFILE_ENTRY, portalTenantPath } from './portalPaths';
 import { usePortalRecordFormat } from './usePortalRecordFormat';
 import { evaluatePortalView, type PortalViewComponent } from './portalViews';
+import { portalAccessError, portalOffersSignInAgain, type PortalAccessError } from './portalAccessError';
 
 export interface PortalFieldView {
   key: string;
@@ -72,7 +73,9 @@ export const PORTAL_DOCUMENTS_TAB = '#documents';
 
 export interface PortalViewModel {
   loading: boolean;
-  error: 'no-access' | 'load-failed' | 'not-invited' | 'identity-required' | 'context-failed' | null;
+  error: PortalAccessError | null;
+  /** A recusa se resolve entrando de novo — a casca oferece o botão. */
+  signInAgain: boolean;
   /** O código técnico de uma falha — o que a pessoa repassa a quem a atende. */
   errorCode: string | null;
   /** Há o que tentar de novo: a falha não foi uma recusa. */
@@ -389,8 +392,14 @@ export const usePortalViewModel = (): PortalViewModel => {
   const DetailComponent = topRecord && topScreen ? viewFor(topScreen.collection, 'detail') : null;
 
   const showChooser = !routeTenantId;
-  const noAccess = !membershipsLoading && memberships.length === 0;
   const loadFailed = !membershipsLoading && portal.membershipsFailed;
+  const error = portalAccessError({
+    userId: user?.id,
+    membershipsLoading,
+    membershipsFailed: portal.membershipsFailed,
+    membershipCount: memberships.length,
+    contextError: portal.error,
+  });
   const creatingScreen = creating ? screenOf(creating.collection) : null;
   const editingRecord = creating?.recordId
     ? (recordsByCollection[creating.collection] ?? []).find((record) => record.recordId === creating.recordId) ?? null
@@ -398,13 +407,8 @@ export const usePortalViewModel = (): PortalViewModel => {
 
   return {
     loading: membershipsLoading || (!showChooser && portal.contextLoading),
-    error: loadFailed
-      ? 'load-failed'
-      : noAccess
-        ? 'no-access'
-        : portal.error === 'not-invited' || portal.error === 'identity-required'
-          ? portal.error
-          : portal.error === 'failed' ? 'context-failed' : null,
+    error,
+    signInAgain: portalOffersSignInAgain(error, user?.id),
     errorCode: portal.errorCode,
     canRetry: loadFailed || portal.error === 'failed',
     retry: loadFailed ? portal.retryMemberships : portal.retryContext,

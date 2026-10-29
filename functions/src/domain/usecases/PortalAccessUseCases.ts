@@ -48,7 +48,8 @@ import type { IRecordDocumentLinks } from '../repositories/IRecordDocumentLinks'
 import type { TrackPortalView } from './PortalViewUseCases';
 import { isValidPortalSubject } from './PortalProjectionUseCases';
 import type { IPortalIdentityConfigRepository, IPortalIdentityRepository, PortalIdentityInvite } from '../repositories/IPortalIdentity';
-import { asPortalRequiredClaim, portalAttestedClaims, portalClaimKey } from '../schema/portalIdentity';
+import { asPortalRequiredClaim, portalAttestedClaims, portalClaimKey, type PortalSignInSettings } from '../schema/portalIdentity';
+import { portalProofKey } from './PortalIdentityUseCases';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -213,13 +214,14 @@ export const makeInvitePortalUserUseCase = (deps: PortalAccessDeps): InvitePorta
       }, key);
       // Quem já aceitou o convite recebe o sujeito novo agora, e não só no próximo login.
       await Promise.all(invite.boundUserIds.map((userId) => deps.identity.syncAccount(tenantId, userId)));
+      const rebound = await rebindProvenAccounts(deps, { tenantId, tenantName, invite, settings });
       if (granted) {
         await auditQuietly(deps.audit, {
           tenantId, change: 'granted', email: normalized, subjectKey: key, actor, origin, claimName: claim.name,
           ...(workflowId ? { workflowId } : {}),
         });
       }
-      return { userId: invite.boundUserIds[0] ?? '', created: false, granted, inviteId: invite.id };
+      return { userId: [...invite.boundUserIds, ...rebound][0] ?? '', created: false, granted, inviteId: invite.id };
     }
     if (!settings.emailLink) throw failedPrecondition('@core.tenant/portal.invite.identity-required');
 
@@ -256,6 +258,27 @@ export const makeInvitePortalUserUseCase = (deps: PortalAccessDeps): InvitePorta
     return { userId: account.userId, created, granted };
   },
 });
+
+/**
+ * O convite por identidade refeito para quem já o tinha aceitado. Revogar o último sujeito apaga o
+ * convite e o acesso, e o convite novo nasceria sem conta: quem tem a sessão aberta ficaria sem acesso
+ * até sair e entrar de novo pelo provedor. A conta cuja ÚLTIMA entrada provou a claim é religada aqui,
+ * como o `bind` faria — desde que o provedor dela continue configurado e atestando a claim: a prova
+ * vale o que vale o provedor que a deu, e o escritório que o tirou não o quer mais.
+ */
+const rebindProvenAccounts = async (
+  deps: Pick<PortalAccessDeps, 'identity'>,
+  input: { tenantId: string; tenantName: string; invite: PortalIdentityInvite; settings: PortalSignInSettings },
+): Promise<string[]> => {
+  const { tenantId, tenantName, invite, settings } = input;
+  const attests = (providerId: string) =>
+    settings.providers.some((provider) => provider.id === providerId && provider.claims.includes(invite.claim.name));
+  const proofKey = await portalProofKey(tenantId, portalClaimKey(invite.claim.name, invite.claim.value));
+  const proofs = (await deps.identity.proofsFor(tenantId, proofKey))
+    .filter((proof) => !invite.boundUserIds.includes(proof.userId) && attests(proof.provider));
+  for (const proof of proofs) await deps.identity.rebind(tenantId, invite, proof, tenantName);
+  return proofs.map((proof) => proof.userId);
+};
 
 export interface RevokePortalUserInput {
   tenantId: string;

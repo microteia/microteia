@@ -6,6 +6,7 @@ import type {
   IPortalSignInRequestRepository,
   PortalIdentityConfig,
   PortalIdentityInvite,
+  PortalIdentityProof,
   PortalSignInRequest,
 } from './IPortalIdentity';
 import { asPortalSignInSettings, portalClaimKey } from '../schema/portalIdentity';
@@ -17,6 +18,7 @@ import { asPortalSignInSettings, portalClaimKey } from '../schema/portalIdentity
  */
 export const makeFakePortalIdentity = (users: Map<string, PortalUserRecord>) => {
   const invites = new Map<string, PortalIdentityInvite>();
+  const proofs = new Map<string, PortalIdentityProof>();
   const requests = new Map<string, PortalSignInRequest & { used?: boolean }>();
   const accounts = new Map<string, string>();
   const tokens: string[] = [];
@@ -75,6 +77,18 @@ export const makeFakePortalIdentity = (users: Map<string, PortalUserRecord>) => 
       return true;
     },
     bind: async (tenantId, binding, matched) => {
+      if (binding.proofKeys.length === 0) proofs.delete(binding.userId);
+      else {
+        proofs.set(binding.userId, {
+          userId: binding.userId,
+          provider: binding.verified.provider,
+          subject: binding.subject,
+          level: binding.verified.level,
+          displayName: binding.displayName,
+          proofKeys: binding.proofKeys,
+          verifiedAt: new Date(),
+        });
+      }
       const ids = new Set(matched.map((invite) => invite.id));
       for (const invite of invites.values()) {
         const bound = invite.boundUserIds.includes(binding.userId);
@@ -96,6 +110,26 @@ export const makeFakePortalIdentity = (users: Map<string, PortalUserRecord>) => 
         ...(binding.locale ? { locale: binding.locale } : {}),
       });
       await syncAccount(tenantId, binding.userId);
+    },
+    proofOf: async (_t, userId) => proofs.get(userId) ?? null,
+    proofsFor: async (_t, proofKey) => [...proofs.values()].filter((proof) => proof.proofKeys.includes(proofKey)),
+    rebind: async (tenantId, invite, proof) => {
+      const current = invites.get(invite.id);
+      if (!current) return;
+      if (!current.boundUserIds.includes(proof.userId)) {
+        invites.set(current.id, { ...current, boundUserIds: [...current.boundUserIds, proof.userId] });
+      }
+      if (!users.has(proof.userId)) {
+        users.set(proof.userId, {
+          userId: proof.userId,
+          email: current.email,
+          displayName: proof.displayName || current.displayName,
+          subjectKeys: [],
+          identity: { provider: proof.provider, claim: { name: current.claim.name, value: current.claim.value }, level: proof.level },
+          ...(current.locale ? { locale: current.locale } : {}),
+        });
+      }
+      await syncAccount(tenantId, proof.userId);
     },
     syncAccount,
     setEmailGuestsSuspended: async (_t, suspended) => {
@@ -137,5 +171,5 @@ export const makeFakePortalIdentity = (users: Map<string, PortalUserRecord>) => 
     },
   };
 
-  return { identity, requests: requestRepo, requestStore: requests, config, configs, accounts: accountService, accountStore: accounts, invites, tokens };
+  return { identity, proofs, requests: requestRepo, requestStore: requests, config, configs, accounts: accountService, accountStore: accounts, invites, tokens };
 };

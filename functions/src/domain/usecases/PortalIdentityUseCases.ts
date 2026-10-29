@@ -17,6 +17,7 @@ import {
   asPortalSignInSettings,
   isPortalReturnPath,
   isPortalSignInRedirectUri,
+  portalClaimKey,
   portalClaimMatches,
   portalIdentityLevel,
   portalLoginClaimKeys,
@@ -48,6 +49,32 @@ export const sha256Base64url = async (text: string): Promise<string> =>
  */
 export const portalIdentityAccountId = async (tenantId: string, providerId: string, subject: string): Promise<string> =>
   `${PORTAL_IDENTITY_ACCOUNT_PREFIX}${await sha256Base64url(`${tenantId}\n${providerId}\n${subject}`)}`;
+
+/**
+ * A chave da prova de uma claim (`portalClaimKey`) NESTE escritório. Opaca, para que a prova que
+ * sobrevive à revogação não seja uma lista de documentos em texto; e já do escritório, para que achar
+ * as contas que provaram a claim seja uma consulta de um campo só.
+ */
+export const portalProofKey = async (tenantId: string, claimKey: string): Promise<string> =>
+  sha256Base64url(`${tenantId}\n${claimKey}`);
+
+/**
+ * O que a entrada de agora deixa provado: as claims de convite que ela satisfez, mais as da prova
+ * anterior que ela CONTINUA atestando. Nunca uma claim que nenhum convite pediu — quem sonda o portal
+ * não deixa no escritório a lista dos próprios documentos —, e nunca uma que a pessoa deixou de
+ * provar: o e-mail trocado no provedor não religa ninguém pelo e-mail antigo.
+ */
+const proofKeysOf = async (
+  tenantId: string,
+  attested: string[],
+  matched: PortalIdentityInvite[],
+  previous: string[],
+): Promise<string[]> => {
+  const proven = new Set(await Promise.all(matched.map((invite) => portalProofKey(tenantId, portalClaimKey(invite.claim.name, invite.claim.value)))));
+  const kept = new Set(previous);
+  const keys = await Promise.all(attested.map((claimKey) => portalProofKey(tenantId, claimKey)));
+  return [...new Set(keys.filter((key) => proven.has(key) || kept.has(key)))].sort();
+};
 
 const textClaim = (claims: Record<string, unknown>, name: string): string =>
   (typeof claims[name] === 'string' ? (claims[name] as string).trim() : '');
@@ -179,6 +206,8 @@ const provenClaim = (invites: PortalIdentityInvite[]): PortalVerifiedIdentity['c
  *    declarou como atestada não prova nada.
  * 4. A conta é a do escritório, do provedor e da pessoa (`portalIdentityAccountId`), e o acesso dela é
  *    sempre a soma dos convites satisfeitos AGORA — o convite revogado não volta num login seguinte.
+ * 5. A prova da conta é refeita junto (`proofKeysOf`): é por ela que o convite refeito para a mesma
+ *    claim religa a conta sem esperar outra entrada.
  *
  * Toda recusa é auditada; a pessoa lê uma frase só por classe (o protocolo falhou, o convite não
  * corresponde, não há convite), sem o detalhe que ajudaria a sondar o escritório.
@@ -250,6 +279,8 @@ export const makeCompletePortalSignInUseCase = (deps: CompletePortalSignInDeps):
       level: portalIdentityLevel(provider, claims),
     };
     const first = matched[0];
+    const previous = await deps.identity.proofOf(tenantId, userId);
+    const proofKeys = await proofKeysOf(tenantId, keys, matched, previous?.proofKeys ?? []);
     // Sem convite satisfeito, `bind` também DESFAZ o acesso que a conta tinha: o convite que deixou
     // de valer não pode continuar aberto até alguém lembrar de revogá-lo.
     await deps.identity.bind(tenantId, {
@@ -261,6 +292,7 @@ export const makeCompletePortalSignInUseCase = (deps: CompletePortalSignInDeps):
       ...(first?.locale ? { locale: first.locale } : {}),
       subject,
       verified,
+      proofKeys,
     }, matched);
     if (!first) return refuse('not-invited', { userId, name });
 

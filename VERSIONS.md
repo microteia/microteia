@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.176.1] — 2026-10-29
+
+- No portal, quando o escritório encerra e depois volta a credenciar alguém que entra com identidade verificada (pelo CPF, por exemplo), a pessoa recupera o acesso na hora, mesmo com a sessão ainda aberta — sem precisar sair e entrar de novo.
+- Quem entra no portal com identidade verificada e está sem acesso passa a ser orientado a sair e entrar de novo pelo provedor de identidade, com um botão para isso, em vez de ser mandado procurar um link no e-mail que nunca recebeu.
+
 #### [9.176.0] — 2026-10-28
 
 - No portal, um registro cujo título é outro cadastro (o titular de um domicílio, por exemplo) deixa de aparecer com um código no lugar do nome. Quando o cadastro apontado não está no portal, o escritório pode escolher, campo a campo, mostrar apenas o nome dele — sem levar ao convidado nenhum outro dado daquele cadastro.

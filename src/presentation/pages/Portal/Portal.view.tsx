@@ -31,9 +31,11 @@ export const PortalView: React.FC = () => {
               ? t('portal.load-failed')
               : vm.error === 'no-access'
                 ? t('portal.no-access')
-                : vm.error === 'identity-required' ? t('portal.signin.identity-required') : t('portal.not-invited')}
+                : vm.error === 'no-access-identity'
+                  ? t('portal.no-access.identity')
+                  : vm.error === 'identity-required' ? t('portal.signin.identity-required') : t('portal.not-invited')}
           </p>
-          {vm.error === 'identity-required' && (
+          {vm.signInAgain && (
             <Button size="sm" onClick={() => void vm.signOut()}>{t('portal.signin.again')}</Button>
           )}
           {vm.errorCode && <S.Muted>{t('portal.error.code', { code: vm.errorCode })}</S.Muted>}

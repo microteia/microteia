@@ -156,6 +156,7 @@ const CORE_TENANT_PT_BR: Record<string, string> = {
   'portal.user.required': 'Escolha o convidado.',
   'portal.not-invited': 'Você não tem acesso a este portal, ou o seu acesso foi revogado.',
   'portal.no-access': 'Sua conta não tem acesso a nenhum portal. Se você foi convidado, use o link enviado ao seu e-mail.',
+  'portal.no-access.identity': 'Sua conta não tem acesso a nenhum portal agora. Se você foi convidado de novo, saia e entre outra vez pelo seu provedor de identidade.',
   'portal.choose': 'Escolha um escritório',
   'portal.upload': 'Anexar documento',
   'portal.upload.type.placeholder': 'Tipo do documento…',

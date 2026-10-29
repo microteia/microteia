@@ -948,7 +948,7 @@ describe('o convite por identidade — `requiredClaim`', () => {
     await invite.execute({ ...base, requiredClaim: claim });
     await identity.identity.bind(TENANT, {
       userId: 'portal-id-x', tenantName: 'Salvador', email: 'bia@acme.com', displayName: 'Bia', invitedBy: 'fiscal',
-      subject: 'person-1', verified: { provider: 'citizen', claim: { name: 'nationalId', value: '12345678900' }, level: null },
+      subject: 'person-1', verified: { provider: 'citizen', claim: { name: 'nationalId', value: '12345678900' }, level: null }, proofKeys: [],
     }, [identity.invites.get('inv-1')!]);
     expect(fake.users.get('portal-id-x')?.subjectKeys).toEqual(['companies/acme']);
 

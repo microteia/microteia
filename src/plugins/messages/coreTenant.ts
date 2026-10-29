@@ -145,6 +145,7 @@ export const CORE_TENANT_MESSAGES: Record<string, string> = {
   'portal.user.required': 'Choose the guest.',
   'portal.not-invited': 'You do not have access to this portal, or your access was revoked.',
   'portal.no-access': 'Your account has no portal access. If you were invited, use the link sent to your e-mail.',
+  'portal.no-access.identity': 'Your account has no portal access right now. If you were invited again, sign out and sign in again with your identity provider.',
   'portal.choose': 'Choose an organization',
   'portal.upload': 'Attach a document',
   'portal.upload.type.placeholder': 'Document type…',

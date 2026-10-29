@@ -1244,5 +1244,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // A prova da última entrada de cada conta aberta por um provedor do portal: provedor, `sub`,
+    // nível e as claims de convite que ela satisfez. De RAIZ porque o uid já é do escritório e uma
+    // gravação sob `tenants/{t}` acordaria os gatilhos de toda coleção; FECHADA porque quem a
+    // escrevesse seria religado a qualquer convite refeito para a claim que escolhesse. Só a entrada
+    // (`completePortalSignIn`) a grava, e só o convite por identidade a lê.
+    match /portalIdentityProofs/{userId} {
+      allow read, write: if false;
+    }
+
   }
 }

@@ -25,6 +25,14 @@ export const PORTAL_INVITE_RATES_COLLECTION = 'portalInviteRates';
  */
 export const PORTAL_IDENTITY_INVITES_COLLECTION = 'portalIdentityInvites';
 /**
+ * Coleção de RAIZ, só do servidor: a prova da última entrada de cada conta aberta por um provedor
+ * (`portalIdentityProofs/{uid}`) — provedor, `sub`, nível e as claims de convite que ela satisfez.
+ * Sobrevive à revogação, que apaga o acesso, e é o que deixa o convite refeito religar a conta. Na
+ * raiz porque o uid já é do escritório, e uma gravação sob `tenants/{t}` acordaria os gatilhos de
+ * toda coleção a cada entrada.
+ */
+export const PORTAL_IDENTITY_PROOFS_COLLECTION = 'portalIdentityProofs';
+/**
  * Coleção de RAIZ, só do servidor: o pedido de entrada por OIDC entre a ida ao provedor e a volta —
  * o verificador do PKCE, o `nonce` e o escritório. Na raiz porque a volta traz só o `state`.
  */

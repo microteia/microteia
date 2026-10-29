@@ -8,10 +8,12 @@ import type {
   IPortalSignInRequestRepository,
   PortalIdentityConfig,
   PortalIdentityInvite,
+  PortalIdentityProof,
   PortalSignInRequest,
 } from '../../domain/repositories/IPortalIdentity';
 import {
   PORTAL_IDENTITY_INVITES_COLLECTION,
+  PORTAL_IDENTITY_PROOFS_COLLECTION,
   PORTAL_SIGN_IN_REQUESTS_COLLECTION,
   PORTAL_USERS_COLLECTION,
 } from '../../domain/schema/portalCollections';
@@ -47,6 +49,16 @@ const toInvite = (id: string, data: DocumentData): PortalIdentityInvite => {
   };
 };
 
+const toProof = (id: string, data: DocumentData): PortalIdentityProof => ({
+  userId: id,
+  provider: asString(data.provider),
+  subject: asString(data.subject),
+  level: typeof data.level === 'string' ? data.level : null,
+  displayName: asString(data.displayName),
+  proofKeys: asStrings(data.proofKeys),
+  verifiedAt: data.verifiedAt instanceof Timestamp ? data.verifiedAt.toDate() : new Date(0),
+});
+
 /**
  * Os convites por identidade e o acesso de quem os aceitou. Os dois lados ficam sob o escritório:
  * `portalIdentityInvites` (o que a pessoa precisa provar e a que sujeitos dá acesso) e o convite
@@ -62,6 +74,11 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
 
   private portalUsers(tenantId: string) {
     return this.db.collection('tenants').doc(tenantId).collection(PORTAL_USERS_COLLECTION);
+  }
+
+  /** Na raiz e pelo uid, que já é do escritório (`portalIdentityAccountId`); o `tenantId` é conferido na leitura. */
+  private proofs() {
+    return this.db.collection(PORTAL_IDENTITY_PROOFS_COLLECTION);
   }
 
   async findInvitesByClaimKeys(tenantId: string, claimKeys: string[]): Promise<PortalIdentityInvite[]> {
@@ -151,6 +168,20 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
     for (const stale of await this.invitesBoundTo(tenantId, binding.userId)) {
       if (!ids.has(stale.id)) batch.update(this.invites(tenantId).doc(stale.id), { boundUserIds: FieldValue.arrayRemove(binding.userId) });
     }
+    const proof = this.proofs().doc(binding.userId);
+    if (binding.proofKeys.length === 0) {
+      batch.delete(proof);
+    } else {
+      batch.set(proof, {
+        tenantId,
+        provider: binding.verified.provider,
+        subject: binding.subject,
+        level: binding.verified.level,
+        displayName: binding.displayName,
+        proofKeys: binding.proofKeys,
+        verifiedAt: FieldValue.serverTimestamp(),
+      });
+    }
     const membership = this.portalUsers(tenantId).doc(binding.userId);
     const subjectKeys = [...new Set(matched.flatMap((invite) => invite.subjectKeys))].sort();
     if (subjectKeys.length === 0) {
@@ -173,6 +204,60 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
       }, { merge: true });
     }
     await batch.commit();
+  }
+
+  async proofOf(tenantId: string, userId: string): Promise<PortalIdentityProof | null> {
+    const snapshot = await this.proofs().doc(userId).get();
+    return snapshot.exists && snapshot.get('tenantId') === tenantId ? toProof(snapshot.id, snapshot.data() ?? {}) : null;
+  }
+
+  async proofsFor(tenantId: string, proofKey: string): Promise<PortalIdentityProof[]> {
+    const snapshot = await this.proofs().where('proofKeys', 'array-contains', proofKey).get();
+    return snapshot.docs.filter((doc) => doc.get('tenantId') === tenantId).map((doc) => toProof(doc.id, doc.data()));
+  }
+
+  /**
+   * Numa transação, e a partir do convite LIDO nela: o convite revogado entre o convite refeito e
+   * aqui não religa ninguém, e os sujeitos gravados são a soma dos convites da conta, como no `bind`.
+   */
+  async rebind(tenantId: string, invite: PortalIdentityInvite, proof: PortalIdentityProof, tenantName: string): Promise<void> {
+    const inviteRef = this.invites(tenantId).doc(invite.id);
+    const membership = this.portalUsers(tenantId).doc(proof.userId);
+    await this.db.runTransaction(async (transaction) => {
+      const current = await transaction.get(inviteRef);
+      if (!current.exists) return;
+      const bound = await transaction.get(this.invites(tenantId).where('boundUserIds', 'array-contains', proof.userId));
+      const existing = await transaction.get(membership);
+      const subjectKeys = [...new Set([
+        ...asStrings(current.get('subjectKeys')),
+        ...bound.docs.flatMap((doc) => asStrings(doc.get('subjectKeys'))),
+      ])].sort();
+      transaction.update(inviteRef, { boundUserIds: FieldValue.arrayUnion(proof.userId), updatedAt: FieldValue.serverTimestamp() });
+      if (existing.exists) {
+        transaction.update(membership, { subjectKeys, updatedAt: FieldValue.serverTimestamp() });
+        return;
+      }
+      const stored = toInvite(current.id, current.data() ?? {});
+      transaction.set(membership, {
+        userId: proof.userId,
+        email: stored.email,
+        displayName: proof.displayName || stored.displayName,
+        tenantId,
+        tenantName,
+        subjectKeys,
+        invitedBy: stored.invitedBy,
+        ...(stored.locale ? { locale: stored.locale } : {}),
+        identity: {
+          provider: proof.provider,
+          claim: { name: stored.claim.name, value: stored.claim.value },
+          level: proof.level,
+          subject: proof.subject,
+          verifiedAt: Timestamp.fromDate(proof.verifiedAt),
+        },
+        addedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   async syncAccount(tenantId: string, userId: string): Promise<void> {
