@@ -64,8 +64,29 @@ export interface RecordImportTotals {
 export const RECORD_IMPORT_STATUSES = ['running', 'finished', 'cancelled'] as const;
 export type RecordImportStatus = (typeof RECORD_IMPORT_STATUSES)[number];
 
+/**
+ * A importação feita na aba de um registro-pai: o campo de vínculo e o registro aberto. O servidor grava
+ * o campo em cada linha — ele nunca é coluna do arquivo — e não altera registro que aponta para outro pai.
+ */
+export interface RecordImportParent {
+  fieldKey: string;
+  recordId: string;
+}
+
+/**
+ * A coluna de um campo de referência que traz a CHAVE do registro apontado (o CPF, a inscrição) em vez
+ * do id dele. `key` é o nome de uma chave declarada do alvo, de um campo só.
+ */
+export interface RecordImportLookup {
+  fieldKey: string;
+  key: string;
+}
+
+/** Quantas colunas de uma importação podem procurar o alvo pela chave. */
+export const RECORD_IMPORT_MAX_LOOKUPS = 20;
+
 export type RecordImportRequest =
-  | { op: 'start'; tenantId: string; table: string; fileName: string; totalRows: number }
+  | { op: 'start'; tenantId: string; table: string; fileName: string; totalRows: number; parent?: RecordImportParent }
   | {
     op: 'rows';
     tenantId: string;
@@ -74,6 +95,9 @@ export type RecordImportRequest =
     importId?: string;
     dryRun: boolean;
     rows: RecordImportRow[];
+    /** Só na simulação. Na execução, vale o pai do job. */
+    parent?: RecordImportParent;
+    lookups?: RecordImportLookup[];
   }
   | { op: 'finish'; tenantId: string; importId: string; cancelled?: boolean };
 
@@ -125,3 +149,29 @@ export const recordImportTotalIssue = (totalRows: unknown): string | null =>
   Number.isInteger(totalRows) && (totalRows as number) >= 1 && (totalRows as number) <= RECORD_IMPORT_MAX_ROWS
     ? null
     : '@core.records/import.error.too-many-rows';
+
+const isIdentifier = (value: unknown): value is string =>
+  typeof value === 'string' && value.trim() !== '' && !value.includes('/');
+
+/** O pai na forma, antes de qualquer leitura. Ausente é a importação de sempre. */
+export const recordImportParentIssue = (parent: unknown): string | null => {
+  if (parent === undefined || parent === null) return null;
+  return isPlainObject(parent) && isIdentifier(parent.fieldKey) && isIdentifier(parent.recordId)
+    ? null
+    : '@core.records/import.error.batch-malformed';
+};
+
+/** As colunas que procuram pela chave, na forma: no máximo uma por campo. */
+export const recordImportLookupsIssue = (lookups: unknown): string | null => {
+  if (lookups === undefined || lookups === null) return null;
+  if (!Array.isArray(lookups) || lookups.length > RECORD_IMPORT_MAX_LOOKUPS) return '@core.records/import.error.batch-malformed';
+  const fields = new Set<string>();
+  for (const lookup of lookups) {
+    if (!isPlainObject(lookup) || !isIdentifier(lookup.fieldKey) || !isIdentifier(lookup.key)) {
+      return '@core.records/import.error.batch-malformed';
+    }
+    if (fields.has(lookup.fieldKey)) return '@core.records/import.error.batch-malformed';
+    fields.add(lookup.fieldKey);
+  }
+  return null;
+};

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.177.0] — 2026-10-29
+
+- Agora é possível importar uma planilha direto na aba de um registro: os itens de um pedido, os alunos de uma turma, os destinatários de um lote. Cada linha já entra vinculada ao registro aberto, sem precisar de coluna para isso, e a importação nunca transfere para ele um item que pertence a outro registro.
+- Na importação, uma coluna que aponta para outro cadastro pode trazer o documento ou o código que as pessoas conhecem (o CPF, a inscrição) em vez do identificador interno. A linha cujo valor não é encontrado aparece no relatório de recusadas, com o número da linha e o valor.
+
 #### [9.176.2] — 2026-10-29
 
 - Ao usar no portal um botão de ação do escritório, o convidado passa a ver a confirmação de que a ação foi registrada, em vez de uma mensagem técnica de erro. A execução também volta a aparecer no histórico de automações do escritório, mostrando quem fez o quê.

@@ -41,6 +41,7 @@ export const RecordImportDialog: React.FC<RecordImportDialogProps> = (props) => 
           <>
             <S.Muted>{vm.fileName}</S.Muted>
             <InfoBanner variant={vm.keyNotice.variant} message={vm.keyNotice.message} />
+            {vm.parentNotice && <InfoBanner variant="info" message={vm.parentNotice} />}
             {vm.requiredNotice && <InfoBanner variant="info" message={vm.requiredNotice} />}
             {vm.runError && <InfoBanner variant="warning" message={vm.runError} />}
             <S.Table>

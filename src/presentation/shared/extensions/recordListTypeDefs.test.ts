@@ -17,7 +17,7 @@ const MEMBERS: Record<keyof RecordListViewModel, true> = {
   getFieldText: true, getCardImageUrl: true, getCardActions: true, parameterPrompt: true,
   pendingCardAction: true, confirmPendingCardAction: true, cancelPendingCardAction: true, tagAdapter: true,
   tagManagerRecord: true, closeTagManager: true, recordToDelete: true, cancelDelete: true,
-  confirmDelete: true, isDeleting: true,
+  confirmDelete: true, isDeleting: true, recordImport: true,
 };
 
 const declaredMembers = (): string[] => {

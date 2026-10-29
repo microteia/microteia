@@ -1,6 +1,12 @@
 import type { IRecordImportRepository } from '../../repositories/IRecordImportRepository';
 import { RECORD_IMPORT_BATCH_SIZE, tallyImportResults } from '../../schema/recordImport';
-import type { RecordImportRow, RecordImportRowResult, RecordImportTotals } from '../../schema/recordImport';
+import type {
+  RecordImportLookup,
+  RecordImportParent,
+  RecordImportRow,
+  RecordImportRowResult,
+  RecordImportTotals,
+} from '../../schema/recordImport';
 
 export interface RunRecordImportInput {
   tenantId: string;
@@ -9,6 +15,10 @@ export interface RunRecordImportInput {
   rows: RecordImportRow[];
   /** Linhas que o navegador já recusou (célula que não converte). Entram no total declarado e no relatório. */
   rejected: RecordImportRowResult[];
+  /** A importação feita na aba de um registro: o servidor grava o vínculo em cada linha. */
+  parent?: RecordImportParent;
+  /** As colunas de referência que trazem a chave do alvo, e não o id. */
+  lookups?: RecordImportLookup[];
   dryRun: boolean;
   onProgress: (done: number, total: number) => void;
   /** Consultado entre os lotes: o lote em curso termina, o seguinte não sai. */
@@ -50,14 +60,21 @@ export const makeRunRecordImportUseCase = (repo: IRecordImportRepository): RunRe
     // Sem linha para o servidor não há o que importar — nem job, nem linha de Auditoria.
     const importId = input.dryRun || input.rows.length === 0
       ? undefined
-      : await repo.start(input.tenantId, input.table, input.fileName, input.rows.length);
+      : await repo.start(input.tenantId, input.table, input.fileName, input.rows.length, input.parent);
     try {
       for (const rows of inBatches(input.rows)) {
         if (input.isCancelled()) {
           cancelled = true;
           break;
         }
-        results.push(...await repo.sendRows(input.tenantId, { table: input.table, importId, dryRun: input.dryRun, rows }));
+        results.push(...await repo.sendRows(input.tenantId, {
+          table: input.table,
+          importId,
+          dryRun: input.dryRun,
+          rows,
+          ...(input.parent ? { parent: input.parent } : {}),
+          ...(input.lookups && input.lookups.length > 0 ? { lookups: input.lookups } : {}),
+        }));
         done += rows.length;
         input.onProgress(done, total);
       }

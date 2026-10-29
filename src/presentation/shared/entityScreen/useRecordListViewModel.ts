@@ -41,6 +41,8 @@ import { useT, useLabel } from '../i18n/useT';
 import { LocalizedError } from '../../../domain/errors/LocalizedError';
 import { editWindowAllowsDelete, isEditWindowOpen, readEditWindow } from '../../../domain/schema/editWindow';
 import { useEditWindowClock } from './useEditWindow';
+import { useParentRecordImport } from './useParentRecordImport';
+import type { RecordListImport } from './useParentRecordImport';
 
 const STATUS_TONE: Record<ActionStatusCode, 'success' | 'warning' | 'error'> = {
   SUCCESS: 'success',
@@ -151,6 +153,12 @@ export interface RecordListViewModel {
   cancelDelete: () => void;
   confirmDelete: () => Promise<void>;
   isDeleting: boolean;
+  /**
+   * Importar registros de um arquivo PARA ESTA ABA: presente só na lista presa a um pai por UM campo de
+   * referência única, e para quem pode importar. A superfície põe o botão e o diálogo; o vínculo com o
+   * pai é gravado pelo servidor. `null` na lista própria da tela — lá a importação é da página.
+   */
+  recordImport: RecordListImport | null;
 }
 
 /**
@@ -560,6 +568,17 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     }
   }, [recordToDelete, deleteRecord, collection, notify, t, label]);
 
+  const canCreate = can(collectionPermissionId(collection, 'create'));
+  const canUpdate = can(collectionPermissionId(collection, 'update'));
+  const recordImport = useParentRecordImport({
+    collection,
+    parent,
+    screenTitle: definition ? label(definition.titlePlural) : '',
+    isAvailable,
+    canCreate,
+    canUpdate,
+  });
+
   return {
     definition,
     collection,
@@ -573,8 +592,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     tags,
     setFilterTokens,
     canRead: can(collectionPermissionId(collection, 'read')),
-    canCreate: can(collectionPermissionId(collection, 'create')),
-    canUpdate: can(collectionPermissionId(collection, 'update')),
+    canCreate,
+    canUpdate,
     canDeleteRecords: can(collectionPermissionId(collection, 'delete')),
     openNewRecord,
     openRecord,
@@ -596,5 +615,6 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     cancelDelete,
     confirmDelete,
     isDeleting,
+    recordImport,
   };
 };

@@ -1,5 +1,6 @@
 import React from 'react';
-import { RiApps2Line } from 'react-icons/ri';
+import { RiApps2Line, RiUploadLine } from 'react-icons/ri';
+import { Button } from '../../ui/Button';
 import { CustomFieldMetaRows } from '../../ui/CustomFieldMetaRows';
 import { EntityListCard } from '../../ui/EntityListCard';
 import { UserAvatar } from '../../ui/UserAvatar';
@@ -122,7 +123,17 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
       emptyIcon={<RiApps2Line />}
       emptyTitle={emptyTitle ?? t('record.list.empty')}
       emptyActionLabel={emptyActionLabel ?? t('record.create-action', { entity: label(definition.titleSingular) })}
-      headerExtra={headerActions}
+      headerExtra={vm.recordImport
+        ? (
+          <>
+            {headerActions}
+            <Button variant="secondary" size="sm" onClick={vm.recordImport.open} title={t('import.open')}>
+              <RiUploadLine size={14} />
+              {t('import.open')}
+            </Button>
+          </>
+        )
+        : headerActions}
       belowHeader={summary}
       modals={modals}
     >

@@ -39,6 +39,59 @@ const anotacoes: SchemaScreen = {
   fields: [{ key: 'texto', label: 'Texto', type: 'text', required: true, order: 0, origin: 'design' }],
 };
 
+/**
+ * O cabeçalho e os itens: um lote (o pai), os destinatários dele (o filho, com chave `primary` composta
+ * por pai e referência) e o domicílio para onde cada destinatário aponta, achado pelo documento — a chave
+ * do alvo, normalizada para dígitos. `inscricoes` é o filho cuja chave NÃO inclui o pai.
+ */
+const domicilios: SchemaScreen = {
+  id: 'domicilios',
+  titleSingular: 'Domicílio',
+  titleFieldKey: 'nome',
+  fields: [
+    { key: 'documento', label: 'Documento', type: 'text', required: true, order: 0, origin: 'design' },
+    { key: 'nome', label: 'Nome', type: 'text', required: true, order: 1, origin: 'design' },
+    { key: 'codigo', label: 'Código', type: 'text', required: false, order: 2, origin: 'design' },
+  ],
+  keys: [
+    { name: 'documento', kind: 'primary', fields: ['documento'], normalize: { formatPreset: 'digits' } },
+    { name: 'codigo-nome', kind: 'unique', fields: ['codigo', 'nome'] },
+  ],
+};
+
+const lotes: SchemaScreen = {
+  id: 'lotes',
+  titleSingular: 'Lote',
+  titleFieldKey: 'nome',
+  fields: [{ key: 'nome', label: 'Nome', type: 'text', required: true, order: 0, origin: 'design' }],
+};
+
+const destinatarios: SchemaScreen = {
+  id: 'destinatarios',
+  titleSingular: 'Destinatário',
+  titleFieldKey: 'domicilio',
+  parentFieldKey: 'lote',
+  fields: [
+    { key: 'lote', label: 'Lote', type: 'reference', refEntity: 'lotes', required: true, order: 0, origin: 'design' },
+    { key: 'domicilio', label: 'Domicílio', type: 'reference', refEntity: 'domicilios', required: true, order: 1, origin: 'design' },
+    { key: 'observacao', label: 'Observação', type: 'text', required: false, order: 2, origin: 'design' },
+    { key: 'lotes', label: 'Lotes', type: 'reference', refEntity: 'lotes', multi: true, required: false, order: 3, origin: 'design' },
+  ],
+  keys: [{ name: 'lote-domicilio', kind: 'primary', fields: ['lote', 'domicilio'] }],
+};
+
+const inscricoes: SchemaScreen = {
+  id: 'inscricoes',
+  titleSingular: 'Inscrição',
+  titleFieldKey: 'domicilio',
+  parentFieldKey: 'lote',
+  fields: [
+    { key: 'lote', label: 'Lote', type: 'reference', refEntity: 'lotes', required: true, order: 0, origin: 'design' },
+    { key: 'domicilio', label: 'Domicílio', type: 'reference', refEntity: 'domicilios', required: true, order: 1, origin: 'design' },
+  ],
+  keys: [{ name: 'domicilio', kind: 'primary', fields: ['domicilio'] }],
+};
+
 const TENANT = 't1';
 const ana: RecordImportActor = { userId: 'u-ana', name: 'Ana', photoURL: '', permissions: ['*'] };
 
@@ -46,7 +99,10 @@ const setup = () => {
   const repo = new FakeMutationRepository();
   const jobs = new FakeRecordImportJobs();
   const audit: CreateAuditLogInput[] = [];
-  const screenProvider = fakeScreenProvider([contribuintes, anotacoes], [{ collection: 'situacoes', label: 'Situação' }]);
+  const screenProvider = fakeScreenProvider(
+    [contribuintes, anotacoes, domicilios, lotes, destinatarios, inscricoes],
+    [{ collection: 'situacoes', label: 'Situação' }],
+  );
   const upsertFor = async (tenantId: string, actor: RecordImportActor): Promise<RecordImportUpsert> => {
     const context = {
       event: { id: '', tenantId, name: 'record.import', payload: {}, timestamp: new Date() },
@@ -58,12 +114,13 @@ const setup = () => {
       actor: { ...actor, via: 'import' as const },
       reader: { uid: actor.userId, permissions: actor.permissions },
     } as WorkflowContext;
-    return async (spec, dryRun) => {
+    return async (spec, { dryRun, parent }) => {
       const outcome = await runWorkflowUpsert(spec, context, { mutationRepository: repo, screenProvider }, {
         matchPrimaryKey: true,
         requireCollectionPermission: true,
         enforceRequired: true,
         dryRun,
+        ...(parent ? { lockedTo: parent } : {}),
       });
       return outcome.ok ? { ok: true, value: { id: outcome.value.id, created: outcome.value.created } } : outcome;
     };
@@ -71,6 +128,7 @@ const setup = () => {
   const useCases = makeRecordImportUseCases({
     jobs,
     screenProvider,
+    records: repo,
     audit: { execute: async (input) => { audit.push(input); } },
     upsertFor,
   });
@@ -294,5 +352,183 @@ describe('importação — a permissão é cobrada linha a linha', () => {
     ]);
     expect(results.map((result) => result.status)).toEqual(['created', 'failed', 'created']);
     expect(results[1].error).toBe('@core.records/import.error.row-failed');
+  });
+});
+
+describe('importação na aba do pai — o vínculo vem do servidor e a referência, da chave do alvo', () => {
+  /** Dois lotes e três domicílios, gravados pela própria importação (é ela que faz as reservas). */
+  const seeded = async () => {
+    const env = setup();
+    const { results: lots } = await runImport(env.useCases, [
+      { line: 2, data: { nome: 'Lote A' } },
+      { line: 3, data: { nome: 'Lote B' } },
+    ], 'lotes');
+    const { results: homes } = await runImport(env.useCases, [
+      { line: 2, data: { documento: '12345678900', nome: 'Ana' } },
+      { line: 3, data: { documento: '98765432100', nome: 'Bia' } },
+      { line: 4, data: { documento: '11122233344', nome: 'Caio' } },
+    ], 'domicilios');
+    const [loteA, loteB] = lots.map((result) => result.id as string);
+    const [ana1, bia1, caio1] = homes.map((result) => result.id as string);
+    return { ...env, loteA, loteB, homes: { ana: ana1, bia: bia1, caio: caio1 } };
+  };
+
+  const BY_DOCUMENT = [{ fieldKey: 'domicilio', key: 'documento' }];
+
+  const importInto = async (
+    useCases: ReturnType<typeof setup>['useCases'],
+    parent: { fieldKey: string; recordId: string },
+    rows: RecordImportRow[],
+    options: { table?: string; actor?: RecordImportActor; lookups?: { fieldKey: string; key: string }[] } = {},
+  ) => {
+    const table = options.table ?? 'destinatarios';
+    const actor = options.actor ?? ana;
+    const { importId } = await useCases.start({ tenantId: TENANT, table, fileName: 'lote.csv', totalRows: rows.length, parent, actor });
+    const { results } = await useCases.rows({
+      tenantId: TENANT, table, importId, dryRun: false, rows, lookups: options.lookups ?? BY_DOCUMENT, actor,
+    });
+    return results;
+  };
+
+  const childrenOf = (repo: FakeMutationRepository, collection = 'destinatarios') =>
+    [...repo.store.entries()]
+      .filter(([path]) => path.startsWith(`${collection}/`))
+      .map(([, record]) => record);
+
+  it('acha o domicílio pela chave normalizada, e cada filho nasce preso ao lote aberto', async () => {
+    const { repo, useCases, loteA, homes } = await seeded();
+    const results = await importInto(useCases, { fieldKey: 'lote', recordId: loteA }, [
+      { line: 2, data: { domicilio: '123.456.789-00', observacao: 'primeira' } },
+      { line: 3, data: { domicilio: ' 987 654 321 00 ' } },
+    ]);
+
+    expect(results.map((result) => result.status)).toEqual(['created', 'created']);
+    const children = childrenOf(repo);
+    expect(children).toHaveLength(2);
+    expect(children.map((child) => child.domicilio)).toEqual([homes.ana, homes.bia]);
+    expect(children.every((child) => child.lote === loteA && child.createdVia === 'import')).toBe(true);
+  });
+
+  it('chave primária composta (pai, referência): reimportar altera, a linha repetida altera, e o outro lote é outro registro', async () => {
+    const { repo, useCases, loteA, loteB } = await seeded();
+    const file: RecordImportRow[] = [
+      { line: 2, data: { domicilio: '12345678900', observacao: 'v1' } },
+      { line: 3, data: { domicilio: '123.456.789-00', observacao: 'v2' } },
+    ];
+    const first = await importInto(useCases, { fieldKey: 'lote', recordId: loteA }, file);
+    expect(first.map((result) => result.status)).toEqual(['created', 'updated']);
+
+    const again = await importInto(useCases, { fieldKey: 'lote', recordId: loteA }, file);
+    expect(again.map((result) => result.status)).toEqual(['updated', 'updated']);
+    expect(childrenOf(repo)).toHaveLength(1);
+    expect(childrenOf(repo)[0].observacao).toBe('v2');
+
+    const other = await importInto(useCases, { fieldKey: 'lote', recordId: loteB }, [file[0]]);
+    expect(other[0].status).toBe('created');
+    expect(childrenOf(repo).map((child) => child.lote).sort()).toEqual([loteA, loteB].sort());
+  });
+
+  it('a linha cuja chave não acha nada é recusada com a linha e o valor; as outras seguem', async () => {
+    const { repo, useCases, loteA } = await seeded();
+    const results = await importInto(useCases, { fieldKey: 'lote', recordId: loteA }, [
+      { line: 2, data: { domicilio: '000.000.000-00' } },
+      { line: 3, data: { domicilio: '11122233344' } },
+    ]);
+
+    expect(results[0]).toEqual({
+      line: 2,
+      status: 'failed',
+      error: '@core.records/import.error.reference-not-found',
+      errorParams: { field: 'Domicílio', value: '000.000.000-00' },
+    });
+    expect(results[1].status).toBe('created');
+    expect(childrenOf(repo)).toHaveLength(1);
+  });
+
+  it('a simulação resolve igual e não grava; o pai dela vem do pedido', async () => {
+    const { repo, jobs, useCases, loteA } = await seeded();
+    const jobsBefore = jobs.jobs.size;
+    const { results } = await useCases.rows({
+      tenantId: TENANT,
+      table: 'destinatarios',
+      dryRun: true,
+      parent: { fieldKey: 'lote', recordId: loteA },
+      lookups: BY_DOCUMENT,
+      rows: [{ line: 2, data: { domicilio: '12345678900' } }, { line: 3, data: { domicilio: '5' } }],
+      actor: ana,
+    });
+    expect(results.map((result) => result.status)).toEqual(['created', 'failed']);
+    expect(childrenOf(repo)).toHaveLength(0);
+    expect(jobs.jobs.size).toBe(jobsBefore);
+  });
+
+  it('o pai é o do JOB: um lote que pede outro pai grava no do início', async () => {
+    const { repo, useCases, loteA, loteB } = await seeded();
+    const { importId } = await useCases.start({
+      tenantId: TENANT, table: 'destinatarios', fileName: 'x.csv', totalRows: 1, parent: { fieldKey: 'lote', recordId: loteA }, actor: ana,
+    });
+    await useCases.rows({
+      tenantId: TENANT,
+      table: 'destinatarios',
+      importId,
+      dryRun: false,
+      parent: { fieldKey: 'lote', recordId: loteB },
+      lookups: BY_DOCUMENT,
+      rows: [{ line: 2, data: { domicilio: '12345678900', lote: loteB } }],
+      actor: ana,
+    });
+    expect(childrenOf(repo).map((child) => child.lote)).toEqual([loteA]);
+  });
+
+  it('não move o registro de outro pai que a chave (sem o pai) encontrou', async () => {
+    const { repo, useCases, loteA, loteB } = await seeded();
+    await importInto(useCases, { fieldKey: 'lote', recordId: loteA }, [{ line: 2, data: { domicilio: '12345678900' } }], { table: 'inscricoes' });
+    const results = await importInto(useCases, { fieldKey: 'lote', recordId: loteB }, [{ line: 2, data: { domicilio: '12345678900' } }], { table: 'inscricoes' });
+
+    expect(results[0]).toMatchObject({ status: 'failed', error: '@core.automation/mutation.upsert.outside-parent' });
+    expect(childrenOf(repo, 'inscricoes').map((child) => child.lote)).toEqual([loteA]);
+  });
+
+  it('o pai precisa ser uma referência de um id, e um registro que o membro lê', async () => {
+    const { useCases, loteA } = await seeded();
+    const start = (parent: { fieldKey: string; recordId: string }, actor = ana) =>
+      useCases.start({ tenantId: TENANT, table: 'destinatarios', fileName: 'x.csv', totalRows: 1, parent, actor });
+
+    expect(await refusal(start({ fieldKey: 'lotes', recordId: loteA }))).toBe('@core.records/import.error.parent-field');
+    expect(await refusal(start({ fieldKey: 'observacao', recordId: loteA }))).toBe('@core.records/import.error.parent-field');
+    expect(await refusal(start({ fieldKey: 'lote', recordId: 'nao-existe' }))).toBe('@core.records/import.error.parent-not-found');
+    expect(await refusal(start({ fieldKey: 'lote', recordId: 'a/b' }))).toBe('@core.records/import.error.batch-malformed');
+
+    const writer = { ...ana, permissions: ['destinatarios.create', 'destinatarios.update', 'domicilios.read'] };
+    expect(await refusal(start({ fieldKey: 'lote', recordId: loteA }, writer))).toBe('@core.records/import.error.parent-not-found');
+  });
+
+  it('procurar pela chave exige referência, chave de um campo do alvo e leitura do alvo', async () => {
+    const { useCases, loteA } = await seeded();
+    const simulateWith = (lookups: { fieldKey: string; key: string }[], actor = ana) => useCases.rows({
+      tenantId: TENANT,
+      table: 'destinatarios',
+      dryRun: true,
+      parent: { fieldKey: 'lote', recordId: loteA },
+      lookups,
+      rows: [{ line: 2, data: { domicilio: '12345678900' } }],
+      actor,
+    });
+
+    expect(await refusal(simulateWith([{ fieldKey: 'observacao', key: 'documento' }]))).toBe('@core.records/import.error.lookup-field');
+    expect(await refusal(simulateWith([{ fieldKey: 'lote', key: 'documento' }]))).toBe('@core.records/import.error.lookup-field');
+    expect(await refusal(simulateWith([{ fieldKey: 'domicilio', key: 'codigo-nome' }]))).toBe('@core.records/import.error.lookup-key');
+    expect(await refusal(simulateWith([{ fieldKey: 'domicilio', key: 'documento' }, { fieldKey: 'domicilio', key: 'documento' }])))
+      .toBe('@core.records/import.error.batch-malformed');
+
+    const blind = { ...ana, permissions: ['destinatarios.create', 'destinatarios.update', 'lotes.read'] };
+    expect(await refusal(simulateWith(BY_DOCUMENT, blind))).toBe('@core.access/permission.denied');
+  });
+
+  it('sem pai e sem colunas por chave, a referência continua sendo o id — como sempre', async () => {
+    const { repo, useCases, loteA, homes } = await seeded();
+    const { results } = await runImport(useCases, [{ line: 2, data: { lote: loteA, domicilio: homes.caio } }], 'destinatarios');
+    expect(results[0].status).toBe('created');
+    expect(childrenOf(repo)[0]).toMatchObject({ lote: loteA, domicilio: homes.caio });
   });
 });

@@ -535,6 +535,8 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'import.mapping.column': 'Column {number}',
   'import.mapping.ignore': 'Do not import',
   'import.mapping.key': 'key',
+  'import.mapping.by-id': '{field} — by record id',
+  'import.mapping.by-key': '{field} — find by {key}',
   'import.mapping.required': 'required',
   'import.mapping.required-missing':
     'Not mapped, and required: {fields}. New records without them will be refused; existing records keep their value.',
@@ -545,6 +547,8 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'import.key.matched':
     'Rows are matched by {fields}: a row whose value already exists updates that record, so importing the same file again does not duplicate anything.',
   'import.key.unmapped': 'Map {fields} — the primary key of this screen. Without it no row can be matched or created.',
+  'import.parent.notice':
+    'Every row is linked to the record open in this tab. The link is not a column of the file: it is filled in as each row is written, and a row that matches a record linked to another one is refused.',
   'import.option.decimal': 'Decimal separator',
   'import.option.decimal-point': 'Point (1,234.56)',
   'import.option.decimal-comma': 'Comma (1.234,56)',
@@ -582,6 +586,11 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'import.error.not-found': 'This import does not exist.',
   'import.error.closed': 'This import has already been closed.',
   'import.error.row-failed': 'The row could not be written. Try importing it again.',
+  'import.error.parent-field': 'The field "{field}" cannot link an import to a record: it must be a reference to a single record.',
+  'import.error.parent-not-found': 'The record this import belongs to does not exist, or you cannot see it.',
+  'import.error.lookup-field': 'The field "{field}" is not a reference that can be found by key.',
+  'import.error.lookup-key': '"{key}" is not a single-field key of the records that "{field}" points to.',
+  'import.error.reference-not-found': '{field}: no record you can see has the key "{value}".',
   'import.audit.finished': 'Import into {screen} from {file}',
   'import.audit.cancelled': 'Import into {screen} from {file} (stopped)',
   'import.audit.detail':

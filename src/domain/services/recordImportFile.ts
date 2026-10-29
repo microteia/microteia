@@ -4,6 +4,7 @@ import { validateWritablePath } from '../schema/mutationSpec';
 import { collectDerivedFieldKeys } from '../schema/recordRules';
 import { resolveEntity, resolveEntityKeys } from '../schema/screenEntity';
 import type { RecordImportRow, RecordImportRowResult } from '../schema/recordImport';
+import { importLookupKeys, resolveImportReference } from '../schema/recordImportReference';
 
 /**
  * O lado do NAVEGADOR da importação: ler o arquivo, dizer o que dá para mapear, converter cada célula no
@@ -161,6 +162,12 @@ export const importFileKindOf = (fileName: string): ImportFileKind | null => {
 export const parseImportFile = (kind: ImportFileKind, source: string): ImportFileOutcome =>
   kind === 'json' ? parseImportJson(source) : parseImportCsv(source);
 
+/** Uma chave do alvo por que a coluna de uma referência acha o registro. `label` é o do campo dela. */
+export interface ImportLookupKey {
+  key: string;
+  label: string;
+}
+
 /** Um campo que pode receber uma coluna. `label` é o declarado — referência ou texto do escritório. */
 export interface ImportableField {
   key: string;
@@ -169,20 +176,41 @@ export interface ImportableField {
   required: boolean;
   /** Faz parte da chave `primary`: é por ele que a linha acha o registro que já existe. */
   primary: boolean;
+  /** Numa referência, as chaves do alvo por que a célula pode procurá-lo em vez de trazer o id. */
+  lookupKeys: ImportLookupKey[];
 }
+
+/** As chaves de um campo só do alvo de uma referência, com o rótulo do campo de cada uma. */
+const lookupKeysOf = (ctx: SchemaContext, collection: string, fieldKey: string): ImportLookupKey[] => {
+  const target = resolveImportReference(ctx, collection, fieldKey);
+  if (!target) return [];
+  const targetFields = resolveEntity(ctx, target.collection)?.fields ?? [];
+  return importLookupKeys(ctx, target.collection).map((key) => ({
+    key: key.name,
+    label: targetFields.find((field) => field.key === key.fields[0])?.label ?? key.fields[0],
+  }));
+};
 
 /**
  * Os campos que uma coluna pode preencher: os que o `upsert` aceita gravar (nem de sistema, nem
  * sequência, nem através de referência), menos os que um arquivo não tem como trazer — arquivo, objeto
  * aninhado, agregado e derivado. A pergunta "pode gravar?" é a do caminho de gravação
  * (`validateWritablePath`), não uma lista nova.
+ *
+ * `lockedFieldKey` é o vínculo com o pai na importação feita na aba dele: quem o grava é o servidor, e
+ * ele não é coluna.
  */
-export const importableFields = (ctx: SchemaContext, collection: string): ImportableField[] => {
+export const importableFields = (
+  ctx: SchemaContext,
+  collection: string,
+  options: { lockedFieldKey?: string } = {},
+): ImportableField[] => {
   const entity = resolveEntity(ctx, collection);
   if (!entity) return [];
   const derived = collectDerivedFieldKeys(ctx, collection);
   const primary = new Set(resolveEntityKeys(ctx, collection).find((key) => key.kind === 'primary')?.fields ?? []);
   return entity.fields
+    .filter((field) => field.key !== options.lockedFieldKey)
     .filter((field) => field.type !== 'object' && field.ui?.control !== 'file' && !field.file && !field.aggregation && !derived.has(field.key))
     .filter((field) => validateWritablePath(ctx, collection, field.key) === undefined)
     .map((field) => ({
@@ -191,6 +219,7 @@ export const importableFields = (ctx: SchemaContext, collection: string): Import
       type: field.type,
       required: field.required === true,
       primary: primary.has(field.key),
+      lookupKeys: field.refEntity ? lookupKeysOf(ctx, collection, field.key) : [],
     }));
 };
 

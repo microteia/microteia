@@ -23,7 +23,8 @@ const silent: WorkflowLogger = { info: () => undefined, warn: () => undefined, e
  * A gravação de uma linha, montada UMA vez por lote: o contexto é o de uma pessoa (`via: 'import'`), que
  * lê com as permissões dela (`memberVisibility`) e responde pela autoria. O resto é o `runWorkflowUpsert`
  * de sempre, com as opções que fazem dele uma importação: casar pela chave `primary`, cobrar a permissão
- * da coleção linha a linha, cobrar o `required` como o formulário cobra e, na simulação, não gravar.
+ * da coleção linha a linha, cobrar o `required` como o formulário cobra, prender ao pai quando a importação
+ * é feita na aba dele e, na simulação, não gravar.
  */
 const importUpsertFor = async (tenantId: string, actor: RecordImportActor): Promise<RecordImportUpsert> => {
   const context: WorkflowContext = {
@@ -46,12 +47,13 @@ const importUpsertFor = async (tenantId: string, actor: RecordImportActor): Prom
     mutationRepository: new FirestoreWorkflowMutationRepository(getDb()),
     screenProvider: getDI().getScreenDefinitionCache(),
   };
-  return async (spec, dryRun) => {
+  return async (spec, { dryRun, parent }) => {
     const outcome = await runWorkflowUpsert(spec, context, deps, {
       matchPrimaryKey: true,
       requireCollectionPermission: true,
       enforceRequired: true,
       dryRun,
+      ...(parent ? { lockedTo: parent } : {}),
     });
     return outcome.ok ? { ok: true, value: { id: outcome.value.id, created: outcome.value.created } } : outcome;
   };
@@ -59,6 +61,7 @@ const importUpsertFor = async (tenantId: string, actor: RecordImportActor): Prom
 
 const useCases = () => makeRecordImportUseCases({
   jobs: new FirebaseRecordImportJobRepository(getDb()),
+  records: new FirestoreWorkflowMutationRepository(getDb()),
   screenProvider: getDI().getScreenDefinitionCache(),
   audit: getDI().getCreateAuditLogUseCase(),
   upsertFor: importUpsertFor,

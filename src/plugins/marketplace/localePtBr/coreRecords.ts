@@ -532,6 +532,8 @@ export const CORE_RECORDS: Record<string, string> = {
   'import.mapping.column': 'Coluna {number}',
   'import.mapping.ignore': 'Não importar',
   'import.mapping.key': 'chave',
+  'import.mapping.by-id': '{field} — pelo id do registro',
+  'import.mapping.by-key': '{field} — procurar por {key}',
   'import.mapping.required': 'obrigatório',
   'import.mapping.required-missing':
     'Sem coluna, e obrigatórios: {fields}. Registros novos sem eles serão recusados; os que já existem mantêm o valor.',
@@ -542,6 +544,8 @@ export const CORE_RECORDS: Record<string, string> = {
   'import.key.matched':
     'As linhas são localizadas por {fields}: a linha cujo valor já existe altera aquele registro, e importar o mesmo arquivo de novo não duplica nada.',
   'import.key.unmapped': 'Ligue {fields} — a chave primária desta tela. Sem ela nenhuma linha é localizada nem criada.',
+  'import.parent.notice':
+    'Cada linha fica vinculada ao registro aberto nesta aba. O vínculo não é coluna do arquivo: ele é preenchido na gravação de cada linha, e a linha que localizar um registro vinculado a outro é recusada.',
   'import.option.decimal': 'Separador decimal',
   'import.option.decimal-point': 'Ponto (1,234.56)',
   'import.option.decimal-comma': 'Vírgula (1.234,56)',
@@ -580,6 +584,11 @@ export const CORE_RECORDS: Record<string, string> = {
   'import.error.not-found': 'Esta importação não existe.',
   'import.error.closed': 'Esta importação já foi encerrada.',
   'import.error.row-failed': 'Não foi possível gravar a linha. Tente importá-la de novo.',
+  'import.error.parent-field': 'O campo "{field}" não pode vincular uma importação a um registro: ele precisa ser uma referência a um único registro.',
+  'import.error.parent-not-found': 'O registro a que esta importação pertence não existe, ou você não pode vê-lo.',
+  'import.error.lookup-field': 'O campo "{field}" não é uma referência que possa ser procurada pela chave.',
+  'import.error.lookup-key': '"{key}" não é uma chave de um campo só dos registros para onde "{field}" aponta.',
+  'import.error.reference-not-found': '{field}: nenhum registro que você pode ver tem a chave "{value}".',
   'import.audit.finished': 'Importação em {screen} do arquivo {file}',
   'import.audit.cancelled': 'Importação em {screen} do arquivo {file} (interrompida)',
   'import.audit.detail':

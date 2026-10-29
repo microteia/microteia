@@ -151,7 +151,17 @@ export interface UpsertOptions {
    * sempre gravou sem o padrão não passa a gravá-lo. Alterar não semeia nada.
    */
   seedDefaults?: boolean;
+  /**
+   * A gravação fica presa a UM registro-pai: o campo recebe o id antes de tudo — formatação, chaves,
+   * casamento pela `primary` —, e o registro achado que não aponta para esse pai (outro pai, ou nenhum)
+   * é recusado em vez de alterado. Sem isto, uma chave que não inclui o pai moveria em silêncio o
+   * registro de outro pai para este. Quem pede é a importação feita na aba do pai.
+   */
+  lockedTo?: { fieldKey: string; recordId: string };
 }
+
+const pointsTo = (value: unknown, recordId: string): boolean =>
+  Array.isArray(value) ? value.includes(recordId) : value === recordId;
 
 interface WritableLeavesOutcome {
   spec: UpsertSpec;
@@ -251,7 +261,9 @@ export async function runWorkflowUpsert(
   const ctx = await deps.screenProvider.getSchemaContext(tenantId);
   const author = authorOf(context);
 
-  let effectiveSpec = spec;
+  let effectiveSpec: UpsertSpec = options.lockedTo
+    ? { ...spec, data: { ...spec.data, [options.lockedTo.fieldKey]: options.lockedTo.recordId } }
+    : spec;
   if (options.ignoreUnwritableFields) {
     const kept = keepWritableLeaves(spec, ctx);
     effectiveSpec = kept.spec;
@@ -309,6 +321,9 @@ export async function runWorkflowUpsert(
   // pessoa. A automação não tem leitor e grava como sempre.
   if (existing && !readerSeesRecord(resolveMemberVisibility(ctx, collection), collection, context.reader, existing)) {
     return { ok: false, error: '@core.records/record.not-found' };
+  }
+  if (existing && options.lockedTo && !pointsTo(existing[options.lockedTo.fieldKey], options.lockedTo.recordId)) {
+    return { ok: false, error: '@core.automation/mutation.upsert.outside-parent' };
   }
   if (options.requireCollectionPermission) {
     const permission = collectionPermissionId(collection, existing ? 'update' : 'create');

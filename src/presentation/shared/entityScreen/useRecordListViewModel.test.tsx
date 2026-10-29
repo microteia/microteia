@@ -517,3 +517,50 @@ describe('useRecordListViewModel — trava por campo multi e por vários campos'
     expect(result.current.getFieldText(state.records[0], 'type')).toBe('A');
   });
 });
+
+/**
+ * A importação na aba do pai. O alvo da referência precisa ser uma entidade conhecida — aqui, a própria
+ * coleção da tela (um prazo que aponta para o prazo de origem).
+ */
+describe('useRecordListViewModel — importar na aba do pai', () => {
+  const comOrigem = () => {
+    const base = definition();
+    state.definition = {
+      ...base,
+      fields: [
+        ...base.fields,
+        { key: 'originId', label: 'Origem', type: 'reference', refEntity: 'deadlines', required: false, order: 2, origin: 'plugin' },
+        { key: 'relatedIds', label: 'Relacionados', type: 'reference', refEntity: 'deadlines', multi: true, required: false, order: 3, origin: 'plugin' },
+      ],
+    } as ScreenDefinition;
+  };
+  const naAba = (fieldKeys: string[]) =>
+    listar(source({ parent: { entityKey: 'deadlines', fieldKeys, recordId: 'd1' } })).result;
+
+  it('presa por UM campo de referência única, oferece a importação com o pai já decidido', () => {
+    comOrigem();
+    const result = naAba(['originId']);
+    expect(result.current.recordImport).toMatchObject({ isOpen: false, parent: { fieldKey: 'originId', recordId: 'd1' }, screenTitle: 'Prazos' });
+    act(() => result.current.recordImport?.open());
+    expect(result.current.recordImport?.isOpen).toBe(true);
+    act(() => result.current.recordImport?.close());
+    expect(result.current.recordImport?.isOpen).toBe(false);
+  });
+
+  it('não oferece numa trava multi, por vários campos, nem na lista própria da tela', () => {
+    comOrigem();
+    expect(naAba(['relatedIds']).current.recordImport).toBeNull();
+    expect(naAba(['originId', 'relatedIds']).current.recordImport).toBeNull();
+    expect(listar(source()).result.current.recordImport).toBeNull();
+  });
+
+  it('não oferece a quem não tem `record-import.run`, nem a quem não cria NEM altera', () => {
+    comOrigem();
+    auth.granted = ['deadlines.read', 'deadlines.create'];
+    expect(naAba(['originId']).current.recordImport).toBeNull();
+    auth.granted = ['deadlines.read', 'record-import.run'];
+    expect(naAba(['originId']).current.recordImport).toBeNull();
+    auth.granted = ['deadlines.read', 'deadlines.update', 'record-import.run'];
+    expect(naAba(['originId']).current.recordImport).not.toBeNull();
+  });
+});

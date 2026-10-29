@@ -6,9 +6,16 @@ import type {
   RecordImportJob,
 } from '../../domain/repositories/IRecordImportJobRepository';
 import { RECORD_IMPORTS_COLLECTION, RECORD_IMPORT_STATUSES, emptyImportTotals } from '../../domain/schema/recordImport';
-import type { RecordImportStatus, RecordImportTotals } from '../../domain/schema/recordImport';
+import type { RecordImportParent, RecordImportStatus, RecordImportTotals } from '../../domain/schema/recordImport';
 
 const countOf = (value: unknown): number => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
+
+const readParent = (value: unknown): RecordImportParent | null => {
+  const parent = (value ?? {}) as Record<string, unknown>;
+  return typeof parent.fieldKey === 'string' && typeof parent.recordId === 'string'
+    ? { fieldKey: parent.fieldKey, recordId: parent.recordId }
+    : null;
+};
 
 const readJob = (id: string, data: DocumentData): RecordImportJob => {
   const totals = (data.totals ?? {}) as Record<string, unknown>;
@@ -22,6 +29,7 @@ const readJob = (id: string, data: DocumentData): RecordImportJob => {
     status,
     createdBy: String(data.createdBy ?? ''),
     totals: { created: countOf(totals.created), updated: countOf(totals.updated), failed: countOf(totals.failed) },
+    parent: readParent(data.parent),
   };
 };
 
@@ -44,6 +52,7 @@ export class FirebaseRecordImportJobRepository implements IRecordImportJobReposi
       fileName: job.fileName,
       totalRows: job.totalRows,
       createdBy: job.createdBy,
+      ...(job.parent ? { parent: { fieldKey: job.parent.fieldKey, recordId: job.parent.recordId } } : {}),
       status: 'running',
       totals: emptyImportTotals(),
       startedAt: Timestamp.now(),

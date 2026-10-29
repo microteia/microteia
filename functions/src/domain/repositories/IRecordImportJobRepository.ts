@@ -1,4 +1,4 @@
-import type { RecordImportStatus, RecordImportTotals } from '../schema/recordImport';
+import type { RecordImportParent, RecordImportStatus, RecordImportTotals } from '../schema/recordImport';
 
 /** O job de uma importação executada — `tenants/{id}/record_imports/{importId}`. A simulação não abre job. */
 export interface RecordImportJob {
@@ -10,6 +10,8 @@ export interface RecordImportJob {
   status: RecordImportStatus;
   createdBy: string;
   totals: RecordImportTotals;
+  /** A importação feita na aba de um registro: o pai fica travado no job, como a tabela. */
+  parent: RecordImportParent | null;
 }
 
 export type NewRecordImportJob = Omit<RecordImportJob, 'id' | 'status' | 'totals'> & { expiresAt: Date };

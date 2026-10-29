@@ -1157,6 +1157,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'mutation.remove.invalid': 'Invalid deletion: {detail}',
   'mutation.upsert.invalid': 'Invalid write: {detail}',
   'mutation.upsert.not-found': 'The record to change no longer exists.',
+  'mutation.upsert.outside-parent': 'The record found is linked to another record, and this write does not move it.',
   'mutation.upsert.edit-window-closed': 'This record can no longer be changed: its screen only allows changes within {minutes} minutes of its creation.',
   'mutation.remove.edit-window-closed': 'This record can no longer be deleted: its screen only allows deleting it within {minutes} minutes of its creation.',
   'mutation.upsert.key-conflict':

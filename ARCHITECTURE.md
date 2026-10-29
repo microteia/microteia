@@ -13945,6 +13945,7 @@ todas aditivas — quem não as passa grava exatamente como antes:
 | `requireCollectionPermission` | cobra do ator `<coleção>.create` ou `.update` conforme o que a linha VAI fazer | só se sabe se a linha cria ou altera depois de achar o registro pela chave — portanto, dentro do caminho |
 | `enforceRequired` | cobra `required` sobre o registro INTEIRO (gravado + linha), como o formulário | o `upsert` de sempre não cobra, de propósito (a automação grava em etapas); a importação cobra, porque um arquivo de cadastros pela metade é o erro que o formulário existe para impedir |
 | `seedDefaults` | na CRIAÇÃO, o campo ausente da linha nasce com o `defaultValue` declarado (`seedFieldDefaults`, em `recordRules.ts`), ANTES das regras — o padrão é formatado, validado e visto pelo `compute` como o valor digitado | é a conta de `buildInitialFormValues` do lado do servidor. Quem a pede é o portal (ver "Gravar pelo portal"); a automação não, de propósito: ela sempre gravou só o que o fluxo mandou, e passar a gravar o padrão mudaria em silêncio o que fluxos já publicados produzem |
+| `lockedTo` | grava `{ fieldKey: recordId }` antes de tudo e RECUSA alterar o registro achado que aponta para outro pai (`mutation.upsert.outside-parent`) | só se sabe para onde o registro aponta depois de achá-lo pelo id ou pela chave — dentro do caminho. Quem a pede é a importação na aba do pai (ver "Na aba do pai, e pela chave do alvo") |
 
 `IWorkflowMutationRepository.findKeyHolders` é a única leitura nova: de quem é cada reserva. Serve às duas
 primeiras opções.
@@ -14003,19 +14004,75 @@ pessoa responde como inexistente, e a soma das linhas não passa do total declar
   linha.
 - **A linha agregada conta o que chegou ao servidor.** A linha recusada no navegador (célula que não converte)
   aparece no relatório da tela, não no total do job.
-- **Referência é `docId`.** Uma coluna para um campo de referência precisa trazer o id do registro apontado;
-  achar pelo nome não é feito.
+- **Referência é `docId` — ou a CHAVE do alvo, quando a coluna diz.** Ver "Na aba do pai, e pela chave do
+  alvo" abaixo. Achar pelo NOME (o título) não é feito: nome não é único, e uma escolha errada gravaria em
+  silêncio o vínculo com outro registro.
 - **Campo de vários valores** separa os valores por `|` dentro da célula (`RECORD_IMPORT_LIST_SEPARATOR`).
 - **50 mil linhas por arquivo** (`RECORD_IMPORT_MAX_ROWS`) e 20 MB. Cada linha é uma gravação completa,
   com os gatilhos de sempre; uma carga grande custa o que custam as mesmas gravações uma a uma.
 
+### Na aba do pai, e pela chave do alvo (EV-32)
+
+O cabeçalho com itens vindos de fora — os itens de um pedido, os alunos de uma turma, os destinatários de um
+lote — não tinha por onde entrar: o **Importar** só existia na lista própria da tela (numa tela filha
+escondida do menu, alcançável só pela paleta), cada linha teria de trazer o id do pai, e a célula de uma
+referência era gravada como veio, isto é, como id. A planilha de fora traz o CPF.
+
+Nada novo é declarado pelo pacote: o vínculo com o pai já é a trava da lista, e a chave do alvo já é
+declarada. As duas peças são aditivas — sem `parent` e sem `lookups` no pedido, o fluxo é byte a byte o de
+antes.
+
+**O pai.** A lista presa por UM campo de referência única (`RecordListParent` com um `fieldKey`, não
+`multi`) oferece o botão: a aba nativa de tela-filha e a aba contribuída com `useEntityList({ parent })`
+— a decisão mora em `useParentRecordImport`, e chega à extensão como `RecordListViewModel.recordImport`.
+`RecordListSurface` põe o botão e `EntityListModals` o diálogo, então a extensão que já usa os dois o
+recebe sem uma linha. O campo sai do mapeamento (`importableFields(..., { lockedFieldKey })`).
+
+| Onde | O quê |
+|---|---|
+| `start` | confere o campo (`importParentFieldIssue`: referência gravável de UM id) e o registro (`<pai>.read` + `readerSeesRecord`), e **trava o pai no job**, como já travava a tabela |
+| `rows` | relê o pai do JOB (o do pedido só vale na simulação), reconfere o registro a cada lote — o pai apagado no meio para as linhas seguintes —, e grava `campo = id` em cada linha ANTES das raias |
+| `runWorkflowUpsert` | opção `lockedTo { fieldKey, recordId }`: grava o campo e **recusa alterar** o registro achado que aponta para outro pai, ou para nenhum (`mutation.upsert.outside-parent`) |
+
+Por que `lockedTo` é do núcleo: sem ela, uma chave `primary` que não inclui o pai acharia o registro de
+OUTRO pai e o moveria para este, em silêncio — e o membro pode nem ler aquele pai. Só o caminho de gravação
+sabe, depois de achar o registro, para onde ele aponta.
+
+Por que não `multi`: gravar o pai substituiria a lista inteira do registro que a linha altera, e a
+importação não lê o registro antes para somar. Por que não vários campos: a linha não diria por qual deles
+o pai entra.
+
+**A chave do alvo.** No mapeamento, a referência cujo alvo declara chave de UM campo (`primary` ou
+`unique`, `importLookupKeys`) aparece também como "<campo> — procurar por <campo da chave>". O pedido leva
+`lookups: [{ fieldKey, key }]`, e o servidor, antes das raias:
+
+1. confere cada coluna: referência da tabela, não o campo do pai, chave declarada do alvo e de um campo só,
+   e `<alvo>.read` do membro — sem isso, cada linha seria uma pergunta "este CPF existe?" respondida a quem
+   não pode ver a resposta;
+2. calcula o id da reserva de cada célula (`importLookupKeyId`): o valor passa pelas regras do campo do alvo
+   e depois pela normalização da chave, a mesma conta de `findByPrimaryKey` — a reserva guardou o valor
+   formatado;
+3. lê de quem é cada reserva com UM `findKeyHolders` por lote, e cada registro achado uma vez, conferindo a
+   visibilidade por registro;
+4. troca a chave pelo id (num `multi`, cada valor separado por `|`); a linha com um valor sem dono visível é
+   recusada ali, com a linha e o valor (`import.error.reference-not-found`), e não chega à gravação.
+
+A ordem — resolver, prender ao pai, só então as raias — é o que faz a chave `primary` composta (pai,
+referência) funcionar: as raias e o casamento pela chave só a enxergam com os ids no lugar. Reprocessar o
+arquivo na mesma aba altera; a mesma referência em outro pai é outro registro.
+
+O limite: a chave PENDENTE de adoção não acha o registro antigo sem reserva (a linha é recusada como sem
+dono), e a chave composta do alvo não é oferecida — uma célula é um valor.
+
 | Arquivo | Papel |
 |---|---|
 | `domain/schema/recordImport.ts` | contrato, limites, conferência do lote (compartilhado) |
+| `domain/schema/recordImportReference.ts` | o campo do pai, as chaves do alvo e o id da reserva de uma célula (compartilhado; fora de `recordImport.ts` porque `screenEntity.ts` lê de lá) |
+| `presentation/shared/entityScreen/useParentRecordImport.ts` | quando a aba do pai oferece a importação |
 | `domain/services/recordImportFile.ts` | ler CSV/JSON, campos importáveis, sugestão, conversão, linhas |
 | `domain/usecases/records/RunRecordImportUseCase.ts` | o laço de lotes da simulação e da execução, com progresso e parada |
 | `presentation/components/ui/RecordImportDialog/` | o diálogo; o botão mora em `DynamicRecordList` |
-| `functions/.../workflow/mutation/runWorkflowMutation.ts` | as quatro opções |
+| `functions/.../workflow/mutation/runWorkflowMutation.ts` | as opções da importação (`matchPrimaryKey`, `dryRun`, `requireCollectionPermission`, `enforceRequired`, `lockedTo`) |
 | `functions/src/domain/usecases/RecordImportUseCases.ts` | `start`, `rows`, `finish` |
 | `functions/src/domain/services/recordImport.ts` | raias e a linha de Auditoria |
 | `functions/src/infrastructure/handlers/importRecords.ts` | a callable (`deploy:import`) |

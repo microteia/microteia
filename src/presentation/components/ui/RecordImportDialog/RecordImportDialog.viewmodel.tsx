@@ -20,7 +20,12 @@ import type {
   ImportTable,
 } from '../../../../domain/services/recordImportFile';
 import { RECORD_IMPORT_MAX_ROWS } from '../../../../domain/schema/recordImport';
-import type { RecordImportRowResult, RecordImportTotals } from '../../../../domain/schema/recordImport';
+import type {
+  RecordImportLookup,
+  RecordImportParent,
+  RecordImportRowResult,
+  RecordImportTotals,
+} from '../../../../domain/schema/recordImport';
 import { reportResultToCsv } from '../../../../domain/schema/report/reportCsv';
 import { makeRunRecordImportUseCase } from '../../../../domain/usecases/records/RunRecordImportUseCase';
 import type { SearchSelectOption } from '../SearchSelect';
@@ -30,6 +35,11 @@ export interface RecordImportDialogProps {
   collection: string;
   /** O título da tela, já resolvido, para dizer ONDE os registros vão entrar. */
   screenTitle: string;
+  /**
+   * A importação aberta na aba de um registro: o campo de vínculo sai do mapeamento, e o servidor o grava
+   * com o registro aberto em cada linha.
+   */
+  parent?: RecordImportParent;
   onClose: () => void;
 }
 
@@ -61,6 +71,7 @@ export interface RecordImportDialogViewModel {
   setColumnField: (index: number, fieldKey: string) => void;
   keyNotice: { message: string; variant: 'info' | 'warning' };
   requiredNotice: string | null;
+  parentNotice: string | null;
   showsTextOptions: boolean;
   decimalOptions: SearchSelectOption[];
   decimalSeparator: string;
@@ -104,6 +115,16 @@ const REPORT_VISIBLE_ROWS = 200;
 
 const IGNORE = '';
 
+/** O valor da opção "campo de referência, procurado pela chave": nem chave de campo nem nome de chave têm quebra de linha. */
+const LOOKUP_SEPARATOR = '\n';
+
+const lookupOption = (fieldKey: string, key: string): string => `${fieldKey}${LOOKUP_SEPARATOR}${key}`;
+
+const parseOption = (value: string): { fieldKey: string; key: string | null } => {
+  const [fieldKey, key] = value.split(LOOKUP_SEPARATOR);
+  return { fieldKey, key: key ?? null };
+};
+
 const sampleText = (value: unknown): string => {
   if (value === undefined || value === null) return '';
   return typeof value === 'object' ? JSON.stringify(value) : String(value);
@@ -112,6 +133,7 @@ const sampleText = (value: unknown): string => {
 export const useRecordImportDialogViewModel = ({
   collection,
   screenTitle,
+  parent,
   onClose,
 }: RecordImportDialogProps): RecordImportDialogViewModel => {
   const t = useT('core.records');
@@ -122,7 +144,8 @@ export const useRecordImportDialogViewModel = ({
   const ctx = useSchemaContext();
   const inputId = useId();
 
-  const fields = useMemo(() => importableFields(ctx, collection), [ctx, collection]);
+  const lockedFieldKey = parent?.fieldKey;
+  const fields = useMemo(() => importableFields(ctx, collection, { lockedFieldKey }), [ctx, collection, lockedFieldKey]);
   const primaryFields = useMemo(() => importPrimaryKeyFields(ctx, collection), [ctx, collection]);
   const fieldLabel = useCallback((key: string) => {
     const field = fields.find((candidate) => candidate.key === key);
@@ -134,6 +157,7 @@ export const useRecordImportDialogViewModel = ({
   const [fileError, setFileError] = useState<string | null>(null);
   const [table, setTable] = useState<ImportTable | null>(null);
   const [mapping, setMapping] = useState<(string | null)[]>([]);
+  const [lookupKeys, setLookupKeys] = useState<Record<string, string>>({});
   const [decimalSeparator, setDecimalSeparator] = useState<ImportDecimalSeparator>('.');
   const [dateFormat, setDateFormat] = useState<ImportDateFormat>('iso');
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -180,6 +204,7 @@ export const useRecordImportDialogViewModel = ({
     }
     setTable(parsed.table);
     setMapping(suggestImportMapping(parsed.table.headers, fields, (field) => label(field.label)));
+    setLookupKeys({});
     setReport(null);
     setStep('mapping');
   }, [fields, label, t]);
@@ -188,29 +213,58 @@ export const useRecordImportDialogViewModel = ({
     index,
     header: header || t('import.mapping.column', { number: String(index + 1) }),
     sample: sampleText(table?.rows.find((row) => sampleText(row.cells[index]) !== '')?.cells[index]),
-    fieldKey: mapping[index] ?? IGNORE,
-  })), [table, mapping, t]);
+    fieldKey: mapping[index]
+      ? (lookupKeys[mapping[index]] ? lookupOption(mapping[index], lookupKeys[mapping[index]]) : mapping[index])
+      : IGNORE,
+  })), [table, mapping, lookupKeys, t]);
 
+  // Uma referência cujo alvo declara chave aparece também "procurada por" cada uma: a planilha de fora
+  // traz o CPF, não o id. A opção pelo id continua — e continua sendo a primeira, como sempre foi.
   const fieldOptions = useMemo<SearchSelectOption[]>(() => [
     { value: IGNORE, label: t('import.mapping.ignore') },
-    ...fields.map((field) => ({
-      value: field.key,
-      label: fieldLabel(field.key),
-      meta: field.primary ? t('import.mapping.key') : field.required ? t('import.mapping.required') : undefined,
-    })),
-  ], [fields, fieldLabel, t]);
+    ...fields.flatMap((field) => {
+      const meta = field.primary ? t('import.mapping.key') : field.required ? t('import.mapping.required') : undefined;
+      return [
+        {
+          value: field.key,
+          label: field.lookupKeys.length > 0 ? t('import.mapping.by-id', { field: fieldLabel(field.key) }) : fieldLabel(field.key),
+          meta,
+        },
+        ...field.lookupKeys.map((lookup) => ({
+          value: lookupOption(field.key, lookup.key),
+          label: t('import.mapping.by-key', { field: fieldLabel(field.key), key: label(lookup.label) || lookup.key }),
+          meta,
+        })),
+      ];
+    }),
+  ], [fields, fieldLabel, label, t]);
 
-  const setColumnField = useCallback((index: number, fieldKey: string) => {
-    setMapping((current) => current.map((value, column) => (column === index ? (fieldKey === IGNORE ? null : fieldKey) : value)));
+  const setColumnField = useCallback((index: number, value: string) => {
+    const { fieldKey, key } = parseOption(value);
+    setMapping((current) => current.map((mapped, column) => (column === index ? (fieldKey === IGNORE ? null : fieldKey) : mapped)));
+    if (fieldKey === IGNORE) return;
+    setLookupKeys((current) => {
+      const rest = Object.fromEntries(Object.entries(current).filter(([mapped]) => mapped !== fieldKey));
+      return key ? { ...rest, [fieldKey]: key } : rest;
+    });
   }, []);
+
+  const lookups = useMemo<RecordImportLookup[]>(
+    () => Object.entries(lookupKeys)
+      .filter(([fieldKey]) => mapping.includes(fieldKey))
+      .map(([fieldKey, key]) => ({ fieldKey, key })),
+    [lookupKeys, mapping],
+  );
 
   const keyNotice = useMemo(() => {
     if (primaryFields.length === 0) return { message: t('import.key.none'), variant: 'warning' as const };
-    const names = primaryFields.map(fieldLabel).join(', ');
-    return primaryFields.every((key) => mapping.includes(key))
+    // Na aba do pai, o vínculo é parte da chave mas não é coluna: o aviso cita só o que a pessoa liga.
+    const mappable = primaryFields.filter((key) => key !== lockedFieldKey);
+    const names = (mappable.length > 0 ? mappable : primaryFields).map(fieldLabel).join(', ');
+    return mappable.every((key) => mapping.includes(key))
       ? { message: t('import.key.matched', { fields: names }), variant: 'info' as const }
       : { message: t('import.key.unmapped', { fields: names }), variant: 'warning' as const };
-  }, [primaryFields, mapping, fieldLabel, t]);
+  }, [primaryFields, mapping, lockedFieldKey, fieldLabel, t]);
 
   const requiredNotice = useMemo(() => {
     const missing = fields.filter((field) => field.required && !mapping.includes(field.key)).map((field) => fieldLabel(field.key));
@@ -238,6 +292,8 @@ export const useRecordImportDialogViewModel = ({
         fileName,
         rows: built.rows,
         rejected: built.rejected,
+        ...(parent ? { parent } : {}),
+        lookups,
         dryRun,
         onProgress: (done, total) => setProgress({ done, total, dryRun }),
         isCancelled: () => cancelRequested.current,
@@ -249,7 +305,7 @@ export const useRecordImportDialogViewModel = ({
       setStep('mapping');
     }
     if (closeAfterRun.current) onClose();
-  }, [table, mappingIssue, tenantId, recordImportRepository, collection, fileName, built, describe, onClose]);
+  }, [table, mappingIssue, tenantId, recordImportRepository, collection, fileName, built, parent, lookups, describe, onClose]);
 
   const cancelRun = useCallback(() => {
     cancelRequested.current = true;
@@ -316,6 +372,7 @@ export const useRecordImportDialogViewModel = ({
     setColumnField,
     keyNotice,
     requiredNotice,
+    parentNotice: parent ? t('import.parent.notice') : null,
     showsTextOptions: table?.kind === 'csv',
     decimalOptions: [
       { value: '.', label: t('import.option.decimal-point') },

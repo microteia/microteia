@@ -147,6 +147,32 @@ describe('campos importáveis e mapeamento', () => {
     expect(mapping).toEqual(['documento', 'nome', null, null]);
   });
 
+  it('na aba do pai, o vínculo não é coluna; a referência diz por que chaves do alvo pode procurar', () => {
+    const turmas: SchemaScreen = {
+      id: 'turmas',
+      titleSingular: 'Turma',
+      titleFieldKey: 'nome',
+      fields: [{ key: 'nome', label: 'Nome', type: 'text', required: true, order: 0, origin: 'design' }],
+    };
+    const matriculas: SchemaScreen = {
+      id: 'matriculas',
+      titleSingular: 'Matrícula',
+      titleFieldKey: 'aluno',
+      parentFieldKey: 'turma',
+      fields: [
+        { key: 'turma', label: 'Turma', type: 'reference', refEntity: 'turmas', required: true, order: 0, origin: 'design' },
+        { key: 'aluno', label: 'Aluno', type: 'reference', refEntity: 'contribuintes', required: true, order: 1, origin: 'design' },
+      ],
+    };
+    const withChild = createSchemaContext([screen, turmas, matriculas]);
+
+    expect(importableFields(withChild, 'matriculas').map((field) => field.key)).toEqual(['turma', 'aluno']);
+    const fields = importableFields(withChild, 'matriculas', { lockedFieldKey: 'turma' });
+    expect(fields.map((field) => field.key)).toEqual(['aluno']);
+    expect(fields[0].lookupKeys).toEqual([{ key: 'documento', label: 'Documento' }]);
+    expect(importableFields(withChild, 'contribuintes').every((field) => field.lookupKeys.length === 0)).toBe(true);
+  });
+
   it('recusa o mapeamento vazio e o campo em duas colunas', () => {
     expect(importMappingIssue([null, null])).toBe('@core.records/import.mapping.empty');
     expect(importMappingIssue(['nome', 'nome'])).toBe('@core.records/import.mapping.duplicate');

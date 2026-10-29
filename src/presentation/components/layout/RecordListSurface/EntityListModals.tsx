@@ -2,12 +2,14 @@ import React from 'react';
 import { ActionParametersModal } from '../../ui/ActionParametersModal';
 import { ConfirmModal } from '../../ui/ConfirmModal';
 import { TagManager } from '../../ui/TagManager';
+import { RecordImportDialog } from '../../ui/RecordImportDialog';
 import type { RecordListViewModel } from '../../../shared/entityScreen/useRecordListViewModel';
 import { useT, useLabel } from '../../../shared/i18n/useT';
 
 /**
  * Os modais governados pela configuração de uma listagem de registros: o gerenciador de etiquetas e a
- * confirmação de exclusão e a confirmação de uma ação que pergunta antes de agir.
+ * confirmação de exclusão e a confirmação de uma ação que pergunta antes de agir — e, na aba de um pai,
+ * o diálogo de importação.
  *
  * Vive num componente próprio para ser montado UMA vez tanto pela lista padrão
  * (`RecordListSurface`) quanto por uma tela de código de extensão que reaproveite as ações
@@ -43,6 +45,14 @@ export const EntityListModals: React.FC<{ vm: RecordListViewModel }> = ({ vm }) 
       onCancel={vm.cancelPendingCardAction}
     />
     <ActionParametersModal controller={vm.parameterPrompt} />
+    {vm.recordImport?.isOpen && (
+      <RecordImportDialog
+        collection={vm.collection}
+        screenTitle={vm.recordImport.screenTitle}
+        parent={vm.recordImport.parent}
+        onClose={vm.recordImport.close}
+      />
+    )}
   </>
   );
 };

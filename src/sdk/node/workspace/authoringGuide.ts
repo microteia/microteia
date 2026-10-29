@@ -2108,6 +2108,30 @@ Each row is written on the server, in batches of ${RECORD_IMPORT_BATCH_SIZE}, th
 - **The audit trail** gets one line per record, as always, plus ONE line for the import itself — who, which
   screen, which file, and how many rows were created, updated and refused.
 
+**Importing into a parent's tab.** The same **Import** shows on the tab of child records inside a parent —
+the native child-screen tab, and a contributed tab drawn with \`useEntityList(sourceId, { parent })\` and
+\`RecordListSurface\` — when the list is locked by ONE \`reference\` field to a single record (not \`multi\`,
+not several fields). Nothing to declare:
+
+- **The link to the parent is not a column.** It is left out of the mapping, and the server writes it on
+  every row with the record that is open, after checking that the person can read that record (the parent's
+  \`<collection>.read\` plus record visibility). An import keeps the parent it started with to the end.
+- **It never moves a record between parents.** A row whose key finds a record linked to ANOTHER parent (or to
+  none) is refused, not re-linked. So the child's \`primary\` key normally includes the link: items of an
+  order are \`primary: ['order', 'product']\`, and the same product in another order is another record.
+- **A custom tab drawn by hand** gets the same thing from \`vm.recordImport\`: call \`open()\` from your own
+  button and mount \`EntityListModals\`. It is \`null\` wherever the import is not offered.
+
+**A reference column can carry the target's KEY instead of its id.** A spreadsheet from outside has the tax
+number or the registration code, not a document id. For a \`reference\` field whose target declares a key of
+ONE field (\`keys\`, \`primary\` or \`unique\`), the mapping offers "<field> — find by <key field>" next to
+"by record id". The cell then goes through the target field's rules and the key's \`normalize\`
+(\`formatPreset\`, \`caseInsensitive\`, \`trim\`) exactly as the reservation did, and the server writes the id
+of the record that holds it. On a \`multi\` reference, separate the values with \`|\` in the cell. A value no
+record holds — or held by a record the person cannot read, or under a key still pending adoption — refuses
+the row, with its line and the value, in the refused-rows report. Composite keys are not offered: one cell
+is one value. Declare nothing new: the key you already declared is what the lookup uses.
+
 What an import is not: a migration of YOUR data between versions (that is \`migrations\`, above), or a way
 to write fields a person could not write in the form.
 
