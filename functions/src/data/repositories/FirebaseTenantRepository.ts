@@ -1,11 +1,12 @@
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import type { ITenantRepository, AddTenantMemberInput, CreateTenantInput } from '../../domain/repositories/ITenantRepository';
 import type { Tenant } from '../../domain/entities/Tenant';
 import { alreadyExists, notFound } from '../../domain/errors/DomainError';
 import { ARTIFACT_PREFIX_SETTING } from '../../domain/schema/plugin/artifactPrefix';
 
 export class FirebaseTenantRepository implements ITenantRepository {
-  private readonly db = getFirestore();
+  constructor(private readonly db: Firestore) {}
 
   async createTenant(data: CreateTenantInput): Promise<Tenant> {
     const now = new Date();

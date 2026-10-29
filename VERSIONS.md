@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.176.2] — 2026-10-29
+
+- Ao usar no portal um botão de ação do escritório, o convidado passa a ver a confirmação de que a ação foi registrada, em vez de uma mensagem técnica de erro. A execução também volta a aparecer no histórico de automações do escritório, mostrando quem fez o quê.
+
 #### [9.176.1] — 2026-10-29
 
 - No portal, quando o escritório encerra e depois volta a credenciar alguém que entra com identidade verificada (pelo CPF, por exemplo), a pessoa recupera o acesso na hora, mesmo com a sessão ainda aberta — sem precisar sair e entrar de novo.

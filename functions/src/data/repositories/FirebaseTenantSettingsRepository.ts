@@ -1,9 +1,9 @@
-import { getFirestore } from 'firebase-admin/firestore';
+import type { Firestore } from 'firebase-admin/firestore';
 import type { ITenantSettingsRepository } from '../../domain/repositories/ITenantSettingsRepository';
 import { settingsValuesOf } from '../../domain/services/tenantSettings';
 
 export class FirebaseTenantSettingsRepository implements ITenantSettingsRepository {
-  private readonly db = getFirestore();
+  constructor(private readonly db: Firestore) {}
 
   async getTenantValues(tenantId: string): Promise<Record<string, unknown>> {
     return this.read(tenantId, 'tenant');

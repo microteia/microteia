@@ -583,3 +583,43 @@ describe('runWorkflow — passo incompatível com o gatilho', () => {
     expect(order).toEqual(['A']);
   });
 });
+
+describe('runWorkflow — linhas do histórico', () => {
+  /** O que o Firestore recusa sem `ignoreUndefinedProperties`: a chave presente com valor `undefined`. */
+  const undefinedKeys = (logs: Array<object>): string[] =>
+    logs.flatMap((entry, index) =>
+      Object.entries(entry).filter(([, value]) => value === undefined).map(([key]) => `${index}.${key}`));
+
+  it('nenhuma linha leva campo undefined — condição, laço, passo e falha', async () => {
+    const steps = withOrder([
+      conditionStep(takeIf('yes'), withOrder([recordStep('T')]), withOrder([recordStep('F')])),
+      loopStep('loop-1', { kind: 'Event', path: 'items' }, withOrder([recordFromExpr('input.item')])),
+      failingStep(),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ branch: 'no', items: ['a', 'b'] }),
+      registry: makeRegistry([]),
+      services,
+    });
+
+    expect(result.status).toBe('FAILED');
+    const branchLine = result.logs.find((entry) => entry.message === '@core.automation/run.condition.false-branch');
+    expect(branchLine).toBeDefined();
+    expect('stepDefinitionId' in branchLine!).toBe(false);
+    expect(result.logs.some((entry) => entry.message === '@core.automation/run.loop.start')).toBe(true);
+    expect(undefinedKeys(result.logs)).toEqual([]);
+  });
+
+  it('o campo que existe continua na linha', async () => {
+    const result = await runWorkflow({
+      definition: makeDefinition(withOrder([recordStep('A')])),
+      event: makeEvent({}),
+      registry: makeRegistry([]),
+      services,
+    });
+
+    const stepLine = result.logs.find((entry) => entry.level === 'SUCCESS');
+    expect(stepLine).toMatchObject({ stepDefinitionId: 'record', inputs: { tag: 'A' }, outputs: { value: 'A' } });
+  });
+});

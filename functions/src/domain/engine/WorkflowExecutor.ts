@@ -75,16 +75,18 @@ export const runWorkflow = async ({
     outputs?: Record<string, unknown>,
     messageParams?: Record<string, string>,
   ): void => {
+    // O campo ausente fica FORA da linha, e não `undefined` dentro dela: o histórico é gravado no fim
+    // da execução, e um `undefined` recusado ali perde a evidência de efeitos já aplicados.
     logs.push({
-      stepId,
-      stepDefinitionId,
       level,
       message,
-      messageParams,
       at: services.now(),
-      contextInput,
-      inputs,
-      outputs,
+      ...(stepId === undefined ? {} : { stepId }),
+      ...(stepDefinitionId === undefined ? {} : { stepDefinitionId }),
+      ...(messageParams === undefined ? {} : { messageParams }),
+      ...(contextInput === undefined ? {} : { contextInput }),
+      ...(inputs === undefined ? {} : { inputs }),
+      ...(outputs === undefined ? {} : { outputs }),
     });
   };
 

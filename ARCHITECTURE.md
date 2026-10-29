@@ -2515,6 +2515,26 @@ nenhum hoje (`functions/.env.example` está vazio e explica por quê); credencia
 pede, e é por projeto — usar a de produção em desenvolvimento faria o ambiente de teste falar com o
 serviço real.
 
+### O Firestore do backend tem UMA porta — `getDb()`
+
+O `getFirestore()` do Admin SDK devolve **uma** instância por app, e o `settings()` só pega antes do
+primeiro uso dela. Por isso todo código de `functions/src` abre o banco por `getDb()`
+(`infrastructure/firebase/initFirebase.ts`), e o repositório o recebe no construtor —
+`constructor(private readonly db: Firestore)`, injetado pelo `container.ts`.
+
+- **`initFirebase()` configura a instância no cold start** (`ignoreUndefinedProperties: true`), antes de
+  qualquer handler correr. Configurar no primeiro `getDb()` fazia o resultado depender de quem abria o
+  banco primeiro: quando um repositório com `getFirestore()` próprio lia antes, a opção não pegava e a
+  instância ficava guardada sem ela. Foi o que fez a ação do portal (EV-31) aplicar os efeitos do fluxo e
+  depois falhar ao gravar o histórico, que é a evidência de quem fez o quê.
+- **`getDb()` só guarda a instância configurada.** Se ela já estava em uso, a recusa sobe com o motivo
+  — e continua subindo —, em vez de guardar uma instância que falharia mais tarde, longe da causa.
+- **O motor não depende da configuração para gravar o que é dele.** A linha de histórico do
+  `WorkflowExecutor` leva só os campos que existem (`Condition` e `Loop` não têm `stepDefinitionId`); a
+  configuração da instância cobre o DADO que os passos carregam (`inputs`, `outputs`, `contextInput`).
+- `initFirebase.test.ts` reprova qualquer `getFirestore(` em `functions/src` fora de `initFirebase.ts`, e
+  `portalActionHistory.test.ts` roda a ação do portal com `Condition` pelo serializador real do Firestore.
+
 ### Checklist ao Criar Cloud Function
 
 - [ ] **Antes de tudo: a function é do KERNEL?** Se ela serve uma extensão, ela não entra aqui — nasce
@@ -2522,6 +2542,7 @@ serviço real.
   `microteia provision` a deploya só onde a extensão está instalada. Ver "Artefatos de backend por
   extensão"
 - [ ] Handler criado em `functions/src/infrastructure/handlers/`
+- [ ] Firestore aberto por `getDb()` e injetado no repositório — nunca `getFirestore()` direto (ver "O Firestore do backend tem UMA porta")
 - [ ] Exportado em `functions/src/index.ts` **sem prefixo**
 - [ ] Adicionado ao script `deploy:[grupo]` correto no `package.json` raiz
 - [ ] Nome no `package.json` idêntico à exportação do `index.ts`

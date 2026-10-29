@@ -612,14 +612,14 @@ class DIContainer {
 
   getTenantRepository(): ITenantRepository {
     if (!this.tenantRepo) {
-      this.tenantRepo = new FirebaseTenantRepository();
+      this.tenantRepo = new FirebaseTenantRepository(getDb());
     }
     return this.tenantRepo;
   }
 
   getTenantSettingsRepository(): ITenantSettingsRepository {
     if (!this.tenantSettingsRepo) {
-      this.tenantSettingsRepo = new FirebaseTenantSettingsRepository();
+      this.tenantSettingsRepo = new FirebaseTenantSettingsRepository(getDb());
     }
     return this.tenantSettingsRepo;
   }
