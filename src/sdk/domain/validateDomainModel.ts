@@ -170,7 +170,8 @@ const coupledHit = (field: DomainField, entity: DomainEntity, handles: readonly 
 const DUPLICATION_EXCEPTION =
   'Declare the copy: semanticType "snapshot" with `source: "<Entity>.<field>"` and a `reason` saying why the value must not follow '
   + 'the origin (a historical price, a name as it was on the day). Or declare it on the relationship as '
-  + '`denormalize: { denormKey, fields, reason }`, which is the platform\'s own mechanism and keeps the copy in step with the origin.';
+  + '`denormalize: { denormKey, fields, reason }`, the platform\'s own mechanism: nothing is copied, and `<denormKey>.<field>` reads the '
+  + 'origin\'s current value.';
 
 // ─── Detectores ───────────────────────────────────────────────────────────────
 

@@ -43,9 +43,11 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
       const action = actions.get(id);
       return action ? [action] : [];
     }),
-    getRecordsReferencing: async (_t, collection, fieldKey, recordId) =>
+    getRecordsReferencing: async (_t, collection, fieldKey, recordId, multi, limit) =>
       [...records.entries()]
-        .filter(([key, data]) => key.startsWith(`${collection}/`) && data[fieldKey] === recordId)
+        .filter(([key, data]) => key.startsWith(`${collection}/`)
+          && (multi ? Array.isArray(data[fieldKey]) && (data[fieldKey] as unknown[]).includes(recordId) : data[fieldKey] === recordId))
+        .slice(0, limit)
         .map(([key, data]) => ({ id: key.slice(collection.length + 1), data })),
     listRecords: async (_t, collection, after, pageSize) => pageOf(
       [...records.entries()]

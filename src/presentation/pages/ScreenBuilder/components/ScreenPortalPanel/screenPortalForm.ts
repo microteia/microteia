@@ -34,6 +34,8 @@ export interface PortalFormState {
   trackViews: boolean;
   /** As CHAVES das ações do registro que o convidado dispara, na ordem dos botões. */
   actions: string[];
+  /** Os campos de vínculo expostos que levam o título do registro apontado, fora do portal ou não. */
+  referenceTitles: string[];
 }
 
 export const EMPTY_PORTAL_FORM: PortalFormState = {
@@ -57,6 +59,7 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   documentLinkMinutes: String(PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES),
   trackViews: false,
   actions: [],
+  referenceTitles: [],
 };
 
 export const toPortalForm = (portal: PortalDeclaration | null | undefined): PortalFormState => {
@@ -83,6 +86,7 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     documentLinkMinutes: String(portal.documentLinks?.expiresInMinutes ?? PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES),
     trackViews: portal.trackViews === true,
     actions: [...(portal.actions ?? [])],
+    referenceTitles: [...(portal.referenceTitles ?? [])],
   };
 };
 
@@ -119,5 +123,9 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
     ...(form.documentLinks ? { documentLinks: { expiresInMinutes: documentLinkMinutesOf(form.documentLinkMinutes) } } : {}),
     ...(form.trackViews ? { trackViews: true } : {}),
     ...(form.actions.length > 0 ? { actions: form.actions } : {}),
+    // O nome só sai com o campo: desmarcar um vínculo exposto o tira daqui também.
+    ...(form.referenceTitles.some((key) => form.fields.includes(key))
+      ? { referenceTitles: form.referenceTitles.filter((key) => form.fields.includes(key)) }
+      : {}),
   };
 };

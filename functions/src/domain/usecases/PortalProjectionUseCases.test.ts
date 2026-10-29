@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PORTAL_LABEL_REFRESH_LIMIT,
   makeProjectPortalDocumentUseCase,
   makeProjectPortalRecordUseCase,
   makeRefreshPortalAudienceUseCase,
+  makeRefreshPortalReferenceLabelsUseCase,
   samePortalValue,
 } from './PortalProjectionUseCases';
 import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 import { makeFakeRecordDocumentLinks } from '../repositories/fakeRecordDocumentLinks';
+import type { PortalScreen } from '../repositories/IPortalRepository';
 
 const TENANT = 'salvador';
 
@@ -402,5 +405,159 @@ describe('igualdade da projeção gravada', () => {
       tenantId: TENANT, collection: 'invoices', recordId: 'nf1', data: { number: 'NF-1', companyId: 'acme' },
     });
     expect(writes).toBe(1);
+  });
+});
+
+/**
+ * O domicílio aponta para o contribuinte, cuja tela NÃO vai ao portal (CPF, endereço, celular). O
+ * título do domicílio é essa referência. A extensão de origem traz a tela com `dataCollection`, e a
+ * instalação grava a âncora com o nome da coleção — listada antes, sem campos, com o título copiado.
+ */
+const TAXPAYER_SCREENS: PortalScreen[] = [
+  {
+    id: 'taxpayers', collection: 'taxpayers', titleFieldKey: 'name', titleSingular: 'taxpayers', titlePlural: 'taxpayers',
+    icon: 'table', fields: [], portal: null,
+  },
+  {
+    id: 'dte_taxpayers',
+    collection: 'taxpayers',
+    titleFieldKey: 'name',
+    titleSingular: 'Taxpayer',
+    titlePlural: 'Taxpayers',
+    icon: 'user',
+    fields: [
+      { key: 'name', label: 'Name', type: 'text' },
+      { key: 'taxId', label: 'Tax id', type: 'text' },
+      { key: 'phone', label: 'Phone', type: 'text' },
+    ],
+    portal: null,
+  },
+  ...CITY_SCREENS,
+  {
+    id: 'registrations',
+    collection: 'registrations',
+    titleFieldKey: 'holderId',
+    titleSingular: 'Registration',
+    titlePlural: 'Registrations',
+    icon: 'mail',
+    fields: [
+      { key: 'holderId', label: 'Holder', type: 'reference', refEntity: 'taxpayers' },
+      { key: 'status', label: 'Status', type: 'text' },
+      { key: 'companyId', label: 'Company', type: 'reference', refEntity: 'companies' },
+    ],
+    portal: { subject: { field: 'companyId' }, fields: ['holderId', 'status'], referenceTitles: ['holderId'] },
+  },
+];
+
+const withRegistrationPortal = (portal: Partial<NonNullable<PortalScreen['portal']>>) =>
+  TAXPAYER_SCREENS.map((screen) => (screen.id === 'registrations' ? { ...screen, portal: { ...screen.portal!, ...portal } } : screen));
+
+describe('nome de referência para tela fora do portal — referenceTitles (EV-24)', () => {
+  const setupTaxpayers = (screens = TAXPAYER_SCREENS) => {
+    const env = setup(screens);
+    env.records.set('taxpayers/t1', { name: 'Maria Souza', taxId: '111.222.333-44', phone: '71 9999-0000' });
+    const started: string[][] = [];
+    const refresh = makeRefreshPortalReferenceLabelsUseCase(env.repo, env.project, {
+      execute: async (_tenant, collections) => { started.push([...collections]); },
+    });
+    const rename = async (collection: string, id: string, data: Record<string, unknown> | null) => {
+      const before = env.records.get(`${collection}/${id}`) ?? null;
+      await env.write(collection, id, data);
+      return refresh.execute({ tenantId: TENANT, collection, recordId: id, before, after: data });
+    };
+    return { ...env, started, rename };
+  };
+
+  it('a referência declarada leva só o TÍTULO do apontado — e ele vira o título do registro', async () => {
+    const { write, projections } = setupTaxpayers();
+    await write('registrations', 'd1', { holderId: 't1', status: 'active', companyId: 'acme' });
+
+    const projection = projections.get('registrations__d1');
+    expect(projection?.title).toBe('Maria Souza');
+    expect(projection?.labels).toEqual({ holderId: 'Maria Souza' });
+    expect(JSON.stringify(projection)).not.toContain('111.222.333-44');
+    expect(JSON.stringify(projection)).not.toContain('9999');
+  });
+
+  it('sem a declaração, o nome não sai — e o título fica vazio, nunca o id', async () => {
+    const { write, projections } = setupTaxpayers(withRegistrationPortal({ referenceTitles: null }));
+    await write('registrations', 'd1', { holderId: 't1', status: 'active', companyId: 'acme' });
+
+    const projection = projections.get('registrations__d1');
+    expect(projection?.title).toBe('');
+    expect(projection?.labels).toEqual({});
+    expect(projection?.data).toEqual({ holderId: 't1', status: 'active' });
+  });
+
+  it('declarado num campo que não está exposto, nada sai', async () => {
+    const { write, projections } = setupTaxpayers(withRegistrationPortal({ fields: ['status'] }));
+    await write('registrations', 'd1', { holderId: 't1', status: 'active', companyId: 'acme' });
+
+    const projection = projections.get('registrations__d1');
+    expect(projection?.title).toBe('');
+    expect(projection?.labels).toEqual({});
+  });
+
+  it('o título que é referência a uma tela do portal usa o título que ela já expõe, sem declaração', async () => {
+    const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices' ? { ...screen, titleFieldKey: 'companyId' } : screen));
+    const { write, projections } = setup(screens);
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme' });
+    expect(projections.get('invoices__nf1')?.title).toBe('Acme');
+  });
+
+  it('o apontado cujo título é outra referência não vira id no rótulo', async () => {
+    const screens = TAXPAYER_SCREENS.map((screen) => (screen.id === 'dte_taxpayers'
+      ? { ...screen, titleFieldKey: 'guardianId', fields: [...screen.fields, { key: 'guardianId', label: 'Guardian', type: 'reference', refEntity: 'taxpayers' }] }
+      : screen));
+    const { write, records, projections } = setupTaxpayers(screens);
+    records.set('taxpayers/t1', { name: 'Maria Souza', guardianId: 't2' });
+    await write('registrations', 'd1', { holderId: 't1', companyId: 'acme' });
+    expect(projections.get('registrations__d1')).toMatchObject({ title: '', labels: { holderId: '' } });
+  });
+
+  it('renomear o apontado refaz o rótulo e o título de quem o mostra', async () => {
+    const { write, rename, projections } = setupTaxpayers();
+    await write('registrations', 'd1', { holderId: 't1', status: 'active', companyId: 'acme' });
+    await write('registrations', 'd2', { holderId: 't1', status: 'closed', companyId: 'acme' });
+
+    const refreshed = await rename('taxpayers', 't1', { name: 'Maria S. Lima', taxId: '111.222.333-44' });
+    expect(refreshed).toBe(2);
+    expect(projections.get('registrations__d1')).toMatchObject({ title: 'Maria S. Lima', labels: { holderId: 'Maria S. Lima' } });
+    expect(projections.get('registrations__d2')?.title).toBe('Maria S. Lima');
+  });
+
+  it('gravar o apontado sem mudar o título não relê quem aponta para ele', async () => {
+    const { write, rename } = setupTaxpayers();
+    await write('registrations', 'd1', { holderId: 't1', companyId: 'acme' });
+    expect(await rename('taxpayers', 't1', { name: 'Maria Souza', phone: '71 0000-1111' })).toBe(0);
+  });
+
+  it('o rótulo de uma tela do portal também acompanha o nome — a empresa renomeada', async () => {
+    const { write, rename, projections } = setupTaxpayers();
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme' });
+    await rename('companies', 'acme', { name: 'Acme Ltda', taxId: '123' });
+    expect(projections.get('invoices__nf1')?.labels).toEqual({ companyId: 'Acme Ltda' });
+  });
+
+  it('apagar o apontado tira o nome — sem deixar o id no lugar', async () => {
+    const { write, rename, projections } = setupTaxpayers();
+    await write('registrations', 'd1', { holderId: 't1', companyId: 'acme' });
+    await rename('taxpayers', 't1', null);
+    expect(projections.get('registrations__d1')).toMatchObject({ title: '', labels: { holderId: '' } });
+  });
+
+  it('acima do teto, a coleção de quem aponta ganha uma passada em vez de uma invocação sem tamanho', async () => {
+    const { records, rename, started } = setupTaxpayers();
+    for (let index = 0; index <= PORTAL_LABEL_REFRESH_LIMIT; index += 1) {
+      records.set(`registrations/d${index}`, { holderId: 't1', companyId: 'acme' });
+    }
+    expect(await rename('taxpayers', 't1', { name: 'Maria S. Lima' })).toBe(0);
+    expect(started).toEqual([['registrations']]);
+  });
+
+  it('a coleção que ninguém mostra não lê nada', async () => {
+    const { rename, started } = setupTaxpayers();
+    expect(await rename('companies', 'acme', { name: 'Acme', taxId: '999' })).toBe(0);
+    expect(started).toEqual([]);
   });
 });

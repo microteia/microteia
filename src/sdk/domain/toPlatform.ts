@@ -207,6 +207,12 @@ export const entityToScreenInput = (
    * cujo campo aceita vazio — a definição única virando duas.
    */
   const requiredByField = new Map(mine.filter((one) => one.required === true).map((one) => [one.sourceField, true]));
+  /**
+   * A denormalização declarada vira o NOME de navegação do campo (`refDenormKey`): expressões, modelos e
+   * relatórios leem `<denormKey>.<campo>` do registro apontado, sempre o valor de agora. Nada é copiado
+   * para o registro — é isso que a faz seguir a origem.
+   */
+  const denormKeyByField = new Map(mine.flatMap((one) => (one.denormalize ? [[one.sourceField, one.denormalize.denormKey]] : [])));
 
   return {
     key: collection,
@@ -216,7 +222,12 @@ export const entityToScreenInput = (
     ...(entity.keys && entity.keys.length > 0 ? { keys: entity.keys.map((key) => ({ ...key })) } : {}),
     fields: entity.fields.map((field, index) => {
       const definition = fieldToDefinition(field, index, origin, resolve);
-      return requiredByField.has(field.key) ? { ...definition, required: true } : definition;
+      const denormKey = definition.type === 'reference' ? denormKeyByField.get(field.key) : undefined;
+      return {
+        ...definition,
+        ...(requiredByField.has(field.key) ? { required: true } : {}),
+        ...(denormKey ? { refDenormKey: denormKey } : {}),
+      };
     }),
     ...(childOf === undefined
       ? {}
@@ -242,8 +253,9 @@ export const modelScreenInputs = (
  * As duplicações que o modelo declarou, na forma que o catálogo guarda.
  *
  * Só o `snapshot` entra, e a razão é que ele é o único que vira um CAMPO GRAVADO cujo nome engana
- * quem o ler depois. A denormalização declarada na relação não produz campo próprio — a plataforma
- * a materializa na leitura, sob o `refDenormKey` —, então não há o que reaparecer na sessão seguinte.
+ * quem o ler depois. A denormalização declarada na relação não produz campo próprio nem cópia — vira o
+ * `refDenormKey` do campo, e a plataforma lê o registro apontado na hora —, então não há o que
+ * reaparecer na sessão seguinte.
  */
 export const modelExceptions = (model: DomainModel, declaredIn: string): CatalogException[] =>
   model.entities

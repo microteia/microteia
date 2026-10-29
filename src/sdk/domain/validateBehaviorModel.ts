@@ -450,7 +450,8 @@ const guardIssues = (
     suggestion: 'Query first, then decide: a step { stepDefinitionId: "query" } publishes count, results and first, and '
       + 'the condition node after it compares THOSE outputs. That is the shape, and it costs one more step.',
     howToDeclareException: 'If the value is read often and belongs to the record anyway, denormalize it on the '
-      + 'relationship (denormalize: { denormKey, fields, reason }) and the guard reads it from the record itself.',
+      + 'relationship (denormalize: { denormKey, fields, reason }) and the guard reads it as `<denormKey>.<field>` — the '
+      + 'current value of the target, with nothing copied.',
   })];
 };
 

@@ -1196,11 +1196,11 @@ referência externa, embora a mesma coleção trazida por uma dependência fosse
 O Firestore não esconde campo: quem lê o documento lê o documento inteiro. Por isso o convidado
 **nunca** lê a coleção original. Um gatilho (`projectPortalRecord`) grava
 `portalRecords/{coleção}__{id}` com só os `fields` declarados, o título (só se o campo de título estiver entre eles — `portalExposedTitle`), os rótulos das referências
-expostas (o id não diz nada a quem é de fora) e `audience` — os uids que podem vê-la.
+expostas (o id não diz nada a quem é de fora — ver `referenceTitles`) e `audience` — os uids que podem vê-la.
 
 | Gatilho | Quando | O que faz |
 |---|---|---|
-| `projectPortalRecord` | registro escrito | refaz a projeção; sem sujeito, apaga. Se o sujeito MUDOU, refaz os dependentes (o filho, a nota do pedido) |
+| `projectPortalRecord` | registro escrito | refaz a projeção; sem sujeito, apaga. Se o sujeito MUDOU, refaz os dependentes (o filho, a nota do pedido). Se o TÍTULO mudou, refaz quem o mostra num rótulo — em qualquer coleção, inclusive fora do portal (`referenceTitles`) |
 | `projectPortalDocument` | documento do registro escrito | copia os metadados do documento compartilhado; sem a marca, apaga |
 | `refreshPortalAudience` | convite alterado | refaz só o `audience`, varrendo as PROJEÇÕES do sujeito — nunca a coleção original |
 | `reprojectPortalOnScreenChange` | declaração `portal` mudou | abre uma passada nas coleções que a mudança ALCANÇA (`portalReprojectionScope`), e acorda passadas paradas |
@@ -2037,6 +2037,66 @@ isso, a view que quisesse os botões no lugar dela os mostraria duas vezes — a
 (`issue.portal.actions.kernel`): o kernel anterior descarta a chave, e o gesto que a extensão pôs no
 portal simplesmente não existiria. A chave que não aponta para uma ação do pacote no cabeçalho da tela,
 que é comando, que pergunta ou que está desligada é recusa (`issue.portal.action.*`).
+
+### O nome do registro vinculado — `portal.referenceTitles` (EV-24)
+
+A referência exposta chega ao convidado como o **título** do registro apontado (`labels` da projeção).
+Até aqui, só quando a tela apontada estava no portal e expunha o campo de título — senão, sem rótulo. E o
+título do registro que era essa referência saía como o **id gravado**: `portalRecordTitle` lia o valor
+cru do campo. Foi assim que o domicílio do DTE aparecia ao contribuinte com o id do cadastro como título,
+e a saída de lá foi gravar uma cópia do nome no domicílio por automação (`titularNome`), com outra
+automação para manter a cópia em dia.
+
+**A decisão: o nome sai por DECLARAÇÃO de quem expõe, campo a campo.**
+
+```ts
+portal: { subject: { field: 'companyId' }, fields: ['holderId', 'status'], referenceTitles: ['holderId'] }
+```
+
+- Só o valor do campo de título do apontado sai — nenhum outro campo dele, e o convidado não abre o
+  registro apontado. A tela dele continua fora do portal (CPF, endereço, celular).
+- Sem a lista, nada muda: a referência para tela fora do portal sai sem rótulo, que é a resposta fechada
+  ("o funcionário responsável não leva o nome dele junto"). Levar o nome é exposição, e por isso mora na
+  declaração `portal`, que a regra já cobra de quem tem `portal.manage`.
+- A chave é da tela que EXPÕE, e não da tela apontada: a tela fora do portal não tem `portal` (ter
+  `portal` é estar no portal), e a mesma tela pode ser apontada por uma que deve mostrar o nome e por
+  outra que não deve.
+
+**Nunca o id cru.** `portalRecordTitle` devolve vazio quando o campo de título é `reference`; o título
+exposto que é referência passa a ser o RÓTULO dela (`portalExposedTitle(screen, data, labels)`), e o
+rótulo do apontado cujo título é outra referência fica vazio (um salto só). A lista do portal mostra
+"Sem título" no lugar do id — que nunca disse nada ao convidado.
+
+**Qual tela dá o nome — `referenceTitleScreen`.** A coleção apontada costuma ter duas telas, a da
+extensão e a âncora das rules, e as duas carregam o `titleFieldKey`. Vale a que DECLARA o campo de
+título, porque é ela que sabe se ele é texto ou outra referência; a âncora sozinha também serve.
+
+**O rótulo segue a origem.** Renomear o apontado refaz as projeções que mostram o nome dele —
+`makeRefreshPortalReferenceLabelsUseCase`, chamado pelo mesmo gatilho `projectPortalRecord`, em TODA
+coleção (a apontada pode estar fora do portal). A pergunta é pura até o título mudar de fato (antes ×
+depois, pela mesma regra que escreve o rótulo, `portalLabelReferrers`); só então lê quem aponta, até
+`PORTAL_LABEL_REFRESH_LIMIT` (100) por campo, e acima disso abre uma passada de reprojeção na coleção de
+quem aponta, em vez de uma invocação sem tamanho previsível. Vale também para o rótulo de tela que JÁ
+estava no portal — a empresa renomeada deixava o nome antigo na nota até ela ser regravada. Mudar o
+`titleFieldKey` de uma tela fora do portal abre a passada só nas coleções que mostram o título dela.
+Como a forma de projetar mudou, `PORTAL_PROJECTION_REVISION` subiu para 2: as projeções gravadas com o id
+no título, ou com um nome antigo, são corrigidas pela passada de revisão, sem ninguém regravar nada.
+
+**O aviso ao escritório** (`portalActivityNotifier`) lê o título pelo apontado com `officeRecordTitle` —
+quem está dentro vê tudo, de qualquer tela —, e sem título usa a frase que não cita o registro
+(`portal.activity.<tipo>.title.untitled`) em vez do id. O aviso já abre o registro.
+
+**O que foi recusado.** Fazer `denormalize` GRAVAR os campos do alvo no registro: seria um motor de
+sincronização novo (quem renomeia precisa reescrever todos os que apontam, com as mesmas falhas parciais
+que a reprojeção já resolve), e a cópia viraria dado do registro — visível a quem lê o registro, não só ao
+portal. O `denormalize` do modelo do SDK continua sendo o que a plataforma faz: vira o `refDenormKey` do
+campo (o `toPlatform` não o levava até aqui), um nome de navegação lido na hora, e as descrições que
+falavam em "cópia" foram corrigidas.
+
+O pacote que declara `referenceTitles` exige `PORTAL_REFERENCE_TITLES_SINCE_KERNEL` (2.84.0): um kernel
+anterior descarta a chave e o vínculo chega sem nome. Campo que não é `reference` exposto é recusa
+(`packagePortalIssues`) e aviso na aba Portal (`portalDeclarationIssues`), que ganhou a seção "Nome dos
+registros vinculados".
 
 ### Garantias que a revisão da branch acrescentou
 

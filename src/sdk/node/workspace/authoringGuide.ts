@@ -60,6 +60,7 @@ import {
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
   PORTAL_TRACK_VIEWS_SINCE_KERNEL,
   PORTAL_ACTIONS_SINCE_KERNEL,
+  PORTAL_REFERENCE_TITLES_SINCE_KERNEL,
   PORTAL_VIEW_REPEAT_MINUTES,
 } from '../../../domain/schema/portal';
 import {
@@ -871,6 +872,33 @@ screens: [{ ..., viewActionIds: ['act-accept'],
 - Requires \`kernel: "^${PORTAL_ACTIONS_SINCE_KERNEL}"\`. An older kernel ignores the declaration and shows
   no button, so the package gate refuses the package without it.
 
+#### The name of a linked record — \`referenceTitles\`
+
+An exposed \`reference\` field reaches the guest as the TITLE of the record it points to — when that
+record's screen is in the portal and exposes its title field. Otherwise it arrives with no name: pointing
+at an internal screen (the employee in charge) does not take their name along. The guest never sees the
+stored id, and neither does the record's own title when the title field is that reference.
+
+When the guest should see the name without the screen going to the portal — the taxpayer on the
+registration, without the taxpayer screen and its tax id, address and phone — list the field:
+
+\`\`\`ts
+portal: {
+  subject: { field: 'company' },
+  fields: ['holder', 'status'],
+  referenceTitles: ['holder'],
+}
+\`\`\`
+
+- Only the value of the target's title field leaves — no other field of it, and the guest cannot open it.
+- The field must be in \`fields\` and be a \`reference\`; anything else refuses the package.
+- The label follows the target: rename the taxpayer and every projection showing the name is refreshed. Do
+  not copy the name into the record with a workflow — that copy is what this replaces.
+- A screen whose \`titleFieldKey\` is this reference gets the same name as its title in the portal list and
+  in the notice the organization receives when a guest creates or changes it.
+- Requires \`kernel: "^${PORTAL_REFERENCE_TITLES_SINCE_KERNEL}"\`. An older kernel ignores the declaration
+  and the link reaches the guest with no name, so the package gate refuses the package without it.
+
 #### Links point at the collection
 
 A link in the portal — the \`refEntity\` of \`subject: { field }\`, the \`parentEntity\` of
@@ -1512,7 +1540,7 @@ must not change when the catalogue does. Two ways to say it, and they mean diffe
 | | Follows the origin | Declared as |
 |---|---|---|
 | **Snapshot** | no — frozen on purpose | \`{ semanticType: 'snapshot', source: 'Product.price', reason: '...' }\` in the model |
-| **Denormalization** | yes | \`denormalize: { denormKey, fields, reason }\` on the relationship, which becomes the platform's \`refDenormKey\` |
+| **Denormalization** | yes | \`denormalize: { denormKey, fields, reason }\` on the relationship, which becomes the reference field's \`refDenormKey\`: \`<denormKey>.<field>\` reads the target's current value, and nothing is copied into the record |
 
 Undeclared, either one is indistinguishable from an accident.
 
@@ -1950,7 +1978,7 @@ permissions.
 
 What it does NOT hide: an **aggregate** stored on a parent (\`aggregation\`) is computed over every
 child, so a count of restricted children shows on a parent everyone reads — do not aggregate a secret.
-The same goes for a **denormalized name** a reference copies into another record. And the
+The same goes for a **name read through a reference** (\`<denormKey>.<field>\`) and shown on another record. And the
 workflow execution history keeps what each step returned.
 
 On an update of your extension, what your package declares wins; what it does NOT declare removes
@@ -1978,7 +2006,7 @@ every member who reads the collection would read every record, so \`check\` refu
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
 | \`editWindow\` | how long after creation the record may still be changed — and, with \`delete: true\`, deleted. Its documents freeze with it. Enforced by the security rules, not only the form; see "Edit window" above |
 | \`memberVisibility\` | which members read EACH record: the ones it names in a member reference (\`userFields\`), plus whoever has \`bypassPermission\` — or the derived \`<collection>.${READ_ALL_ACTION}\`. Enforced by the security rules and every server path that hands a record to a person; see "Record visibility" above |
-| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. A field the guest does not send starts with its \`defaultValue\`, as in the organization's form — which is why a required field with a default may stay out of \`create.fields\`. A derived field (\`logic.derive\`) is computed when read and never stored, so it cannot be in \`fields\` nor in \`create.fields\`: the guest would always see it empty, and the package is refused. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10). \`documentLinks: { expiresInMinutes }\` hands guests short-lived signed document links instead of the permanent one (section 4); requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\`. \`trackViews: true\` has the server record every time a guest opens a record or gets a document link — an Audit trail entry and \`<collection>.portalViewed\` (sections 4 and 10); requires \`kernel: "^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}"\`. \`actions: [key]\` offers the record's own actions (\`viewActionIds\`, by \`key\`) as buttons on the guest's open record — conditions checked by the server on the whole record with \`surface == "portal"\`, the workflow run as the guest, only its \`status\` returned (section 4); requires \`kernel: "^${PORTAL_ACTIONS_SINCE_KERNEL}"\` |
+| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. A field the guest does not send starts with its \`defaultValue\`, as in the organization's form — which is why a required field with a default may stay out of \`create.fields\`. A derived field (\`logic.derive\`) is computed when read and never stored, so it cannot be in \`fields\` nor in \`create.fields\`: the guest would always see it empty, and the package is refused. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10). \`documentLinks: { expiresInMinutes }\` hands guests short-lived signed document links instead of the permanent one (section 4); requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\`. \`trackViews: true\` has the server record every time a guest opens a record or gets a document link — an Audit trail entry and \`<collection>.portalViewed\` (sections 4 and 10); requires \`kernel: "^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}"\`. \`actions: [key]\` offers the record's own actions (\`viewActionIds\`, by \`key\`) as buttons on the guest's open record — conditions checked by the server on the whole record with \`surface == "portal"\`, the workflow run as the guest, only its \`status\` returned (section 4); requires \`kernel: "^${PORTAL_ACTIONS_SINCE_KERNEL}"\`. \`referenceTitles: [field]\` lets an exposed \`reference\` carry the title of the record it points to even when that record's screen is not in the portal — only the title leaves, and it follows the target (section 4); requires \`kernel: "^${PORTAL_REFERENCE_TITLES_SINCE_KERNEL}"\` |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 
 ### Option lists

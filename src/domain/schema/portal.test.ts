@@ -14,8 +14,13 @@ import {
   parsePortalSubjectKey,
   portalDeclarationIssues,
   portalDocumentLinkMinutes,
+  officeRecordTitle,
   portalExposedTitle,
   portalFieldKeys,
+  portalLabelReferrers,
+  portalRecordTitle,
+  portalReferenceLabels,
+  referenceTitleScreen,
   portalUploadTypes,
   portalSubjectKey,
   portalTargetScreen,
@@ -474,5 +479,80 @@ describe('link curto de documento — documentLinks', () => {
       { message: '@core.records/portal.issue.document-links.file-field', messageParams: { field: 'receipt' } },
     ]);
     expect(portalDeclarationIssues(signed({ expiresInMinutes: 5 }, ['number']), [company])).toEqual([]);
+  });
+});
+
+describe('título e rótulo que são referência — referenceTitles (EV-24)', () => {
+  const taxpayerAnchor: PortalScreenLike = { id: 'taxpayers', collection: 'taxpayers', titleFieldKey: 'name', fields: [] };
+  const taxpayer: PortalScreenLike = {
+    id: 'dte_taxpayers',
+    collection: 'taxpayers',
+    titleFieldKey: 'name',
+    fields: [{ key: 'name', type: 'text' }, { key: 'taxId', type: 'text' }],
+  };
+  const registration: PortalScreenLike = {
+    id: 'registrations',
+    collection: 'registrations',
+    titleFieldKey: 'holderId',
+    fields: [
+      { key: 'holderId', type: 'reference', refEntity: 'taxpayers' },
+      { key: 'ownerId', type: 'reference', refEntity: 'taxpayers' },
+      { key: 'status', type: 'text' },
+      { key: 'companyId', type: 'reference', refEntity: 'companies' },
+    ],
+    portal: { subject: { field: 'companyId' }, fields: ['holderId', 'ownerId', 'status', 'companyId'], referenceTitles: ['holderId'] },
+  };
+  const all = [taxpayerAnchor, taxpayer, company, invoice, item, registration];
+
+  it('a declaração é lida — e uma declaração sem ela continua igual', () => {
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'], referenceTitles: [' holder ', 'holder', ''] }))
+      .toMatchObject({ referenceTitles: ['holder'] });
+    expect(asPortalDeclaration({ subject: 'self', fields: ['a'] })).not.toHaveProperty('referenceTitles');
+  });
+
+  it('o título que é referência nunca é o id gravado', () => {
+    expect(portalRecordTitle(registration, { holderId: 't1' })).toBe('');
+    expect(portalExposedTitle(registration, { holderId: 't1' })).toBe('');
+    expect(portalExposedTitle(registration, { holderId: 't1' }, { holderId: 'Maria' })).toBe('Maria');
+  });
+
+  it('a tela que dá nome é a que declara o campo de título, e não a âncora listada antes', () => {
+    expect(referenceTitleScreen(all, 'taxpayers')).toBe(taxpayer);
+    expect(referenceTitleScreen(all, 'dte_taxpayers')).toBe(taxpayer);
+    expect(referenceTitleScreen([taxpayerAnchor], 'taxpayers')).toBe(taxpayerAnchor);
+    expect(referenceTitleScreen(all, 'nowhere')).toBeUndefined();
+  });
+
+  it('só a referência declarada leva o título de tela fora do portal; a do portal leva o que ela já expõe', () => {
+    const labels = portalReferenceLabels(all, registration).map((one) => [one.fieldKey, one.target.id, one.declared]);
+    expect(labels).toEqual([['holderId', 'dte_taxpayers', true], ['companyId', 'companies', false]]);
+  });
+
+  it('quem mostra o título de uma coleção é quem precisa ser refeito quando ele muda', () => {
+    expect(portalLabelReferrers(all, 'taxpayers').map((one) => [one.screen.id, one.label.fieldKey])).toEqual([['registrations', 'holderId']]);
+    expect(portalLabelReferrers(all, 'companies').map((one) => [one.screen.id, one.label.fieldKey]))
+      .toEqual([['registrations', 'companyId']]);
+  });
+
+  it('o escritório lê o título que é referência pelo nome do apontado — de qualquer tela', async () => {
+    const records: Record<string, Record<string, unknown>> = { 'taxpayers/t1': { name: 'Maria' }, 'taxpayers/t2': { name: 'João' } };
+    const getRecord = async (collection: string, id: string) => records[`${collection}/${id}`];
+    const unexposed = { ...registration, portal: null };
+    expect(await officeRecordTitle(all, unexposed, { holderId: 't1' }, getRecord)).toBe('Maria');
+    expect(await officeRecordTitle(all, { ...unexposed, fields: [{ key: 'holderId', type: 'reference', refEntity: 'taxpayers', multi: true }] }, { holderId: ['t1', 't2', 'gone'] }, getRecord))
+      .toBe('Maria, João');
+    expect(await officeRecordTitle(all, company, { name: 'Acme' }, getRecord)).toBe('Acme');
+  });
+
+  it('a declaração aponta o campo que não é vínculo, o que não está exposto e o alvo sem título', () => {
+    const keysOf = (portal: Partial<NonNullable<PortalScreenLike['portal']>>, screens = all) =>
+      portalDeclarationIssues({ ...registration, portal: { ...registration.portal!, ...portal } }, screens)
+        .map((issue) => `${issue.message}:${issue.messageParams?.field ?? ''}`);
+
+    expect(keysOf({})).toEqual([]);
+    expect(keysOf({ referenceTitles: ['status'] })).toEqual(['@core.records/portal.issue.reference-title.not-reference:status']);
+    expect(keysOf({ fields: ['status', 'companyId'] })).toEqual(['@core.records/portal.issue.reference-title.hidden:holderId']);
+    expect(keysOf({}, all.filter((one) => one.collection !== 'taxpayers')))
+      .toEqual(['@core.records/portal.issue.reference-title.no-title:holderId']);
   });
 });

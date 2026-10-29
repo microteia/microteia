@@ -80,6 +80,14 @@ export const PORTAL_TRACK_VIEWS_SINCE_KERNEL = '2.79.0';
 export const PORTAL_ACTIONS_SINCE_KERNEL = '2.81.0';
 
 /**
+ * O kernel a partir do qual `referenceTitles` é lido. Um kernel anterior DESCARTA a chave: a referência
+ * para uma tela fora do portal sai sem rótulo, e o título que é essa referência sai vazio. Falha fechado
+ * (mostra menos), mas a extensão que declarou para ter o nome à vista ficaria sem ele, calada — por isso o
+ * pacote que a usa tem de exigir este kernel.
+ */
+export const PORTAL_REFERENCE_TITLES_SINCE_KERNEL = '2.84.0';
+
+/**
  * A mesma abertura — o mesmo convidado, o mesmo registro, o mesmo documento — dentro desta janela não é
  * registrada de novo. A primeira é a que prova; as seguintes seriam ruído na Auditoria e uma execução
  * de automação a cada clique, e um convidado não pode disparar execuções sem limite.
@@ -200,6 +208,16 @@ export interface PortalDeclaration {
    * onde acontecer no portal.
    */
   actions?: string[] | null;
+  /**
+   * Os campos `reference` expostos cujo rótulo é o TÍTULO do registro apontado MESMO quando a tela dele
+   * não está no portal — o contribuinte no domicílio, sem levar ao portal a tela de contribuintes (CPF,
+   * endereço). Só o valor do campo de título do apontado sai; nenhum outro campo dele, e o convidado não
+   * abre o registro apontado.
+   *
+   * Sem esta lista, a referência para uma tela fora do portal sai sem rótulo — o funcionário responsável
+   * não leva o nome dele junto —, e é o padrão: levar o nome é decisão de exposição, tomada campo a campo.
+   */
+  referenceTitles?: string[] | null;
 }
 
 export interface PortalDocumentLinksDeclaration {
@@ -328,6 +346,10 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ? [...new Set(raw.actions.filter(isNonEmptyString).map((key) => key.trim()))]
     : [];
 
+  const referenceTitles = Array.isArray(raw.referenceTitles)
+    ? [...new Set(raw.referenceTitles.filter(isNonEmptyString).map((key) => key.trim()))]
+    : [];
+
   return {
     subject,
     fields,
@@ -341,6 +363,7 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ...(documentLinks ? { documentLinks } : {}),
     ...(raw.trackViews === true ? { trackViews: true } : {}),
     ...(actions.length > 0 ? { actions } : {}),
+    ...(referenceTitles.length > 0 ? { referenceTitles } : {}),
   };
 };
 
@@ -780,8 +803,19 @@ export const resolvePortalSubjectKeys = async (
   return [...keys];
 };
 
-/** O campo de título do registro, como texto. */
+/** O campo de título da tela, quando ele é uma referência — o título é então o do registro apontado. */
+const referenceTitleField = (screen: PortalScreenLike) => {
+  const field = screen.titleFieldKey ? screen.fields.find((one) => one.key === screen.titleFieldKey) : undefined;
+  return field?.type === 'reference' ? field : undefined;
+};
+
+/**
+ * O campo de título do registro, como texto. O título que é REFERÊNCIA não tem texto aqui: o valor
+ * gravado é o id do apontado, que não diz nada a quem lê — e quem sabe o nome dele é quem resolve a
+ * referência (`portalExposedTitle` com os rótulos, `officeRecordTitle`).
+ */
 export const portalRecordTitle = (screen: PortalScreenLike, data: Record<string, unknown>): string => {
+  if (referenceTitleField(screen)) return '';
   const value = screen.titleFieldKey ? data[screen.titleFieldKey] : undefined;
   return typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
 };
@@ -790,11 +824,118 @@ export const portalRecordTitle = (screen: PortalScreenLike, data: Record<string,
  * O título que a lista do PORTAL mostra — só quando o campo de título está entre os expostos. O
  * título é um campo como outro qualquer: mostrá-lo sem a tela ter escolhido seria a porta lateral por
  * onde sai o que a declaração não deixou sair.
+ *
+ * O título que é referência é o RÓTULO dela (`labels`, montado por `portalReferenceLabels`): sem rótulo,
+ * vazio — nunca o id gravado.
  */
-export const portalExposedTitle = (screen: PortalScreenLike, data: Record<string, unknown>): string =>
-  screen.titleFieldKey && portalFieldKeys(screen).includes(screen.titleFieldKey)
-    ? portalRecordTitle(screen, data)
-    : '';
+export const portalExposedTitle = (
+  screen: PortalScreenLike,
+  data: Record<string, unknown>,
+  labels: Readonly<Record<string, string>> = {},
+): string => {
+  if (!screen.titleFieldKey || !portalFieldKeys(screen).includes(screen.titleFieldKey)) return '';
+  return referenceTitleField(screen) ? labels[screen.titleFieldKey] ?? '' : portalRecordTitle(screen, data);
+};
+
+/**
+ * A tela que dá NOME aos registros da coleção apontada por `entityKey`, esteja ela no portal ou não.
+ * Uma coleção costuma ter mais de uma tela — a de extensão com `dataCollection` e a âncora das rules —,
+ * e as duas carregam o `titleFieldKey`; vale a que DECLARA o campo de título, porque é ela que sabe se
+ * ele é texto ou outra referência.
+ */
+export const referenceTitleScreen = <T extends PortalScreenLike>(screens: readonly T[], entityKey: string): T | undefined => {
+  const collection = portalTargetScreen(screens, entityKey)?.collection
+    ?? screens.find((screen) => screen.id === entityKey)?.collection
+    ?? entityKey;
+  const naming = screens.filter((screen) => screen.collection === collection && !!screen.titleFieldKey);
+  return naming.find((screen) => screen.fields.some((field) => field.key === screen.titleFieldKey)) ?? naming[0];
+};
+
+/** As chaves de `referenceTitles` que de fato servem: campos `reference` com alvo, e expostos. */
+export const portalReferenceTitleKeys = (screen: PortalScreenLike): string[] => {
+  const exposed = new Set(portalFieldKeys(screen));
+  return (screen.portal?.referenceTitles ?? []).filter((key) => {
+    const field = screen.fields.find((one) => one.key === key);
+    return exposed.has(key) && field?.type === 'reference' && !!field.refEntity;
+  });
+};
+
+/** De onde sai o rótulo de uma referência exposta. */
+export interface PortalReferenceLabel<T extends PortalScreenLike> {
+  fieldKey: string;
+  multi: boolean;
+  /** A tela cujo título é o rótulo. */
+  target: T;
+  /**
+   * `referenceTitles`: o título sai mesmo com a tela apontada fora do portal. Senão, só sai o título que
+   * a tela apontada, no portal, já expõe.
+   */
+  declared: boolean;
+}
+
+/**
+ * As referências expostas que ganham rótulo, e a tela de onde cada uma tira o título. A referência
+ * fora daqui — tela apontada fora do portal, sem `referenceTitles` — sai sem rótulo: apontar para uma
+ * tela interna (o funcionário responsável) não leva o nome dele junto.
+ */
+export const portalReferenceLabels = <T extends PortalScreenLike>(
+  screens: readonly T[],
+  screen: PortalScreenLike,
+): PortalReferenceLabel<T>[] => {
+  const declared = new Set(portalReferenceTitleKeys(screen));
+  return portalFieldKeys(screen).flatMap((fieldKey): PortalReferenceLabel<T>[] => {
+    const field = screen.fields.find((one) => one.key === fieldKey);
+    if (field?.type !== 'reference' || !field.refEntity) return [];
+    const isDeclared = declared.has(fieldKey);
+    const target = isDeclared ? referenceTitleScreen(screens, field.refEntity) : portalTargetScreen(screens, field.refEntity);
+    return target ? [{ fieldKey, multi: field.multi === true, target, declared: isDeclared }] : [];
+  });
+};
+
+/**
+ * O título do registro apontado, como o rótulo o mostra. Um salto só: o apontado cujo título é outra
+ * referência não tem texto aqui, e o rótulo fica vazio em vez de virar o id.
+ */
+export const portalReferenceTitle = (
+  label: PortalReferenceLabel<PortalScreenLike>,
+  referenced: Record<string, unknown>,
+): string => (label.declared ? portalRecordTitle(label.target, referenced) : portalExposedTitle(label.target, referenced));
+
+/**
+ * As telas do portal cuja projeção mostra o título de um registro desta coleção — no rótulo de uma
+ * referência exposta, ou no próprio título quando ele é essa referência. É quem precisa ser refeito
+ * quando esse título muda.
+ */
+export const portalLabelReferrers = <T extends PortalScreenLike>(
+  screens: readonly T[],
+  collection: string,
+): Array<{ screen: T; label: PortalReferenceLabel<T> }> =>
+  screens
+    .filter((screen) => !!screen.portal)
+    .flatMap((screen) => portalReferenceLabels(screens, screen)
+      .filter((label) => label.target.collection === collection)
+      .map((label) => ({ screen, label })));
+
+/**
+ * O título de um registro como o ESCRITÓRIO o lê — no aviso do que o convidado fez. Quem está dentro
+ * vê tudo, e o título que é referência é o título do registro apontado, nunca o id dele. Um salto só.
+ */
+export const officeRecordTitle = async (
+  screens: readonly PortalScreenLike[],
+  screen: PortalScreenLike,
+  data: Record<string, unknown>,
+  getRecord: (collection: string, recordId: string) => Promise<Record<string, unknown> | undefined>,
+): Promise<string> => {
+  const field = referenceTitleField(screen);
+  if (!field) return portalRecordTitle(screen, data);
+  const target = field.refEntity ? referenceTitleScreen(screens, field.refEntity) : undefined;
+  if (!target) return '';
+  const titles = await Promise.all(referencedIds(data[field.key]).map(async (id) => {
+    const referenced = await getRecord(target.collection, id);
+    return referenced ? portalRecordTitle(target, referenced) : '';
+  }));
+  return titles.filter((title) => title !== '').join(', ');
+};
 
 /** Um problema da declaração, como CHAVE de `core.records` — quem exibe traduz. */
 export interface PortalDeclarationIssue {
@@ -851,6 +992,23 @@ export const portalDocumentLinkIssues = (screen: PortalScreenLike): PortalDeclar
 };
 
 /**
+ * Os problemas de `referenceTitles` que a própria tela responde — o que o empacotamento confere sem as
+ * outras telas. Nenhum deles abre nada: o servidor só leva o título de referência exposta.
+ */
+export const portalReferenceTitleIssues = (screen: PortalScreenLike): PortalDeclarationIssue[] => {
+  const exposed = new Set(portalFieldKeys(screen));
+  return (screen.portal?.referenceTitles ?? []).flatMap((key): PortalDeclarationIssue[] => {
+    const field = screen.fields.find((one) => one.key === key);
+    if (field?.type !== 'reference' || !field.refEntity) {
+      return [{ message: '@core.records/portal.issue.reference-title.not-reference', messageParams: { field: key } }];
+    }
+    return exposed.has(key)
+      ? []
+      : [{ message: '@core.records/portal.issue.reference-title.hidden', messageParams: { field: key } }];
+  });
+};
+
+/**
  * O que impede a declaração de entregar algo a alguém — conferido ANTES de gravar, para que o
  * escritório saiba na hora. O servidor, diante da mesma declaração, simplesmente não projeta nada: é
  * a resposta fechada, e calada. Aqui ela ganha voz.
@@ -883,6 +1041,14 @@ export const portalDeclarationIssues = (
   }
 
   issues.push(...portalDocumentLinkIssues(screen));
+
+  issues.push(...portalReferenceTitleIssues(screen));
+  for (const key of portalReferenceTitleKeys(screen)) {
+    const refEntity = screen.fields.find((one) => one.key === key)?.refEntity as string;
+    if (!referenceTitleScreen(screens, refEntity)) {
+      issues.push({ message: '@core.records/portal.issue.reference-title.no-title', messageParams: { field: key, screen: refEntity } });
+    }
+  }
 
   if (portal.invites?.automation && portal.subject !== 'self') {
     issues.push({ message: '@core.records/portal.issue.invites.not-subject' });

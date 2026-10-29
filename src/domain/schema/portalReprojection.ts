@@ -16,8 +16,10 @@
  * foi aberta com uma revisão anterior ganha uma passada nova, sozinha, uma vez.
  *
  * - 1: o vínculo chega à tela que está no portal para a coleção (`portalTargetScreen`).
+ * - 2: o título que é referência sai pelo rótulo dela, nunca como o id gravado; e o rótulo acompanha o
+ *   título do apontado — a projeção feita antes ficava com o id, ou com o nome antigo (EV-24).
  */
-export const PORTAL_PROJECTION_REVISION = 1;
+export const PORTAL_PROJECTION_REVISION = 2;
 
 export interface PortalReprojectionState {
   status: 'queued' | 'running' | 'done';

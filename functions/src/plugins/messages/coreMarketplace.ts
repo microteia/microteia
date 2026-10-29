@@ -504,6 +504,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.portal.action.disabled': 'The screen "{screen}" offers the action "{action}" in the portal, but the action is declared with `enabled: false` — guests would never see it.',
   'issue.portal.action.not-runnable': 'The screen "{screen}" offers the action "{action}" in the portal, but it runs a `command` instead of a workflow. Only actions that run a workflow can run in the portal.',
   'issue.portal.action.prompts': 'The screen "{screen}" offers the action "{action}" in the portal, but it declares `promptParameters` — the portal has no form for them. Give the workflow what it needs from the record (`context`) instead.',
+  'issue.portal.reference-titles.kernel': 'The screen "{screen}" shows the name of linked records outside the portal (`portal.referenceTitles`), which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest. An older kernel ignores the declaration: those links would reach guests without a name.',
+  'issue.portal.reference-titles.field': 'The screen "{screen}" lists "{field}" in `portal.referenceTitles`, but it is not an exposed `reference` field. Only a field that is in `portal.fields` and points to another screen (`refEntity`) has a name to show.',
   'issue.edit-window.shape': 'The edit window (`editWindow`) of the screen "{screen}" must be an object: `{ minutes, delete? }`.',
   'issue.edit-window.minutes': 'The edit window (`editWindow`) of the screen "{screen}" needs `minutes` as a whole number greater than zero.',
   'issue.edit-window.delete': 'The edit window (`editWindow`) of the screen "{screen}" has a `delete` that is not true or false.',

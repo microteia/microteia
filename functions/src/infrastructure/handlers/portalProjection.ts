@@ -22,13 +22,21 @@ export const projectPortalRecord = onDocumentWritten(
   async (event) => {
     const { tenantId, collection, docId } = event.params;
     if (RESERVED_COLLECTIONS.has(collection)) return;
+    const after = event.data?.after;
+    const data = after?.exists ? (after.data() as Record<string, unknown>) : null;
     try {
-      const after = event.data?.after;
-      const data = after?.exists ? (after.data() as Record<string, unknown>) : null;
       const inPortal = await getDI().getProjectPortalRecordUseCase().execute({ tenantId, collection, recordId: docId, data });
       if (inPortal) await ensurePortalProjectionRevision(tenantId);
     } catch (error) {
       console.error(`[portal] Falha ao projetar ${tenantId}/${collection}/${docId}:`, error);
+    }
+    // A coleção pode estar FORA do portal e ainda assim dar nome a um rótulo dele (`referenceTitles`).
+    try {
+      const previous = event.data?.before;
+      const before = previous?.exists ? (previous.data() as Record<string, unknown>) : null;
+      await getDI().getRefreshPortalReferenceLabelsUseCase().execute({ tenantId, collection, recordId: docId, before, after: data });
+    } catch (error) {
+      console.error(`[portal] Falha ao refazer os rótulos que mostram ${tenantId}/${collection}/${docId}:`, error);
     }
   },
 );
@@ -116,11 +124,11 @@ const startReprojection = async (
     typeof data?.dataCollection === 'string' && data.dataCollection ? data.dataCollection : screenId;
 
   const screens = await di.getPortalRepository().getScreens(tenantId, { fresh: true });
-  const collections = portalReprojectionScope(screens, {
-    screenId,
-    collections: [...new Set([collectionOf(before), collectionOf(after)])],
-  });
-  await di.getStartPortalReprojectionUseCase().execute(tenantId, collections);
+  const own = [...new Set([collectionOf(before), collectionOf(after)])];
+  const scope = portalReprojectionScope(screens, { screenId, collections: own });
+  // Tela fora do portal antes e depois: dela, só os rótulos que mostram o título dela mudam.
+  const collections = before?.portal || after?.portal ? scope : scope.filter((collection) => !own.includes(collection));
+  if (collections.length > 0) await di.getStartPortalReprojectionUseCase().execute(tenantId, collections);
 };
 
 /**
@@ -139,7 +147,11 @@ export const reprojectPortalOnScreenChange = onDocumentWritten(
     const before = event.data?.before?.exists ? (event.data.before.data() as Record<string, unknown>) : undefined;
     const after = event.data?.after?.exists ? (event.data.after.data() as Record<string, unknown>) : undefined;
     const di = getDI();
+    // Uma tela fora do portal também conta quando o que muda é o seu TÍTULO: ele pode ser o rótulo de
+    // uma referência exposta (`referenceTitles`). Mudar só os campos dela não refaz nada.
     if (portalShape(before) !== portalShape(after) && (before?.portal || after?.portal)) {
+      await startReprojection(tenantId, screenId, before, after);
+    } else if ((before?.titleFieldKey ?? null) !== (after?.titleFieldKey ?? null)) {
       await startReprojection(tenantId, screenId, before, after);
     }
     await ensurePortalProjectionRevision(tenantId);

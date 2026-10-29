@@ -1,7 +1,7 @@
 import type { PortalActivityNotifier } from '../../domain/usecases/PortalAccessUseCases';
 import { collectionPermissionId } from '../../domain/schema/access/permission';
 import { PERMISSION_PORTAL_ACTIVITY } from '../../domain/schema/access/kernelPermissions';
-import { portalRecordTitle } from '../../domain/schema/portal';
+import { officeRecordTitle } from '../../domain/schema/portal';
 import { configuredLocale, settingsValuesOf } from '../../domain/services/tenantSettings';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
 import { agentCatalog, agentText } from '../agent/agentMessages';
@@ -24,24 +24,30 @@ export const PORTAL_ACTIVITY_CATEGORY = 'core.automation/portal-activity';
 export const portalActivityNotifier: PortalActivityNotifier = async ({ tenantId, userId, kind, screen, recordId, dedupKey }) => {
   if (screen.portal?.notifyOffice === false) return;
   const di = getDI();
-  const [guest, record, office] = await Promise.all([
-    di.getPortalRepository().getPortalUser(tenantId, userId),
-    di.getPortalRepository().getRecord(tenantId, screen.collection, recordId),
+  const portal = di.getPortalRepository();
+  const [guest, record, office, screens] = await Promise.all([
+    portal.getPortalUser(tenantId, userId),
+    portal.getRecord(tenantId, screen.collection, recordId),
     getDb().collection('tenants').doc(tenantId).collection('settings').doc('tenant').get(),
+    portal.getScreens(tenantId),
   ]);
   const catalog = agentCatalog(
     await di.getInstalledExtensionCache().messageBundles(tenantId),
     configuredLocale({}, settingsValuesOf(office.data())) ?? DEFAULT_LOCALE,
   );
+  const title = record
+    ? await officeRecordTitle(screens, screen, record, (collection, id) => portal.getRecord(tenantId, collection, id))
+    : '';
   const params = {
     guest: guest?.displayName || guest?.email || '',
     screen: agentText(catalog, screen.titleSingular).text,
-    record: (record ? portalRecordTitle(screen, record) : '') || recordId,
+    record: title,
   };
+  // Sem título, a frase não cita o registro: o id não diz nada a quem lê, e o aviso já abre o registro.
   await di.getDispatchNotificationUseCase().execute({
     tenantId,
     source: 'core.tenant/portal',
-    title: `@core.records/portal.activity.${kind}.title`,
+    title: `@core.records/portal.activity.${kind}.title${title ? '' : '.untitled'}`,
     message: `@core.records/portal.activity.${kind}.message`,
     params,
     link: '',

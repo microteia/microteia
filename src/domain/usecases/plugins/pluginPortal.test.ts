@@ -4,6 +4,7 @@ import {
   PORTAL_ACTIONS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINKS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
+  PORTAL_REFERENCE_TITLES_SINCE_KERNEL,
   PORTAL_TRACK_VIEWS_SINCE_KERNEL,
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
 } from '../../schema/portal';
@@ -159,5 +160,41 @@ describe('ações no portal do pacote', () => {
       message: '@core.marketplace/issue.portal.actions.kernel',
       messageParams: { screen: 'entries', minimum: PORTAL_ACTIONS_SINCE_KERNEL },
     });
+  });
+});
+
+describe('referenceTitles no pacote', () => {
+  const named = (referenceTitles: string[], kernel = `^${PORTAL_REFERENCE_TITLES_SINCE_KERNEL}`, exposed = ['description', 'holder']): MarketplacePlugin => {
+    const base = pkg(undefined, kernel);
+    return {
+      ...base,
+      screens: base.screens!.map((screen) => ({
+        ...screen,
+        fields: [...screen.fields, { ...field('holder'), type: 'reference', refEntity: 'taxpayers' }],
+        portal: { ...screen.portal!, fields: exposed, referenceTitles },
+      })),
+    };
+  };
+
+  it('um vínculo exposto, com o kernel que a lê, passa', () => {
+    expect(packagePortalIssues(named(['holder']))).toEqual([]);
+  });
+
+  it('o campo que não é vínculo, ou não está exposto, é recusa', () => {
+    expect(packagePortalIssues(named(['description']))).toEqual([{
+      message: '@core.marketplace/issue.portal.reference-titles.field',
+      messageParams: { screen: 'entries', field: 'description' },
+    }]);
+    expect(packagePortalIssues(named(['holder'], undefined, ['description']))).toEqual([{
+      message: '@core.marketplace/issue.portal.reference-titles.field',
+      messageParams: { screen: 'entries', field: 'holder' },
+    }]);
+  });
+
+  it('o kernel anterior é recusa: ele descartaria a chave e o vínculo chegaria sem nome', () => {
+    expect(packagePortalIssues(named(['holder'], '^2.83.0'))).toEqual([{
+      message: '@core.marketplace/issue.portal.reference-titles.kernel',
+      messageParams: { screen: 'entries', minimum: PORTAL_REFERENCE_TITLES_SINCE_KERNEL },
+    }]);
   });
 });

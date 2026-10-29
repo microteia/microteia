@@ -1568,7 +1568,7 @@ const RESOURCES: ResourceDefinition[] = [
       + 'explicit semantic reason to materialise or snapshot it. A line item\'s unit price is a valid snapshot — '
       + 'the price charged on the day must not change when the catalogue does. Declare it: '
       + '`{ semanticType: "snapshot", source: "Product.price", reason: "..." }`, or use the relationship\'s '
-      + '`denormalize`, which is the platform\'s own mechanism and keeps the copy in step.',
+      + '`denormalize`, the platform\'s own mechanism: nothing is copied, and `<denormKey>.<field>` reads the origin\'s current value.',
       '',
       '## How a relationship is stored',
       '',

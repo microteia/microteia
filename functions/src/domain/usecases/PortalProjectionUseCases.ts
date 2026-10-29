@@ -1,6 +1,7 @@
 import type { IPortalRepository, PortalDocumentProjection, PortalProjection, PortalScreen } from '../repositories/IPortalRepository';
 import type { IRecordDocumentLinks } from '../repositories/IRecordDocumentLinks';
 import { wasEverPortalShared } from '../services/recordDocumentLinks';
+import type { StartPortalReprojectionUseCase } from './PortalReprojectionUseCases';
 import {
   PORTAL_SUBJECT_MAX_DEPTH,
   evaluatePortalCondition,
@@ -11,8 +12,10 @@ import {
   portalSubjectKey,
   portalExposedTitle,
   portalDocumentLinkMinutes,
-  portalFieldKeys,
+  portalLabelReferrers,
   portalRecordDocId,
+  portalReferenceLabels,
+  portalReferenceTitle,
   portalScreenOf,
   portalTargetScreen,
   projectPortalData,
@@ -143,19 +146,16 @@ export const makeProjectPortalRecordUseCase = (
       if (existing) await repo.deleteProjection(tenantId, projectionId);
     } else {
       const labels: Record<string, string> = {};
-      for (const key of portalFieldKeys(screen)) {
-        const field = screen.fields.find((one) => one.key === key);
-        if (field?.type !== 'reference' || !field.refEntity) continue;
-        const target = screenFor(field.refEntity);
-        const ids = referencedIds(data[key]);
-        // O rótulo é o TÍTULO do registro apontado — e título só sai de tela que está no portal e o
-        // expõe. Apontar para uma tela interna (o funcionário responsável) não leva o nome dele junto.
-        if (!target || ids.length === 0) continue;
+      // O rótulo é o TÍTULO do registro apontado — da tela no portal que o expõe, ou de qualquer tela
+      // quando a referência está em `referenceTitles`. Fora disso, sem rótulo: o id não sai como nome.
+      for (const label of portalReferenceLabels(screens, screen)) {
+        const ids = referencedIds(data[label.fieldKey]);
+        if (ids.length === 0) continue;
         const titles = await Promise.all(ids.map(async (id) => {
-          const referenced = await repo.getRecord(tenantId, target.collection, id);
-          return referenced ? portalExposedTitle(target, referenced) : '';
+          const referenced = await repo.getRecord(tenantId, label.target.collection, id);
+          return referenced ? portalReferenceTitle(label, referenced) : '';
         }));
-        labels[key] = titles.filter((title) => title !== '').join(', ');
+        labels[label.fieldKey] = titles.filter((title) => title !== '').join(', ');
       }
 
       const link = portalLinkOf(screen);
@@ -170,7 +170,7 @@ export const makeProjectPortalRecordUseCase = (
         screenId: screen.id,
         subjectKeys,
         audience: await repo.audienceFor(tenantId, subjectKeys),
-        title: portalExposedTitle(screen, data),
+        title: portalExposedTitle(screen, data, labels),
         data: projectPortalData(screen, data),
         labels,
         parentKeys,
@@ -226,6 +226,73 @@ export const makeProjectPortalRecordUseCase = (
     },
   };
 };
+
+/**
+ * Quantos registros que apontam para o renomeado são refeitos na hora, por campo. Acima disso a coleção
+ * deles ganha uma passada de reprojeção — por rodadas, na fila do escritório —, e não uma invocação sem
+ * tamanho previsível.
+ */
+export const PORTAL_LABEL_REFRESH_LIMIT = 100;
+
+export interface RefreshPortalReferenceLabelsInput {
+  tenantId: string;
+  collection: string;
+  recordId: string;
+  /** `null` quando o registro acabou de nascer. */
+  before: Record<string, unknown> | null;
+  /** `null` quando o registro foi apagado. */
+  after: Record<string, unknown> | null;
+}
+
+export type RefreshPortalReferenceLabelsUseCase = {
+  /** Devolve quantos registros foram refeitos na hora. */
+  execute: (input: RefreshPortalReferenceLabelsInput) => Promise<number>;
+};
+
+/**
+ * O título de um registro mudou: refaz as projeções que o mostram — no rótulo de uma referência exposta,
+ * ou no título que é essa referência. Sem isto, o domicílio continuaria com o nome antigo do contribuinte
+ * até alguém regravá-lo.
+ *
+ * A pergunta é feita em TODA gravação de registro, e por isso é pura até o título mudar de fato: só
+ * então lê os que apontam para ele. É a regra que a projeção usa para escrever o rótulo
+ * (`portalLabelReferrers`), e não outra.
+ */
+export const makeRefreshPortalReferenceLabelsUseCase = (
+  repo: IPortalRepository,
+  project: ProjectPortalRecordUseCase,
+  startReprojection: StartPortalReprojectionUseCase,
+): RefreshPortalReferenceLabelsUseCase => ({
+  execute: async ({ tenantId, collection, recordId, before, after }) => {
+    const screens = await repo.getScreens(tenantId);
+    const titleOf = (label: Parameters<typeof portalReferenceTitle>[0], data: Record<string, unknown> | null) =>
+      (data ? portalReferenceTitle(label, data) : '');
+    const renamed = portalLabelReferrers(screens, collection)
+      .filter(({ label }) => titleOf(label, before) !== titleOf(label, after));
+    if (renamed.length === 0) return 0;
+
+    const overflow = new Set<string>();
+    const refreshed = new Set<string>();
+    for (const { screen, label } of renamed) {
+      if (overflow.has(screen.collection)) continue;
+      const referrers = await repo.getRecordsReferencing(
+        tenantId, screen.collection, label.fieldKey, recordId, label.multi, PORTAL_LABEL_REFRESH_LIMIT + 1,
+      );
+      if (referrers.length > PORTAL_LABEL_REFRESH_LIMIT) {
+        overflow.add(screen.collection);
+        continue;
+      }
+      for (const referrer of referrers) {
+        const key = portalRecordDocId(screen.collection, referrer.id);
+        if (refreshed.has(key)) continue;
+        refreshed.add(key);
+        await project.execute({ tenantId, collection: screen.collection, recordId: referrer.id, data: referrer.data, cascade: false });
+      }
+    }
+    if (overflow.size > 0) await startReprojection.execute(tenantId, [...overflow]);
+    return refreshed.size;
+  },
+});
 
 export type RefreshPortalAudienceUseCase = {
   execute: (tenantId: string, subjectKeys: string[]) => Promise<number>;

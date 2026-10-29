@@ -493,6 +493,7 @@ export const ScreenBuilderView: React.FC = () => {
                 referenceFieldOptions={vm.portalPanel.referenceFieldOptions}
                 editFieldOptions={vm.portalPanel.editFieldOptions}
                 actionOptions={vm.portalPanel.actionOptions}
+                referenceTitleOptions={vm.portalPanel.referenceTitleOptions}
                 hasParent={vm.portalPanel.hasParent}
                 hasDocuments={vm.portalPanel.hasDocuments}
                 readOnly={vm.portalPanel.readOnly}
@@ -518,6 +519,7 @@ export const ScreenBuilderView: React.FC = () => {
                 onDocumentLinkMinutes={vm.setPortalDocumentLinkMinutes}
                 onToggleTrackViews={vm.setPortalTrackViews}
                 onToggleAction={vm.togglePortalAction}
+                onToggleReferenceTitle={vm.togglePortalReferenceTitle}
               />
             )}
             {vm.screenModalTab === 'editWindow' && (

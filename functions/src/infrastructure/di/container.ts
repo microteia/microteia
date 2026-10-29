@@ -25,6 +25,7 @@ import {
   makeProjectPortalDocumentUseCase,
   makeProjectPortalRecordUseCase,
   makeRefreshPortalAudienceUseCase,
+  makeRefreshPortalReferenceLabelsUseCase,
 } from '../../domain/usecases/PortalProjectionUseCases';
 import {
   makeEnsurePortalProjectionRevisionUseCase,
@@ -42,6 +43,7 @@ import type {
   ProjectPortalDocumentUseCase,
   ProjectPortalRecordUseCase,
   RefreshPortalAudienceUseCase,
+  RefreshPortalReferenceLabelsUseCase,
 } from '../../domain/usecases/PortalProjectionUseCases';
 import {
   makeGetPortalContextUseCase,
@@ -394,6 +396,14 @@ class DIContainer {
 
   getRefreshPortalAudienceUseCase(): RefreshPortalAudienceUseCase {
     return makeRefreshPortalAudienceUseCase(this.getPortalRepository());
+  }
+
+  getRefreshPortalReferenceLabelsUseCase(): RefreshPortalReferenceLabelsUseCase {
+    return makeRefreshPortalReferenceLabelsUseCase(
+      this.getPortalRepository(),
+      this.getProjectPortalRecordUseCase(),
+      this.getStartPortalReprojectionUseCase(),
+    );
   }
 
   getStartPortalReprojectionUseCase(): StartPortalReprojectionUseCase {

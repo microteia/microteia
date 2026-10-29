@@ -186,10 +186,9 @@ export class FirebasePortalRepository implements IPortalRepository {
     return snapshots.filter((snapshot) => snapshot.exists).map((snapshot) => toAction(snapshot.id, snapshot.data() ?? {}));
   }
 
-  async getRecordsReferencing(tenantId: string, collection: string, fieldKey: string, recordId: string, multi: boolean) {
-    const snapshot = await this.tenant(tenantId).collection(collection)
-      .where(fieldKey, multi ? 'array-contains' : '==', recordId)
-      .get();
+  async getRecordsReferencing(tenantId: string, collection: string, fieldKey: string, recordId: string, multi: boolean, limit?: number) {
+    const query = this.tenant(tenantId).collection(collection).where(fieldKey, multi ? 'array-contains' : '==', recordId);
+    const snapshot = await (limit === undefined ? query : query.limit(limit)).get();
     return snapshot.docs.map((doc) => ({ id: doc.id, data: doc.data() }));
   }
 

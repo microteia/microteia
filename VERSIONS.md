@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.176.0] — 2026-10-28
+
+- No portal, um registro cujo título é outro cadastro (o titular de um domicílio, por exemplo) deixa de aparecer com um código no lugar do nome. Quando o cadastro apontado não está no portal, o escritório pode escolher, campo a campo, mostrar apenas o nome dele — sem levar ao convidado nenhum outro dado daquele cadastro.
+- Quando o nome de um cadastro muda, o portal passa a mostrar o nome novo em todos os registros que o exibem, sem precisar salvar cada um de novo.
+- O aviso que chega ao escritório quando um convidado cria ou altera algo no portal mostra o nome do registro em vez de um código; sem nome, a frase simplesmente não cita o registro.
+
 #### [9.175.0] — 2026-10-28
 
 - O passo "Buscar Registros" das automações ganhou a opção "Ler em páginas": uma automação agora consegue percorrer uma lista com milhares de registros, uma página por execução, retomando de onde a anterior parou — sem pular nem repetir nenhum. Os scripts ganharam a mesma possibilidade.

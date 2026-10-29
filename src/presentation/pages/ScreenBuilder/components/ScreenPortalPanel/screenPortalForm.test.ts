@@ -74,3 +74,15 @@ describe('ações no portal na aba Portal', () => {
     expect(fromPortalForm({ ...toPortalForm(portal), actions: [] })).toEqual(portal);
   });
 });
+
+describe('nome de registro vinculado na aba Portal', () => {
+  it('ida e volta', () => {
+    const portal = { subject: 'self' as const, fields: ['name', 'holder'], documents: false, referenceTitles: ['holder'] };
+    expect(fromPortalForm(toPortalForm(portal))).toEqual(portal);
+  });
+
+  it('o vínculo que deixa de ser exposto deixa de levar o nome — e sem nenhum, a chave nem é gravada', () => {
+    const form = { ...toPortalForm({ subject: 'self', fields: ['name', 'holder'], referenceTitles: ['holder'] }), fields: ['name'] };
+    expect(fromPortalForm(form)).not.toHaveProperty('referenceTitles');
+  });
+});

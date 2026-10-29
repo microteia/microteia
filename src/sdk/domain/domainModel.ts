@@ -252,7 +252,11 @@ export interface DomainRelationship {
   required?: boolean;
   /** Campos do alvo que a origem mostra — vira `displayFields` do seletor e do cartão. */
   displayFields?: string[];
-  /** Denormalização DECLARADA. Sem isto, copiar campo do alvo é acoplamento, não decisão. */
+  /**
+   * Denormalização DECLARADA: o `denormKey` vira o `refDenormKey` do campo, e `<denormKey>.<campo>` lê o
+   * valor ATUAL do alvo. Nada é gravado no registro. Sem isto, copiar campo do alvo é acoplamento, não
+   * decisão.
+   */
   denormalize?: DomainDenormalization;
   onDelete?: DeleteSemantics;
   /**

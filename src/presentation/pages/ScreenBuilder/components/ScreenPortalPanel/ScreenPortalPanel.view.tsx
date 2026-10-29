@@ -22,6 +22,8 @@ export interface ScreenPortalPanelProps {
   editFieldOptions: Array<{ value: string; label: string }>;
   /** As ações do registro que podem rodar no portal, pela chave — rodam uma automação sem perguntar. */
   actionOptions: Array<{ value: string; label: string }>;
+  /** Os campos de vínculo expostos — cada um pode levar o nome do registro apontado. */
+  referenceTitleOptions: Array<{ value: string; label: string }>;
   hasParent: boolean;
   hasDocuments: boolean;
   /** Declarado por uma extensão: o escritório vê, e quem muda é ela. */
@@ -50,6 +52,7 @@ export interface ScreenPortalPanelProps {
   onDocumentLinkMinutes: (minutes: string) => void;
   onToggleTrackViews: (enabled: boolean) => void;
   onToggleAction: (actionKey: string, offered: boolean) => void;
+  onToggleReferenceTitle: (fieldKey: string, named: boolean) => void;
 }
 
 /** A aba "Portal" da tela: o que sai do escritório, e para quem. Só desenha o que recebe. */
@@ -119,6 +122,26 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
                 />
               ))}
             </S.FieldGrid>
+          </S.Section>
+
+          <S.Section>
+            <S.SectionTitle>{t('portal.reference-titles.title')}</S.SectionTitle>
+            <S.Hint>{t('portal.reference-titles.hint')}</S.Hint>
+            {props.referenceTitleOptions.length === 0 ? (
+              <S.Hint>{t('portal.reference-titles.empty')}</S.Hint>
+            ) : (
+              <S.FieldGrid>
+                {props.referenceTitleOptions.map((option) => (
+                  <Checkbox
+                    key={option.value}
+                    checked={form.referenceTitles.includes(option.value)}
+                    onChange={(named) => props.onToggleReferenceTitle(option.value, named)}
+                    label={option.label}
+                    disabled={readOnly}
+                  />
+                ))}
+              </S.FieldGrid>
+            )}
           </S.Section>
 
           <S.Section>

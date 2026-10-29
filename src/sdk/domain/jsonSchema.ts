@@ -404,8 +404,10 @@ export const domainModelJsonSchema = (): Record<string, unknown> => ({
           type: 'object',
           required: ['denormKey', 'fields'],
           additionalProperties: false,
-          description: 'Denormalization DECLARED — the platform materialises the named fields of the target under denormKey. '
-            + 'This is not the same as a snapshot: it follows the origin.',
+          description: 'Denormalization DECLARED — denormKey becomes the reference field\'s refDenormKey, the name by which expressions, '
+            + 'templates and reports read the target: `<denormKey>.<field>` is the target\'s CURRENT value. Nothing is copied into the record, '
+            + 'which is why it follows the origin — unlike a snapshot. `fields` lists what the source reads through it. To show the target\'s '
+            + 'name in the portal without exposing its screen, use the portal declaration\'s `referenceTitles` instead.',
           properties: {
             denormKey: { type: 'string' },
             fields: { type: 'array', items: { type: 'string' }, minItems: 1 },

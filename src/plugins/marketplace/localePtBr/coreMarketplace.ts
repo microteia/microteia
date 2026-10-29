@@ -497,6 +497,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.portal.action.disabled': 'A tela "{screen}" oferece a ação "{action}" no portal, mas a ação está declarada com `enabled: false` — o convidado nunca a veria.',
   'issue.portal.action.not-runnable': 'A tela "{screen}" oferece a ação "{action}" no portal, mas ela executa um `command` em vez de uma automação. Só ações que rodam uma automação podem rodar no portal.',
   'issue.portal.action.prompts': 'A tela "{screen}" oferece a ação "{action}" no portal, mas declara `promptParameters` — o portal não tem formulário para eles. Dê à automação o que ela precisa a partir do registro (`context`).',
+  'issue.portal.reference-titles.kernel': 'A tela "{screen}" mostra o nome de registros vinculados fora do portal (`portal.referenceTitles`), o que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo ignora a declaração: esses vínculos chegariam ao convidado sem nome.',
+  'issue.portal.reference-titles.field': 'A tela "{screen}" lista "{field}" em `portal.referenceTitles`, mas ele não é um campo `reference` exposto. Só um campo que está em `portal.fields` e aponta para outra tela (`refEntity`) tem nome a mostrar.',
   'issue.edit-window.shape': 'A janela de edição (`editWindow`) da tela "{screen}" precisa ser um objeto: `{ minutes, delete? }`.',
   'issue.edit-window.minutes': 'A janela de edição (`editWindow`) da tela "{screen}" precisa de `minutes` como número inteiro maior que zero.',
   'issue.edit-window.delete': 'A janela de edição (`editWindow`) da tela "{screen}" tem um `delete` que não é verdadeiro nem falso.',

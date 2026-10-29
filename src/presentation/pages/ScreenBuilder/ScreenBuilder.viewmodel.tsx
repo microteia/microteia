@@ -401,6 +401,7 @@ export interface ScreenBuilderViewModel {
     referenceFieldOptions: Array<{ value: string; label: string }>;
     editFieldOptions: Array<{ value: string; label: string }>;
     actionOptions: Array<{ value: string; label: string }>;
+    referenceTitleOptions: Array<{ value: string; label: string }>;
     hasParent: boolean;
     hasDocuments: boolean;
     readOnly: boolean;
@@ -428,6 +429,7 @@ export interface ScreenBuilderViewModel {
   setPortalDocumentLinkMinutes: (minutes: string) => void;
   setPortalTrackViews: (enabled: boolean) => void;
   togglePortalAction: (actionKey: string, offered: boolean) => void;
+  togglePortalReferenceTitle: (fieldKey: string, named: boolean) => void;
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
@@ -1546,6 +1548,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         .filter((field) => field.key !== linkField && screenForm.portal.fields.includes(field.key))
         .map((field) => ({ value: field.key, label: label(field.label) })),
       actionOptions: portalActionOptions,
+      referenceTitleOptions: fields
+        .filter((field) => field.type === 'reference' && !!field.refEntity && screenForm.portal.fields.includes(field.key))
+        .map((field) => ({ value: field.key, label: label(field.label) })),
       hasParent: !!def?.parentEntity && !!def.parentFieldKey,
       hasDocuments: !!def?.hasDocuments,
       readOnly: def?.managed === true,
@@ -1598,6 +1603,18 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         actions: offered
           ? [...new Set([...prev.portal.actions, actionKey])]
           : prev.portal.actions.filter((key) => key !== actionKey),
+      },
+    }));
+  }, []);
+  const togglePortalReferenceTitle = useCallback((fieldKey: string, named: boolean) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      portalTouched: true,
+      portal: {
+        ...prev.portal,
+        referenceTitles: named
+          ? [...new Set([...prev.portal.referenceTitles, fieldKey])]
+          : prev.portal.referenceTitles.filter((key) => key !== fieldKey),
       },
     }));
   }, []);
@@ -2831,6 +2848,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setPortalDocumentLinkMinutes,
     setPortalTrackViews,
     togglePortalAction,
+    togglePortalReferenceTitle,
     toggleChildScreen,
     setChildLinkField,
     iconOptions,

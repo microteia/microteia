@@ -135,13 +135,17 @@ export interface IPortalRepository {
   getRecord(tenantId: string, collection: string, recordId: string): Promise<Record<string, unknown> | undefined>;
   /** As ações do escritório com estes ids — a que não existe mais simplesmente não vem. */
   getActions(tenantId: string, ids: readonly string[]): Promise<PortalActionDefinition[]>;
-  /** Os registros que apontam para `recordId` pelo campo — os dependentes que herdam o sujeito dele. */
+  /**
+   * Os registros que apontam para `recordId` pelo campo — os dependentes que herdam o sujeito dele, ou
+   * os que mostram o título dele no rótulo. Sem `limit`, todos.
+   */
   getRecordsReferencing(
     tenantId: string,
     collection: string,
     fieldKey: string,
     recordId: string,
     multi: boolean,
+    limit?: number,
   ): Promise<Array<{ id: string; data: Record<string, unknown> }>>;
   listRecords(tenantId: string, collection: string, after: string | null, pageSize: number): Promise<RecordPage>;
 

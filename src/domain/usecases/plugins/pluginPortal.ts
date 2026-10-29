@@ -3,11 +3,13 @@ import {
   PORTAL_ACTIONS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINKS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
+  PORTAL_REFERENCE_TITLES_SINCE_KERNEL,
   PORTAL_TRACK_VIEWS_SINCE_KERNEL,
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
   asPortalDeclaration,
   portalActionIssues,
   portalDerivedFieldKeys,
+  portalReferenceTitleIssues,
   portalVisibilityIssues,
 } from '../../schema/portal';
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
@@ -150,6 +152,34 @@ const actionIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
   return [...keys, ...kernel];
 };
 
+/**
+ * O `referenceTitles` das telas do pacote: cada chave é um campo `reference` exposto, e o `kernel` lê a
+ * chave. Um kernel anterior a descarta e o vínculo chega ao convidado sem nome — fechado, mas calado
+ * para quem declarou justamente para ter o nome à vista.
+ */
+const referenceTitleIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
+  const declaring = (pkg.screens ?? []).flatMap((screen) => {
+    const portal = asPortalDeclaration(screen.portal);
+    return portal?.referenceTitles?.length ? [{ screen, portal }] : [];
+  });
+
+  const fields = declaring.flatMap(({ screen, portal }) =>
+    portalReferenceTitleIssues({ id: screen.key, collection: screen.key, fields: fieldsOf(pkg, screen), portal })
+      .map((issue): LocalizedIssue => ({
+        message: '@core.marketplace/issue.portal.reference-titles.field',
+        messageParams: { screen: screen.key, field: issue.messageParams?.field ?? '' },
+      })));
+
+  const kernel = declaring.length > 0 && !rangeExcludesBelow(pkg.manifest.kernel ?? '', PORTAL_REFERENCE_TITLES_SINCE_KERNEL)
+    ? [{
+      message: '@core.marketplace/issue.portal.reference-titles.kernel',
+      messageParams: { screen: declaring[0].screen.key, minimum: PORTAL_REFERENCE_TITLES_SINCE_KERNEL },
+    }]
+    : [];
+
+  return [...fields, ...kernel];
+};
+
 /** O que o portal das telas do pacote declara e o kernel exigido não sustenta — cada um, uma recusa. */
 export const packagePortalIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...derivedFieldIssues(pkg),
@@ -157,4 +187,5 @@ export const packagePortalIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
   ...documentLinkIssues(pkg),
   ...trackViewsIssues(pkg),
   ...actionIssues(pkg),
+  ...referenceTitleIssues(pkg),
 ];
