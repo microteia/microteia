@@ -53,6 +53,7 @@ import { portalProofKey } from './PortalIdentityUseCases';
 import { portalFieldInput, type PortalFieldInput } from '../schema/portalFieldInput';
 import { buildFieldRulePresetCatalog, type FieldRulePreset } from '../schema/fieldRulePresets';
 import { buildLookupProviderCatalog, type LookupProviderSpec } from '../schema/lookupProviderSpec';
+import { guestPortalTemplate, type PortalTemplate } from '../schema/ui/portalTemplate';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -546,6 +547,11 @@ export interface PortalContextScreen {
   /** A tela oferece ações do escritório no registro aberto (`portal.actions`) — a casca pede os botões. */
   actions: boolean;
   fields: PortalScreen['fields'];
+  /**
+   * O desenho declarado (`portal.template`) como ele pode sair: só nós de campo exposto, condições que
+   * só leem o exposto, e todo texto já no idioma do convidado (`guestPortalTemplate`). Ausente, o padrão.
+   */
+  template?: PortalTemplate;
 }
 
 /** Uma view de portal de extensão, entregue ao convidado. */
@@ -771,6 +777,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         const editable = new Set(portalEditFieldKeys(screen));
         const link = portalLinkOf(screen);
         const linkTarget = link ? screenFor(link.targetEntity) : undefined;
+        const template = guestPortalTemplate(screen.portal?.template, exposed, resolve);
         const describe = (field: PortalField): PortalContextFillableField => ({
           key: field.key,
           label: resolve(field.label),
@@ -812,6 +819,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
               onlyOwn: screen.portal?.edit?.onlyOwn === true,
             }
             : null,
+          ...(template ? { template } : {}),
         };
       }),
     };

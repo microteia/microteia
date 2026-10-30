@@ -6,10 +6,17 @@ import { usePortalNavigation } from '../../../stores/usePortalNavigation';
 import { useLocaleFormat, useT } from '../../shared/i18n/useT';
 import { canEditPortalRecord, fillPortalWelcome, portalWelcomeValues, type PortalDocument, type PortalScreenInfo } from '../../../domain/entities/Portal';
 import { portalSubjectKey } from '../../../domain/schema/portal';
+import { portalTemplatePlaces } from '../../../domain/schema/ui/portalTemplate';
 import { PORTAL_PROFILE_ENTRY, portalTenantPath } from './portalPaths';
 import { usePortalRecordFormat } from './usePortalRecordFormat';
 import { evaluatePortalView, type PortalViewComponent } from './portalViews';
 import { portalAccessError, portalOffersSignInAgain, type PortalAccessError } from './portalAccessError';
+import {
+  portalCardArrangement,
+  resolvePortalNodes,
+  type PortalCardArrangement,
+  type ResolvedPortalNode,
+} from './resolvePortalTemplate';
 
 export interface PortalFieldView {
   key: string;
@@ -27,7 +34,12 @@ export interface PortalRecordCard {
   title: string;
   summary: string;
   updatedAt: string;
+  /** O cartão desenhado pela tela (`portal.template.card`); `null` quando ela não o declara. */
+  nodes: ResolvedPortalNode[] | null;
+  /** A faixa do topo: a cor da opção escolhida no campo de `accent`. */
+  accentColor: string | null;
 }
+
 
 export interface PortalDocumentView {
   id: string;
@@ -126,6 +138,8 @@ export interface PortalViewModel {
   /** O documento chega ao portal pela projeção, segundos depois: a lista é relida. */
   handleUploaded: () => void;
   records: PortalRecordCard[];
+  /** O arranjo declarado da lista de topo; `null`, a lista de sempre. */
+  recordsArrangement: PortalCardArrangement | null;
   recordsLoading: boolean;
   /** A tela de topo aceita registros do convidado — o pai é escolhido no formulário. */
   rootCreateLabel: string | null;
@@ -141,6 +155,17 @@ export interface PortalViewModel {
     activeTab: string;
     /** O convidado pode alterar o registro aberto — o rótulo do botão; `null`, sem botão. */
     editLabel: string | null;
+    /**
+     * O registro aberto desenhado pela tela (`portal.template.detail.body`); `null`, o padrão. As abas
+     * dos filhos e dos documentos vêm sempre depois dele.
+     */
+    body: ResolvedPortalNode[] | null;
+    /**
+     * O desenho posiciona o botão de alterar / as ações. O que ele não posiciona aparece no lugar de
+     * sempre: o template arranja o que `portal.edit` e `portal.actions` decidiram, não os desliga.
+     */
+    placesEdit: boolean;
+    placesActions: boolean;
   } | null;
   /**
    * As ações do escritório no registro aberto (`portal.actions`) — na casca nativa e em volta da view de
@@ -225,7 +250,7 @@ export const usePortalViewModel = (): PortalViewModel => {
   const rootCollection = entry?.kind === 'screen' ? entry.collection ?? null : null;
   const rootScreen = useMemo(() => (rootCollection ? screenOf(rootCollection) : null), [rootCollection, screenOf]);
 
-  const { formatValue, cardOf } = usePortalRecordFormat();
+  const { formatValue, cardOf, answersOf } = usePortalRecordFormat();
 
   const records = useMemo<PortalRecordCard[]>(
     () => (rootScreen ? (recordsByCollection[rootScreen.collection] ?? []).map((record) => cardOf(rootScreen, record)) : []),
@@ -283,6 +308,8 @@ export const usePortalViewModel = (): PortalViewModel => {
       ...children.map((child) => ({ key: child.collection, label: child.title })),
       ...(topScreen.documents ? [{ key: PORTAL_DOCUMENTS_TAB, label: t('portal.documents') }] : []),
     ];
+    const editLabel = canEditPortalRecord(topScreen, topRecord, portal.userId) ? t('portal.edit.open') : null;
+    const detailBody = topScreen.template?.detail?.body;
     return {
       title: topRecord.title || t('portal.record.untitled'),
       fields: topScreen.fields.map((field) => formatValue(field, topRecord)).filter((field) => field.value !== ''),
@@ -302,9 +329,14 @@ export const usePortalViewModel = (): PortalViewModel => {
       activeTab: tabChoice.recordId === topRecord.id && tabs.some((tab) => tab.key === tabChoice.tab)
         ? tabChoice.tab
         : tabs[0]?.key ?? '',
-      editLabel: canEditPortalRecord(topScreen, topRecord, portal.userId) ? t('portal.edit.open') : null,
+      editLabel,
+      body: detailBody
+        ? resolvePortalNodes(detailBody, answersOf(topScreen, topRecord, 'detail', { editLabel, hasActions: topScreen.actions }))
+        : null,
+      placesEdit: portalTemplatePlaces(detailBody, 'edit'),
+      placesActions: portalTemplatePlaces(detailBody, 'actions'),
     };
-  }, [topRecord, topScreen, documents, documentsLoading, screens, formatValue, formatDate, t, portal.userId, tabChoice]);
+  }, [topRecord, topScreen, documents, documentsLoading, screens, formatValue, formatDate, t, portal.userId, tabChoice, answersOf]);
 
   const openDocument = useCallback(async (documentId: string) => {
     if (!topRecord) return;
@@ -443,6 +475,7 @@ export const usePortalViewModel = (): PortalViewModel => {
       : null,
     handleUploaded,
     records,
+    recordsArrangement: portalCardArrangement(rootScreen),
     recordsLoading: rootCollection ? isCollectionLoading(rootCollection) : false,
     rootCreateLabel: rootScreen?.create ? t('portal.create.new', { screen: rootScreen.titleSingular }) : null,
     emptyScreens: !!portal.context && menuEntries.length === 0,

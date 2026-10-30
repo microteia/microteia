@@ -21,6 +21,7 @@ import { evaluateFieldBoolean, extractFieldExpressionPaths, fieldExpressionSynta
 import { ACTION_RESERVED_VARIABLES, PORTAL_ACTION_SURFACE, actionFieldContext } from './actionScope';
 import { RECORD_CREATED_VIA_FIELD, SYSTEM_MANAGED_KEYS } from './mutationSpec';
 import { isSequenceField } from './recordSequence';
+import { readPortalTemplate, type PortalTemplate } from './ui/portalTemplate';
 
 export {
   PORTAL_DOCUMENTS_SUBCOLLECTION,
@@ -224,6 +225,12 @@ export interface PortalDeclaration {
    * não leva o nome dele junto —, e é o padrão: levar o nome é decisão de exposição, tomada campo a campo.
    */
   referenceTitles?: string[] | null;
+  /**
+   * O DESENHO do portal para esta tela — o cartão das listas e o registro aberto —, declarado sem
+   * código (`domain/schema/ui/portalTemplate.ts`). É apresentação, não exposição: só arranja o que
+   * `fields`, `edit` e `actions` já decidiram, e nada dele entra na projeção. Ausente, o portal de sempre.
+   */
+  template?: PortalTemplate | null;
 }
 
 export interface PortalDocumentLinksDeclaration {
@@ -356,6 +363,8 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ? [...new Set(raw.referenceTitles.filter(isNonEmptyString).map((key) => key.trim()))]
     : [];
 
+  const template = readPortalTemplate(raw.template);
+
   return {
     subject,
     fields,
@@ -370,6 +379,7 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ...(raw.trackViews === true ? { trackViews: true } : {}),
     ...(actions.length > 0 ? { actions } : {}),
     ...(referenceTitles.length > 0 ? { referenceTitles } : {}),
+    ...(template ? { template } : {}),
   };
 };
 

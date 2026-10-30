@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.147.0",
+    "version": "1.148.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -2430,7 +2430,20 @@
             "card-template.issue.expression": "{where}: expressão inválida — {error}",
             "card-template.issue.expression-type": "{where}: a condição precisa ser uma expressão escrita como texto.",
             "card-template.issue.too-deep": "{where}: aninhamento com mais de {max} níveis.",
-            "card-template.issue.too-many": "{where}: o cartão tem mais de {max} nós."
+            "card-template.issue.too-many": "{where}: o cartão tem mais de {max} nós.",
+            "portal-template.title": "Aparência no portal",
+            "portal-template.hint": "Sem um desenho, o portal mantém a lista e o registro de sempre. O desenho só arranja o que esta tela já mostra no portal — os campos marcados acima, o botão de alterar e as ações —, e pode dar destaque aos campos que mais importam.",
+            "portal-template.card.layout": "Como a lista mostra os registros",
+            "portal-template.card.custom": "Desenhar o cartão da lista",
+            "portal-template.card.custom.hint": "Descreva o cartão em JSON: o título, um campo em destaque (variante, tamanho, selo), texto fixo, seções. O cartão inteiro abre o registro. Texto fixo deve ser uma referência de tradução (@namespace/chave) ou um texto escrito pelo seu escritório.",
+            "portal-template.detail.custom": "Desenhar o registro aberto",
+            "portal-template.detail.custom.hint": "Descreva em JSON o que o convidado vê acima das abas: seções, campos em destaque, o botão de alterar (\"edit\") e as ações (\"actions\"). O que você não posicionar fica onde sempre esteve.",
+            "portal-template.reset": "Começar do desenho padrão",
+            "portal-template.issue.json": "{where}: JSON inválido — {error}",
+            "portal-template.issue.not-object": "{where}: o desenho precisa ser um objeto JSON.",
+            "portal-template.issue.field-unexposed": "{where}: \"{field}\" não aparece no portal. Marque-o entre os campos acima, ou tire-o do desenho.",
+            "portal-template.issue.expression-unexposed": "{where}: a condição lê \"{field}\", que o portal não mostra. No portal, a condição só pode ler os campos que o convidado vê.",
+            "portal-template.issue.detail-only": "{where}: \"{type}\" só existe no registro aberto — no cartão, o toque abre o registro."
           }
         }
       },

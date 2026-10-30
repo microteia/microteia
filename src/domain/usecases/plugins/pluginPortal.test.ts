@@ -8,6 +8,7 @@ import {
   PORTAL_TRACK_VIEWS_SINCE_KERNEL,
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
 } from '../../schema/portal';
+import type { PortalTemplate } from '../../schema/ui/portalTemplate';
 import { packagePortalIssues } from './pluginPortal';
 import { packageIssues } from './pluginReferences';
 
@@ -196,5 +197,37 @@ describe('referenceTitles no pacote', () => {
       message: '@core.marketplace/issue.portal.reference-titles.kernel',
       messageParams: { screen: 'entries', minimum: PORTAL_REFERENCE_TITLES_SINCE_KERNEL },
     }]);
+  });
+});
+
+describe('desenho do portal no pacote (`portal.template`)', () => {
+  const withTemplate = (template: unknown, exposed = ['description']): MarketplacePlugin => {
+    const base = pkg(undefined, '^2.0.0');
+    return {
+      ...base,
+      screens: base.screens!.map((screen) => ({ ...screen, portal: { subject: 'self' as const, fields: exposed, template: template as PortalTemplate } })),
+    };
+  };
+
+  it('o desenho que só usa o exposto passa, sem exigir kernel — o anterior mostra o padrão', () => {
+    expect(packagePortalIssues(withTemplate({
+      card: { layout: 'grid', body: [{ type: 'field', field: 'description', variant: 'strong' }] },
+      detail: { body: [{ type: 'field', field: 'channel', size: 'xl' }, { type: 'fields', exclude: ['channel'] }] },
+    }, ['description', 'channel']))).toEqual([]);
+  });
+
+  it('campo fora do portal, inclusive lido numa condição, é recusa — com o caminho no pacote', () => {
+    expect(packageIssues(withTemplate({
+      detail: { body: [{ type: 'field', field: 'type' }, { type: 'title', hiddenWhen: 'type == "internal"' }] },
+    }))).toEqual(expect.arrayContaining([
+      {
+        message: '@core.records/portal-template.issue.field-unexposed',
+        messageParams: { where: 'screens[0].portal.template.detail.body[0].field', field: 'type' },
+      },
+      {
+        message: '@core.records/portal-template.issue.expression-unexposed',
+        messageParams: { where: 'screens[0].portal.template.detail.body[1].hiddenWhen', field: 'type' },
+      },
+    ]));
   });
 });

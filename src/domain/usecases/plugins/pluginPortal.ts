@@ -13,6 +13,7 @@ import {
   portalVisibilityIssues,
 } from '../../schema/portal';
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
+import { portalTemplateIssues } from '../../schema/ui/portalTemplateIssues';
 import type { LocalizedIssue } from './pluginReferences';
 
 const fieldsOf = (pkg: MarketplacePlugin, screen: ScreenModuleTemplate) => [
@@ -180,6 +181,25 @@ const referenceTitleIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
   return [...fields, ...kernel];
 };
 
+/**
+ * O desenho do portal (`portal.template`) das telas do pacote, pela régua da aba Portal: forma, ícone,
+ * expressão e — o que é do portal — só campo EXPOSTO. Na tela instalada o defeito não quebraria nada
+ * (o servidor descarta o nó), e por isso a recusa mora aqui: descartado em silêncio, o destaque só
+ * faltaria no portal de quem instalou. Não exige `kernel`: o anterior descarta a chave e mostra o padrão.
+ */
+const templateIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
+  (pkg.screens ?? []).flatMap((screen, index) => {
+    const portal = asPortalDeclaration(screen.portal);
+    const raw = (screen.portal as { template?: unknown } | null | undefined)?.template;
+    if (!portal || raw === undefined || raw === null) return [];
+    const exposed = new Set(portal.fields);
+    return portalTemplateIssues(
+      raw,
+      fieldsOf(pkg, screen).filter((field) => exposed.has(field.key)).map((field) => ({ key: field.key, type: field.type })),
+      `screens[${index}].portal.template`,
+    );
+  });
+
 /** O que o portal das telas do pacote declara e o kernel exigido não sustenta — cada um, uma recusa. */
 export const packagePortalIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...derivedFieldIssues(pkg),
@@ -188,4 +208,5 @@ export const packagePortalIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
   ...trackViewsIssues(pkg),
   ...actionIssues(pkg),
   ...referenceTitleIssues(pkg),
+  ...templateIssues(pkg),
 ];

@@ -5,6 +5,7 @@ import type { PortalRecord } from '../../../../../domain/entities/Portal';
 import type { FilterDef, FilterToken } from '../../../../components/ui/CompositeFilter';
 import type { PortalChildSection, PortalRecordCard } from '../../Portal.viewmodel';
 import { usePortalRecordFormat } from '../../usePortalRecordFormat';
+import { portalCardArrangement, type PortalCardArrangement } from '../../resolvePortalTemplate';
 
 /** Sem filtro, os mais recentes: o que se procura de verdade se encontra filtrando. */
 export const PORTAL_CHILDREN_RECENT = 15;
@@ -24,6 +25,8 @@ export interface PortalChildListViewModel {
   tokens: FilterToken[];
   setTokens: (tokens: FilterToken[]) => void;
   cards: PortalRecordCard[];
+  /** O arranjo que a tela-filha declara (`portal.template.card`); `null`, as linhas de sempre. */
+  arrangement: PortalCardArrangement | null;
   loading: boolean;
   failed: boolean;
   /** O que a pessoa precisa saber sobre a janela — "os 15 mais recentes", "o filtro olhou 300". */
@@ -32,6 +35,8 @@ export interface PortalChildListViewModel {
   createLabel: string | null;
   create: () => void;
   open: (id: string) => void;
+  /** O mesmo `open`, na forma que a lista de cartões declarada chama. */
+  openCard: (collection: string, id: string) => void;
 }
 
 /**
@@ -109,6 +114,7 @@ export const usePortalChildListViewModel = ({ child, onOpen, onCreate }: PortalC
     tokens,
     setTokens,
     cards,
+    arrangement: portalCardArrangement(child.screen),
     loading: loadedKey !== requestKey && failedKey !== requestKey,
     failed: failedKey === requestKey,
     windowNote,
@@ -116,5 +122,6 @@ export const usePortalChildListViewModel = ({ child, onOpen, onCreate }: PortalC
     createLabel: child.createLabel,
     create,
     open,
+    openCard: onOpen,
   };
 };

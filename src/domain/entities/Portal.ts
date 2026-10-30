@@ -1,5 +1,6 @@
 import type { QualifiedContribution } from '../schema/plugin/contribution';
 import type { PortalFieldInput } from '../schema/portalFieldInput';
+import type { PortalTemplate } from '../schema/ui/portalTemplate';
 import { PORTAL_PROFILE_KEYS, portalGuestName, type PortalProfile } from '../schema/portal';
 import type {
   PortalIdentityProvider,
@@ -42,6 +43,11 @@ export interface PortalScreenInfo {
   } | null;
   /** O convidado altera estes campos — dos que ele vê —, e só no que criou quando `onlyOwn`. */
   edit: { fields: PortalFieldInfo[]; onlyOwn: boolean } | null;
+  /**
+   * O desenho declarado da tela (`portal.template`), como o servidor o deixa sair: só o exposto, com
+   * o texto já no idioma do convidado. Ausente — e num contexto guardado antes dele —, o padrão.
+   */
+  template?: PortalTemplate | null;
 }
 
 /** Um campo como o portal o recebe; nos preenchíveis, com a máscara e a busca externa já resolvidas. */

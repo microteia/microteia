@@ -92,8 +92,9 @@ const portalShape = (data: Record<string, unknown> | undefined): string => {
 /**
  * A declaração sem o que não muda projeção nenhuma: quem pode CONVIDAR (`invites`) decide quem entra,
  * não o que cada um vê; registrar as aberturas (`trackViews`) decide o que fica anotado, não o que sai;
- * as ações (`actions`) são avaliadas a cada pedido, e nada delas é gravado na projeção. Ligar qualquer
- * um dos três abriria uma passada em toda coleção que chega à tela-sujeito — o custo de plataforma que
+ * as ações (`actions`) são avaliadas a cada pedido, e nada delas é gravado na projeção; o desenho
+ * (`template`) só arranja o que a projeção já tem, e chega ao convidado pelo contexto. Ligar qualquer
+ * um deles abriria uma passada em toda coleção que chega à tela-sujeito — o custo de plataforma que
  * a fila de reprojeções existe para conter.
  */
 const projectedPortal = (portal: unknown): unknown => {
@@ -102,6 +103,7 @@ const projectedPortal = (portal: unknown): unknown => {
   delete rest.invites;
   delete rest.trackViews;
   delete rest.actions;
+  delete rest.template;
   return rest;
 };
 

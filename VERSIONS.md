@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.181.0] — 2026-10-30
+
+- O portal ganhou aparência própria por tela, sem programação: na aba Portal do desenho de telas, o escritório escolhe se a lista mostra um registro por linha ou em grade e pode desenhar o cartão da lista e o registro aberto — dando destaque aos campos que mais importam (maior, em negrito ou como selo colorido), agrupando informações em blocos com título e mostrando avisos só quando fazem sentido. O mesmo cartão vale na lista principal e dentro do registro pai.
+- O desenho só arranja o que já aparece no portal: um campo que o convidado não vê nunca entra por ele, e o botão de alterar e as ações continuam à mão mesmo quando o desenho não os posiciona. Telas sem desenho continuam exatamente como estavam.
+
 #### [9.180.1] — 2026-10-30
 
 - Corrigido um problema que impedia o administrador geral da instalação de marcar as notificações como lidas, votar em extensões e trocar o logo nos escritórios de que é dono, quando o escritório exigia o código de verificação em duas etapas. O sino agora esvazia normalmente para ele, e a tela de Segurança deixou de listá-lo como alguém que ainda precisa cadastrar o código.

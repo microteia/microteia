@@ -36,7 +36,18 @@ import {
 } from './components/ScreenCardTemplatePanel/screenCardTemplateForm';
 import type { CardTemplateFormState } from './components/ScreenCardTemplatePanel/screenCardTemplateForm';
 import type { CardTemplateFieldInfo } from '../../../domain/schema/ui/cardTemplateIssues';
-import { portalDeclarationIssues, portalOfferableActions, type PortalScreenLike } from '../../../domain/schema/portal';
+import {
+  portalDeclarationIssues,
+  portalOfferableActions,
+  portalWithheldFileFields,
+  type PortalScreenLike,
+} from '../../../domain/schema/portal';
+import {
+  defaultPortalCardSource,
+  defaultPortalDetailSource,
+  portalTemplateFormIssues,
+  type PortalTemplateFormState,
+} from './components/ScreenPortalPanel/portalTemplateForm';
 import {
   EMPTY_PORTAL_FORM,
   fromPortalForm,
@@ -446,6 +457,12 @@ export interface ScreenBuilderViewModel {
   setPortalTrackViews: (enabled: boolean) => void;
   togglePortalAction: (actionKey: string, offered: boolean) => void;
   togglePortalReferenceTitle: (fieldKey: string, named: boolean) => void;
+  /** A seção "Aparência no portal": o arranjo e o JSON do cartão e do registro aberto. */
+  updatePortalTemplate: (patch: Partial<PortalTemplateFormState>) => void;
+  setPortalCardCustom: (custom: boolean) => void;
+  setPortalDetailCustom: (custom: boolean) => void;
+  resetPortalCardTemplate: () => void;
+  resetPortalDetailTemplate: () => void;
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
@@ -1555,6 +1572,20 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         return label(issue.message, params);
       })
       : [];
+    // O desenho só alcança o que SAI: o servidor descartaria o resto, e aqui o autor fica sabendo antes.
+    const withheld = new Set(current ? portalWithheldFileFields(current) : []);
+    const templateIssues = def && declaration
+      ? portalTemplateFormIssues(
+        screenForm.portal.template,
+        fields
+          .filter((field) => declaration.fields.includes(field.key) && !withheld.has(field.key))
+          .map((field) => ({ key: field.key, type: field.type })),
+      ).map((issue) => {
+        const params = { ...issue.messageParams };
+        if (params.field) params.field = label(fields.find((one) => one.key === params.field)?.label ?? params.field);
+        return label(issue.message, params);
+      })
+      : [];
     // A chave declarada que deixou de servir (saiu da aba Ações, virou comando) continua marcada aqui, com
     // o aviso acima: sem a caixa, não haveria como desmarcá-la.
     const offerable = current ? portalOfferableActions(current, actions) : [];
@@ -1587,7 +1618,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       hasParent: !!def?.parentEntity && !!def.parentFieldKey,
       hasDocuments: !!def?.hasDocuments,
       readOnly: def?.managed === true,
-      issues,
+      issues: [...issues, ...templateIssues],
       collection: def ? def.dataCollection || def.id : '',
     };
   }, [screenModal, getDefinitionByKey, definitions, screenForm.portal, screenForm.viewActionIds, actions, label, documentTypes]);
@@ -1688,6 +1719,33 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       },
     }));
   }, []);
+
+  const updatePortalTemplate = useCallback((patch: Partial<PortalTemplateFormState>) => {
+    setScreenForm((prev) => ({
+      ...prev,
+      portalTouched: true,
+      portal: { ...prev.portal, template: { ...prev.portal.template, ...patch } },
+    }));
+  }, []);
+  // Ligar com o editor vazio começa do padrão escrito na DSL: um JSON em branco não ensina nada.
+  const setPortalCardCustom = useCallback((cardCustom: boolean) => updatePortalTemplate(
+    cardCustom && !screenForm.portal.template.cardSource.trim()
+      ? { cardCustom, cardSource: defaultPortalCardSource() }
+      : { cardCustom },
+  ), [updatePortalTemplate, screenForm.portal.template.cardSource]);
+  const setPortalDetailCustom = useCallback((detailCustom: boolean) => updatePortalTemplate(
+    detailCustom && !screenForm.portal.template.detailSource.trim()
+      ? { detailCustom, detailSource: defaultPortalDetailSource() }
+      : { detailCustom },
+  ), [updatePortalTemplate, screenForm.portal.template.detailSource]);
+  const resetPortalCardTemplate = useCallback(
+    () => updatePortalTemplate({ cardSource: defaultPortalCardSource() }),
+    [updatePortalTemplate],
+  );
+  const resetPortalDetailTemplate = useCallback(
+    () => updatePortalTemplate({ detailSource: defaultPortalDetailSource() }),
+    [updatePortalTemplate],
+  );
 
   const activeScreenModalTab = useMemo<ScreenModalTab>(
     () => (screenModalTabs.some((tab) => tab.key === screenModalTab)
@@ -2892,6 +2950,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setPortalTrackViews,
     togglePortalAction,
     togglePortalReferenceTitle,
+    updatePortalTemplate,
+    setPortalCardCustom,
+    setPortalDetailCustom,
+    resetPortalCardTemplate,
+    resetPortalDetailTemplate,
     toggleChildScreen,
     setChildLinkField,
     iconOptions,

@@ -1,4 +1,11 @@
 import { PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES, type PortalDeclaration } from '../../../../../domain/schema/portal';
+import type { PortalTemplate } from '../../../../../domain/schema/ui/portalTemplate';
+import {
+  EMPTY_PORTAL_TEMPLATE_FORM,
+  fromPortalTemplateForm,
+  toPortalTemplateForm,
+  type PortalTemplateFormState,
+} from './portalTemplateForm';
 
 export type PortalSubjectKind = 'self' | 'field' | 'parent';
 
@@ -36,6 +43,8 @@ export interface PortalFormState {
   actions: string[];
   /** Os campos de vínculo expostos que levam o título do registro apontado, fora do portal ou não. */
   referenceTitles: string[];
+  /** O desenho do cartão e do registro aberto no portal — ver `portalTemplateForm.ts`. */
+  template: PortalTemplateFormState;
 }
 
 export const EMPTY_PORTAL_FORM: PortalFormState = {
@@ -60,6 +69,7 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   trackViews: false,
   actions: [],
   referenceTitles: [],
+  template: EMPTY_PORTAL_TEMPLATE_FORM,
 };
 
 export const toPortalForm = (portal: PortalDeclaration | null | undefined): PortalFormState => {
@@ -87,6 +97,7 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     trackViews: portal.trackViews === true,
     actions: [...(portal.actions ?? [])],
     referenceTitles: [...(portal.referenceTitles ?? [])],
+    template: toPortalTemplateForm(portal.template),
   };
 };
 
@@ -99,6 +110,7 @@ const documentLinkMinutesOf = (text: string): number => {
 /** `null` desliga: a tela sai do portal, e o servidor apaga o que tinha projetado dela. */
 export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null => {
   if (!form.enabled) return null;
+  const template = fromPortalTemplateForm(form.template);
   return {
     subject: form.subjectKind === 'field' ? { field: form.subjectField } : form.subjectKind,
     fields: form.fields,
@@ -127,5 +139,7 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
     ...(form.referenceTitles.some((key) => form.fields.includes(key))
       ? { referenceTitles: form.referenceTitles.filter((key) => form.fields.includes(key)) }
       : {}),
+    // Gravado como o autor escreveu, depois de passar por `portalTemplateFormIssues`: quem lê é tolerante.
+    ...(template ? { template: template as PortalTemplate } : {}),
   };
 };

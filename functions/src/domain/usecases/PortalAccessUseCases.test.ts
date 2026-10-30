@@ -506,6 +506,70 @@ describe('contexto do portal', () => {
     expect(context.home.view).toBeNull();
   });
 
+  describe('o desenho declarado (`portal.template`)', () => {
+    const withTemplate = (template: unknown): PortalScreen[] => CITY_SCREENS.map((screen) =>
+      (screen.id === 'invoices' && screen.portal
+        ? { ...screen, portal: { ...screen.portal, template: template as NonNullable<PortalScreen['portal']>['template'] } }
+        : screen));
+
+    const contextOf = async (screens: PortalScreen[]) => {
+      const fake = makeFakePortalRepository(screens);
+      fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+      return makeGetPortalContextUseCase(fake.repo).execute({
+        tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value.toUpperCase(),
+      });
+    };
+
+    it('sem declaração, a tela não leva template — o portal de sempre', async () => {
+      const context = await contextOf(CITY_SCREENS);
+      expect(context.screens.every((screen) => !('template' in screen))).toBe(true);
+    });
+
+    it('nada do que não saiu do escritório chega ao convidado, e todo texto vai no idioma dele', async () => {
+      const context = await contextOf(withTemplate({
+        card: {
+          layout: 'grid',
+          accent: { field: 'auditNote' },
+          body: [
+            { type: 'field', field: 'amount', variant: 'strong', label: '@acme/total' },
+            { type: 'field', field: 'auditNote' },
+            { type: 'text', text: '@acme/flagged', tone: 'danger', hiddenWhen: 'auditNote == "ok"' },
+            { type: 'text', text: '@acme/high', hiddenWhen: 'amount < 1000' },
+          ],
+        },
+        detail: {
+          body: [
+            { type: 'section', title: '@acme/summary', children: [{ type: 'field', field: 'number', size: 'xl' }] },
+            { type: 'fields', exclude: ['number', 'auditNote'] },
+          ],
+        },
+      }));
+
+      const template = context.screens.find((screen) => screen.id === 'invoices')?.template;
+      expect(template).toEqual({
+        card: {
+          layout: 'grid',
+          body: [
+            { type: 'field', field: 'amount', variant: 'strong', label: '@ACME/TOTAL' },
+            { type: 'text', text: '@ACME/HIGH', hiddenWhen: 'amount < 1000' },
+          ],
+        },
+        detail: {
+          body: [
+            { type: 'section', title: '@ACME/SUMMARY', children: [{ type: 'field', field: 'number', size: 'xl' }] },
+            { type: 'fields', exclude: ['number'] },
+          ],
+        },
+      });
+      expect(JSON.stringify(context.screens)).not.toContain('auditNote');
+    });
+
+    it('o desenho que só nomeava o que não saiu vira o padrão, e não um cartão vazio', async () => {
+      const context = await contextOf(withTemplate({ card: { body: [{ type: 'field', field: 'auditNote' }] } }));
+      expect(context.screens.find((screen) => screen.id === 'invoices')?.template).toBeUndefined();
+    });
+  });
+
   describe('opções de lista', () => {
     const select = (key: string, extra: Partial<PortalScreen['fields'][number]> = {}) =>
       ({ key, label: key, type: 'select', ...extra });

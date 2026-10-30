@@ -6,6 +6,7 @@ import { CompositeFilter } from '../../../../components/ui/CompositeFilter';
 import { Button } from '../../../../components/ui/Button';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { useT } from '../../../../shared/i18n/useT';
+import { PortalCardList } from '../PortalCardList';
 
 /** Uma aba do registro aberto: os filhos dele, os mais recentes, e o filtro para achar o resto. */
 export const PortalChildList: React.FC<PortalChildListProps> = (props) => {
@@ -31,6 +32,8 @@ export const PortalChildList: React.FC<PortalChildListProps> = (props) => {
         <S.Empty><Spinner size={20} /></S.Empty>
       ) : vm.cards.length === 0 ? (
         <S.Empty>{vm.emptyText}</S.Empty>
+      ) : vm.arrangement ? (
+        <PortalCardList cards={vm.cards} arrangement={vm.arrangement} onOpen={vm.openCard} />
       ) : (
         <S.List>
           {vm.cards.map((card) => (

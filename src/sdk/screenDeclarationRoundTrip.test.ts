@@ -90,3 +90,33 @@ describe('cardTemplate atravessa build → validate → install', () => {
     }));
   });
 });
+
+describe('portal.template atravessa build → validate → install', () => {
+  const template = {
+    card: { layout: 'grid' as const, body: [{ type: 'field' as const, field: 'titulo', variant: 'strong' as const, size: 'xl' as const }] },
+    detail: { body: [{ type: 'section' as const, title: 'Resumo', children: [{ type: 'fields' as const }] }, { type: 'edit' as const }] },
+  };
+  const comDesenhoNoPortal: ScreenDefinition = {
+    ...intimacoes,
+    hideRecordsFromCommandPalette: null,
+    portal: { subject: 'self', fields: ['titulo'], documents: false, template },
+  };
+
+  it('declarado, chega ao template do pacote, passa na validação e chega à tela instalada', () => {
+    const { issues, template: packaged, input } = roundTrip(comDesenhoNoPortal);
+    expect(issues).toEqual([]);
+    expect(packaged.portal?.template).toEqual(template);
+    expect(input.portal?.template).toEqual(template);
+  });
+
+  it('o portão do pacote recusa o campo que não sai do escritório', () => {
+    const { issues } = roundTrip({
+      ...comDesenhoNoPortal,
+      portal: { subject: 'self', fields: [], documents: false, template: { detail: { body: [{ type: 'field', field: 'titulo' }] } } },
+    });
+    expect(issues).toContainEqual(expect.objectContaining({
+      message: '@core.records/portal-template.issue.field-unexposed',
+      messageParams: expect.objectContaining({ where: 'screens[0].portal.template.detail.body[0].field', field: 'titulo' }),
+    }));
+  });
+});

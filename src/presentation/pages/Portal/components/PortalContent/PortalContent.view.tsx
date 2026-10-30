@@ -9,6 +9,8 @@ import { PortalCreateForm } from '../PortalCreateForm';
 import { PortalUploadForm } from '../PortalUploadForm';
 import { PortalRecordActions } from '../PortalRecordActions';
 import { PortalProfile } from '../PortalProfile';
+import { PortalCardList } from '../PortalCardList';
+import { PortalTemplateNodes } from '../PortalTemplateNodes';
 import { useT } from '../../../../shared/i18n/useT';
 
 /**
@@ -18,7 +20,9 @@ import { useT } from '../../../../shared/i18n/useT';
 export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
   const t = useT('core.tenant');
 
-  const recordList = (cards: typeof vm.records) => (
+  const recordList = (cards: typeof vm.records) => vm.recordsArrangement ? (
+    <PortalCardList cards={cards} arrangement={vm.recordsArrangement} onOpen={vm.openRecord} />
+  ) : (
     <S.List>
       {cards.map((record) => (
         <S.Card key={record.id} onClick={() => vm.openRecord(record.collection, record.id)}>
@@ -39,72 +43,8 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
     </div>
   );
 
-  const homeContent = vm.home.Component ? (
-    <vm.home.Component collection="" />
-  ) : (
+  const recordTabs = vm.selected && (
     <>
-      <S.Title>{vm.home.title}</S.Title>
-      {vm.home.welcome && <S.Welcome>{vm.home.welcome}</S.Welcome>}
-      {vm.home.widgets.length > 0 ? (
-        <S.Widgets>
-          {vm.home.widgets.map((widget) => (
-            <S.WidgetCard key={widget.id}>
-              {widget.title && <S.WidgetTitle>{widget.title}</S.WidgetTitle>}
-              <widget.Component collection="" />
-            </S.WidgetCard>
-          ))}
-        </S.Widgets>
-      ) : !vm.home.welcome && <S.Muted>{t('portal.home.empty')}</S.Muted>}
-    </>
-  );
-
-  const entryContent = vm.entryMissing ? (
-    <S.Centered>
-      {t('portal.entry-missing')}
-      <Button size="sm" onClick={vm.goHome}>{t('portal.home')}</Button>
-    </S.Centered>
-  ) : vm.pageView ? (
-    <vm.pageView collection="" />
-  ) : vm.openedRecord === 'loading' ? (
-    <S.Centered><Spinner size={28} /></S.Centered>
-  ) : vm.openedRecord === 'missing' ? (
-    <S.Centered>
-      {t('portal.record.unavailable')}
-      <Button size="sm" onClick={vm.goHome}>{t('portal.home')}</Button>
-    </S.Centered>
-  ) : vm.detailView ? (
-    <S.Detail>
-      {backButton}
-      {vm.recordActions && <PortalRecordActions {...vm.recordActions} />}
-      <vm.detailView.Component collection={vm.detailView.collection} recordId={vm.detailView.recordId} />
-    </S.Detail>
-  ) : vm.selected ? (
-    <S.Detail>
-      {backButton}
-      <S.DetailHeader>
-        <S.DetailTitle>{vm.selected.title}</S.DetailTitle>
-        {vm.selected.editLabel && (
-          <Button size="sm" variant="secondary" onClick={vm.startEdit}>
-            <RiEditLine size={14} />
-            {vm.selected.editLabel}
-          </Button>
-        )}
-      </S.DetailHeader>
-      {vm.recordActions && <PortalRecordActions {...vm.recordActions} />}
-      <S.Fields>
-        {vm.selected.fields.map((field) => (
-          <S.Field key={field.key}>
-            <S.FieldLabel>{field.label}</S.FieldLabel>
-            <S.FieldValue>
-              {field.href
-                ? <S.Link href={field.href} target="_blank" rel="noopener noreferrer">{field.value}</S.Link>
-                : field.color
-                  ? <S.OptionValue><S.OptionDot $color={field.color} />{field.value}</S.OptionValue>
-                  : field.value}
-            </S.FieldValue>
-          </S.Field>
-        ))}
-      </S.Fields>
       {vm.selected.tabs.length > 0 && (
         <S.Tabs role="tablist">
           {vm.selected.tabs.map((tab) => (
@@ -161,6 +101,91 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
           ))}
         </>
       )}
+    </>
+  );
+
+  const homeContent = vm.home.Component ? (
+    <vm.home.Component collection="" />
+  ) : (
+    <>
+      <S.Title>{vm.home.title}</S.Title>
+      {vm.home.welcome && <S.Welcome>{vm.home.welcome}</S.Welcome>}
+      {vm.home.widgets.length > 0 ? (
+        <S.Widgets>
+          {vm.home.widgets.map((widget) => (
+            <S.WidgetCard key={widget.id}>
+              {widget.title && <S.WidgetTitle>{widget.title}</S.WidgetTitle>}
+              <widget.Component collection="" />
+            </S.WidgetCard>
+          ))}
+        </S.Widgets>
+      ) : !vm.home.welcome && <S.Muted>{t('portal.home.empty')}</S.Muted>}
+    </>
+  );
+
+  const entryContent = vm.entryMissing ? (
+    <S.Centered>
+      {t('portal.entry-missing')}
+      <Button size="sm" onClick={vm.goHome}>{t('portal.home')}</Button>
+    </S.Centered>
+  ) : vm.pageView ? (
+    <vm.pageView collection="" />
+  ) : vm.openedRecord === 'loading' ? (
+    <S.Centered><Spinner size={28} /></S.Centered>
+  ) : vm.openedRecord === 'missing' ? (
+    <S.Centered>
+      {t('portal.record.unavailable')}
+      <Button size="sm" onClick={vm.goHome}>{t('portal.home')}</Button>
+    </S.Centered>
+  ) : vm.detailView ? (
+    <S.Detail>
+      {backButton}
+      {vm.recordActions && <PortalRecordActions {...vm.recordActions} />}
+      <vm.detailView.Component collection={vm.detailView.collection} recordId={vm.detailView.recordId} />
+    </S.Detail>
+  ) : vm.selected?.body ? (
+    <S.Detail>
+      {backButton}
+      {!vm.selected.placesEdit && vm.selected.editLabel && (
+        <S.DetailToolbar>
+          <Button size="sm" variant="secondary" onClick={vm.startEdit}>
+            <RiEditLine size={14} />
+            {vm.selected.editLabel}
+          </Button>
+        </S.DetailToolbar>
+      )}
+      {!vm.selected.placesActions && vm.recordActions && <PortalRecordActions {...vm.recordActions} />}
+      <PortalTemplateNodes nodes={vm.selected.body} onEdit={vm.startEdit} actions={vm.recordActions} />
+      {recordTabs}
+    </S.Detail>
+  ) : vm.selected ? (
+    <S.Detail>
+      {backButton}
+      <S.DetailHeader>
+        <S.DetailTitle>{vm.selected.title}</S.DetailTitle>
+        {vm.selected.editLabel && (
+          <Button size="sm" variant="secondary" onClick={vm.startEdit}>
+            <RiEditLine size={14} />
+            {vm.selected.editLabel}
+          </Button>
+        )}
+      </S.DetailHeader>
+      {vm.recordActions && <PortalRecordActions {...vm.recordActions} />}
+      <S.Fields>
+        {vm.selected.fields.map((field) => (
+          <S.Field key={field.key}>
+            <S.FieldLabel>{field.label}</S.FieldLabel>
+            <S.FieldValue>
+              {field.href
+                ? <S.Link href={field.href} target="_blank" rel="noopener noreferrer">{field.value}</S.Link>
+                : field.color
+                  ? <S.OptionValue><S.OptionDot $color={field.color} />{field.value}</S.OptionValue>
+                  : field.value}
+            </S.FieldValue>
+          </S.Field>
+        ))}
+      </S.Fields>
+      {recordTabs}
     </S.Detail>
   ) : vm.listView ? (
     <vm.listView.Component collection={vm.listView.collection} />

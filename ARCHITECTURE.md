@@ -2198,6 +2198,64 @@ anterior descarta a chave e o vínculo chega sem nome. Campo que não é `refere
 (`packagePortalIssues`) e aviso na aba Portal (`portalDeclarationIssues`), que ganhou a seção "Nome dos
 registros vinculados".
 
+### O desenho do portal é declarado — `portal.template`
+
+O cartão do portal era fixo (título, os três primeiros campos, a data) e o registro aberto era uma grade
+de rótulo e valor. Quem precisava dar destaque a um campo — o valor da nota maior, a situação como selo
+colorido, um aviso só quando atrasou — tinha uma saída: escrever uma view de extensão (`portal.view`). O
+escritório não tinha nenhuma.
+
+```ts
+portal: {
+  subject: { field: 'companyId' }, fields: ['number', 'amount', 'status'],
+  template: {
+    card: { layout: 'grid', accent: { field: 'status' }, body: [/* nós */] },  // lista de topo e aba de filhos
+    detail: { body: [/* nós */] },                                             // o registro aberto, acima das abas
+  },
+}
+```
+
+**Mesmo molde do `cardTemplate`, outro vocabulário.** Árvore serializável, nós discriminados por `type`,
+cor e tamanho só por token, os "placeholders" são NÓS e não marcação dentro de frase. Os tipos de valor
+(`CardGap`, `CardTone`, `CardFieldVariant`…) e os tetos são os do cartão do escritório. O vocabulário é
+outro porque o convidado vê outra coisa — só a projeção: não há avatar, etiqueta nem ação de cartão, e há
+`summary`/`updated` (o cartão padrão), `fields` com `exclude` (a grade padrão, menos o que já foi
+destacado), `section` (bloco com título) e, só no registro aberto, `edit` e `actions`
+(`PORTAL_DETAIL_ONLY_NODE_TYPES`). `DEFAULT_PORTAL_CARD_BODY` e `DEFAULT_PORTAL_DETAIL_BODY` são o padrão
+escrito na DSL — ponto de partida do Form Design e prova de que ela o alcança.
+
+**Mora em `portal`, e não ao lado de `cardTemplate`.** É decisão sobre o que o convidado vê, e quem a
+toma é quem tem `portal.manage` — que a regra de `screenDefinitions` já cobra na chave `portal`; nenhuma
+regra muda. Viaja pelos caminhos que a declaração já percorre (`asPortalDeclaration` é a porta única,
+também no `materializeScreen` e no repositório do servidor). E fica FORA de `portalShape`
+(`projectedPortal`): o desenho só arranja o que a projeção já tem, e mudá-lo não abre passada de
+reprojeção.
+
+| Decisão | Por quê |
+|---|---|
+| **O servidor filtra o desenho antes de entregá-lo** (`guestPortalTemplate`, sincronizado) | o nó `field` de campo não exposto, e o nó cujo `hiddenWhen` lê um (ou não parseia), somem com o que contêm; `fields.exclude` e `accent` perdem as chaves de fora. A expressão citaria um nome e um limiar internos (`score < 300`) — e, avaliada sobre a projeção, daria outro resultado que no escritório. Na dúvida, o pedaço não aparece |
+| **O `hiddenWhen` roda no navegador, sobre a projeção** | com `evaluatePortalCondition`, no fuso do escritório. Pode, porque o servidor só deixa chegar a condição que lê o exposto: o resultado é o mesmo que o servidor daria. É desenho, não autorização — o que o convidado não pode ver nunca esteve na projeção |
+| **O texto chega pronto** | `text`, `section.title` e o rótulo escrito de `field` são resolvidos no servidor, no idioma do convidado — o catálogo do escritório não chega ao portal. A extensão traduz o que traz pelo pacote dela, sem view nenhuma |
+| **O template arranja, não desliga** | o registro aberto que não posiciona `edit` ou `actions` os mostra no lugar de sempre (`portalTemplatePlaces`); as abas de filhos e documentos vêm sempre depois do corpo. Quem decide se há botão é `portal.edit`/`portal.actions` |
+| **No portal, o padrão é um por linha** | o portal é usado primeiro no celular; `layout: 'grid'` é escolha. Sem `template.card`, a lista é a de sempre, sem um pixel de diferença (`portalCardArrangement` devolve `null`); só com o arranjo, o conteúdo é o padrão escrito na DSL |
+| **Código continua dono do que desenha** | `portal.view` de lista ou de detalhe vence o desenho, como os slots do `RecordListSurface` vencem o `cardTemplate` |
+
+Na casca, `usePortalRecordFormat.answersOf` monta as respostas (as MESMAS do padrão: título, campos
+formatados, linha de resumo, data) e `resolvePortalNodes` (puro, testado sem React) responde a árvore;
+`PortalCardList` serve a lista de topo e `PortalChildList`, e `PortalTemplateNodes` só desenha. No cartão,
+que inteiro é um botão, o campo de arquivo sai como texto, e não como link dentro do botão.
+
+**Autoria — aba Portal, seção "Aparência no portal".** Arranjo em botões, cartão e registro aberto em
+JSON (`CodeEditor`), cada um começando do padrão. `portalTemplateIssues` (front, como
+`cardTemplateIssues`) é o portão: forma, opção, ícone, sintaxe, tetos, nó só-de-registro no cartão e —
+o que é do portal — campo nomeado ou lido por condição que não está exposto (`portal-template.issue.*`).
+Os problemas entram na lista da aba e barram o salvamento, como os da declaração. No pacote, o mesmo
+portão roda em `packagePortalIssues` (`screens[i].portal.template.*`). Não há pré-visualização na aba:
+ela pediria a projeção de um registro, que o Form Design não tem.
+
+`KERNEL_VERSION` 2.88.0 (`PORTAL_TEMPLATE_SINCE_KERNEL`): um kernel anterior descarta a chave e mostra o
+portal padrão — falha para o lado do que já existia —, e por isso o `check` não exige faixa de `kernel`.
+
 ### Garantias que a revisão da branch acrescentou
 
 - **O convite vale no instante.** As callables (alterar, anexar, URL de documento, criar dentro de

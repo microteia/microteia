@@ -134,6 +134,12 @@ export const S = {
     flex-wrap: wrap;
   `,
 
+  /** O botão de alterar que o desenho declarado não posicionou — no canto, como no padrão. */
+  DetailToolbar: styled.div`
+    display: flex;
+    justify-content: flex-end;
+  `,
+
   DetailTitle: styled.h2`
     font-size: ${({ theme }) => theme.fontSizes.xl};
     font-weight: 700;

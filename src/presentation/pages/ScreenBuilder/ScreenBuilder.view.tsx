@@ -521,6 +521,11 @@ export const ScreenBuilderView: React.FC = () => {
                 onToggleTrackViews={vm.setPortalTrackViews}
                 onToggleAction={vm.togglePortalAction}
                 onToggleReferenceTitle={vm.togglePortalReferenceTitle}
+                onTemplateChange={vm.updatePortalTemplate}
+                onTemplateCardCustom={vm.setPortalCardCustom}
+                onTemplateDetailCustom={vm.setPortalDetailCustom}
+                onTemplateResetCard={vm.resetPortalCardTemplate}
+                onTemplateResetDetail={vm.resetPortalDetailTemplate}
               />
             )}
             {vm.screenModalTab === 'editWindow' && (

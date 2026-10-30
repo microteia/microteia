@@ -5,10 +5,13 @@ import { RadioGroup } from '../../../../components/ui/RadioButton';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { InfoBanner } from '../../../../components/ui/InfoBanner';
 import { Input } from '../../../../components/ui/Input';
+import { Button } from '../../../../components/ui/Button';
+import { CodeEditor } from '../../../../components/ui/CodeEditor';
 import { PortalReprojectionStatus } from '../../../../components/ui/PortalReprojectionStatus';
 import { useT } from '../../../../shared/i18n/useT';
 import { PORTAL_VIEW_REPEAT_MINUTES } from '../../../../../domain/schema/portal';
 import type { PortalFormState, PortalSubjectKind } from './screenPortalForm';
+import type { PortalTemplateFormState } from './portalTemplateForm';
 
 export interface ScreenPortalPanelProps {
   form: PortalFormState;
@@ -53,6 +56,11 @@ export interface ScreenPortalPanelProps {
   onToggleTrackViews: (enabled: boolean) => void;
   onToggleAction: (actionKey: string, offered: boolean) => void;
   onToggleReferenceTitle: (fieldKey: string, named: boolean) => void;
+  onTemplateChange: (patch: Partial<PortalTemplateFormState>) => void;
+  onTemplateCardCustom: (custom: boolean) => void;
+  onTemplateDetailCustom: (custom: boolean) => void;
+  onTemplateResetCard: () => void;
+  onTemplateResetDetail: () => void;
 }
 
 /** A aba "Portal" da tela: o que sai do escritório, e para quem. Só desenha o que recebe. */
@@ -64,6 +72,16 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
     { value: 'self', label: t('portal.subject.self') },
     ...(props.referenceFieldOptions.length > 0 ? [{ value: 'field', label: t('portal.subject.field') }] : []),
     ...(props.hasParent ? [{ value: 'parent', label: t('portal.subject.parent') }] : []),
+  ];
+
+  const layoutOptions = [
+    { value: 'list', label: t('card-template.panel.layout.list') },
+    { value: 'grid', label: t('card-template.panel.layout.grid') },
+  ];
+  const widthOptions = [
+    { value: 'sm', label: t('card-template.panel.width.sm') },
+    { value: 'md', label: t('card-template.panel.width.md') },
+    { value: 'lg', label: t('card-template.panel.width.lg') },
   ];
 
   return (
@@ -324,6 +342,79 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
             <S.Hint>
               {form.subjectKind === 'self' ? t('portal.invites.automation.hint') : t('portal.invites.automation.self-only')}
             </S.Hint>
+          </S.Section>
+
+          <S.Section>
+            <S.SectionTitle>{t('portal-template.title')}</S.SectionTitle>
+            <S.Hint>{t('portal-template.hint')}</S.Hint>
+
+            <S.SectionTitle>{t('portal-template.card.layout')}</S.SectionTitle>
+            <RadioGroup
+              name="portal-card-layout"
+              value={form.template.cardLayout}
+              onChange={(value) => props.onTemplateChange({ cardLayout: value as PortalTemplateFormState['cardLayout'] })}
+              options={layoutOptions}
+              direction="horizontal"
+            />
+            {form.template.cardLayout === 'grid' && (
+              <RadioGroup
+                name="portal-card-width"
+                value={form.template.cardMinWidth}
+                onChange={(value) => props.onTemplateChange({ cardMinWidth: value as PortalTemplateFormState['cardMinWidth'] })}
+                options={widthOptions}
+                direction="horizontal"
+              />
+            )}
+
+            <Checkbox
+              checked={form.template.cardCustom}
+              onChange={props.onTemplateCardCustom}
+              label={t('portal-template.card.custom')}
+              disabled={readOnly}
+            />
+            {form.template.cardCustom && (
+              <>
+                <S.EditorHeader>
+                  <S.Hint>{t('portal-template.card.custom.hint')}</S.Hint>
+                  {!readOnly && (
+                    <Button variant="secondary" size="sm" onClick={props.onTemplateResetCard}>
+                      {t('portal-template.reset')}
+                    </Button>
+                  )}
+                </S.EditorHeader>
+                <CodeEditor
+                  language="json"
+                  value={form.template.cardSource}
+                  onChange={(cardSource) => props.onTemplateChange({ cardSource })}
+                  minHeight="220px"
+                />
+              </>
+            )}
+
+            <Checkbox
+              checked={form.template.detailCustom}
+              onChange={props.onTemplateDetailCustom}
+              label={t('portal-template.detail.custom')}
+              disabled={readOnly}
+            />
+            {form.template.detailCustom && (
+              <>
+                <S.EditorHeader>
+                  <S.Hint>{t('portal-template.detail.custom.hint')}</S.Hint>
+                  {!readOnly && (
+                    <Button variant="secondary" size="sm" onClick={props.onTemplateResetDetail}>
+                      {t('portal-template.reset')}
+                    </Button>
+                  )}
+                </S.EditorHeader>
+                <CodeEditor
+                  language="json"
+                  value={form.template.detailSource}
+                  onChange={(detailSource) => props.onTemplateChange({ detailSource })}
+                  minHeight="320px"
+                />
+              </>
+            )}
           </S.Section>
 
           {props.issues.length > 0 && (

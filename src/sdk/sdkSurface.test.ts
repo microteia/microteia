@@ -122,6 +122,11 @@ const PUBLISHED = [
   // cartão padrão como ponto de partida, a leitura tolerante e o mesmo portão do `check`. MOVE o
   // `KERNEL_VERSION`: a chave nova na tela é forma nova de pacote instalado.
   'CARD_NODE_TYPES', 'DEFAULT_CARD_BODY', 'cardTemplateIssues', 'readCardTemplate',
+  // O DESENHO do portal (`portal.template`): o vocabulário dos nós, o cartão e o registro aberto padrão
+  // como ponto de partida, a leitura tolerante e o mesmo portão do `check`. MOVE o `KERNEL_VERSION`
+  // (2.88.0): a chave nova na declaração `portal` é forma nova de pacote instalado.
+  'DEFAULT_PORTAL_CARD_BODY', 'DEFAULT_PORTAL_DETAIL_BODY', 'PORTAL_TEMPLATE_NODE_TYPES', 'portalTemplateIssues',
+  'readPortalTemplate',
 ].sort();
 
 /**
@@ -132,6 +137,7 @@ const PUBLISHED = [
 const PUBLISHED_TYPES = [
   'BusinessCalendar', 'BusinessCalendarSource',
   'CardNode', 'CardNodeType', 'CardTemplate', 'CardTemplateIssue',
+  'PortalTemplate', 'PortalTemplateNode', 'PortalTemplateNodeType',
   'DocumentOutputFormat', 'DocumentTemplateDataset', 'DocumentTemplateFormat', 'DocumentTemplateIssue',
   'DocumentTemplateSpec', 'TemplateIssue', 'TemplateNode',
   'ReportAccess', 'ReportAggregateMeasure', 'ReportChart', 'ReportChartKind',

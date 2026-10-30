@@ -200,6 +200,14 @@ export type { CardNode, CardNodeType, CardTemplate } from '../domain/schema/ui/c
 export { CARD_NODE_TYPES, DEFAULT_CARD_BODY, readCardTemplate } from '../domain/schema/ui/cardTemplate';
 export type { CardTemplateIssue } from '../domain/schema/ui/cardTemplateIssues';
 export { cardTemplateIssues } from '../domain/schema/ui/cardTemplateIssues';
+export type { PortalTemplate, PortalTemplateNode, PortalTemplateNodeType } from '../domain/schema/ui/portalTemplate';
+export {
+  DEFAULT_PORTAL_CARD_BODY,
+  DEFAULT_PORTAL_DETAIL_BODY,
+  PORTAL_TEMPLATE_NODE_TYPES,
+  readPortalTemplate,
+} from '../domain/schema/ui/portalTemplate';
+export { portalTemplateIssues } from '../domain/schema/ui/portalTemplateIssues';
 
 export { STEP_TYPES } from '../domain/entities/Workflow';
 
