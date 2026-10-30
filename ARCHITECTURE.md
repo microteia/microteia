@@ -2041,8 +2041,28 @@ automações, a mesma confiança que já existia nas automações que avisam o c
 
 Na casca, `PortalRecordActions` (MVVM) desenha os botões no registro aberto e ACIMA da view de
 extensão de detalhe, como o "Voltar": a declaração é da tela, não de quem a desenha. A confirmação é a
-`confirmMessage` da ação; o desfecho aparece logo abaixo, e os botões vêm refeitos do servidor depois
-do fluxo (o aceite gravado esconde "Aceitar"). Mudou a projeção, os botões são pedidos de novo.
+`confirmMessage` da ação; o desfecho vai para o aviso passageiro do portal (abaixo), e os botões vêm
+refeitos do servidor depois do fluxo (o aceite gravado esconde "Aceitar"). Mudou a projeção, os botões
+são pedidos de novo.
+
+**O desfecho é um aviso passageiro, não uma linha do registro (EV-33).** Até a 9.178.0 a barra mostrava
+o `status` numa linha fixa abaixo dos botões, sem fechar e sem prazo, até o convidado sair do registro.
+O resultado é do momento, e a linha envelhecia: "Você receberá o termo por e-mail" continuava lá depois
+de o e-mail chegar. Agora ele sai no MESMO aviso do escritório — `NotificationProvider` montado na
+rota-mãe do portal (`App.tsx`), `NotificationBanner` desenhado por `PortalView`.
+
+| Decisão | Por quê |
+|---|---|
+| **Reaproveitar o aviso do escritório**, e não um componente do portal | é o mesmo gesto (aviso no topo, fechar, some sozinho, segura com o mouse em cima); um segundo componente divergiria do primeiro na primeira correção. O provider não depende de nada do espaço de trabalho — só faltava montá-lo do lado de fora |
+| **O aviso fica FORA do layout**, por cima dele | é `position: fixed`, e não pertence a lugar nenhum da casca. Desenhado por `PortalView` ao lado do layout, o de uma EXTENSÃO, escrito antes disto, também o mostra — sem mudar uma linha. Se fosse do layout, o layout próprio que não o desenhasse sumiria com o desfecho das ações |
+| **No portal, o erro fica até ser fechado** (`NotificationBanner persistErrors`) | o convidado está quase sempre no celular, onde não há o "passar o mouse" que segura o aviso, e o erro é o que ele precisa ler até o fim. No escritório nada muda: a propriedade é opcional e o padrão é o de sempre |
+| **`usePortalNotify` em `@microteia/portal`**, sem decidir sozinho | `usePortalActions().run` continua só devolvendo `{ code, message }`: a view que desenha as ações decide se e como avisa — com `usePortalNotify`, no mesmo lugar. Avisar por conta própria dobraria o aviso da view que já mostrava o resultado do jeito dela |
+| **Os avisos NÃO vão para `usePortalShell`** | sem uma forma de o layout ASSUMIR os avisos (como `claimActions` faz com a barra), entregá-los ao layout os mostraria duas vezes — no lugar dele e no do kernel. Assumir é API nova para um caso que ninguém tem: o aviso já fica por cima de qualquer layout. Se um dia um layout precisar, o caminho é o de `claimActions`, não um campo a mais no shell |
+
+`usePortalNotify` move o `KERNEL_VERSION` (2.87.0, `PORTAL_NOTIFY_SINCE_KERNEL`): é símbolo novo da API
+curada, e a view que o importa num kernel anterior recebe `undefined`. Os testes são
+`portalActionNotice.test.tsx` (a barra real e o aviso real, com o relógio controlado: aparece, some,
+fecha, o erro fica, o escritório não muda) e `PortalRecordActions.viewmodel.test.tsx`.
 
 **Limites conhecidos.** Cada clique é uma execução de automação: o que impede o segundo é o
 `disabledWhen`/`hiddenWhen` que o escritório escreveu (o botão fica travado enquanto a execução corre,

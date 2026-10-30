@@ -6,32 +6,29 @@ import { ConfirmModal } from '../../../../components/ui/ConfirmModal';
 import { getScreenIcon } from '../../../../shared/screenIcons';
 import { useT } from '../../../../shared/i18n/useT';
 
-/** As ações do escritório no registro aberto do portal — botões, a confirmação e o desfecho. */
+/** As ações do escritório no registro aberto do portal — os botões e a confirmação. */
 export const PortalRecordActions: React.FC<PortalRecordActionsProps> = (props) => {
   const vm = usePortalRecordActionsViewModel(props);
   const t = useT('core.tenant');
 
-  if (vm.buttons.length === 0 && !vm.feedback) return null;
+  if (vm.buttons.length === 0) return null;
 
   return (
-    <S.Box>
-      {vm.buttons.length > 0 && (
-        <S.Bar>
-          {vm.buttons.map((button) => (
-            <Button
-              key={button.id}
-              size="sm"
-              variant={button.danger ? 'danger' : 'primary'}
-              disabled={button.disabled}
-              onClick={() => vm.trigger(button.id)}
-            >
-              {button.iconKey && getScreenIcon(button.iconKey, 14)}
-              {button.title}
-            </Button>
-          ))}
-        </S.Bar>
-      )}
-      {vm.feedback && <S.Feedback $tone={vm.feedback.tone} role="status">{vm.feedback.message}</S.Feedback>}
+    <>
+      <S.Bar>
+        {vm.buttons.map((button) => (
+          <Button
+            key={button.id}
+            size="sm"
+            variant={button.danger ? 'danger' : 'primary'}
+            disabled={button.disabled}
+            onClick={() => vm.trigger(button.id)}
+          >
+            {button.iconKey && getScreenIcon(button.iconKey, 14)}
+            {button.title}
+          </Button>
+        ))}
+      </S.Bar>
       <ConfirmModal
         isOpen={vm.confirmation.isOpen}
         title={vm.confirmation.title}
@@ -42,6 +39,6 @@ export const PortalRecordActions: React.FC<PortalRecordActionsProps> = (props) =
         onConfirm={vm.confirm}
         onCancel={vm.cancelConfirm}
       />
-    </S.Box>
+    </>
   );
 };

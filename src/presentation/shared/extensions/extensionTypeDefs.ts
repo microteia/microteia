@@ -1615,7 +1615,9 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
    * request: the list is fetched again when the record changes and comes back refreshed after each run.
    *
    * \`run\` does not ask: show \`confirmMessage\` first when there is one. It never rejects — a refusal or a
-   * failed workflow comes back as \`code: 'ERROR'\` with the message to show. While one action runs,
+   * failed workflow comes back as \`code: 'ERROR'\` with the message to show; \`usePortalNotify\` shows it
+   * where the portal shows its own (\`SUCCESS\` → \`'success'\`, \`WARNING\` → \`'warning'\`,
+   * \`ERROR\` → \`'error'\`). While one action runs,
    * \`running\` holds its id and no other runs.
    *
    * Calling it for a record removes the portal's own action bar from above your \`detail\` view: the
@@ -1628,6 +1630,18 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
     running: string | null;
     run(actionId: string): Promise<PortalActionResult>;
   };
+
+  /**
+   * The portal's passing notice — the one where the portal shows the outcome of \`portal.actions\`: at the
+   * top, over any layout, with a close button. \`success\` leaves after a few seconds, \`warning\` and
+   * \`info\` after a few more (hovering holds them), and \`error\` stays until the guest closes it.
+   * \`variant\` defaults to \`'info'\`. Pass text already in the guest's language (\`useT\`, or the
+   * \`message\` of a \`PortalActionResult\`).
+   *
+   * Use it for what is true NOW and stops being true soon — "Acceptance recorded." —, never for the
+   * state of the record: that belongs on the record, where it changes when the record does.
+   */
+  export function usePortalNotify(): (message: string, variant?: 'success' | 'warning' | 'error' | 'info') => void;
 
   /**
    * Everything a portal LAYOUT needs to draw itself (\`portalView({ surface: 'layout', key, title }, viewKey)\`).

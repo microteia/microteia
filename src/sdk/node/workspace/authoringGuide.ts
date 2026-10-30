@@ -61,6 +61,7 @@ import {
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
   PORTAL_TRACK_VIEWS_SINCE_KERNEL,
   PORTAL_ACTIONS_SINCE_KERNEL,
+  PORTAL_NOTIFY_SINCE_KERNEL,
   PORTAL_REFERENCE_TITLES_SINCE_KERNEL,
   PORTAL_VIEW_REPEAT_MINUTES,
 } from '../../../domain/schema/portal';
@@ -869,6 +870,21 @@ screens: [{ ..., viewActionIds: ['act-accept'],
   ask — show \`confirmMessage\` first — and never rejects: it resolves to \`{ code, message }\`, the message
   ready to show. Calling it for a record removes the portal's bar from above your view, so the gesture
   appears once. Requires the same kernel as \`portal.actions\`.
+- The outcome is a passing notice at the top of the portal, over any layout — yours included, with no
+  change —, never a line on the record: a message saying what will happen must not stay on screen after
+  it has. \`success\` leaves after a few seconds, \`warning\` a few more, and \`error\` stays until the guest
+  closes it. So word the workflow's message for the moment ("Acceptance recorded."); what stays true
+  belongs on the record, as a field. When you draw the actions yourself, show \`run\`'s result in the same
+  place with \`usePortalNotify()\` from \`@microteia/portal\`:
+
+  \`\`\`ts
+  const notify = usePortalNotify();
+  const result = await run(action.id);
+  notify(result.message, result.code === 'SUCCESS' ? 'success' : result.code === 'WARNING' ? 'warning' : 'error');
+  \`\`\`
+
+  It takes any text already in the guest's language, from any portal view. Requires
+  \`kernel: "^${PORTAL_NOTIFY_SINCE_KERNEL}"\`.
 - Every click is a workflow run: \`disabledWhen\`/\`hiddenWhen\` are what stop the second one — write them.
 - Requires \`kernel: "^${PORTAL_ACTIONS_SINCE_KERNEL}"\`. An older kernel ignores the declaration and shows
   no button, so the package gate refuses the package without it.

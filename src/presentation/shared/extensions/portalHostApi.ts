@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { HOST_MODULES } from './hostApi';
 import { usePortal } from '../../../stores/usePortal';
+import { useNotification, type NotificationVariant } from '../../../stores/useNotification';
 import { PortalNavigationContext, usePortalNavigation as useNavigationStore } from '../../../stores/usePortalNavigation';
 import { portalRecordDocId, portalSubjectKey } from '../../../domain/schema/portal';
 import { canEditPortalRecord, type PortalDocument, type PortalRecord, type PortalScreenInfo } from '../../../domain/entities/Portal';
@@ -153,6 +154,15 @@ const usePortalActions = (collection: string, recordId: string): PortalRecordAct
   return usePortalRecordActions(collection, recordId);
 };
 
+/**
+ * O aviso passageiro do portal, o MESMO em que a casca mostra o desfecho das ações — para a view que
+ * desenha as ações ela mesma (`usePortalActions`) dizer o resultado no lugar de sempre.
+ */
+const usePortalNotify = (): ((message: string, variant?: NotificationVariant) => void) => {
+  const { notify } = useNotification();
+  return useCallback((message: string, variant: NotificationVariant = 'info') => notify(message, variant), [notify]);
+};
+
 const portalModule = {
   usePortalScreen,
   usePortalRecords,
@@ -162,6 +172,7 @@ const portalModule = {
   usePortalSubmit,
   usePortalUpdate,
   usePortalActions,
+  usePortalNotify,
   /** Para um LAYOUT de extensão: a marca, o menu, o usuário, os temas — e o abrir/fechar de cada um. */
   usePortalShell: usePortalShellViewModel,
   PortalBrand,

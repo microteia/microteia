@@ -12,6 +12,14 @@ const DURATIONS: Record<NotificationVariant, number> = {
   info: 10000,
 };
 
+export interface NotificationBannerProps {
+  /**
+   * O erro fica até ser fechado. É o portal: quem lê é o convidado, quase sempre no celular, onde não
+   * há o "passar o mouse" que segura o aviso — e o erro é o que ele precisa ler até o fim.
+   */
+  persistErrors?: boolean;
+}
+
 export interface NotificationBannerViewModel {
   visibleNotifications: AppNotification[];
   hiddenCount: number;
@@ -22,7 +30,7 @@ export interface NotificationBannerViewModel {
   handleMouseLeave: (id: string) => void;
 }
 
-export const useNotificationBannerViewModel = (): NotificationBannerViewModel => {
+export const useNotificationBannerViewModel = ({ persistErrors = false }: NotificationBannerProps = {}): NotificationBannerViewModel => {
   const { notifications, dismiss, dismissAll } = useNotification();
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
   const autoTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -56,13 +64,14 @@ export const useNotificationBannerViewModel = (): NotificationBannerViewModel =>
     (id: string, variant: NotificationVariant) => {
       if (autoTimers.current.has(id) || exitTimers.current.has(id)) return;
       if (hoveredIds.current.has(id)) return;
+      if (persistErrors && variant === 'error') return;
       const t = setTimeout(() => {
         autoTimers.current.delete(id);
         beginExit(id);
       }, DURATIONS[variant]);
       autoTimers.current.set(id, t);
     },
-    [beginExit],
+    [beginExit, persistErrors],
   );
 
   const handleDismiss = useCallback((id: string) => beginExit(id), [beginExit]);

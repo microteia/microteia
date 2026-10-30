@@ -96,7 +96,9 @@ const App: React.FC = () => {
                       <PortalThemeBridge />
                       <PortalNavigationProvider>
                         <PortalLocaleProvider>
-                          <Outlet />
+                          <NotificationProvider>
+                            <Outlet />
+                          </NotificationProvider>
                         </PortalLocaleProvider>
                       </PortalNavigationProvider>
                     </PortalStoreProvider>

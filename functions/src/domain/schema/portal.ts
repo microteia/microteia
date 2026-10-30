@@ -80,6 +80,12 @@ export const PORTAL_TRACK_VIEWS_SINCE_KERNEL = '2.79.0';
 export const PORTAL_ACTIONS_SINCE_KERNEL = '2.81.0';
 
 /**
+ * O kernel a partir do qual `@microteia/portal` exporta `usePortalNotify`. Não é declaração: a view que o
+ * importa num kernel anterior recebe `undefined` e quebra ao chamá-lo — o pacote que o usa exige este kernel.
+ */
+export const PORTAL_NOTIFY_SINCE_KERNEL = '2.87.0';
+
+/**
  * O kernel a partir do qual `referenceTitles` é lido. Um kernel anterior DESCARTA a chave: a referência
  * para uma tela fora do portal sai sem rótulo, e o título que é essa referência sai vazio. Falha fechado
  * (mostra menos), mas a extensão que declarou para ter o nome à vista ficaria sem ele, calada — por isso o

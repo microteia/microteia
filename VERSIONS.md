@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.179.0] — 2026-10-30
+
+- No portal, o resultado de um botão de ação (aceitar um termo, dar ciência) agora aparece como um aviso no topo da tela, que some sozinho depois de alguns segundos e pode ser fechado antes. Antes, a mensagem ficava presa abaixo dos botões até o convidado sair do registro, mesmo depois de deixar de ser verdade.
+- Quando algo dá errado, o aviso de erro no portal fica na tela até o convidado fechá-lo, para que possa ser lido com calma no celular.
+
 #### [9.178.0] — 2026-10-30
 
 - Cada tela agora pode escolher como sua listagem se organiza: em grade de cartões, como sempre, ou com um cartão por linha — e, na grade, cartões mais estreitos ou mais largos.

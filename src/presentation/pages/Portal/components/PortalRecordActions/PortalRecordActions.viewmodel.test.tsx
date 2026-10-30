@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { PortalStoreContext, type PortalStoreValue } from '../../../../../stores/usePortal';
 import { PortalNavigationContext, type PortalNavigationValue } from '../../../../../stores/usePortalNavigation';
+import { NotificationContext, type NotificationContextValue } from '../../../../../stores/useNotification';
 import type { PortalActionOutcome, PortalRecordAction } from '../../../../../domain/entities/Portal';
 import { PORTAL_HOST_MODULES } from '../../../../shared/extensions/portalHostApi';
 import { usePortalRecordActionsViewModel } from './PortalRecordActions.viewmodel';
@@ -40,6 +41,7 @@ const mount = <T,>(
     listRecordActions: vi.fn(async () => initial),
     runRecordAction: vi.fn(run),
   } as unknown as PortalStoreValue;
+  const notifications: NotificationContextValue = { notifications: [], notify: vi.fn(), dismiss: vi.fn(), dismissAll: vi.fn() };
   const Wrapper = ({ children }: { children: React.ReactNode }) => {
     const [claimedActions, setClaimed] = React.useState<string[]>([]);
     const claimActions = React.useCallback((projectionId: string) => {
@@ -49,18 +51,20 @@ const mount = <T,>(
     const navigation = { claimedActions, claimActions } as unknown as PortalNavigationValue;
     return (
       <PortalStoreContext.Provider value={store}>
-        <PortalNavigationContext.Provider value={navigation}>{children}</PortalNavigationContext.Provider>
+        <NotificationContext.Provider value={notifications}>
+          <PortalNavigationContext.Provider value={navigation}>{children}</PortalNavigationContext.Provider>
+        </NotificationContext.Provider>
       </PortalStoreContext.Provider>
     );
   };
-  return { hook: renderHook(hook, { wrapper: Wrapper }), store };
+  return { hook: renderHook(hook, { wrapper: Wrapper }), store, notify: notifications.notify };
 };
 
 const useBar = () => usePortalRecordActionsViewModel({ collection: 'mailboxes', recordId: 'm1' });
 
 describe('barra das ações do escritório no portal', () => {
   it('pergunta antes de executar a ação que pede confirmação, e só então dispara', async () => {
-    const { hook, store } = mount(useBar, async () => ({ status: { code: 'SUCCESS', message: 'Accepted.' }, actions: [CONTACT] }));
+    const { hook, store, notify } = mount(useBar, async () => ({ status: { code: 'SUCCESS', message: 'Accepted.' }, actions: [CONTACT] }));
     await waitFor(() => expect(hook.result.current.buttons).toHaveLength(2));
 
     act(() => hook.result.current.trigger('act-accept'));
@@ -69,7 +73,7 @@ describe('barra das ações do escritório no portal', () => {
 
     await act(async () => hook.result.current.confirm());
     expect(store.runRecordAction).toHaveBeenCalledWith('mailboxes__m1', 'act-accept');
-    expect(hook.result.current.feedback).toEqual({ tone: 'success', message: 'Accepted.' });
+    expect(notify).toHaveBeenCalledWith('Accepted.', 'success');
     expect(hook.result.current.buttons.map((button) => button.id)).toEqual(['act-contact']);
   });
 
@@ -82,11 +86,11 @@ describe('barra das ações do escritório no portal', () => {
   });
 
   it('a recusa do servidor chega traduzida, e os botões são pedidos de novo', async () => {
-    const { hook, store } = mount(useBar, async () => { throw new Error('@core.tenant/portal.action.unavailable'); });
+    const { hook, store, notify } = mount(useBar, async () => { throw new Error('@core.tenant/portal.action.unavailable'); });
     await waitFor(() => expect(hook.result.current.buttons).toHaveLength(2));
     act(() => hook.result.current.trigger('act-accept'));
     await act(async () => hook.result.current.confirm());
-    expect(hook.result.current.feedback).toEqual({ tone: 'error', message: 'label(@core.tenant/portal.action.unavailable)' });
+    expect(notify).toHaveBeenCalledWith('label(@core.tenant/portal.action.unavailable)', 'error');
     expect(store.listRecordActions).toHaveBeenCalledTimes(2);
   });
 
@@ -95,14 +99,30 @@ describe('barra das ações do escritório no portal', () => {
     const ok = mount(useBar, async () => ({ status: { code: 'SUCCESS', message: '' }, actions: [plain] }), [plain]);
     await waitFor(() => expect(ok.hook.result.current.buttons).toHaveLength(1));
     await act(async () => ok.hook.result.current.trigger('act-accept'));
-    expect(ok.hook.result.current.feedback).toEqual({ tone: 'success', message: 'portal.action.done' });
+    expect(ok.notify).toHaveBeenCalledWith('portal.action.done', 'success');
 
     const failed = mount(useBar, async () => ({ status: { code: 'ERROR', message: '' }, actions: [plain] }), [plain]);
     await waitFor(() => expect(failed.hook.result.current.buttons).toHaveLength(1));
     await act(async () => failed.hook.result.current.trigger('act-accept'));
-    expect(failed.hook.result.current.feedback).toEqual({
-      tone: 'error', message: 'portal.action.failed{"name":"Confirm acceptance"}',
-    });
+    expect(failed.notify).toHaveBeenCalledWith('portal.action.failed{"name":"Confirm acceptance"}', 'error');
+  });
+
+  it('o aviso do fluxo que avisa (WARNING) sai como aviso, e não como sucesso nem erro', async () => {
+    const plain = { ...ACCEPT, confirmMessage: null };
+    const { hook, notify } = mount(useBar, async () => ({ status: { code: 'WARNING', message: 'Already accepted.' }, actions: [] }), [plain]);
+    await waitFor(() => expect(hook.result.current.buttons).toHaveLength(1));
+    await act(async () => hook.result.current.trigger('act-accept'));
+    expect(notify).toHaveBeenCalledWith('Already accepted.', 'warning');
+  });
+
+  it('cancelar a confirmação não executa nem avisa', async () => {
+    const { hook, store, notify } = mount(useBar, async () => ({ status: { code: 'SUCCESS', message: 'Accepted.' }, actions: [] }));
+    await waitFor(() => expect(hook.result.current.buttons).toHaveLength(2));
+    act(() => hook.result.current.trigger('act-accept'));
+    act(() => hook.result.current.cancelConfirm());
+    expect(hook.result.current.confirmation.isOpen).toBe(false);
+    expect(store.runRecordAction).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it('a tela que não oferece ações não pede nada ao servidor', async () => {
@@ -114,8 +134,8 @@ describe('barra das ações do escritório no portal', () => {
 });
 
 describe('usePortalActions — a view que desenha as ações ela mesma', () => {
-  it('dispara sem perguntar, devolve a mensagem pronta e nunca rejeita', async () => {
-    const { hook, store } = mount(
+  it('dispara sem perguntar, devolve a mensagem pronta e nunca rejeita — e não avisa por conta própria', async () => {
+    const { hook, store, notify } = mount(
       () => usePortalActions('mailboxes', 'm1'),
       async () => { throw new Error('@core.tenant/portal.action.unavailable'); },
     );
@@ -124,6 +144,7 @@ describe('usePortalActions — a view que desenha as ações ela mesma', () => {
     await act(async () => { result = await hook.result.current.run('act-accept'); });
     expect(store.runRecordAction).toHaveBeenCalledWith('mailboxes__m1', 'act-accept');
     expect(result).toEqual({ code: 'ERROR', message: 'label(@core.tenant/portal.action.unavailable)' });
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it('pedir as ações de um registro tira a barra da casca de cima dele; sair a devolve', async () => {

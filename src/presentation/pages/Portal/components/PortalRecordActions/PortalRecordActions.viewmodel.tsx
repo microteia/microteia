@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { usePortalNavigation } from '../../../../../stores/usePortalNavigation';
+import { useNotification, type NotificationVariant } from '../../../../../stores/useNotification';
 import { useT } from '../../../../shared/i18n/useT';
 import { portalRecordDocId } from '../../../../../domain/schema/portal';
 import type { PortalRecordAction } from '../../../../../domain/entities/Portal';
@@ -19,8 +20,6 @@ export interface PortalActionButton {
   disabled: boolean;
 }
 
-export type PortalActionTone = 'success' | 'warning' | 'error';
-
 export interface PortalRecordActionsViewModel {
   buttons: PortalActionButton[];
   trigger: (actionId: string) => void;
@@ -28,19 +27,19 @@ export interface PortalRecordActionsViewModel {
   confirmation: { isOpen: boolean; title: string; message: string; danger: boolean };
   confirm: () => void;
   cancelConfirm: () => void;
-  feedback: { tone: PortalActionTone; message: string } | null;
 }
 
-const TONES: Record<PortalActionResult['code'], PortalActionTone> = {
+const VARIANTS: Record<PortalActionResult['code'], NotificationVariant> = {
   SUCCESS: 'success',
   WARNING: 'warning',
   ERROR: 'error',
 };
 
 /**
- * A barra das ações do escritório no registro aberto (`portal.actions`): os botões, a confirmação e o
- * desfecho. Quem decide quais aparecem, e quais estão apagados, é o servidor — sobre o registro inteiro,
- * que o convidado não vê. Quando a view de extensão do registro desenha as ações ela mesma
+ * A barra das ações do escritório no registro aberto (`portal.actions`): os botões e a confirmação. O
+ * desfecho vai para o aviso passageiro do portal, e não fica no registro: ele é do momento, e uma frase
+ * presa ao registro continuava dizendo o que ia acontecer depois que tinha acontecido. Quem decide quais
+ * aparecem, e quais estão apagados, é o servidor — sobre o registro inteiro, que o convidado não vê. Quando a view de extensão do registro desenha as ações ela mesma
  * (`usePortalActions`), a barra sai de cena: o mesmo botão duas vezes seria dois lugares para o mesmo
  * gesto.
  */
@@ -50,15 +49,13 @@ export const usePortalRecordActionsViewModel = ({ collection, recordId }: Portal
   const projectionId = portalRecordDocId(collection, recordId);
   const claimed = claimedActions.includes(projectionId);
   const { actions, running, run } = usePortalRecordActions(collection, recordId, !claimed);
+  const { notify } = useNotification();
   const [pending, setPending] = useState<PortalRecordAction | null>(null);
-  // O desfecho vale para o registro em que nasceu: abrir outro não o herda.
-  const [outcome, setOutcome] = useState<{ projectionId: string; result: PortalActionResult } | null>(null);
 
   const execute = useCallback(async (action: PortalRecordAction) => {
-    setOutcome(null);
     const result = await run(action.id);
-    setOutcome({ projectionId, result });
-  }, [run, projectionId]);
+    notify(result.message, VARIANTS[result.code]);
+  }, [run, notify]);
 
   const trigger = useCallback((actionId: string) => {
     const action = actions.find((one) => one.id === actionId);
@@ -77,7 +74,6 @@ export const usePortalRecordActionsViewModel = ({ collection, recordId }: Portal
 
   const shown = claimed ? [] : actions;
   const asked = pending && shown.some((one) => one.id === pending.id) ? pending : null;
-  const result = outcome?.projectionId === projectionId && !claimed ? outcome.result : null;
 
   return {
     buttons: shown.map((action) => ({
@@ -96,6 +92,5 @@ export const usePortalRecordActionsViewModel = ({ collection, recordId }: Portal
     },
     confirm,
     cancelConfirm,
-    feedback: result ? { tone: TONES[result.code], message: result.message } : null,
   };
 };

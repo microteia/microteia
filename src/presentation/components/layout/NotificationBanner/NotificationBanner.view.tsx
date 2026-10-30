@@ -6,7 +6,7 @@ import {
   RiAlertLine,
   RiCloseLine,
 } from 'react-icons/ri';
-import { useNotificationBannerViewModel } from './NotificationBanner.viewmodel';
+import { useNotificationBannerViewModel, type NotificationBannerProps } from './NotificationBanner.viewmodel';
 import { S } from './NotificationBanner.styles';
 import type { NotificationVariant } from '../../../../stores/useNotification';
 
@@ -19,8 +19,8 @@ const ICONS: Record<NotificationVariant, React.ReactNode> = {
   info: <RiInformationLine size={15} />,
 };
 
-export const NotificationBanner: React.FC = () => {
-  const vm = useNotificationBannerViewModel();
+export const NotificationBanner: React.FC<NotificationBannerProps> = (props) => {
+  const vm = useNotificationBannerViewModel(props);
   const t = useT('core.ui');
 
   if (vm.visibleNotifications.length === 0 && vm.hiddenCount === 0) return null;

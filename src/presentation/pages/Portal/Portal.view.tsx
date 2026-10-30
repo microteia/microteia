@@ -6,12 +6,16 @@ import { Spinner } from '../../components/ui/Spinner';
 import { PortalContent } from './components/PortalContent';
 import { SidebarLayout } from './components/SidebarLayout';
 import { TopLayout } from './components/TopLayout';
+import { NotificationBanner } from '../../components/layout/NotificationBanner';
 import { useT } from '../../shared/i18n/useT';
 
 /**
  * O portal: os estados de antes do conteúdo (carregando, falha, escolher escritório) numa casca
  * simples, e depois o conteúdo dentro do LAYOUT que o escritório escolheu — o lateral, o de topo, ou
  * o de uma extensão. Trocar de layout não muda o que a página mostra, só onde cada coisa fica.
+ *
+ * O aviso passageiro fica FORA do layout, por cima dele: assim o layout de uma extensão escrito antes
+ * dele também o mostra, sem mudar uma linha.
  */
 export const PortalView: React.FC = () => {
   const vm = usePortalViewModel();
@@ -62,6 +66,12 @@ export const PortalView: React.FC = () => {
   }
 
   const content = <PortalContent vm={vm} />;
-  if (vm.Layout) return <vm.Layout>{content}</vm.Layout>;
-  return vm.builtinLayout === 'top' ? <TopLayout>{content}</TopLayout> : <SidebarLayout>{content}</SidebarLayout>;
+  return (
+    <>
+      {vm.Layout
+        ? <vm.Layout>{content}</vm.Layout>
+        : vm.builtinLayout === 'top' ? <TopLayout>{content}</TopLayout> : <SidebarLayout>{content}</SidebarLayout>}
+      <NotificationBanner persistErrors />
+    </>
+  );
 };
