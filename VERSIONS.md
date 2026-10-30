@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.180.0] — 2026-10-30
+
+- No portal, o formulário de envio e de alteração passou a se comportar como o do escritório: CPF, telefone, CEP e outros campos formatados ganham a máscara enquanto o convidado digita, e o CEP preenche sozinho o endereço — só nos campos que o convidado pode preencher naquele formulário.
+
 #### [9.179.0] — 2026-10-30
 
 - No portal, o resultado de um botão de ação (aceitar um termo, dar ciência) agora aparece como um aviso no topo da tela, que some sozinho depois de alguns segundos e pode ser fechado antes. Antes, a mensagem ficava presa abaixo dos botões até o convidado sair do registro, mesmo depois de deixar de ser verdade.

@@ -32,6 +32,8 @@ import {
 } from '../../domain/schema/portal';
 import { readPortalReprojectionState } from '../../domain/schema/portalReprojection';
 import { asPortalVerifiedIdentity } from '../../domain/schema/portalIdentity';
+import { asFieldLookupBinding } from '../../domain/schema/portalFieldInput';
+import type { FieldLookupBinding } from '../../domain/schema/fieldRules';
 import { getBucket } from '../../infrastructure/firebase/initFirebase';
 import { recordDocumentStoragePath } from '../../domain/services/recordDocumentHash';
 import { recordDocumentLinkState } from '../../domain/services/recordDocumentLinks';
@@ -53,6 +55,11 @@ const toOption = (option: DocumentData): PortalFieldOption => ({
   label: asString(option.label, option.key as string),
   ...(asString(option.color) ? { color: asString(option.color) } : {}),
 });
+
+const lookupBindingOf = (logic: unknown): { onChangeLookup?: FieldLookupBinding } => {
+  const binding = asFieldLookupBinding((logic as DocumentData | null | undefined)?.onChangeLookup);
+  return binding ? { onChangeLookup: binding } : {};
+};
 
 const toScreen = (id: string, data: DocumentData): PortalScreen => ({
   id,
@@ -84,6 +91,8 @@ const toScreen = (id: string, data: DocumentData): PortalScreen => ({
         : {}),
       ...(asString(field.lookupCollection) ? { lookupCollection: asString(field.lookupCollection) } : {}),
       ...(field.optionsColored === true ? { optionsColored: true } : {}),
+      ...(asString(field.mask) ? { mask: asString(field.mask) } : {}),
+      ...lookupBindingOf(field.logic),
     })),
 });
 

@@ -693,6 +693,15 @@ adds yours:
 \`order\` is a suggestion. The organization decides what shows and where, in Settings > Portal — the
 menu's order and which entries and cards are visible. Your package never forces a place.
 
+The standard create and edit form fills a field the way the organization's form does. A \`masked\`
+field types into the template of its \`mask\` preset, and a field with \`logic.onChangeLookup\` runs
+that lookup as the guest types, writing the answer through \`map\` (or \`targetPrefix\`) — only into
+fields the guest may fill on that form; any other target is dropped. The server resolves both from the
+extensions ENABLED in the organization, since the portal does not load them: a preset or provider no
+enabled extension declares leaves the field as plain text, with no lookup. Nothing to declare beyond
+the field itself — the provider's request goes out from the guest's browser, as it does from the
+organization's.
+
 A portal view reaches a smaller API: \`@microteia/ui\`, \`@microteia/i18n\`, \`@microteia/format\`,
 \`@microteia/theme\` and \`@microteia/portal\` — \`usePortalRecords(collection, { parent })\`,
 \`usePortalRecord\`, \`usePortalScreen\`, \`usePortalNavigation\`, \`usePortalDocuments\`,

@@ -1,4 +1,5 @@
 import type { QualifiedContribution } from '../schema/plugin/contribution';
+import type { PortalFieldInput } from '../schema/portalFieldInput';
 import { PORTAL_PROFILE_KEYS, portalGuestName, type PortalProfile } from '../schema/portal';
 import type {
   PortalIdentityProvider,
@@ -43,7 +44,8 @@ export interface PortalScreenInfo {
   edit: { fields: PortalFieldInfo[]; onlyOwn: boolean } | null;
 }
 
-export interface PortalFieldInfo {
+/** Um campo como o portal o recebe; nos preenchíveis, com a máscara e a busca externa já resolvidas. */
+export interface PortalFieldInfo extends PortalFieldInput {
   key: string;
   label: string;
   type?: string;

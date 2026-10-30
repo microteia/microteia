@@ -50,6 +50,7 @@ const SHARED_FILES = [
   'domain/schema/ui/cardTemplate.ts',
   'domain/schema/portal.ts',
   'domain/schema/portalCollections.ts',
+  'domain/schema/portalFieldInput.ts',
   'domain/schema/portalExtensionPoints.ts',
   'domain/schema/portalReprojection.ts',
   'domain/schema/portalIdentity.ts',

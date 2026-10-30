@@ -2004,6 +2004,40 @@ Na casca, o formulário de criação serve à edição (`PortalCreateForm` com `
 convidado vê, e campo apagado vai como `null`. Views de extensão usam `canEdit`,
 `usePortalNavigation().edit` e `usePortalUpdate`.
 
+### Máscara e busca externa no formulário do portal (EV-34)
+
+O formulário de criar e editar do portal desenhava `masked` como texto comum e não rodava lógica de
+campo nenhuma: no escritório o CEP preenchia o endereço, no portal o mesmo campo não tinha máscara e não
+buscava nada. A causa não era o formulário — era o **kernel**. O portal roda só com o kernel de boot
+(`BOOT_PLUGINS`), e o núcleo não traz máscara nem provedor de busca algum (`CORE_LOOKUP_PROVIDERS` é
+vazio; CPF, telefone, CEP e o ViaCEP são da extensão `brasil`). O convidado não lê `installed_extensions`,
+então nenhum catálogo chegava ao navegador dele.
+
+A saída foi o servidor RESOLVER, e não o portal carregar as extensões:
+
+| Peça | O que faz |
+|---|---|
+| `InstalledExtensionCache.fieldInputCatalogs` | os presets (`data.field.rule.preset`) e os provedores (`data.external.lookup`) das extensões LIGADAS — declaração, não código: sem a régua de confiança das views, como os temas |
+| `portalFieldInput` (`domain/schema/portalFieldInput.ts`, sincronizado) | para cada campo PREENCHÍVEL (`create.fields`, `edit.fields`), o molde da máscara (`FieldRulePresetMask`, não a chave) e a busca (`{ provider, binding }`), com as frases do provedor já no idioma do convidado — o pacote de idioma da extensão não chega ao portal |
+| `useExternalLookupRunner` (`presentation/shared`) | espera de 400 ms, guarda de corrida e mescla por `resolveLookupPatch` — EXTRAÍDO de `useFieldChangeEffects`; o escritório e o portal disparam a busca pelo mesmo caminho, e só a origem do provedor difere |
+| `PortalCreateForm` | aplica o molde com `applyMaskTemplate` e roda a busca com `makeDeclarativeLookupService` — o mesmo executor, com as mesmas garantias (só `https`, sem credencial, teto de tempo e de corpo) |
+
+Três decisões:
+
+- **A resposta só preenche o que o convidado escreve.** Com `map`, `resolveLookupPatch` já filtra pelos
+  campos dados; sem `map`, o provedor devolve as chaves dele, e o formulário do portal descarta toda
+  chave fora dos preenchíveis. O servidor descartaria de qualquer jeito (`buildPortalSubmission`), mas o
+  convidado não deve ver no formulário o que não vai gravar.
+- **O campo só exibido não leva nada disso.** Máscara e busca são de quem digita; `portal.fields` sai
+  como antes. O valor gravado continua passando pelo `format` do preset no servidor (`runWorkflowUpsert`).
+- **Só a máscara e a busca; não o `logic.onChange`.** A expressão `onChange` lê a tela INTEIRA
+  (hidratada), e o convidado só tem os campos preenchíveis — avaliá-la ali daria outro resultado que no
+  escritório, em silêncio. Fica para quando houver um caso.
+
+Sem declaração nova, sem `*_SINCE_KERNEL` e sem subir o `KERNEL_VERSION` — a mesma régua da EV-20: nada
+muda no que o kernel entende de um pacote, só o que ele faz com uma declaração que já lia. Campo cujo
+preset ou provedor nenhuma extensão ligada declara sai como sempre saiu: texto comum, sem busca.
+
 ### Um gesto no registro — `portal.actions` (EV-26)
 
 ```ts

@@ -3,6 +3,7 @@ import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
 import type { PortalReprojectionState } from '../schema/portalReprojection';
 import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
 import type { RecordDocumentLinkState } from '../services/recordDocumentLinks';
+import type { FieldLookupBinding } from '../schema/fieldRules';
 
 export type { PortalReprojectionState };
 
@@ -23,6 +24,10 @@ export interface PortalScreen extends PortalScreenLike {
     /** A lista do escritório de onde vêm as opções que o campo não declara. */
     lookupCollection?: string | null;
     optionsColored?: boolean;
+    /** A chave do preset de máscara de um campo `masked` — resolvida no catálogo só para quem preenche. */
+    mask?: string;
+    /** O `logic.onChangeLookup` do campo: a busca externa que o formulário do portal também roda. */
+    onChangeLookup?: FieldLookupBinding;
   }>;
 }
 

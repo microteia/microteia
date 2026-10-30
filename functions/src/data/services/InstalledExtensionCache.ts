@@ -9,6 +9,14 @@ import { createHash } from 'node:crypto';
 import { extensionCodeOf, isCodeTrusted } from '../../domain/schema/plugin/codeTrust';
 import { portalViewsOf, type PortalViewDescriptor } from '../../domain/schema/portalExtensionPoints';
 import { THEME_DEFINITION_POINT, THEME_TOKENS_POINT } from '../../domain/schema/theme/themePoints';
+import {
+  DATA_EXTERNAL_LOOKUP_POINT,
+  DATA_FIELD_RULE_PRESET_POINT,
+  fieldRulePresetOf,
+  lookupProviderOf,
+} from '../../domain/schema/dataExtensionPoints';
+import type { FieldRulePreset } from '../../domain/schema/fieldRulePresets';
+import type { LookupProviderSpec } from '../../domain/schema/lookupProviderSpec';
 
 const THEME_POINTS = new Set([THEME_DEFINITION_POINT, THEME_TOKENS_POINT]);
 
@@ -28,6 +36,10 @@ interface CacheEntry {
   portalBundles: MessageBundle[];
   /** As contribuições de tema das extensões ligadas, qualificadas e na ordem do registro. */
   themes: QualifiedContribution[];
+  /** As máscaras, formatações e validações prontas que as extensões ligadas declaram. */
+  fieldRulePresets: FieldRulePreset[];
+  /** Os provedores de busca externa que as extensões ligadas declaram. */
+  lookupProviders: LookupProviderSpec[];
   loadedAt: number;
 }
 
@@ -122,6 +134,17 @@ export class InstalledExtensionCache {
     return (await this.load(tenantId)).themes;
   }
 
+  /**
+   * As máscaras e as buscas externas declaradas, para o formulário do portal. O convidado não lê as
+   * extensões instaladas, e todas as máscaras e todos os provedores vêm de extensão: sem isto o portal
+   * desenhava o CPF como texto comum e o CEP não preenchia nada. É declaração, não código — vale para
+   * toda extensão ligada, como o tema.
+   */
+  async fieldInputCatalogs(tenantId: string): Promise<{ fieldRulePresets: FieldRulePreset[]; lookupProviders: LookupProviderSpec[] }> {
+    const entry = await this.load(tenantId);
+    return { fieldRulePresets: entry.fieldRulePresets, lookupProviders: entry.lookupProviders };
+  }
+
   invalidate(tenantId: string): void {
     this.entries.delete(tenantId);
   }
@@ -183,6 +206,14 @@ export class InstalledExtensionCache {
       portalViews,
       portalBundles: messageBundlesOf(portalBundleContributions),
       themes: sortContributions(themes),
+      fieldRulePresets: contributions
+        .filter((contribution) => contribution?.point === DATA_FIELD_RULE_PRESET_POINT)
+        .map(fieldRulePresetOf)
+        .filter((preset): preset is FieldRulePreset => preset !== undefined),
+      lookupProviders: contributions
+        .filter((contribution) => contribution?.point === DATA_EXTERNAL_LOOKUP_POINT)
+        .map(lookupProviderOf)
+        .filter((provider): provider is LookupProviderSpec => provider !== undefined),
       loadedAt: Date.now(),
     };
     this.entries.set(tenantId, entry);

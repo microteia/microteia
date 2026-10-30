@@ -50,6 +50,18 @@ export const PortalCreateForm: React.FC<PortalCreateFormProps> = (props) => {
         );
       case 'checkbox':
         return <Checkbox checked={value === true} onChange={(next) => vm.setValue(field.key, next)} label={field.label} />;
+      case 'masked': {
+        const masked = vm.maskedInput(field);
+        return (
+          <Input
+            id={id}
+            inputMode={masked.inputMode}
+            placeholder={masked.placeholder}
+            value={masked.value}
+            onChange={(event) => vm.setValue(field.key, event.target.value)}
+          />
+        );
+      }
       default:
         return <Input id={id} value={textOf(value)} onChange={(event) => vm.setValue(field.key, event.target.value)} />;
     }

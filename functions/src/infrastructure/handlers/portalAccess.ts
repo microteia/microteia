@@ -143,6 +143,7 @@ export const getPortalContext = onCall({ region: REGION, cors: true }, async (re
       await di.getInstalledExtensionCache().messageBundles(tenantId),
       configured ?? (browserLocale || DEFAULT_LOCALE),
     );
+    const extensions = di.getInstalledExtensionCache();
     return await di.getPortalContextUseCase().execute({
       tenantId,
       userId,
@@ -150,9 +151,10 @@ export const getPortalContext = onCall({ region: REGION, cors: true }, async (re
       locale: configured ?? '',
       timeZone: resolveTimeZone({ user: own, tenant: office }),
       resolve: (value) => agentText(catalog, value).text,
-      extensionViews: await di.getInstalledExtensionCache().portalViews(tenantId),
-      themes: await di.getInstalledExtensionCache().themes(tenantId),
+      extensionViews: await extensions.portalViews(tenantId),
+      themes: await extensions.themes(tenantId),
       documentTypes: await documentTypeOptions(tenantId, catalog),
+      fieldInputs: await extensions.fieldInputCatalogs(tenantId),
     });
   } catch (error) {
     throw asHttpsError(error, 'getPortalContext');

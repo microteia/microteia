@@ -50,6 +50,9 @@ import { isValidPortalSubject } from './PortalProjectionUseCases';
 import type { IPortalIdentityConfigRepository, IPortalIdentityRepository, PortalIdentityInvite } from '../repositories/IPortalIdentity';
 import { asPortalRequiredClaim, portalAttestedClaims, portalClaimKey, type PortalSignInSettings } from '../schema/portalIdentity';
 import { portalProofKey } from './PortalIdentityUseCases';
+import { portalFieldInput, type PortalFieldInput } from '../schema/portalFieldInput';
+import { buildFieldRulePresetCatalog, type FieldRulePreset } from '../schema/fieldRulePresets';
+import { buildLookupProviderCatalog, type LookupProviderSpec } from '../schema/lookupProviderSpec';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -508,6 +511,15 @@ export const makeRecordPortalViewUseCase = (
   },
 });
 
+/** Um campo que o convidado preenche: com a máscara e a busca externa já resolvidas, quando há. */
+export interface PortalContextFillableField extends PortalFieldInput {
+  key: string;
+  label: string;
+  type?: string;
+  required: boolean;
+  options?: PortalFieldOption[];
+}
+
 export interface PortalContextScreen {
   id: string;
   /** O convidado anexa documentos aqui — escolhendo o tipo entre estes, nunca criando um. */
@@ -516,12 +528,12 @@ export interface PortalContextScreen {
   parent: { collection: string } | null;
   /** O que o convidado preenche ao criar, e a que tipo de registro o novo se vincula. */
   create: {
-    fields: Array<{ key: string; label: string; type?: string; required: boolean; options?: PortalFieldOption[] }>;
+    fields: PortalContextFillableField[];
     link: { collection: string; label: string };
   } | null;
   /** O que o convidado altera, e se só no que ele mesmo criou. */
   edit: {
-    fields: Array<{ key: string; label: string; type?: string; required: boolean; options?: PortalFieldOption[] }>;
+    fields: PortalContextFillableField[];
     onlyOwn: boolean;
   } | null;
   collection: string;
@@ -605,6 +617,8 @@ export type GetPortalContextUseCase = {
     themes?: QualifiedContribution[];
     /** Os tipos de documento do escritório — os fixos mais os cadastrados, já com rótulo. */
     documentTypes?: Array<{ key: string; label: string }>;
+    /** O que as extensões LIGADAS declaram de máscara e de busca externa — o portal não as carrega. */
+    fieldInputs?: { fieldRulePresets: FieldRulePreset[]; lookupProviders: LookupProviderSpec[] };
   }) => Promise<PortalContext>;
 };
 
@@ -661,7 +675,7 @@ const withoutOrder = <T extends { order?: number }>(value: T): Omit<T, 'order'> 
 };
 
 export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalContextUseCase => ({
-  execute: async ({ tenantId, userId, tenant, locale, timeZone, resolve, extensionViews, themes = [], documentTypes = [] }) => {
+  execute: async ({ tenantId, userId, tenant, locale, timeZone, resolve, extensionViews, themes = [], documentTypes = [], fieldInputs }) => {
     const guest = await repo.getPortalUser(tenantId, userId);
     if (!guest) throw permissionDenied('@core.tenant/portal.not-invited');
     if (guest.suspended) throw permissionDenied('@core.tenant/portal.signin.identity-required');
@@ -682,6 +696,10 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
       const options = [...declared, ...listed.filter((option) => !declaredKeys.has(option.key))]
         .map((option) => ({ ...option, label: resolve(option.label) }));
       return { options };
+    };
+    const inputCatalogs = {
+      presets: buildFieldRulePresetCatalog(fieldInputs?.fieldRulePresets),
+      providers: buildLookupProviderCatalog(fieldInputs?.lookupProviders),
     };
     const exposed = new Set(screens.map((screen) => screen.collection));
     const views = (extensionViews?.views ?? [])
@@ -753,12 +771,13 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         const editable = new Set(portalEditFieldKeys(screen));
         const link = portalLinkOf(screen);
         const linkTarget = link ? screenFor(link.targetEntity) : undefined;
-        const describe = (field: PortalField) => ({
+        const describe = (field: PortalField): PortalContextFillableField => ({
           key: field.key,
           label: resolve(field.label),
           type: field.type,
           required: field.required === true,
           ...optionsOf(field),
+          ...portalFieldInput(field, inputCatalogs, resolve),
         });
         return {
           id: screen.id,

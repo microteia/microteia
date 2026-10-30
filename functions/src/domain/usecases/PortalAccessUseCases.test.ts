@@ -621,6 +621,63 @@ describe('contexto do portal', () => {
     });
   });
 
+  describe('máscara e busca externa de quem preenche', () => {
+    const ZIP_LOOKUP = { provider: 'com.acme/zip-lookup', map: { street: 'street' } };
+    const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices'
+      ? {
+        ...screen,
+        fields: [
+          ...screen.fields,
+          { key: 'zip', label: 'Zip', type: 'masked', mask: 'com.acme/zip', onChangeLookup: ZIP_LOOKUP },
+          { key: 'street', label: 'Street', type: 'text' },
+        ],
+        portal: { ...screen.portal!, fields: ['number', 'zip', 'street'], create: { fields: ['zip', 'street'] }, edit: { fields: ['zip'] } },
+      }
+      : screen));
+    const fieldInputs = {
+      fieldRulePresets: [{ key: 'com.acme/zip', label: 'Zip', mask: { templates: ['#####-###'], inputMode: 'numeric' as const } }],
+      lookupProviders: [{
+        key: 'com.acme/zip-lookup',
+        label: 'Zip lookup',
+        request: { url: 'https://zip.example.com/{value}.json' },
+        map: { street: 'logradouro' },
+        errorMessage: '@com.acme/zip.failed',
+      }],
+    };
+    const invoicesOf = async (inputs?: typeof fieldInputs) => {
+      const fake = makeFakePortalRepository(screens);
+      fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+      const context = await makeGetPortalContextUseCase(fake.repo).execute({
+        tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR',
+        resolve: (value) => value.toUpperCase(), fieldInputs: inputs,
+      });
+      return context.screens.find((screen) => screen.id === 'invoices')!;
+    };
+
+    it('criar e alterar levam o molde da máscara e o provedor resolvidos nas extensões ligadas', async () => {
+      const invoices = await invoicesOf(fieldInputs);
+
+      for (const zip of [invoices.create?.fields[0], invoices.edit?.fields[0]]) {
+        expect(zip).toMatchObject({ key: 'zip', mask: { templates: ['#####-###'], inputMode: 'numeric' } });
+        expect(zip?.lookup?.binding).toEqual(ZIP_LOOKUP);
+        expect(zip?.lookup?.provider).toMatchObject({ key: 'com.acme/zip-lookup', errorMessage: '@COM.ACME/ZIP.FAILED' });
+      }
+      expect(invoices.create?.fields[1]).toEqual({ key: 'street', label: 'STREET', type: 'text', required: false });
+    });
+
+    it('o campo só exibido não leva nada disso: quem só lê não digita', async () => {
+      const invoices = await invoicesOf(fieldInputs);
+
+      expect(invoices.fields.find((field) => field.key === 'zip')).toEqual({ key: 'zip', label: 'ZIP', type: 'masked' });
+    });
+
+    it('sem a extensão que declara, o campo sai como sempre saiu', async () => {
+      const invoices = await invoicesOf();
+
+      expect(invoices.create?.fields[0]).toEqual({ key: 'zip', label: 'ZIP', type: 'masked', required: false });
+    });
+  });
+
   it('quem não é convidado não recebe nada', async () => {
     const fake = makeFakePortalRepository(CITY_SCREENS);
     await expect(makeGetPortalContextUseCase(fake.repo).execute({

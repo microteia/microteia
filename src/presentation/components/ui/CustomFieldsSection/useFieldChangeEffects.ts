@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useExternalLookupProviders } from '../../../shared/useExternalLookupProviders';
-import { useNotification } from '../../../../stores/useNotification';
-import { resolveLookupPatch, resolveOnChangePatch } from '../../../../domain/schema/fieldChangeSpec';
+import { useExternalLookupRunner } from '../../../shared/useExternalLookupRunner';
+import { resolveOnChangePatch } from '../../../../domain/schema/fieldChangeSpec';
 import type { RecordResolver } from '../../../../domain/schema/referenceScope';
 import type { FieldDefinition } from '../../../../domain/entities';
-
-const LOOKUP_DEBOUNCE_MS = 400;
 
 export interface FieldChangeEffectsInput {
   fields: FieldDefinition[];
@@ -28,64 +26,8 @@ export interface FieldChangeEffects {
 export const useFieldChangeEffects = (input: FieldChangeEffectsInput): FieldChangeEffects => {
   const { fields, values, resolveRecord, onMergeValues, isNew } = input;
   const externalLookupServices = useExternalLookupProviders();
-  const { notify } = useNotification();
-
-  const [loadingKeys, setLoadingKeys] = useState<ReadonlySet<string>>(new Set());
-
-  // Guarda de corrida: só a resposta da última requisição de cada campo é aplicada. Digitar rápido
-  // dois CEPs diferentes não pode deixar o endereço do primeiro no formulário.
-  const requestSeqRef = useRef<Map<string, number>>(new Map());
-  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-
-  useEffect(() => {
-    const timers = timersRef.current;
-    return () => {
-      for (const timer of timers.values()) clearTimeout(timer);
-      timers.clear();
-    };
-  }, []);
-
-  const setLoading = useCallback((fieldKey: string, loading: boolean) => {
-    setLoadingKeys((prev) => {
-      if (loading === prev.has(fieldKey)) return prev;
-      const next = new Set(prev);
-      if (loading) next.add(fieldKey);
-      else next.delete(fieldKey);
-      return next;
-    });
-  }, []);
-
-  const runLookup = useCallback(
-    async (field: FieldDefinition, rawValue: unknown) => {
-      const binding = field.logic?.onChangeLookup;
-      if (!binding || !onMergeValues) return;
-
-      const service = externalLookupServices.find((candidate) => candidate.key === binding.provider);
-      if (!service) return;
-
-      const seq = (requestSeqRef.current.get(field.key) ?? 0) + 1;
-      requestSeqRef.current.set(field.key, seq);
-
-      setLoading(field.key, true);
-      try {
-        const outcome = await service.lookup(typeof rawValue === 'string' ? rawValue : String(rawValue ?? ''));
-
-        // Chegou fora de ordem: outra digitação já disparou uma busca mais nova.
-        if (requestSeqRef.current.get(field.key) !== seq) return;
-
-        if (!outcome.ok) {
-          if (outcome.error) notify(outcome.error, 'warning');
-          return;
-        }
-        const fieldKeys = new Set(fields.map((candidate) => candidate.key));
-        const patch = resolveLookupPatch(binding, outcome.values, field.key, fieldKeys);
-        if (Object.keys(patch).length > 0) onMergeValues(patch);
-      } finally {
-        if (requestSeqRef.current.get(field.key) === seq) setLoading(field.key, false);
-      }
-    },
-    [externalLookupServices, fields, notify, onMergeValues, setLoading],
-  );
+  const fieldKeys = useMemo(() => new Set(fields.map((field) => field.key)), [fields]);
+  const { scheduleLookup, isFieldLoading } = useExternalLookupRunner(fieldKeys, onMergeValues);
 
   const runFieldChangeEffects = useCallback(
     (fieldKey: string, value: unknown) => {
@@ -101,22 +43,14 @@ export const useFieldChangeEffects = (input: FieldChangeEffectsInput): FieldChan
       });
       if (Object.keys(patch).length > 0) onMergeValues(patch);
 
-      if (field.logic.onChangeLookup?.provider) {
-        const pending = timersRef.current.get(fieldKey);
-        if (pending) clearTimeout(pending);
-        timersRef.current.set(
-          fieldKey,
-          setTimeout(() => {
-            timersRef.current.delete(fieldKey);
-            void runLookup(field, value);
-          }, LOOKUP_DEBOUNCE_MS),
-        );
-      }
+      const binding = field.logic.onChangeLookup;
+      const service = binding?.provider
+        ? externalLookupServices.find((candidate) => candidate.key === binding.provider)
+        : undefined;
+      if (binding && service) scheduleLookup({ fieldKey, value, service, binding });
     },
-    [fields, values, resolveRecord, onMergeValues, isNew, runLookup],
+    [fields, values, resolveRecord, onMergeValues, isNew, externalLookupServices, scheduleLookup],
   );
-
-  const isFieldLoading = useCallback((fieldKey: string) => loadingKeys.has(fieldKey), [loadingKeys]);
 
   return { runFieldChangeEffects, isFieldLoading };
 };
