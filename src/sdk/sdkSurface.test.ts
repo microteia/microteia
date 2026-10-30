@@ -118,6 +118,10 @@ const PUBLISHED = [
   // pacote instalado, e um kernel que não o declara descartaria a contribuição.
   'BUSINESS_CALENDAR_API_VERSION', 'BUSINESS_CALENDAR_FIELDS', 'BUSINESS_CALENDAR_POINT',
   'BUSINESS_DAYS_FUNCTION_NAMES', 'TIME_EXTENSION_POINTS', 'businessCalendarContribution',
+  // O CARTÃO declarado da listagem (`ScreenModuleTemplate.cardTemplate`): o vocabulário dos nós, o
+  // cartão padrão como ponto de partida, a leitura tolerante e o mesmo portão do `check`. MOVE o
+  // `KERNEL_VERSION`: a chave nova na tela é forma nova de pacote instalado.
+  'CARD_NODE_TYPES', 'DEFAULT_CARD_BODY', 'cardTemplateIssues', 'readCardTemplate',
 ].sort();
 
 /**
@@ -127,6 +131,7 @@ const PUBLISHED = [
  */
 const PUBLISHED_TYPES = [
   'BusinessCalendar', 'BusinessCalendarSource',
+  'CardNode', 'CardNodeType', 'CardTemplate', 'CardTemplateIssue',
   'DocumentOutputFormat', 'DocumentTemplateDataset', 'DocumentTemplateFormat', 'DocumentTemplateIssue',
   'DocumentTemplateSpec', 'TemplateIssue', 'TemplateNode',
   'ReportAccess', 'ReportAggregateMeasure', 'ReportChart', 'ReportChartKind',

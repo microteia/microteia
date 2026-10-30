@@ -351,6 +351,7 @@ const SCREEN_REACH: Record<keyof ScreenModuleTemplate, string | null> = {
   parentRelation: 'the ownership of that relationship',
   viewActionIds: 'the actions the screen plan places in the detail header',
   cardActionIds: 'the actions the screen plan places on the list card',
+  cardTemplate: null,
 };
 
 const SCREEN_NOTES: Record<string, string> = {
@@ -379,6 +380,8 @@ const SCREEN_NOTES: Record<string, string> = {
   hideRecordsFromCommandPalette: 'whether the records of this collection stay out of the command palette search. Like '
     + 'auditActions, it is what a collection a machine writes needs, and the model cannot say the collection is '
     + 'machine-written',
+  cardTemplate: 'HUMAN: how the list card is drawn, and whether the list is a grid or one card per line. A '
+    + 'presentation decision, and the model says what a record is, never how it looks',
 };
 
 const ACTION_REACH: Record<keyof ActionModuleTemplate, string | null> = {

@@ -8,6 +8,7 @@ import type { Script } from './Script';
 import type { ActionDefinition } from './Action';
 import type { PortalDeclaration } from '../schema/portal';
 import type { EditWindowSpec } from '../schema/editWindow';
+import type { CardTemplate } from '../schema/ui/cardTemplate';
 import type { MemberVisibilitySpec } from '../schema/memberVisibility';
 import type { CustomFieldOption, FieldDefinition, RecordKeySpec, ScreenListAction } from './entitySchemas';
 
@@ -101,6 +102,8 @@ export interface ScreenModuleTemplate {
   parentRelation?: 'owned' | 'related' | null;
   viewActionIds?: string[];
   cardActionIds?: string[];
+  /** O desenho do cartão da listagem. Ver `ScreenDefinition.cardTemplate`. */
+  cardTemplate?: CardTemplate | null;
 }
 
 /**

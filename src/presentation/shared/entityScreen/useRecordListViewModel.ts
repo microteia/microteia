@@ -59,6 +59,12 @@ export interface RecordCardAction {
   active?: boolean;
   /** Presente nas ações customizadas — a view resolve pelo registro de ícones das telas. */
   iconKey?: string;
+  /**
+   * Os nomes pelos quais um cartão declarado (`cardTemplate`) escolhe esta ação: a chave da ação da
+   * plataforma, ou o id, a `key` e o `sourceId` da ação do escritório — os dois últimos são os que
+   * sobrevivem a instalar o mesmo pacote noutro escritório.
+   */
+  refs: string[];
   onClick: () => void;
 }
 
@@ -89,6 +95,11 @@ export interface RecordListSource {
   defaultFilterTokens?: FilterToken[];
   /** Ordem de `records` e de `filteredRecords`. Ver `EntityListOptions.sortRecords`. */
   sortRecords?: (a: EntityRecord, b: EntityRecord) => number;
+  /**
+   * A lista não é a que a pessoa navega — a pré-visualização do cartão no Form Design. Ela não
+   * consome nem escuta o recado de "abrir já filtrada", que é da listagem de verdade.
+   */
+  ignoreNavigationIntent?: boolean;
 }
 
 export interface RecordListViewModel {
@@ -137,6 +148,19 @@ export interface RecordListViewModel {
    */
   getCardImageUrl: (record: EntityRecord) => string | null;
   getCardActions: (record: EntityRecord) => RecordCardAction[];
+  /**
+   * Um campo QUALQUER da tela como item de cartão — rótulo de listagem, valor formatado pelo tipo e
+   * etiquetas coloridas. `null` quando a tela não tem o campo. `badges: true` pede as etiquetas mesmo
+   * num campo sem cor declarada.
+   */
+  getCardFieldItem: (record: EntityRecord, fieldKey: string, options?: { badges?: boolean }) => CustomFieldCardItem | null;
+  /** A cor da opção escolhida num campo de seleção do registro — a faixa de destaque do cartão. */
+  getCardAccentColor: (record: EntityRecord, fieldKey: string) => string | undefined;
+  /**
+   * Avalia um `hiddenWhen` sobre o registro com o MESMO escopo das ações do cartão: a expressão que
+   * esconde um botão esconde, escrita igual, um pedaço do cartão.
+   */
+  isCardNodeHidden: (record: EntityRecord, hiddenWhen: string | undefined) => boolean;
   /** O pedido de parâmetros de uma ação que pergunta antes de executar. Renderizado pelos modais. */
   parameterPrompt: ActionParameterPromptController;
   /**
@@ -167,7 +191,7 @@ export interface RecordListViewModel {
  * Com `parent`, a lista é restrita aos filhos daquele registro e o "novo" já nasce vinculado.
  */
 export const useRecordListViewModel = (source: RecordListSource): RecordListViewModel => {
-  const { screenKey, savedFiltersKey, parent, recordTabKeys, defaultFilterTokens, sortRecords } = source;
+  const { screenKey, savedFiltersKey, parent, recordTabKeys, defaultFilterTokens, sortRecords, ignoreNavigationIntent } = source;
   const { getDefinition, isLoading: definitionsLoading } = useScreenDefinitions();
   const { recordsByCollection, isLoading: recordsLoading, updateRecord, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
@@ -189,7 +213,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
    * de novo no painel traria a mesma tela com o filtro anterior.
    */
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>(
-    () => (screenKey ? consumeNavigationIntent(screenKey) as FilterToken[] | undefined : undefined)
+    () => (screenKey && !ignoreNavigationIntent ? consumeNavigationIntent(screenKey) as FilterToken[] | undefined : undefined)
       ?? defaultFilterTokens
       ?? [],
   );
@@ -200,10 +224,10 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
 
   useEffect(
-    () => (screenKey
+    () => (screenKey && !ignoreNavigationIntent
       ? subscribeNavigationIntent(screenKey, (tokens) => setFilterTokens(tokens as FilterToken[]))
       : undefined),
-    [screenKey],
+    [screenKey, ignoreNavigationIntent],
   );
 
   const stored = useMemo(() => getDefinition(screenKey) ?? null, [getDefinition, screenKey]);
@@ -519,6 +543,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
         title: label(action.metadata.title),
         danger: action.metadata.danger,
         iconKey: action.metadata.icon,
+        refs: [action.metadata.key],
         onClick: () => void action.run(buildActionHost(record)),
       }));
     const custom = cardActionDefs
@@ -528,6 +553,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
         title: label(action.title),
         danger: action.danger,
         iconKey: action.icon,
+        refs: [action.id, action.key, action.sourceId].filter((ref): ref is string => !!ref),
         disabled: runningActionId !== null || parameterPrompt.loading || isActionDisabled(action.disabledWhen, exprContext),
         active: actionActiveState(action.activeWhen, exprContext),
         // Confirmar vem ANTES de perguntar parâmetro: a pergunta "tem certeza?" é sobre o gesto, e
@@ -543,6 +569,28 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
 
     return [...native, ...custom];
   }, [definition, collection, can, cardExprContext, recordActions, buildActionHost, cardActionDefs, viewer, runningActionId, parameterPrompt.loading, askAndRunCardAction, label, editWindow, editWindowNow]);
+
+  const getCardFieldItem = useCallback(
+    (record: EntityRecord, fieldKey: string, options?: { badges?: boolean }): CustomFieldCardItem | null => {
+      const field = sortedFields.find((candidate) => candidate.key === fieldKey);
+      return field ? listing.fieldItem(record, field, options) : null;
+    },
+    [sortedFields, listing],
+  );
+
+  const getCardAccentColor = useCallback(
+    (record: EntityRecord, fieldKey: string): string | undefined => {
+      const field = sortedFields.find((candidate) => candidate.key === fieldKey);
+      return field ? listing.optionColor(record, field) : undefined;
+    },
+    [sortedFields, listing],
+  );
+
+  const isCardNodeHidden = useCallback(
+    (record: EntityRecord, hiddenWhen: string | undefined): boolean =>
+      !!hiddenWhen?.trim() && isActionHidden(hiddenWhen, cardExprContext(record)),
+    [cardExprContext],
+  );
 
   const tagIdsOf = useCallback((entityId: string) => records.find((r) => r.id === entityId)?.tagIds ?? [], [records]);
   const setRecordTags = useCallback(
@@ -604,6 +652,9 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     getFieldText,
     getCardImageUrl,
     getCardActions,
+    getCardFieldItem,
+    getCardAccentColor,
+    isCardNodeHidden,
     parameterPrompt,
     pendingCardAction,
     confirmPendingCardAction,

@@ -4841,6 +4841,72 @@ Nota: as coleções de lista (`caseCourts`, `medico_especialidade`…) **não** 
   um campo à tela que uma extensão trouxe, e ver esse campo no filtro e no cartão.
 - **Deeplink de registro fora das 500 carregadas:** `ViewDynamicRecord` faz fallback de busca por id (`GetRecordByIdUseCase`).
 
+### O cartão da listagem é declarado — `cardTemplate`
+
+O cartão da listagem tinha forma fixa (`EntityListCard`: avatar, título, subtítulo, meta-linhas,
+"exibir na listagem", etiquetas e ações no hover) e a lista era sempre grade. Quem precisava de outro
+desenho escrevia uma view em código — slots de `RecordListSurface` ou `useEntityList` com cartão
+próprio —, o que exclui a extensão de terceiro e o escritório no Form Design. `ScreenDefinition.cardTemplate`
+(`domain/schema/ui/cardTemplate.ts`, em `SHARED_FILES`) é a resposta declarativa.
+
+**Ausente, nada muda** — o cartão e a grade são os de sempre, e há teste que cobra isso
+(`RecordListSurface.test.tsx`). Com só `layout`/`minWidth`, muda o arranjo e o cartão continua o
+padrão. Com `body`, o cartão é o declarado. `accent: { field }` pinta a faixa do topo com a cor da opção
+escolhida num campo de seleção.
+
+**Árvore, não string.** Mesmo molde do Widget DSL: nós discriminados por `type` (`row`, `stack`,
+`spacer`, `divider`, `avatar`, `title`, `subtitle`, `field`, `fields`, `metaRows`, `tags`, `actions`,
+`text`, `icon`), cor e tamanho só por token do tema (`theme.listCard`, `spacing`, `fontSizes`,
+tons semânticos), zero HTML do autor. Os "placeholders" são NÓS. Um template de texto com `{{campo}}`
+traria uma frase que nenhum catálogo traduz — a mesma razão de `calendar.source` ser lista de campos.
+Texto fixo só entra pelo nó `text`, resolvido por `useLabel()`: referência `@ns/chave` (a extensão
+traduz o que traz) ou texto do escritório (dado do tenant, passa intacto).
+
+**Sem mini-linguagem de valor.** Valor composto de vários campos é um campo `derive` posicionado com
+`field` — o kernel continua com UM avaliador. O `hiddenWhen` de cada nó é avaliado por
+`isCardNodeHidden`, que usa o MESMO `cardExprContext` das ações do cartão: quem escreve a expressão
+num botão a escreve igual num pedaço do cartão (`surface`, `relation`, `hasPermission`, referências
+navegáveis).
+
+**As respostas são as do cartão padrão.** `useCardTemplateResolvers` monta, uma vez por lista, as
+perguntas que o template faz a partir do `RecordListViewModel` — `getCardTitle`, `getCardSubtitle`,
+`getCardImageUrl`, `getCardItems`, `getCardActions`, e os três membros que nasceram para isso:
+`getCardFieldItem` (qualquer campo, no formato de `cardItems`; generaliza `useCustomFieldListing.fieldItem`),
+`getCardAccentColor` e `isCardNodeHidden`. `resolveCardNodes` (puro, testado sem React) responde a
+árvore para um registro: some o nó escondido com o que ele contém, o campo vazio (salvo `showEmpty`),
+o bloco sem conteúdo e o contêiner que ficou sem filhos. `RecordCardTemplate` só desenha, reusando os
+átomos de `EntityListCard` (casca, faixa, botões, etiquetas) — mesma aparência, mesmo `stopPropagation`.
+
+**Ações por nome estável.** `actions.include`/`exclude` casam com `RecordCardAction.refs`: a chave da
+ação da plataforma, ou o id, a `key` e o `sourceId` da ação do escritório. O id instalado muda de
+escritório para escritório; `key`/`sourceId` sobrevivem a instalar o mesmo pacote noutro.
+
+**Leitura tolerante, autoria estrita.** `readCardTemplate` lê o gravado sem nunca recusar: nó
+desconhecido é descartado (um template de kernel mais novo degrada), opção fora da lista vira ausente,
+e os tetos (`CARD_TEMPLATE_MAX_DEPTH` = 6, `CARD_TEMPLATE_MAX_NODES` = 80) cortam o excesso.
+`cardTemplateIssues` é o portão da autoria — Form Design antes de gravar e `check` do pacote
+(`packageCardTemplateIssues`, dentro de `packageIssues`) — e aponta cada defeito com o caminho dele:
+tipo, opção, campo da tela, ícone do catálogo, sintaxe da expressão e os tetos.
+
+**Código continua dono do que desenha.** Se quem hospeda `RecordListSurface` passa slots de cartão
+(`renderSubtitle`, `renderBelowHeader`, `renderMetaRows`, `accentColor`), o cartão de código vence e o
+template só contribui o arranjo.
+
+**Viaja como as outras propriedades de tela:** `screenDefinitionMapper` → `ScreenModuleTemplate` →
+`materializeScreen` → `screenToTemplate`. Na atualização de uma extensão, o cartão que o PACOTE declara
+vence; sem declaração, fica o que o escritório desenhou (`upsertPluginScreens`, como `editWindow`).
+`KERNEL_VERSION` 2.86.0 (`CARD_TEMPLATE_SINCE_KERNEL`); um kernel anterior ignora a chave e mostra o
+cartão padrão, e por isso o `check` não exige faixa de `kernel`. `firestore.rules` não muda: é o
+documento de `screenDefinitions`, sob `screens.manage`.
+
+**Form Design — aba "Cartão"** (`ScreenCardTemplatePanel`, só em tela que já existe): arranjo e
+largura em botões, desenho em JSON (`CodeEditor`), "Começar do cartão padrão" (`DEFAULT_CARD_BODY`, que
+é o cartão fixo escrito na DSL — e a prova de que ela o alcança inteiro), os problemas em `InfoBanner`
+e a pré-visualização sobre o primeiro registro da tela. A pré-visualização usa um
+`useRecordListViewModel` com `ignoreNavigationIntent` (não rouba o "abrir já filtrada" da listagem de
+verdade) e é inerte: as ações dela não executam. Como `editWindow`, só é gravado quando a aba foi
+tocada; voltar tudo ao padrão grava `null`.
+
 ### Campo de arquivo
 
 `type: 'file'` é um campo escalar como qualquer outro: o que se grava é a **URL de download** do
@@ -8104,6 +8170,10 @@ da extensão, e soma ao da Microteia".
 
 **Falta para o Widget DSL completo:** ligação a dados (`source: query:/script:/field:`) e `when` por
 expressão — o que torna um widget dinâmico, não só descritivo.
+
+O irmão ligado a dados é o **cartão declarado** da listagem — ver "O cartão da listagem é declarado —
+`cardTemplate`": mesmo molde (árvore, nó desconhecido ignorado, só tokens), com `field` e `hiddenWhen`
+resolvidos por registro.
 
 ### Configuração declarativa e superfícies de widget
 

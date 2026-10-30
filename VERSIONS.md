@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.178.0] — 2026-10-30
+
+- Cada tela agora pode escolher como sua listagem se organiza: em grade de cartões, como sempre, ou com um cartão por linha — e, na grade, cartões mais estreitos ou mais largos.
+- Quando o cartão padrão não basta, é possível desenhar o próprio cartão da listagem na nova aba "Cartão" do Form Design: escolher onde aparecem o título, cada campo, as etiquetas e as ações, destacar uma situação com a cor da opção e esconder partes do cartão conforme o registro. Uma pré-visualização mostra o resultado antes de salvar.
+- As telas que não usam o recurso continuam exatamente como estão.
+
 #### [9.177.0] — 2026-10-29
 
 - Agora é possível importar uma planilha direto na aba de um registro: os itens de um pedido, os alunos de uma turma, os destinatários de um lote. Cada linha já entra vinculada ao registro aberto, sem precisar de coluna para isso, e a importação nunca transfere para ele um item que pertence a outro registro.

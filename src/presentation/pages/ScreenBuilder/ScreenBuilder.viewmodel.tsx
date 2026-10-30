@@ -28,6 +28,14 @@ import {
   toEditWindowForm,
 } from './components/ScreenEditWindowPanel/screenEditWindowForm';
 import type { EditWindowFormState } from './components/ScreenEditWindowPanel/screenEditWindowForm';
+import {
+  EMPTY_CARD_TEMPLATE_FORM,
+  cardTemplateFormIssues,
+  fromCardTemplateForm,
+  toCardTemplateForm,
+} from './components/ScreenCardTemplatePanel/screenCardTemplateForm';
+import type { CardTemplateFormState } from './components/ScreenCardTemplatePanel/screenCardTemplateForm';
+import type { CardTemplateFieldInfo } from '../../../domain/schema/ui/cardTemplateIssues';
 import { portalDeclarationIssues, portalOfferableActions, type PortalScreenLike } from '../../../domain/schema/portal';
 import {
   EMPTY_PORTAL_FORM,
@@ -162,6 +170,9 @@ export interface ScreenFormState {
   /** Quem lê cada registro. Como a janela, só é gravada quando a aba foi tocada. */
   memberVisibility: MemberVisibilityFormState;
   memberVisibilityTouched: boolean;
+  /** O cartão da listagem. Como a janela, só é gravado quando a aba foi tocada. */
+  cardTemplate: CardTemplateFormState;
+  cardTemplateTouched: boolean;
 }
 
 /**
@@ -338,7 +349,7 @@ const MEMBER_VISIBILITY_ISSUE_KEYS: Record<MemberVisibilityFormIssue, string> = 
   'fields-too-many': 'member-visibility.panel.fields-too-many',
 };
 
-export type ScreenModalTab = 'general' | 'actions' | 'children' | 'portal' | 'editWindow' | 'memberVisibility';
+export type ScreenModalTab = 'general' | 'actions' | 'card' | 'children' | 'portal' | 'editWindow' | 'memberVisibility';
 export type FieldModalTab = 'general' | 'advanced';
 
 export interface ScreenBuilderViewModel {
@@ -378,6 +389,11 @@ export interface ScreenBuilderViewModel {
   screenForm: ScreenFormState;
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
   updateEditWindowForm: (patch: Partial<EditWindowFormState>) => void;
+  updateCardTemplateForm: (patch: Partial<CardTemplateFormState>) => void;
+  /** Os campos da tela aberta, para a aba "Cartão" conferir o que o template nomeia. */
+  cardTemplateFields: CardTemplateFieldInfo[];
+  /** A chave da tela aberta no modal — a aba "Cartão" pré-visualiza um registro dela. */
+  cardTemplateScreenKey: string | null;
   /** A tela aberta veio de uma extensão — o prazo que ela declarar vence na atualização. */
   editWindowFromExtension: boolean;
   /** A aba "Visibilidade dos registros": opções já rotuladas e o defeito que impede gravar. */
@@ -581,6 +597,8 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   editWindowTouched: false,
   memberVisibility: EMPTY_MEMBER_VISIBILITY_FORM,
   memberVisibilityTouched: false,
+  cardTemplate: EMPTY_CARD_TEMPLATE_FORM,
+  cardTemplateTouched: false,
 };
 
 const EMPTY_FIELD_FORM: FieldFormState = {
@@ -1172,6 +1190,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setScreenForm((prev) => ({ ...prev, editWindow: { ...prev.editWindow, ...patch }, editWindowTouched: true }));
   }, []);
 
+  const updateCardTemplateForm = useCallback((patch: Partial<CardTemplateFormState>) => {
+    setScreenForm((prev) => ({ ...prev, cardTemplate: { ...prev.cardTemplate, ...patch }, cardTemplateTouched: true }));
+  }, []);
+
   const updateMemberVisibilityForm = useCallback((patch: Partial<MemberVisibilityFormState>) => {
     setScreenForm((prev) => ({
       ...prev,
@@ -1291,6 +1313,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       editWindowTouched: false,
       memberVisibility: toMemberVisibilityForm(def.memberVisibility),
       memberVisibilityTouched: false,
+      cardTemplate: toCardTemplateForm(def.cardTemplate),
+      cardTemplateTouched: false,
     });
     setScreenModal({ screenKey });
   }, [getDefinitionByKey, dynamicDefinitions, tagDependentSlots]);
@@ -1439,6 +1463,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const screenModalTabs = useMemo<{ key: ScreenModalTab; label: string }[]>(() => [
     ...(screenModalIsBuiltin ? [] : [{ key: 'general' as const, label: t('screen.tab.general') }]),
     { key: 'actions' as const, label: t('screen.tab.actions') },
+    // O cartão nomeia campos e mostra um registro na pré-visualização: só em tela que já existe.
+    ...(!screenModalIsBuiltin && !!screenModal?.screenKey
+      ? [{ key: 'card' as const, label: t('screen.tab.card') }]
+      : []),
     ...(!!screenModal?.screenKey && childCandidates.length > 0
       ? [{ key: 'children' as const, label: t('screen.tab.children') }]
       : []),
@@ -1491,6 +1519,11 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       maxFields: MEMBER_VISIBILITY_MAX_FIELDS,
     };
   }, [screenModal, getDefinitionByKey, catalog, screenForm.memberVisibility, label, t]);
+
+  const cardTemplateFields = useMemo<CardTemplateFieldInfo[]>(() => {
+    const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
+    return (def?.fields ?? []).map((field) => ({ key: field.key, type: field.type }));
+  }, [screenModal, getDefinitionByKey]);
 
   const portalPanel = useMemo(() => {
     const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
@@ -1719,6 +1752,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     const memberVisibilityValue = memberVisibilityChanged
       ? fromMemberVisibilityForm(screenForm.memberVisibility)
       : undefined;
+    const cardTemplateChanged = screenForm.cardTemplateTouched;
+    if (cardTemplateChanged && cardTemplateFormIssues(screenForm.cardTemplate, cardTemplateFields).length > 0) {
+      setScreenModalTab('card');
+      notify(t('card-template.panel.invalid'), 'error');
+      return;
+    }
     const portalChanged = canManagePortal && screenForm.portalTouched && !portalPanel.readOnly;
     if (portalChanged && screenForm.portal.enabled && portalPanel.issues.length > 0) {
       setScreenModalTab('portal');
@@ -1800,6 +1839,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           ...(portalChanged ? { portal: fromPortalForm(screenForm.portal) } : {}),
           ...(editWindowValue !== undefined ? { editWindow: editWindowValue } : {}),
           ...(memberVisibilityValue !== undefined ? { memberVisibility: memberVisibilityValue } : {}),
+          ...(cardTemplateChanged ? { cardTemplate: fromCardTemplateForm(screenForm.cardTemplate) as ScreenDefinition['cardTemplate'] } : {}),
         });
 
         // A regra lê a janela e a visibilidade do documento da COLEÇÃO. Numa tela que descreve outra
@@ -1882,7 +1922,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label, canManagePortal, portalPanel, canManageEditWindow, canManageMemberVisibility, memberVisibilityPanel]);
+  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label, canManagePortal, portalPanel, canManageEditWindow, canManageMemberVisibility, memberVisibilityPanel, cardTemplateFields]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -2809,6 +2849,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setScreenCardActionIds,
     screenModalTabs,
     updateEditWindowForm,
+    updateCardTemplateForm,
+    cardTemplateFields,
+    cardTemplateScreenKey: screenModal?.screenKey ?? null,
     editWindowFromExtension: !!screenModal?.screenKey && getDefinitionByKey(screenModal.screenKey)?.managed === true,
     memberVisibilityPanel,
     updateMemberVisibilityForm,

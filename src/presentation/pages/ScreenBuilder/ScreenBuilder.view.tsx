@@ -29,6 +29,7 @@ import { ColorDot } from '../../components/ui/Badge';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { ScreenPortalPanel } from './components/ScreenPortalPanel';
 import { ScreenEditWindowPanel } from './components/ScreenEditWindowPanel';
+import { ScreenCardTemplatePanel } from './components/ScreenCardTemplatePanel';
 import { ScreenMemberVisibilityPanel } from './components/ScreenMemberVisibilityPanel';
 import { FieldSequencePanel } from './components/FieldSequencePanel';
 import type { FieldDefinition } from '../../../domain/entities';
@@ -538,6 +539,15 @@ export const ScreenBuilderView: React.FC = () => {
                 maxFields={vm.memberVisibilityPanel.maxFields}
                 fromExtension={vm.editWindowFromExtension}
                 onChange={vm.updateMemberVisibilityForm}
+              />
+            )}
+            {vm.screenModalTab === 'card' && vm.cardTemplateScreenKey && (
+              <ScreenCardTemplatePanel
+                screenKey={vm.cardTemplateScreenKey}
+                form={vm.screenForm.cardTemplate}
+                fields={vm.cardTemplateFields}
+                fromExtension={vm.editWindowFromExtension}
+                onChange={vm.updateCardTemplateForm}
               />
             )}
             {vm.screenModalTab === 'actions' && (

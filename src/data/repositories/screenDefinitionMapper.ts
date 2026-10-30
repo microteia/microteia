@@ -83,6 +83,7 @@ export const mapScreenDefinition = (
   listActions: (d.listActions as ScreenDefinition['listActions'] | undefined) ?? [],
   viewActionIds: (d.viewActionIds as string[] | undefined) ?? [],
   cardActionIds: (d.cardActionIds as string[] | undefined) ?? [],
+  cardTemplate: (d.cardTemplate as ScreenDefinition['cardTemplate']) ?? null,
   parentEntity: (d.parentEntity as string | null | undefined) ?? null,
   parentFieldKey: (d.parentFieldKey as string | null | undefined) ?? null,
   parentRelation: (d.parentRelation as ScreenDefinition['parentRelation']) ?? null,

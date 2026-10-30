@@ -68,6 +68,18 @@ const METRICS = {
     width: '260px',
     collapsedWidth: '72px',
   },
+  listCard: {
+    minWidth: {
+      sm: '240px',
+      md: '320px',
+      lg: '420px',
+    },
+    avatar: {
+      sm: '32px',
+      md: '44px',
+      lg: '64px',
+    },
+  },
 };
 
 /**

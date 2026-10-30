@@ -148,6 +148,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     parentRelation: screen.parentRelation ?? undefined,
     viewActionIds: screen.viewActionIds,
     cardActionIds: screen.cardActionIds,
+    cardTemplate: screen.cardTemplate ?? undefined,
   });
 
 const templateSourceOf = (template: ScreenModuleTemplate): string => template.sourceId ?? template.key;

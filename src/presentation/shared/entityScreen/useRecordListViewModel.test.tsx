@@ -564,3 +564,54 @@ describe('useRecordListViewModel — importar na aba do pai', () => {
     expect(naAba(['originId']).current.recordImport).not.toBeNull();
   });
 });
+
+/**
+ * O que o cartão DECLARADO (`cardTemplate`) pergunta à listagem. A promessa é de paridade: o mesmo
+ * campo formatado do cartão padrão, e o `hiddenWhen` de um nó respondido como o de um botão.
+ */
+describe('useRecordListViewModel — perguntas do cartão declarado', () => {
+  it('getCardFieldItem formata qualquer campo da tela, marcado para a listagem ou não', () => {
+    const { result } = listar(source());
+    const item = result.current.getCardFieldItem(record('r1', 'Recurso', 'Vencido', 1), 'status');
+    expect(item).toMatchObject({ key: 'status', value: 'Vencido', type: 'text' });
+    expect(item?.badges).toBeUndefined();
+    expect(result.current.getCardFieldItem(record('r1', 'Recurso', 'Vencido', 1), 'sumiu')).toBeNull();
+  });
+
+  it('badges: true pede as etiquetas da opção mesmo sem optionsColored', () => {
+    const { result } = listar(source());
+    const item = result.current.getCardFieldItem(record('r1', 'Recurso', 'Vencido', 1), 'status', { badges: true });
+    expect(item?.badges).toEqual([{ label: 'Vencido', color: undefined }]);
+  });
+
+  it('isCardNodeHidden responde como o hiddenWhen de uma ação do cartão, com o mesmo escopo', () => {
+    auth.effectivePermissions = ['deadlines.delete'];
+    const { result } = listar(source());
+    const vencido = record('b', 'Audiência', 'Vencido', 5);
+    expect(result.current.isCardNodeHidden(vencido, 'status == "Vencido"')).toBe(true);
+    expect(result.current.isCardNodeHidden(vencido, 'status == "Pendente"')).toBe(false);
+    expect(result.current.isCardNodeHidden(vencido, '!hasPermission("<entity>.delete")')).toBe(false);
+    expect(result.current.isCardNodeHidden(vencido, 'surface == "list"')).toBe(true);
+    expect(result.current.isCardNodeHidden(vencido, undefined)).toBe(false);
+    expect(result.current.isCardNodeHidden(vencido, 'isso não parseia ((')).toBe(false);
+  });
+
+  it('cada ação diz por quais nomes um cartão declarado a escolhe', () => {
+    actionStore.actions = [{ id: 'a1', tenantId: 't1', key: 'concluir', sourceId: 'com.acme:concluir', title: 'Concluir', icon: 'apps', workflowId: 'w1', enabled: true, danger: false, order: 0, hiddenWhen: null, disabledWhen: null }];
+    state.definition = { ...definition(), listActions: ['copyLink'], cardActionIds: ['a1'] } as ScreenDefinition;
+
+    const { result } = listar(source());
+    expect(result.current.getCardActions(record('r1', 'Prazo', 'Pendente', 1)).map((action) => action.refs))
+      .toEqual([['copyLink'], ['a1', 'concluir', 'com.acme:concluir']]);
+  });
+
+  it('a pré-visualização não consome o recado de "abrir já filtrada" da listagem de verdade', () => {
+    setNavigationIntent('prazos', [{ key: 'status', values: ['Vencido'] }]);
+
+    const preview = listar(source({ ignoreNavigationIntent: true }));
+    expect(preview.result.current.filterTokens).toEqual([]);
+
+    const { result } = listar(source());
+    expect(result.current.filterTokens).toEqual([{ key: 'status', values: ['Vencido'] }]);
+  });
+});

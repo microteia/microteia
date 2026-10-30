@@ -24,6 +24,7 @@ import { packageMemberVisibilityIssues } from './pluginMemberVisibility';
 import { packageRecordSequenceIssues } from './pluginRecordSequence';
 import { packageLookupSeedIssues } from './pluginLookupSeeds';
 import { packageFieldLookupIssues } from './pluginFieldLookups';
+import { packageCardTemplateIssues } from './pluginCardTemplates';
 import { fieldPresetIssues } from './fieldPresetRefs';
 import { packageIconIssues } from './pluginIcons';
 import { packageActionIssues } from './pluginActions';
@@ -461,6 +462,7 @@ export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageRecordSequenceIssues(pkg),
   ...packageLookupSeedIssues(pkg),
   ...packageFieldLookupIssues(pkg),
+  ...packageCardTemplateIssues(pkg),
   ...fieldPresetIssues(pkg),
   ...packagePrefixIssues(pkg),
 ];

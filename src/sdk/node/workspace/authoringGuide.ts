@@ -26,6 +26,7 @@ import {
 import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
+import { CARD_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/cardTemplate';
 import { RECORD_IMPORT_BATCH_SIZE, RECORD_IMPORT_MAX_ROWS } from '../../../domain/schema/recordImport';
 import { PERMISSION_RECORD_IMPORT_RUN } from '../../../domain/schema/access/kernelPermissions';
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
@@ -1764,6 +1765,50 @@ Beyond \`key\`, \`label\`, \`type\`, \`order\` and \`required\`, the properties 
 
 **Fields the organization adds** to your screen are theirs. An update of your extension preserves
 them, and uninstalling removes only yours.
+
+### The list card — \`cardTemplate\`
+
+Leave it out and the list draws the standard card: avatar, title, subtitle, the \`listIcon\` rows, the
+\`showInList\` fields, the tags and the actions. Declare it only when the screen needs a different card,
+or a list of one card per line:
+
+\`\`\`ts
+cardTemplate: {
+  layout: 'list',                          // 'grid' (default) or 'list'
+  minWidth: 'md',                          // grid column: 'sm' | 'md' (default) | 'lg'
+  accent: { field: 'priority' },           // top stripe: the color of the chosen option of a select
+  body: [
+    { type: 'row', justify: 'between', children: [
+      { type: 'row', children: [{ type: 'avatar', size: 'sm' }, { type: 'title' }] },
+      { type: 'field', field: 'status', variant: 'badge' },
+    ] },
+    { type: 'field', field: 'dueDate', icon: 'calendar', label: true },
+    { type: 'text', text: label('card.overdue'), tone: 'danger', hiddenWhen: 'dueDate >= today()' },
+    { type: 'row', justify: 'between', children: [{ type: 'tags' }, { type: 'actions' }] },
+  ],
+}
+\`\`\`
+
+| Node | Draws |
+|---|---|
+| \`row\`, \`stack\` | children side by side / one under the other (\`gap\`, \`align\`, \`justify\`, \`wrap\`) |
+| \`spacer\`, \`divider\` | pushes the rest of a row to the end / a line |
+| \`avatar\`, \`title\`, \`subtitle\` | the record's image (\`imageFieldKey\`) or the screen icon, \`titleFieldKey\`, \`subtitleFieldKey\` |
+| \`field\` | one field, formatted by its type. \`label: true\` shows its list label; \`variant\`: \`text\`, \`muted\`, \`strong\` or \`badge\` (the chosen options as colored badges); an empty field takes no space unless \`showEmpty\` |
+| \`fields\`, \`metaRows\` | the standard card's \`showInList\` block and \`listIcon\` rows, placed where you want them |
+| \`tags\` | the record's tags, on a screen with tags |
+| \`actions\` | the card actions — the same ones, same order, same rules. \`placement: 'hover'\` shows them on hover, top-right; \`include\`/\`exclude\` pick by the platform action key or your action's \`key\`/\`sourceId\` |
+| \`text\`, \`icon\` | fixed text (\`tone\`, \`size\`) / an icon of the catalog |
+
+Every node accepts \`hiddenWhen\`: the same expression, over the same scope, as an action's \`hiddenWhen\`.
+Fixed text is a \`label('…')\` reference — never a sentence, which no catalog would translate. A value
+composed of several fields is a \`derive\` field (§9) placed with \`field\`, not a template.
+
+\`check\` refuses an unknown node, a field the screen does not have, an icon outside the catalog and an
+expression that does not parse. A kernel older than ${CARD_TEMPLATE_SINCE_KERNEL} ignores the
+declaration and draws the standard card, so no \`kernel\` range is required. The organization can redraw
+the card in the Form Design ("Card" tab); an update of your extension that declares a card replaces
+theirs, and one that declares none keeps it.
 
 ### Keys — what cannot repeat
 

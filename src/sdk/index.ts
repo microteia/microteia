@@ -196,6 +196,10 @@ export {
 
 export type { WidgetNodeType, WidgetSpec } from '../domain/schema/ui/widgetSpec';
 export { WIDGET_NODE_TYPES, isWidgetSpec, widgetChildren } from '../domain/schema/ui/widgetSpec';
+export type { CardNode, CardNodeType, CardTemplate } from '../domain/schema/ui/cardTemplate';
+export { CARD_NODE_TYPES, DEFAULT_CARD_BODY, readCardTemplate } from '../domain/schema/ui/cardTemplate';
+export type { CardTemplateIssue } from '../domain/schema/ui/cardTemplateIssues';
+export { cardTemplateIssues } from '../domain/schema/ui/cardTemplateIssues';
 
 export { STEP_TYPES } from '../domain/entities/Workflow';
 

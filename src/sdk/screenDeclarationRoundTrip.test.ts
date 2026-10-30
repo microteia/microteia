@@ -50,3 +50,43 @@ describe('hideRecordsFromCommandPalette atravessa build → validate → install
     expect(input.hideRecordsFromCommandPalette).toBe(false);
   });
 });
+
+describe('cardTemplate atravessa build → validate → install', () => {
+  const comCartao: ScreenDefinition = {
+    ...intimacoes,
+    hideRecordsFromCommandPalette: null,
+    cardTemplate: {
+      layout: 'list',
+      accent: { field: 'situacao' },
+      body: [
+        { type: 'row', justify: 'between', children: [{ type: 'title' }, { type: 'field', field: 'situacao', variant: 'badge' }] },
+        { type: 'actions', include: ['copyLink'] },
+      ],
+    },
+    fields: [
+      ...intimacoes.fields,
+      { key: 'situacao', label: 'Situação', type: 'select', required: false, order: 1, origin: 'design', options: [{ key: 'nova', label: 'Nova' }] },
+    ],
+  };
+
+  it('declarado, chega ao template intacto, passa na validação e chega à tela instalada', () => {
+    const { issues, template, input } = roundTrip(comCartao);
+    expect(issues).toEqual([]);
+    expect(template.cardTemplate).toEqual(comCartao.cardTemplate);
+    expect(input.cardTemplate).toEqual(comCartao.cardTemplate);
+  });
+
+  it('ausente, não aparece no pacote e a tela instalada fica com o cartão padrão', () => {
+    const { template, input } = roundTrip({ ...comCartao, cardTemplate: null });
+    expect('cardTemplate' in template).toBe(false);
+    expect(input.cardTemplate).toBeNull();
+  });
+
+  it('o portão do pacote recusa campo que a tela não tem, com o caminho dentro da tela', () => {
+    const { issues } = roundTrip({ ...comCartao, cardTemplate: { body: [{ type: 'field', field: 'inexistente' }] } });
+    expect(issues).toContainEqual(expect.objectContaining({
+      message: '@core.records/card-template.issue.field-unknown',
+      messageParams: expect.objectContaining({ where: 'screens[0].cardTemplate.body[0].field', field: 'inexistente' }),
+    }));
+  });
+});

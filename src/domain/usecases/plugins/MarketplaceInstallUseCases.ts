@@ -401,6 +401,9 @@ const upsertPluginScreens = async (
           // entregaria a todo membro com a coleção os registros que ela guardava — e isso é decisão de
           // quem tem `screens.member-visibility`, não de uma atualização.
           memberVisibility: input.memberVisibility ?? existing.memberVisibility ?? null,
+          // O cartão que o escritório desenhou no Form Design sobre uma tela de extensão sobrevive à
+          // atualização que não declara cartão nenhum — o mesmo destino das ações do card acima.
+          cardTemplate: input.cardTemplate ?? existing.cardTemplate ?? null,
         }
       : input;
     await deps.screenRepository.upsert(tenantId, screenKey, merged);

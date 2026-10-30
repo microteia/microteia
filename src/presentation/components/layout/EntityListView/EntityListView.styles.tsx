@@ -65,11 +65,11 @@ export const S = {
     : `${theme.spacing.lg} ${theme.spacing.xl}`)};
   `,
 
-  Grid: styled.div<{ $layout?: 'grid' | 'list' }>`
+  Grid: styled.div<{ $layout?: 'grid' | 'list'; $minWidth?: 'sm' | 'md' | 'lg' }>`
     display: grid;
-    grid-template-columns: ${({ $layout }) => ($layout === 'list'
+    grid-template-columns: ${({ $layout, $minWidth, theme }) => ($layout === 'list'
     ? '1fr'
-    : 'repeat(auto-fill, minmax(320px, 1fr))')};
+    : `repeat(auto-fill, minmax(${theme.listCard.minWidth[$minWidth ?? 'md']}, 1fr))`)};
     gap: ${({ theme }) => theme.spacing.md};
   `,
 

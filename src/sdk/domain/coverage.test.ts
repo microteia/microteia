@@ -111,6 +111,7 @@ const LACUNAS_CONFERIDAS = [
   'screen-property\tsidebarOrder',
   'screen-property\thideFromParentTabs',
   'screen-property\thideRecordsFromCommandPalette',
+  'screen-property\tcardTemplate',
 
   // As propriedades da ação. `title` é a família da descrição da transição, ainda aberta: o modelo diz
   // o que a passagem FAZ e nunca como o botão se chama. E `confirmMessage`/`danger` dependem de uma

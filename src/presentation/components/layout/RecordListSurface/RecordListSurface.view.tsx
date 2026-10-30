@@ -3,6 +3,7 @@ import { RiApps2Line, RiUploadLine } from 'react-icons/ri';
 import { Button } from '../../ui/Button';
 import { CustomFieldMetaRows } from '../../ui/CustomFieldMetaRows';
 import { EntityListCard } from '../../ui/EntityListCard';
+import { RecordCardTemplate } from '../../ui/RecordCardTemplate';
 import { UserAvatar } from '../../ui/UserAvatar';
 import { EntityListView } from '../EntityListView';
 import { EntityListModals } from './EntityListModals';
@@ -11,6 +12,8 @@ import { getScreenIcon } from '../../../shared/screenIcons';
 import { deriveListRows } from '../../../shared/deriveEntitySchema';
 import { useSchemaContext } from '../../../shared/useSchemaContext';
 import { useListRowResolver } from '../../../shared/listRows';
+import { useCardTemplateResolvers } from '../../../shared/entityScreen/useCardTemplateResolvers';
+import { readCardTemplate } from '../../../../domain/schema/ui/cardTemplate';
 import { useLabel, useT } from '../../../shared/i18n/useT';
 import type { RecordListViewModel } from '../../../shared/entityScreen/useRecordListViewModel';
 import type { EntityRecord, ScreenDefinition } from '../../../../domain/entities';
@@ -78,6 +81,13 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
   const modals = <EntityListModals vm={vm} />;
   const schemaContext = useSchemaContext();
   const resolveRow = useListRowResolver();
+  // O cartão DECLARADO pela tela (`cardTemplate`). O arranjo (grade ou lista) vale sempre; o desenho,
+  // só quando quem hospeda a lista não trouxe cartão de código — a view de uma extensão que já passa
+  // slots continua dona do cartão que desenha.
+  const cardTemplate = readCardTemplate(definition.cardTemplate);
+  const hostDrawsCard = !!(renderSubtitle || renderBelowHeader || renderMetaRows || accentColor);
+  const declaredBody = !hostDrawsCard ? cardTemplate?.body : undefined;
+  const templateResolvers = useCardTemplateResolvers(vm);
   // As meta-linhas que a COLEÇÃO declara — venham do registro do kernel ou da tela que a descreve
   // (`listIcon`). Sem nenhuma declarada, o card segue só com os campos marcados "exibir na
   // listagem". Mesmo caminho das listas fixas: mesma aparência, mesma ordem.
@@ -108,6 +118,8 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
   return (
     <EntityListView
       variant={variant}
+      layout={cardTemplate?.layout}
+      cardMinWidth={cardTemplate?.minWidth}
       title={label(definition.titlePlural)}
       titleIcon={getScreenIcon(definition.icon, 22)}
       onNew={openNewRecord}
@@ -138,6 +150,19 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
       modals={modals}
     >
       {vm.filteredRecords.map((record) => {
+        if (declaredBody) {
+          return (
+            <RecordCardTemplate
+              key={record.id}
+              body={declaredBody}
+              record={record}
+              resolvers={templateResolvers}
+              screenIcon={definition.icon}
+              accentColor={cardTemplate?.accent ? vm.getCardAccentColor(record, cardTemplate.accent.field) : undefined}
+              onOpen={() => openRecord(record)}
+            />
+          );
+        }
         const recordTags = vm.tags.filter((t) => record.tagIds?.includes(t.id));
         const items = vm.getCardItems(record);
         const metaRows = [

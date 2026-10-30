@@ -34,6 +34,7 @@ const persisted: PersistedKeys = {
   listActions: ['clone', 'delete'],
   viewActionIds: ['a1'],
   cardActionIds: ['a2'],
+  cardTemplate: { layout: 'list', body: [{ type: 'title' }, { type: 'field', field: 'apelido', variant: 'badge' }] },
   parentEntity: 'cases',
   parentFieldKey: 'caseId',
   parentRelation: 'related',

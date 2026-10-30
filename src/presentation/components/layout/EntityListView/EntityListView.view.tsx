@@ -50,6 +50,8 @@ export interface EntityListViewProps {
    * cujo card é uma peça de leitura: o e-mail de uma intimação não se lê em meia coluna.
    */
   layout?: 'grid' | 'list';
+  /** Largura mínima da coluna na grade (`theme.listCard.minWidth`). Ausente = `md`, a de sempre. */
+  cardMinWidth?: 'sm' | 'md' | 'lg';
 
   /** Ações extras no cabeçalho, antes do botão "novo" (ex.: Dashboard, ocultar totais). */
   headerExtra?: React.ReactNode;
@@ -79,6 +81,7 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
   emptyActionLabel,
   variant = 'page',
   layout = 'grid',
+  cardMinWidth = 'md',
   canCreate = true,
   headerExtra,
   belowHeader,
@@ -130,7 +133,7 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
             )}
           </S.EmptyState>
         ) : (
-          <S.Grid $layout={layout}>{children}</S.Grid>
+          <S.Grid $layout={layout} $minWidth={cardMinWidth}>{children}</S.Grid>
         )}
       </S.Content>
 

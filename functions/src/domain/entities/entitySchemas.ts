@@ -26,6 +26,7 @@ import type { AutoValueSpec } from '../schema/recordSequence';
 import type { PortalDeclaration } from '../schema/portal';
 import type { EditWindowSpec } from '../schema/editWindow';
 import type { MemberVisibilitySpec } from '../schema/memberVisibility';
+import type { CardTemplate } from '../schema/ui/cardTemplate';
 import type { ContactKind } from '../schema/notificationContacts';
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
@@ -328,6 +329,15 @@ export interface ScreenDefinition {
   viewActionIds: string[];
   /** Ids de `ActionDefinition` exibidos no card da listagem. */
   cardActionIds: string[];
+  /**
+   * O DESENHO do cartão da listagem e o arranjo da lista (grade ou um por linha), declarados — ver
+   * `domain/schema/ui/cardTemplate.ts`. Ausente (o normal) = o cartão de sempre.
+   *
+   * Guardado COMO ESTÁ gravado: quem desenha passa por `readCardTemplate`, que descarta o que não
+   * reconhece em vez de quebrar a lista. Um cartão por registro é decisão de apresentação da tela, e
+   * por isso mora aqui, ao lado de `cardActionIds`, e não num ponto de extensão.
+   */
+  cardTemplate?: CardTemplate | null;
   /**
    * Quando presente, a tela é FILHA de outra: sai do menu lateral e da busca ⌘K, e seus registros
    * aparecem como uma aba do registro-pai. Aceita a chave de uma tela fixa ('contracts', 'persons'…)

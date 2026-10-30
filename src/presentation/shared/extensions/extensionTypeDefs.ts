@@ -914,6 +914,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     canCreate?: boolean;
     /** 'grid' (the default) lays cards out in columns; 'list' gives each card the full width. */
     layout?: 'grid' | 'list';
+    /** Minimum column width of the grid: 'sm', 'md' (the default) or 'lg'. */
+    cardMinWidth?: 'sm' | 'md' | 'lg';
     /** Extra actions in the header, before the "new" button. */
     headerExtra?: React.ReactNode;
     /** A band between the header and the filter - where a totals bar goes. */
@@ -1085,6 +1087,12 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     active?: boolean;
     /** Present on custom actions - the view resolves it against the curated screen icon set. */
     iconKey?: string;
+    /**
+     * The names a declared card (cardTemplate) picks this action by: the key of a platform action, or
+     * the id, key and sourceId of an organization action. key and sourceId survive installing the same
+     * package in another organization; the id does not.
+     */
+    refs: string[];
     onClick: () => void;
   }
 
@@ -1137,6 +1145,19 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     getFieldText: (record: any, fieldKey: string) => string;
     getCardImageUrl: (record: any) => string | null;
     getCardActions: (record: any) => RecordCardAction[];
+    /**
+     * ANY field of the screen as a card item - list label, value formatted by type and colored option
+     * badges. null when the screen has no such field. badges: true asks for the option badges even on a
+     * field that declares no colors.
+     */
+    getCardFieldItem: (record: any, fieldKey: string, options?: { badges?: boolean }) => CustomFieldMetaRowsProps['items'][number] | null;
+    /** The color of the option chosen in a select field of the record - the card accent stripe. */
+    getCardAccentColor: (record: any, fieldKey: string) => string | undefined;
+    /**
+     * Evaluates a hiddenWhen over the record with the SAME scope as the card actions: the expression that
+     * hides a button hides, written the same way, a part of the card.
+     */
+    isCardNodeHidden: (record: any, hiddenWhen: string | undefined) => boolean;
     /** State for EntityListModals - read it through vm, not directly. */
     parameterPrompt: any;
     pendingCardAction: { action: any; record: any } | null;

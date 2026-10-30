@@ -46,6 +46,14 @@ export interface CustomFieldListing {
   matchesFilters: (values: RecordValues | undefined, tokenMap: Record<string, string[]>) => boolean;
   displayValue: (values: RecordValues | undefined, field: FieldDefinition) => string;
   cardItems: (values: RecordValues | undefined) => CustomFieldCardItem[];
+  /**
+   * QUALQUER campo como item de cartão, no formato de `cardItems`. `badges: true` desenha as opções
+   * escolhidas como etiquetas mesmo num campo sem `optionsColored` — é o pedido explícito de quem
+   * declara o cartão (`variant: 'badge'`).
+   */
+  fieldItem: (values: RecordValues | undefined, field: FieldDefinition, options?: { badges?: boolean }) => CustomFieldCardItem;
+  /** A cor da primeira opção escolhida num campo de seleção; nada escolhido ou sem cor = `undefined`. */
+  optionColor: (values: RecordValues | undefined, field: FieldDefinition) => string | undefined;
   /** Texto varrido pela busca livre — sem as URLs dos campos de arquivo. */
   searchText: (values: RecordValues | undefined) => string;
 }
@@ -252,15 +260,26 @@ export const useCustomFieldListing = (
     });
   }, [selectOptionLabels]);
 
-  const cardItems = useCallback((values: RecordValues | undefined): CustomFieldCardItem[] =>
-    listFields.map((field) => ({
+  const fieldItem = useCallback(
+    (values: RecordValues | undefined, field: FieldDefinition, options?: { badges?: boolean }): CustomFieldCardItem => ({
       key: field.key,
       label: field.listLabel || undefined,
       value: displayValue(values, field),
-      badges: field.type === 'select' && field.optionsColored ? selectBadges(values, field) : undefined,
+      badges: field.type === 'select' && (field.optionsColored || options?.badges) ? selectBadges(values, field) : undefined,
       type: field.type === 'markdown' ? 'markdown' : 'text',
-    })),
-    [listFields, displayValue, selectBadges],
+    }),
+    [displayValue, selectBadges],
+  );
+
+  const cardItems = useCallback(
+    (values: RecordValues | undefined): CustomFieldCardItem[] => listFields.map((field) => fieldItem(values, field)),
+    [listFields, fieldItem],
+  );
+
+  const optionColor = useCallback(
+    (values: RecordValues | undefined, field: FieldDefinition): string | undefined =>
+      field.type === 'select' ? selectBadges(values, field).find((badge) => badge.color)?.color : undefined,
+    [selectBadges],
   );
 
   return useMemo(() => ({
@@ -269,6 +288,8 @@ export const useCustomFieldListing = (
     matchesFilters,
     displayValue,
     cardItems,
+    fieldItem,
+    optionColor,
     searchText,
-  }), [listFields, filterDefs, matchesFilters, displayValue, cardItems, searchText]);
+  }), [listFields, filterDefs, matchesFilters, displayValue, cardItems, fieldItem, optionColor, searchText]);
 };

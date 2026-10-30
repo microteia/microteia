@@ -578,6 +578,24 @@ describe('Upgrade — atualização de versão', () => {
     expect(keys).toContain('n');
   });
 
+  it('o cartão que o escritório desenhou sobrevive à atualização que não declara cartão', async () => {
+    await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
+    screens.store.set(KEY_A, { ...screens.store.get(KEY_A)!, cardTemplate: { layout: 'list' } });
+
+    await applyPackageArtifacts(deps(), version('1.1.0', [screenT('a')]), actor);
+
+    expect(screens.store.get(KEY_A)!.cardTemplate).toEqual({ layout: 'list' });
+  });
+
+  it('o cartão que o PACOTE declara vence o que estava', async () => {
+    await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
+    screens.store.set(KEY_A, { ...screens.store.get(KEY_A)!, cardTemplate: { layout: 'list' } });
+
+    await applyPackageArtifacts(deps(), version('1.1.0', [{ ...screenT('a'), cardTemplate: { body: [{ type: 'title' }] } }]), actor);
+
+    expect(screens.store.get(KEY_A)!.cardTemplate).toEqual({ body: [{ type: 'title' }] });
+  });
+
   it('a janela de edição que o escritório pôs sobrevive à atualização que não declara nenhuma', async () => {
     await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
     screens.store.set(KEY_A, { ...screens.store.get(KEY_A)!, editWindow: { minutes: 15, delete: true } });
