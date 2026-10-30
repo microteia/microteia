@@ -38,9 +38,16 @@ export interface MfaActor {
   photoURL: string;
 }
 
+/**
+ * Quem, entre estas contas, é o administrador global (`SYSTEM`). A política do escritório não o alcança
+ * — as regras e as callables o dispensam na hora da pergunta —, e a tela não pode dizer o contrário.
+ */
+export type SystemAccountsOf = (userIds: string[]) => Promise<Set<string>>;
+
 export interface SecondFactorDeps {
   factors: IMfaFactorRepository;
   members: Pick<ITenantMemberRepository, 'getMemberAccess'>;
+  systemAccounts: SystemAccountsOf;
   sessions: IMfaSessionMinter;
   hmac: HmacSha1;
   random: RandomBytes;
@@ -202,10 +209,11 @@ export const makeSecondFactorUseCase = (deps: SecondFactorDeps): SecondFactorUse
   return {
     status: async ({ tenantId, userId }) => {
       const [access, factor] = await Promise.all([memberOf(tenantId, userId), deps.factors.get(userId)]);
+      const requirement = access.mfa && !(await deps.systemAccounts([userId])).has(userId) ? access.mfa : null;
       const now = deps.now();
       return {
-        required: access.mfa !== null,
-        reverifyMinutes: access.mfa ? access.mfa.maxAgeSeconds / 60 : null,
+        required: requirement !== null,
+        reverifyMinutes: requirement ? requirement.maxAgeSeconds / 60 : null,
         enrolled: factor?.secret != null,
         enrolledAt: factor?.enrolledAt?.toISOString() ?? null,
         recoveryCodesLeft: factor?.secret ? factor.recoveryCodes.length : 0,
@@ -323,6 +331,7 @@ export interface ManageMemberMfaDeps {
   policies: IMemberMfaPolicyRepository;
   factors: IMfaFactorRepository;
   members: Pick<ITenantMemberRepository, 'getMemberAccess' | 'listMemberAccess'>;
+  systemAccounts: SystemAccountsOf;
   /** Os escritórios de que a pessoa participa — `users/{uid}.tenantIds`. */
   tenantIdsOf: (userId: string) => Promise<string[]>;
   roleNames: (tenantId: string, roleIds: string[]) => Promise<string[]>;
@@ -396,14 +405,17 @@ export const memberMfaPolicyChangeLogs = (
 export const makeManageMemberMfaUseCase = (deps: ManageMemberMfaDeps): ManageMemberMfaUseCase => {
   const overview = async (tenantId: string): Promise<MemberMfaOverview> => {
     const [policy, members] = await Promise.all([deps.policies.get(tenantId), deps.members.listMemberAccess(tenantId)]);
-    const factors = await deps.factors.getMany(members.map((member) => member.userId));
+    const [factors, system] = await Promise.all([
+      deps.factors.getMany(members.map((member) => member.userId)),
+      deps.systemAccounts(members.filter((member) => member.mfa !== null).map((member) => member.userId)),
+    ]);
     const entries: MemberMfaEntry[] = members.map((member) => {
       const factor = factors.get(member.userId);
       return {
         userId: member.userId,
         displayName: member.displayName,
         email: member.email,
-        required: member.mfa !== null,
+        required: member.mfa !== null && !system.has(member.userId),
         enrolled: factor?.secret != null,
         enrolledAt: factor?.secret ? factor.enrolledAt?.toISOString() ?? null : null,
         lastVerifiedAt: factor?.secret ? factor.lastVerifiedAt?.toISOString() ?? null : null,

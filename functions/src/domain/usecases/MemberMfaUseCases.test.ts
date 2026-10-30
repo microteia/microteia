@@ -58,13 +58,16 @@ const setup = () => {
   };
   const now = () => clock.now;
   const logger = { error: vi.fn() };
-  const self = makeSecondFactorUseCase({ factors, members: memberRepo, sessions, hmac, random, sha256, now, audit, logger });
+  const systemIds = new Set<string>();
+  const systemAccounts = async (userIds: string[]) => new Set(userIds.filter((userId) => systemIds.has(userId)));
+  const self = makeSecondFactorUseCase({ factors, members: memberRepo, systemAccounts, sessions, hmac, random, sha256, now, audit, logger });
   const tenantIds = new Map<string, string[]>([['ana', ['t1']], ['bia', ['t1', 't2']]]);
   const materialize = vi.fn(async () => 0);
   const manage = makeManageMemberMfaUseCase({
     policies,
     factors,
     members: memberRepo,
+    systemAccounts,
     tenantIdsOf: async (userId) => tenantIds.get(userId) ?? [],
     roleNames: async (_tenantId, ids) => ids.map((id) => `Role ${id}`),
     materialize,
@@ -82,7 +85,7 @@ const setup = () => {
     return { secret: enrollment.secret, session };
   };
 
-  return { clock, factors, policies, sessions, logger, members, logs, self, manage, materialize, tenantIds, seconds, codeFor, advance, enrolled };
+  return { clock, factors, policies, sessions, logger, members, logs, self, manage, materialize, tenantIds, systemIds, seconds, codeFor, advance, enrolled };
 };
 
 describe('SecondFactorUseCase', () => {
@@ -238,6 +241,15 @@ describe('SecondFactorUseCase', () => {
     s.members.set('t1:ana', member('ana', { mfa: { maxAgeSeconds: 3600 } }));
     await expect(s.self.status({ tenantId: 't1', userId: 'ana' })).resolves.toMatchObject({ required: true, reverifyMinutes: 60, enrolled: false });
   });
+
+  it('para a conta SYSTEM o escritório não exige — e a conta rebaixada volta a ser exigida sem rematerializar (EV-36)', async () => {
+    s.members.set('t1:ana', member('ana', { mfa: { maxAgeSeconds: 3600 } }));
+    s.systemIds.add('ana');
+    await expect(s.self.status({ tenantId: 't1', userId: 'ana' })).resolves.toMatchObject({ required: false, reverifyMinutes: null });
+
+    s.systemIds.delete('ana');
+    await expect(s.self.status({ tenantId: 't1', userId: 'ana' })).resolves.toMatchObject({ required: true, reverifyMinutes: 60 });
+  });
 });
 
 describe('ManageMemberMfaUseCase', () => {
@@ -317,5 +329,13 @@ describe('ManageMemberMfaUseCase', () => {
     s.members.set('t1:bia', member('bia', { mfa: { maxAgeSeconds: 600 } }));
     const { members } = await s.manage.overview('t1');
     expect(members.map((entry) => [entry.userId, entry.required, entry.enrolled])).toEqual([['ana', false, true], ['bia', true, false]]);
+  });
+
+  it('a conta SYSTEM não aparece como exigida, mesmo com a exigência materializada no documento dela (EV-36)', async () => {
+    s.members.set('t1:ana', member('ana', { mfa: { maxAgeSeconds: 600 } }));
+    s.members.set('t1:bia', member('bia', { mfa: { maxAgeSeconds: 600 } }));
+    s.systemIds.add('ana');
+    const { members } = await s.manage.overview('t1');
+    expect(members.map((entry) => [entry.userId, entry.required])).toEqual([['ana', false], ['bia', true]]);
   });
 });

@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.180.1] — 2026-10-30
+
+- fix(rules/mfa): `isTenantMember` exempts the `SYSTEM` account from the organization's second-factor policy — `belongsToTenant && (sessionSatisfiesMfa(member) || isSystemAdmin())` — as `can()` and the callables (`assertMemberSession`) already did (EV-36). Before, a `SYSTEM` owner of an organization with the policy on got `mfa` materialized (the owner's `*` falls under every permission-based policy), was never asked for the code, and was refused every write that asks `isTenantMember` alone: marking `notification_inbox` as read (the bell never emptied, with "could not mark notifications as read") and voting in `extension_stats/{id}/ratings`. The `SYSTEM` term is read only when the session check fails, so no member pays an extra read.
+- fix(storage/mfa): `memberSessionOk` ends in `isSystemOrSupportUser()` for the same reason — `canInTenant` checked the owner's session without it, and a `SYSTEM` owner could not upload the organization logo.
+- fix(mfa/status): `secondFactor.status` and `manageMemberMfa.overview` report `required: false` for `SYSTEM` accounts (new `IUserRepository.getSystemAccounts`, one `getAll`), so the Security tab no longer lists the account as pending and the personal panel no longer says the organization requires it.
+- Not changed on purpose: `materializeMemberPermissions` still writes `mfa` for `SYSTEM` members. The role lives on the account and changes by a direct write that triggers no rematerialization; dropping `mfa` there would leave a demoted account unchallenged until some unrelated run (fail-open). With the exemption at the check, a demoted account is challenged at once — covered by `rules-tests/memberMfa.test.ts`. No package declaration, manifest shape or `KERNEL_VERSION` change; requires `npm run deploy:rules` and deploying the `secondFactor` and `manageMemberMfa` functions.
+
 #### [9.180.0] — 2026-10-30
 
 - feat(portal/form): the portal's create and edit form (`portal.create`, `portal.edit`) applies the field's `mask` preset and runs `logic.onChangeLookup`, as the organization's form does (EV-34). Before, a `masked` field was plain text and no field logic ran — the zip code filled the address in the organization and nothing in the portal. The cause was the kernel, not the form: the portal runs on the boot kernel only, the core declares no mask and no lookup provider (they all come from extensions such as `brasil`), and a guest cannot read `installed_extensions`.

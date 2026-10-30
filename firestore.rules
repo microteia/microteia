@@ -53,9 +53,15 @@ service cloud.firestore {
     // é a condição que precisa ser verdadeira ANTES de ler o documento, e o SYSTEM pode não ter um.
     // A leitura do documento é a mesma do exists() — e a mesma que memberPermissions() faz —, então o
     // segundo fator não custa leitura nenhuma a mais.
+    //
+    // O SYSTEM que É membro não é alcançado pela política do escritório — a mesma decisão de can() e de
+    // `assertMemberSession` nas callables. O `mfa` continua materializado no documento dele (a política
+    // o alcança como alcança qualquer um); quem o dispensa é a pergunta, aqui, e só quando a sessão
+    // falharia: não custa leitura a quem já passou, e a conta rebaixada a USER volta a ser cobrada no
+    // instante, sem esperar materialização nenhuma (EV-36).
     function isTenantMember(tenantId) {
       return belongsToTenant(tenantId)
-        && sessionSatisfiesMfa(memberData(tenantId));
+        && (sessionSatisfiesMfa(memberData(tenantId)) || isSystemAdmin());
     }
 
     // Verifica se o usuário é membro do tenant (ou SYSTEM, que conta como membro de todos)

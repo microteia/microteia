@@ -900,7 +900,7 @@ regra que tem uma decisão a defender:
 | `backendState.test.ts` | o cliente lê e nunca escreve: escrita liberada deixaria forjar a lista de órfãs do provisionamento |
 | `portalReprojections.test.ts` | o job da reprojeção: lê só quem tem `portal.manage`; ninguém grava do cliente |
 | `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
-| `memberMfa.test.ts` | o segundo fator: sem `mfa` no membro, nada muda; exigido, a sessão sem `mfaAt` não lê nem grava (mas lê o próprio escritório e o próprio documento de membro); a prova vencida lê e não grava; o curinga do dono não pula o fator; o `SYSTEM` não é alcançado; ninguém apaga `mfa` do membro; política e fator fechados ao cliente; o Storage segue a mesma conta |
+| `memberMfa.test.ts` | o segundo fator: sem `mfa` no membro, nada muda; exigido, a sessão sem `mfaAt` não lê nem grava (mas lê o próprio escritório e o próprio documento de membro); a prova vencida lê e não grava; o curinga do dono não pula o fator; o `SYSTEM` não é alcançado — nem como DONO, no sino, no voto e no logo, e a conta rebaixada volta a ser cobrada sem rematerializar (EV-36); ninguém apaga `mfa` do membro; política e fator fechados ao cliente; o Storage segue a mesma conta |
 | `memberVisibility.test.ts` | a visibilidade por registro: só o registro que nomeia o membro, pelo campo simples ou pelo `multi` (e o mapa forjado não passa); a consulta sem filtro recusada e a do repositório aceita, inclusive com o filtro do pai; supervisão derivada, nomeada, dono e `SYSTEM`; declaração malformada fecha; alterar e excluir pedem ver, criar não; anotações, documentos e arquivos seguem o registro; quem só desenha telas não muda nem exclui a declaração |
 
 Ela fica **fora do `npm test`**, com configuração própria (`vitest.rules.config.ts`), porque exige um
@@ -1018,6 +1018,28 @@ As três pontas fazem a MESMA conta:
 O `SYSTEM` não é alcançado por política de escritório — nem nas regras (`isSystemAdmin()` é o primeiro
 termo de `can`) nem nas callables (consultado só quando a sessão falharia). A conta global deve ser
 protegida pelo provedor de entrada; o pré-requisito `self-service-tenants` diz isso a quem instala.
+
+#### A dispensa do `SYSTEM` mora na PERGUNTA, não no documento (EV-36)
+
+A decisão acima tinha chegado a `can()`, às callables e ao `TenantStore` — e não a `isTenantMember`, que
+as regras usam sozinho onde o membro grava o que é DELE: marcar o sino como lido, votar numa extensão. O
+`SYSTEM` que é dono de um escritório com a política ligada recebe o `mfa` como qualquer dono (o curinga
+entra em toda política por permissão), a tela não lhe pede o código, e essas gravações eram recusadas —
+ele lia o sino e nunca o esvaziava. No Storage, o mesmo: `canInTenant` cobrava a sessão do dono sem
+perguntar se era `SYSTEM`, e o logo do escritório não subia.
+
+| Onde | Como dispensa |
+|---|---|
+| `firestore.rules` | `isTenantMember` = pertence **e** (`sessionSatisfiesMfa` **ou** `isSystemAdmin()`) — o segundo termo só é lido quando o primeiro falha |
+| `storage.rules` | `memberSessionOk` termina em `isSystemOrSupportUser()`, pelo mesmo motivo |
+| Callables | `assertMemberSession` — já era assim |
+| Tela | `TenantStore` não consulta a exigência; `secondFactor.status` e `manageMemberMfa.overview` dizem `required: false` à conta global (`IUserRepository.getSystemAccounts`, uma leitura só) |
+
+**O `mfa` continua materializado para ela, de propósito.** O papel é da CONTA (`users/{uid}.role`), muda
+por uma gravação direta do `SYSTEM`, e nada rematerializa os membros quando ele muda. Tirar o `mfa` do
+documento faria a conta REBAIXADA a `USER` ficar sem exigência até alguma materialização alheia — falha
+aberta. Com a dispensa na pergunta, a rebaixada volta a ser cobrada no instante, e o documento de membro
+continua dizendo só o que a política do escritório diz, como `permissions` não carrega o `SYSTEM` também.
 
 A superfície de servidor das extensões (`requireInstalledExtension`) recebe o mesmo cuidado:
 `CallerRequest.auth` ganhou `token`, opcional no tipo (todo `onCall` já o tem) e lido pelo portão.

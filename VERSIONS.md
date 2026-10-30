@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.180.1] — 2026-10-30
+
+- Corrigido um problema que impedia o administrador geral da instalação de marcar as notificações como lidas, votar em extensões e trocar o logo nos escritórios de que é dono, quando o escritório exigia o código de verificação em duas etapas. O sino agora esvazia normalmente para ele, e a tela de Segurança deixou de listá-lo como alguém que ainda precisa cadastrar o código.
+
 #### [9.180.0] — 2026-10-30
 
 - No portal, o formulário de envio e de alteração passou a se comportar como o do escritório: CPF, telefone, CEP e outros campos formatados ganham a máscara enquanto o convidado digita, e o CEP preenche sozinho o endereço — só nos campos que o convidado pode preencher naquele formulário.

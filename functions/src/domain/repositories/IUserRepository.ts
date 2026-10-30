@@ -29,6 +29,8 @@ export interface StoredUser {
 export interface IUserRepository {
   getUserInfo(userId: string): Promise<UserInfo>;
   getUserRole(userId: string): Promise<string | null>;
+  /** Quem, entre estas contas, é o administrador global (`role: 'SYSTEM'`) — numa leitura só. */
+  getSystemAccounts(userIds: string[]): Promise<Set<string>>;
   /** Idempotente — não sobrescreve e devolve `null` se o documento já existir. */
   createUserIfMissing(userId: string, data: CreateUserInput): Promise<CreatedUser | null>;
   /**

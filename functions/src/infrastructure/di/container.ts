@@ -816,6 +816,7 @@ class DIContainer {
     return makeSecondFactorUseCase({
       factors: this.getMfaFactorRepository(),
       members: this.getTenantMemberRepository(),
+      systemAccounts: (userIds) => this.getUserRepository().getSystemAccounts(userIds),
       sessions: new FirebaseMfaSessionMinter(getAuth()),
       hmac: (key, message) => new Uint8Array(createHmac('sha1', key).update(message).digest()),
       random: (size) => new Uint8Array(randomBytes(size)),
@@ -840,6 +841,7 @@ class DIContainer {
       policies: this.getMemberMfaPolicyRepository(),
       factors: this.getMfaFactorRepository(),
       members: this.getTenantMemberRepository(),
+      systemAccounts: (userIds) => this.getUserRepository().getSystemAccounts(userIds),
       tenantIdsOf: (userId) => this.getUserRepository().getTenantIds(userId),
       roleNames: async (tenantId, roleIds) => {
         const snaps = await getDb().getAll(...roleIds.map((roleId) => getDb().doc(`tenants/${tenantId}/roles/${roleId}`)));

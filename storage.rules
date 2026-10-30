@@ -30,9 +30,13 @@ service firebase.storage {
         || (verifiedAt is number && verifiedAt > 0
             && (!acting || request.time.toMillis() < (verifiedAt + requirement.maxAgeSeconds) * 1000));
     }
+    // O SYSTEM não é alcançado pela política do escritório, mesmo sendo DONO dele — a mesma dispensa
+    // de `isTenantMember` no `firestore.rules`, consultada só quando a sessão falharia (EV-36).
     function memberSessionOk(tenantId, acting) {
       let memberPath = /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
-      return !firestore.exists(memberPath) || sessionSatisfiesMfa(firestore.get(memberPath).data, acting);
+      return !firestore.exists(memberPath)
+        || sessionSatisfiesMfa(firestore.get(memberPath).data, acting)
+        || isSystemOrSupportUser();
     }
     function isTenantMemberOrElevated(tenantId) {
       let memberPath = /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);

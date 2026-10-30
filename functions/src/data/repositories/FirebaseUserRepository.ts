@@ -27,6 +27,12 @@ export class FirebaseUserRepository implements IUserRepository {
     return (snap.data()?.role as string | undefined) ?? null;
   }
 
+  async getSystemAccounts(userIds: string[]): Promise<Set<string>> {
+    if (userIds.length === 0) return new Set();
+    const snaps = await this.db.getAll(...userIds.map((userId) => this.db.collection('users').doc(userId)));
+    return new Set(snaps.filter((snap) => snap.get('role') === 'SYSTEM').map((snap) => snap.id));
+  }
+
   /**
    * O PRIMEIRO usuário do sistema nasce `SYSTEM`; todos os demais nascem `USER`.
    *
