@@ -1659,8 +1659,6 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
     goHome(): void;
     /** The guest's name is the one they filled in their profile, else their account's; empty when neither has one. */
     user: { name: string; email: string; initials: string; photoURL: string | null };
-    /** Opens the guest's profile page, where they tell this organization their name. Offer it in a custom user corner. */
-    openProfile(): void;
     /** "Automatic" plus the themes available, as the main app offers them; the choice stays in this browser. */
     themes: Array<{ id: string; label: string; primaryColor: string; backgroundColor: string; active: boolean }>;
     setTheme(id: string): void;

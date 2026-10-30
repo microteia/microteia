@@ -1951,28 +1951,28 @@ marca.
 A pilha de registros abertos é do item do menu (`PortalNavigationProvider`, escopo `escritório|item`):
 ir para o Extrato não carrega a pilha do prestador.
 
-### O perfil do convidado e os marcadores das boas-vindas
+### O nome do convidado e os marcadores das boas-vindas
 
-O nome que o portal mostra era o da CONTA: quem entra por e-mail e senha ou por link não tem nome
-nenhum, e a home dizia "Olá, alexnaldo@…". O convidado agora o informa em **Meu perfil** (menu da
-conta, `PortalUserMenu` → `/portal/<escritório>/account.profile` — item de menu é coleção, sem ponto,
-ou `page.<plugin>.<chave>`, e este não colide com nenhum).
+O nome que o portal mostra é o da CONTA (`displayName` do Firebase Auth): o Google o traz, e a entrada
+verificada por provedor o grava ao criar a conta (`ensureAccount`, com o nome atestado). Quem entra por
+link no e-mail não tem nome, e o portal mostra o e-mail — é o comportamento esperado, não uma lacuna.
 
-| Decisão | Por quê |
-|---|---|
-| O perfil mora no CONVITE (`portalUsers/{uid}.profile`), e não na conta | cada escritório lê só o que o convidado informou a ELE; dado novo entra sem tocar na autenticação |
-| O convidado grava direto, sem callable | a regra deixa mudar do próprio convite só `profile`, com as chaves de `PORTAL_PROFILE_KEYS` e até `PORTAL_PROFILE_VALUE_MAX`; vínculos, escritório e quem convidou continuam do servidor. `scripts/portalProfileRules.test.ts` reprova a regra que divergir das constantes |
-| O e-mail não está no perfil | é com ele que a pessoa entra; trocá-lo é da autenticação |
-| O nome vale em todo lugar | `portalGuestName` (perfil, senão conta): a casca, a lista de convidados do escritório e o aviso de atividade (`getPortalUser`/`listPortalUsers` no servidor) |
+Houve um **Meu perfil** (9.154.0–9.181.0), em que o convidado informava o nome a cada escritório
+(`portalUsers/{uid}.profile`, gravado por ele direto, com regra própria). Saiu quando a entrada
+verificada passou a trazer o nome atestado: um segundo nome, digitado pelo convidado, competia com ele
+na casca e na lista de convidados do escritório, e a tela mostrava vazio o campo de quem já tinha nome.
+O que algum convidado gravou em `profile` ficou no documento e não é mais lido. O convite voltou a ser
+escrito só pelo servidor (`allow create, update, delete: if false`).
 
 As boas-vindas aceitam marcadores, na sintaxe `{nome}` do catálogo (`fillPortalWelcome`):
-`{firstName}`, `{name}`, `{email}`, `{office}` e um `{profile.<chave>}` por chave do perfil — gerado de
-`PORTAL_PROFILE_KEYS`, e por isso a chave nova do perfil vira marcador sem mudar o resto. O nome cai no
-da conta e depois no e-mail, para a frase nunca ficar com um buraco; o marcador desconhecido fica como
-o escritório o escreveu. A dica da configuração lista os marcadores a partir da mesma constante.
+`{firstName}`, `{name}`, `{email}` e `{office}` (`PORTAL_WELCOME_PLACEHOLDERS`). O nome cai no e-mail,
+para a frase nunca ficar com um buraco; o marcador desconhecido — inclusive o antigo `{profile.name}` —
+fica como o escritório o escreveu. A dica da configuração lista os marcadores a partir da mesma
+constante.
 
-`PortalShell.openProfile` (KERNEL_VERSION 2.67.0) leva ao perfil a casca de uma extensão que desenhe o
-próprio canto da conta.
+`PortalShell.openProfile` saiu do contrato do layout sem subir o major do KERNEL_VERSION: o 3.0.0
+deixaria incompatível toda extensão instalada (`^2.x`) por um membro que nenhuma usava — conferido nas
+instalações conhecidas antes da remoção.
 
 ### Anexar pelo portal — `portal.uploads`
 

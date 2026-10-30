@@ -8,7 +8,6 @@ import { Spinner } from '../../../../components/ui/Spinner';
 import { PortalCreateForm } from '../PortalCreateForm';
 import { PortalUploadForm } from '../PortalUploadForm';
 import { PortalRecordActions } from '../PortalRecordActions';
-import { PortalProfile } from '../PortalProfile';
 import { PortalCardList } from '../PortalCardList';
 import { PortalTemplateNodes } from '../PortalTemplateNodes';
 import { useT } from '../../../../shared/i18n/useT';
@@ -220,7 +219,7 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
           onCancel={vm.cancelCreate}
           onSubmitted={vm.creating.editing ? vm.handleSaved : vm.handleSubmitted}
         />
-      ) : vm.atHome ? homeContent : vm.atProfile ? <PortalProfile /> : entryContent}
+      ) : vm.atHome ? homeContent : entryContent}
     </>
   );
 };

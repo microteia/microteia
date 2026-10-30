@@ -4,8 +4,7 @@ import { useAuth } from '../../../../../stores/useAuth';
 import { usePortal } from '../../../../../stores/usePortal';
 import { useTheme, AUTOMATIC_THEME } from '../../../../../stores/useTheme';
 import { useLabel, useT } from '../../../../shared/i18n/useT';
-import { PORTAL_PATH, PORTAL_PROFILE_ENTRY, portalEntryPath, portalTenantPath } from '../../portalPaths';
-import { portalGuestName } from '../../../../../domain/schema/portal';
+import { PORTAL_PATH, portalEntryPath, portalTenantPath } from '../../portalPaths';
 
 export interface PortalShellMenuItem {
   id: string;
@@ -37,8 +36,6 @@ export interface PortalShellViewModel {
   openEntry: (id: string) => void;
   goHome: () => void;
   user: { name: string; email: string; initials: string; photoURL: string | null };
-  /** Abre o perfil do convidado — o nome que ele informa a este escritório. */
-  openProfile: () => void;
   themes: PortalShellThemeOption[];
   setTheme: (id: string) => void;
   /** Convidado de mais de um escritório: o seletor de escritório. */
@@ -124,24 +121,17 @@ export const usePortalShellViewModel = (): PortalShellViewModel => {
     ];
   }, [available, themeId, preferred, label]);
 
-  const accountName = user?.displayName && !user.displayName.includes('@') ? user.displayName : '';
-  const name = portalGuestName(portal.profile, accountName);
+  const name = user?.displayName && !user.displayName.includes('@') ? user.displayName : '';
   const active = menu.find((one) => one.active);
-  const atProfile = entryId === PORTAL_PROFILE_ENTRY;
 
   return {
     tenant: { name: portal.context?.tenantName ?? '', logoURL: portal.context?.logoURL ?? null },
     home: { title: t('portal.home'), active: !entryId },
     menu,
-    pageTitle: active?.title ?? (atProfile ? t('portal.profile') : t('portal.home')),
+    pageTitle: active?.title ?? t('portal.home'),
     openEntry,
     goHome,
     user: { name, email: user?.email ?? '', initials: initialsOf(name || user?.email || ''), photoURL: user?.photoURL ?? null },
-    openProfile: () => {
-      setUserMenuOpen(false);
-      setNavOpen(false);
-      navigate(portalEntryPath(tenantPath, PORTAL_PROFILE_ENTRY));
-    },
     themes,
     setTheme: (id) => {
       applyTheme(id);

@@ -1142,34 +1142,3 @@ export const portalDeclarationIssues = (
   issues.push({ message: '@core.records/portal.issue.too-deep' });
   return issues;
 };
-
-/**
- * O PERFIL que o convidado mantém neste escritório — `portalUsers/{uid}.profile`. Mora no convite, e
- * não na conta: cada escritório lê só o que o convidado informou a ELE, e o dado novo entra aqui sem
- * tocar na autenticação. O e-mail não está no perfil: é com ele que a pessoa entra.
- *
- * A lista é FECHADA, e as Security Rules a repetem (`profile.keys().hasOnly(...)`): o convidado grava o
- * próprio convite direto, sem callable, e só o que estiver aqui.
- */
-export const PORTAL_PROFILE_FIELD = 'profile';
-export const PORTAL_PROFILE_KEYS = ['name'] as const;
-export const PORTAL_PROFILE_VALUE_MAX = 120;
-
-export type PortalProfileKey = (typeof PORTAL_PROFILE_KEYS)[number];
-export type PortalProfile = Partial<Record<PortalProfileKey, string>>;
-
-/** Só as chaves conhecidas, com texto aparado e dentro do limite; o valor vazio sai. */
-export const asPortalProfile = (value: unknown): PortalProfile => {
-  if (!value || typeof value !== 'object') return {};
-  const raw = value as Record<string, unknown>;
-  const profile: PortalProfile = {};
-  for (const key of PORTAL_PROFILE_KEYS) {
-    const text = typeof raw[key] === 'string' ? raw[key].trim().slice(0, PORTAL_PROFILE_VALUE_MAX) : '';
-    if (text) profile[key] = text;
-  }
-  return profile;
-};
-
-/** O nome do convidado: o que ele informou no perfil, senão o da conta com que entrou. */
-export const portalGuestName = (profile: PortalProfile, accountName: string): string =>
-  profile.name || accountName;

@@ -1,10 +1,10 @@
 import React from 'react';
-import { RiCheckLine, RiLogoutBoxRLine, RiSwapLine, RiUserLine } from 'react-icons/ri';
+import { RiCheckLine, RiLogoutBoxRLine, RiSwapLine } from 'react-icons/ri';
 import { S } from './PortalUserMenu.styles';
 import type { PortalShellViewModel } from '../PortalShell/PortalShell.viewmodel';
 import { useT } from '../../../../shared/i18n/useT';
 
-/** O canto do usuário: quem está conectado, o perfil, o tema, a troca de escritório e a saída. */
+/** O canto do usuário: quem está conectado, o tema, a troca de escritório e a saída. */
 export const PortalUserMenu: React.FC<{ shell: PortalShellViewModel }> = ({ shell: { attachUserMenu, ...shell } }) => {
   const t = useT('core.tenant');
   const avatar = (
@@ -35,11 +35,6 @@ export const PortalUserMenu: React.FC<{ shell: PortalShellViewModel }> = ({ shel
               <S.Email>{shell.user.email}</S.Email>
             </S.IdentityText>
           </S.Identity>
-          <S.Item type="button" role="menuitem" onClick={shell.openProfile}>
-            <RiUserLine size={16} />
-            {t('portal.profile')}
-          </S.Item>
-          <S.Divider />
           <S.SectionLabel>{t('portal.user.theme')}</S.SectionLabel>
           {shell.themes.map((theme) => (
             <S.Item key={theme.id} type="button" role="menuitemradio" aria-checked={theme.active} $active={theme.active} onClick={() => shell.setTheme(theme.id)}>

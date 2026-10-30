@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.182.0] — 2026-10-30
+
+- O portal não tem mais a página "Meu perfil". O nome exibido é o da conta com que a pessoa entra — o da conta Google ou o nome confirmado na entrada verificada; quem entra pelo link do e-mail aparece pelo próprio endereço.
+- A mensagem de boas-vindas do portal deixa de aceitar o marcador `{profile.name}`; use `{name}` ou `{firstName}`.
+
 #### [9.181.0] — 2026-10-30
 
 - O portal ganhou aparência própria por tela, sem programação: na aba Portal do desenho de telas, o escritório escolhe se a lista mostra um registro por linha ou em grade e pode desenhar o cartão da lista e o registro aberto — dando destaque aos campos que mais importam (maior, em negrito ou como selo colorido), agrupando informações em blocos com título e mostrando avisos só quando fazem sentido. O mesmo cartão vale na lista principal e dentro do registro pai.

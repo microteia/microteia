@@ -23,11 +23,8 @@ import {
   PORTAL_INVITES_COLLECTION,
   PORTAL_RECORDS_COLLECTION,
   PORTAL_REPROJECTIONS_COLLECTION,
-  PORTAL_PROFILE_FIELD,
   PORTAL_USERS_COLLECTION,
   asPortalDeclaration,
-  asPortalProfile,
-  portalGuestName,
   portalUploadStagingPath,
 } from '../../domain/schema/portal';
 import { readPortalReprojectionState } from '../../domain/schema/portalReprojection';
@@ -380,7 +377,7 @@ export class FirebasePortalRepository implements IPortalRepository {
     return {
       userId: snapshot.id,
       email: asString(data.email),
-      displayName: portalGuestName(asPortalProfile(data[PORTAL_PROFILE_FIELD]), asString(data.displayName)),
+      displayName: asString(data.displayName),
       subjectKeys: asStrings(data.subjectKeys),
       ...(asString(data.locale) ? { locale: asString(data.locale) } : {}),
       ...(identity ? { identity } : {}),
@@ -393,7 +390,7 @@ export class FirebasePortalRepository implements IPortalRepository {
     return snapshot.docs.map((doc) => ({
       userId: doc.id,
       email: asString(doc.get('email')),
-      displayName: portalGuestName(asPortalProfile(doc.get(PORTAL_PROFILE_FIELD)), asString(doc.get('displayName'))),
+      displayName: asString(doc.get('displayName')),
       subjectKeys: asStrings(doc.get('subjectKeys')),
     }));
   }

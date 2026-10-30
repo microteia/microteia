@@ -742,12 +742,11 @@ export default function CompactLayout({ children }: { children: React.ReactNode 
 }
 \`\`\`
 
-\`shell\` carries the brand, the menu, the page title, the guest, the guest's profile page
-(\`openProfile\`, where the guest tells this organization their name — since kernel 2.67.0), the themes
+\`shell\` carries the brand, the menu, the page title, the guest (whose name is the account's), the themes
 (the same "Automatic" plus installed themes the main app offers, remembered in the browser), switching
 organization, signing out, and the open/closed state of a drawer (\`navOpen\`, \`toggleNav\`) and of the
 account menu. \`PortalUserMenu\` already offers all of it. A layout that draws its own account corner
-must offer the profile, the theme and signing out — and must keep the menu reachable.
+must offer the theme and signing out — and must keep the menu reachable.
 
 #### The portal is used on a phone first — design for it
 

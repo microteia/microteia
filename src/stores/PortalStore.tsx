@@ -12,13 +12,11 @@ import {
   makeListPortalRecordActionsUseCase,
   makeRecordPortalViewUseCase,
   makeRunPortalRecordActionUseCase,
-  makeSavePortalProfileUseCase,
   makeSubmitPortalRecordUseCase,
   makeUpdatePortalRecordUseCase,
   makeUploadPortalDocumentUseCase,
 } from '../domain/usecases/portal/PortalUseCases';
 import type { PortalContext, PortalMembership, PortalRecord } from '../domain/entities/Portal';
-import { asPortalProfile, type PortalProfile } from '../domain/schema/portal';
 
 /** A recusa do convite suspenso — o servidor a nomeia, e a casca diz o que fazer em vez de "revogado". */
 const IDENTITY_REQUIRED = '@core.tenant/portal.signin.identity-required';
@@ -78,7 +76,6 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     submit: makeSubmitPortalRecordUseCase(portalRepository),
     update: makeUpdatePortalRecordUseCase(portalRepository),
     upload: makeUploadPortalDocumentUseCase(portalRepository),
-    saveProfile: makeSavePortalProfileUseCase(portalRepository),
   }), [portalRepository]);
 
   const [memberships, setMemberships] = useState<PortalMembership[]>([]);
@@ -261,21 +258,6 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     await uc.upload.execute({ tenantId, userId, collection: targetCollection, recordId, file, type });
   }, [tenantId, userId, uc.upload]);
 
-  const profile = useMemo<PortalProfile>(
-    () => memberships.find((membership) => membership.tenantId === tenantId)?.profile ?? {},
-    [memberships, tenantId],
-  );
-
-  // O convite é lido uma vez por visita: o perfil gravado entra no estado na hora, sem esperar a releitura.
-  const saveProfile = useCallback(async (next: PortalProfile) => {
-    if (!tenantId || !userId) return;
-    const saved = asPortalProfile(next);
-    await uc.saveProfile.execute(tenantId, userId, saved);
-    setMemberships((current) => current.map((membership) => (
-      membership.tenantId === tenantId ? { ...membership, profile: saved } : membership
-    )));
-  }, [tenantId, userId, uc.saveProfile]);
-
   const value = useMemo(() => ({
     memberships,
     membershipsLoading,
@@ -300,13 +282,11 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     submit,
     update,
     userId,
-    profile,
-    saveProfile,
     uploadDocument,
   }), [
     memberships, membershipsLoading, membershipsFailed, tenantId, context, contextLoading, error, errorCode,
     retryContext, retryMemberships, recordsByCollection, isCollectionLoading, getDocuments, getDocumentUrl, recordView, subscribeChildren,
-    listRecordActions, runRecordAction, listLinkOptions, submit, update, userId, profile, saveProfile, uploadDocument,
+    listRecordActions, runRecordAction, listLinkOptions, submit, update, userId, uploadDocument,
   ]);
 
   return <PortalStoreContext.Provider value={value}>{children}</PortalStoreContext.Provider>;

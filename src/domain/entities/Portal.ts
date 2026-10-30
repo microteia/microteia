@@ -1,7 +1,6 @@
 import type { QualifiedContribution } from '../schema/plugin/contribution';
 import type { PortalFieldInput } from '../schema/portalFieldInput';
 import type { PortalTemplate } from '../schema/ui/portalTemplate';
-import { PORTAL_PROFILE_KEYS, portalGuestName, type PortalProfile } from '../schema/portal';
 import type {
   PortalIdentityProvider,
   PortalRequiredClaim,
@@ -15,8 +14,6 @@ export interface PortalMembership {
   tenantName: string;
   /** O idioma de quem convidou — vale antes de haver contexto, e nas telas de erro. */
   locale?: string;
-  /** O que o convidado informou a ESTE escritório. */
-  profile: PortalProfile;
 }
 
 /** Uma tela exposta, como o portal a recebe: só os campos expostos, com os rótulos já traduzidos. */
@@ -209,36 +206,24 @@ export interface PortalSignInSettingsView extends PortalSignInSettings {
 
 /**
  * Os marcadores que as boas-vindas do escritório aceitam — a mesma sintaxe `{nome}` do catálogo de
- * mensagens. Os fixos são o que o portal sabe sem perguntar; cada chave do perfil do convidado vira
- * `{profile.<chave>}` sozinha, e por isso o perfil cresce sem que esta lista precise mudar.
+ * mensagens, e só o que o portal sabe sem perguntar.
  */
-export const PORTAL_WELCOME_PLACEHOLDERS: readonly string[] = [
-  'firstName',
-  'name',
-  'email',
-  'office',
-  ...PORTAL_PROFILE_KEYS.map((key) => `profile.${key}`),
-];
+export const PORTAL_WELCOME_PLACEHOLDERS: readonly string[] = ['firstName', 'name', 'email', 'office'];
 
 /**
- * Os valores dos marcadores. O nome é o do perfil, senão o da conta, senão o e-mail — a frase nunca
- * fica com um buraco no lugar do nome.
+ * Os valores dos marcadores. O nome é o da conta, senão o e-mail — a frase nunca fica com um buraco
+ * no lugar do nome.
  */
 export const portalWelcomeValues = (input: {
-  profile: PortalProfile;
   accountName: string;
   email: string;
   office: string;
-}): Record<string, string> => {
-  const known = portalGuestName(input.profile, input.accountName);
-  return {
-    firstName: known ? known.split(/\s+/)[0] : input.email,
-    name: known || input.email,
-    email: input.email,
-    office: input.office,
-    ...Object.fromEntries(PORTAL_PROFILE_KEYS.map((key) => [`profile.${key}`, input.profile[key] ?? ''])),
-  };
-};
+}): Record<string, string> => ({
+  firstName: input.accountName ? input.accountName.split(/\s+/)[0] : input.email,
+  name: input.accountName || input.email,
+  email: input.email,
+  office: input.office,
+});
 
 /**
  * Preenche os marcadores conhecidos. O desconhecido fica como está: chave entre chaves pode ser
