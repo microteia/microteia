@@ -834,6 +834,116 @@ describe('o convidado cria um registro', () => {
   });
 });
 
+describe('a segunda referência do formulário do portal (EV-37)', () => {
+  const REQUESTS: PortalScreen = {
+    id: 'requests',
+    collection: 'requests',
+    titleFieldKey: 'subject',
+    titleSingular: 'Request',
+    titlePlural: 'Requests',
+    icon: 'mail',
+    fields: [
+      { key: 'subject', label: 'Subject', type: 'text' },
+      { key: 'companyId', label: 'Company', type: 'reference', refEntity: 'companies' },
+      { key: 'invoiceId', label: 'Invoice', type: 'reference', refEntity: 'invoices' },
+      { key: 'relatedIds', label: 'Related', type: 'reference', refEntity: 'invoices', multi: true },
+      { key: 'inspectionId', label: 'Inspection', type: 'reference', refEntity: 'inspections' },
+    ],
+    portal: {
+      subject: { field: 'companyId' },
+      fields: ['subject', 'invoiceId'],
+      create: { fields: ['subject', 'invoiceId', 'relatedIds', 'inspectionId'] },
+      edit: { fields: ['subject', 'invoiceId'] },
+    },
+  };
+  const projectionOf = (recordId: string, company: string, audience: string[]) => ({
+    collection: 'invoices', recordId, screenId: 'invoices', subjectKeys: [`companies/${company}`], audience,
+    title: recordId, data: {}, labels: {}, parentKeys: [`companies/${company}`], parentKey: `companies/${company}`,
+    editable: false, portalOwner: null,
+  });
+
+  const setup = () => {
+    const fake = makeFakePortalRepository([...CITY_SCREENS, REQUESTS]);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    fake.users.set('bia', { userId: 'bia', email: 'bia@globex.com', displayName: 'Bia', subjectKeys: ['companies/globex'] });
+    fake.projections.set('invoices__nf1', projectionOf('nf1', 'acme', ['ana']));
+    fake.projections.set('invoices__nf2', projectionOf('nf2', 'acme', ['ana']));
+    fake.projections.set('invoices__nf9', projectionOf('nf9', 'globex', ['bia']));
+    const write = vi.fn(async (input: { data: Record<string, unknown>; recordId?: string }) => ({ ok: true as const, id: input.recordId ?? 'rq-1' }));
+    return { fake, write, submit: makeSubmitPortalRecordUseCase(fake.repo, write), update: makeUpdatePortalRecordUseCase(fake.repo, write) };
+  };
+  const create = (data: Record<string, unknown>) =>
+    ({ tenantId: TENANT, userId: 'ana', collection: 'requests', linkRecordId: 'acme', data });
+
+  it('o convidado cria ligado a dois registros dele: o vínculo e a nota que ele escolheu', async () => {
+    const { submit, write } = setup();
+    await submit.execute(create({ subject: 'Dúvida', invoiceId: 'nf1', relatedIds: ['nf1', 'nf2'] }));
+    expect(write).toHaveBeenCalledWith(expect.objectContaining({
+      data: { subject: 'Dúvida', invoiceId: 'nf1', relatedIds: ['nf1', 'nf2'], companyId: 'acme' },
+    }));
+  });
+
+  it('a nota de outro convidado é recusada com a frase do vínculo, e nada é gravado', async () => {
+    const { submit, write } = setup();
+    await expect(submit.execute(create({ subject: 'X', invoiceId: 'nf9' }))).rejects.toThrow('@core.tenant/portal.create.denied');
+    await expect(submit.execute(create({ subject: 'X', relatedIds: ['nf1', 'nf9'] }))).rejects.toThrow('@core.tenant/portal.create.denied');
+    await expect(submit.execute(create({ subject: 'X', invoiceId: 'nao-existe' }))).rejects.toThrow('@core.tenant/portal.create.denied');
+    await expect(submit.execute(create({ subject: 'X', invoiceId: { id: 'nf1' } }))).rejects.toThrow('@core.tenant/portal.create.denied');
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('a revogação vale no instante: o audience ainda lista, o convite não', async () => {
+    const { submit, fake, write } = setup();
+    fake.projections.set('invoices__nf9', projectionOf('nf9', 'globex', ['ana', 'bia']));
+    await expect(submit.execute(create({ subject: 'X', invoiceId: 'nf9' }))).rejects.toThrow('@core.tenant/portal.create.denied');
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('sem a segunda referência, e com a de tela fora do portal, tudo segue como antes', async () => {
+    const { submit, write } = setup();
+    await submit.execute(create({ subject: 'Só texto' }));
+    await submit.execute(create({ subject: 'Fora', inspectionId: 'insp-1' }));
+    expect(write.mock.calls.map(([input]) => input.data)).toEqual([
+      { subject: 'Só texto', companyId: 'acme' },
+      { subject: 'Fora', inspectionId: 'insp-1', companyId: 'acme' },
+    ]);
+  });
+
+  it('na edição, trocar para uma nota de outro é recusado; manter a que o escritório pôs, não', async () => {
+    const { update, fake, write } = setup();
+    fake.records.set('requests/rq1', { subject: 'A', companyId: 'acme', invoiceId: 'office-set' });
+    fake.projections.set('requests__rq1', {
+      ...projectionOf('rq1', 'acme', ['ana']), collection: 'requests', screenId: 'requests', editable: true,
+    });
+    const edit = (data: Record<string, unknown>) => update.execute({ tenantId: TENANT, userId: 'ana', collection: 'requests', recordId: 'rq1', data });
+
+    await edit({ subject: 'B', invoiceId: 'office-set' });
+    await edit({ subject: 'C', invoiceId: 'nf2' });
+    await edit({ subject: 'D', invoiceId: null });
+    await expect(edit({ subject: 'E', invoiceId: 'nf9' })).rejects.toThrow('@core.tenant/portal.edit.denied');
+    expect(write.mock.calls.map(([input]) => input.data)).toEqual([
+      { subject: 'B', invoiceId: 'office-set' },
+      { subject: 'C', invoiceId: 'nf2' },
+      { subject: 'D', invoiceId: null },
+    ]);
+  });
+
+  it('o contexto diz de onde escolher só na referência a tela do portal', async () => {
+    const { fake } = setup();
+    const context = await makeGetPortalContextUseCase(fake.repo).execute({
+      tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
+    });
+    const requests = context.screens.find((screen) => screen.id === 'requests')!;
+    expect(Object.fromEntries(requests.create!.fields.map((field) => [field.key, field.reference ?? null]))).toEqual({
+      subject: null,
+      invoiceId: { collection: 'invoices', multi: false },
+      relatedIds: { collection: 'invoices', multi: true },
+      inspectionId: null,
+    });
+    expect(requests.edit!.fields.find((field) => field.key === 'invoiceId')?.reference).toEqual({ collection: 'invoices', multi: false });
+  });
+});
+
 describe('o convidado anexa um documento', () => {
   const TYPES = [{ key: 'Recibo', label: 'Recibo' }, { key: 'Nota', label: 'Nota' }];
 

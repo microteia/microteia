@@ -702,6 +702,59 @@ export const buildPortalEdit = (
   return changes;
 };
 
+/** A tela do portal de onde o convidado escolhe o registro de uma referência preenchível. */
+export interface PortalFieldReference {
+  collection: string;
+  multi: boolean;
+}
+
+/**
+ * As referências preenchíveis cujo alvo está NO PORTAL — a segunda referência do formulário (EV-37).
+ * O convidado as escolhe entre os registros que vê, como escolhe o vínculo, e o servidor confere cada id
+ * (`portalPickedReferences`). A referência a tela fora do portal não entra: o convidado não vê registro
+ * nenhum dela, não há lista a oferecer, e ela segue como sempre foi.
+ */
+export const portalPickableReferences = <T extends PortalScreenLike>(
+  screen: PortalScreenLike,
+  screens: readonly T[],
+  keys: readonly string[],
+): Array<{ fieldKey: string; target: T; multi: boolean }> => {
+  const fillable = new Set(keys);
+  return screen.fields.flatMap((field) => {
+    if (!fillable.has(field.key) || field.type !== 'reference' || !field.refEntity) return [];
+    const target = portalTargetScreen(screens, field.refEntity);
+    return target?.portal ? [{ fieldKey: field.key, target, multi: field.multi === true }] : [];
+  });
+};
+
+/**
+ * Os registros que uma gravação do convidado passa a apontar nas referências escolhíveis — o que o
+ * servidor confere, um a um, antes de gravar.
+ *
+ * O id que o registro gravado já apontava não é pergunta: foi o escritório que o pôs, ou já passou por
+ * esta conferência, e alterar outro campo não pode ser recusado por ele. Vazio é limpar, e passa.
+ * `null` quando o valor não é id — texto numa lista, objeto, número: não há o que conferir, e a
+ * resposta é recusar.
+ */
+export const portalPickedReferences = <T>(
+  picks: ReadonlyArray<{ fieldKey: string; target: T; multi: boolean }>,
+  data: Record<string, unknown>,
+  stored: Record<string, unknown> = {},
+): Array<{ target: T; recordId: string }> | null => {
+  const picked: Array<{ target: T; recordId: string }> = [];
+  for (const { fieldKey, target, multi } of picks) {
+    const value = data[fieldKey];
+    if (value === undefined || value === null || value === '') continue;
+    const ids = typeof value === 'string' ? [value]
+      : multi && Array.isArray(value) && value.every((id) => typeof id === 'string') ? value as string[]
+        : null;
+    if (!ids) return null;
+    const kept = new Set(referencedIds(stored[fieldKey]));
+    for (const recordId of new Set(ids.filter((id) => id !== '' && !kept.has(id)))) picked.push({ target, recordId });
+  }
+  return picked;
+};
+
 export const isPortalSubjectScreen = (screen: PortalScreenLike): boolean => screen.portal?.subject === 'self';
 
 /** A tela-sujeito que aceita convite feito por automação (`portal.invites.automation`). */

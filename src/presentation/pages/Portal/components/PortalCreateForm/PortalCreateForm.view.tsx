@@ -4,6 +4,7 @@ import { S } from './PortalCreateForm.styles';
 import { Button } from '../../../../components/ui/Button';
 import { Input, InputGroup, Label, Textarea } from '../../../../components/ui/Input';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
+import { MultiSearchSelect } from '../../../../components/ui/MultiSearchSelect';
 import { Checkbox } from '../../../../components/ui/Checkbox';
 import { DateInput } from '../../../../components/ui/DateInput';
 import { TimeInput } from '../../../../components/ui/TimeInput';
@@ -21,6 +22,24 @@ export const PortalCreateForm: React.FC<PortalCreateFormProps> = (props) => {
   const control = (field: PortalFieldInfo) => {
     const id = `portal-create-${field.key}`;
     const value = vm.values[field.key];
+    if (field.reference) {
+      if (vm.referencesLoading) return <Spinner size={20} />;
+      return field.reference.multi ? (
+        <MultiSearchSelect
+          options={vm.referenceOptions(field)}
+          values={vm.referenceValues(field)}
+          onChange={(next) => vm.setValue(field.key, next)}
+          placeholder={t('portal.create.link.placeholder')}
+        />
+      ) : (
+        <SearchSelect
+          options={vm.referenceOptions(field)}
+          value={textOf(value)}
+          onChange={(next) => vm.setValue(field.key, next)}
+          placeholder={t('portal.create.link.placeholder')}
+        />
+      );
+    }
     switch (field.type) {
       case 'textarea':
       case 'markdown':

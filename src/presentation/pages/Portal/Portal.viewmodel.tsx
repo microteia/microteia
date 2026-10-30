@@ -183,7 +183,7 @@ export interface PortalViewModel {
     screen: PortalScreenInfo;
     parentRecordId: string | null;
     /** Alterando um registro: o id dele e o que o convidado vê dele, de onde o formulário parte. */
-    editing: { recordId: string; values: Record<string, unknown> } | null;
+    editing: { recordId: string; values: Record<string, unknown>; labels: Record<string, string> } | null;
   } | null;
   startCreate: (collection: string) => void;
   /** "Novo" na lista de topo: o formulário pergunta a qual registro do convidado o novo pertence. */
@@ -487,7 +487,7 @@ export const usePortalViewModel = (): PortalViewModel => {
       ? {
         screen: creatingScreen,
         parentRecordId: creating.parentRecordId,
-        editing: editingRecord ? { recordId: editingRecord.recordId, values: editingRecord.data } : null,
+        editing: editingRecord ? { recordId: editingRecord.recordId, values: editingRecord.data, labels: editingRecord.labels } : null,
       }
       : null,
     startEdit,

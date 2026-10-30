@@ -7,13 +7,17 @@ import type { PortalFieldInfo, PortalLinkOption, PortalScreenInfo } from '../../
 import { applyMaskTemplate, maskPlaceholder } from '../../../../../domain/schema/fieldRulePresets';
 import { makeDeclarativeLookupService } from '../../../../../data/services/DeclarativeLookupService';
 import { useExternalLookupRunner } from '../../../../shared/useExternalLookupRunner';
+import { useT } from '../../../../shared/i18n/useT';
 
 export interface PortalCreateFormProps {
   screen: PortalScreenInfo;
   /** Criado DENTRO de um registro: o pai já é este, e não há o que escolher. */
   fixedLinkRecordId?: string | null;
-  /** ALTERA este registro, partindo do que o convidado vê dele — sem vínculo a escolher. */
-  editing?: { recordId: string; values: Record<string, unknown> } | null;
+  /**
+   * ALTERA este registro, partindo do que o convidado vê dele — sem vínculo a escolher. `labels` são os
+   * rótulos das referências da projeção: o nome do registro já apontado, mesmo fora das opções.
+   */
+  editing?: { recordId: string; values: Record<string, unknown>; labels?: Record<string, string> } | null;
   onCancel: () => void;
   onSubmitted: () => void;
 }
@@ -25,6 +29,11 @@ export interface PortalCreateFormViewModel {
   setValue: (key: string, value: unknown) => void;
   /** As opções de um `select`, com a cor já resolvida pelo tema. */
   selectOptions: (field: PortalFieldInfo) => SearchSelectOption[];
+  /** As opções de uma referência escolhível: os registros desta tela que o convidado vê, pelo título. */
+  referenceOptions: (field: PortalFieldInfo) => SearchSelectOption[];
+  /** Os ids escolhidos numa referência múltipla. */
+  referenceValues: (field: PortalFieldInfo) => string[];
+  referencesLoading: boolean;
   /** Um campo `masked` pronto para desenhar: o valor no molde do preset, quando o escritório o tem. */
   maskedInput: (field: PortalFieldInfo) => { value: string; placeholder: string; inputMode: 'numeric' | 'text' };
   linkLabel: string;
@@ -44,12 +53,16 @@ export interface PortalCreateFormViewModel {
 
 const textOf = (value: unknown): string => (typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '');
 
+const idsOf = (value: unknown): string[] =>
+  (Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string' && id !== '') : typeof value === 'string' && value !== '' ? [value] : []);
+
 const isEmpty = (value: unknown): boolean =>
   value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
 
 export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editing, onSubmitted }: PortalCreateFormProps): PortalCreateFormViewModel => {
   const { listLinkOptions, submit: submitRecord, update: updateRecord } = usePortal();
   const theme = useTheme();
+  const t = useT('core.tenant');
   const create = screen.create;
   const isEditing = !!editing;
   const noLinkNeeded = isEditing || !!fixedLinkRecordId;
@@ -81,6 +94,38 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
     () => (isEditing ? screen.edit?.fields ?? [] : create?.fields ?? []),
     [isEditing, screen.edit, create],
   );
+
+  // A segunda referência (EV-37) é escolhida como o vínculo: entre os registros que o convidado vê.
+  const referenceCollections = useMemo(
+    () => [...new Set(fields.flatMap((field) => (field.reference ? [field.reference.collection] : [])))].sort().join('\n'),
+    [fields],
+  );
+  const [referenceLists, setReferenceLists] = useState<Record<string, PortalLinkOption[]>>({});
+  const [loadedReferences, setLoadedReferences] = useState('');
+  useEffect(() => {
+    if (!referenceCollections) return;
+    let active = true;
+    const collections = referenceCollections.split('\n');
+    Promise.all(collections.map((collection) => listLinkOptions(collection).catch(() => [] as PortalLinkOption[])))
+      .then((lists) => { if (active) setReferenceLists(Object.fromEntries(collections.map((collection, index) => [collection, lists[index]]))); })
+      .finally(() => { if (active) setLoadedReferences(referenceCollections); });
+    return () => { active = false; };
+  }, [referenceCollections, listLinkOptions]);
+  const referencesLoading = loadedReferences !== referenceCollections;
+
+  // O registro já apontado que o convidado não vê continua na escolha, com o nome da projeção: salvar
+  // outro campo não o tira, e o servidor não confere o que já estava gravado.
+  const editingLabels = editing?.labels;
+  const untitled = t('portal.record.untitled');
+  const referenceOptions = useCallback((field: PortalFieldInfo): SearchSelectOption[] => {
+    if (!field.reference) return [];
+    const listed = (referenceLists[field.reference.collection] ?? []).map((option) => ({ value: option.recordId, label: option.label }));
+    const listedIds = new Set(listed.map((option) => option.value));
+    const current = idsOf(values[field.key]).filter((id) => !listedIds.has(id));
+    const label = current.length === 1 && editingLabels?.[field.key] ? editingLabels[field.key] : untitled;
+    return [...listed, ...current.map((id) => ({ value: id, label }))];
+  }, [referenceLists, values, editingLabels, untitled]);
+  const referenceValues = useCallback((field: PortalFieldInfo) => idsOf(values[field.key]), [values]);
   const missingRequired = fields.some((field) => field.required && isEmpty(values[field.key]));
 
   // A resposta de uma busca só preenche o que o convidado pode escrever: sem `map`, o provedor devolve
@@ -147,6 +192,9 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
     values,
     setValue,
     selectOptions,
+    referenceOptions,
+    referenceValues,
+    referencesLoading,
     maskedInput,
     linkLabel: create?.link.label ?? '',
     linkOptions: options.map((option) => ({ value: option.recordId, label: option.label })),

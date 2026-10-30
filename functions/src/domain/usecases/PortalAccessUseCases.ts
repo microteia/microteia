@@ -33,6 +33,8 @@ import {
   portalEditFieldKeys,
   portalLinkOf,
   portalOwnerOf,
+  portalPickableReferences,
+  portalPickedReferences,
   portalUploadTypes,
   PORTAL_UPLOAD_MAX_BYTES,
   parsePortalSubjectKey,
@@ -43,6 +45,7 @@ import {
   portalTargetScreen,
   portalTracksViews,
   portalWithheldFileFields,
+  type PortalFieldReference,
 } from '../schema/portal';
 import type { IRecordDocumentLinks } from '../repositories/IRecordDocumentLinks';
 import type { TrackPortalView } from './PortalViewUseCases';
@@ -75,6 +78,37 @@ export const guestSees = (
   !!projection
   && projection.audience.includes(guest.userId)
   && projection.subjectKeys.some((key) => guest.subjectKeys.includes(key));
+
+/**
+ * O convidado enxerga ESTE registro da tela do portal: é sujeito do convite dele (`self`), ou uma
+ * projeção que ele vê. É a conferência do vínculo da criação, e a de toda referência que ele escolhe.
+ */
+const guestSeesRecord = async (
+  repo: IPortalRepository,
+  tenantId: string,
+  guest: { userId: string; subjectKeys: string[] },
+  target: PortalScreen,
+  recordId: string,
+): Promise<boolean> =>
+  target.portal?.subject === 'self'
+    ? guest.subjectKeys.includes(portalSubjectKey(target.collection, recordId))
+    : guestSees(guest, await repo.getProjection(tenantId, portalRecordDocId(target.collection, recordId)));
+
+/**
+ * Cada registro que a gravação passa a apontar numa referência escolhível é um que o convidado vê
+ * (EV-37). Sem isso, a segunda referência gravava o id como veio: o pedido ligado ao imóvel de outro
+ * contribuinte, e o título dele de volta no rótulo da projeção.
+ */
+const guestSeesPicked = async (
+  repo: IPortalRepository,
+  tenantId: string,
+  guest: { userId: string; subjectKeys: string[] },
+  picked: Array<{ target: PortalScreen; recordId: string }> | null,
+): Promise<boolean> => {
+  if (!picked) return false;
+  const seen = await Promise.all(picked.map(({ target, recordId }) => guestSeesRecord(repo, tenantId, guest, target, recordId)));
+  return seen.every(Boolean);
+};
 
 /**
  * De onde veio o convite ou a revogação: a tela de Configurações › Portal, ou um passo de automação.
@@ -519,6 +553,8 @@ export interface PortalContextFillableField extends PortalFieldInput {
   type?: string;
   required: boolean;
   options?: PortalFieldOption[];
+  /** A referência escolhida entre os registros que o convidado vê desta tela do portal (EV-37). */
+  reference?: PortalFieldReference;
 }
 
 export interface PortalContextScreen {
@@ -778,6 +814,8 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         const link = portalLinkOf(screen);
         const linkTarget = link ? screenFor(link.targetEntity) : undefined;
         const template = guestPortalTemplate(screen.portal?.template, exposed, resolve);
+        const pickable = new Map(portalPickableReferences(screen, screens, [...fillable, ...editable])
+          .map((pick) => [pick.fieldKey, { collection: pick.target.collection, multi: pick.multi }]));
         const describe = (field: PortalField): PortalContextFillableField => ({
           key: field.key,
           label: resolve(field.label),
@@ -785,6 +823,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
           required: field.required === true,
           ...optionsOf(field),
           ...portalFieldInput(field, inputCatalogs, resolve),
+          ...(pickable.has(field.key) ? { reference: pickable.get(field.key) } : {}),
         });
         return {
           id: screen.id,
@@ -913,13 +952,12 @@ export const makeSubmitPortalRecordUseCase = (
     const target = portalTargetScreen(screens, link.targetEntity);
     if (!target?.portal || !linkRecordId) throw denied;
 
-    const visible = target.portal.subject === 'self'
-      ? guest.subjectKeys.includes(portalSubjectKey(target.collection, linkRecordId))
-      : guestSees(guest, await repo.getProjection(tenantId, portalRecordDocId(target.collection, linkRecordId)));
-    if (!visible) throw denied;
+    if (!await guestSeesRecord(repo, tenantId, guest, target, linkRecordId)) throw denied;
 
     const submission = buildPortalSubmission(screen, data, linkRecordId);
     if (!submission) throw denied;
+    const picks = portalPickableReferences(screen, screens, portalCreateFieldKeys(screen));
+    if (!await guestSeesPicked(repo, tenantId, guest, portalPickedReferences(picks, submission))) throw denied;
 
     const outcome = await write({ tenantId, collection, data: submission, userId });
     if (!outcome.ok) throw new PortalSubmissionInvalid(outcome.error, outcome.errorParams);
@@ -981,6 +1019,8 @@ export const makeUpdatePortalRecordUseCase = (
 
     const changes = buildPortalEdit(screen, data);
     if (Object.keys(changes).length === 0) return { id: recordId };
+    const picks = portalPickableReferences(screen, screens, portalEditFieldKeys(screen));
+    if (!await guestSeesPicked(repo, tenantId, guest, portalPickedReferences(picks, changes, record))) throw denied;
 
     const outcome = await write({ tenantId, collection, data: changes, userId, recordId });
     if (!outcome.ok) throw new PortalSubmissionInvalid(outcome.error, outcome.errorParams);

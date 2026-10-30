@@ -1514,7 +1514,19 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
      * A select's options are the field's own plus those of the organization's list, already labelled.
      * Its color is a theme token or a hex, present only when the option has one.
      */
-    fields: Array<{ key: string; label: string; type?: string; required?: boolean; options?: Array<{ key: string; label: string; color?: string }> }>;
+    fields: Array<{
+      key: string;
+      label: string;
+      type?: string;
+      required?: boolean;
+      options?: Array<{ key: string; label: string; color?: string }>;
+      /**
+       * On a \`reference\` the guest fills (in \`create\` and \`edit\`) whose target screen is in the portal:
+       * the collection to choose from. Offer the records of \`usePortalRecords(reference.collection)\` — the
+       * server refuses an id the guest does not see. Absent on any other field, and on older kernels.
+       */
+      reference?: { collection: string; multi: boolean };
+    }>;
     create: { fields: PortalScreen['fields']; link: { collection: string; label: string } } | null;
     /** Guests may attach documents here, choosing one of these types — never a new one. */
     uploads: { types: Array<{ key: string; label: string }> } | null;

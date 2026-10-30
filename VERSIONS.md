@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.183.0] — 2026-10-30
+
+- No portal, quando o formulário de criar ou de alterar pede um segundo registro relacionado — a comunicação que está sendo respondida, o pedido sobre o qual se reclama —, o convidado agora escolhe numa lista entre os registros que ele já vê, pelo nome, em vez de digitar um código.
+- O sistema passou a recusar a gravação feita pelo portal que tente ligar o registro a algo que o convidado não vê, como o pedido de outro cliente. Telas sem esse tipo de campo continuam exatamente como estavam.
+
 #### [9.182.0] — 2026-10-30
 
 - O portal não tem mais a página "Meu perfil". O nome exibido é o da conta com que a pessoa entra — o da conta Google ou o nome confirmado na entrada verificada; quem entra pelo link do e-mail aparece pelo próprio endereço.

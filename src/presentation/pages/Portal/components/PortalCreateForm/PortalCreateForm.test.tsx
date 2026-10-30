@@ -191,3 +191,54 @@ describe('formulário do portal — máscara e busca externa como no escritório
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('formulário do portal — a segunda referência é escolhida, não digitada (EV-37)', () => {
+  const INVOICE: PortalFieldInfo = { key: 'invoiceId', label: 'Invoice', type: 'reference', reference: { collection: 'invoices', multi: false } };
+  const SUBJECT: PortalFieldInfo = { key: 'subject', label: 'Subject', type: 'text' };
+
+  const renderWithReference = (editing: { recordId: string; values: Record<string, unknown>; labels?: Record<string, string> } | null = null) => {
+    submit = vi.fn(async () => undefined);
+    update = vi.fn(async () => undefined);
+    const listLinkOptions = vi.fn(async (collection: string) =>
+      (collection === 'invoices' ? [{ recordId: 'nf1', label: 'NF 1' }, { recordId: 'nf2', label: 'NF 2' }] : []));
+    const store = { listLinkOptions, submit, update } as unknown as PortalStoreValue;
+    render(
+      <ThemeProvider theme={baseDarkTheme}>
+        <PortalStoreContext.Provider value={store}>
+          <NotificationProvider>
+            <PortalCreateForm
+              screen={screenWith([SUBJECT, INVOICE])}
+              fixedLinkRecordId="acme"
+              editing={editing}
+              onCancel={() => undefined}
+              onSubmitted={() => undefined}
+            />
+          </NotificationProvider>
+        </PortalStoreContext.Provider>
+      </ThemeProvider>,
+    );
+    return { listLinkOptions };
+  };
+
+  it('oferece só os registros que o convidado vê, pelo título, e envia o id escolhido', async () => {
+    const { listLinkOptions } = renderWithReference();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'portal.create.link.placeholder' }));
+    fireEvent.mouseDown(screen.getByText('NF 2'));
+    type('subject', 'Dúvida');
+    fireEvent.click(screen.getByRole('button', { name: 'portal.create.send' }));
+
+    expect(listLinkOptions).toHaveBeenCalledWith('invoices');
+    expect(input('invoiceId')).toBeNull();
+    await vi.waitFor(() => expect(submit).toHaveBeenCalledWith('contactRequests', 'acme', { subject: 'Dúvida', invoiceId: 'nf2' }));
+  });
+
+  it('na edição, o registro já apontado aparece pelo nome, mesmo fora da lista, e volta como estava', async () => {
+    renderWithReference({ recordId: 'r1', values: { subject: 'A', invoiceId: 'office-set' }, labels: { invoiceId: 'Office record' } });
+
+    expect(await screen.findByText('Office record')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'portal.edit.save' }));
+
+    await vi.waitFor(() => expect(update).toHaveBeenCalledWith('contactRequests', 'r1', { subject: 'A', invoiceId: 'office-set' }));
+  });
+});

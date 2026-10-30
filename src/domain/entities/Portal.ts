@@ -1,5 +1,6 @@
 import type { QualifiedContribution } from '../schema/plugin/contribution';
 import type { PortalFieldInput } from '../schema/portalFieldInput';
+import type { PortalFieldReference } from '../schema/portal';
 import type { PortalTemplate } from '../schema/ui/portalTemplate';
 import type {
   PortalIdentityProvider,
@@ -55,6 +56,8 @@ export interface PortalFieldInfo extends PortalFieldInput {
   required?: boolean;
   /** As do campo e as da lista do escritório; a cor é token do tema ou hex, e só existe quando há. */
   options?: Array<{ key: string; label: string; color?: string }>;
+  /** A referência que o convidado escolhe entre os registros que vê desta tela — não digita o id. */
+  reference?: PortalFieldReference;
 }
 
 /**

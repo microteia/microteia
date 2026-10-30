@@ -2060,6 +2060,47 @@ Sem declaração nova, sem `*_SINCE_KERNEL` e sem subir o `KERNEL_VERSION` — a
 muda no que o kernel entende de um pacote, só o que ele faz com uma declaração que já lia. Campo cujo
 preset ou provedor nenhuma extensão ligada declara sai como sempre saiu: texto comum, sem busca.
 
+### A segunda referência do formulário do portal (EV-37)
+
+Até a 9.181.0 só o VÍNCULO da tela era escolhido numa lista e conferido pelo servidor. Qualquer outra
+`reference` em `create.fields` (ou `edit.fields`) chegava ao formulário como caixa de texto para digitar
+um id, e `buildPortalSubmission` a gravava como veio. Além da tela inútil, era uma brecha: o convidado
+podia apontar o registro dele para o de OUTRO convidado — e, com a referência exposta, receber de volta
+na projeção o título do registro alheio (`labels`). O DTE contornou pedindo o número da comunicação
+digitado e procurando-o por automação.
+
+**A regra: a referência cujo alvo está NO PORTAL é escolhida, e conferida, como o vínculo.**
+
+| Peça | O que faz |
+|---|---|
+| `portalPickableReferences` (`domain/schema/portal.ts`, sincronizado) | entre os preenchíveis, os `reference` cujo `refEntity` leva a uma tela do portal (`portalTargetScreen`). O vínculo nunca está entre eles: já saiu de `create.fields` |
+| `portalPickedReferences` | os ids que a gravação passa a apontar. O que o registro gravado já apontava fica de fora; vazio é limpar; valor que não é id (lista numa referência simples, objeto, número) é `null` = recusa |
+| `guestSeesRecord` (`PortalAccessUseCases.ts`) | a conferência do vínculo, EXTRAÍDA: sujeito do convite (`self`) ou projeção que o convidado vê (`guestSees`, que lê o convite no instante). Vínculo e referências passam pela mesma função, com a mesma frase de recusa (`portal.create.denied` / `portal.edit.denied`) |
+| `getPortalContext` | o campo escolhível sai com `reference: { collection, multi }` — a coleção da tela do portal de onde vêm as opções |
+| `PortalCreateForm` | desenha `SearchSelect` (ou `MultiSearchSelect`) com `listLinkOptions(collection)` — a mesma consulta da lista de vínculo: as projeções com o convidado no `audience`, pelo título |
+
+Três decisões:
+
+- **Na edição, o id que já estava gravado não é pergunta.** O escritório pode ter apontado um registro
+  que o convidado não vê; o formulário de edição manda todos os campos, e recusar por esse id travaria a
+  correção de qualquer outro campo. Só o id NOVO é conferido. O formulário mostra o já apontado pelo
+  rótulo da projeção (`editing.labels`), mesmo fora da lista.
+- **A referência a tela FORA do portal não muda.** O roadmap supunha que ela já era recusada no
+  empacotamento — não era. Recusá-la agora quebraria pacote e tela publicados, e o recurso é de caso
+  excepcional. Ela continua caixa de texto, gravada como veio; o AUTHORING diz para não a pôr em
+  `create.fields`. Fica registrado como limite conhecido.
+- **Sem declaração nova, sem `*_SINCE_KERNEL`, sem subir o `KERNEL_VERSION`** — a mesma régua da EV-20 e
+  da EV-34: nada muda no que o kernel entende de um pacote, só o que ele faz com uma declaração que já
+  lia. `reference` é membro OPCIONAL do campo em `@microteia/portal` (`extensionTypeDefs.ts`): num kernel
+  anterior ele não vem, e a view cai no texto. A view de extensão que gravava, por `usePortalSubmit`, um id
+  que o convidado não vê passa a ser recusada — é a correção, não efeito colateral.
+
+Os testes são `portal.test.ts` (a regra pura), `PortalAccessUseCases.test.ts` (o convidado cria com a
+nota dele e é recusado com a de outro; a revogação vale no instante; a edição mantém o id do escritório;
+o contexto descreve só a referência a tela do portal; sem a segunda referência e com a de fora, tudo
+como antes) e `PortalCreateForm.test.tsx` (a escolha substitui a caixa de texto e envia o id; na edição,
+o apontado aparece pelo nome e volta como estava).
+
 ### Um gesto no registro — `portal.actions` (EV-26)
 
 ```ts

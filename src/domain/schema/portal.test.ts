@@ -11,6 +11,8 @@ import {
   portalCreateFieldKeys,
   portalEditFieldKeys,
   portalOwnerOf,
+  portalPickableReferences,
+  portalPickedReferences,
   parsePortalSubjectKey,
   portalDeclarationIssues,
   portalDocumentLinkMinutes,
@@ -273,6 +275,57 @@ describe('criação pelo portal', () => {
     expect(issues).toContainEqual({ message: '@core.records/portal.issue.create.required-missing', messageParams: { field: 'title' } });
     expect(issues.some((issue) => issue.messageParams?.field === 'status')).toBe(false);
     expect(portalDeclarationIssues(orders, [company, orders])).toEqual([]);
+  });
+});
+
+describe('a segunda referência do formulário do portal (EV-37)', () => {
+  const staff: PortalScreenLike = { id: 'staff', collection: 'staff', fields: [{ key: 'name', type: 'text' }], portal: null };
+  const reply: PortalScreenLike = {
+    id: 'replies',
+    collection: 'replies',
+    fields: [
+      { key: 'text', type: 'text' },
+      { key: 'companyId', type: 'reference', refEntity: 'companies' },
+      { key: 'invoiceId', type: 'reference', refEntity: 'invoices' },
+      { key: 'relatedIds', type: 'reference', refEntity: 'invoices', multi: true },
+      { key: 'handlerId', type: 'reference', refEntity: 'staff' },
+    ],
+    portal: {
+      subject: { field: 'companyId' },
+      fields: ['text', 'invoiceId'],
+      create: { fields: ['text', 'companyId', 'invoiceId', 'relatedIds', 'handlerId'] },
+      edit: { fields: ['invoiceId'] },
+    },
+  };
+  const all = [company, invoice, staff, reply];
+  const picksOf = (keys: string[]) => portalPickableReferences(reply, all, keys);
+
+  it('só a referência a tela NO portal é escolhível — o vínculo e a tela de fora ficam como sempre', () => {
+    expect(picksOf(portalCreateFieldKeys(reply)).map((pick) => [pick.fieldKey, pick.target.id, pick.multi]))
+      .toEqual([['invoiceId', 'invoices', false], ['relatedIds', 'invoices', true]]);
+    expect(picksOf(portalEditFieldKeys(reply)).map((pick) => pick.fieldKey)).toEqual(['invoiceId']);
+  });
+
+  it('cada id novo é uma pergunta; vazio é limpar, e não pergunta nada', () => {
+    const picks = picksOf(portalCreateFieldKeys(reply));
+    expect(portalPickedReferences(picks, { invoiceId: 'nf1', relatedIds: ['nf2', 'nf2', 'nf3'], handlerId: 'boss' })
+      ?.map((one) => [one.target.id, one.recordId]))
+      .toEqual([['invoices', 'nf1'], ['invoices', 'nf2'], ['invoices', 'nf3']]);
+    expect(portalPickedReferences(picks, { invoiceId: '', relatedIds: [] })).toEqual([]);
+    expect(portalPickedReferences(picks, { invoiceId: null })).toEqual([]);
+  });
+
+  it('o id que o registro já apontava não é conferido de novo — salvar outro campo não é recusado por ele', () => {
+    const picks = picksOf(['invoiceId', 'relatedIds']);
+    expect(portalPickedReferences(picks, { invoiceId: 'office-set', relatedIds: ['old', 'new'] }, { invoiceId: 'office-set', relatedIds: ['old'] }))
+      ?.toEqual([{ target: invoice, recordId: 'new' }]);
+  });
+
+  it('o que não é id não tem o que conferir, e é recusa', () => {
+    const picks = picksOf(['invoiceId', 'relatedIds']);
+    expect(portalPickedReferences(picks, { invoiceId: ['nf1'] })).toBeNull();
+    expect(portalPickedReferences(picks, { invoiceId: { id: 'nf1' } })).toBeNull();
+    expect(portalPickedReferences(picks, { relatedIds: ['nf1', 7] })).toBeNull();
   });
 });
 
