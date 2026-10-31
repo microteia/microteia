@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.186.0] — 2026-10-31
+
+- No portal, um item que aponta para um registro identificado por uma pessoa — a comunicação de um domicílio, a mensalidade de uma matrícula — passa a mostrar o nome dessa pessoa. Quem acompanha vários registros agora sabe, na lista, de qual é cada item.
+- Quando o nome da pessoa muda, ou o registro passa a ser de outra pessoa, os itens que apontam para ele se atualizam sozinhos.
+- Nada muda para quem não tem esse tipo de vínculo, e nenhuma configuração nova é necessária.
+
 #### [9.185.0] — 2026-10-31
 
 - A página inicial do portal pode trazer painéis do tipo "o que precisa da sua atenção" — as faturas a vencer, as consultas marcadas, as comunicações a abrir —, com a contagem e os itens mais importantes de cada um. Quem visita vê só o que já podia ver, e um toque abre o item.

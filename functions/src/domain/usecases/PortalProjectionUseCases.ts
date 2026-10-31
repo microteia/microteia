@@ -15,12 +15,14 @@ import {
   portalLabelReferrers,
   portalRecordDocId,
   portalReferenceLabels,
-  portalReferenceTitle,
+  portalReferenceTitleSource,
   portalScreenOf,
   portalTargetScreen,
   projectPortalData,
   referencedIds,
+  resolvePortalReferenceTitle,
   resolvePortalSubjectKeys,
+  type PortalLabelReferrer,
 } from '../schema/portal';
 
 const PAGE_SIZE = 300;
@@ -146,14 +148,15 @@ export const makeProjectPortalRecordUseCase = (
       if (existing) await repo.deleteProjection(tenantId, projectionId);
     } else {
       const labels: Record<string, string> = {};
+      const getRecord = (collection: string, id: string) => repo.getRecord(tenantId, collection, id);
       // O rótulo é o TÍTULO do registro apontado — da tela no portal que o expõe, ou de qualquer tela
       // quando a referência está em `referenceTitles`. Fora disso, sem rótulo: o id não sai como nome.
       for (const label of portalReferenceLabels(screens, screen)) {
         const ids = referencedIds(data[label.fieldKey]);
         if (ids.length === 0) continue;
         const titles = await Promise.all(ids.map(async (id) => {
-          const referenced = await repo.getRecord(tenantId, label.target.collection, id);
-          return referenced ? portalReferenceTitle(label, referenced) : '';
+          const referenced = await getRecord(label.target.collection, id);
+          return referenced ? resolvePortalReferenceTitle(label, referenced, getRecord) : '';
         }));
         labels[label.fieldKey] = titles.filter((title) => title !== '').join(', ');
       }
@@ -252,7 +255,8 @@ export type RefreshPortalReferenceLabelsUseCase = {
 /**
  * O título de um registro mudou: refaz as projeções que o mostram — no rótulo de uma referência exposta,
  * ou no título que é essa referência. Sem isto, o domicílio continuaria com o nome antigo do contribuinte
- * até alguém regravá-lo.
+ * até alguém regravá-lo. Vale pelo segundo salto: renomear o contribuinte refaz também a comunicação que
+ * aponta para o domicílio dele, e trocar o contribuinte do domicílio refaz as comunicações dele.
  *
  * A pergunta é feita em TODA gravação de registro, e por isso é pura até o título mudar de fato: só
  * então lê os que apontam para ele. É a regra que a projeção usa para escrever o rótulo
@@ -265,28 +269,49 @@ export const makeRefreshPortalReferenceLabelsUseCase = (
 ): RefreshPortalReferenceLabelsUseCase => ({
   execute: async ({ tenantId, collection, recordId, before, after }) => {
     const screens = await repo.getScreens(tenantId);
-    const titleOf = (label: Parameters<typeof portalReferenceTitle>[0], data: Record<string, unknown> | null) =>
-      (data ? portalReferenceTitle(label, data) : '');
-    const renamed = portalLabelReferrers(screens, collection)
-      .filter(({ label }) => titleOf(label, before) !== titleOf(label, after));
+    const renamed = portalLabelReferrers(screens, collection).filter(({ label, distant }) => {
+      const source = distant && label.through ? label.through : label;
+      return portalReferenceTitleSource(source, before) !== portalReferenceTitleSource(source, after);
+    });
     if (renamed.length === 0) return 0;
+
+    /**
+     * Quem aponta, até o teto — `null` acima dele. Pelo segundo salto, o teto vale para o registro do
+     * meio e para a soma de quem aponta para todos eles: o contribuinte com cem domicílios de mil
+     * comunicações cada um é uma passada, não cem mil projeções numa invocação.
+     */
+    const referrersOf = async ({ screen, label, distant }: PortalLabelReferrer<PortalScreen>) => {
+      const middle = distant && label.through
+        ? await repo.getRecordsReferencing(
+          tenantId, label.target.collection, label.through.fieldKey, recordId, label.through.multi, PORTAL_LABEL_REFRESH_LIMIT + 1,
+        )
+        : [{ id: recordId }];
+      if (middle.length > PORTAL_LABEL_REFRESH_LIMIT) return null;
+      const found: Array<{ id: string; data: Record<string, unknown> }> = [];
+      for (const { id } of middle) {
+        found.push(...await repo.getRecordsReferencing(
+          tenantId, screen.collection, label.fieldKey, id, label.multi, PORTAL_LABEL_REFRESH_LIMIT + 1 - found.length,
+        ));
+        if (found.length > PORTAL_LABEL_REFRESH_LIMIT) return null;
+      }
+      return found;
+    };
 
     const overflow = new Set<string>();
     const refreshed = new Set<string>();
-    for (const { screen, label } of renamed) {
+    for (const referrer of renamed) {
+      const { screen } = referrer;
       if (overflow.has(screen.collection)) continue;
-      const referrers = await repo.getRecordsReferencing(
-        tenantId, screen.collection, label.fieldKey, recordId, label.multi, PORTAL_LABEL_REFRESH_LIMIT + 1,
-      );
-      if (referrers.length > PORTAL_LABEL_REFRESH_LIMIT) {
+      const records = await referrersOf(referrer);
+      if (!records) {
         overflow.add(screen.collection);
         continue;
       }
-      for (const referrer of referrers) {
-        const key = portalRecordDocId(screen.collection, referrer.id);
+      for (const record of records) {
+        const key = portalRecordDocId(screen.collection, record.id);
         if (refreshed.has(key)) continue;
         refreshed.add(key);
-        await project.execute({ tenantId, collection: screen.collection, recordId: referrer.id, data: referrer.data, cascade: false });
+        await project.execute({ tenantId, collection: screen.collection, recordId: record.id, data: record.data, cascade: false });
       }
     }
     if (overflow.size > 0) await startReprojection.execute(tenantId, [...overflow]);

@@ -1046,6 +1046,11 @@ portal: {
   not copy the name into the record with a workflow — that copy is what this replaces.
 - A screen whose \`titleFieldKey\` is this reference gets the same name as its title in the portal list and
   in the notice the organization receives when a guest creates or changes it.
+- A link to THAT screen carries the same name, with nothing else to declare: the notice pointing at the
+  registration shows the taxpayer, because the registration's title already does. Undeclared, it is the
+  title the target shows in the portal — so the target must expose its title field and its name. Listed
+  here, it is the target's title as the organization reads it. One extra step only: a title that is a
+  reference to a record whose title is again a reference arrives with no name.
 - Requires \`kernel: "^${PORTAL_REFERENCE_TITLES_SINCE_KERNEL}"\`. An older kernel ignores the declaration
   and the link reaches the guest with no name, so the package gate refuses the package without it.
 

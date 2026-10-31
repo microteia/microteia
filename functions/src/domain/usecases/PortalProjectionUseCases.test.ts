@@ -561,3 +561,170 @@ describe('nome de referência para tela fora do portal — referenceTitles (EV-2
     expect(started).toEqual([]);
   });
 });
+
+/**
+ * A comunicação aponta para o domicílio, que está no portal e tem por título o contribuinte — outra
+ * referência, a uma tela FORA do portal, cujo nome o domicílio já mostra por `referenceTitles`.
+ */
+const DOMICILE_SCREENS: PortalScreen[] = [
+  ...TAXPAYER_SCREENS.filter((screen) => screen.collection === 'taxpayers'),
+  {
+    id: 'domiciles',
+    collection: 'domiciles',
+    titleFieldKey: 'holderId',
+    titleSingular: 'Domicile',
+    titlePlural: 'Domiciles',
+    icon: 'home',
+    fields: [
+      { key: 'holderId', label: 'Holder', type: 'reference', refEntity: 'taxpayers' },
+      { key: 'status', label: 'Status', type: 'text' },
+    ],
+    portal: { subject: 'self', fields: ['holderId', 'status'], referenceTitles: ['holderId'] },
+  },
+  {
+    id: 'notices',
+    collection: 'notices',
+    titleFieldKey: 'subject',
+    titleSingular: 'Notice',
+    titlePlural: 'Notices',
+    icon: 'mail',
+    fields: [
+      { key: 'subject', label: 'Subject', type: 'text' },
+      { key: 'domicileId', label: 'Domicile', type: 'reference', refEntity: 'domiciles' },
+    ],
+    portal: { subject: { field: 'domicileId' }, fields: ['subject', 'domicileId'] },
+  },
+];
+
+const withScreen = (screens: PortalScreen[], id: string, patch: (screen: PortalScreen) => PortalScreen) =>
+  screens.map((screen) => (screen.id === id ? patch(screen) : screen));
+
+describe('referência a um registro cujo título é outra referência (EV-40)', () => {
+  const setupDomiciles = (screens = DOMICILE_SCREENS) => {
+    const env = setup(screens);
+    env.users.set('carla', { userId: 'carla', email: 'carla@x.com', displayName: 'Carla', subjectKeys: ['domiciles/dom1'] });
+    env.records.set('taxpayers/t1', { name: 'Maria Souza', taxId: '111.222.333-44', phone: '71 9999-0000' });
+    env.records.set('taxpayers/t2', { name: 'João Lima', taxId: '555.666.777-88' });
+    const started: string[][] = [];
+    const refresh = makeRefreshPortalReferenceLabelsUseCase(env.repo, env.project, {
+      execute: async (_tenant, collections) => { started.push([...collections]); },
+    });
+    const change = async (collection: string, id: string, data: Record<string, unknown> | null) => {
+      const before = env.records.get(`${collection}/${id}`) ?? null;
+      await env.write(collection, id, data);
+      return refresh.execute({ tenantId: TENANT, collection, recordId: id, before, after: data });
+    };
+    return { ...env, started, change };
+  };
+
+  it('a comunicação mostra o domicílio pelo nome que ele mesmo mostra — o do titular', async () => {
+    const { write, projections } = setupDomiciles();
+    await write('domiciles', 'dom1', { holderId: 't1', status: 'active' });
+    await write('notices', 'n1', { subject: 'Intimação', domicileId: 'dom1' });
+
+    expect(projections.get('domiciles__dom1')?.title).toBe('Maria Souza');
+    const notice = projections.get('notices__n1');
+    expect(notice).toMatchObject({ title: 'Intimação', labels: { domicileId: 'Maria Souza' }, audience: ['carla'] });
+    expect(JSON.stringify(notice)).not.toContain('111.222.333-44');
+  });
+
+  it('o título que é a referência ao domicílio também ganha o nome', async () => {
+    const screens = withScreen(DOMICILE_SCREENS, 'notices', (screen) => ({ ...screen, titleFieldKey: 'domicileId' }));
+    const { write, projections } = setupDomiciles(screens);
+    await write('domiciles', 'dom1', { holderId: 't1' });
+    await write('notices', 'n1', { subject: 'Intimação', domicileId: 'dom1' });
+    expect(projections.get('notices__n1')?.title).toBe('Maria Souza');
+  });
+
+  it('o domicílio que não expõe o próprio título não o empresta a quem aponta para ele', async () => {
+    const screens = withScreen(DOMICILE_SCREENS, 'domiciles', (screen) => ({
+      ...screen, portal: { subject: 'self', fields: ['status'] },
+    }));
+    const { write, projections } = setupDomiciles(screens);
+    await write('domiciles', 'dom1', { holderId: 't1', status: 'active' });
+    await write('notices', 'n1', { subject: 'Intimação', domicileId: 'dom1' });
+    expect(projections.get('notices__n1')?.labels).toEqual({ domicileId: '' });
+  });
+
+  it('o domicílio sem `referenceTitles` não tem nome a mostrar, e a comunicação também não', async () => {
+    const screens = withScreen(DOMICILE_SCREENS, 'domiciles', (screen) => ({
+      ...screen, portal: { ...screen.portal!, referenceTitles: null },
+    }));
+    const { write, projections } = setupDomiciles(screens);
+    await write('domiciles', 'dom1', { holderId: 't1' });
+    await write('notices', 'n1', { subject: 'Intimação', domicileId: 'dom1' });
+    expect(projections.get('domiciles__dom1')?.title).toBe('');
+    expect(projections.get('notices__n1')?.labels).toEqual({ domicileId: '' });
+  });
+
+  it('declarada na comunicação, a referência leva o título do domicílio como o escritório o lê', async () => {
+    const screens = withScreen(DOMICILE_SCREENS, 'domiciles', (screen) => ({
+      ...screen, portal: { subject: 'self', fields: ['status'] },
+    })).map((screen) => (screen.id === 'notices' ? { ...screen, portal: { ...screen.portal!, referenceTitles: ['domicileId'] } } : screen));
+    const { write, projections } = setupDomiciles(screens);
+    await write('domiciles', 'dom1', { holderId: 't1' });
+    await write('notices', 'n1', { subject: 'Intimação', domicileId: 'dom1' });
+    expect(projections.get('notices__n1')?.labels).toEqual({ domicileId: 'Maria Souza' });
+  });
+
+  it('só um salto a mais: o titular cujo título é outra referência não vira id', async () => {
+    const screens = withScreen(DOMICILE_SCREENS, 'dte_taxpayers', (screen) => ({
+      ...screen,
+      titleFieldKey: 'guardianId',
+      fields: [...screen.fields, { key: 'guardianId', label: 'Guardian', type: 'reference', refEntity: 'taxpayers' }],
+    }));
+    const { write, records, projections } = setupDomiciles(screens);
+    records.set('taxpayers/t1', { name: 'Maria Souza', guardianId: 't2' });
+    await write('domiciles', 'dom1', { holderId: 't1' });
+    await write('notices', 'n1', { subject: 'Intimação', domicileId: 'dom1' });
+    expect(projections.get('notices__n1')?.labels).toEqual({ domicileId: '' });
+  });
+
+  it('renomear o titular refaz o domicílio e as comunicações que apontam para ele', async () => {
+    const { write, change, projections } = setupDomiciles();
+    await write('domiciles', 'dom1', { holderId: 't1' });
+    await write('notices', 'n1', { subject: 'Intimação', domicileId: 'dom1' });
+    await write('notices', 'n2', { subject: 'Aviso', domicileId: 'dom1' });
+
+    expect(await change('taxpayers', 't1', { name: 'Maria S. Lima', taxId: '111.222.333-44' })).toBe(3);
+    expect(projections.get('domiciles__dom1')?.title).toBe('Maria S. Lima');
+    expect(projections.get('notices__n1')?.labels).toEqual({ domicileId: 'Maria S. Lima' });
+    expect(projections.get('notices__n2')?.labels).toEqual({ domicileId: 'Maria S. Lima' });
+  });
+
+  it('trocar o titular do domicílio refaz as comunicações dele', async () => {
+    const { write, change, projections } = setupDomiciles();
+    await write('domiciles', 'dom1', { holderId: 't1' });
+    await write('notices', 'n1', { subject: 'Intimação', domicileId: 'dom1' });
+
+    expect(await change('domiciles', 'dom1', { holderId: 't2' })).toBe(1);
+    expect(projections.get('notices__n1')?.labels).toEqual({ domicileId: 'João Lima' });
+  });
+
+  it('gravar o domicílio sem trocar o titular, ou o titular sem mudar o nome, não relê ninguém', async () => {
+    const { write, change } = setupDomiciles();
+    await write('domiciles', 'dom1', { holderId: 't1', status: 'active' });
+    await write('notices', 'n1', { subject: 'Intimação', domicileId: 'dom1' });
+    expect(await change('domiciles', 'dom1', { holderId: 't1', status: 'closed' })).toBe(0);
+    expect(await change('taxpayers', 't1', { name: 'Maria Souza', phone: '71 0000-1111' })).toBe(0);
+  });
+
+  it('acima do teto pelo segundo salto, a coleção das comunicações ganha uma passada', async () => {
+    const { records, change, started } = setupDomiciles();
+    records.set('domiciles/dom1', { holderId: 't1' });
+    for (let index = 0; index <= PORTAL_LABEL_REFRESH_LIMIT; index += 1) {
+      records.set(`notices/n${index}`, { subject: `Aviso ${index}`, domicileId: 'dom1' });
+    }
+    expect(await change('taxpayers', 't1', { name: 'Maria S. Lima' })).toBe(1);
+    expect(started).toEqual([['notices']]);
+  });
+
+  it('o teto vale também para o registro do meio — o titular de muitos domicílios', async () => {
+    const { records, change, started } = setupDomiciles();
+    for (let index = 0; index <= PORTAL_LABEL_REFRESH_LIMIT; index += 1) {
+      records.set(`domiciles/dom${index}`, { holderId: 't1' });
+    }
+    await change('taxpayers', 't1', { name: 'Maria S. Lima' });
+    expect(started).toEqual([['domiciles', 'notices']]);
+  });
+});

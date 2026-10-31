@@ -24,7 +24,9 @@ import {
   portalLabelReferrers,
   portalRecordTitle,
   portalReferenceLabels,
+  portalReferenceTitleSource,
   referenceTitleScreen,
+  resolvePortalReferenceTitle,
   portalUploadTypes,
   portalSubjectKey,
   portalTargetScreen,
@@ -33,6 +35,7 @@ import {
   type PortalScreenLike,
   type PortalSubjectDeps,
 } from './portal';
+import { PORTAL_PROJECTION_REVISION, isPortalProjectionBehind } from './portalReprojection';
 
 const company: PortalScreenLike = {
   id: 'companies',
@@ -669,5 +672,60 @@ describe('título e rótulo que são referência — referenceTitles (EV-24)', (
     expect(keysOf({ fields: ['status', 'companyId'] })).toEqual(['@core.records/portal.issue.reference-title.hidden:holderId']);
     expect(keysOf({}, all.filter((one) => one.collection !== 'taxpayers')))
       .toEqual(['@core.records/portal.issue.reference-title.no-title:holderId']);
+  });
+});
+
+describe('rótulo cujo apontado tem título por referência — o segundo salto (EV-40)', () => {
+  const taxpayer: PortalScreenLike = { id: 'taxpayers', collection: 'taxpayers', titleFieldKey: 'name', fields: [{ key: 'name', type: 'text' }] };
+  const domicile: PortalScreenLike = {
+    id: 'domiciles',
+    collection: 'domiciles',
+    titleFieldKey: 'holderId',
+    fields: [{ key: 'holderId', type: 'reference', refEntity: 'taxpayers', multi: true }],
+    portal: { subject: 'self', fields: ['holderId'], referenceTitles: ['holderId'] },
+  };
+  const notice: PortalScreenLike = {
+    id: 'notices',
+    collection: 'notices',
+    titleFieldKey: 'subject',
+    fields: [{ key: 'subject', type: 'text' }, { key: 'domicileId', type: 'reference', refEntity: 'domiciles' }],
+    portal: { subject: { field: 'domicileId' }, fields: ['subject', 'domicileId'] },
+  };
+  const all = [taxpayer, domicile, notice, company, invoice];
+  const records: Record<string, Record<string, unknown>> = { 'taxpayers/t1': { name: 'Maria' }, 'taxpayers/t2': { name: 'João' } };
+  const getRecord = async (collection: string, id: string) => records[`${collection}/${id}`];
+  const noticeLabel = () => portalReferenceLabels(all, notice).find((one) => one.fieldKey === 'domicileId')!;
+
+  it('o rótulo do domicílio passa pelo titular, pela regra que o próprio domicílio usa', () => {
+    expect(noticeLabel()).toMatchObject({ target: domicile, declared: false, through: { fieldKey: 'holderId', target: taxpayer, declared: true } });
+    expect(noticeLabel().through).not.toHaveProperty('through');
+    const exposedCompany = { ...invoice, portal: { ...invoice.portal!, fields: ['number', 'companyId'] } };
+    expect(portalReferenceLabels(all, exposedCompany)).toEqual([{ fieldKey: 'companyId', multi: false, target: company, declared: false }]);
+  });
+
+  it('o nome sai do registro do segundo salto — todos os titulares, sem o que sumiu', async () => {
+    expect(await resolvePortalReferenceTitle(noticeLabel(), { holderId: ['t1', 'gone', 't2'] }, getRecord)).toBe('Maria, João');
+    expect(await resolvePortalReferenceTitle(noticeLabel(), {}, getRecord)).toBe('');
+  });
+
+  it('o que decide o rótulo no domicílio é QUAL titular ele aponta, não o nome gravado nele', () => {
+    const label = noticeLabel();
+    expect(portalReferenceTitleSource(label, { holderId: ['t1'] })).toBe(portalReferenceTitleSource(label, { holderId: ['t1'], status: 'x' }));
+    expect(portalReferenceTitleSource(label, { holderId: ['t1'] })).not.toBe(portalReferenceTitleSource(label, { holderId: ['t2'] }));
+    expect(portalReferenceTitleSource(label, null)).toBe('');
+  });
+
+  it('renomear o titular refaz a comunicação pelo domicílio; trocar o titular, pelo próprio domicílio', () => {
+    const referrers = (collection: string) =>
+      portalLabelReferrers(all, collection).map((one) => [one.screen.id, one.label.fieldKey, one.distant]);
+    expect(referrers('taxpayers')).toEqual([['domiciles', 'holderId', false], ['notices', 'domicileId', true]]);
+    expect(referrers('domiciles')).toEqual([['notices', 'domicileId', false]]);
+  });
+
+  it('a revisão da forma de projetar só alcança a coleção que tem o rótulo pelo segundo salto', () => {
+    expect(isPortalProjectionBehind(PORTAL_PROJECTION_REVISION - 1, all, 'notices')).toBe(true);
+    expect(isPortalProjectionBehind(PORTAL_PROJECTION_REVISION - 1, all, 'invoices')).toBe(false);
+    expect(isPortalProjectionBehind(PORTAL_PROJECTION_REVISION - 2, all, 'invoices')).toBe(true);
+    expect(isPortalProjectionBehind(PORTAL_PROJECTION_REVISION, all, 'notices')).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import type { IPortalRepository, PortalReprojectionState, PortalScreen } from '../repositories/IPortalRepository';
-import { portalFieldKeys } from '../schema/portal';
-import { PORTAL_PROJECTION_REVISION, isPortalReprojectionStalled } from '../schema/portalReprojection';
+import { portalFieldKeys, portalReferenceLabels } from '../schema/portal';
+import { PORTAL_PROJECTION_REVISION, isPortalProjectionBehind, isPortalReprojectionStalled } from '../schema/portalReprojection';
 import type { ProjectPortalRecordUseCase } from './PortalProjectionUseCases';
 
 /** Registros por rodada. Uma rodada é uma invocação: pequena o bastante para caber com folga no timeout. */
@@ -26,12 +26,19 @@ const subjectTargetsOf = (screen: PortalScreen): string[] => {
   return field?.type === 'reference' && field.refEntity ? [field.refEntity] : [];
 };
 
-/** As entidades cujo TÍTULO a tela mostra como rótulo de uma referência exposta. */
-const labelTargetsOf = (screen: PortalScreen): string[] =>
-  portalFieldKeys(screen).flatMap((key) => {
+/**
+ * As entidades cujo TÍTULO a tela mostra como rótulo de uma referência exposta — e, quando o título do
+ * apontado é outra referência, a do segundo salto (o contribuinte da comunicação que aponta para o
+ * domicílio dele).
+ */
+const labelTargetsOf = (screens: readonly PortalScreen[], screen: PortalScreen): string[] => [
+  ...portalFieldKeys(screen).flatMap((key) => {
     const field = screen.fields.find((one) => one.key === key);
     return field?.type === 'reference' && field.refEntity ? [field.refEntity] : [];
-  });
+  }),
+  ...portalReferenceLabels(screens, screen).flatMap((label) =>
+    (label.through ? [label.through.target.id, label.through.target.collection] : [])),
+];
 
 /**
  * As coleções cuja projeção pode ter mudado quando a declaração de UMA tela mudou — e só elas.
@@ -39,8 +46,9 @@ const labelTargetsOf = (screen: PortalScreen): string[] =>
  * - a própria (pelo nome de antes e de depois: mudar `dataCollection` deixa projeções no nome velho);
  * - as que chegam ao sujeito ATRAVÉS dela, em qualquer profundidade: o filho, o neto. O sujeito
  *   delas pode ter mudado, e um registro escondido corta a corrente de todos;
- * - as que mostram o título dela no rótulo de uma referência exposta. Só um salto: o rótulo é o
- *   título do registro apontado, e o sujeito de quem aponta não muda por isso.
+ * - as que mostram o título dela no rótulo de uma referência exposta, direto ou pelo segundo salto
+ *   (`through`). Só essas: o rótulo é o título do registro apontado, e o sujeito de quem aponta não
+ *   muda por isso.
  */
 export const portalReprojectionScope = (
   screens: readonly PortalScreen[],
@@ -51,7 +59,7 @@ export const portalReprojectionScope = (
   const collections = new Set<string>(changed.collections);
 
   for (const screen of portalScreens) {
-    if (labelTargetsOf(screen).some((key) => reached.has(key))) collections.add(screen.collection);
+    if (labelTargetsOf(screens, screen).some((key) => reached.has(key))) collections.add(screen.collection);
   }
 
   for (let grew = true; grew;) {
@@ -158,6 +166,8 @@ export type EnsurePortalProjectionRevisionUseCase = {
  * Abre uma passada em cada coleção do portal cuja última passada é de uma
  * `PORTAL_PROJECTION_REVISION` anterior — ou que nunca teve passada. É o que leva ao escritório uma
  * correção na forma de projetar sem que ninguém precise mexer na declaração, nem saber da correção.
+ * A revisão que só corrige um caso raro alcança só as coleções que o têm (`isPortalProjectionBehind`):
+ * as outras ficam na revisão gravada, sem passada nenhuma.
  *
  * A conferência é refeita dentro da transação: duas instâncias que chegam juntas abrem UMA passada.
  */
@@ -166,18 +176,18 @@ export const makeEnsurePortalProjectionRevisionUseCase = (
   now: () => number = Date.now,
 ): EnsurePortalProjectionRevisionUseCase => ({
   execute: async (tenantId) => {
-    const isCurrent = (state: PortalReprojectionState | null | undefined): boolean =>
-      (state?.revision ?? 0) >= PORTAL_PROJECTION_REVISION;
     const screens = await repo.getScreens(tenantId);
+    const isBehind = (collection: string, state: PortalReprojectionState | null | undefined): boolean =>
+      isPortalProjectionBehind(state?.revision ?? 0, screens, collection);
     const inPortal = [...new Set(screens.filter((screen) => !!screen.portal).map((screen) => screen.collection))];
     if (inPortal.length === 0) return [];
 
     const states = await repo.listReprojections(tenantId);
     const opened: string[] = [];
-    for (const collection of inPortal.filter((one) => !isCurrent(states.get(one)))) {
+    for (const collection of inPortal.filter((one) => isBehind(one, states.get(one)))) {
       const total = await repo.countRecords(tenantId, collection).catch(() => null);
       const next = await repo.updateReprojection(tenantId, collection, (current) =>
-        isCurrent(current) ? null : queuedPass(current, total, now()));
+        isBehind(collection, current) ? queuedPass(current, total, now()) : null);
       if (next) opened.push(collection);
     }
     if (opened.length > 0) await promoteNextReprojection(repo, tenantId, now());

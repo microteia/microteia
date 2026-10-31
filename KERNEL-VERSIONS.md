@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.186.0] — 2026-10-31
+
+- feat(portal/labels): a link to a record whose title is ANOTHER reference now carries a name instead of an empty label (EV-40). `PortalReferenceLabel` gains `through` — the label of the second step, built by `portalReferenceLabels` with the target's own rule: undeclared, the label the target gives its own title field (only when the target exposes it and its name leaves), i.e. exactly the title the target's projection already shows; declared in the referrer's `referenceTitles`, the `officeRecordTitle` rule. One extra step only: `through` never has a `through`. Nothing changes in any declaration, and a label whose target has a plain title is built as before.
+- feat(portal/projection): `resolvePortalReferenceTitle` resolves a label from the target record, reading the second-step record when `through` is set — from the RECORD, not the target's projection, so it does not depend on trigger order. `makeProjectPortalRecordUseCase` uses it.
+- feat(portal/refresh): `portalLabelReferrers` also returns second-step referrers (`distant: true`). Renaming the taxpayer finds its domiciles and, from them, their notices; changing the domicile's holder is detected by `portalReferenceTitleSource` (with `through`, the referenced ids rather than the name) and refreshes the domicile's notices. `PORTAL_LABEL_REFRESH_LIMIT` caps both the middle records and the total referrers; above it, the referrer collection gets a reprojection pass. `portalReprojectionScope` includes collections showing a screen's title through the second step.
+- feat(portal/revision): `PORTAL_PROJECTION_REVISION` 3, with per-revision reach (`PORTAL_PROJECTION_REVISION_REACH`, `isPortalProjectionBehind`). Revision 3 only reaches collections with a `through` label; every other collection keeps its recorded revision and gets no pass. A revision without a reach entry still reaches every collection, as before.
+- docs: AUTHORING §4 "The name of a linked record" describes the second step. `KERNEL_VERSION` unchanged: no declaration or package shape changed, and an older kernel shows the link with no name, as it always did.
+
 #### [9.185.0] — 2026-10-31
 
 - feat(portal/widget): a portal home card DECLARED, with no code (EV-39). `portal.view` now accepts `impl.kind: 'widget'` besides `code` (`allowedImplKinds`), on the `widget` surface only, built by the new SDK constructor `portalWidgetSpec({ key, title?, order? }, spec)`. Same contribution id (`widget-<key>`) and home entry (`portalWidgetEntryId`) as a code card, so Settings › Portal lists, orders and hides it unchanged, and a code card and a declared card with the same key collide as duplicates. `widget` is a third-party impl kind: an untrusted package may contribute the card, and still cannot contribute code.

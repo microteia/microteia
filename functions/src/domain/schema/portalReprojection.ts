@@ -4,6 +4,8 @@
 // Para alterar, edite a fonte e rode: npm run sync-schemas
 // ═══════════════════════════════════════════════════════════════════════════
 
+import { portalReferenceLabels, portalScreenOf, type PortalScreenLike } from './portal';
+
 /**
  * A passada que refaz as projeções de UMA coleção do portal depois que uma declaração mudou — o estado
  * gravado em `portal_reprojections/{coleção}`. Quem anda com ela é o servidor, por rodadas: cada uma
@@ -24,8 +26,35 @@
  * - 1: o vínculo chega à tela que está no portal para a coleção (`portalTargetScreen`).
  * - 2: o título que é referência sai pelo rótulo dela, nunca como o id gravado; e o rótulo acompanha o
  *   título do apontado — a projeção feita antes ficava com o id, ou com o nome antigo (EV-24).
+ * - 3: o rótulo da referência a um registro cujo título é OUTRA referência é o título que ele mostra
+ *   (o domicílio pelo contribuinte), e não vazio (EV-40). Só as coleções que têm esse rótulo.
  */
-export const PORTAL_PROJECTION_REVISION = 2;
+export const PORTAL_PROJECTION_REVISION = 3;
+
+/**
+ * Até onde chega a revisão que não alcança todas as coleções. A correção de um caso raro não abre
+ * passada no portal inteiro de todo escritório: a passada lê cada registro, e quem não tem o caso
+ * pagaria por nada. A revisão sem entrada aqui alcança todas.
+ */
+const PORTAL_PROJECTION_REVISION_REACH: Readonly<Record<number, (screens: readonly PortalScreenLike[], collection: string) => boolean>> = {
+  3: (screens, collection) => {
+    const screen = portalScreenOf(screens, collection);
+    return !!screen && portalReferenceLabels(screens, screen).some((label) => !!label.through);
+  },
+};
+
+/** A coleção projetada pela revisão `from` precisa de uma passada nova: alguma revisão posterior a alcança. */
+export const isPortalProjectionBehind = (
+  from: number,
+  screens: readonly PortalScreenLike[],
+  collection: string,
+): boolean => {
+  for (let revision = from + 1; revision <= PORTAL_PROJECTION_REVISION; revision += 1) {
+    const reach = PORTAL_PROJECTION_REVISION_REACH[revision];
+    if (!reach || reach(screens, collection)) return true;
+  }
+  return false;
+};
 
 export interface PortalReprojectionState {
   status: 'queued' | 'running' | 'done';

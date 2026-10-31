@@ -10,7 +10,7 @@ import {
   portalReprojectionScope,
 } from './PortalReprojectionUseCases';
 import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
-import type { PortalScreen } from '../repositories/IPortalRepository';
+import type { PortalReprojectionState, PortalScreen } from '../repositories/IPortalRepository';
 import { PORTAL_PROJECTION_REVISION, PORTAL_REPROJECTION_STALL_MS } from '../schema/portalReprojection';
 
 const TENANT = 'salvador';
@@ -46,7 +46,39 @@ const setup = (screens: PortalScreen[] = CITY_SCREENS) => {
   return { ...fake, project, start, round, drain, now, advance };
 };
 
+/** A comunicação aponta para o domicílio, cujo título é o contribuinte — fora do portal (EV-40). */
+const CHAINED_SCREENS: PortalScreen[] = [
+  ...CITY_SCREENS,
+  {
+    id: 'taxpayers', collection: 'taxpayers', titleFieldKey: 'name', titleSingular: 'Taxpayer', titlePlural: 'Taxpayers',
+    icon: 'user', fields: [{ key: 'name', label: 'Name', type: 'text' }], portal: null,
+  },
+  {
+    id: 'domiciles', collection: 'domiciles', titleFieldKey: 'holderId', titleSingular: 'Domicile', titlePlural: 'Domiciles',
+    icon: 'home', fields: [{ key: 'holderId', label: 'Holder', type: 'reference', refEntity: 'taxpayers' }],
+    portal: { subject: 'self', fields: ['holderId'], referenceTitles: ['holderId'] },
+  },
+  {
+    id: 'notices', collection: 'notices', titleFieldKey: 'subject', titleSingular: 'Notice', titlePlural: 'Notices', icon: 'mail',
+    fields: [
+      { key: 'subject', label: 'Subject', type: 'text' },
+      { key: 'domicileId', label: 'Domicile', type: 'reference', refEntity: 'domiciles' },
+    ],
+    portal: { subject: { field: 'domicileId' }, fields: ['subject', 'domicileId'] },
+  },
+];
+
+const donePass: PortalReprojectionState = {
+  status: 'done', generation: 1, round: 1, cursor: null, leaseUntil: null, touchedAt: 0, openedAt: 0,
+  total: 0, processed: 0, failed: 0, failedIds: [], attempts: 0, revision: 0,
+};
+
 describe('escopo da reprojeção', () => {
+  it('o título da tela do segundo salto alcança quem a mostra pelo domicílio', () => {
+    expect(portalReprojectionScope(CHAINED_SCREENS, { screenId: 'taxpayers', collections: ['taxpayers'] }).sort())
+      .toEqual(['domiciles', 'notices', 'taxpayers']);
+  });
+
   it('a tela-sujeito alcança quem chega a ela, em qualquer profundidade', () => {
     expect(portalReprojectionScope(CITY_SCREENS, { screenId: 'companies', collections: ['companies'] }).sort())
       .toEqual(['companies', 'invoiceItems', 'invoices']);
@@ -168,11 +200,29 @@ describe('revisão da forma de projetar', () => {
     await fake.start.execute(TENANT, ['invoices']);
     await fake.drain();
     const before = fake.reprojections.get('invoices')!;
-    fake.reprojections.set('companies', { ...before, revision: PORTAL_PROJECTION_REVISION - 1 });
+    fake.reprojections.set('companies', { ...before, revision: 1 });
 
     const opened = await makeEnsurePortalProjectionRevisionUseCase(fake.repo, fake.now).execute(TENANT);
     expect(opened.sort()).toEqual(['companies', 'invoiceItems']);
     expect(fake.reprojections.get('invoices')).toEqual(before);
+  });
+
+  it('a revisão de um caso raro só abre passada na coleção que o tem — as outras ficam como estão', async () => {
+    const fake = setup(CHAINED_SCREENS);
+    for (const collection of ['companies', 'invoices', 'invoiceItems', 'domiciles', 'notices']) {
+      fake.reprojections.set(collection, { ...donePass, revision: 2 });
+    }
+    fake.records.set('taxpayers/t1', { name: 'Maria Souza' });
+    fake.records.set('domiciles/dom1', { holderId: 't1' });
+    fake.records.set('notices/n1', { subject: 'Intimação', domicileId: 'dom1' });
+    const ensure = makeEnsurePortalProjectionRevisionUseCase(fake.repo, fake.now);
+
+    expect(await ensure.execute(TENANT)).toEqual(['notices']);
+    await fake.drain();
+    expect(fake.projections.get('notices__n1')?.labels).toEqual({ domicileId: 'Maria Souza' });
+    expect(fake.reprojections.get('notices')?.revision).toBe(PORTAL_PROJECTION_REVISION);
+    expect(fake.reprojections.get('invoices')?.revision).toBe(2);
+    expect(await ensure.execute(TENANT)).toEqual([]);
   });
 });
 

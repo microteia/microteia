@@ -1272,8 +1272,9 @@ portal e ganhou um `visibleWhen`, "como estava" é o registro que devia sumir co
 **Só o que a mudança alcança.** `portalReprojectionScope` devolve a coleção da tela (pelo nome de antes
 e de depois: mudar `dataCollection` deixa projeções no nome velho), as telas que chegam ao sujeito
 ATRAVÉS dela em qualquer profundidade (o sujeito delas pode ter mudado, e um registro escondido corta a
-corrente de todas) e as que mostram o título dela no rótulo de uma referência exposta — só um salto: o
-rótulo não muda o sujeito de quem aponta. Mudar o filho não refaz o pai nem o avô.
+corrente de todas) e as que mostram o título dela no rótulo de uma referência exposta — direto, ou pelo
+segundo salto quando o título do apontado é outra referência (EV-40); o rótulo não muda o sujeito de
+quem aponta, e por isso os dependentes de quem mostra não entram. Mudar o filho não refaz o pai nem o avô.
 
 **Por rodadas, no molde de `aggregate_backfills`.** Um documento por coleção guarda `generation`,
 `round`, `cursor`, a reserva (`leaseUntil`, 6 min) e as contagens. A rodada reserva o job em transação,
@@ -1333,7 +1334,9 @@ O andamento é o mesmo `PortalReprojectionStatus`.
 **Não há botão de "refazer o portal", de propósito.** Ele chegou a existir (9.144.0) e saiu: um gesto
 que "conserta tudo" vira o primeiro reflexo do escritório diante de qualquer coisa que não aparece, e o
 defeito que ele cobria é do kernel — quem o corrige é quem sobe a revisão. **Corrigiu a forma de
-projetar? Suba `PORTAL_PROJECTION_REVISION` e registre o motivo na lista do JSDoc.**
+projetar? Suba `PORTAL_PROJECTION_REVISION` e registre o motivo na lista do JSDoc.** Se a correção só
+muda a projeção de um caso raro, declare até onde ela chega em `PORTAL_PROJECTION_REVISION_REACH`
+(`isPortalProjectionBehind`): as coleções que não o têm ficam sem passada (EV-40).
 
 O job é do servidor: `firestore.rules` deixa ler quem tem `portal.manage` e não deixa ninguém gravar
 (`rules-tests/portalReprojections.test.ts`). O tamanho da passada é contado ao abri-la (`count()` dos
@@ -2278,9 +2281,10 @@ portal: { subject: { field: 'companyId' }, fields: ['holderId', 'status'], refer
   outra que não deve.
 
 **Nunca o id cru.** `portalRecordTitle` devolve vazio quando o campo de título é `reference`; o título
-exposto que é referência passa a ser o RÓTULO dela (`portalExposedTitle(screen, data, labels)`), e o
-rótulo do apontado cujo título é outra referência fica vazio (um salto só). A lista do portal mostra
-"Sem título" no lugar do id — que nunca disse nada ao convidado.
+exposto que é referência passa a ser o RÓTULO dela (`portalExposedTitle(screen, data, labels)`). O
+rótulo do apontado cujo título é OUTRA referência ficava vazio (um salto só) até o EV-40 — ver "O nome
+que o apontado mostra" abaixo. A lista do portal mostra "Sem título" no lugar do id — que nunca disse
+nada ao convidado.
 
 **Qual tela dá o nome — `referenceTitleScreen`.** A coleção apontada costuma ter duas telas, a da
 extensão e a âncora das rules, e as duas carregam o `titleFieldKey`. Vale a que DECLARA o campo de
@@ -2296,6 +2300,39 @@ estava no portal — a empresa renomeada deixava o nome antigo na nota até ela 
 `titleFieldKey` de uma tela fora do portal abre a passada só nas coleções que mostram o título dela.
 Como a forma de projetar mudou, `PORTAL_PROJECTION_REVISION` subiu para 2: as projeções gravadas com o id
 no título, ou com um nome antigo, são corrigidas pela passada de revisão, sem ninguém regravar nada.
+
+**O nome que o apontado mostra — o segundo salto (EV-40).** O título do domicílio é o contribuinte, outra
+referência, e o domicílio aparecia no portal com o nome do titular; mas a comunicação que aponta para o
+domicílio chegava SEM nome, com ou sem `referenceTitles`. Com convidado de vários domicílios, a lista de
+topo do portal misturava as comunicações de todos sem dizer de quem era cada uma. Nada muda na
+declaração: o rótulo de uma referência cujo apontado tem título por referência ganha `through`, o
+rótulo do segundo salto, montado por `portalReferenceLabels` com a MESMA regra de quem é apontado.
+
+- **Sem declaração** (o domicílio está no portal), `through` é o rótulo que o próprio domicílio dá ao
+  campo de título — só existe se ele expõe o título e o nome dele sai (pelo `referenceTitles` dele, ou
+  porque a tela do contribuinte está no portal). É exatamente o título que a projeção do domicílio já
+  mostra: o que o apontado não expõe não sai por quem aponta para ele.
+- **Declarado** em `referenceTitles` de quem aponta, `through` segue `officeRecordTitle`: o título do
+  registro do segundo salto, de qualquer tela. É o "título do domicílio" como o escritório o lê, e foi
+  isso que a declaração liberou.
+- **Só um salto a mais.** O rótulo de `through` não tem `through`: o contribuinte cujo título fosse outra
+  referência deixa o rótulo vazio, nunca o id. Cada salto a mais multiplicaria a busca de quem refazer.
+- **Lido do registro, não da projeção do apontado.** `resolvePortalReferenceTitle` lê o registro do
+  segundo salto, e não a projeção do domicílio: o rótulo não depende de qual gatilho rodou primeiro,
+  nem de o domicílio estar à vista do convidado — como no salto único, que também lê o registro.
+
+**Quem é refeito.** `portalLabelReferrers` devolve também o rótulo que mostra a coleção pelo segundo
+salto (`distant`). Renomear o contribuinte acha os domicílios dele e, deles, as comunicações; trocar o
+contribuinte do domicílio é mudança do que decide o rótulo (`portalReferenceTitleSource`: com `through`,
+os ids apontados, e não o nome) e refaz as comunicações dele. O teto `PORTAL_LABEL_REFRESH_LIMIT` vale
+para o registro do meio e para a soma de quem aponta — acima disso, passada na coleção de quem aponta.
+
+**A revisão que não alcança todos.** `PORTAL_PROJECTION_REVISION` subiu para 3 — mas uma passada em todo
+portal de todo escritório, por um caso que quase nenhum tem, é custo sem retorno. `isPortalProjectionBehind`
+consulta `PORTAL_PROJECTION_REVISION_REACH`: a revisão com entrada ali só alcança a coleção que tem o caso
+(a 3, a que tem rótulo com `through`); sem entrada, alcança todas. A coleção não alcançada fica na
+revisão gravada, sem passada, e a conferência é pura. Quem passar a ter o caso depois o terá por
+mudança de declaração, que já abre a passada dela.
 
 **O aviso ao escritório** (`portalActivityNotifier`) lê o título pelo apontado com `officeRecordTitle` —
 quem está dentro vê tudo, de qualquer tela —, e sem título usa a frase que não cita o registro

@@ -980,7 +980,48 @@ export interface PortalReferenceLabel<T extends PortalScreenLike> {
    * a tela apontada, no portal, já expõe.
    */
   declared: boolean;
+  /**
+   * O título do apontado é OUTRA referência — o domicílio, cujo título é o contribuinte. O rótulo é então
+   * o título que o apontado mostra, tirado do registro a que ela aponta: com `declared`, como o escritório
+   * o lê; sem, como a projeção do apontado já o expõe. Um salto a mais, e só um.
+   */
+  through?: PortalReferenceLabel<T>;
 }
+
+const referenceLabelsOf = <T extends PortalScreenLike>(
+  screens: readonly T[],
+  screen: PortalScreenLike,
+  chained: boolean,
+): PortalReferenceLabel<T>[] => {
+  const declared = new Set(portalReferenceTitleKeys(screen));
+  return portalFieldKeys(screen).flatMap((fieldKey): PortalReferenceLabel<T>[] => {
+    const field = screen.fields.find((one) => one.key === fieldKey);
+    if (field?.type !== 'reference' || !field.refEntity) return [];
+    const isDeclared = declared.has(fieldKey);
+    const target = isDeclared ? referenceTitleScreen(screens, field.refEntity) : portalTargetScreen(screens, field.refEntity);
+    if (!target) return [];
+    const label: PortalReferenceLabel<T> = { fieldKey, multi: field.multi === true, target, declared: isDeclared };
+    const through = chained ? titleReferenceLabel(screens, label) : undefined;
+    return [through ? { ...label, through } : label];
+  });
+};
+
+/**
+ * De onde sai o título do apontado quando ele é outra referência. Declarado, a mesma regra do
+ * escritório (`officeRecordTitle`): o título do registro do segundo salto, esteja a tela dele onde
+ * estiver. Sem declaração, só o que a projeção do apontado já mostra — o campo de título exposto nela,
+ * com o rótulo que ela mesma lhe dá; o que o apontado não expõe não sai por quem aponta para ele.
+ */
+const titleReferenceLabel = <T extends PortalScreenLike>(
+  screens: readonly T[],
+  label: PortalReferenceLabel<T>,
+): PortalReferenceLabel<T> | undefined => {
+  const field = referenceTitleField(label.target);
+  if (!field?.refEntity) return undefined;
+  if (!label.declared) return referenceLabelsOf(screens, label.target, false).find((one) => one.fieldKey === field.key);
+  const target = referenceTitleScreen(screens, field.refEntity);
+  return target ? { fieldKey: field.key, multi: field.multi === true, target, declared: true } : undefined;
+};
 
 /**
  * As referências expostas que ganham rótulo, e a tela de onde cada uma tira o título. A referência
@@ -990,20 +1031,12 @@ export interface PortalReferenceLabel<T extends PortalScreenLike> {
 export const portalReferenceLabels = <T extends PortalScreenLike>(
   screens: readonly T[],
   screen: PortalScreenLike,
-): PortalReferenceLabel<T>[] => {
-  const declared = new Set(portalReferenceTitleKeys(screen));
-  return portalFieldKeys(screen).flatMap((fieldKey): PortalReferenceLabel<T>[] => {
-    const field = screen.fields.find((one) => one.key === fieldKey);
-    if (field?.type !== 'reference' || !field.refEntity) return [];
-    const isDeclared = declared.has(fieldKey);
-    const target = isDeclared ? referenceTitleScreen(screens, field.refEntity) : portalTargetScreen(screens, field.refEntity);
-    return target ? [{ fieldKey, multi: field.multi === true, target, declared: isDeclared }] : [];
-  });
-};
+): PortalReferenceLabel<T>[] => referenceLabelsOf(screens, screen, true);
 
 /**
- * O título do registro apontado, como o rótulo o mostra. Um salto só: o apontado cujo título é outra
- * referência não tem texto aqui, e o rótulo fica vazio em vez de virar o id.
+ * O título do registro apontado, como o rótulo o mostra, quando ele está no próprio registro. O
+ * apontado cujo título é outra referência não tem texto aqui — quem o resolve é
+ * `resolvePortalReferenceTitle`, com a leitura do segundo salto —, e o rótulo nunca vira o id.
  */
 export const portalReferenceTitle = (
   label: PortalReferenceLabel<PortalScreenLike>,
@@ -1011,19 +1044,62 @@ export const portalReferenceTitle = (
 ): string => (label.declared ? portalRecordTitle(label.target, referenced) : portalExposedTitle(label.target, referenced));
 
 /**
+ * O rótulo de uma referência, do registro apontado já lido. Com `through`, lê o registro do segundo
+ * salto — a única leitura a mais, e só quando o título do apontado é uma referência.
+ */
+export const resolvePortalReferenceTitle = async (
+  label: PortalReferenceLabel<PortalScreenLike>,
+  referenced: Record<string, unknown>,
+  getRecord: (collection: string, recordId: string) => Promise<Record<string, unknown> | undefined>,
+): Promise<string> => {
+  const through = label.through;
+  if (!through) return portalReferenceTitle(label, referenced);
+  const titles = await Promise.all(referencedIds(referenced[through.fieldKey]).map(async (id) => {
+    const next = await getRecord(through.target.collection, id);
+    return next ? portalReferenceTitle(through, next) : '';
+  }));
+  return titles.filter((title) => title !== '').join(', ');
+};
+
+/**
+ * O que, no registro apontado, decide o rótulo — o que uma gravação dele precisa mudar para que quem
+ * aponta seja refeito. Com `through`, o nome não está nele: o que muda o rótulo é TROCAR o registro do
+ * segundo salto, e o nome deste é conferido quando ele mesmo é gravado.
+ */
+export const portalReferenceTitleSource = (
+  label: PortalReferenceLabel<PortalScreenLike>,
+  referenced: Record<string, unknown> | null,
+): string => {
+  if (!referenced) return '';
+  return label.through ? referencedIds(referenced[label.through.fieldKey]).join('\u0000') : portalReferenceTitle(label, referenced);
+};
+
+/** Uma tela do portal que mostra o título de um registro de certa coleção, e por qual rótulo. */
+export interface PortalLabelReferrer<T extends PortalScreenLike> {
+  screen: T;
+  label: PortalReferenceLabel<T>;
+  /**
+   * O registro da coleção é o do SEGUNDO salto (`label.through`): o contribuinte, quando a comunicação
+   * aponta para o domicílio dele. Quem aponta é achado pelo registro do meio.
+   */
+  distant: boolean;
+}
+
+/**
  * As telas do portal cuja projeção mostra o título de um registro desta coleção — no rótulo de uma
- * referência exposta, ou no próprio título quando ele é essa referência. É quem precisa ser refeito
- * quando esse título muda.
+ * referência exposta, ou no próprio título quando ele é essa referência, direto ou pelo segundo salto.
+ * É quem precisa ser refeito quando esse título muda.
  */
 export const portalLabelReferrers = <T extends PortalScreenLike>(
   screens: readonly T[],
   collection: string,
-): Array<{ screen: T; label: PortalReferenceLabel<T> }> =>
+): PortalLabelReferrer<T>[] =>
   screens
     .filter((screen) => !!screen.portal)
-    .flatMap((screen) => portalReferenceLabels(screens, screen)
-      .filter((label) => label.target.collection === collection)
-      .map((label) => ({ screen, label })));
+    .flatMap((screen) => portalReferenceLabels(screens, screen).flatMap((label): PortalLabelReferrer<T>[] => [
+      ...(label.target.collection === collection ? [{ screen, label, distant: false }] : []),
+      ...(label.through?.target.collection === collection ? [{ screen, label, distant: true }] : []),
+    ]));
 
 /**
  * O título de um registro como o ESCRITÓRIO o lê — no aviso do que o convidado fez. Quem está dentro
