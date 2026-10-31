@@ -1,6 +1,7 @@
 import styled from 'styled-components';
 
 const BREAKPOINT = '768px';
+const TABS_NARROW = '640px';
 
 /** O conteúdo da página do portal — o mesmo em qualquer layout. */
 export const S = {
@@ -95,11 +96,22 @@ export const S = {
     color: ${({ theme }) => theme.colors.textSecondary};
   `,
 
+  /**
+   * No celular a faixa rolável escondia as abas além da borda — o iOS não mostra a barra de rolagem.
+   * Ali elas viram pílulas que quebram linha: todas à vista, sem depender de o convidado arrastar.
+   */
   Tabs: styled.div`
     display: flex;
     gap: ${({ theme }) => theme.spacing.lg};
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
     overflow-x: auto;
+
+    @media (max-width: ${TABS_NARROW}) {
+      flex-wrap: wrap;
+      gap: ${({ theme }) => theme.spacing.xs};
+      border-bottom: none;
+      overflow-x: visible;
+    }
   `,
 
   Tab: styled.button<{ $active: boolean }>`
@@ -113,6 +125,15 @@ export const S = {
 
     &:hover {
       color: ${({ theme }) => theme.colors.text};
+    }
+
+    @media (max-width: ${TABS_NARROW}) {
+      padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.md};
+      margin-bottom: 0;
+      border: 1px solid ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.border)};
+      border-radius: ${({ theme }) => theme.borderRadius.full};
+      background: ${({ theme, $active }) => ($active ? theme.colors.primaryLight : 'transparent')};
+      color: ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
     }
   `,
 

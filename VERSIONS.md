@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.183.1] — 2026-10-31
+
+- No celular, o quadro de avisos do portal agora abre ocupando a largura da tela, em vez de sair cortado pela esquerda.
+- No celular, as abas de um registro aberto no portal aparecem todas de uma vez, quebrando linha quando preciso — antes as que não cabiam ficavam escondidas, sem nenhum sinal de que existiam.
+
 #### [9.183.0] — 2026-10-30
 
 - No portal, quando o formulário de criar ou de alterar pede um segundo registro relacionado — a comunicação que está sendo respondida, o pedido sobre o qual se reclama —, o convidado agora escolhe numa lista entre os registros que ele já vê, pelo nome, em vez de digitar um código.

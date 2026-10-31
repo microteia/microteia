@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.183.1] — 2026-10-31
+
+- fix(portal/notifications): below 640px the bell's panel overflowed the left edge of the screen — it was anchored to the bell's right edge, and the user menu sits to its right. `PortalNotificationBell.styles` now extends the shared `NotificationBell` styles: on narrow screens the `Wrapper` is `position: static`, so the panel anchors to the sticky portal header and spans its width with the side gutter. The office app's bell is unchanged.
+- fix(portal/record): below 640px the record's tabs were a horizontally scrolling strip, and iOS shows no scrollbar — the guest had no sign that more tabs existed. They now wrap as pills (active one in the primary color), all visible at once.
+
 #### [9.183.0] — 2026-10-30
 
 - feat(portal/create): a `reference` in `portal.create.fields` or `portal.edit.fields` whose `refEntity` leads to a screen in the portal (`portalTargetScreen`) is now chosen, not typed. `getPortalContext` describes it as `reference: { collection, multi }` on the fillable field, and `PortalCreateForm` draws a `SearchSelect`/`MultiSearchSelect` fed by `listLinkOptions(collection)` — the guest's projections of that screen, by title. In edit mode the already-stored id is offered with the projection's label (`editing.labels`) even when it is not in the list.
