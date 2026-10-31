@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.187.1] — 2026-10-31
+
+- fix(ui/filter): the remove button of a filter chip had a hardcoded Portuguese tooltip (`Remover filtro …`), shown in every language. It now reads `core.ui/filter.remove` ("Remove filter {field}"); `com.microteia.locale-pt-br` 1.152.0 carries the translation.
+
 #### [9.187.0] — 2026-10-31
 
 - feat(ui/nav): a menu entry can open a list on the records where a field is empty, or filled (EV-41). `UiNavFilter` is now `UiNavValueFilter | UiNavPresenceFilter`: besides `{ key, values }`, a term may be `{ key, empty: boolean }` — never both (`never` in the type, `issue.package.nav.filter.shape` in the gate). Before, `filter` only took fixed values, so a badge counting `isEmpty(publishedAt)` opened the whole list, and the only way out was a status field that copied what the date already said.

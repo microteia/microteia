@@ -290,7 +290,7 @@ export const CompositeFilter: React.FC<CompositeFilterProps> = ({
               </S.ChipBody>
               <S.ChipRemove
                 type="button"
-                title={`Remover filtro ${def.label}`}
+                title={t('filter.remove', { field: def.label })}
                 onClick={(e) => { e.stopPropagation(); vm.onRemoveToken(token.key); }}
               >
                 <RiCloseLine size={11} />

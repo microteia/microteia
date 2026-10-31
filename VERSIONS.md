@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.187.1] — 2026-10-31
+
+- O botão que remove um filtro da barra de filtros agora mostra a dica no idioma escolhido, em vez de sempre em português.
+
 #### [9.187.0] — 2026-10-31
 
 - A barra de filtros das listas ganhou "Sem valor" e "Com valor": escolha um ou mais campos e veja só os registros em que eles ainda estão em branco — ou já foram preenchidos. É o jeito de enxergar o que ainda não aconteceu, como a fatura sem data de pagamento ou o chamado sem responsável.

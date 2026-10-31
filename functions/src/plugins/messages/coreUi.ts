@@ -249,6 +249,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'filter.selected.other': '{count} selected',
   'filter.edit': 'Edit filter {field}',
   'filter.value.remove': 'Remove this value',
+  'filter.remove': 'Remove filter {field}',
   'filter.type.multiselect': 'multiple',
   'filter.type.text': 'text',
   'filter.type.date': 'date',

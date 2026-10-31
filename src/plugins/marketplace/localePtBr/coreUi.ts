@@ -242,6 +242,7 @@ export const CORE_UI: Record<string, string> = {
   'filter.selected.other': '{count} selecionados',
   'filter.edit': 'Editar filtro {field}',
   'filter.value.remove': 'Remover este valor',
+  'filter.remove': 'Remover filtro {field}',
   'filter.type.multiselect': 'múltiplos',
   'filter.type.text': 'texto',
   'filter.type.date': 'data',
