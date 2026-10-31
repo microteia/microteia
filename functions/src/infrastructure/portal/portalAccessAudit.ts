@@ -10,18 +10,25 @@ import { parsePortalSubjectKey } from '../../domain/schema/portal';
  *
  * O convite por identidade diz também QUAL atributo a pessoa terá de provar — o nome, nunca o valor:
  * o valor é dado pessoal, e fica no convite, que só quem administra o portal lê.
+ *
+ * O papel (EV-38) vai no título do vínculo novo que nasce com um, e a troca do papel de um vínculo que
+ * já existia é uma linha própria: é mudança de poder, e o escritório pergunta por ela como pergunta
+ * pelo convite.
  */
+const AUDIT_ACTION = { granted: 'CREATE', revoked: 'DELETE', role: 'UPDATE' } as const;
+
 export const makePortalAccessAudit = (createAuditLog: CreateAuditLogUseCase): PortalAccessAudit =>
-  async ({ tenantId, change, email, subjectKey, actor, origin, workflowId, claimName }) => {
+  async ({ tenantId, change, email, subjectKey, actor, origin, workflowId, claimName, role }) => {
     const subject = subjectKey ? parsePortalSubjectKey(subjectKey) : null;
+    const withRole = !!role && change === 'granted' ? '-role' : '';
     await createAuditLog.execute({
       tenantId,
-      title: claimName ? `@core.tenant/portal.audit.${change}-identity` : `@core.tenant/portal.audit.${change}`,
-      titleParams: { email, ...(claimName ? { claim: claimName } : {}) },
+      title: `@core.tenant/portal.audit.${change}${claimName ? '-identity' : ''}${withRole}`,
+      titleParams: { email, ...(claimName ? { claim: claimName } : {}), ...(role ? { role } : {}) },
       userId: actor.userId,
       userName: actor.userName,
       photoURL: '',
-      action: change === 'granted' ? 'CREATE' : 'DELETE',
+      action: AUDIT_ACTION[change],
       type: 'AUDIT',
       entity: origin === 'automation' && workflowId ? 'workflow' : 'portal',
       entityId: origin === 'automation' && workflowId ? workflowId : email,

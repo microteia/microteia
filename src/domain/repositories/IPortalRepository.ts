@@ -72,6 +72,11 @@ export interface IPortalRepository {
     data: Record<string, unknown>;
     locale: string;
   }): Promise<{ id: string }>;
+  /**
+   * Dos pais pedidos (até `PORTAL_CREATE_TARGETS_MAX`), aqueles em que o convidado cria agora — a tela
+   * com `create.when`. Só desenho: a gravação confere de novo.
+   */
+  listCreateTargets(input: { tenantId: string; collection: string; linkRecordIds: string[] }): Promise<string[]>;
   /** Altera um registro pelo portal — só os campos que a tela deixa. A recusa chega já traduzida. */
   update(input: {
     tenantId: string;
@@ -102,6 +107,7 @@ export interface IPortalRepository {
   /**
    * `locale` é o de quem convida: vira o idioma do portal do convidado enquanto ninguém escolher outro.
    * Com `requiredClaim`, o convite é por IDENTIDADE: não abre conta pelo e-mail, e `inviteId` volta.
+   * Com `role`, o papel do convidado no sujeito passa a ser esse.
    */
   invite(
     tenantId: string,
@@ -109,6 +115,7 @@ export interface IPortalRepository {
     subjectKey: string,
     locale: string,
     requiredClaim?: PortalRequiredClaim,
+    role?: string,
   ): Promise<{ userId: string; created: boolean; inviteId?: string }>;
   /** Do convidado (`userId`) ou do convite por identidade (`inviteId`); sem sujeito, tudo. */
   revoke(tenantId: string, guest: { userId: string } | { inviteId: string }, subjectKey: string | null): Promise<void>;

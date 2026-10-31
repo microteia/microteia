@@ -24,6 +24,13 @@ import {
   portalClaimKey,
   type PortalClaimNormalize,
 } from '../../domain/schema/portalIdentity';
+import {
+  mergePortalSubjectRoles,
+  portalSubjectRoleOf,
+  readPortalSubjectRoles,
+  withPortalSubjectRole,
+  withoutPortalSubjectRoles,
+} from '../../domain/schema/portalRole';
 
 const IN_CHUNK = 30;
 const BATCH_SIZE = 400;
@@ -43,10 +50,25 @@ const toInvite = (id: string, data: DocumentData): PortalIdentityInvite => {
     displayName: asString(data.displayName),
     claim: { name: asString(claim.name), value: asString(claim.value), ...(normalize ? { normalize } : {}) },
     subjectKeys: asStrings(data.subjectKeys),
+    ...rolesOf(data.subjectRoles),
     boundUserIds: asStrings(data.boundUserIds),
     invitedBy: asString(data.invitedBy),
     ...(asString(data.locale) ? { locale: asString(data.locale) } : {}),
   };
+};
+
+const rolesOf = (value: unknown) => {
+  const subjectRoles = readPortalSubjectRoles(value);
+  return subjectRoles.length > 0 ? { subjectRoles } : {};
+};
+
+/**
+ * Os papéis que a conta recebe — a soma dos convites dela, só dos sujeitos que ela recebe —, como a
+ * escrita os grava: sem papel nenhum, o campo SAI, e a conta sem papel lê como sempre leu.
+ */
+const accountRoles = (invites: ReadonlyArray<{ subjectRoles?: PortalIdentityInvite['subjectRoles'] }>, subjectKeys: string[]) => {
+  const merged = mergePortalSubjectRoles(invites.map((invite) => invite.subjectRoles ?? []), subjectKeys);
+  return merged.length > 0 ? merged : FieldValue.delete();
 };
 
 const toProof = (id: string, data: DocumentData): PortalIdentityProof => ({
@@ -109,7 +131,8 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
     tenantId: string,
     grant: Parameters<IPortalIdentityRepository['grantInvite']>[1],
     subjectKey: string,
-  ): Promise<{ invite: PortalIdentityInvite; granted: boolean }> {
+    role?: string,
+  ): Promise<{ invite: PortalIdentityInvite; granted: boolean; roleChanged: boolean }> {
     const claimKey = portalClaimKey(grant.claim.name, grant.claim.value);
     return this.db.runTransaction(async (transaction) => {
       const existing = await transaction.get(this.invites(tenantId).where('claimKey', '==', claimKey).limit(1));
@@ -117,10 +140,25 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
         const doc = existing.docs[0];
         const invite = toInvite(doc.id, doc.data());
         const granted = !invite.subjectKeys.includes(subjectKey);
-        if (granted) {
-          transaction.update(doc.ref, { subjectKeys: FieldValue.arrayUnion(subjectKey), updatedAt: FieldValue.serverTimestamp() });
+        const roles = invite.subjectRoles ?? [];
+        const roleChanged = !!role && portalSubjectRoleOf(roles, subjectKey) !== role;
+        const subjectRoles = roleChanged && role ? withPortalSubjectRole(roles, subjectKey, role) : roles;
+        if (granted || roleChanged) {
+          transaction.update(doc.ref, {
+            ...(granted ? { subjectKeys: FieldValue.arrayUnion(subjectKey) } : {}),
+            ...(roleChanged ? { subjectRoles } : {}),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
         }
-        return { invite: { ...invite, subjectKeys: granted ? [...invite.subjectKeys, subjectKey] : invite.subjectKeys }, granted };
+        return {
+          invite: {
+            ...invite,
+            subjectKeys: granted ? [...invite.subjectKeys, subjectKey] : invite.subjectKeys,
+            ...(subjectRoles.length > 0 ? { subjectRoles } : {}),
+          },
+          granted,
+          roleChanged,
+        };
       }
       const reference = this.invites(tenantId).doc();
       const data = {
@@ -130,6 +168,7 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
         claim: grant.claim,
         claimKey,
         subjectKeys: [subjectKey],
+        ...(role ? { subjectRoles: [{ subjectKey, role }] } : {}),
         boundUserIds: [],
         invitedBy: grant.invitedBy,
         ...(grant.locale ? { locale: grant.locale } : {}),
@@ -137,7 +176,7 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
         updatedAt: FieldValue.serverTimestamp(),
       };
       transaction.set(reference, data);
-      return { invite: toInvite(reference.id, data), granted: true };
+      return { invite: toInvite(reference.id, data), granted: true, roleChanged: !!role };
     });
   }
 
@@ -149,8 +188,15 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
       const current = asStrings(snapshot.get('subjectKeys'));
       const remaining = subjectKey === null ? [] : current.filter((key) => key !== subjectKey);
       if (subjectKey !== null && remaining.length === current.length) return false;
+      const roles = readPortalSubjectRoles(snapshot.get('subjectRoles'));
       if (remaining.length === 0) transaction.delete(reference);
-      else transaction.update(reference, { subjectKeys: remaining, updatedAt: FieldValue.serverTimestamp() });
+      else {
+        transaction.update(reference, {
+          subjectKeys: remaining,
+          ...(roles.length > 0 ? { subjectRoles: withoutPortalSubjectRoles(roles, subjectKey) } : {}),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
       return true;
     });
   }
@@ -195,6 +241,7 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
         tenantId,
         tenantName: binding.tenantName,
         subjectKeys,
+        subjectRoles: accountRoles(matched, subjectKeys),
         invitedBy: binding.invitedBy,
         ...(binding.locale ? { locale: binding.locale } : {}),
         identity: { ...binding.verified, subject: binding.subject, verifiedAt: FieldValue.serverTimestamp() },
@@ -232,12 +279,13 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
         ...asStrings(current.get('subjectKeys')),
         ...bound.docs.flatMap((doc) => asStrings(doc.get('subjectKeys'))),
       ])].sort();
+      const stored = toInvite(current.id, current.data() ?? {});
+      const subjectRoles = accountRoles([stored, ...bound.docs.map((doc) => toInvite(doc.id, doc.data()))], subjectKeys);
       transaction.update(inviteRef, { boundUserIds: FieldValue.arrayUnion(proof.userId), updatedAt: FieldValue.serverTimestamp() });
       if (existing.exists) {
-        transaction.update(membership, { subjectKeys, updatedAt: FieldValue.serverTimestamp() });
+        transaction.update(membership, { subjectKeys, subjectRoles, updatedAt: FieldValue.serverTimestamp() });
         return;
       }
-      const stored = toInvite(current.id, current.data() ?? {});
       transaction.set(membership, {
         userId: proof.userId,
         email: stored.email,
@@ -245,6 +293,7 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
         tenantId,
         tenantName,
         subjectKeys,
+        ...(subjectRoles instanceof FieldValue ? {} : { subjectRoles }),
         invitedBy: stored.invitedBy,
         ...(stored.locale ? { locale: stored.locale } : {}),
         identity: {
@@ -261,13 +310,20 @@ export class FirebasePortalIdentityRepository implements IPortalIdentityReposito
   }
 
   async syncAccount(tenantId: string, userId: string): Promise<void> {
-    const subjectKeys = [...new Set((await this.invitesBoundTo(tenantId, userId)).flatMap((invite) => invite.subjectKeys))].sort();
+    const invites = await this.invitesBoundTo(tenantId, userId);
+    const subjectKeys = [...new Set(invites.flatMap((invite) => invite.subjectKeys))].sort();
     const membership = this.portalUsers(tenantId).doc(userId);
     await this.db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(membership);
       if (!snapshot.exists) return;
       if (subjectKeys.length === 0) transaction.delete(membership);
-      else transaction.update(membership, { subjectKeys, updatedAt: FieldValue.serverTimestamp() });
+      else {
+        transaction.update(membership, {
+          subjectKeys,
+          subjectRoles: accountRoles(invites, subjectKeys),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
     });
   }
 

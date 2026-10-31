@@ -10,6 +10,7 @@ import {
   portalRecordDocId,
   type PortalActionScope,
 } from '../schema/portal';
+import { portalGuestActor } from '../schema/portalRole';
 import { activeGuest, guestSees } from './PortalAccessUseCases';
 
 /** Um botão do registro aberto no portal, já no idioma do convidado. */
@@ -103,6 +104,7 @@ const loadTarget = async (repo: IPortalRepository, request: PortalActionRequest)
       record,
       collection: screen.collection,
       guest: { id: userId, name: guest.displayName },
+      actor: portalGuestActor(guest, projection.subjectKeys),
       ...(timeZone ? { timeZone } : {}),
     },
   };

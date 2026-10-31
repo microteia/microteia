@@ -2179,6 +2179,79 @@ isso, a view que quisesse os botões no lugar dela os mostraria duas vezes — a
 portal simplesmente não existiria. A chave que não aponta para uma ação do pacote no cabeçalho da tela,
 que é comando, que pergunta ou que está desligada é recusa (`issue.portal.action.*`).
 
+### O papel do convidado no registro — `create.when` e `actor.portalRoles` (EV-38)
+
+```ts
+portal: { subject: { field: 'empresa' }, fields: [...], create: { fields: ['nome'], when: '"socio" in actor.portalRoles' } }
+// e, no passo portal-invite: role: { kind: 'Literal', value: 'socio' }
+```
+
+Até a 9.183.0 todo convidado de um registro tinha o mesmo poder sobre ele. O sócio e o contador da mesma
+empresa, o síndico e o morador: convidado depois da ativação, o procurador via o botão de pedir
+representante igual a um sócio, e o DTE desfazia o pedido por automação segundos depois.
+
+**O papel é do VÍNCULO, não da pessoa.** Quem é sócio de uma empresa pode ser contador de outra. Por isso
+ele mora ao lado de cada sujeito do convite — `portalUsers/{uid}.subjectRoles: [{ subjectKey, role }]`, e
+o mesmo campo em `portalIdentityInvites`, somado na conta por `bind`, `rebind` e `syncAccount` como os
+sujeitos. É lista, e não mapa: a chave do sujeito tem `/`, que o Firestore não aceita num caminho de
+campo, e a soma de convites por identidade pode trazer o mesmo sujeito com dois papéis. O kernel não
+conhece papel nenhum: é uma chave (`[a-z0-9_.-]`, até `PORTAL_ROLE_MAX_LENGTH`) que quem convida escreve e
+que a condição compara — a chave com acento ou maiúscula de um lado e não do outro seria a condição que
+nunca vale, calada.
+
+| Peça | O que faz |
+|---|---|
+| `domain/schema/portalRole.ts` (sincronizado) | validação da chave, leitura desconfiada, troca/retirada/soma dos papéis, `portalRolesOn` (os papéis NOS sujeitos do registro) e `portalGuestActor` |
+| `makeInvitePortalUserUseCase` | `role` nas duas portas e nos dois caminhos (e-mail e identidade). Sem `role`, o papel que havia FICA; com, passa a ser este. Trocar o papel de um vínculo que existe não gasta vaga da hora e grava Auditoria própria (`portal.audit.role`) |
+| `portal.create.when` | expressão sobre o registro-PAI inteiro + `actor` (`portalRoles`, `verified`), avaliada por `isPortalCreateOpen` em `makeSubmitPortalRecordUseCase` |
+| `makeListPortalCreateTargetsUseCase` | dos pais pedidos (até `PORTAL_CREATE_TARGETS_MAX`), aqueles em que o convidado cria agora — o desenho do botão |
+| `portalActionCondition` | no portal, `hiddenWhen`/`disabledWhen` também leem `actor` |
+
+**Por que lista, e não `actor.portalRole`.** O roadmap propôs um papel só. Um registro pode pertencer a
+dois sujeitos (a nota de duas empresas), e o convidado ter papéis diferentes em cada um: escolher um
+responderia ao acaso, e um `!= "contador"` abriria para quem é contador de uma delas. `actor.portalRoles`
+é a lista dos papéis do convidado nos sujeitos DAQUELE registro, e a pergunta é `"socio" in
+actor.portalRoles`.
+
+**Onde o papel vale, e onde não.** Só onde a condição é avaliada A CADA PEDIDO, por convidado:
+
+| Declaração | Lê `actor`? | Por quê |
+|---|---|---|
+| `create.when` | sim | conferida na gravação e na consulta do botão |
+| `portal.actions` (`hiddenWhen`/`disabledWhen`) | sim | a callable já avalia por pedido, com o registro inteiro |
+| `edit.when` | não | o botão é desenhado pela projeção (`editable`), avaliada na GRAVAÇÃO, uma vez para todos os convidados — com `actor` ela daria a resposta de ninguém |
+| `visibleWhen` | não | idem: a projeção é uma só para todo o `audience`. O roadmap sugeria; recusado por isso |
+| a automação disparada | não | o papel é ACESSO, como as permissões: envelhece, e não atravessa (`toPublishedActor`) — a decisão mora na condição da tela |
+
+`actor` cobre um campo do pai de mesmo nome — é a pessoa que a condição pergunta. O Form Design
+(`portalCreateConditionIssues`) confere a sintaxe e os campos citados contra a tela-PAI, aceitando `actor`.
+
+**A casca pergunta, e só quando há o que perguntar.** O contexto marca `create.conditional` (sem a
+condição — ela lê o que o convidado não vê). Só então a aba-filha pergunta pelo pai aberto, e o formulário
+com escolha filtra a lista. A pergunta é `submitPortalRecord` com `linkRecordIds`: a mesma callable da
+gravação, pela razão de `portalRecordActions` — acorda a instância que o clique vai usar, e não há function
+nova no deploy. Sem `create.when`, nada é perguntado e o pai nem é lido. Views de extensão recebem a mesma
+pergunta (`usePortalCreateTargets` em `@microteia/portal`).
+
+**Não quebra quem não usa.** Sem `role` e sem `when`, as escritas, as respostas e as chamadas são as de
+antes: `roleChanged` só aparece quando é verdadeiro, e `grantSubject` nem recebe o argumento. `create.when`
+sai do `portalShape`: mudar a condição não abre passada de reprojeção.
+
+**Kernel.** `PORTAL_ROLES_SINCE_KERNEL` (2.89.0), que move o `KERNEL_VERSION`. É de EXPOSIÇÃO, como o do
+`visibleWhen`: um kernel anterior descarta `create.when` e deixaria todo convidado criar. O pacote que
+declara `create.when` sem exigi-lo é recusado (`issue.portal.create-when.kernel`), e também o passo
+`portal-invite` com `role` (`issue.step.input-kernel`).
+
+**Limites conhecidos.** O convidado não vê o próprio papel na casca, e o desenho declarado
+(`portal.template`) não o lê. Tirar o papel é revogar o vínculo e convidar de novo sem ele. A Configurações ›
+Portal mostra o papel no rótulo de cada vínculo, mas não o edita fora do convite.
+
+Os testes são `portalRole.test.ts` (a regra pura), `portal.test.ts` (declaração, porta, conferência e
+ações), `PortalRoles.test.ts` (dois convidados do mesmo registro: o sócio cria, o outro é recusado; a
+consulta; o pai lido inteiro; o convite que dá, troca e mantém o papel; a identidade; as ações),
+`PortalAccessSteps.test.ts`, `pluginPortal.test.ts`, `workflowIntegrity.test.ts` e
+`portalCreateConditional.test.tsx` (a casca só mostra o "+" e os pais que o servidor deixa).
+
 ### O nome do registro vinculado — `portal.referenceTitles` (EV-24)
 
 A referência exposta chega ao convidado como o **título** do registro apontado (`labels` da projeção).
@@ -2396,7 +2469,7 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
 
 ### Arquivos-chave
 
-`domain/schema/portal.ts` · `domain/entities/Portal.ts` · `data/repositories/FirebasePortalRepository.ts` ·
+`domain/schema/portal.ts` · `domain/schema/portalRole.ts` · `domain/entities/Portal.ts` · `data/repositories/FirebasePortalRepository.ts` ·
 `stores/{PortalStore.tsx,usePortal.ts}` · `presentation/pages/{Portal,PortalSignIn}/` ·
 `presentation/pages/TenantSettings/PortalTab/` ·
 `functions/src/domain/usecases/{PortalProjectionUseCases,PortalReprojectionUseCases,PortalAccessUseCases}.ts` ·

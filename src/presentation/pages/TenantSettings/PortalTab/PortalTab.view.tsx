@@ -54,6 +54,14 @@ export const PortalTabView: React.FC = () => {
               placeholder={t('portal.email.placeholder')}
             />
           </S.Column>
+          <S.Column>
+            <Label>{t('portal.role')}</Label>
+            <Input
+              value={vm.role}
+              onChange={(event) => vm.setRole(event.target.value)}
+              placeholder={t('portal.role.placeholder')}
+            />
+          </S.Column>
           <Button onClick={() => void vm.invite()} disabled={!vm.canInvite}>
             {vm.isInviting ? t('portal.inviting') : t('portal.invite')}
           </Button>

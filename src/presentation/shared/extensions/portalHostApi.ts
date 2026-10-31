@@ -138,6 +138,13 @@ const usePortalDocuments = (
 /** Cria um registro pelo portal. A recusa de validação chega já traduzida, no `message`. */
 const usePortalSubmit = () => usePortal().submit;
 
+/**
+ * Dos pais pedidos, aqueles em que o convidado cria agora — para a view que desenha o próprio botão de
+ * criar numa tela com `create.when` (`usePortalScreen(...).create.conditional`). Só desenho: a gravação
+ * confere de novo. A falha responde "nenhum".
+ */
+const usePortalCreateTargets = () => usePortal().listCreateTargets;
+
 /** Altera um registro pelo portal — o servidor confere campos, momento e dono a cada pedido. */
 const usePortalUpdate = () => usePortal().update;
 
@@ -170,6 +177,7 @@ const portalModule = {
   usePortalNavigation,
   usePortalDocuments,
   usePortalSubmit,
+  usePortalCreateTargets,
   usePortalUpdate,
   usePortalActions,
   usePortalNotify,

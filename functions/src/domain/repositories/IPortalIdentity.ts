@@ -3,6 +3,7 @@ import type {
   PortalSignInSettings,
   PortalVerifiedIdentity,
 } from '../schema/portalIdentity';
+import type { PortalSubjectRole } from '../schema/portalRole';
 
 /** O que a descoberta OIDC de um emissor diz — só o que o portal usa. */
 export interface OidcDiscovery {
@@ -93,6 +94,8 @@ export interface PortalIdentityInvite {
   displayName: string;
   claim: PortalRequiredClaim;
   subjectKeys: string[];
+  /** O papel em cada sujeito que tem um (EV-38) — somado ao acesso de quem aceitou, como os sujeitos. */
+  subjectRoles?: PortalSubjectRole[];
   /** As contas que já o aceitaram — uma por provedor que atestou a mesma claim. */
   boundUserIds: string[];
   invitedBy: string;
@@ -149,14 +152,16 @@ export interface IPortalIdentityRepository {
   invitesByEmail(tenantId: string, email: string): Promise<PortalIdentityInvite[]>;
   /**
    * Acrescenta o sujeito ao convite da claim (criando-o se preciso), numa transação: dois convites
-   * simultâneos para a mesma claim não abrem dois. `granted` é `true` quando o vínculo é NOVO.
+   * simultâneos para a mesma claim não abrem dois. `granted` é `true` quando o vínculo é NOVO; com
+   * `role`, o papel do sujeito passa a ser esse (`roleChanged`), e sem ele o que havia fica.
    */
   grantInvite(
     tenantId: string,
     grant: PortalIdentityInviteGrant,
     subjectKey: string,
-  ): Promise<{ invite: PortalIdentityInvite; granted: boolean }>;
-  /** Tira o sujeito (ou todos, com `null`); sem sujeito nenhum, o convite deixa de existir. */
+    role?: string,
+  ): Promise<{ invite: PortalIdentityInvite; granted: boolean; roleChanged: boolean }>;
+  /** Tira o sujeito (ou todos, com `null`) e o papel dele; sem sujeito nenhum, o convite deixa de existir. */
   revokeInvite(tenantId: string, inviteId: string, subjectKey: string | null): Promise<boolean>;
   /**
    * Grava o acesso de quem entrou: o convite dele (`portalUsers/{uid}`) com os sujeitos dos convites
@@ -176,7 +181,7 @@ export interface IPortalIdentityRepository {
    */
   rebind(tenantId: string, invite: PortalIdentityInvite, proof: PortalIdentityProof, tenantName: string): Promise<void>;
   /**
-   * Refaz os sujeitos de uma conta pela soma dos convites a que ela está vinculada; sem nenhum, o
+   * Refaz os sujeitos (e os papéis) de uma conta pela soma dos convites a que ela está vinculada; sem nenhum, o
    * acesso deixa de existir. É o que propaga ao convidado o convite alterado depois do aceite.
    */
   syncAccount(tenantId: string, userId: string): Promise<void>;

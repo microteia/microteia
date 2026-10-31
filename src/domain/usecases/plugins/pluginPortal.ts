@@ -8,11 +8,13 @@ import {
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
   asPortalDeclaration,
   portalActionIssues,
+  portalCreateConditionIssues,
   portalDerivedFieldKeys,
   portalReferenceTitleIssues,
   portalVisibilityIssues,
 } from '../../schema/portal';
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
+import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { portalTemplateIssues } from '../../schema/ui/portalTemplateIssues';
 import type { LocalizedIssue } from './pluginReferences';
 
@@ -182,6 +184,35 @@ const referenceTitleIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
 };
 
 /**
+ * A condição de criar (`create.when`) das telas do pacote: a sintaxe e o `kernel`. O `kernel` é de
+ * EXPOSIÇÃO, como o do `visibleWhen`: um kernel anterior descarta a condição e deixa TODO convidado
+ * criar — o procurador pedindo o que só o sócio pede. Os campos citados são os do pai, que pode ser de
+ * uma dependência: quem os confere é a aba Portal, onde todas as telas estão.
+ */
+const createWhenIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
+  const declaring = (pkg.screens ?? []).flatMap((screen) => {
+    const portal = asPortalDeclaration(screen.portal);
+    return portal?.create?.when ? [{ screen, portal }] : [];
+  });
+
+  const syntax = declaring
+    .filter(({ screen, portal }) => portalCreateConditionIssues({ id: screen.key, collection: screen.key, fields: [], portal }, undefined).length > 0)
+    .map(({ screen }): LocalizedIssue => ({
+      message: '@core.marketplace/issue.portal.create-when.invalid',
+      messageParams: { screen: screen.key },
+    }));
+
+  const kernel = declaring.length > 0 && !rangeExcludesBelow(pkg.manifest.kernel ?? '', PORTAL_ROLES_SINCE_KERNEL)
+    ? [{
+      message: '@core.marketplace/issue.portal.create-when.kernel',
+      messageParams: { screen: declaring[0].screen.key, minimum: PORTAL_ROLES_SINCE_KERNEL },
+    }]
+    : [];
+
+  return [...syntax, ...kernel];
+};
+
+/**
  * O desenho do portal (`portal.template`) das telas do pacote, pela régua da aba Portal: forma, ícone,
  * expressão e — o que é do portal — só campo EXPOSTO. Na tela instalada o defeito não quebraria nada
  * (o servidor descarta o nó), e por isso a recusa mora aqui: descartado em silêncio, o destaque só
@@ -204,6 +235,7 @@ const templateIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
 export const packagePortalIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...derivedFieldIssues(pkg),
   ...visibleWhenIssues(pkg),
+  ...createWhenIssues(pkg),
   ...documentLinkIssues(pkg),
   ...trackViewsIssues(pkg),
   ...actionIssues(pkg),

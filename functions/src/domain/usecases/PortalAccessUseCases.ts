@@ -4,6 +4,7 @@ import type {
   IPortalRepository,
   PortalFieldOption,
   PortalScreen,
+  PortalUserRecord,
 } from '../repositories/IPortalRepository';
 import { isLookupCollection } from '../schema/lookupRegistry';
 import { RESERVED_COLLECTIONS } from '../schema/screenEntity';
@@ -27,6 +28,9 @@ import {
   buildPortalEdit,
   canPortalUserEdit,
   evaluatePortalCondition,
+  hasPortalCreateCondition,
+  isPortalCreateOpen,
+  PORTAL_CREATE_TARGETS_MAX,
   isPortalEditOpen,
   isPortalRecordVisible,
   portalCreateFieldKeys,
@@ -57,6 +61,7 @@ import { portalFieldInput, type PortalFieldInput } from '../schema/portalFieldIn
 import { buildFieldRulePresetCatalog, type FieldRulePreset } from '../schema/fieldRulePresets';
 import { buildLookupProviderCatalog, type LookupProviderSpec } from '../schema/lookupProviderSpec';
 import { guestPortalTemplate, type PortalTemplate } from '../schema/ui/portalTemplate';
+import { portalGuestActor, portalSubjectRoleOf, readPortalRoleInput, type PortalSubjectRole } from '../schema/portalRole';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -80,8 +85,28 @@ export const guestSees = (
   && projection.subjectKeys.some((key) => guest.subjectKeys.includes(key));
 
 /**
- * O convidado enxerga ESTE registro da tela do portal: é sujeito do convite dele (`self`), ou uma
- * projeção que ele vê. É a conferência do vínculo da criação, e a de toda referência que ele escolhe.
+ * Os sujeitos do convite pelos quais o convidado enxerga ESTE registro da tela do portal: o próprio
+ * registro (`self`), ou os da projeção que ele vê. Vazio, ele não o enxerga. São eles que dizem os
+ * papéis dele no registro (`actor.portalRoles`).
+ */
+const guestSubjectsOf = async (
+  repo: IPortalRepository,
+  tenantId: string,
+  guest: { userId: string; subjectKeys: string[] },
+  target: PortalScreen,
+  recordId: string,
+): Promise<string[]> => {
+  if (target.portal?.subject === 'self') {
+    const key = portalSubjectKey(target.collection, recordId);
+    return guest.subjectKeys.includes(key) ? [key] : [];
+  }
+  const projection = await repo.getProjection(tenantId, portalRecordDocId(target.collection, recordId));
+  return projection && guestSees(guest, projection) ? projection.subjectKeys.filter((key) => guest.subjectKeys.includes(key)) : [];
+};
+
+/**
+ * O convidado enxerga ESTE registro da tela do portal. É a conferência do vínculo da criação, e a de
+ * toda referência que ele escolhe.
  */
 const guestSeesRecord = async (
   repo: IPortalRepository,
@@ -89,10 +114,7 @@ const guestSeesRecord = async (
   guest: { userId: string; subjectKeys: string[] },
   target: PortalScreen,
   recordId: string,
-): Promise<boolean> =>
-  target.portal?.subject === 'self'
-    ? guest.subjectKeys.includes(portalSubjectKey(target.collection, recordId))
-    : guestSees(guest, await repo.getProjection(tenantId, portalRecordDocId(target.collection, recordId)));
+): Promise<boolean> => (await guestSubjectsOf(repo, tenantId, guest, target, recordId)).length > 0;
 
 /**
  * Cada registro que a gravação passa a apontar numa referência escolhível é um que o convidado vê
@@ -126,7 +148,8 @@ export interface PortalAccessActor {
 /** Uma linha de Auditoria do acesso de alguém de fora — o rastro do que saiu do escritório, e de quando parou de sair. */
 export interface PortalAccessAuditEntry {
   tenantId: string;
-  change: 'granted' | 'revoked';
+  /** `role`: o vínculo já existia, e o convite trocou o papel dele. */
+  change: 'granted' | 'revoked' | 'role';
   email: string;
   /** O sujeito; `null` quando o convite inteiro foi revogado. */
   subjectKey: string | null;
@@ -135,6 +158,8 @@ export interface PortalAccessAuditEntry {
   workflowId?: string;
   /** O convite por identidade: o NOME da claim exigida — o valor é dado pessoal, e fica no convite. */
   claimName?: string;
+  /** O papel dado ao convidado no sujeito — no vínculo novo que tem um, e em toda troca. */
+  role?: string;
 }
 
 export type PortalAccessAudit = (entry: PortalAccessAuditEntry) => Promise<void>;
@@ -168,6 +193,12 @@ export interface InvitePortalUserInput {
    * um provedor que ateste a mesma claim o aceita. Conferido aqui, venha de onde vier.
    */
   requiredClaim?: unknown;
+  /**
+   * O papel do convidado NESTE sujeito (EV-38) — uma chave (`socio`), que as condições da tela leem
+   * em `actor.portalRoles`. Ausente, o vínculo novo nasce sem papel e o existente fica com o que tinha;
+   * presente, o papel do sujeito passa a ser este. Conferido aqui, venha de onde vier.
+   */
+  role?: unknown;
 }
 
 export interface InvitePortalUserResult {
@@ -177,6 +208,11 @@ export interface InvitePortalUserResult {
   created: boolean;
   /** O vínculo com o sujeito é NOVO — `false` é o convite que já existia. */
   granted: boolean;
+  /**
+   * O papel do sujeito mudou — inclusive o do vínculo novo que nasce com um. Só presente quando mudou:
+   * o convite sem papel responde exatamente o que respondia antes dele.
+   */
+  roleChanged?: true;
   /** O convite por identidade — é por ele que a revogação o alcança antes de alguém aceitá-lo. */
   inviteId?: string;
 }
@@ -194,6 +230,28 @@ const auditQuietly = async (audit: PortalAccessAudit, entry: PortalAccessAuditEn
   }
 };
 
+/** O convite pediria um papel diferente do que o sujeito já tem. Sem papel pedido, não muda nada. */
+const changesRole = (roles: readonly PortalSubjectRole[] | undefined, subjectKey: string, role: string | null): boolean =>
+  !!role && portalSubjectRoleOf(roles ?? [], subjectKey) !== role;
+
+/**
+ * O que o vínculo mudou, na Auditoria: o vínculo novo (com o papel, quando nasce com um), ou só a troca
+ * do papel de um vínculo que já existia. Nada mudou, nenhuma linha.
+ */
+const auditGrant = async (
+  deps: PortalAccessDeps,
+  outcome: { granted: boolean; roleChanged: boolean },
+  entry: Omit<PortalAccessAuditEntry, 'change' | 'role'>,
+  role: string | null,
+): Promise<void> => {
+  if (!outcome.granted && !outcome.roleChanged) return;
+  await auditQuietly(deps.audit, {
+    ...entry,
+    change: outcome.granted ? 'granted' : 'role',
+    ...(role && outcome.roleChanged ? { role } : {}),
+  });
+};
+
 /**
  * Vincula alguém de fora a um registro-sujeito — pela tela e pela automação, a MESMA porta.
  *
@@ -208,10 +266,14 @@ const auditQuietly = async (audit: PortalAccessAudit, entry: PortalAccessAuditEn
  * existe volta sem escrever nada — nem conta, nem vaga, nem auditoria: rodar duas vezes é rodar uma.
  */
 export const makeInvitePortalUserUseCase = (deps: PortalAccessDeps): InvitePortalUserUseCase => ({
-  execute: async ({ tenantId, tenantName, email, subjectKey, actor, origin = 'settings', workflowId, locale, displayName, requiredClaim }) => {
+  execute: async ({ tenantId, tenantName, email, subjectKey, actor, origin = 'settings', workflowId, locale, displayName, requiredClaim, role: rawRole }) => {
     const { repo, accounts } = deps;
     const normalized = normalizePortalEmail(email);
     if (!EMAIL_PATTERN.test(normalized)) throw invalidArgument('@core.tenant/portal.email.invalid');
+    const role = readPortalRoleInput(rawRole);
+    if (role === false) throw invalidArgument('@core.tenant/portal.role.invalid');
+    // Sem papel, a escrita é a de sempre — nem o argumento vai.
+    const withRole: [] | [string] = role ? [role] : [];
     const claimed = requiredClaim === undefined || requiredClaim === null ? null : asPortalRequiredClaim(requiredClaim);
     if (claimed && 'issue' in claimed) throw invalidArgument(claimed.issue);
 
@@ -236,38 +298,42 @@ export const makeInvitePortalUserUseCase = (deps: PortalAccessDeps): InvitePorta
       }
       if (origin === 'automation') {
         const [existing] = await deps.identity.findInvitesByClaimKeys(tenantId, [portalClaimKey(claim.name, claim.value)]);
-        if (existing?.subjectKeys.includes(key)) {
+        const held = !!existing?.subjectKeys.includes(key);
+        if (existing && held && !changesRole(existing.subjectRoles, key, role)) {
           return { userId: existing.boundUserIds[0] ?? '', created: false, granted: false, inviteId: existing.id };
         }
-        if (!(await deps.quota.consume(tenantId, PORTAL_AUTOMATION_INVITES_PER_HOUR, deps.now()))) {
+        // Trocar o papel de um vínculo que existe não é convite novo: não gasta vaga da hora.
+        if (!held && !(await deps.quota.consume(tenantId, PORTAL_AUTOMATION_INVITES_PER_HOUR, deps.now()))) {
           throw failedPrecondition('@core.tenant/portal.invite.rate-limited');
         }
       }
-      const { invite, granted } = await deps.identity.grantInvite(tenantId, {
+      const { invite, granted, roleChanged } = await deps.identity.grantInvite(tenantId, {
         email: normalized,
         displayName: displayName?.trim() || normalized,
         claim,
         invitedBy: actor.userId,
         ...(locale ? { locale } : {}),
-      }, key);
-      // Quem já aceitou o convite recebe o sujeito novo agora, e não só no próximo login.
+      }, key, ...withRole);
+      // Quem já aceitou o convite recebe o sujeito novo (e o papel) agora, e não só no próximo login.
       await Promise.all(invite.boundUserIds.map((userId) => deps.identity.syncAccount(tenantId, userId)));
       const rebound = await rebindProvenAccounts(deps, { tenantId, tenantName, invite, settings });
-      if (granted) {
-        await auditQuietly(deps.audit, {
-          tenantId, change: 'granted', email: normalized, subjectKey: key, actor, origin, claimName: claim.name,
-          ...(workflowId ? { workflowId } : {}),
-        });
-      }
-      return { userId: [...invite.boundUserIds, ...rebound][0] ?? '', created: false, granted, inviteId: invite.id };
+      await auditGrant(deps, { granted, roleChanged }, {
+        tenantId, email: normalized, subjectKey: key, actor, origin, claimName: claim.name, ...(workflowId ? { workflowId } : {}),
+      }, role);
+      return {
+        userId: [...invite.boundUserIds, ...rebound][0] ?? '', created: false, granted, ...(roleChanged ? { roleChanged: true as const } : {}), inviteId: invite.id,
+      };
     }
     if (!settings.emailLink) throw failedPrecondition('@core.tenant/portal.invite.identity-required');
 
     let account = await accounts.findUserIdByEmail(normalized);
     if (origin === 'automation') {
       const holder = account ? await repo.getPortalUser(tenantId, account.userId) : null;
-      if (account && holder?.subjectKeys.includes(key)) return { userId: account.userId, created: false, granted: false };
-      if (!(await deps.quota.consume(tenantId, PORTAL_AUTOMATION_INVITES_PER_HOUR, deps.now()))) {
+      const held = !!holder?.subjectKeys.includes(key);
+      if (account && held && !changesRole(holder?.subjectRoles, key, role)) {
+        return { userId: account.userId, created: false, granted: false };
+      }
+      if (!held && !(await deps.quota.consume(tenantId, PORTAL_AUTOMATION_INVITES_PER_HOUR, deps.now()))) {
         throw failedPrecondition('@core.tenant/portal.invite.rate-limited');
       }
     }
@@ -279,21 +345,19 @@ export const makeInvitePortalUserUseCase = (deps: PortalAccessDeps): InvitePorta
       created = true;
     }
 
-    const granted = await repo.grantSubject(tenantId, {
+    const { granted, roleChanged } = await repo.grantSubject(tenantId, {
       userId: account.userId,
       email: normalized,
       displayName: displayName?.trim() || account.displayName || normalized,
       tenantName,
       invitedBy: actor.userId,
       ...(locale ? { locale } : {}),
-    }, key);
+    }, key, ...withRole);
 
-    if (granted) {
-      await auditQuietly(deps.audit, {
-        tenantId, change: 'granted', email: normalized, subjectKey: key, actor, origin, ...(workflowId ? { workflowId } : {}),
-      });
-    }
-    return { userId: account.userId, created, granted };
+    await auditGrant(deps, { granted, roleChanged }, {
+      tenantId, email: normalized, subjectKey: key, actor, origin, ...(workflowId ? { workflowId } : {}),
+    }, role);
+    return { userId: account.userId, created, granted, ...(roleChanged ? { roleChanged: true as const } : {}) };
   },
 });
 
@@ -567,6 +631,11 @@ export interface PortalContextScreen {
   create: {
     fields: PortalContextFillableField[];
     link: { collection: string; label: string };
+    /**
+     * A tela só deixa criar quando uma condição vale (`create.when`) — a casca pergunta ao servidor em
+     * que pais o convidado cria. A condição não sai: ela lê o que o convidado não vê.
+     */
+    conditional?: true;
   } | null;
   /** O que o convidado altera, e se só no que ele mesmo criou. */
   edit: {
@@ -850,6 +919,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
             ? {
               fields: screen.fields.filter((field) => fillable.has(field.key)).map(describe),
               link: { collection: linkTarget.collection, label: resolve(linkTarget.titleSingular) },
+              ...(hasPortalCreateCondition(screen) ? { conditional: true as const } : {}),
             }
             : null,
           edit: editable.size > 0
@@ -917,10 +987,40 @@ export interface SubmitPortalRecordInput {
   /** O registro a que o novo pertence — a empresa, ou a nota de um item. */
   linkRecordId: string;
   data: Record<string, unknown>;
+  /** O fuso do escritório — o `today()` de `create.when` responde nele. */
+  timeZone?: string;
 }
 
 export type SubmitPortalRecordUseCase = {
   execute: (input: SubmitPortalRecordInput) => Promise<{ id: string }>;
+};
+
+/** A tela em que o convidado cria, e a tela do registro a que o novo se vincula — ou nada. */
+const portalCreateTarget = (screens: PortalScreen[], collection: string): { screen: PortalScreen; target: PortalScreen } | null => {
+  const screen = screens.find((one) => one.collection === collection && one.portal?.create);
+  const link = screen ? portalLinkOf(screen) : null;
+  if (!screen || !link || portalCreateFieldKeys(screen).length === 0) return null;
+  const target = portalTargetScreen(screens, link.targetEntity);
+  return target?.portal ? { screen, target } : null;
+};
+
+/**
+ * O convidado cria DENTRO deste pai: ele o enxerga, e a condição da tela (`create.when`) vale sobre o
+ * pai inteiro e sobre ele — os papéis que tem NESTE pai (`actor.portalRoles`) e o que provou ao entrar.
+ * Sem condição, enxergar basta, e o pai nem é lido: quem não declarou não paga nada.
+ */
+const portalCreateOpenFor = async (
+  repo: IPortalRepository,
+  input: { tenantId: string; guest: PortalUserRecord; screen: PortalScreen; target: PortalScreen; linkRecordId: string; timeZone?: string },
+): Promise<boolean> => {
+  const { tenantId, guest, screen, target, linkRecordId, timeZone } = input;
+  const subjects = await guestSubjectsOf(repo, tenantId, guest, target, linkRecordId);
+  if (subjects.length === 0) return false;
+  if (!hasPortalCreateCondition(screen)) return true;
+  const parent = await repo.getRecord(tenantId, target.collection, linkRecordId);
+  if (!parent) return false;
+  const evaluate = (expression: string, values: Record<string, unknown>) => evaluatePortalCondition(expression, values, timeZone);
+  return isPortalCreateOpen(screen, parent, portalGuestActor(guest, subjects), evaluate);
 };
 
 /**
@@ -928,8 +1028,9 @@ export type SubmitPortalRecordUseCase = {
  *
  * O vínculo é a única coisa que importa aqui, e ele NUNCA vem do cliente: o convidado aponta o
  * registro a que o novo pertence, e só passa se ele o enxerga — é sujeito do convite dele, ou uma
- * projeção em que ele está no `audience`. O campo de vínculo é então carimbado pelo servidor, e o que
- * mais vier no pedido fora dos campos preenchíveis é descartado.
+ * projeção em que ele está no `audience` — e se a condição da tela o deixa criar ali. O campo de
+ * vínculo é então carimbado pelo servidor, e o que mais vier no pedido fora dos campos preenchíveis é
+ * descartado.
  *
  * Toda recusa de acesso é a mesma frase, pelo motivo de sempre: dizer qual condição faltou ajudaria a
  * descobrir o que existe no escritório.
@@ -939,20 +1040,17 @@ export const makeSubmitPortalRecordUseCase = (
   write: PortalRecordWriter,
   notify?: PortalActivityNotifier,
 ): SubmitPortalRecordUseCase => ({
-  execute: async ({ tenantId, userId, collection, linkRecordId, data }) => {
+  execute: async ({ tenantId, userId, collection, linkRecordId, data, timeZone }) => {
     const denied = permissionDenied('@core.tenant/portal.create.denied');
     const guest = activeGuest(await repo.getPortalUser(tenantId, userId));
     if (!guest) throw denied;
 
     const screens = await repo.getScreens(tenantId);
-    const screen = screens.find((one) => one.collection === collection && one.portal?.create);
-    const link = screen ? portalLinkOf(screen) : null;
-    if (!screen || !link || portalCreateFieldKeys(screen).length === 0) throw denied;
+    const found = portalCreateTarget(screens, collection);
+    if (!found || !linkRecordId) throw denied;
+    const { screen, target } = found;
 
-    const target = portalTargetScreen(screens, link.targetEntity);
-    if (!target?.portal || !linkRecordId) throw denied;
-
-    if (!await guestSeesRecord(repo, tenantId, guest, target, linkRecordId)) throw denied;
+    if (!await portalCreateOpenFor(repo, { tenantId, guest, screen, target, linkRecordId, timeZone })) throw denied;
 
     const submission = buildPortalSubmission(screen, data, linkRecordId);
     if (!submission) throw denied;
@@ -965,6 +1063,35 @@ export const makeSubmitPortalRecordUseCase = (
       tenantId, userId, kind: 'created', screen, recordId: outcome.id, dedupKey: `portal:created:${collection}:${outcome.id}`,
     });
     return { id: outcome.id };
+  },
+});
+
+export type ListPortalCreateTargetsUseCase = {
+  execute: (input: {
+    tenantId: string;
+    userId: string;
+    collection: string;
+    linkRecordIds: string[];
+    timeZone?: string;
+  }) => Promise<string[]>;
+};
+
+/**
+ * Dos pais pedidos, aqueles em que o convidado pode criar AGORA — é o que desenha o botão de criar e a
+ * lista de escolha do formulário quando a tela declara `create.when`. Só desenho: a gravação confere
+ * tudo de novo. O que não serve volta como ausência, sem dizer por quê.
+ */
+export const makeListPortalCreateTargetsUseCase = (repo: IPortalRepository): ListPortalCreateTargetsUseCase => ({
+  execute: async ({ tenantId, userId, collection, linkRecordIds, timeZone }) => {
+    if (linkRecordIds.length > PORTAL_CREATE_TARGETS_MAX) throw invalidArgument('@core.tenant/portal.create.denied');
+    const guest = activeGuest(await repo.getPortalUser(tenantId, userId));
+    if (!guest) return [];
+    const found = portalCreateTarget(await repo.getScreens(tenantId), collection);
+    if (!found) return [];
+    const ids = [...new Set(linkRecordIds.filter((id) => typeof id === 'string' && id !== ''))];
+    const open = await Promise.all(ids.map((linkRecordId) =>
+      portalCreateOpenFor(repo, { tenantId, guest, ...found, linkRecordId, timeZone })));
+    return ids.filter((_, index) => open[index]);
   },
 });
 

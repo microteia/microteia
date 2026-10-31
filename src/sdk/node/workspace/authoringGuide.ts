@@ -66,6 +66,7 @@ import {
   PORTAL_REFERENCE_TITLES_SINCE_KERNEL,
   PORTAL_VIEW_REPEAT_MINUTES,
 } from '../../../domain/schema/portal';
+import { PORTAL_ROLE_MAX_LENGTH, PORTAL_ROLES_SINCE_KERNEL } from '../../../domain/schema/portalRole';
 import {
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_MAX_BYTES,
@@ -725,10 +726,45 @@ portal: { subject: { field: 'company' }, fields: ['text', 'notice'], create: { f
   written as typed. The guest sees no record of that screen, so there is nothing to choose from: keep
   such fields out of \`create.fields\` and fill them in the organization, or by a workflow.
 
+**Who may create — \`create.when\` and the guest's role.** Every guest of a record has the same power
+over it until you say otherwise. A partner and the accountant of the same company, the building manager
+and a resident: when only some of them may create, give the invitation a ROLE and the screen a condition:
+
+\`\`\`ts
+portal: {
+  subject: { field: 'company' },
+  fields: ['name', 'status'],
+  create: { fields: ['name', 'document'], when: '"partner" in actor.portalRoles' },
+},
+\`\`\`
+
+- The role belongs to the LINK between the guest and a subject record, not to the person: whoever is a
+  partner of one company may be the accountant of another. It is set when inviting — \`role\` on the
+  \`portal-invite\` step (section 10), or the Role box in Settings › Portal — and it is a key: lowercase
+  letters, digits, \`_\`, \`-\` and \`.\`, up to ${PORTAL_ROLE_MAX_LENGTH} characters. Show the people a label of your
+  own; compare the key.
+- \`when\` is a field expression on the WHOLE record the new one belongs to (the company, the invoice) —
+  including fields that never leave the organization — plus \`actor\`: \`actor.portalRoles\` is the list of
+  roles the guest holds on THAT record (empty without one), \`actor.verified\` what they proved when
+  signing in. It is a list because a record may belong to two subjects; ask \`"partner" in
+  actor.portalRoles\`. \`actor\` hides a field of the same name.
+- The server checks it on every creation, and the standard shell asks the server before drawing the
+  "new" button and the list of records to create under. False or invalid, the guest does not create —
+  closed. Absent, every guest who sees the record creates, as before.
+- In \`portal.actions\`, \`hiddenWhen\` and \`disabledWhen\` read the same \`actor\` on the portal. Neither
+  \`edit.when\` nor \`visibleWhen\` do: they are evaluated when the record is written, once for every guest
+  who sees it, and there is no "who" then.
+- The role is access, not identity: it does not reach the workflow a guest's action runs — the condition
+  of the screen is where the decision lives.
+- A view that draws its own "new" gesture reads \`usePortalScreen(collection).create.conditional\` and,
+  when it is \`true\`, offers it only for the parents \`usePortalCreateTargets()(collection, ids)\` returns.
+- Requires \`kernel: "^${PORTAL_ROLES_SINCE_KERNEL}"\`. An older kernel ignores the condition and would let
+  every guest create, so the package gate refuses it.
+
 A portal view reaches a smaller API: \`@microteia/ui\`, \`@microteia/i18n\`, \`@microteia/format\`,
 \`@microteia/theme\` and \`@microteia/portal\` — \`usePortalRecords(collection, { parent })\`,
 \`usePortalRecord\`, \`usePortalScreen\`, \`usePortalNavigation\`, \`usePortalDocuments\`,
-\`usePortalSubmit\`, \`usePortalUpdate\`, \`usePortalActions\`. Show an edit gesture only when the record's \`canEdit\` is true
+\`usePortalSubmit\`, \`usePortalCreateTargets\`, \`usePortalUpdate\`, \`usePortalActions\`. Show an edit gesture only when the record's \`canEdit\` is true
 (\`usePortalNavigation().edit\` opens the standard form). \`usePortalNavigation().openRecord(collection,
 recordId)\` opens a record from any surface: inside a menu entry (a \`list\`, \`detail\` or \`page\`) it
 stacks the record over what is open, and Back returns there; from the home (a \`widget\` or the \`home\`)
@@ -2156,7 +2192,7 @@ every member who reads the collection would read every record, so \`check\` refu
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
 | \`editWindow\` | how long after creation the record may still be changed — and, with \`delete: true\`, deleted. Its documents freeze with it. Enforced by the security rules, not only the form; see "Edit window" above |
 | \`memberVisibility\` | which members read EACH record: the ones it names in a member reference (\`userFields\`), plus whoever has \`bypassPermission\` — or the derived \`<collection>.${READ_ALL_ACTION}\`. Enforced by the security rules and every server path that hands a record to a person; see "Record visibility" above |
-| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. A \`reference\` there (or in \`edit.fields\`) whose target screen is in the portal is chosen among the records the guest sees, and the server refuses any other id (section 4). A field the guest does not send starts with its \`defaultValue\`, as in the organization's form — which is why a required field with a default may stay out of \`create.fields\`. A derived field (\`logic.derive\`) is computed when read and never stored, so it cannot be in \`fields\` nor in \`create.fields\`: the guest would always see it empty, and the package is refused. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10). \`documentLinks: { expiresInMinutes }\` hands guests short-lived signed document links instead of the permanent one (section 4); requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\`. \`trackViews: true\` has the server record every time a guest opens a record or gets a document link — an Audit trail entry and \`<collection>.portalViewed\` (sections 4 and 10); requires \`kernel: "^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}"\`. \`actions: [key]\` offers the record's own actions (\`viewActionIds\`, by \`key\`) as buttons on the guest's open record — conditions checked by the server on the whole record with \`surface == "portal"\`, the workflow run as the guest, only its \`status\` returned (section 4); requires \`kernel: "^${PORTAL_ACTIONS_SINCE_KERNEL}"\`. \`referenceTitles: [field]\` lets an exposed \`reference\` carry the title of the record it points to even when that record's screen is not in the portal — only the title leaves, and it follows the target (section 4); requires \`kernel: "^${PORTAL_REFERENCE_TITLES_SINCE_KERNEL}"\`. \`template: { card?, detail? }\` draws the portal's list card and open record from nodes — emphasis, sections, fixed text — using only exposed fields; it arranges, never exposes (section 4) |
+| \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields, when? }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`when\` is a field expression on the record the new one belongs to plus \`actor\` (\`"partner" in actor.portalRoles\`) — only guests for whom it holds create (section 4); requires \`kernel: "^${PORTAL_ROLES_SINCE_KERNEL}"\`. A \`reference\` there (or in \`edit.fields\`) whose target screen is in the portal is chosen among the records the guest sees, and the server refuses any other id (section 4). A field the guest does not send starts with its \`defaultValue\`, as in the organization's form — which is why a required field with a default may stay out of \`create.fields\`. A derived field (\`logic.derive\`) is computed when read and never stored, so it cannot be in \`fields\` nor in \`create.fields\`: the guest would always see it empty, and the package is refused. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10). \`documentLinks: { expiresInMinutes }\` hands guests short-lived signed document links instead of the permanent one (section 4); requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\`. \`trackViews: true\` has the server record every time a guest opens a record or gets a document link — an Audit trail entry and \`<collection>.portalViewed\` (sections 4 and 10); requires \`kernel: "^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}"\`. \`actions: [key]\` offers the record's own actions (\`viewActionIds\`, by \`key\`) as buttons on the guest's open record — conditions checked by the server on the whole record with \`surface == "portal"\`, the workflow run as the guest, only its \`status\` returned (section 4); requires \`kernel: "^${PORTAL_ACTIONS_SINCE_KERNEL}"\`. \`referenceTitles: [field]\` lets an exposed \`reference\` carry the title of the record it points to even when that record's screen is not in the portal — only the title leaves, and it follows the target (section 4); requires \`kernel: "^${PORTAL_REFERENCE_TITLES_SINCE_KERNEL}"\`. \`template: { card?, detail? }\` draws the portal's list card and open record from nodes — emphasis, sections, fixed text — using only exposed fields; it arranges, never exposes (section 4) |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
 
 ### Option lists
@@ -2970,6 +3006,12 @@ takes it back. Both require \`kernel: "^${PORTAL_AUTOMATION_INVITES_SINCE_KERNEL
   \`portal-revoke\` by the same e-mail removes it. Requires
   \`kernel: "^${PORTAL_IDENTITY_CLAIM_SINCE_KERNEL}"\` — an older kernel would ignore the claim and invite by
   e-mail, so the package gate refuses it.
+- **The role.** \`role\` gives the guest a role on THIS record — the key a screen's \`create.when\` or an
+  action's condition compares in \`actor.portalRoles\` (section 4). Empty, a new access has no role and an
+  existing one keeps its own; filled, the role on the record becomes this one — even when the access
+  already existed (\`granted: false\`, \`roleChanged: true\`, no welcome e-mail, no slot of the hourly
+  limit, an Audit trail entry). To take a role away, revoke the record and invite again without it. A
+  value that is not a key fails the step. Requires \`kernel: "^${PORTAL_ROLES_SINCE_KERNEL}"\`.
 
 \`\`\`ts
 configuration: {

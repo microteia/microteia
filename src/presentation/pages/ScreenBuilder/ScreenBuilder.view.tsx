@@ -513,6 +513,7 @@ export const ScreenBuilderView: React.FC = () => {
                 onToggleEdit={vm.setPortalAllowEdit}
                 onToggleEditField={vm.togglePortalEditField}
                 onEditWhen={vm.setPortalEditWhen}
+                onCreateWhen={vm.setPortalCreateWhen}
                 onToggleEditOnlyOwn={vm.setPortalEditOnlyOwn}
                 onToggleNotifyOffice={vm.setPortalNotifyOffice}
                 onToggleAutomationInvites={vm.setPortalAutomationInvites}

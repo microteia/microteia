@@ -52,6 +52,7 @@ import {
   makeInvitePortalUserUseCase,
   makeRevokePortalUserUseCase,
   makeSubmitPortalRecordUseCase,
+  makeListPortalCreateTargetsUseCase,
   makeUpdatePortalRecordUseCase,
   makeAttachPortalDocumentUseCase,
 } from '../../domain/usecases/PortalAccessUseCases';
@@ -75,6 +76,7 @@ import type {
   InvitePortalUserUseCase,
   RevokePortalUserUseCase,
   SubmitPortalRecordUseCase,
+  ListPortalCreateTargetsUseCase,
   UpdatePortalRecordUseCase,
   AttachPortalDocumentUseCase,
   AttachPortalDocumentDeps,
@@ -538,6 +540,10 @@ class DIContainer {
 
   getSubmitPortalRecordUseCase(): SubmitPortalRecordUseCase {
     return makeSubmitPortalRecordUseCase(this.getPortalRepository(), portalRecordWriter, portalActivityNotifier);
+  }
+
+  getListPortalCreateTargetsUseCase(): ListPortalCreateTargetsUseCase {
+    return makeListPortalCreateTargetsUseCase(this.getPortalRepository());
   }
 
   getAttachPortalDocumentUseCase(documentTypes: AttachPortalDocumentDeps['documentTypes']): AttachPortalDocumentUseCase {

@@ -1126,6 +1126,15 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         type: 'String',
       },
       {
+        // O papel do convidado NESTE sujeito — uma chave que a condição da tela compara
+        // (`actor.portalRoles`). Vazio, o vínculo novo nasce sem papel e o existente fica com o seu.
+        id: 'role',
+        label: '@core.automation/step.portal-invite.label.role',
+        description: '@core.automation/step.portal-invite.help.role',
+        required: false,
+        type: 'String',
+      },
+      {
         id: 'sendEmail',
         label: '@core.automation/step.portal-invite.label.send-email',
         description: '@core.automation/step.portal-invite.help.send-email',
@@ -1171,6 +1180,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'granted', label: '@core.automation/step.portal-invite.output.granted', type: 'Boolean' },
       { id: 'emailed', label: '@core.automation/step.portal-invite.output.emailed', type: 'Boolean' },
       { id: 'inviteId', label: '@core.automation/step.portal-invite.output.invite-id', type: 'String' },
+      { id: 'roleChanged', label: '@core.automation/step.portal-invite.output.role-changed', type: 'Boolean' },
     ],
   },
   {

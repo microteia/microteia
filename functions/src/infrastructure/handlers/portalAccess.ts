@@ -81,6 +81,7 @@ export const invitePortalUser = onCall({ region: REGION, cors: true }, async (re
       origin: 'settings',
       ...(typeof data.locale === 'string' && data.locale ? { locale: data.locale } : {}),
       ...(data.requiredClaim !== undefined && data.requiredClaim !== null ? { requiredClaim: data.requiredClaim } : {}),
+      ...(data.role !== undefined && data.role !== null ? { role: data.role } : {}),
     });
   } catch (error) {
     throw asHttpsError(error, 'invitePortalUser');
@@ -242,6 +243,10 @@ export const portalRecordActions = onCall({ region: REGION, cors: true }, async 
  * O convidado cria um registro — ou, com `recordId`, altera um que é dele. A recusa da VALIDAÇÃO volta já traduzida, e no idioma do convidado:
  * as frases do motor de gravação são do núcleo, e o pacote de idioma do escritório não chega ao
  * portal — sem isto, o convidado de um escritório brasileiro leria o motivo em inglês.
+ *
+ * Com `linkRecordIds` (uma lista), só PERGUNTA: devolve os pais em que o convidado cria agora — o que a
+ * casca usa para desenhar o botão de uma tela com `create.when`. Na mesma callable de propósito, como
+ * as ações: a consulta acorda a instância que a gravação vai usar, e não há function nova a publicar.
  */
 export const submitPortalRecord = onCall({ region: REGION, cors: true }, async (request) => {
   const userId = authenticated(request.auth);
@@ -255,13 +260,16 @@ export const submitPortalRecord = onCall({ region: REGION, cors: true }, async (
   const browserLocale = typeof data.locale === 'string' ? data.locale : '';
   const di = getDI();
   try {
+    const timeZone = await tenantTimeZone(tenantId, userId);
     if (recordId) {
-      return await di.getUpdatePortalRecordUseCase().execute({
-        tenantId, userId, collection, recordId, data: values, timeZone: await tenantTimeZone(tenantId, userId),
-      });
+      return await di.getUpdatePortalRecordUseCase().execute({ tenantId, userId, collection, recordId, data: values, timeZone });
+    }
+    if (Array.isArray(data.linkRecordIds)) {
+      const linkRecordIds = data.linkRecordIds.filter((id): id is string => typeof id === 'string');
+      return { open: await di.getListPortalCreateTargetsUseCase().execute({ tenantId, userId, collection, linkRecordIds, timeZone }) };
     }
     const linkRecordId = requireString(data.linkRecordId, '@core.tenant/portal.create.denied');
-    return await di.getSubmitPortalRecordUseCase().execute({ tenantId, userId, collection, linkRecordId, data: values });
+    return await di.getSubmitPortalRecordUseCase().execute({ tenantId, userId, collection, linkRecordId, data: values, timeZone });
   } catch (error) {
     if (error instanceof PortalSubmissionInvalid) {
       const catalog = await guestCatalog(tenantId, userId, browserLocale);

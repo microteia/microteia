@@ -1527,7 +1527,11 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
        */
       reference?: { collection: string; multi: boolean };
     }>;
-    create: { fields: PortalScreen['fields']; link: { collection: string; label: string } } | null;
+    /**
+     * What a guest fills in to create, and what the new record belongs to. \`conditional\` is \`true\` when the
+     * screen declares \`create.when\`: then only some parents accept it, and \`usePortalCreateTargets\` says which.
+     */
+    create: { fields: PortalScreen['fields']; link: { collection: string; label: string }; conditional?: boolean } | null;
     /** Guests may attach documents here, choosing one of these types — never a new one. */
     uploads: { types: Array<{ key: string; label: string }> } | null;
     /** What a guest may change — only fields they see —, and whether only on records they created. */
@@ -1591,6 +1595,14 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
    * a validation refusal arrives already translated in the error message.
    */
   export function usePortalSubmit(): (collection: string, linkRecordId: string, data: Record<string, unknown>) => Promise<void>;
+
+  /**
+   * Of the given parents (any number — asked in batches), the ones under which the guest may create a
+   * record of \`collection\` right now. Only needed when the screen's \`create.conditional\` is \`true\`
+   * (\`create.when\`): show your own "new" gesture only for these. It only draws — the server checks again
+   * on submit. A failure answers "none". Absent on older kernels.
+   */
+  export function usePortalCreateTargets(): (collection: string, linkRecordIds: string[]) => Promise<string[]>;
 
   /**
    * Changes a record through the portal. Only the screen's editable fields are kept — whose the record

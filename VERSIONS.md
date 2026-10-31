@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.184.0] — 2026-10-31
+
+- Ao convidar alguém para o portal, agora é possível dizer qual é o papel dessa pessoa naquele registro — sócio, contador, síndico, morador —, e a lista de convidados passa a mostrar o papel ao lado de cada vínculo.
+- A tela pode limitar quem cria registros pelo portal: por exemplo, só o sócio pede um novo representante. Quem não pode criar simplesmente não vê o botão, e um pedido feito por outro caminho é recusado.
+- As ações oferecidas no portal também podem aparecer só para quem tem um papel.
+- Nada muda para quem não usa papéis: os convidados continuam podendo exatamente o que podiam.
+
 #### [9.183.1] — 2026-10-31
 
 - No celular, o quadro de avisos do portal agora abre ocupando a largura da tela, em vez de sair cortado pela esquerda.

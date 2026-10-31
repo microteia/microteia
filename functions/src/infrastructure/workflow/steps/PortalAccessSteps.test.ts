@@ -118,6 +118,29 @@ describe('passo portal-invite', () => {
     expect(audited).toHaveLength(1);
   });
 
+  it('o papel (EV-38) vai para o vínculo; trocá-lo depois não manda outro e-mail e diz o papel novo', async () => {
+    const { fake, requests, invite } = setup();
+
+    const first = await invite({ ...ANA, role: 'socio' });
+    const changed = await invite({ ...ANA, role: ' administrador ' });
+
+    expect(first.outputs).toMatchObject({ granted: true, roleChanged: true });
+    expect(changed).toMatchObject({
+      success: true,
+      message: '@core.automation/step.portal-invite.role-changed',
+      messageParams: { email: 'ana@acme.com', role: 'administrador' },
+      outputs: { granted: false, roleChanged: true, emailed: false },
+    });
+    expect(fake.users.get('uid-ana@acme.com')?.subjectRoles).toEqual([{ subjectKey: 'companies/acme', role: 'administrador' }]);
+    expect(requests).toHaveLength(1);
+  });
+
+  it('o papel que não é chave reprova o passo com a frase nomeada', async () => {
+    const { fake, invite } = setup();
+    expect(await invite({ ...ANA, role: 'Sócio' })).toEqual({ success: false, message: '@core.tenant/portal.role.invalid' });
+    expect(fake.users.size).toBe(0);
+  });
+
   it('sendEmail false convida sem avisar', async () => {
     const { requests, invite } = setup();
     const result = await invite({ ...ANA, sendEmail: false });

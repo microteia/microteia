@@ -1,6 +1,7 @@
 import type { IPortalRepository } from '../../repositories/IPortalRepository';
 import type { PortalHomeSettings } from '../../schema/portalExtensionPoints';
 import type { PortalRequiredClaim } from '../../schema/portalIdentity';
+import { PORTAL_CREATE_TARGETS_MAX } from '../../schema/portal';
 import type {
   PortalActionOutcome,
   PortalContext,
@@ -73,11 +74,12 @@ export type InvitePortalGuestUseCase = {
     subjectKey: string,
     locale: string,
     requiredClaim?: PortalRequiredClaim,
+    role?: string,
   ) => Promise<{ userId: string; created: boolean; inviteId?: string }>;
 };
 
 export const makeInvitePortalGuestUseCase = (repo: IPortalRepository): InvitePortalGuestUseCase => ({
-  execute: (tenantId, email, subjectKey, locale, requiredClaim) => repo.invite(tenantId, email, subjectKey, locale, requiredClaim),
+  execute: (tenantId, email, subjectKey, locale, requiredClaim, role) => repo.invite(tenantId, email, subjectKey, locale, requiredClaim, role),
 });
 
 export type RevokePortalGuestUseCase = {
@@ -108,6 +110,22 @@ export type SubmitPortalRecordUseCase = {
 
 export const makeSubmitPortalRecordUseCase = (repo: IPortalRepository): SubmitPortalRecordUseCase => ({
   execute: (input) => repo.submit(input),
+});
+
+export type ListPortalCreateTargetsUseCase = {
+  execute: (input: { tenantId: string; collection: string; linkRecordIds: string[] }) => Promise<string[]>;
+};
+
+/** Os pais em que o convidado cria agora — perguntados em lotes, que é o que o servidor aceita de uma vez. */
+export const makeListPortalCreateTargetsUseCase = (repo: IPortalRepository): ListPortalCreateTargetsUseCase => ({
+  execute: async ({ tenantId, collection, linkRecordIds }) => {
+    const batches: string[][] = [];
+    for (let index = 0; index < linkRecordIds.length; index += PORTAL_CREATE_TARGETS_MAX) {
+      batches.push(linkRecordIds.slice(index, index + PORTAL_CREATE_TARGETS_MAX));
+    }
+    const open = await Promise.all(batches.map((batch) => repo.listCreateTargets({ tenantId, collection, linkRecordIds: batch })));
+    return open.flat();
+  },
 });
 
 export type UpdatePortalRecordUseCase = {

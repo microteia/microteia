@@ -3,6 +3,7 @@ import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import type { WorkflowStep } from '../../entities/Workflow';
 import { workflowStepIssues } from './workflowIntegrity';
 import { PORTAL_TRACK_VIEWS_SINCE_KERNEL } from '../../schema/portal';
+import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { QUERY_PAGE_SINCE_KERNEL } from '../../schema/querySpec';
 
 /**
@@ -503,6 +504,14 @@ describe('convite e revogação do portal por automação', () => {
       ['@core.marketplace/issue.step.input-kernel', '2.74.0'],
     ]);
     expect(workflowStepIssues(comTela([comClaim], '^2.74.0', aberta))).toEqual([]);
+  });
+
+  it('o papel pede o kernel que o guarda — o anterior convidaria sem ele (EV-38)', () => {
+    const base = acesso('portal-invite');
+    const comPapel = passo({ ...base, configuration: { ...base.configuration, role: { kind: 'Literal', value: 'socio' } } });
+    expect(workflowStepIssues(comTela([comPapel], '^2.88.0', aberta)).map((issue) => [issue.message, issue.messageParams?.input, issue.messageParams?.minimum]))
+      .toEqual([['@core.marketplace/issue.step.input-kernel', 'role', PORTAL_ROLES_SINCE_KERNEL]]);
+    expect(workflowStepIssues(comTela([comPapel], `^${PORTAL_ROLES_SINCE_KERNEL}`, aberta))).toEqual([]);
   });
 });
 

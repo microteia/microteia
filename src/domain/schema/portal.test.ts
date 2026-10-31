@@ -6,8 +6,10 @@ import {
   buildPortalSubmission,
   canPortalUserEdit,
   evaluatePortalCondition,
+  isPortalCreateOpen,
   isPortalEditOpen,
   isPortalRecordVisible,
+  portalActionState,
   portalCreateFieldKeys,
   portalEditFieldKeys,
   portalOwnerOf,
@@ -275,6 +277,66 @@ describe('criação pelo portal', () => {
     expect(issues).toContainEqual({ message: '@core.records/portal.issue.create.required-missing', messageParams: { field: 'title' } });
     expect(issues.some((issue) => issue.messageParams?.field === 'status')).toBe(false);
     expect(portalDeclarationIssues(orders, [company, orders])).toEqual([]);
+  });
+});
+
+describe('quem cria pelo portal — create.when e o papel do convidado (EV-38)', () => {
+  const requests: PortalScreenLike = {
+    id: 'requests',
+    collection: 'requests',
+    fields: [
+      { key: 'title', type: 'text' },
+      { key: 'companyId', type: 'reference', refEntity: 'companies' },
+    ],
+    portal: { subject: { field: 'companyId' }, fields: ['title'], create: { fields: ['title'], when: '"socio" in actor.portalRoles' } },
+  };
+  const actor = (portalRoles: string[]) => ({ id: 'ana', via: 'portal' as const, verified: null, portalRoles });
+  const evaluate = (expression: string, data: Record<string, unknown>) => evaluatePortalCondition(expression, data);
+
+  it('a declaração lê a condição; a tela-sujeito continua sem criação', () => {
+    expect(asPortalDeclaration({ subject: 'parent', fields: [], create: { fields: ['a'], when: ' x == 1 ' } })?.create)
+      .toEqual({ fields: ['a'], when: 'x == 1' });
+    expect(asPortalDeclaration({ subject: 'parent', fields: [], create: { fields: ['a'], when: '  ' } })?.create).toEqual({ fields: ['a'] });
+    expect(asPortalDeclaration({ subject: 'self', fields: [], create: { fields: ['a'], when: 'true' } })?.create).toBeUndefined();
+  });
+
+  it('vale sobre o pai inteiro e sobre os papéis de quem pede; inválida fecha; ausente abre', () => {
+    expect(isPortalCreateOpen(requests, { name: 'Acme' }, actor(['socio']), evaluate)).toBe(true);
+    expect(isPortalCreateOpen(requests, { name: 'Acme' }, actor(['contador']), evaluate)).toBe(false);
+    expect(isPortalCreateOpen(requests, { name: 'Acme' }, actor([]), evaluate)).toBe(false);
+
+    const withParent = { ...requests, portal: { ...requests.portal!, create: { fields: ['title'], when: 'taxId != "" and "socio" in actor.portalRoles' } } };
+    expect(isPortalCreateOpen(withParent, { taxId: '' }, actor(['socio']), evaluate)).toBe(false);
+
+    const broken = { ...requests, portal: { ...requests.portal!, create: { fields: ['title'], when: '"socio" in (' } } };
+    expect(isPortalCreateOpen(broken, {}, actor(['socio']), evaluate)).toBe(false);
+
+    const open = { ...requests, portal: { ...requests.portal!, create: { fields: ['title'] } } };
+    expect(isPortalCreateOpen(open, {}, actor([]), evaluate)).toBe(true);
+  });
+
+  it('`actor` vence o campo de mesmo nome do pai: a condição pergunta pela pessoa', () => {
+    expect(isPortalCreateOpen(requests, { actor: { portalRoles: ['socio'] } }, actor([]), evaluate)).toBe(false);
+  });
+
+  it('o Form Design confere a sintaxe e os campos do PAI — e aceita `actor`', () => {
+    const issues = (when: string) => portalDeclarationIssues(
+      { ...requests, portal: { ...requests.portal!, create: { fields: ['title'], when } } },
+      [company, requests],
+    );
+    expect(issues('"socio" in actor.portalRoles and taxId != ""')).toEqual([]);
+    expect(issues('"socio" in (')).toEqual([{ message: '@core.records/portal.issue.create.when-invalid' }]);
+    expect(issues('title != ""')).toEqual([
+      { message: '@core.records/portal.issue.create.when.field.unknown', messageParams: { field: 'title' } },
+    ]);
+  });
+
+  it('nas ações do portal, `actor.portalRoles` vale; sem ator, a condição sobre ele fecha', () => {
+    const action = { id: 'a', key: 'request', workflowId: 'wf', hiddenWhen: '!("socio" in actor.portalRoles)' };
+    const scope = { record: {}, collection: 'companies', guest: { id: 'ana', name: 'Ana' } };
+    expect(portalActionState(action, { ...scope, actor: actor(['socio']) })).toBe('enabled');
+    expect(portalActionState(action, { ...scope, actor: actor([]) })).toBe('hidden');
+    expect(portalActionState(action, scope)).toBe('hidden');
   });
 });
 

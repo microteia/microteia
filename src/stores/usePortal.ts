@@ -54,6 +54,11 @@ export interface PortalStoreValue {
   runRecordAction: (projectionId: string, actionId: string) => Promise<PortalActionOutcome>;
   listLinkOptions: (collection: string) => Promise<PortalLinkOption[]>;
   submit: (collection: string, linkRecordId: string, data: Record<string, unknown>) => Promise<void>;
+  /**
+   * Dos pais pedidos, aqueles em que o convidado cria nesta tela agora — a tela com `create.when`.
+   * A falha responde "nenhum": na dúvida, o botão não aparece.
+   */
+  listCreateTargets: (collection: string, linkRecordIds: string[]) => Promise<string[]>;
   /** Altera um registro do convidado — o servidor confere campos, momento e dono. */
   update: (collection: string, recordId: string, data: Record<string, unknown>) => Promise<void>;
   /** O uid do convidado — o dono de um registro criado por ele (`onlyOwn`). */

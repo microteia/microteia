@@ -29,6 +29,12 @@ import {
 } from '../../domain/schema/portal';
 import { readPortalReprojectionState } from '../../domain/schema/portalReprojection';
 import { asPortalVerifiedIdentity } from '../../domain/schema/portalIdentity';
+import {
+  portalSubjectRoleOf,
+  readPortalSubjectRoles,
+  withPortalSubjectRole,
+  withoutPortalSubjectRoles,
+} from '../../domain/schema/portalRole';
 import { asFieldLookupBinding } from '../../domain/schema/portalFieldInput';
 import type { FieldLookupBinding } from '../../domain/schema/fieldRules';
 import { getBucket } from '../../infrastructure/firebase/initFirebase';
@@ -92,6 +98,12 @@ const toScreen = (id: string, data: DocumentData): PortalScreen => ({
       ...lookupBindingOf(field.logic),
     })),
 });
+
+/** Os papéis gravados — e nada, quando não há: o convite sem papel lê exatamente como antes. */
+const rolesOf = (value: unknown) => {
+  const subjectRoles = readPortalSubjectRoles(value);
+  return subjectRoles.length > 0 ? { subjectRoles } : {};
+};
 
 const asNullableString = (value: unknown): string | null => (typeof value === 'string' && value.trim() !== '' ? value : null);
 
@@ -379,6 +391,7 @@ export class FirebasePortalRepository implements IPortalRepository {
       email: asString(data.email),
       displayName: asString(data.displayName),
       subjectKeys: asStrings(data.subjectKeys),
+      ...rolesOf(data.subjectRoles),
       ...(asString(data.locale) ? { locale: asString(data.locale) } : {}),
       ...(identity ? { identity } : {}),
       ...(data.suspended === true ? { suspended: true } : {}),
@@ -392,21 +405,30 @@ export class FirebasePortalRepository implements IPortalRepository {
       email: asString(doc.get('email')),
       displayName: asString(doc.get('displayName')),
       subjectKeys: asStrings(doc.get('subjectKeys')),
+      ...rolesOf(doc.get('subjectRoles')),
     }));
   }
 
-  async grantSubject(tenantId: string, grant: PortalUserGrant, subjectKey: string): Promise<boolean> {
+  async grantSubject(
+    tenantId: string,
+    grant: PortalUserGrant,
+    subjectKey: string,
+    role?: string,
+  ): Promise<{ granted: boolean; roleChanged: boolean }> {
     const reference = this.portalUsers(tenantId).doc(grant.userId);
     return this.db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(reference);
       if (snapshot.exists) {
+        const roles = readPortalSubjectRoles(snapshot.get('subjectRoles'));
+        const roleChanged = !!role && portalSubjectRoleOf(roles, subjectKey) !== role;
         transaction.update(reference, {
           subjectKeys: FieldValue.arrayUnion(subjectKey),
+          ...(roleChanged && role ? { subjectRoles: withPortalSubjectRole(roles, subjectKey, role) } : {}),
           tenantName: grant.tenantName,
           ...(grant.locale ? { locale: grant.locale } : {}),
           updatedAt: FieldValue.serverTimestamp(),
         });
-        return !asStrings(snapshot.get('subjectKeys')).includes(subjectKey);
+        return { granted: !asStrings(snapshot.get('subjectKeys')).includes(subjectKey), roleChanged };
       }
       transaction.set(reference, {
         userId: grant.userId,
@@ -415,12 +437,13 @@ export class FirebasePortalRepository implements IPortalRepository {
         tenantId,
         tenantName: grant.tenantName,
         subjectKeys: [subjectKey],
+        ...(role ? { subjectRoles: [{ subjectKey, role }] } : {}),
         invitedBy: grant.invitedBy,
         ...(grant.locale ? { locale: grant.locale } : {}),
         addedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
-      return true;
+      return { granted: true, roleChanged: !!role };
     });
   }
 
@@ -436,7 +459,12 @@ export class FirebasePortalRepository implements IPortalRepository {
         transaction.delete(reference);
         return true;
       }
-      transaction.update(reference, { subjectKeys: remaining, updatedAt: FieldValue.serverTimestamp() });
+      const roles = readPortalSubjectRoles(snapshot.get('subjectRoles'));
+      transaction.update(reference, {
+        subjectKeys: remaining,
+        ...(roles.length > 0 ? { subjectRoles: withoutPortalSubjectRoles(roles, subjectKey) } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
       return true;
     });
   }

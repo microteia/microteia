@@ -92,6 +92,7 @@ export const makePortalInviteStepDefinition = (services: PortalAccessStepService
       const [tenantName, locale] = await Promise.all([services.tenantName(tenantId), services.officeLocale(tenantId)]);
       const displayName = textOf(inputs.displayName);
       const requiredClaim = requiredClaimOf(inputs);
+      const role = textOf(inputs.role);
 
       let result;
       try {
@@ -106,6 +107,7 @@ export const makePortalInviteStepDefinition = (services: PortalAccessStepService
           ...(locale ? { locale } : {}),
           ...(displayName ? { displayName } : {}),
           ...(requiredClaim ? { requiredClaim } : {}),
+          ...(role ? { role } : {}),
         });
       } catch (error) {
         return refusalOf(error);
@@ -137,16 +139,20 @@ export const makePortalInviteStepDefinition = (services: PortalAccessStepService
         emailed = delivery.delivered.email > 0;
       }
 
+      const message = result.granted
+        ? '@core.automation/step.portal-invite.done'
+        : result.roleChanged ? '@core.automation/step.portal-invite.role-changed' : '@core.automation/step.portal-invite.unchanged';
       return {
         success: true,
-        message: result.granted ? '@core.automation/step.portal-invite.done' : '@core.automation/step.portal-invite.unchanged',
-        messageParams: { email: subject.email },
+        message,
+        messageParams: { email: subject.email, ...(role ? { role } : {}) },
         outputs: {
           guestId: result.userId,
           created: result.created,
           granted: result.granted,
           emailed,
           inviteId: result.inviteId ?? '',
+          roleChanged: result.roleChanged === true,
         },
       };
     },

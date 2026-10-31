@@ -18,9 +18,10 @@ export interface PortalFormState {
   /** Só os registros em que esta condição vale saem — vazio = todos. */
   visibleWhen: string;
   documents: boolean;
-  /** O convidado cria registros, preenchendo só `createFields`. */
+  /** O convidado cria registros, preenchendo só `createFields`, nos pais em que `createWhen` vale. */
   allowCreate: boolean;
   createFields: string[];
+  createWhen: string;
   /** O convidado anexa documentos, escolhendo entre `uploadTypes` — vazio = todos os do escritório. */
   allowUploads: boolean;
   uploadTypes: string[];
@@ -56,6 +57,7 @@ export const EMPTY_PORTAL_FORM: PortalFormState = {
   documents: false,
   allowCreate: false,
   createFields: [],
+  createWhen: '',
   allowUploads: false,
   uploadTypes: [],
   allowEdit: false,
@@ -84,6 +86,7 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
     documents: portal.documents === true,
     allowCreate: !!portal.create,
     createFields: [...(portal.create?.fields ?? [])],
+    createWhen: portal.create?.when ?? '',
     allowUploads: !!portal.uploads,
     uploadTypes: [...(portal.uploads?.types ?? [])],
     allowEdit: !!portal.edit,
@@ -116,7 +119,9 @@ export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null 
     fields: form.fields,
     ...(form.visibleWhen.trim() ? { visibleWhen: form.visibleWhen.trim() } : {}),
     documents: form.documents,
-    ...(form.allowCreate && form.subjectKind !== 'self' ? { create: { fields: form.createFields } } : {}),
+    ...(form.allowCreate && form.subjectKind !== 'self'
+      ? { create: { fields: form.createFields, ...(form.createWhen.trim() ? { when: form.createWhen.trim() } : {}) } }
+      : {}),
     // Anexar exige ver: sem `documents`, o convidado não enxergaria o que enviou.
     ...(form.allowUploads && form.documents ? { uploads: { types: form.uploadTypes } } : {}),
     ...(form.allowEdit

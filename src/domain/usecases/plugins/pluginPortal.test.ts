@@ -9,6 +9,7 @@ import {
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
 } from '../../schema/portal';
 import type { PortalTemplate } from '../../schema/ui/portalTemplate';
+import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { packagePortalIssues } from './pluginPortal';
 import { packageIssues } from './pluginReferences';
 
@@ -49,6 +50,40 @@ describe('visibleWhen no pacote', () => {
     ]);
     expect(packagePortalIssues(pkg('kind == "revenue"'))).toEqual([
       { message: '@core.marketplace/issue.portal.visible-when.unknown', messageParams: { screen: 'entries', field: 'kind' } },
+    ]);
+  });
+});
+
+describe('create.when no pacote (EV-38)', () => {
+  const requesting = (when: string, kernel: string): MarketplacePlugin => ({
+    summary: 'x',
+    manifest: { id: 'com.acme.requests', version: '1.0.0', kernel, name: 'Requests', contributes: [] },
+    workflows: [],
+    screens: [{
+      key: 'requests',
+      titleSingular: 'Request',
+      titlePlural: 'Requests',
+      icon: 'list',
+      titleFieldKey: 'title',
+      fields: [field('title'), { ...field('companyId'), type: 'reference', refEntity: 'companies' }],
+      portal: { subject: { field: 'companyId' }, fields: ['title'], create: { fields: ['title'], when } },
+    }],
+  });
+
+  it('com o kernel que a lê, passa', () => {
+    expect(packagePortalIssues(requesting('"socio" in actor.portalRoles', `^${PORTAL_ROLES_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('o kernel anterior é recusa: ele ignoraria a condição e deixaria todo convidado criar', () => {
+    expect(packagePortalIssues(requesting('"socio" in actor.portalRoles', '^2.88.0'))).toEqual([{
+      message: '@core.marketplace/issue.portal.create-when.kernel',
+      messageParams: { screen: 'requests', minimum: PORTAL_ROLES_SINCE_KERNEL },
+    }]);
+  });
+
+  it('a condição que não é expressão é recusa — nenhum convidado criaria', () => {
+    expect(packagePortalIssues(requesting('"socio" in (', `^${PORTAL_ROLES_SINCE_KERNEL}`))).toEqual([
+      { message: '@core.marketplace/issue.portal.create-when.invalid', messageParams: { screen: 'requests' } },
     ]);
   });
 });

@@ -43,6 +43,7 @@ export interface ScreenPortalPanelProps {
   onToggleDocuments: (documents: boolean) => void;
   onToggleCreate: (allowCreate: boolean) => void;
   onToggleCreateField: (fieldKey: string, fillable: boolean) => void;
+  onCreateWhen: (expression: string) => void;
   onToggleUploads: (allowUploads: boolean) => void;
   onToggleUploadType: (typeKey: string, allowed: boolean) => void;
   onToggleEdit: (allowEdit: boolean) => void;
@@ -243,17 +244,27 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
             />
             <S.Hint>{form.subjectKind === 'self' ? t('portal.create.self-hint') : t('portal.create.hint')}</S.Hint>
             {form.allowCreate && form.subjectKind !== 'self' && (
-              <S.FieldGrid>
-                {props.createFieldOptions.map((option) => (
-                  <Checkbox
-                    key={option.value}
-                    checked={form.createFields.includes(option.value)}
-                    onChange={(fillable) => props.onToggleCreateField(option.value, fillable)}
-                    label={option.label}
-                    disabled={readOnly}
-                  />
-                ))}
-              </S.FieldGrid>
+              <>
+                <S.FieldGrid>
+                  {props.createFieldOptions.map((option) => (
+                    <Checkbox
+                      key={option.value}
+                      checked={form.createFields.includes(option.value)}
+                      onChange={(fillable) => props.onToggleCreateField(option.value, fillable)}
+                      label={option.label}
+                      disabled={readOnly}
+                    />
+                  ))}
+                </S.FieldGrid>
+                <S.SectionTitle>{t('portal.create.when')}</S.SectionTitle>
+                <Input
+                  value={form.createWhen}
+                  onChange={(event) => props.onCreateWhen(event.target.value)}
+                  placeholder={t('portal.create.when.placeholder')}
+                  disabled={readOnly}
+                />
+                <S.Hint>{t('portal.create.when.hint')}</S.Hint>
+              </>
             )}
           </S.Section>
 

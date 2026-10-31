@@ -60,7 +60,7 @@ const isEmpty = (value: unknown): boolean =>
   value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
 
 export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editing, onSubmitted }: PortalCreateFormProps): PortalCreateFormViewModel => {
-  const { listLinkOptions, submit: submitRecord, update: updateRecord } = usePortal();
+  const { listLinkOptions, listCreateTargets, submit: submitRecord, update: updateRecord } = usePortal();
   const theme = useTheme();
   const t = useT('core.tenant');
   const create = screen.create;
@@ -78,16 +78,23 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
   const [error, setError] = useState<string | null>(null);
 
   const linkCollection = noLinkNeeded ? '' : create?.link.collection ?? '';
+  const conditional = create?.conditional === true;
 
+  // Com `create.when`, a escolha oferece só os pais em que o convidado cria — quem diz é o servidor.
   useEffect(() => {
     if (!linkCollection) return;
     let active = true;
     listLinkOptions(linkCollection)
+      .then(async (loaded) => {
+        if (!conditional) return loaded;
+        const open = new Set(await listCreateTargets(screen.collection, loaded.map((option) => option.recordId)));
+        return loaded.filter((option) => open.has(option.recordId));
+      })
       .then((loaded) => { if (active) setOptions(loaded); })
       .catch(() => { if (active) setOptions([]); })
       .finally(() => { if (active) setLinkLoading(false); });
     return () => { active = false; };
-  }, [linkCollection, listLinkOptions]);
+  }, [linkCollection, listLinkOptions, conditional, listCreateTargets, screen.collection]);
 
   const linkRecordId = fixedLinkRecordId || chosenLink || (options.length === 1 ? options[0].recordId : '');
   const fields = useMemo(

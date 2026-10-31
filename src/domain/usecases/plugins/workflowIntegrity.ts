@@ -22,6 +22,7 @@ import {
   asPortalDeclaration,
 } from '../../schema/portal';
 import { PORTAL_IDENTITY_CLAIM_SINCE_KERNEL } from '../../schema/portalIdentity';
+import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL, type UpsertStepConfig } from '../../schema/mutationSpec';
 import { QUERY_PAGE_SINCE_KERNEL, type QuerySpec } from '../../schema/querySpec';
 
@@ -453,6 +454,16 @@ const portalAccessIssues = (
         ref,
         message: '@core.marketplace/issue.step.input-kernel',
         messageParams: { step: step.id, input: 'requiredClaimName', minimum: PORTAL_IDENTITY_CLAIM_SINCE_KERNEL },
+      });
+    }
+    // Um kernel anterior IGNORA o papel: o convidado entra sem ele, e a condição da tela que o pergunta
+    // o deixa de fora — ou, no kernel que nem a lê, deixa todos.
+    if (definition === PORTAL_INVITE_STEP_ID && step.configuration?.role !== undefined
+      && !rangeExcludesBelow(pkg.manifest?.kernel ?? '', PORTAL_ROLES_SINCE_KERNEL)) {
+      issues.push({
+        ref,
+        message: '@core.marketplace/issue.step.input-kernel',
+        messageParams: { step: step.id, input: 'role', minimum: PORTAL_ROLES_SINCE_KERNEL },
       });
     }
     const collection = step.configuration?.subjectCollection;

@@ -12,6 +12,7 @@ import type {
   SharedRecordDocument,
 } from './IPortalRepository';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
+import { portalSubjectRoleOf, withPortalSubjectRole, withoutPortalSubjectRoles } from '../schema/portalRole';
 
 /** Uma página por id de documento, como o Firestore a entrega: `startAfter(after)`, `limit(pageSize)`. */
 const pageOf = <T extends { id: string }>(items: T[], after: string | null, pageSize: number) => {
@@ -145,15 +146,19 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
     },
     getPortalUser: async (_t, userId) => users.get(userId) ?? null,
     listPortalUsers: async () => [...users.values()],
-    grantSubject: async (_t, grant, subjectKey) => {
+    grantSubject: async (_t, grant, subjectKey, role) => {
       const current = users.get(grant.userId);
+      const roles = current?.subjectRoles ?? [];
+      const roleChanged = !!role && portalSubjectRoleOf(roles, subjectKey) !== role;
+      const subjectRoles = roleChanged && role ? withPortalSubjectRole(roles, subjectKey, role) : roles;
       users.set(grant.userId, {
         userId: grant.userId,
         email: grant.email,
         displayName: current?.displayName ?? grant.displayName,
         subjectKeys: [...new Set([...(current?.subjectKeys ?? []), subjectKey])],
+        ...(subjectRoles.length > 0 ? { subjectRoles } : {}),
       });
-      return !current?.subjectKeys.includes(subjectKey);
+      return { granted: !current?.subjectKeys.includes(subjectKey), roleChanged };
     },
     revokeSubject: async (_t, userId, subjectKey) => {
       const current = users.get(userId);
@@ -161,7 +166,7 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
       const remaining = subjectKey === null ? [] : current.subjectKeys.filter((key) => key !== subjectKey);
       if (remaining.length === current.subjectKeys.length) return false;
       if (remaining.length === 0) users.delete(userId);
-      else users.set(userId, { ...current, subjectKeys: remaining });
+      else users.set(userId, { ...current, subjectKeys: remaining, subjectRoles: withoutPortalSubjectRoles(current.subjectRoles ?? [], subjectKey) });
       return true;
     },
     readStagedUpload: async (_t, userId, uploadId) => staged.get(`${userId}/${uploadId}`) ?? null,

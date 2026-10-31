@@ -2,6 +2,7 @@ import type { PortalActionLike, PortalScreenLike } from '../schema/portal';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
 import type { PortalReprojectionState } from '../schema/portalReprojection';
 import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
+import type { PortalSubjectRole } from '../schema/portalRole';
 import type { RecordDocumentLinkState } from '../services/recordDocumentLinks';
 import type { FieldLookupBinding } from '../schema/fieldRules';
 
@@ -51,6 +52,8 @@ export interface PortalUserRecord {
   email: string;
   displayName: string;
   subjectKeys: string[];
+  /** O papel em cada sujeito que tem um (EV-38). Ausente ou vazio: nenhum papel em sujeito nenhum. */
+  subjectRoles?: PortalSubjectRole[];
   /** O idioma de quem convidou — o do portal, quando ninguém escolheu outro. */
   locale?: string;
   /** O que o convidado provou ao entrar por um provedor do escritório. Ausente: entrou pelo link de e-mail. */
@@ -216,11 +219,20 @@ export interface IPortalRepository {
 
   getPortalUser(tenantId: string, userId: string): Promise<PortalUserRecord | null>;
   listPortalUsers(tenantId: string): Promise<PortalUserRecord[]>;
-  /** Vincula o sujeito ao convite (criando-o se preciso). `true` quando o vínculo é NOVO. */
-  grantSubject(tenantId: string, grant: PortalUserGrant, subjectKey: string): Promise<boolean>;
   /**
-   * Tira o sujeito do convite; sem sujeito nenhum, o convite deixa de existir. `true` quando algo
-   * saiu — o convite que não tinha aquele sujeito, ou que não existe, não muda.
+   * Vincula o sujeito ao convite (criando-o se preciso). `granted` quando o vínculo é NOVO; com `role`,
+   * o papel do sujeito passa a ser esse, e `roleChanged` diz se mudou. Sem `role`, o papel que o
+   * sujeito já tinha fica — convidar de novo sem papel não tira o que alguém deu.
+   */
+  grantSubject(
+    tenantId: string,
+    grant: PortalUserGrant,
+    subjectKey: string,
+    role?: string,
+  ): Promise<{ granted: boolean; roleChanged: boolean }>;
+  /**
+   * Tira o sujeito do convite — e o papel dele; sem sujeito nenhum, o convite deixa de existir. `true`
+   * quando algo saiu — o convite que não tinha aquele sujeito, ou que não existe, não muda.
    */
   revokeSubject(tenantId: string, userId: string, subjectKey: string | null): Promise<boolean>;
 

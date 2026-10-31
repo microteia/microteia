@@ -19,6 +19,7 @@ import {
 } from '../../../../domain/schema/portalIdentity';
 import type { ScreenDefinition } from '../../../../domain/entities';
 import { parsePortalSubjectKey, portalSubjectKey } from '../../../../domain/schema/portal';
+import { portalSubjectRoleOf, type PortalSubjectRole } from '../../../../domain/schema/portalRole';
 import { portalSignInUrl } from '../../Portal/portalPaths';
 import { useLabel, useT } from '../../../shared/i18n/useT';
 import { useOptionalLocale } from '../../../../stores/useLocale';
@@ -61,6 +62,9 @@ export interface PortalTabViewModel {
   setRecordId: (value: string) => void;
   email: string;
   setEmail: (value: string) => void;
+  /** O papel do convidado no registro — uma chave que as condições do portal comparam. Vazio, nenhum. */
+  role: string;
+  setRole: (value: string) => void;
   /** As claims que algum provedor do escritório atesta — vazio, o convite é só pelo e-mail. */
   claimOptions: Array<{ value: string; label: string }>;
   claimName: string;
@@ -120,6 +124,7 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
   const [screenId, setScreenIdState] = useState('');
   const [recordId, setRecordId] = useState('');
   const [email, setEmail] = useState('');
+  const [role, setRole] = useState('');
   const [isInviting, setIsInviting] = useState(false);
   const [guests, setGuests] = useState<PortalGuest[]>([]);
   const [guestsLoading, setGuestsLoading] = useState(true);
@@ -198,24 +203,29 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
     return owner ? `${label(owner.titleSingular)}: ${title}` : title;
   }, [definitions, recordsByCollection, label]);
 
+  const subjectWithRole = useCallback((key: string, roles: PortalSubjectRole[]): string => {
+    const subjectRole = portalSubjectRoleOf(roles, key);
+    return subjectRole ? t('portal.subject.role', { subject: subjectLabel(key), role: subjectRole }) : subjectLabel(key);
+  }, [subjectLabel, t]);
+
   const rows = useMemo<PortalGuestRow[]>(() => guests.map((guest) => ({
     userId: guest.userId,
     name: guest.displayName || guest.email,
     email: guest.email,
-    subjects: guest.subjectKeys.map((key) => ({ key, label: subjectLabel(key) })),
+    subjects: guest.subjectKeys.map((key) => ({ key, label: subjectWithRole(key, guest.subjectRoles) })),
     verified: verifiedBadge(guest.identity),
     suspended: guest.suspended === true,
     canResendLink: !guest.identity && !identityRequired,
-  })), [guests, subjectLabel, verifiedBadge, identityRequired]);
+  })), [guests, subjectWithRole, verifiedBadge, identityRequired]);
 
   const inviteRows = useMemo<PortalIdentityInviteRow[]>(() => identityInvites.map((invite) => ({
     id: invite.id,
     name: invite.displayName || invite.email,
     email: invite.email,
     claim: `${invite.claim.name}: ${invite.claim.value}`,
-    subjects: invite.subjectKeys.map((key) => ({ key, label: subjectLabel(key) })),
+    subjects: invite.subjectKeys.map((key) => ({ key, label: subjectWithRole(key, invite.subjectRoles) })),
     accepted: invite.accepted,
-  })), [identityInvites, subjectLabel]);
+  })), [identityInvites, subjectWithRole]);
 
   const sendLink = useCallback(async (target: string) => {
     if (!tenantId) return;
@@ -246,7 +256,7 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
       }
       : undefined;
     try {
-      await uc.invite.execute(tenantId, typed, portalSubjectKey(collectionOf(screen), recordId), locale, requiredClaim);
+      await uc.invite.execute(tenantId, typed, portalSubjectKey(collectionOf(screen), recordId), locale, requiredClaim, role.trim() || undefined);
     } catch (error) {
       notify(label(error instanceof Error ? error.message : '@core.tenant/portal.failed'), 'error');
       setIsInviting(false);
@@ -254,6 +264,7 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
     }
     setEmail('');
     setRecordId('');
+    setRole('');
     setClaimValue('');
     // O convite por identidade não abre conta pelo e-mail — mandar o link seria abrir a porta que ele
     // existe para fechar. A pessoa entra pela página do portal, pelo provedor.
@@ -270,7 +281,7 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
     } finally {
       setIsInviting(false);
     }
-  }, [email, tenantId, screen, recordId, uc.invite, sendLink, notify, t, label, linkFailureMessage, locale, claimName, claimValue, claimNormalize]);
+  }, [email, tenantId, screen, recordId, uc.invite, sendLink, notify, t, label, linkFailureMessage, locale, claimName, claimValue, claimNormalize, role]);
 
   const resendLink = useCallback(async (guest: PortalGuestRow) => {
     try {
@@ -338,6 +349,8 @@ export const usePortalTabViewModel = (): PortalTabViewModel => {
     setRecordId,
     email,
     setEmail,
+    role,
+    setRole,
     claimOptions: attestedClaims.length > 0
       ? [{ value: '', label: t('portal.claim.none') }, ...attestedClaims.map((claim) => ({ value: claim, label: claim }))]
       : [],

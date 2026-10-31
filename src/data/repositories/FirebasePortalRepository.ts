@@ -44,6 +44,7 @@ import {
   portalUploadStagingPath,
 } from '../../domain/schema/portal';
 import { readPortalReprojectionState, type PortalReprojectionState } from '../../domain/schema/portalReprojection';
+import { readPortalSubjectRoles } from '../../domain/schema/portalRole';
 import { dateOf, mapPortalRecord, stringsOf, textOf } from './portalRecordMapping';
 import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
 
@@ -211,6 +212,11 @@ export class FirebasePortalRepository implements IPortalRepository {
     return (await call(input)).data;
   }
 
+  async listCreateTargets(input: { tenantId: string; collection: string; linkRecordIds: string[] }): Promise<string[]> {
+    const call = httpsCallable<typeof input, { open: string[] }>(functions, 'submitPortalRecord');
+    return (await call(input)).data.open;
+  }
+
   async update(input: {
     tenantId: string;
     collection: string;
@@ -247,6 +253,7 @@ export class FirebasePortalRepository implements IPortalRepository {
               email: textOf(one.get('email')),
               displayName: textOf(one.get('displayName')),
               subjectKeys: stringsOf(one.get('subjectKeys')),
+              subjectRoles: readPortalSubjectRoles(one.get('subjectRoles')),
               ...(identity ? { identity } : {}),
               ...(one.get('suspended') === true ? { suspended: true } : {}),
             };
@@ -275,12 +282,13 @@ export class FirebasePortalRepository implements IPortalRepository {
     subjectKey: string,
     locale: string,
     requiredClaim?: PortalRequiredClaim,
+    role?: string,
   ): Promise<{ userId: string; created: boolean; inviteId?: string }> {
     const call = httpsCallable<
-      { tenantId: string; email: string; subjectKey: string; locale: string; requiredClaim?: PortalRequiredClaim },
+      { tenantId: string; email: string; subjectKey: string; locale: string; requiredClaim?: PortalRequiredClaim; role?: string },
       { userId: string; created: boolean; inviteId?: string }
     >(functions, 'invitePortalUser');
-    return (await call({ tenantId, email, subjectKey, locale, ...(requiredClaim ? { requiredClaim } : {}) })).data;
+    return (await call({ tenantId, email, subjectKey, locale, ...(requiredClaim ? { requiredClaim } : {}), ...(role ? { role } : {}) })).data;
   }
 
   async revoke(tenantId: string, guest: { userId: string } | { inviteId: string }, subjectKey: string | null): Promise<void> {
@@ -309,6 +317,7 @@ export class FirebasePortalRepository implements IPortalRepository {
               displayName: textOf(one.get('displayName')),
               claim: { name: textOf(claim.name), value: textOf(claim.value), ...(normalize ? { normalize } : {}) },
               subjectKeys: stringsOf(one.get('subjectKeys')),
+              subjectRoles: readPortalSubjectRoles(one.get('subjectRoles')),
               accepted: stringsOf(one.get('boundUserIds')).length > 0,
             };
           })

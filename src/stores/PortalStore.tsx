@@ -13,6 +13,7 @@ import {
   makeRecordPortalViewUseCase,
   makeRunPortalRecordActionUseCase,
   makeSubmitPortalRecordUseCase,
+  makeListPortalCreateTargetsUseCase,
   makeUpdatePortalRecordUseCase,
   makeUploadPortalDocumentUseCase,
 } from '../domain/usecases/portal/PortalUseCases';
@@ -74,6 +75,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     runAction: makeRunPortalRecordActionUseCase(portalRepository),
     linkOptions: makeListPortalLinkOptionsUseCase(portalRepository),
     submit: makeSubmitPortalRecordUseCase(portalRepository),
+    createTargets: makeListPortalCreateTargetsUseCase(portalRepository),
     update: makeUpdatePortalRecordUseCase(portalRepository),
     upload: makeUploadPortalDocumentUseCase(portalRepository),
   }), [portalRepository]);
@@ -248,6 +250,11 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     await uc.submit.execute({ tenantId, collection: targetCollection, linkRecordId, data, locale });
   }, [tenantId, uc.submit, locale]);
 
+  const listCreateTargets = useCallback(async (targetCollection: string, linkRecordIds: string[]) => {
+    if (!tenantId || linkRecordIds.length === 0) return [];
+    return uc.createTargets.execute({ tenantId, collection: targetCollection, linkRecordIds }).catch(() => []);
+  }, [tenantId, uc.createTargets]);
+
   const update = useCallback(async (targetCollection: string, recordId: string, data: Record<string, unknown>) => {
     if (!tenantId) return;
     await uc.update.execute({ tenantId, collection: targetCollection, recordId, data, locale });
@@ -280,13 +287,14 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     subscribeChildren,
     listLinkOptions,
     submit,
+    listCreateTargets,
     update,
     userId,
     uploadDocument,
   }), [
     memberships, membershipsLoading, membershipsFailed, tenantId, context, contextLoading, error, errorCode,
     retryContext, retryMemberships, recordsByCollection, isCollectionLoading, getDocuments, getDocumentUrl, recordView, subscribeChildren,
-    listRecordActions, runRecordAction, listLinkOptions, submit, update, userId, uploadDocument,
+    listRecordActions, runRecordAction, listLinkOptions, submit, listCreateTargets, update, userId, uploadDocument,
   ]);
 
   return <PortalStoreContext.Provider value={value}>{children}</PortalStoreContext.Provider>;

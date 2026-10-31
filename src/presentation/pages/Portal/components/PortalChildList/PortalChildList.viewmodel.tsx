@@ -6,6 +6,7 @@ import type { FilterDef, FilterToken } from '../../../../components/ui/Composite
 import type { PortalChildSection, PortalRecordCard } from '../../Portal.viewmodel';
 import { usePortalRecordFormat } from '../../usePortalRecordFormat';
 import { portalCardArrangement, type PortalCardArrangement } from '../../resolvePortalTemplate';
+import { parsePortalSubjectKey } from '../../../../../domain/schema/portal';
 
 /** Sem filtro, os mais recentes: o que se procura de verdade se encontra filtrando. */
 export const PORTAL_CHILDREN_RECENT = 15;
@@ -45,7 +46,7 @@ export interface PortalChildListViewModel {
  * filtrar alarga a janela até o teto, e a tela diz quando o teto foi alcançado.
  */
 export const usePortalChildListViewModel = ({ child, onOpen, onCreate }: PortalChildListProps): PortalChildListViewModel => {
-  const { subscribeChildren } = usePortal();
+  const { subscribeChildren, listCreateTargets } = usePortal();
   const { formatValue, cardOf } = usePortalRecordFormat();
   const t = useT('core.tenant');
 
@@ -106,6 +107,21 @@ export const usePortalChildListViewModel = ({ child, onOpen, onCreate }: PortalC
     ? records.length >= PORTAL_CHILDREN_FILTER_MAX ? t('portal.children.window', { count: String(PORTAL_CHILDREN_FILTER_MAX) }) : null
     : records.length >= PORTAL_CHILDREN_RECENT ? t('portal.children.recent', { count: String(PORTAL_CHILDREN_RECENT) }) : null;
 
+  // Com `create.when`, quem diz se ESTE convidado cria dentro DESTE pai é o servidor: até ele responder
+  // — e se não responder —, o botão não aparece.
+  const conditional = !!child.createLabel && child.screen.create?.conditional === true;
+  const parentRecordId = parsePortalSubjectKey(child.parentKey)?.recordId ?? '';
+  const createKey = `${child.collection}|${parentRecordId}`;
+  const [openKey, setOpenKey] = useState('');
+  useEffect(() => {
+    if (!conditional || !parentRecordId) return;
+    let active = true;
+    listCreateTargets(child.collection, [parentRecordId])
+      .then((open) => { if (active) setOpenKey(open.includes(parentRecordId) ? createKey : ''); });
+    return () => { active = false; };
+  }, [conditional, parentRecordId, createKey, child.collection, listCreateTargets]);
+  const createLabel = conditional && openKey !== createKey ? null : child.createLabel;
+
   const create = useCallback(() => onCreate(child.collection), [onCreate, child.collection]);
   const open = useCallback((id: string) => onOpen(child.collection, id), [onOpen, child.collection]);
 
@@ -119,7 +135,7 @@ export const usePortalChildListViewModel = ({ child, onOpen, onCreate }: PortalC
     failed: failedKey === requestKey,
     windowNote,
     emptyText: filtering ? t('portal.children.empty-filter') : t('portal.records.empty'),
-    createLabel: child.createLabel,
+    createLabel,
     create,
     open,
     openCard: onOpen,

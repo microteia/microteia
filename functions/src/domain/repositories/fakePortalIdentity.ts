@@ -10,6 +10,12 @@ import type {
   PortalSignInRequest,
 } from './IPortalIdentity';
 import { asPortalSignInSettings, portalClaimKey } from '../schema/portalIdentity';
+import {
+  mergePortalSubjectRoles,
+  portalSubjectRoleOf,
+  withPortalSubjectRole,
+  withoutPortalSubjectRoles,
+} from '../schema/portalRole';
 
 /**
  * A identidade do portal em memória — os convites por claim, os pedidos de entrada, a configuração e
@@ -35,8 +41,9 @@ export const makeFakePortalIdentity = (users: Map<string, PortalUserRecord>) => 
     const subjectKeys = [...new Set(bound.flatMap((invite) => invite.subjectKeys))].sort();
     const current = users.get(userId);
     if (!current) return;
+    const subjectRoles = mergePortalSubjectRoles(bound.map((invite) => invite.subjectRoles ?? []), subjectKeys);
     if (subjectKeys.length === 0) users.delete(userId);
-    else users.set(userId, { ...current, subjectKeys });
+    else users.set(userId, { ...current, subjectKeys, subjectRoles });
   };
 
   const identity: IPortalIdentityRepository = {
@@ -44,14 +51,20 @@ export const makeFakePortalIdentity = (users: Map<string, PortalUserRecord>) => 
     getInvite: async (_t, id) => invites.get(id) ?? null,
     invitesBoundTo: async (_t, userId) => [...invites.values()].filter((invite) => invite.boundUserIds.includes(userId)),
     invitesByEmail: async (_t, email) => [...invites.values()].filter((invite) => invite.email === email),
-    grantInvite: async (_t, grant, subjectKey) => {
+    grantInvite: async (_t, grant, subjectKey, role) => {
       const key = portalClaimKey(grant.claim.name, grant.claim.value);
       const existing = [...invites.values()].find((invite) => keyOf(invite) === key);
       if (existing) {
         const granted = !existing.subjectKeys.includes(subjectKey);
-        const next = { ...existing, subjectKeys: [...new Set([...existing.subjectKeys, subjectKey])] };
+        const roles = existing.subjectRoles ?? [];
+        const roleChanged = !!role && portalSubjectRoleOf(roles, subjectKey) !== role;
+        const next = {
+          ...existing,
+          subjectKeys: [...new Set([...existing.subjectKeys, subjectKey])],
+          ...(roleChanged && role ? { subjectRoles: withPortalSubjectRole(roles, subjectKey, role) } : {}),
+        };
         invites.set(existing.id, next);
-        return { invite: next, granted };
+        return { invite: next, granted, roleChanged };
       }
       sequence += 1;
       const invite: PortalIdentityInvite = {
@@ -60,12 +73,13 @@ export const makeFakePortalIdentity = (users: Map<string, PortalUserRecord>) => 
         displayName: grant.displayName,
         claim: grant.claim,
         subjectKeys: [subjectKey],
+        ...(role ? { subjectRoles: [{ subjectKey, role }] } : {}),
         boundUserIds: [],
         invitedBy: grant.invitedBy,
         ...(grant.locale ? { locale: grant.locale } : {}),
       };
       invites.set(invite.id, invite);
-      return { invite, granted: true };
+      return { invite, granted: true, roleChanged: !!role };
     },
     revokeInvite: async (_t, id, subjectKey) => {
       const invite = invites.get(id);
@@ -73,7 +87,7 @@ export const makeFakePortalIdentity = (users: Map<string, PortalUserRecord>) => 
       const remaining = subjectKey === null ? [] : invite.subjectKeys.filter((key) => key !== subjectKey);
       if (remaining.length === invite.subjectKeys.length) return false;
       if (remaining.length === 0) invites.delete(id);
-      else invites.set(id, { ...invite, subjectKeys: remaining });
+      else invites.set(id, { ...invite, subjectKeys: remaining, subjectRoles: withoutPortalSubjectRoles(invite.subjectRoles ?? [], subjectKey) });
       return true;
     },
     bind: async (tenantId, binding, matched) => {

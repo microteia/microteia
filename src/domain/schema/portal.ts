@@ -16,6 +16,7 @@ import { ACTION_RESERVED_VARIABLES, PORTAL_ACTION_SURFACE, actionFieldContext } 
 import { RECORD_CREATED_VIA_FIELD, SYSTEM_MANAGED_KEYS } from './mutationSpec';
 import { isSequenceField } from './recordSequence';
 import { readPortalTemplate, type PortalTemplate } from './ui/portalTemplate';
+import { PORTAL_ACTOR_VARIABLE, type PortalGuestActor } from './portalRole';
 
 export {
   PORTAL_DOCUMENTS_SUBCOLLECTION,
@@ -146,8 +147,12 @@ export interface PortalDeclaration {
    * O convidado CRIA registros desta tela — e só preenche estes campos. O vínculo com o dono não
    * está entre eles: quem o carimba é o servidor, a partir do que o convidado de fato enxerga. Não
    * vale para a tela-sujeito: o convidado cria PARA a empresa dele, nunca uma empresa nova.
+   *
+   * - `when`: a condição, sobre o registro-PAI inteiro e quem pede (`actor`), em que a criação está
+   *   aberta — `"socio" in actor.portalRoles`. Avaliada no servidor a cada pedido; ausente, sempre
+   *   aberta; inválida, fechada.
    */
-  create?: { fields: string[] } | null;
+  create?: PortalCreateDeclaration | null;
   /**
    * O convidado ANEXA documentos ao registro — escolhendo o tipo entre os que o escritório já tem (os
    * de `types`, ou qualquer um quando a lista está vazia), e nunca criando um tipo novo. Ver
@@ -230,6 +235,11 @@ export interface PortalDeclaration {
 export interface PortalDocumentLinksDeclaration {
   /** 1 a `PORTAL_DOCUMENT_LINK_MAX_MINUTES`; fora disso, `PORTAL_DOCUMENT_LINK_DEFAULT_MINUTES`. */
   expiresInMinutes: number;
+}
+
+export interface PortalCreateDeclaration {
+  fields: string[];
+  when?: string | null;
 }
 
 export interface PortalEditDeclaration {
@@ -317,8 +327,11 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     : [];
 
   const rawCreate = raw.create as Record<string, unknown> | null | undefined;
-  const create = subject !== 'self' && rawCreate && typeof rawCreate === 'object' && Array.isArray(rawCreate.fields)
-    ? { fields: [...new Set(rawCreate.fields.filter(isNonEmptyString).map((key) => key.trim()))] }
+  const create: PortalCreateDeclaration | null = subject !== 'self' && rawCreate && typeof rawCreate === 'object' && Array.isArray(rawCreate.fields)
+    ? {
+      fields: [...new Set(rawCreate.fields.filter(isNonEmptyString).map((key) => key.trim()))],
+      ...(isNonEmptyString(rawCreate.when) ? { when: rawCreate.when.trim() } : {}),
+    }
     : null;
 
   const rawUploads = raw.uploads as Record<string, unknown> | null | undefined;
@@ -449,6 +462,11 @@ export interface PortalActionScope {
   collection: string;
   /** O convidado: `user.id` e `user.name` nas expressões. Permissão, nenhuma. */
   guest: { id: string; name: string };
+  /**
+   * O convidado como as condições do portal o leem — `actor.portalRoles` (os papéis dele NESTE
+   * registro) e `actor.verified`. Ausente, `actor` é vazio, e a condição sobre ele fecha.
+   */
+  actor?: PortalGuestActor;
   timeZone?: string;
 }
 
@@ -466,7 +484,11 @@ const portalActionCondition = (expression: string | null | undefined, scope: Por
     .filter((root) => !reserved.has(root))
     .map((root) => [root, null] as const);
   const context = actionFieldContext({
-    values: { ...Object.fromEntries(absent), ...scope.record },
+    values: {
+      ...Object.fromEntries(absent),
+      ...scope.record,
+      ...(scope.actor ? { [PORTAL_ACTOR_VARIABLE]: scope.actor } : {}),
+    },
     record: scope.record,
     isNew: false,
     isDirty: false,
@@ -663,6 +685,30 @@ export const evaluatePortalCondition = (expression: string, data: Record<string,
   const scope = { ...Object.fromEntries(absent), ...data };
   return evaluateFieldBoolean(expression, { value: undefined, data: scope, ...(timeZone ? { timeZone } : {}) }, false);
 };
+
+/**
+ * A criação está aberta para ESTE convidado, dentro DESTE registro-pai: a condição do escritório
+ * (`create.when`) vale sobre o pai inteiro — inclusive o que não sai do escritório — e sobre quem pede
+ * (`actor.portalRoles`, `actor.verified`). Ausente, sempre aberta; expressão que estoura fecha.
+ *
+ * `actor` cobre um campo do pai de mesmo nome: é a pessoa que a condição pergunta, e a declaração que
+ * precisa do campo o renomeia.
+ */
+export const isPortalCreateOpen = (
+  screen: PortalScreenLike,
+  parent: Record<string, unknown>,
+  actor: PortalGuestActor,
+  evaluate: (expression: string, data: Record<string, unknown>) => boolean,
+): boolean => {
+  const when = screen.portal?.create?.when;
+  return !when || evaluate(when, { ...parent, [PORTAL_ACTOR_VARIABLE]: actor });
+};
+
+/** Quantos pais a casca pergunta de uma vez — a lista de escolha do formulário vai em lotes. */
+export const PORTAL_CREATE_TARGETS_MAX = 50;
+
+/** A tela pede a condição de criação — e só então a casca pergunta ao servidor onde o convidado cria. */
+export const hasPortalCreateCondition = (screen: PortalScreenLike): boolean => !!screen.portal?.create?.when;
 
 /**
  * O registro passa pelo filtro da tela — e só então pode haver projeção dele. Sem `visibleWhen`, todos
@@ -1016,14 +1062,34 @@ const portalConditionIssues = (
   screen: PortalScreenLike,
   expression: string | null | undefined,
   messages: { invalid: string; unknownField: string },
+  variables: readonly string[] = [],
 ): PortalDeclarationIssue[] => {
   if (!expression) return [];
   if (fieldExpressionSyntaxError(expression)) return [{ message: messages.invalid }];
-  const declared = new Set(screen.fields.map((field) => field.key));
+  const declared = new Set([...screen.fields.map((field) => field.key), ...variables]);
   const cited = [...new Set(extractFieldExpressionPaths(expression).map((path) => path.split('.')[0]))];
   return cited
     .filter((key) => !declared.has(key) && !SYSTEM_MANAGED_KEYS.has(key))
     .map((field) => ({ message: messages.unknownField, messageParams: { field } }));
+};
+
+/**
+ * Os problemas do `create.when`: a sintaxe e os campos citados, que são os do registro-PAI — a tela a
+ * que o novo se vincula —, mais `actor`. Sem a tela-pai à mão (a de uma dependência, no empacotamento),
+ * só a sintaxe.
+ */
+export const portalCreateConditionIssues = (
+  screen: PortalScreenLike,
+  parent: PortalScreenLike | undefined,
+): PortalDeclarationIssue[] => {
+  const when = screen.portal?.create?.when;
+  const messages = {
+    invalid: '@core.records/portal.issue.create.when-invalid',
+    unknownField: '@core.records/portal.issue.create.when.field.unknown',
+  };
+  if (!when) return [];
+  if (!parent) return fieldExpressionSyntaxError(when) ? [{ message: messages.invalid }] : [];
+  return portalConditionIssues(parent, when, messages, [PORTAL_ACTOR_VARIABLE]);
 };
 
 /** Os problemas do `visibleWhen` sozinho — o que o empacotamento consegue conferir sem as outras telas. */
@@ -1138,6 +1204,8 @@ export const portalDeclarationIssues = (
     } else if (portalCreateFieldKeys(screen).length === 0) {
       issues.push({ message: '@core.records/portal.issue.create.no-fields' });
     } else {
+      const link = portalLinkOf(screen);
+      issues.push(...portalCreateConditionIssues(screen, link ? portalTargetScreen(screens, link.targetEntity) : undefined));
       const fillable = new Set([...portalCreateFieldKeys(screen), portalLinkOf(screen)?.fieldKey]);
       for (const field of screen.fields) {
         const hasDefault = (field.defaultValue !== undefined && field.defaultValue !== null && field.defaultValue !== '')

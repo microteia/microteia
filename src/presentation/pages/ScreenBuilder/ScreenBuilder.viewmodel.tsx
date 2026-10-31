@@ -449,6 +449,7 @@ export interface ScreenBuilderViewModel {
   setPortalAllowEdit: (allowEdit: boolean) => void;
   togglePortalEditField: (fieldKey: string, editable: boolean) => void;
   setPortalEditWhen: (expression: string) => void;
+  setPortalCreateWhen: (expression: string) => void;
   setPortalEditOnlyOwn: (onlyOwn: boolean) => void;
   setPortalNotifyOffice: (notify: boolean) => void;
   setPortalAutomationInvites: (allowed: boolean) => void;
@@ -1646,6 +1647,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   }, []);
   const setPortalAllowEdit = useCallback((allowEdit: boolean) => updatePortal({ allowEdit }), [updatePortal]);
   const setPortalEditWhen = useCallback((editWhen: string) => updatePortal({ editWhen }), [updatePortal]);
+  const setPortalCreateWhen = useCallback((createWhen: string) => updatePortal({ createWhen }), [updatePortal]);
   const setPortalEditOnlyOwn = useCallback((editOnlyOwn: boolean) => updatePortal({ editOnlyOwn }), [updatePortal]);
   const setPortalNotifyOffice = useCallback((notifyOffice: boolean) => updatePortal({ notifyOffice }), [updatePortal]);
   const setPortalAutomationInvites = useCallback(
@@ -2942,6 +2944,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setPortalAllowEdit,
     togglePortalEditField,
     setPortalEditWhen,
+    setPortalCreateWhen,
     setPortalEditOnlyOwn,
     setPortalNotifyOffice,
     setPortalAutomationInvites,

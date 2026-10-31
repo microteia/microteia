@@ -8,6 +8,7 @@ import type {
   PortalSignInSettings,
   PortalVerifiedIdentity,
 } from '../schema/portalIdentity';
+import type { PortalSubjectRole } from '../schema/portalRole';
 
 /** Um escritório em que a pessoa é convidada do portal. */
 export interface PortalMembership {
@@ -38,6 +39,8 @@ export interface PortalScreenInfo {
   create: {
     fields: PortalFieldInfo[];
     link: { collection: string; label: string };
+    /** Só em alguns pais (`create.when`): quais, quem diz é o servidor. Ausente, em todo pai que ele vê. */
+    conditional?: boolean;
   } | null;
   /** O convidado altera estes campos — dos que ele vê —, e só no que criou quando `onlyOwn`. */
   edit: { fields: PortalFieldInfo[]; onlyOwn: boolean } | null;
@@ -185,6 +188,8 @@ export interface PortalGuest {
   email: string;
   displayName: string;
   subjectKeys: string[];
+  /** O papel dele em cada sujeito que tem um. */
+  subjectRoles: PortalSubjectRole[];
   /** O que ele provou ao entrar por um provedor do escritório. Ausente: entra pelo link de e-mail. */
   identity?: PortalVerifiedIdentity;
   /** O escritório desligou o método por que ele entra — o convite está aqui, e não abre nada. */
@@ -198,6 +203,8 @@ export interface PortalIdentityInvite {
   displayName: string;
   claim: PortalRequiredClaim;
   subjectKeys: string[];
+  /** O papel em cada sujeito que tem um — o que a conta recebe ao aceitar. */
+  subjectRoles: PortalSubjectRole[];
   /** Alguém já entrou por ele. */
   accepted: boolean;
 }
