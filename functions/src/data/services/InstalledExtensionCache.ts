@@ -7,7 +7,12 @@ import { messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
 import { businessCalendarCollectionsOf } from '../../domain/schema/time/extensionPoints';
 import { createHash } from 'node:crypto';
 import { extensionCodeOf, isCodeTrusted } from '../../domain/schema/plugin/codeTrust';
-import { portalViewsOf, type PortalViewDescriptor } from '../../domain/schema/portalExtensionPoints';
+import {
+  portalViewsOf,
+  portalWidgetSpecsOf,
+  type PortalViewDescriptor,
+  type PortalWidgetSpecDescriptor,
+} from '../../domain/schema/portalExtensionPoints';
 import { THEME_DEFINITION_POINT, THEME_TOKENS_POINT } from '../../domain/schema/theme/themePoints';
 import {
   DATA_EXTERNAL_LOOKUP_POINT,
@@ -34,6 +39,8 @@ interface CacheEntry {
   portalViews: PortalViewDescriptor[];
   /** Os textos das extensões que trazem view de portal — o portal não lê o catálogo do escritório. */
   portalBundles: MessageBundle[];
+  /** Os cartões da home DECLARADOS das extensões ligadas — não são código, e não pedem confiança. */
+  portalWidgetSpecs: PortalWidgetSpecDescriptor[];
   /** As contribuições de tema das extensões ligadas, qualificadas e na ordem do registro. */
   themes: QualifiedContribution[];
   /** As máscaras, formatações e validações prontas que as extensões ligadas declaram. */
@@ -119,10 +126,17 @@ export class InstalledExtensionCache {
    * As views de portal que o convidado pode receber, e os textos delas. Só de extensão LIGADA e com o
    * código confiável pela mesma régua da tela de Extensões (`isCodeTrusted`): a view roda no navegador
    * de quem é de fora, e o escritório não confiar no código é motivo de sobra para não mandá-lo.
+   *
+   * Os cartões DECLARADOS (`widgets`) vêm de toda extensão ligada: não rodam código, e o texto deles é
+   * resolvido pelo servidor — não precisam dos `bundles`.
    */
-  async portalViews(tenantId: string): Promise<{ views: PortalViewDescriptor[]; bundles: MessageBundle[] }> {
+  async portalViews(tenantId: string): Promise<{
+    views: PortalViewDescriptor[];
+    bundles: MessageBundle[];
+    widgets: PortalWidgetSpecDescriptor[];
+  }> {
     const entry = await this.load(tenantId);
-    return { views: entry.portalViews, bundles: entry.portalBundles };
+    return { views: entry.portalViews, bundles: entry.portalBundles, widgets: entry.portalWidgetSpecs };
   }
 
   /**
@@ -161,6 +175,7 @@ export class InstalledExtensionCache {
     const documentTemplates: QualifiedContribution[] = [];
     const portalViews: PortalViewDescriptor[] = [];
     const portalBundleContributions: Contribution[] = [];
+    const portalWidgetSpecs: PortalWidgetSpecDescriptor[] = [];
     const themes: QualifiedContribution[] = [];
 
     for (const doc of snapshot.docs) {
@@ -185,6 +200,8 @@ export class InstalledExtensionCache {
           if (THEME_POINTS.has(contribution?.point)) themes.push({ ...contribution, pluginId: doc.id });
         }
 
+        portalWidgetSpecs.push(...portalWidgetSpecsOf(doc.id, contributes as Contribution[]));
+
         const pkg = (data.package ?? {}) as { views?: Array<{ key: string; source: string }>; startup?: string };
         const code = extensionCodeOf(pkg);
         if (isCodeTrusted(data, code !== null, code === null ? null : sha256(code))) {
@@ -205,6 +222,7 @@ export class InstalledExtensionCache {
       businessCalendarCollections: businessCalendarCollectionsOf(contributions),
       portalViews,
       portalBundles: messageBundlesOf(portalBundleContributions),
+      portalWidgetSpecs,
       themes: sortContributions(themes),
       fieldRulePresets: contributions
         .filter((contribution) => contribution?.point === DATA_FIELD_RULE_PRESET_POINT)

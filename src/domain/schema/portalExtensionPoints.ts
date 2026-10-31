@@ -1,5 +1,6 @@
 import type { Contribution } from './plugin/contribution';
 import type { ExtensionPointDefinition } from './plugin/extensionPoint';
+import { readPortalWidgetSpec, type PortalWidgetSpec } from './ui/portalWidget';
 
 export const PORTAL_VIEW_POINT = 'portal.view';
 
@@ -42,12 +43,14 @@ export interface PortalViewMetadata {
 /**
  * A tela PRÓPRIA de uma extensão no portal.
  *
- * Só código (`code`), e só de extensão cujo código o escritório confia: a view roda no navegador do
- * convidado, e é o servidor que a entrega, conferindo a MESMA confiança que o escritório dá ao código
- * dentro dele. O convidado não lê `installed_extensions`.
+ * Código (`code`) só de extensão cujo código o escritório confia: a view roda no navegador do convidado,
+ * e é o servidor que a entrega, conferindo a MESMA confiança que o escritório dá ao código dentro dele.
+ * O convidado não lê `installed_extensions`. A view não alcança `@microteia/data`: o convidado não tem
+ * os stores do escritório. Ela recebe `@microteia/portal`, que lê só as projeções.
  *
- * A view não alcança `@microteia/data`: o convidado não tem os stores do escritório. Ela recebe
- * `@microteia/portal`, que lê só as projeções — o mesmo que a casca genérica lê.
+ * Declaração (`widget`), só na superfície `widget`: o cartão da home em DSL (`PortalWidgetSpec`). Não
+ * roda código, e por isso vale para toda extensão LIGADA, sem a confiança do escritório — o servidor só
+ * deixa sair o que lê campo exposto (`guestPortalWidgetSpec`).
  */
 export const PORTAL_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
@@ -56,7 +59,7 @@ export const PORTAL_EXTENSION_POINTS: ExtensionPointDefinition[] = [
     title: '@core.tenant/point.portal-view',
     description: '@core.tenant/point.portal-view.description',
     ownerPluginId: 'core.tenant',
-    allowedImplKinds: ['code'],
+    allowedImplKinds: ['code', 'widget'],
     implRequired: true,
     multiple: true,
   },
@@ -109,6 +112,36 @@ export const portalViewsOf = (
   const viewKey = contribution.impl.key;
   const source = views.find((view) => view.key === viewKey)?.source;
   return metadata && source ? [{ ...metadata, pluginId, viewKey, source }] : [];
+});
+
+/** Um cartão da home DECLARADO (`impl.kind: 'widget'`): de quem é, a entrada e a árvore. */
+export interface PortalWidgetSpecDescriptor {
+  pluginId: string;
+  key: string;
+  title?: string;
+  order?: number;
+  spec: PortalWidgetSpec;
+}
+
+/**
+ * Os cartões declarados de UM pacote instalado: as contribuições `portal.view` de superfície `widget`
+ * com implementação `widget`. A de outra superfície, e a árvore sem nada aproveitável, são descartadas.
+ */
+export const portalWidgetSpecsOf = (
+  pluginId: string,
+  contributions: readonly Contribution[],
+): PortalWidgetSpecDescriptor[] => contributions.flatMap((contribution) => {
+  if (contribution?.point !== PORTAL_VIEW_POINT || contribution.impl?.kind !== 'widget') return [];
+  const metadata = asPortalViewMetadata(contribution.metadata);
+  const spec = readPortalWidgetSpec(contribution.impl.spec);
+  if (metadata?.surface !== 'widget' || !metadata.key || !spec) return [];
+  return [{
+    pluginId,
+    key: metadata.key,
+    ...(metadata.title ? { title: metadata.title } : {}),
+    ...(metadata.order !== undefined ? { order: metadata.order } : {}),
+    spec,
+  }];
 });
 
 // ─── O menu e a home ─────────────────────────────────────────────────────────

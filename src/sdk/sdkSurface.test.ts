@@ -127,6 +127,11 @@ const PUBLISHED = [
   // (2.88.0): a chave nova na declaração `portal` é forma nova de pacote instalado.
   'DEFAULT_PORTAL_CARD_BODY', 'DEFAULT_PORTAL_DETAIL_BODY', 'PORTAL_TEMPLATE_NODE_TYPES', 'portalTemplateIssues',
   'readPortalTemplate',
+  // O CARTÃO DA HOME do portal declarado (`portalWidgetSpec`): o construtor, o vocabulário dos nós, o
+  // teto do `limit`, o kernel que o desenha, a leitura tolerante e o mesmo portão do `check`. MOVE o
+  // `KERNEL_VERSION` (2.90.0): `portal.view` passa a aceitar a implementação `widget` no pacote instalado.
+  'PORTAL_WIDGET_NODE_TYPES', 'PORTAL_WIDGET_RECORDS_MAX_LIMIT', 'PORTAL_WIDGET_SPEC_SINCE_KERNEL',
+  'portalWidgetSpec', 'portalWidgetSpecIssues', 'readPortalWidgetSpec',
 ].sort();
 
 /**
@@ -138,6 +143,8 @@ const PUBLISHED_TYPES = [
   'BusinessCalendar', 'BusinessCalendarSource',
   'CardNode', 'CardNodeType', 'CardTemplate', 'CardTemplateIssue',
   'PortalTemplate', 'PortalTemplateNode', 'PortalTemplateNodeType',
+  'PortalCountNode', 'PortalRecordsNode', 'PortalWidgetFieldsOf', 'PortalWidgetNode', 'PortalWidgetNodeType',
+  'PortalWidgetSpec', 'PortalWidgetSpecMetadata',
   'DocumentOutputFormat', 'DocumentTemplateDataset', 'DocumentTemplateFormat', 'DocumentTemplateIssue',
   'DocumentTemplateSpec', 'TemplateIssue', 'TemplateNode',
   'ReportAccess', 'ReportAggregateMeasure', 'ReportChart', 'ReportChartKind',
@@ -248,7 +255,7 @@ describe('a superfície publicada do SDK', () => {
   it('todo construtor de contribuição é chamável', () => {
     for (const name of ['page', 'nav', 'command', 'recordAction', 'settingsSection', 'widgetPage',
       'surfaceTab', 'surfaceTabSpec', 'surfaceWidget', 'surfaceWidgetSpec', 'surfaceSlot',
-      'surfaceSlotSpec', 'menuItem', 'navGroup', 'authProvider', 'pointContribution', 'portalView', 'notificationCategory']) {
+      'surfaceSlotSpec', 'menuItem', 'navGroup', 'authProvider', 'pointContribution', 'portalView', 'portalWidgetSpec', 'notificationCategory']) {
       expect(typeof (sdk as unknown as Record<string, unknown>)[name], name).toBe('function');
     }
   });

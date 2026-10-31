@@ -28,6 +28,7 @@ export {
   page,
   pointContribution,
   portalView,
+  portalWidgetSpec,
   recordAction,
   settingsSection,
   surfaceSlot,

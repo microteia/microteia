@@ -5,7 +5,7 @@ import type {
   TemplateField,
   WorkflowModuleTemplate,
 } from '../../../../domain/entities/MarketplacePlugin';
-import { portalView } from '../../../contributionBuilders';
+import { portalView, portalWidgetSpec } from '../../../contributionBuilders';
 import { mergeViewSources } from '../../../../sdk/mergeSources';
 import CLIENT_PORTAL_VIEW from './views/ClientPortal.view.tsx?raw';
 import CLIENT_PORTAL_VIEWMODEL from './views/ClientPortal.viewmodel.tsx?raw';
@@ -28,6 +28,7 @@ import { portalExamplePtBrContribution } from './portalMessagesPtBr';
  * | the only RECORDS that leave the organization | `portal.visibleWhen` — an office-only order never does |
  * | a page of your own in the portal | `portalView({ collection, surface: 'detail' }, viewKey)` |
  * | a card on the portal home | `portalView({ surface: 'widget', key, title }, viewKey)` |
+ * | a card on the portal home with NO code | `portalWidgetSpec({ key, title }, spec)` — `records` and `count` |
  * | what those can read | `@microteia/portal` — never `@microteia/data` |
  * | a screen over a collection named apart from its key | `dataCollection` — links point at the COLLECTION |
  * | telling the guests something happened | a `notify` step with `portalGuests` — never members in the same step |
@@ -389,8 +390,8 @@ const CLIENT_PORTAL_SOURCE = mergeViewSources({
 export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
-    version: '1.9.0',
-    kernel: '^2.73.0',
+    version: '1.10.0',
+    kernel: '^2.90.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -413,6 +414,56 @@ export const portalExamplePlugin: MarketplacePlugin = {
        * computer — draw it for the phone first.
        */
       portalView({ surface: 'widget', key: 'open-orders', title: message('portal.widget.orders'), order: 10 }, 'openOrdersWidget'),
+
+      /**
+       * A card on the portal home with NO code: it reaches every guest even where the organization does
+       * not trust this package's code. `records` lists what passes `when`; `count` counts it. Both read
+       * only what the guest already has — the EXPOSED fields of a screen in the portal —, and `when` is
+       * evaluated in the guest's browser, in the organization's time zone (`today()` works).
+       *
+       * Inside the card of a `records` node the nodes answer about THAT record, as in `portal.template`,
+       * and a `count` with `scope: 'record'` counts its children only — here, the orders of each client a
+       * guest of two clients sees. Without `empty`, a list with nothing to show disappears, and so does
+       * the card when nothing is left.
+       */
+      portalWidgetSpec({ key: 'attention', title: message('portal.widget.attention'), order: 20 }, {
+        body: [
+          {
+            type: 'row',
+            gap: 'sm',
+            children: [
+              { type: 'count', collection: 'portalExampleOrder', when: 'urgency == "urgent"', tone: 'danger' },
+              { type: 'text', text: message('portal.widget.attention.caption'), tone: 'muted' },
+            ],
+          },
+          {
+            type: 'records',
+            collection: 'portalExampleOrder',
+            when: 'urgency == "urgent" or urgency == "soon"',
+            orderBy: { field: 'quantity', direction: 'desc' },
+            limit: 3,
+            empty: message('portal.widget.attention.empty'),
+            card: [{
+              type: 'row',
+              justify: 'between',
+              children: [{ type: 'title' }, { type: 'field', field: 'urgency', variant: 'badge' }],
+            }],
+          },
+          {
+            type: 'section',
+            title: message('portal.widget.attention.clients'),
+            children: [{
+              type: 'records',
+              collection: 'portalExampleClient',
+              card: [{
+                type: 'row',
+                justify: 'between',
+                children: [{ type: 'title' }, { type: 'count', collection: 'portalExampleOrder', scope: 'record', size: 'md' }],
+              }],
+            }],
+          },
+        ],
+      }),
     ],
   },
   summary: message('package.summary'),

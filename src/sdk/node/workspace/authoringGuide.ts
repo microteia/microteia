@@ -28,6 +28,13 @@ import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChan
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
 import { CARD_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/cardTemplate';
 import { PORTAL_DETAIL_ONLY_NODE_TYPES, PORTAL_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/portalTemplate';
+import {
+  PORTAL_WIDGET_RECORDS_DEFAULT_LIMIT,
+  PORTAL_WIDGET_RECORDS_MAX_LIMIT,
+  PORTAL_WIDGET_RECORD_NODE_TYPES,
+  PORTAL_WIDGET_SPEC_SINCE_KERNEL,
+} from '../../../domain/schema/ui/portalWidget';
+import { PORTAL_RECORDS_WINDOW } from '../../../domain/entities/Portal';
 import { RECORD_IMPORT_BATCH_SIZE, RECORD_IMPORT_MAX_ROWS } from '../../../domain/schema/recordImport';
 import { PERMISSION_RECORD_IMPORT_RUN } from '../../../domain/schema/access/kernelPermissions';
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
@@ -694,6 +701,65 @@ adds yours:
 
 \`order\` is a suggestion. The organization decides what shows and where, in Settings > Portal — the
 menu's order and which entries and cards are visible. Your package never forces a place.
+
+#### A card on the home with no code — \`portalWidgetSpec\`
+
+A view is code: it reaches guests only where the organization trusts your package's code, and every
+change asks for that trust again. Most home cards only filter and list what the guest already sees —
+the invoices about to fall due, the appointments booked, the notices still to open. Declare those instead:
+
+\`\`\`ts
+portalWidgetSpec({ key: 'attention', title: label('portal.attention'), order: 10 }, {
+  body: [
+    { type: 'row', children: [
+      { type: 'count', collection: 'notices', when: 'status == "sent"', tone: 'danger' },
+      { type: 'text', text: label('portal.to-open'), tone: 'muted' },
+    ] },
+    { type: 'records', collection: 'notices', when: 'status == "sent"',
+      orderBy: { field: 'tacitDate', direction: 'asc' }, limit: 5, empty: label('portal.nothing'),
+      card: [{ type: 'title' }, { type: 'field', field: 'tacitDate', label: true }, { type: 'field', field: 'companyId' }] },
+    { type: 'section', title: label('portal.by-company'), children: [
+      { type: 'records', collection: 'companies', card: [
+        { type: 'row', justify: 'between', children: [
+          { type: 'title' },
+          { type: 'count', collection: 'notices', when: 'status == "sent"', scope: 'record', size: 'md' },
+        ] },
+      ] },
+    ] },
+  ],
+})
+\`\`\`
+
+The tree is the one \`portal.template\` uses (\`row\`, \`stack\`, \`section\`, \`spacer\`, \`divider\`, \`text\`,
+\`icon\`), plus two nodes that read the records the guest already has:
+
+| Node | Draws |
+|---|---|
+| \`records\` | the records of a portal screen (\`collection\`) that pass \`when\`, sorted by an exposed field (\`orderBy: { field, direction? }\`; without it, the most recently updated first), up to \`limit\` (default ${PORTAL_WIDGET_RECORDS_DEFAULT_LIMIT}, at most ${PORTAL_WIDGET_RECORDS_MAX_LIMIT}). Each one is a card that opens the record: the screen's own portal card, or yours in \`card\`. \`layout\` and \`minWidth\` as in \`template.card\`; \`empty\` is the text when none passes |
+| \`count\` | how many records of a portal screen pass \`when\` — the number, in the guest's format (\`size\`, \`tone\`) |
+
+- **Two scopes.** The card of the widget is about no record: ${PORTAL_WIDGET_RECORD_NODE_TYPES.map((type) => `\`${type}\``).join(', ')} and
+  \`hiddenWhen\` only go inside the \`card\` of a \`records\` node, where they answer about that record exactly as
+  in \`template.card\`. There, a \`count\` with \`scope: 'record'\` counts only the children of that record —
+  the notices of each company of a guest who represents two. A \`records\` node never goes inside another
+  card: the whole card opens the record.
+- **It only reads what the guest has.** \`collection\` names the COLLECTION of a screen in the portal (its
+  \`dataCollection\`, or its key). \`when\`, \`orderBy\` and the card may only read EXPOSED fields of that
+  screen. \`when\` is evaluated in the guest's browser over the projection, in the organization's time zone
+  (\`today()\` works), and an expression that fails lets nothing through. The server drops a whole
+  \`records\` or \`count\` that reads anything else — not just its filter, which would let through records you
+  meant to leave out — and a card that reads data and loses all of it does not reach the guest.
+  \`check\` refuses the package for any field of its OWN screens; a screen of another package (the
+  portal package built over somebody else's screens) is checked only for shape, and the server does the rest.
+- **It shows nothing rather than nothing-to-see.** A \`records\` with no record passing and no \`empty\`
+  disappears, and so does the card left with nothing to draw: "no notices to open" is the absence of
+  the card, unless you say it with \`empty\`.
+- **Counted over a window.** The portal keeps the ${PORTAL_RECORDS_WINDOW} most recently updated records of each screen; a
+  \`count\` over a full window is a floor and shows as "${PORTAL_RECORDS_WINDOW}+", and \`records\` chooses inside it.
+- Fixed text is a \`label('…')\` reference, translated by the server into the guest's language — no view
+  of yours, and no code trust, involved.
+- Requires \`kernel: "^${PORTAL_WIDGET_SPEC_SINCE_KERNEL}"\`. An older kernel discards the contribution and the
+  card would simply be missing, so \`check\` refuses the package without it.
 
 The standard create and edit form fills a field the way the organization's form does. A \`masked\`
 field types into the template of its \`mask\` preset, and a field with \`logic.onChangeLookup\` runs

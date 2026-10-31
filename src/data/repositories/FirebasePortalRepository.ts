@@ -27,6 +27,7 @@ import type {
   PortalRecordAction,
   PortalSignInSettingsView,
 } from '../../domain/entities/Portal';
+import { PORTAL_RECORDS_WINDOW } from '../../domain/entities/Portal';
 import { PORTAL_IDENTITY_INVITES_COLLECTION } from '../../domain/schema/portalCollections';
 import {
   PORTAL_CLAIM_NORMALIZERS,
@@ -48,7 +49,7 @@ import { readPortalSubjectRoles } from '../../domain/schema/portalRole';
 import { dateOf, mapPortalRecord, stringsOf, textOf } from './portalRecordMapping';
 import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
 
-const PAGE_LIMIT = 200;
+const PAGE_LIMIT = PORTAL_RECORDS_WINDOW;
 
 export class FirebasePortalRepository implements IPortalRepository {
   async listMemberships(userId: string): Promise<PortalMembership[]> {

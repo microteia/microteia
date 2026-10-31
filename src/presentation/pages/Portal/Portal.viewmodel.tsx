@@ -9,6 +9,7 @@ import { portalSubjectKey } from '../../../domain/schema/portal';
 import { portalTemplatePlaces } from '../../../domain/schema/ui/portalTemplate';
 import { portalTenantPath } from './portalPaths';
 import { usePortalRecordFormat } from './usePortalRecordFormat';
+import { usePortalWidget } from './usePortalWidget';
 import { evaluatePortalView, type PortalViewComponent } from './portalViews';
 import { portalAccessError, portalOffersSignInAgain, type PortalAccessError } from './portalAccessError';
 import {
@@ -52,11 +53,17 @@ export interface PortalDocumentView {
 /** A casca de uma extensão: recebe a página como `children`. */
 export type PortalLayoutComponent = React.ComponentType<{ children: React.ReactNode }>;
 
-/** Um cartão da home: a view da extensão, com o título que ela declarou. */
+/**
+ * Um cartão da home, com o título que a extensão declarou: a view dela (`Component`), ou o widget
+ * declarado já respondido (`nodes`).
+ */
 export interface PortalWidgetItem {
   id: string;
   title: string;
-  Component: PortalViewComponent;
+  Component: PortalViewComponent | null;
+  nodes: ResolvedPortalNode[] | null;
+  /** O widget declarado lê uma tela que ainda não chegou. */
+  loading: boolean;
 }
 
 
@@ -409,12 +416,19 @@ export const usePortalViewModel = (): PortalViewModel => {
     office: portal.context?.tenantName ?? '',
   });
   const greetsByName = !!accountName;
+  const widgetOf = usePortalWidget();
+  // O widget declarado sem nada a mostrar — nenhum registro e nenhum texto de vazio — não ocupa a home:
+  // o portal não mostra moldura vazia.
   const homeWidgets = useMemo<PortalWidgetItem[]>(
-    () => (homeConfig?.widgets ?? []).flatMap((widget) => {
+    () => (homeConfig?.widgets ?? []).flatMap((widget): PortalWidgetItem[] => {
+      if (widget.spec) {
+        const { nodes, loading } = widgetOf(widget.spec);
+        return loading || nodes.length > 0 ? [{ id: widget.id, title: widget.title, Component: null, nodes, loading }] : [];
+      }
       const Component = viewByKey(widget.pluginId, widget.viewKey);
-      return Component ? [{ id: widget.id, title: widget.title, Component }] : [];
+      return Component ? [{ id: widget.id, title: widget.title, Component, nodes: null, loading: false }] : [];
     }),
-    [homeConfig, viewByKey],
+    [homeConfig, viewByKey, widgetOf],
   );
   const ListComponent = rootCollection ? viewFor(rootCollection, 'list') : null;
   const DetailComponent = topRecord && topScreen ? viewFor(topScreen.collection, 'detail') : null;

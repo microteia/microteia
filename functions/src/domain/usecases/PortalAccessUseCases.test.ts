@@ -506,6 +506,91 @@ describe('contexto do portal', () => {
     expect(context.home.view).toBeNull();
   });
 
+  describe('o cartão declarado da home (`portalWidgetSpec`)', () => {
+    const declared = (key: string, spec: unknown, order?: number) => ({
+      pluginId: 'com.acme.portal', key, title: `@com.acme.portal/${key}`, spec: spec as never, ...(order !== undefined ? { order } : {}),
+    });
+    const contextWith = async (widgets: ReturnType<typeof declared>[], hidden: string[] = []) => {
+      const fake = makeFakePortalRepository(CITY_SCREENS);
+      fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme', 'companies/beta'] });
+      fake.homeSettings.widgets = { order: [], hidden };
+      return makeGetPortalContextUseCase(fake.repo).execute({
+        tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value.toUpperCase(),
+        extensionViews: {
+          views: [{ pluginId: 'com.acme', viewKey: 'w', key: 'code', surface: 'widget' as const, source: 'x', order: 20 }],
+          bundles: [],
+          widgets,
+        },
+      });
+    };
+
+    it('chega junto dos cartões de código, na ordem sugerida, com o texto no idioma do convidado — sem pedir confiança de código', async () => {
+      const context = await contextWith([
+        declared('due', { body: [{ type: 'records', collection: 'invoices', when: 'amount > 100', empty: '@com.acme.portal/none' }] }, 10),
+      ]);
+
+      expect(context.home.widgets).toEqual([
+        {
+          id: 'com.acme.portal.due',
+          title: '@COM.ACME.PORTAL/DUE',
+          pluginId: 'com.acme.portal',
+          spec: { body: [{ type: 'records', collection: 'invoices', when: 'amount > 100', empty: '@COM.ACME.PORTAL/NONE' }] },
+        },
+        { id: 'com.acme.code', title: '', pluginId: 'com.acme', viewKey: 'w' },
+      ]);
+      // O cartão declarado não traz código: nada dele entra nas views nem nos textos que a casca compila.
+      expect(context.views.map((view) => view.viewKey)).toEqual(['w']);
+    });
+
+    it('o escritório esconde o declarado como esconde qualquer cartão', async () => {
+      const context = await contextWith(
+        [declared('due', { body: [{ type: 'count', collection: 'invoices' }] })],
+        ['com.acme.portal.due'],
+      );
+      expect(context.home.widgets.map((entry) => entry.id)).toEqual(['com.acme.code']);
+    });
+
+    it('nada do que não saiu chega ao convidado: o filtro por campo interno e a tela fora do portal levam o nó inteiro', async () => {
+      const context = await contextWith([
+        declared('mixed', {
+          body: [
+            { type: 'count', collection: 'invoices', when: 'auditNote == "flagged"' },
+            { type: 'records', collection: 'inspections' },
+            { type: 'records', collection: 'invoices', card: [{ type: 'title' }, { type: 'field', field: 'auditNote' }] },
+          ],
+        }),
+        declared('internal', { body: [{ type: 'text', text: '@com.acme.portal/due' }, { type: 'count', collection: 'inspections' }] }),
+      ]);
+
+      const mixed = context.home.widgets.find((entry) => entry.id === 'com.acme.portal.mixed');
+      expect(mixed?.spec).toEqual({ body: [{ type: 'records', collection: 'invoices', card: [{ type: 'title' }] }] });
+      expect(context.home.widgets.some((entry) => entry.id === 'com.acme.portal.internal')).toBe(false);
+      expect(JSON.stringify(context.home)).not.toContain('auditNote');
+      expect(JSON.stringify(context.home)).not.toContain('inspections');
+    });
+
+    it('o campo de arquivo retido pelo link curto também não pode ser lido pelo widget', async () => {
+      const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices' && screen.portal
+        ? {
+          ...screen,
+          fields: [...screen.fields, { key: 'receipt', label: 'receipt', type: 'file' }],
+          portal: { ...screen.portal, fields: [...screen.portal.fields, 'receipt'], documentLinks: { expiresInMinutes: 10 } },
+        }
+        : screen));
+      const fake = makeFakePortalRepository(screens);
+      fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+      const context = await makeGetPortalContextUseCase(fake.repo).execute({
+        tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
+        extensionViews: {
+          views: [],
+          bundles: [],
+          widgets: [declared('receipts', { body: [{ type: 'count', collection: 'invoices', when: 'receipt != null' }, { type: 'count', collection: 'invoices' }] })],
+        },
+      });
+      expect(context.home.widgets[0]?.spec).toEqual({ body: [{ type: 'count', collection: 'invoices' }] });
+    });
+  });
+
   describe('o desenho declarado (`portal.template`)', () => {
     const withTemplate = (template: unknown): PortalScreen[] => CITY_SCREENS.map((screen) =>
       (screen.id === 'invoices' && screen.portal

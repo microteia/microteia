@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.185.0] — 2026-10-31
+
+- A página inicial do portal pode trazer painéis do tipo "o que precisa da sua atenção" — as faturas a vencer, as consultas marcadas, as comunicações a abrir —, com a contagem e os itens mais importantes de cada um. Quem visita vê só o que já podia ver, e um toque abre o item.
+- Esses painéis funcionam mesmo quando o escritório não liberou código para a extensão que os traz. Continua sendo do escritório a decisão de mostrá-los e em que ordem, em Configurações › Portal.
+- Quem acompanha mais de um registro (duas empresas, dois imóveis) vê no mesmo painel os itens de todos, cada um dizendo a qual pertence, e pode ter a contagem separada por registro.
+- Nada muda nos portais que não usam esses painéis.
+
 #### [9.184.0] — 2026-10-31
 
 - Ao convidar alguém para o portal, agora é possível dizer qual é o papel dessa pessoa naquele registro — sócio, contador, síndico, morador —, e a lista de convidados passa a mostrar o papel ao lado de cada vínculo.

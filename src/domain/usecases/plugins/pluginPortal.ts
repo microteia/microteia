@@ -16,6 +16,9 @@ import {
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { portalTemplateIssues } from '../../schema/ui/portalTemplateIssues';
+import { PORTAL_WIDGET_SPEC_SINCE_KERNEL } from '../../schema/ui/portalWidget';
+import { portalWidgetSpecIssues } from '../../schema/ui/portalWidgetIssues';
+import { PORTAL_VIEW_POINT, asPortalViewMetadata } from '../../schema/portalExtensionPoints';
 import type { LocalizedIssue } from './pluginReferences';
 
 const fieldsOf = (pkg: MarketplacePlugin, screen: ScreenModuleTemplate) => [
@@ -231,6 +234,49 @@ const templateIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
     );
   });
 
+/**
+ * Os cartões da home DECLARADOS (`portalWidgetSpec`): a superfície, a árvore pela régua de
+ * `portalWidgetSpecIssues` e o `kernel`.
+ *
+ * A coleção de uma tela DESTE pacote é conferida por inteiro — está no portal, e os campos lidos saem.
+ * A de outra (uma dependência: o pacote do portal sobre as telas de outro) só pela forma: as telas dela
+ * não estão aqui, e o servidor descarta o nó que ler o que não sai.
+ *
+ * O `kernel` é cobrado porque o anterior descarta a contribuição — calado, e o cartão só faltaria na
+ * home de quem instalou.
+ */
+const widgetSpecIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
+  const declaring = (pkg.manifest.contributes ?? [])
+    .map((contribution, index) => ({ contribution, index }))
+    .filter(({ contribution }) => contribution?.point === PORTAL_VIEW_POINT && contribution.impl?.kind === 'widget');
+
+  const exposedFieldsOf = (collection: string) => {
+    const screen = (pkg.screens ?? []).find((candidate) => (candidate.dataCollection ?? candidate.key) === collection);
+    if (!screen) return undefined;
+    const portal = asPortalDeclaration(screen.portal);
+    if (!portal) return null;
+    const exposed = new Set(portal.fields);
+    return fieldsOf(pkg, screen).filter((field) => exposed.has(field.key)).map((field) => ({ key: field.key, type: field.type }));
+  };
+
+  const shape = declaring.flatMap(({ contribution, index }): LocalizedIssue[] => {
+    if (asPortalViewMetadata(contribution.metadata)?.surface !== 'widget') {
+      return [{ message: '@core.marketplace/issue.portal.widget.surface', messageParams: { id: contribution.id } }];
+    }
+    const spec = contribution.impl?.kind === 'widget' ? contribution.impl.spec : undefined;
+    return portalWidgetSpecIssues(spec, exposedFieldsOf, `manifest.contributes[${index}].impl.spec`);
+  });
+
+  const kernel = declaring.length > 0 && !rangeExcludesBelow(pkg.manifest.kernel ?? '', PORTAL_WIDGET_SPEC_SINCE_KERNEL)
+    ? [{
+      message: '@core.marketplace/issue.portal.widget.kernel',
+      messageParams: { id: declaring[0].contribution.id, minimum: PORTAL_WIDGET_SPEC_SINCE_KERNEL },
+    }]
+    : [];
+
+  return [...shape, ...kernel];
+};
+
 /** O que o portal das telas do pacote declara e o kernel exigido não sustenta — cada um, uma recusa. */
 export const packagePortalIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...derivedFieldIssues(pkg),
@@ -241,4 +287,5 @@ export const packagePortalIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
   ...actionIssues(pkg),
   ...referenceTitleIssues(pkg),
   ...templateIssues(pkg),
+  ...widgetSpecIssues(pkg),
 ];

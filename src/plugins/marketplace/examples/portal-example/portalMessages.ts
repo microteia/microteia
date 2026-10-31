@@ -51,6 +51,10 @@ export const PORTAL_EXAMPLE_MESSAGES: Record<string, string> = {
   'portal.orders.quantity': '{count} × {item}',
   'portal.widget.orders': 'Your orders',
   'portal.widget.orders.caption': 'orders placed in the portal',
+  'portal.widget.attention': 'Needs attention',
+  'portal.widget.attention.caption': 'urgent orders',
+  'portal.widget.attention.empty': 'Nothing urgent right now.',
+  'portal.widget.attention.clients': 'Orders by client',
 
   'workflow.visit-scheduled': 'Tell the client about a new visit',
   'workflow.visit-scheduled.description': 'When a visit is scheduled, notifies the client\'s portal guests by e-mail and on the portal bell.',

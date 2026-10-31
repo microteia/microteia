@@ -9,7 +9,8 @@ import type {
   CardWidth,
 } from '../../../domain/schema/ui/cardTemplate';
 import type { PortalTemplate, PortalTemplateNode } from '../../../domain/schema/ui/portalTemplate';
-import type { PortalFieldView } from './Portal.viewmodel';
+import type { PortalCountNode, PortalRecordsNode, PortalWidgetNode } from '../../../domain/schema/ui/portalWidget';
+import type { PortalFieldView, PortalRecordCard } from './Portal.viewmodel';
 
 /** O traço do campo vazio que o template pede para mostrar (`showEmpty`) — o mesmo da listagem. */
 const EMPTY_VALUE = '—';
@@ -32,7 +33,16 @@ export type ResolvedPortalNode =
   | { kind: 'text'; key: string; text: string; tone: CardTone; size?: CardTextSize }
   | { kind: 'icon'; key: string; iconKey: string; tone: CardTone }
   | { kind: 'edit'; key: string; label: string }
-  | { kind: 'actions'; key: string };
+  | { kind: 'actions'; key: string }
+  | { kind: 'count'; key: string; text: string; size?: CardTextSize; tone: CardTone }
+  | { kind: 'records'; key: string; cards: PortalRecordCard[]; arrangement: PortalCardArrangement; empty: string };
+
+/** Os registros de um nó `records` já escolhidos e desenhados — e o texto de quando não há nenhum. */
+export interface PortalWidgetRecords {
+  cards: PortalRecordCard[];
+  arrangement: PortalCardArrangement;
+  empty: string;
+}
 
 /**
  * As respostas que o desenho pede sobre UM registro — as mesmas que o cartão e o registro aberto
@@ -51,10 +61,36 @@ export interface PortalTemplateAnswers {
   editLabel: string | null;
   hasActions: boolean;
   isHidden: (hiddenWhen: string | undefined) => boolean;
+  /** Só no widget declarado: o número de um `count`, já formatado; `null` quando não há o que contar. */
+  count?: (node: PortalCountNode) => string | null;
+  /** Só no widget declarado: os registros de um `records`; `null` quando a tela não está no portal. */
+  records?: (node: PortalRecordsNode) => PortalWidgetRecords | null;
 }
 
-const resolveNode = (node: PortalTemplateNode, key: string, answers: PortalTemplateAnswers): ResolvedPortalNode | null => {
-  if (answers.isHidden(node.hiddenWhen)) return null;
+/**
+ * As respostas de onde não há registro — o cartão do widget declarado. A leitura já tirou de lá os nós
+ * que perguntariam por um.
+ */
+export const NO_RECORD_ANSWERS: PortalTemplateAnswers = {
+  title: '',
+  field: () => null,
+  fields: [],
+  summary: '',
+  updated: '',
+  editLabel: null,
+  hasActions: false,
+  isHidden: () => false,
+};
+
+const hiddenWhenOf = (node: PortalTemplateNode | PortalWidgetNode): string | undefined =>
+  'hiddenWhen' in node ? node.hiddenWhen : undefined;
+
+const resolveNode = (
+  node: PortalTemplateNode | PortalWidgetNode,
+  key: string,
+  answers: PortalTemplateAnswers,
+): ResolvedPortalNode | null => {
+  if (answers.isHidden(hiddenWhenOf(node))) return null;
   switch (node.type) {
     case 'row':
     case 'stack':
@@ -104,18 +140,28 @@ const resolveNode = (node: PortalTemplateNode, key: string, answers: PortalTempl
       return answers.editLabel ? { kind: 'edit', key, label: answers.editLabel } : null;
     case 'actions':
       return answers.hasActions ? { kind: 'actions', key } : null;
+    case 'count': {
+      const text = answers.count?.(node) ?? null;
+      return text === null ? null : { kind: 'count', key, text, size: node.size, tone: node.tone ?? 'default' };
+    }
+    case 'records': {
+      const records = answers.records?.(node) ?? null;
+      if (!records || (records.cards.length === 0 && !records.empty)) return null;
+      return { kind: 'records', key, ...records };
+    }
     default:
       return null;
   }
 };
 
 /**
- * Responde a árvore declarada para um registro. Some o que o `hiddenWhen` esconde (com tudo o que
- * contém), o campo vazio (salvo `showEmpty`), o bloco sem conteúdo, o botão que este convidado não
- * tem e o contêiner que ficou sem filhos — o portal não mostra moldura vazia.
+ * Responde a árvore declarada para um registro — ou, no widget declarado, para nenhum. Some o que o
+ * `hiddenWhen` esconde (com tudo o que contém), o campo vazio (salvo `showEmpty`), o bloco sem conteúdo,
+ * o botão que este convidado não tem, a lista sem registro nem texto de vazio e o contêiner que ficou
+ * sem filhos — o portal não mostra moldura vazia.
  */
 export const resolvePortalNodes = (
-  nodes: readonly PortalTemplateNode[],
+  nodes: readonly (PortalTemplateNode | PortalWidgetNode)[],
   answers: PortalTemplateAnswers,
   parentKey = '',
 ): ResolvedPortalNode[] =>

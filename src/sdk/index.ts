@@ -208,6 +208,21 @@ export {
   readPortalTemplate,
 } from '../domain/schema/ui/portalTemplate';
 export { portalTemplateIssues } from '../domain/schema/ui/portalTemplateIssues';
+export type {
+  PortalCountNode,
+  PortalRecordsNode,
+  PortalWidgetNode,
+  PortalWidgetNodeType,
+  PortalWidgetSpec,
+} from '../domain/schema/ui/portalWidget';
+export {
+  PORTAL_WIDGET_NODE_TYPES,
+  PORTAL_WIDGET_RECORDS_MAX_LIMIT,
+  PORTAL_WIDGET_SPEC_SINCE_KERNEL,
+  readPortalWidgetSpec,
+} from '../domain/schema/ui/portalWidget';
+export type { PortalWidgetFieldsOf } from '../domain/schema/ui/portalWidgetIssues';
+export { portalWidgetSpecIssues } from '../domain/schema/ui/portalWidgetIssues';
 
 export { STEP_TYPES } from '../domain/entities/Workflow';
 
@@ -473,6 +488,7 @@ export {
   page,
   pointContribution,
   portalView,
+  portalWidgetSpec,
   recordAction,
   settingsSection,
   surfaceSlot,
@@ -484,6 +500,7 @@ export {
   widgetPage,
 } from './contributions';
 export type { PortalViewMetadata, PortalViewSurface } from '../domain/schema/portalExtensionPoints';
+export type { PortalWidgetSpecMetadata } from './contributions';
 export type { NotificationCategoryMetadata } from '../domain/schema/notifications';
 
 // ─── Validação e serialização ─────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import type { QualifiedContribution } from '../schema/plugin/contribution';
 import type { PortalFieldInput } from '../schema/portalFieldInput';
 import type { PortalFieldReference } from '../schema/portal';
 import type { PortalTemplate } from '../schema/ui/portalTemplate';
+import type { PortalWidgetSpec } from '../schema/ui/portalWidget';
 import type {
   PortalIdentityProvider,
   PortalRequiredClaim,
@@ -120,7 +121,11 @@ export interface PortalHome {
   welcome: string;
   /** O menu, já na ordem do escritório e sem o que ele escondeu. */
   menu: PortalMenuEntry[];
-  widgets: Array<{ id: string; title: string; pluginId: string; viewKey: string }>;
+  /**
+   * Os cartões: a view de uma extensão (`viewKey`), ou a árvore declarada (`spec`), já filtrada pelo
+   * servidor — só o exposto, com o texto no idioma do convidado.
+   */
+  widgets: Array<{ id: string; title: string; pluginId: string; viewKey?: string; spec?: PortalWidgetSpec }>;
   view: { pluginId: string; viewKey: string } | null;
   /** A casca: `sidebar`, `top`, ou a de uma extensão. Ausente num contexto guardado antes dela. */
   layout?: { id: string; pluginId?: string; viewKey?: string };
@@ -141,6 +146,12 @@ export interface PortalContext {
   themes?: QualifiedContribution[];
   home: PortalHome;
 }
+
+/**
+ * Quantos registros de cada tela o portal assina — os atualizados mais recentemente. A contagem de um
+ * widget declarado que alcança a janela cheia é um piso, e diz isso ("200+").
+ */
+export const PORTAL_RECORDS_WINDOW = 200;
 
 /** A PROJEÇÃO de um registro — o que saiu do escritório para o convidado, e nada além. */
 export interface PortalRecord {

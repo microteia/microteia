@@ -162,4 +162,17 @@ export const S = {
     display: inline-flex;
     color: ${({ theme, $tone }) => toneColor(theme, $tone)};
   `,
+
+  /** O número de um `count` — em destaque quando o widget não pede outro tamanho. */
+  Count: styled.span<{ $tone: CardTone; $size?: CardTextSize }>`
+    font-size: ${({ theme, $size }) => theme.fontSizes[$size ?? '2xl']};
+    font-weight: 700;
+    line-height: 1.2;
+    color: ${({ theme, $tone }) => toneColor(theme, $tone)};
+  `,
+
+  Empty: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
 };

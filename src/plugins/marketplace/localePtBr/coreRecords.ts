@@ -646,4 +646,13 @@ export const CORE_RECORDS: Record<string, string> = {
   'portal-template.issue.field-unexposed': '{where}: "{field}" não aparece no portal. Marque-o entre os campos acima, ou tire-o do desenho.',
   'portal-template.issue.expression-unexposed': '{where}: a condição lê "{field}", que o portal não mostra. No portal, a condição só pode ler os campos que o convidado vê.',
   'portal-template.issue.detail-only': '{where}: "{type}" só existe no registro aberto — no cartão, o toque abre o registro.',
+  'portal-widget.issue.not-object': '{where}: o widget deve ser um objeto com um corpo (body).',
+  'portal-widget.issue.body': '{where}: o widget precisa de um corpo (body) — uma lista com ao menos um nó.',
+  'portal-widget.issue.record-only': '{where}: "{type}" responde sobre um registro, por isso só entra no cartão de um nó "records".',
+  'portal-widget.issue.nested-records': '{where}: um nó "records" não entra no cartão de outro — o cartão inteiro abre o registro.',
+  'portal-widget.issue.condition-outside': '{where}: fora do cartão de um nó "records" não há registro para a condição ler. Filtre pelo "when" de "records" ou de "count".',
+  'portal-widget.issue.scope': '{where}: o escopo "record" só vale num "count" dentro do cartão de um nó "records" — ele conta os filhos daquele registro.',
+  'portal-widget.issue.collection-missing': '{where}: falta a coleção.',
+  'portal-widget.issue.collection-unexposed': '{where}: "{collection}" não é uma tela do portal, então o convidado não tem registro nenhum dela.',
+  'portal-widget.issue.limit': '{where}: o limite deve ser um número inteiro de 1 a {max}.',
 };

@@ -50,6 +50,10 @@ const PORTAL_EXAMPLE_PT_BR: Record<string, string> = {
   'portal.orders.quantity': '{count} × {item}',
   'portal.widget.orders': 'Seus pedidos',
   'portal.widget.orders.caption': 'pedidos feitos pelo portal',
+  'portal.widget.attention': 'Precisa de atenção',
+  'portal.widget.attention.caption': 'pedidos urgentes',
+  'portal.widget.attention.empty': 'Nada urgente agora.',
+  'portal.widget.attention.clients': 'Pedidos por cliente',
 
   'workflow.visit-scheduled': 'Avisar o cliente de uma visita nova',
   'workflow.visit-scheduled.description': 'Quando uma visita é agendada, avisa os convidados do portal do cliente por e-mail e no sino do portal.',

@@ -49,6 +49,7 @@ const SHARED_FILES = [
   'domain/schema/memberVisibility.ts',
   'domain/schema/ui/cardTemplate.ts',
   'domain/schema/ui/portalTemplate.ts',
+  'domain/schema/ui/portalWidget.ts',
   'domain/schema/portal.ts',
   'domain/schema/portalCollections.ts',
   'domain/schema/portalFieldInput.ts',

@@ -114,7 +114,13 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
           {vm.home.widgets.map((widget) => (
             <S.WidgetCard key={widget.id}>
               {widget.title && <S.WidgetTitle>{widget.title}</S.WidgetTitle>}
-              <widget.Component collection="" />
+              {widget.Component ? (
+                <widget.Component collection="" />
+              ) : widget.loading ? (
+                <Spinner size={20} />
+              ) : (
+                <PortalTemplateNodes nodes={widget.nodes ?? []} onOpen={vm.openRecord} />
+              )}
             </S.WidgetCard>
           ))}
         </S.Widgets>

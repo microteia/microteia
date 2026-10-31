@@ -173,6 +173,7 @@ export const CORE_TENANT_MESSAGES: Record<string, string> = {
   'portal.home.greeting': 'Hello, {name}',
   'portal.home.greeting.anonymous': 'Welcome',
   'portal.home.empty': 'Use the menu to get started.',
+  'portal.widget.count.capped': '{count}+',
   'portal.settings.layout': 'Layout',
   'portal.settings.layout.sidebar': 'Side menu',
   'portal.settings.layout.top': 'Top menu',

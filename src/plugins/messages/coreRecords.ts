@@ -648,4 +648,13 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'portal-template.issue.field-unexposed': '{where}: "{field}" is not shown in the portal. Check it among the fields above, or take it out of the design.',
   'portal-template.issue.expression-unexposed': '{where}: the condition reads "{field}", which the portal does not show. In the portal, a condition can only read the fields the guest sees.',
   'portal-template.issue.detail-only': '{where}: "{type}" only exists on the open record — on the card, a tap opens the record.',
+  'portal-widget.issue.not-object': '{where}: the widget must be an object with a body.',
+  'portal-widget.issue.body': '{where}: the widget needs a body — a list with at least one node.',
+  'portal-widget.issue.record-only': '{where}: "{type}" answers about one record, so it only goes inside the card of a "records" node.',
+  'portal-widget.issue.nested-records': '{where}: a "records" node cannot go inside the card of another — the whole card opens the record.',
+  'portal-widget.issue.condition-outside': '{where}: outside the card of a "records" node there is no record for the condition to read. Filter with the "when" of "records" or "count" instead.',
+  'portal-widget.issue.scope': '{where}: scope "record" only works on a "count" inside the card of a "records" node — it counts the children of that record.',
+  'portal-widget.issue.collection-missing': '{where}: the collection is missing.',
+  'portal-widget.issue.collection-unexposed': '{where}: "{collection}" is not a screen in the portal, so the guest has none of its records.',
+  'portal-widget.issue.limit': '{where}: the limit must be a whole number from 1 to {max}.',
 };

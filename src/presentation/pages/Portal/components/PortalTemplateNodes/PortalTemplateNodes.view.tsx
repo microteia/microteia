@@ -1,6 +1,7 @@
 import React from 'react';
 import { RiEditLine } from 'react-icons/ri';
 import { S } from './PortalTemplateNodes.styles';
+import { S as CardList } from '../PortalCardList/PortalCardList.styles';
 import { Badge } from '../../../../components/ui/Badge';
 import { Button } from '../../../../components/ui/Button';
 import { getScreenIcon } from '../../../../shared/screenIcons';
@@ -14,6 +15,8 @@ export interface PortalTemplateNodesProps {
   onEdit?: () => void;
   /** O registro aberto: de quem são as ações (`portal.actions`). No cartão não há. */
   actions?: { collection: string; recordId: string } | null;
+  /** O widget declarado da home: abrir um registro da lista dele (`records`). */
+  onOpen?: (collection: string, id: string) => void;
 }
 
 const FieldValue: React.FC<{ field: PortalFieldView }> = ({ field }) =>
@@ -26,9 +29,9 @@ const FieldValue: React.FC<{ field: PortalFieldView }> = ({ field }) =>
     </>
   );
 
-const NodeView: React.FC<{ node: ResolvedPortalNode } & Omit<PortalTemplateNodesProps, 'nodes'>> = ({ node, onEdit, actions }) => {
+const NodeView: React.FC<{ node: ResolvedPortalNode } & Omit<PortalTemplateNodesProps, 'nodes'>> = ({ node, onEdit, actions, onOpen }) => {
   const children = (list: ResolvedPortalNode[]) =>
-    list.map((child) => <NodeView key={child.key} node={child} onEdit={onEdit} actions={actions} />);
+    list.map((child) => <NodeView key={child.key} node={child} onEdit={onEdit} actions={actions} onOpen={onOpen} />);
   switch (node.kind) {
     case 'row':
       return <S.Row $gap={node.gap} $align={node.align} $justify={node.justify} $wrap={node.wrap}>{children(node.children)}</S.Row>;
@@ -85,17 +88,37 @@ const NodeView: React.FC<{ node: ResolvedPortalNode } & Omit<PortalTemplateNodes
       ) : null;
     case 'actions':
       return actions ? <PortalRecordActions {...actions} /> : null;
+    case 'count':
+      return <S.Count $tone={node.tone} $size={node.size}>{node.text}</S.Count>;
+    case 'records':
+      return node.cards.length === 0 ? (
+        <S.Empty>{node.empty}</S.Empty>
+      ) : (
+        <CardList.List $layout={node.arrangement.layout} $minWidth={node.arrangement.minWidth}>
+          {node.cards.map((card) => (
+            <CardList.Card
+              key={card.id}
+              type="button"
+              $accent={card.accentColor ?? undefined}
+              onClick={() => onOpen?.(card.collection, card.id)}
+            >
+              {children(card.nodes ?? [])}
+            </CardList.Card>
+          ))}
+        </CardList.List>
+      );
     default:
       return null;
   }
 };
 
 /**
- * O desenho do portal declarado pela tela (`portal.template`), já respondido para um registro. Só
- * desenha: o que aparece, com que valor e em que ordem veio decidido de `resolvePortalNodes`.
+ * O desenho do portal declarado — pela tela (`portal.template`), já respondido para um registro, ou pelo
+ * widget da home (`portalWidgetSpec`). Só desenha: o que aparece, com que valor e em que ordem veio
+ * decidido de `resolvePortalNodes`.
  */
-export const PortalTemplateNodes: React.FC<PortalTemplateNodesProps> = ({ nodes, onEdit, actions }) => (
+export const PortalTemplateNodes: React.FC<PortalTemplateNodesProps> = ({ nodes, onEdit, actions, onOpen }) => (
   <>
-    {nodes.map((node) => <NodeView key={node.key} node={node} onEdit={onEdit} actions={actions} />)}
+    {nodes.map((node) => <NodeView key={node.key} node={node} onEdit={onEdit} actions={actions} onOpen={onOpen} />)}
   </>
 );

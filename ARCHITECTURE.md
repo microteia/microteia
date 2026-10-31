@@ -1899,7 +1899,8 @@ pelo histórico (`navigate(-1)`), à home — não à lista do item. Antes, o ca
 home não desenha, e o toque não fazia nada, sem erro. Numa página de extensão (`surface: 'page'`), o
 registro aberto fica POR CIMA da página, e o "Voltar" a devolve. `back()` sem nada aberto não faz nada.
 
-`portal.view` move o `KERNEL_VERSION` (2.54.0): é ponto novo que o pacote instalado contribui.
+`portal.view` move o `KERNEL_VERSION` (2.54.0): é ponto novo que o pacote instalado contribui. O cartão
+da home também pode ser DECLARADO, sem código e sem confiança — ver "O cartão da home declarado".
 
 ### A home e o menu do portal
 
@@ -2369,6 +2370,67 @@ ela pediria a projeção de um registro, que o Form Design não tem.
 
 `KERNEL_VERSION` 2.88.0 (`PORTAL_TEMPLATE_SINCE_KERNEL`): um kernel anterior descarta a chave e mostra o
 portal padrão — falha para o lado do que já existia —, e por isso o `check` não exige faixa de `kernel`.
+
+### O cartão da home declarado — `portalWidgetSpec` (EV-39)
+
+A home do portal só recebia cartão de CÓDIGO (`portal.view` de superfície `widget`), que o escritório
+precisa ler e confiar — e confiar de novo a cada versão. Quase todo cartão de home é o mesmo painel "o que
+exige minha atenção": as faturas a vencer, as consultas marcadas, as comunicações a abrir. Filtrar e listar
+o que o convidado já vê não é motivo para pedir confiança de código; sem confiança, a home ficava vazia.
+
+```ts
+portalWidgetSpec({ key: 'attention', title: '@acme/portal.attention', order: 10 }, {
+  body: [
+    { type: 'count', collection: 'notices', when: 'status == "sent"', tone: 'danger' },
+    { type: 'records', collection: 'notices', when: 'status == "sent"', orderBy: { field: 'tacitDate' }, limit: 5,
+      card: [{ type: 'title' }, { type: 'field', field: 'companyId' }] },
+    { type: 'records', collection: 'companies', card: [
+      { type: 'title' }, { type: 'count', collection: 'notices', when: 'status == "sent"', scope: 'record' },
+    ] },
+  ],
+})
+```
+
+**É o MESMO ponto, com a implementação declarativa que já existia.** `portal.view` passa a aceitar
+`impl.kind: 'widget'` além de `code` (`allowedImplKinds`), e só na superfície `widget`. O `widget` já era o
+`impl` de terceiro (`THIRD_PARTY_IMPL_KINDS`), e por isso o pacote sem confiança contribui o cartão — e
+continua sem poder contribuir código. A entrada é a mesma do cartão de código (`portalWidgetEntryId`): a
+seção "Página inicial do portal" o lista, ordena e esconde sem mudar nada, e o `id` da contribuição
+(`widget-<key>`) colide com o do cartão de código de mesma chave, que o `findDuplicateContributions` já recusa.
+
+**Mesmo vocabulário do `portal.template`, com dois ESCOPOS.** A árvore (`schema/ui/portalWidget.ts`,
+compartilhado) é a do desenho mais `records` (os registros de uma tela do portal que passam no `when`,
+ordenados por campo exposto, até `limit`) e `count`. O cartão do widget não é de registro nenhum: os nós
+que leem um (`PORTAL_WIDGET_RECORD_NODE_TYPES`) e o `hiddenWhen` só valem no `card` de um `records`, onde
+respondem como no cartão do desenho. Lá, `count` com `scope: 'record'` conta os filhos daquele registro
+(`parentKeys`) — é o que dá "os domicílios, cada um com as contagens dele". `records` dentro de outro
+cartão não vale: o cartão inteiro é um botão.
+
+| Decisão | Por quê |
+|---|---|
+| **Declaração não pede confiança de código** | `InstalledExtensionCache.portalViews().widgets` colhe as specs de toda extensão LIGADA (`portalWidgetSpecsOf`), fora da régua `isCodeTrusted`. Não há o que rodar: o texto é resolvido no servidor, e o que chega é árvore |
+| **O servidor filtra antes de entregar** (`guestPortalWidgetSpec`) | o nó de coleção que não está no portal some; o `when` que lê campo não exposto (ou não parseia) leva o nó INTEIRO, e não só o filtro — sem o filtro, sairiam registros que o autor quis deixar de fora; o `orderBy` por campo de fora também (o nome é interno, e a projeção não tem o valor). No cartão, campo e `hiddenWhen` respondem aos campos expostos daquela tela. A régua dos campos é a mesma das telas do contexto (`guestFieldKeys`: os expostos menos o `file` retido pelo link curto) |
+| **Widget que lia dados e perdeu todos some** | sobraria o texto em volta — "A vencer" sobre nada — e o convidado leria o painel vazio como "não há nada a vencer". O widget só de texto continua sendo um aviso |
+| **Nenhuma consulta nem índice novo** | o portal já assina as telas todas juntas (`recordsByCollection`, os `PORTAL_RECORDS_WINDOW` mais recentes de cada uma). `usePortalWidget` responde a árvore sobre elas; `selectPortalWidgetRecords`/`countPortalWidgetRecords` são puros. A contagem sobre a janela cheia é um piso, e diz isso (`portal.widget.count.capped` → "200+") |
+| **O `when` roda no navegador** | com `evaluatePortalCondition`, sobre a projeção, no fuso do escritório (`today()` vale); a expressão que estoura não deixa passar nada. Pode, pela razão do `hiddenWhen` do desenho: o servidor só deixa chegar a condição que lê o exposto. É seleção, não autorização |
+| **Sem nada a mostrar, sem moldura** | `records` sem registro e sem `empty` some; o widget que não resolve nada sai da home. Enquanto uma tela lida não chegou, o cartão espera (`loading`) — um zero naquele instante seria falso |
+| **O cartão do registro é o da tela** | sem `card`, cada registro sai com o cartão que a tela usa no portal (`template.card`, ou o padrão escrito na DSL) e as MESMAS respostas da lista (`usePortalRecordFormat`); o toque abre o registro pela pilha da casca, como o cartão de código |
+
+`PortalTemplateNodes` desenha os dois nós novos; a lista de `records` usa os estilos de `PortalCardList`
+(só os estilos — importar o componente faria ciclo). `resolvePortalNodes` ganhou as respostas opcionais
+`count`/`records`: sem elas — no `portal.template` —, nada muda.
+
+**Autoria.** `portalWidgetSpecIssues` é o portão (forma, escopo, `limit`, coleção do portal, campo
+exposto); no `check`, `packagePortalIssues` o roda com os campos das telas DO pacote e só confere a forma
+quando a coleção é de outra extensão — o pacote do portal costuma ser escrito sobre as telas de outro, e
+o servidor descarta o que não sai. Não há autoria no Form Design: o cartão é contribuição de extensão, e
+o escritório decide se aparece e onde, como em qualquer cartão.
+
+`KERNEL_VERSION` 2.90.0 (`PORTAL_WIDGET_SPEC_SINCE_KERNEL`). O kernel anterior recusa a contribuição (o
+`impl` não estava em `allowedImplKinds`) e o servidor anterior a ignora (`portalViewsOf` só lê `code`) —
+falha para o lado do que já existia, mas calada para quem declarou, e por isso o `check` exige o `kernel`.
+`PORTAL_API_VERSION` fica em 1.3.0, como nas outras adições ao portal: subir o contrato do ponto tornaria
+incompatível, com o kernel instalado, toda view de código recompilada.
 
 ### Garantias que a revisão da branch acrescentou
 

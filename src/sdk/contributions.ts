@@ -38,6 +38,7 @@ import {
 } from '../domain/schema/ui/uiExtensionPoints';
 
 import { PORTAL_API_VERSION, PORTAL_VIEW_POINT, type PortalViewMetadata } from '../domain/schema/portalExtensionPoints';
+import type { PortalWidgetSpec } from '../domain/schema/ui/portalWidget';
 import { notificationCategoryContribution, type NotificationCategoryMetadata } from '../domain/schema/notifications';
 
 const slug = (value: string): string =>
@@ -250,6 +251,32 @@ export const portalView = (metadata: PortalViewMetadata, implKey: string): Contr
   apiVersion: PORTAL_API_VERSION,
   metadata: { ...metadata } as unknown as Record<string, unknown>,
   impl: { kind: 'code', key: implKey },
+});
+
+/** A entrada de um cartão DECLARADO na home do portal — a mesma do `portalView` de superfície `widget`. */
+export interface PortalWidgetSpecMetadata {
+  /** O id da entrada, único no pacote — o mesmo espaço do `key` dos cartões de código. */
+  key: string;
+  /** O rótulo — referência de mensagem (`@ns/chave`). */
+  title?: string;
+  /** A posição SUGERIDA. Quem decide a ordem final é o escritório. */
+  order?: number;
+}
+
+/**
+ * Um cartão na HOME do portal, DECLARADO — sem código. A árvore é a do `portal.template` mais `records`
+ * (os registros de uma tela do portal, filtrados, ordenados e limitados) e `count`, sobre o que o
+ * convidado já vê.
+ *
+ * Por ser declaração, vale sem a confiança de código do escritório: o servidor só deixa sair o nó que lê
+ * campo exposto. O escritório decide se aparece e em que ordem, como em qualquer cartão.
+ */
+export const portalWidgetSpec = (metadata: PortalWidgetSpecMetadata, spec: PortalWidgetSpec): Contribution => ({
+  point: PORTAL_VIEW_POINT,
+  id: slug(`widget-${metadata.key}`),
+  apiVersion: PORTAL_API_VERSION,
+  metadata: { surface: 'widget', ...metadata },
+  impl: { kind: 'widget', spec: spec as unknown as Record<string, unknown> },
 });
 
 /**

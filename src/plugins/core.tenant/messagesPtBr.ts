@@ -184,6 +184,7 @@ const CORE_TENANT_PT_BR: Record<string, string> = {
   'portal.home.greeting': 'Olá, {name}',
   'portal.home.greeting.anonymous': 'Bem-vindo',
   'portal.home.empty': 'Use o menu para começar.',
+  'portal.widget.count.capped': '{count}+',
   'portal.settings.layout': 'Layout',
   'portal.settings.layout.sidebar': 'Menu lateral',
   'portal.settings.layout.top': 'Menu no topo',

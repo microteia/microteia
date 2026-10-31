@@ -19,6 +19,7 @@ import {
   portalScreenEntryId,
   portalWidgetEntryId,
   type PortalViewDescriptor,
+  type PortalWidgetSpecDescriptor,
 } from '../schema/portalExtensionPoints';
 import {
   acceptsAutomationInvites,
@@ -61,6 +62,7 @@ import { portalFieldInput, type PortalFieldInput } from '../schema/portalFieldIn
 import { buildFieldRulePresetCatalog, type FieldRulePreset } from '../schema/fieldRulePresets';
 import { buildLookupProviderCatalog, type LookupProviderSpec } from '../schema/lookupProviderSpec';
 import { guestPortalTemplate, type PortalTemplate } from '../schema/ui/portalTemplate';
+import { guestPortalWidgetSpec, type PortalWidgetSpec } from '../schema/ui/portalWidget';
 import { portalGuestActor, portalSubjectRoleOf, readPortalRoleInput, type PortalSubjectRole } from '../schema/portalRole';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -675,12 +677,16 @@ export interface PortalMenuEntry {
   viewKey?: string;
 }
 
-/** Um cartão da home. */
+/**
+ * Um cartão da home: a view de uma extensão (`viewKey`), ou a árvore declarada (`spec`) já como o
+ * convidado pode recebê-la — só o exposto, com o texto no idioma dele.
+ */
 export interface PortalWidgetEntry {
   id: string;
   title: string;
   pluginId: string;
-  viewKey: string;
+  viewKey?: string;
+  spec?: PortalWidgetSpec;
 }
 
 export interface PortalHome {
@@ -724,7 +730,12 @@ export type GetPortalContextUseCase = {
     locale: string;
     timeZone?: string;
     resolve: (value: string) => string;
-    extensionViews?: { views: PortalContextView[]; bundles: PortalContext['bundles'] };
+    extensionViews?: {
+      views: PortalContextView[];
+      bundles: PortalContext['bundles'];
+      /** Os cartões da home declarados — de toda extensão ligada, sem a régua de confiança de código. */
+      widgets?: PortalWidgetSpecDescriptor[];
+    };
     themes?: QualifiedContribution[];
     /** Os tipos de documento do escritório — os fixos mais os cadastrados, já com rótulo. */
     documentTypes?: Array<{ key: string; label: string }>;
@@ -734,6 +745,15 @@ export type GetPortalContextUseCase = {
 };
 
 type PortalField = PortalScreen['fields'][number];
+
+/**
+ * Os campos que o convidado TEM de uma tela: os expostos, menos o `file` de uma tela com link curto, que
+ * não sai na projeção. É a régua do que a casca anuncia e do que um desenho ou um widget pode ler.
+ */
+const guestFieldKeys = (screen: PortalScreen): Set<string> => {
+  const withheld = new Set(portalWithheldFileFields(screen));
+  return new Set(portalFieldKeys(screen).filter((key) => !withheld.has(key)));
+};
 
 /**
  * Uma lista só sai se for LISTA: a do kernel, ou uma coleção que nenhuma tela usa como registro e que
@@ -842,16 +862,29 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         order: view.order,
       })),
     ], settings.menu).map(withoutOrder);
-    const widgets = applyPortalPreference(
-      views.filter((view) => view.surface === 'widget' && view.key).map((view) => ({
+    const guestFields = new Map(screens.map((screen) => [screen.collection, guestFieldKeys(screen)]));
+    const declaredWidgets = (extensionViews?.widgets ?? []).flatMap((widget) => {
+      const spec = guestPortalWidgetSpec(widget.spec, (collection) => guestFields.get(collection) ?? null, resolve);
+      return spec
+        ? [{
+          id: portalWidgetEntryId(widget.pluginId, widget.key),
+          title: widget.title ? resolve(widget.title) : '',
+          pluginId: widget.pluginId,
+          spec,
+          order: widget.order,
+        }]
+        : [];
+    });
+    const widgets = applyPortalPreference<PortalWidgetEntry & { order?: number }>([
+      ...views.filter((view) => view.surface === 'widget' && view.key).map((view) => ({
         id: portalWidgetEntryId(view.pluginId, view.key as string),
         title: view.title ? resolve(view.title) : '',
         pluginId: view.pluginId,
         viewKey: view.viewKey,
         order: view.order,
       })),
-      settings.widgets,
-    ).map(withoutOrder);
+      ...declaredWidgets,
+    ], settings.widgets).map(withoutOrder);
     const homeView = views.find((view) => view.surface === 'home');
     const layoutView = views.find((view) =>
       view.surface === 'layout' && view.key && portalLayoutId(view.pluginId, view.key) === settings.layout);
@@ -876,8 +909,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
       logoURL: tenant.logoURL,
       screens: screens.map((screen) => {
         // O campo `file` de uma tela com link curto não sai na projeção: anunciá-lo seria uma coluna vazia.
-        const withheld = new Set(portalWithheldFileFields(screen));
-        const exposed = new Set(portalFieldKeys(screen).filter((key) => !withheld.has(key)));
+        const exposed = guestFieldKeys(screen);
         const fillable = new Set(portalCreateFieldKeys(screen));
         const editable = new Set(portalEditFieldKeys(screen));
         const link = portalLinkOf(screen);
