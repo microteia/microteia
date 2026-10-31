@@ -27,6 +27,7 @@ import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
 import { CARD_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/cardTemplate';
+import { NAV_FILTER_PRESENCE_SINCE_KERNEL } from '../../../domain/schema/ui/uiExtensionPoints';
 import { PORTAL_DETAIL_ONLY_NODE_TYPES, PORTAL_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/portalTemplate';
 import {
   PORTAL_WIDGET_RECORDS_DEFAULT_LIMIT,
@@ -1529,6 +1530,13 @@ nav({ screen: 'conversations', label: label('nav.conversations'), icon: 'message
   values it accepts. An option list compares by the option KEY, never the label, the same as \`when\`
   does; a checkbox takes \`"true"\` / \`"false"\`; a date filters by range, \`key\` the first day and
   \`<key>:ate\` the last (\`YYYY-MM-DD\`). Several terms all apply; several values in one term, any of them.
+- **\`{ key, empty: true }\` opens on the records where the field has no value**, and \`empty: false\` on
+  those where it has one — the queue of what has not happened yet: the invoice with no payment date,
+  the ticket with no owner. It takes any filterable field but a checkbox (unchecked is \`"false"\`, filter
+  by that) and is the same empty as \`isEmpty()\` in \`when\`: absent, \`null\`, blank text, an empty list. The
+  list shows it as the "No value" / "Has value" filter, which the person can also pick by hand; several
+  fields in it must ALL be empty (or all filled). A term has \`values\` or \`empty\`, never both. Requires
+  \`kernel: "^${NAV_FILTER_PRESENCE_SINCE_KERNEL}"\`.
 - **It is an ordinary filter**, shown in the filter bar and removable like one the person picked. It is
   where the list starts, never a restriction: the person can always widen it.
 - **It belongs to the ENTRY, not to the screen.** The automatic menu entry, a saved tab and a link open
@@ -1540,10 +1548,17 @@ nav({ screen: 'conversations', label: label('nav.conversations'), icon: 'message
 - **There is no relative date.** A filter is fixed values, so "overdue" (\`dueDate < today()\`) is a
   badge, not a filter — open that list on a status field instead.
 
+\`\`\`ts
+// Sent, but not yet made available: no date in either field. The badge and the list, same slice.
+nav({ screen: 'notices', label: label('nav.to-publish'), icon: 'hourglass', order: 40,
+  badge: { collection: 'notices', when: 'isEmpty(publishedAt) and isEmpty(closedAt)' },
+  filter: [{ key: 'publishedAt', empty: true }, { key: 'closedAt', empty: true }] }),
+\`\`\`
+
 \`check\` refuses a filter on an entry whose target is a \`key\` (a page has no list to hand it to), a
-key that is not a filterable field of the screen, an option key the field does not declare and a value
-a checkbox or a date cannot hold. Over a dependency's screen the fields are not visible from here, and
-the filter installs unchecked; an option list of the organization's (\`lookupCollection\`) is checked
+key that is not a filterable field of the screen, an option key the field does not declare, a value
+a checkbox or a date cannot hold, and \`empty\` on a checkbox. Over a dependency's screen the fields
+are not visible from here, and the filter installs unchecked; an option list of the organization's (\`lookupCollection\`) is checked
 only for the key, because its values exist only there.
 
 ### A view is not a page until something points at it

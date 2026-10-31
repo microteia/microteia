@@ -368,9 +368,13 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.package.nav.dangling.screen':
     'O item de menu "{key}" abre uma aba que nenhuma página desenha; para abrir a lista da tela "{screen}", use screen: "{screen}".',
   'issue.package.nav.filter.not-filterable':
-    'O item de menu "{id}" abre a lista filtrada por "{key}", que não é um campo filtrável da tela "{screen}". filter: recebe a chave de um campo declarado com filterable: true (uma data também como "<chave>:ate", o fim do intervalo).',
+    'O item de menu "{id}" abre a lista filtrada por "{key}", que não é um campo filtrável da tela "{screen}". filter: recebe a chave de um campo declarado com filterable: true (uma data também como "<chave>:ate", o fim do intervalo); { key, empty } recebe o próprio campo.',
   'issue.package.nav.filter.shape':
-    'O item de menu "{id}" ({where}) declara um filtro que não é uma lista de { key, values }, cada um com pelo menos um valor.',
+    'O item de menu "{id}" ({where}) declara um filtro que não é uma lista de { key, values }, cada um com pelo menos um valor, ou de { key, empty: true | false } — nunca os dois no mesmo termo.',
+  'issue.package.nav.filter.presence':
+    'O item de menu "{id}" filtra "{key}" por estar vazio, mas uma caixa de seleção nunca está vazia: desmarcada é "false". Filtre com { key: "{key}", values: ["false"] }.',
+  'issue.package.nav.filter.kernel':
+    'O item de menu "{id}" abre a lista filtrada por campo vazio ou preenchido ({ key, empty }), o que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo recusa o filtro.',
   'issue.package.nav.filter.target':
     'O item de menu "{id}" ({where}) declara um filtro, mas não abre a lista de uma tela: o filtro só vale para screen ou screenSourceId.',
   'issue.package.nav.filter.value':

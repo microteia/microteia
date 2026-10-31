@@ -510,6 +510,8 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'collection.what.tags': 'of the tags',
   'filter.range-to': '{field} (to)',
   'filter.range-from': '{field} (from)',
+  'filter.empty': 'No value',
+  'filter.filled': 'Has value',
   'tag-list.of': 'Tags: {name}',
   'command.open': 'Open {name}',
   'tag-list.option': '{name} ({collection})',

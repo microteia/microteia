@@ -3,6 +3,7 @@ import type { CustomFieldValue, FieldDefinition } from '../entities/entitySchema
 import type { LocalizedMessage } from '../schema/i18n/localizedMessage';
 import type { TranslateFn } from '../schema/i18n/messages';
 import { isSequenceField } from '../schema/recordSequence';
+import { isEmptyRuleValue } from '../schema/fieldRulePresets';
 // Palavras reservadas do JavaScript que não podem ser usadas como nomes de campos
 const JS_RESERVED_WORDS = new Set([
   'await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',
@@ -23,6 +24,34 @@ const VALID_FIELD_KEY_PATTERN = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
  * sufixo nunca colide com um campo de verdade.
  */
 export const FILTER_RANGE_TO_SUFFIX = ':ate';
+
+/**
+ * Os dois filtros de PRESENÇA da listagem: os valores do token são chaves de campo, e o registro passa
+ * quando TODOS estão vazios (`:empty`) ou TODOS preenchidos (`:filled`). É a fila do "que ainda não
+ * aconteceu" — a fatura sem data de pagamento, o chamado sem responsável — sem a extensão ter de gravar
+ * um campo de situação que copia o que a data já diz.
+ *
+ * São chaves da TELA, e não um sufixo por campo como `:ate`: um par por campo dobraria a lista de
+ * filtros de toda tela, e o recurso é de exceção. Começam com `:` pela mesma razão do sufixo — nenhuma
+ * chave de campo tem `:`, então não há colisão.
+ */
+export const FILTER_EMPTY_KEY = ':empty';
+export const FILTER_FILLED_KEY = ':filled';
+
+/**
+ * O campo que se filtra por presença: o filtrável que não é arquivo — a mesma régua do filtro por
+ * valor — nem caixa de seleção, que nunca está vazia: o "não marcado" dela é `false`, e é por `false`
+ * que se filtra.
+ */
+export const isPresenceFilterable = (field: { filterable?: boolean; type: string }): boolean =>
+  !!field.filterable && field.type !== 'file' && field.type !== 'checkbox';
+
+/**
+ * Vazio é o MESMO vazio do `isEmpty` das expressões — ausente, `null`, texto em branco e lista vazia —,
+ * e não uma régua parecida: o selo do menu conta com `isEmpty(campo)`, e a lista que o clique abre tem
+ * de mostrar exatamente o que ele contou.
+ */
+export const isEmptyFieldValue = (value: unknown): boolean => isEmptyRuleValue(value);
 
 /**
  * Valida se um fieldKey é compatível com JavaScript.

@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.187.0] — 2026-10-31
+
+- A barra de filtros das listas ganhou "Sem valor" e "Com valor": escolha um ou mais campos e veja só os registros em que eles ainda estão em branco — ou já foram preenchidos. É o jeito de enxergar o que ainda não aconteceu, como a fatura sem data de pagamento ou o chamado sem responsável.
+- Um atalho do menu que conta itens pendentes agora pode abrir a lista exatamente nesses itens, mesmo quando "pendente" quer dizer um campo que ainda não foi preenchido. O número do atalho e a lista que ele abre passam a mostrar a mesma coisa.
+- Nada muda nas listas e nos atalhos que você já usa.
+
 #### [9.186.0] — 2026-10-31
 
 - No portal, um item que aponta para um registro identificado por uma pessoa — a comunicação de um domicílio, a mensalidade de uma matrícula — passa a mostrar o nome dessa pessoa. Quem acompanha vários registros agora sabe, na lista, de qual é cada item.

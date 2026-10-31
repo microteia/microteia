@@ -12,14 +12,14 @@ vi.mock('../../stores/useLookups', () => ({
 }));
 
 vi.mock('./useReferenceOptions', () => ({
-  useReferenceOptions: () => ({}),
+  useReferenceOptions: () => ({ people: [{ value: 'p1', label: 'Ana' }] }),
 }));
 
 vi.mock('styled-components', () => ({
   useTheme: () => ({ colors: {} }),
 }));
 
-const { useCustomFieldListing, FILTER_RANGE_TO_SUFFIX } = await import('./useCustomFieldListing');
+const { useCustomFieldListing, FILTER_EMPTY_KEY, FILTER_FILLED_KEY, FILTER_RANGE_TO_SUFFIX } = await import('./useCustomFieldListing');
 
 const dueDate: FieldDefinition = {
   key: 'dueDate',
@@ -42,9 +42,9 @@ const matches = (iso: string, tokens: Record<string, string[]>): boolean =>
  */
 describe('filtro de data por intervalo', () => {
   it('oferece as duas pontas do intervalo para o campo de data', () => {
-    const keys = listing().filterDefs.map((def) => def.key);
-    expect(keys).toEqual(['dueDate', `dueDate${FILTER_RANGE_TO_SUFFIX}`]);
-    expect(listing().filterDefs.map((def) => def.label)).toEqual([
+    const range = listing().filterDefs.filter((def) => def.type === 'date');
+    expect(range.map((def) => def.key)).toEqual(['dueDate', `dueDate${FILTER_RANGE_TO_SUFFIX}`]);
+    expect(range.map((def) => def.label)).toEqual([
       'core.records/filter.range-from',
       'core.records/filter.range-to',
     ]);
@@ -150,5 +150,85 @@ describe('campo de arquivo na listagem', () => {
       value: 'retrato.png',
       type: 'text',
     });
+  });
+});
+
+const owner: FieldDefinition = {
+  key: 'owner',
+  label: 'Responsável',
+  type: 'reference',
+  required: false,
+  order: 1,
+  filterable: true,
+  refEntity: 'people',
+} as FieldDefinition;
+
+const urgent: FieldDefinition = {
+  key: 'urgent',
+  label: 'Urgente',
+  type: 'checkbox',
+  required: false,
+  order: 2,
+  filterable: true,
+} as FieldDefinition;
+
+const presenceListing = () => renderHook(() => useCustomFieldListing([dueDate, owner, urgent, photo])).result.current;
+
+/**
+ * Toda fila do "que ainda não aconteceu" é um campo vazio — a fatura sem data de pagamento,
+ * o chamado sem responsável. O vazio é o do `isEmpty` das expressões, porque é com ele que o selo do
+ * menu conta: a lista que o clique abre tem de mostrar exatamente o que o selo contou.
+ */
+describe('filtro por campo vazio ou preenchido', () => {
+  it('oferece o par "Sem valor" / "Com valor" uma vez só, com os campos que podem estar vazios', () => {
+    const defs = presenceListing().filterDefs.filter((def) => def.key === FILTER_EMPTY_KEY || def.key === FILTER_FILLED_KEY);
+    expect(defs.map((def) => [def.key, def.label, def.type])).toEqual([
+      [FILTER_EMPTY_KEY, 'core.records/filter.empty', 'multiselect'],
+      [FILTER_FILLED_KEY, 'core.records/filter.filled', 'multiselect'],
+    ]);
+    // A caixa de seleção nunca está vazia, e o arquivo não filtra.
+    expect(defs[0].options).toEqual([{ value: 'dueDate', label: 'Vencimento' }, { value: 'owner', label: 'Responsável' }]);
+  });
+
+  it('a tela sem campo filtrável não ganha filtro de presença', () => {
+    expect(renderHook(() => useCustomFieldListing([urgent])).result.current.filterDefs.map((def) => def.key)).toEqual(['urgent']);
+  });
+
+  it('data: sem valor é ausente, nulo ou texto em branco; preenchida é qualquer data gravada', () => {
+    const list = presenceListing();
+    const empty = { [FILTER_EMPTY_KEY]: ['dueDate'] };
+    const filled = { [FILTER_FILLED_KEY]: ['dueDate'] };
+    for (const record of [{}, { dueDate: null }, { dueDate: '' }, { dueDate: '   ' }]) {
+      expect(list.matchesFilters(record, empty)).toBe(true);
+      expect(list.matchesFilters(record, filled)).toBe(false);
+    }
+    for (const record of [{ dueDate: '2026-10-31' }, { dueDate: new Date(2026, 9, 31) }]) {
+      expect(list.matchesFilters(record, empty)).toBe(false);
+      expect(list.matchesFilters(record, filled)).toBe(true);
+    }
+  });
+
+  it('referência: sem valor é o vínculo ausente ou a lista vazia', () => {
+    const list = presenceListing();
+    const empty = { [FILTER_EMPTY_KEY]: ['owner'] };
+    expect(list.matchesFilters({ owner: '' }, empty)).toBe(true);
+    expect(list.matchesFilters({ owner: [] }, empty)).toBe(true);
+    expect(list.matchesFilters({ owner: 'p1' }, empty)).toBe(false);
+    expect(list.matchesFilters({ owner: ['p1'] }, { [FILTER_FILLED_KEY]: ['owner'] })).toBe(true);
+  });
+
+  /** "A enviar" é sem envio E sem cancelamento — "sem um ou outro" não é fila. */
+  it('vale para TODOS os campos escolhidos, e soma com os outros filtros', () => {
+    const list = presenceListing();
+    const queue = { [FILTER_EMPTY_KEY]: ['dueDate', 'owner'] };
+    expect(list.matchesFilters({}, queue)).toBe(true);
+    expect(list.matchesFilters({ owner: 'p1' }, queue)).toBe(false);
+    expect(list.matchesFilters({ owner: 'p1' }, { [FILTER_EMPTY_KEY]: ['dueDate'], [FILTER_FILLED_KEY]: ['owner'] })).toBe(true);
+    expect(list.matchesFilters({ owner: 'p1' }, { [FILTER_EMPTY_KEY]: ['dueDate'], owner: ['p2'] })).toBe(false);
+  });
+
+  /** Como o token de valor de um campo que deixou de ser filtrável — um filtro salvo antigo não esvazia a lista. */
+  it('ignora o campo que não é filtrável por presença', () => {
+    expect(presenceListing().matchesFilters({ urgent: true }, { [FILTER_EMPTY_KEY]: ['urgent', 'missing'] })).toBe(true);
   });
 });

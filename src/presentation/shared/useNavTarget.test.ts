@@ -42,6 +42,14 @@ describe('navEntryOf', () => {
       .toEqual({ tabKey: 'dyn:conversas_2', intent: { screenKey: 'conversas_2', tokens: filter } });
   });
 
+  /** A lista entende `{ key, values }`: o termo de presença chega como o filtro "Sem valor" da tela. */
+  it('traduz o termo de presença para o filtro da lista', () => {
+    expect(navEntryOf(
+      { filter: [{ key: 'availableAt', empty: true }] },
+      { tabKey: 'dyn:conversas', screen: screen('conversas') },
+    )).toEqual({ tabKey: 'dyn:conversas', intent: { screenKey: 'conversas', tokens: [{ key: ':empty', values: ['availableAt'] }] } });
+  });
+
   it('não leva recado quando o item não declara filtro, ou quando o alvo é uma página', () => {
     expect(navEntryOf({}, { tabKey: 'dyn:conversas', screen: screen('conversas') })).toEqual({ tabKey: 'dyn:conversas' });
     expect(navEntryOf({ filter: [] }, { tabKey: 'dyn:conversas', screen: screen('conversas') })).toEqual({ tabKey: 'dyn:conversas' });

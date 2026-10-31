@@ -369,9 +369,13 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.package.nav.dangling.screen':
     'The menu item "{key}" opens a tab no page draws; to open the list of the screen "{screen}", use screen: "{screen}".',
   'issue.package.nav.filter.not-filterable':
-    'Menu item "{id}" opens the list filtered by "{key}", which is not a filterable field of the screen "{screen}". filter: takes the key of a field declared with filterable: true (a date also as "<key>:ate", the end of the range).',
+    'Menu item "{id}" opens the list filtered by "{key}", which is not a filterable field of the screen "{screen}". filter: takes the key of a field declared with filterable: true (a date also as "<key>:ate", the end of the range); { key, empty } takes the field itself.',
   'issue.package.nav.filter.shape':
-    'Menu item "{id}" ({where}) declares a filter that is not a list of { key, values }, each with at least one value.',
+    'Menu item "{id}" ({where}) declares a filter that is not a list of { key, values }, each with at least one value, or { key, empty: true | false } — never both in one term.',
+  'issue.package.nav.filter.presence':
+    'Menu item "{id}" filters "{key}" by whether it is empty, but a checkbox is never empty: unchecked is "false". Filter it with { key: "{key}", values: ["false"] }.',
+  'issue.package.nav.filter.kernel':
+    'Menu item "{id}" opens the list filtered by an empty or filled field ({ key, empty }), which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest. An older kernel refuses the filter.',
   'issue.package.nav.filter.target':
     'Menu item "{id}" ({where}) declares a filter, but opens no screen list: a filter only applies to screen or screenSourceId.',
   'issue.package.nav.filter.value':

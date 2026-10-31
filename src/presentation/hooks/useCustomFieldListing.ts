@@ -3,7 +3,10 @@ import { useTheme } from 'styled-components';
 import { useLookups } from '../../stores/useLookups';
 import { useReferenceOptions } from './useReferenceOptions';
 import { formatCurrencyBRL } from '../../utils/formatters';
-import { FILTER_RANGE_TO_SUFFIX, fileNameFromUrl, readValueByPath, toDateFieldInput } from '../../domain/services/customFieldValues';
+import {
+  FILTER_EMPTY_KEY, FILTER_FILLED_KEY, FILTER_RANGE_TO_SUFFIX, fileNameFromUrl, isEmptyFieldValue, isPresenceFilterable,
+  readValueByPath, toDateFieldInput,
+} from '../../domain/services/customFieldValues';
 import { resolveColor, resolveFieldOptionColor } from '../../shared/styles/colorUtils';
 import type { CustomFieldValue, FieldDefinition } from '../../domain/entities';
 import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
@@ -11,7 +14,7 @@ import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
 import { useT } from '../shared/i18n/useT';
 export const CUSTOM_FIELD_FILTER_PREFIX = 'cf-';
 
-export { FILTER_RANGE_TO_SUFFIX };
+export { FILTER_EMPTY_KEY, FILTER_FILLED_KEY, FILTER_RANGE_TO_SUFFIX };
 
 /**
  * O REGISTRO inteiro: filtrar e exibir é ler pela chave do campo. É `object` (e não
@@ -83,6 +86,7 @@ export const useCustomFieldListing = (
     () => fields.filter((f) => f.filterable && f.type !== 'file'),
     [fields],
   );
+  const presenceFields = useMemo(() => filterableFields.filter(isPresenceFilterable), [filterableFields]);
 
   /**
    * O texto do registro que a BUSCA livre varre. A junção crua de todos os valores string incluía a
@@ -175,8 +179,15 @@ export const useCustomFieldListing = (
           defs.push({ key, label: field.label, type: 'text', placeholder: field.label });
       }
     });
+    // A presença é UM par de filtros por tela, cujas opções são os campos — e não um par por campo,
+    // que dobraria a lista de filtros de toda tela por um recurso de exceção. Ver `FILTER_EMPTY_KEY`.
+    if (presenceFields.length > 0) {
+      const options = presenceFields.map((field) => ({ value: field.key, label: field.label }));
+      defs.push({ key: `${filterKeyPrefix}${FILTER_EMPTY_KEY}`, label: t('filter.empty'), type: 'multiselect', options });
+      defs.push({ key: `${filterKeyPrefix}${FILTER_FILLED_KEY}`, label: t('filter.filled'), type: 'multiselect', options });
+    }
     return defs;
-  }, [filterableFields, filterKeyPrefix, selectOptionLabels, referenceOptionsByEntity, t]);
+  }, [filterableFields, presenceFields, filterKeyPrefix, selectOptionLabels, referenceOptionsByEntity, t]);
 
   const matchesFilters = useCallback((values: RecordValues | undefined, tokenMap: Record<string, string[]>): boolean => {
     for (const field of filterableFields) {
@@ -216,8 +227,16 @@ export const useCustomFieldListing = (
         }
       }
     }
-    return true;
-  }, [filterableFields, filterKeyPrefix]);
+    // Ao contrário das opções de um campo (qualquer uma), aqui TODOS os campos escolhidos valem: "sem
+    // envio e sem cancelamento" é a fila; "sem um ou outro" não é fila nenhuma. Campo que
+    // deixou de ser filtrável é ignorado, como o token de valor dele.
+    const presenceHolds = (tokenKey: string, empty: boolean): boolean =>
+      (tokenMap[`${filterKeyPrefix}${tokenKey}`] ?? []).every((fieldKey) => {
+        const field = presenceFields.find((candidate) => candidate.key === fieldKey);
+        return !field || isEmptyFieldValue(fieldValue(values, field)) === empty;
+      });
+    return presenceHolds(FILTER_EMPTY_KEY, true) && presenceHolds(FILTER_FILLED_KEY, false);
+  }, [filterableFields, presenceFields, filterKeyPrefix]);
 
   const displayValue = useCallback((values: RecordValues | undefined, field: FieldDefinition): string => {
     const value = fieldValue(values, field);

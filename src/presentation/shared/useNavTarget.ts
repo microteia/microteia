@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import type { ScreenDefinition } from '../../domain/entities';
 import type { UiMenuAction, UiNavFilter, UiNavTarget, UiPageMetadata } from '../../domain/schema/ui/uiExtensionPoints';
 import { setNavigationIntent } from '../../infrastructure/navigation/navigationIntent';
+import { navFilterTokens } from '../../domain/usecases/plugins/navFilters';
 import { screenReadPermission } from '../../domain/services/screenDataCollection';
 import { buildListTabKey } from '../../shared/constants/dynamicScreenKeys';
 import { useAuthorization } from '../../stores/useAuthorization';
@@ -50,18 +51,21 @@ export const resolveNavTarget = (
 /**
  * Um item de menu pronto para abrir: a aba e, quando ele declara `filter`, o recado para a lista.
  * O recado é endereçado à tela RESOLVIDA, pela mesma razão de `useOpenScreenList` — a chave
- * instalada só se conhece aqui.
+ * instalada só se conhece aqui. Os tokens já estão na forma da lista (`navFilterTokens`): o termo de
+ * presença vira o filtro "Sem valor" / "Com valor" da tela.
  */
 export interface NavEntry {
   tabKey: string;
-  intent?: { screenKey: string; tokens: UiNavFilter[] };
+  intent?: { screenKey: string; tokens: { key: string; values: string[] }[] };
 }
 
 /** O filtro só acompanha o item que abre a lista de uma tela — uma página não tem a quem entregá-lo. */
-export const navEntryOf = (target: { filter?: UiNavFilter[] }, resolved: ResolvedNavTarget): NavEntry =>
-  resolved.screen && target.filter?.length
-    ? { tabKey: resolved.tabKey, intent: { screenKey: resolved.screen.id, tokens: target.filter } }
+export const navEntryOf = (target: { filter?: UiNavFilter[] }, resolved: ResolvedNavTarget): NavEntry => {
+  const tokens = resolved.screen && target.filter ? navFilterTokens(target.filter) : [];
+  return resolved.screen && tokens.length > 0
+    ? { tabKey: resolved.tabKey, intent: { screenKey: resolved.screen.id, tokens } }
     : { tabKey: resolved.tabKey };
+};
 
 /**
  * O resolvedor que o shell usa, com a permissão já conferida: o alvo que é a lista de uma tela que

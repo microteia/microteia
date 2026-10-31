@@ -91,12 +91,30 @@ export interface UiNavTarget {
 /**
  * Um termo do filtro inicial de um atalho: a chave de um campo `filterable` da tela e os valores
  * aceitos — as CHAVES das opções, como em toda comparação de estado. Campo de data filtra por
- * intervalo: `key` é o início (`AAAA-MM-DD`), e `<key>:ate` o fim.
+ * intervalo: `key` é o início (`AAAA-MM-DD`), e `<key>:ate` o fim. Ver também `UiNavPresenceFilter`.
  */
-export interface UiNavFilter {
+export interface UiNavValueFilter {
   key: string;
   values: string[];
+  empty?: never;
 }
+
+/**
+ * Um termo de PRESENÇA: `empty: true` abre a lista nos registros em que o campo está vazio, `false`
+ * nos em que está preenchido — a fila "a enviar" de um `badge` com `isEmpty(campo)`. Vale
+ * para campo `filterable` que não seja arquivo nem caixa de seleção; entra na lista como o filtro
+ * "Sem valor" / "Com valor", à vista e removível como os outros.
+ */
+export interface UiNavPresenceFilter {
+  key: string;
+  empty: boolean;
+  values?: never;
+}
+
+export type UiNavFilter = UiNavValueFilter | UiNavPresenceFilter;
+
+/** O kernel que entende o termo de presença. Um anterior recusa o pacote pela forma do filtro. */
+export const NAV_FILTER_PRESENCE_SINCE_KERNEL = '2.91.0';
 
 export interface UiNavMetadata extends UiNavTarget {
   label: string;

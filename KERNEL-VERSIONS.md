@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.187.0] — 2026-10-31
+
+- feat(ui/nav): a menu entry can open a list on the records where a field is empty, or filled (EV-41). `UiNavFilter` is now `UiNavValueFilter | UiNavPresenceFilter`: besides `{ key, values }`, a term may be `{ key, empty: boolean }` — never both (`never` in the type, `issue.package.nav.filter.shape` in the gate). Before, `filter` only took fixed values, so a badge counting `isEmpty(publishedAt)` opened the whole list, and the only way out was a status field that copied what the date already said.
+- feat(records/listing): `useCustomFieldListing` offers ONE pair of presence filters per screen — `:empty` ("No value") and `:filled` ("Has value"), keys `FILTER_EMPTY_KEY` / `FILTER_FILLED_KEY` —, whose options are the presence-filterable fields (`isPresenceFilterable`: `filterable`, not `file`, not `checkbox`). Every field picked must hold (AND), unlike an option list (OR). Empty is the expressions' `isEmpty` (`isEmptyFieldValue` → `isEmptyRuleValue`: absent, `null`, blank text, empty list), so badge and list count the same slice. A field that is no longer filterable is ignored, like its value token. A screen with no such field gets no pair.
+- feat(ui/nav): `navFilterTokens` translates an entry's filter into list tokens at `navEntryOf`, so the token shape (`{ key, values }`) is unchanged: saved filters, the navigation intent, `CompositeFilter` and extension lists (`useEntityList`) serve the new term as they are. Malformed terms are dropped there instead of reaching the filter bar without `values`.
+- feat(marketplace/gate): `navFilterIssues` checks presence terms — the field itself, never the `<key>:ate` end; a checkbox is refused with its own reason (`issue.package.nav.filter.presence`: unchecked is `"false"`) — and requires `kernel: "^2.91.0"` (`NAV_FILTER_PRESENCE_SINCE_KERNEL`, `issue.package.nav.filter.kernel`), also over a dependency's screen. Packages that only filter by value are unaffected.
+- chore(kernel): `KERNEL_VERSION` 2.91.0 — additive: an installed package's `ui.nav` filter may take a new term. `com.microteia.locale-pt-br` 1.151.0 carries the new messages.
+- docs: AUTHORING §7 "The list the entry opens" documents `{ key, empty }` with an example over two fields.
+
 #### [9.186.0] — 2026-10-31
 
 - feat(portal/labels): a link to a record whose title is ANOTHER reference now carries a name instead of an empty label (EV-40). `PortalReferenceLabel` gains `through` — the label of the second step, built by `portalReferenceLabels` with the target's own rule: undeclared, the label the target gives its own title field (only when the target exposes it and its name leaves), i.e. exactly the title the target's projection already shows; declared in the referrer's `referenceTitles`, the `officeRecordTitle` rule. One extra step only: `through` never has a `through`. Nothing changes in any declaration, and a label whose target has a plain title is built as before.

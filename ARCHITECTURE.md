@@ -13234,6 +13234,34 @@ existia (`setNavigationIntent`, consumido pelo `useRecordListViewModel` — é p
 - **Selo e filtro são duas declarações** (`when` é expressão; `filter`, valores fixos) e nada as amarra
   além do autor. Também não há data relativa no filtro: "vencidos" continua sendo só selo.
 
+#### Campo vazio ou preenchido — o termo de presença (`{ key, empty }`)
+
+O selo contava `isEmpty(publishedAt)` e o clique abria a lista inteira: o filtro só aceitava
+valores fixos, e "sem valor" não é valor. Toda fila do "que ainda não aconteceu" é um campo vazio — a
+fatura sem pagamento, o chamado sem responsável —, e a saída de cada extensão era gravar um campo de
+situação só para filtrar, cópia do que a data já diz e que pode divergir dela.
+
+- **O termo é `{ key, empty: boolean }`** (`UiNavPresenceFilter`), em vez de `values`, nunca os dois
+  (o tipo usa `never` para o autor ouvir isso do `tsc`). Vale para campo `filterable` que não seja
+  arquivo nem caixa de seleção (`isPresenceFilterable`): a caixa nunca está vazia — desmarcada é
+  `false` —, e a recusa diz isso, em vez de "não filtrável".
+- **Vazio é o `isEmpty` das expressões** (`isEmptyFieldValue` → `isEmptyRuleValue`): ausente, `null`,
+  texto em branco, lista vazia. Uma régua parecida bastaria para quebrar a promessa da seção — o selo
+  e a lista contando recortes diferentes.
+- **Na lista, é UM par de filtros por tela, não um por campo.** `:empty` ("Sem valor") e `:filled`
+  ("Com valor") são chaves da tela (`FILTER_EMPTY_KEY` / `FILTER_FILLED_KEY`) cujas opções são os
+  campos. Um sufixo por campo, como o `:ate`, dobraria a lista de filtros de TODA tela por um recurso de
+  exceção. Os valores do token são chaves de campo, e TODOS valem ("sem envio e sem cancelamento"
+  é a fila; "sem um ou outro" não é fila nenhuma) — ao contrário das opções de um campo,
+  em que qualquer uma basta. Campo que deixou de ser filtrável é ignorado, como o token de valor dele.
+- **Nada mudou na forma do token** (`{ key, values }`): `navFilterTokens` traduz o filtro do atalho na
+  hora de abrir (`navEntryOf`), e por isso filtro salvo, recado de navegação, `CompositeFilter` e a
+  lista de extensão (`useEntityList`) servem o termo sem alteração. Termo fora das duas formas é
+  descartado ali — um token sem `values` derrubaria a barra.
+- **Exige `kernel: "^2.91.0"`** (`NAV_FILTER_PRESENCE_SINCE_KERNEL`, `issue.package.nav.filter.kernel`).
+  Um kernel anterior recusa o pacote pela FORMA do filtro, e o autor precisa ouvir o motivo de verdade.
+  Quem só filtra por valor não é afetado.
+
 ### A região é um NOME, e os nomes moram numa constante
 
 `<SlotSurface surface="top-bar.right" />` renderiza o que estiver registrado naquele nome. Os seis
