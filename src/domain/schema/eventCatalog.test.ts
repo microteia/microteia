@@ -14,7 +14,11 @@ import {
   portalViewedEventName,
   workflowParametersToRoot,
   workflowParametersToFieldOptions,
+  workflowEventRoot,
+  CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL,
 } from './eventCatalog';
+import { KERNEL_VERSION } from './plugin/kernelVersion';
+import { satisfiesRange } from './plugin/semver';
 import { createSchemaContext, resolvePath, parsePath, suggestNextSegments } from './pathResolver';
 import { resolveLabel } from './i18n/messageRef';
 import type { MessageCatalog, MessageParams } from './i18n/messages';
@@ -408,6 +412,17 @@ describe('workflow.called — parâmetros dinâmicos', () => {
     expect(options).toContain('titulo');
     expect(options).toContain('processo');
     expect(options).toContain('processo.id');
+  });
+
+  it('a raiz da automação chamada são os parâmetros; a de qualquer outro gatilho, o evento', () => {
+    expect(workflowEventRoot(WORKFLOW_CALLED_EVENT, parameters, tenantCtx)).toEqual(workflowParametersToRoot(parameters));
+    expect(workflowEventRoot(WORKFLOW_CALLED_EVENT, undefined, tenantCtx)).toEqual(eventNameToRoot(WORKFLOW_CALLED_EVENT));
+    expect(workflowEventRoot('case.saved', parameters, tenantCtx)).toEqual(eventNameToRoot('case.saved', tenantCtx));
+    expect(workflowEventRoot('desconhecido.saved', parameters, tenantCtx)).toBeNull();
+  });
+
+  it('o kernel atual atende o pacote que exige o kernel em que o caminho passou a partir dos parâmetros', () => {
+    expect(satisfiesRange(KERNEL_VERSION, `^${CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL}`)).toBe(true);
   });
 });
 

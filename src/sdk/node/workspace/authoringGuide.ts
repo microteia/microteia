@@ -44,7 +44,7 @@ import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
 import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCatalog';
 import { PORTAL_DOCUMENT_SHARING_SINCE_KERNEL, isStepExcludedFromTrigger } from '../../../domain/schema/workflowStepCatalog';
-import { CHILD_RECORD_EVENTS_SINCE_KERNEL } from '../../../domain/schema/eventCatalog';
+import { CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL, CHILD_RECORD_EVENTS_SINCE_KERNEL } from '../../../domain/schema/eventCatalog';
 import { WORKFLOW_AUDIT_EVENT, WORKFLOW_AUDIT_SINCE_KERNEL } from '../../../domain/schema/workflowAuditTrigger';
 import {
   AUDIT_ARCHIVE_MAX_YEARS,
@@ -3013,6 +3013,11 @@ configuration: {
   an \`Event\` path that ends on it — through references too (\`companyId.email\`). An expression, a
   literal, or a path to a field without \`contact\` (or with the other kind) fails the step: what is an
   e-mail is decided by whoever designed the screen, never by a value that looks like one.
+- **In a called workflow** (\`workflow.called\`), the path starts at the declared \`parameters\`, as
+  everywhere else in that workflow: an \`EntityReference\` parameter followed by the record's fields
+  (\`order.companyId.email\`) reaches the contact, and \`portalRecord\` may name the parameter itself.
+  Requires \`kernel: "^${CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL}"\` — an older kernel resolved the path
+  against the event, which has no fields, and failed the step on every run.
 - **Its own audience.** With \`recipientMembers\`, \`recipientsFrom\`, \`recipientPermission\` or
   \`portalGuests\` in the same step, it fails. Write the text for someone outside the organization.
 - **Channels.** \`recipientAddresses\` goes by e-mail (\`toEmail\`), \`recipientPhones\` by SMS (\`toSms\`); a

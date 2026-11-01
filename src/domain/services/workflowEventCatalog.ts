@@ -10,4 +10,5 @@ export {
   getWorkflowEventFields,
   workflowParametersToRoot,
   workflowParametersToFieldOptions,
+  workflowEventRoot,
 } from '../schema/eventCatalog';

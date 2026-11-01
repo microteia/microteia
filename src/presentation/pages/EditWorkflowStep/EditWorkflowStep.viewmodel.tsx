@@ -17,7 +17,7 @@ import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { screenDataCollection } from '../../../domain/schema/tenantCollections';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
-import { getWorkflowEventFields, eventNameToRoot, WORKFLOW_CALLED_EVENT, workflowParametersToRoot, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
+import { getWorkflowEventFields, WORKFLOW_CALLED_EVENT, workflowEventRoot, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
 import { workflowParameterToNativeField } from '../../../domain/schema/eventCatalog';
 import type { PathRoot } from '../../../domain/schema/pathResolver';
 import type { NativeFieldSpec } from '../../../domain/schema/entityRegistry';
@@ -778,12 +778,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   }, [workflow, schemaContext]);
 
   const pathRoot = useMemo(
-    () =>
-      workflow
-        ? workflow.eventName === WORKFLOW_CALLED_EVENT
-          ? workflowParametersToRoot(workflow.parameters)
-          : eventNameToRoot(workflow.eventName, schemaContext)
-        : null,
+    () => (workflow ? workflowEventRoot(workflow.eventName, workflow.parameters, schemaContext) : null),
     [workflow, schemaContext],
   );
 

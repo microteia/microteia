@@ -2,13 +2,14 @@ import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engin
 import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import type { DispatchNotificationUseCase } from '../../../domain/usecases/DispatchNotificationUseCase';
 import type { InputMapping } from '../../../domain/entities/Workflow';
-import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
+import type { WorkflowContext, WorkflowResult } from '../../../domain/entities/WorkflowContext';
 import { isChannelEnabled, notificationRecipientCandidates } from '../../../domain/schema/notifications';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
 import type { WorkflowEvent } from '../../../domain/entities/Workflow';
 import type { RecordLinkTarget } from '../../../domain/schema/recordLink';
 import { parsePath, resolvePath } from '../../../domain/schema/pathResolver';
-import { eventNameToRoot } from '../../../domain/schema/eventCatalog';
+import { workflowEventRoot } from '../../../domain/schema/eventCatalog';
+import type { PathNode } from '../../../domain/schema/pathResolver';
 import type { ContactKind } from '../../../domain/schema/notificationContacts';
 import { contactValues } from '../../../domain/schema/notificationContacts';
 
@@ -81,21 +82,34 @@ type PortalRecordChoice = { ok: true; target: RecordLinkTarget | null } | { ok: 
  * Caminho que não leva a um registro é erro de configuração; o caminho certo que veio vazio nesta
  * execução não é — o aviso só não tem a quem ir.
  */
+/**
+ * O nó em que um caminho `Event` da configuração termina — pela raiz da AUTOMAÇÃO, e não só do evento:
+ * num fluxo chamado o caminho parte dos parâmetros declarados, como o hidratador o leu. `null` quando a
+ * entrada não é um caminho do evento, ou quando ele não resolve.
+ */
+const eventPathNode = async (
+  screens: IScreenDefinitionProvider,
+  context: Pick<WorkflowContext, 'event' | 'execution' | 'parameters'>,
+  mapping: InputMapping | undefined,
+): Promise<PathNode | null> => {
+  if (!mapping || mapping.kind !== 'Event' || !mapping.path.trim()) return null;
+  const ctx = await screens.getSchemaContext(context.execution.tenantId);
+  const root = workflowEventRoot(context.event.name, context.parameters, ctx);
+  if (!root) return null;
+  const resolution = resolvePath(ctx, root, parsePath(mapping.path));
+  return resolution.valid ? resolution.node : null;
+};
+
 const portalRecordOf = async (
   screens: IScreenDefinitionProvider,
-  tenantId: string,
-  event: WorkflowEvent,
+  context: Pick<WorkflowContext, 'event' | 'execution' | 'parameters'>,
   mapping: InputMapping | undefined,
   value: unknown,
 ): Promise<PortalRecordChoice> => {
-  if (!mapping || mapping.kind !== 'Event' || !mapping.path.trim()) return { ok: false };
-  const ctx = await screens.getSchemaContext(tenantId);
-  const root = eventNameToRoot(event.name, ctx);
-  if (!root) return { ok: false };
-  const resolution = resolvePath(ctx, root, parsePath(mapping.path));
-  if (!resolution.valid || resolution.node.kind !== 'entity') return { ok: false };
+  const node = await eventPathNode(screens, context, mapping);
+  if (node?.kind !== 'entity') return { ok: false };
   const recordId = recordIdOf(value);
-  return { ok: true, target: recordId ? { collection: resolution.node.collection, recordId } : null };
+  return { ok: true, target: recordId ? { collection: node.collection, recordId } : null };
 };
 
 /**
@@ -105,17 +119,12 @@ const portalRecordOf = async (
  */
 const isContactPath = async (
   screens: IScreenDefinitionProvider,
-  tenantId: string,
-  event: WorkflowEvent,
+  context: Pick<WorkflowContext, 'event' | 'execution' | 'parameters'>,
   mapping: InputMapping | undefined,
   kind: ContactKind,
 ): Promise<boolean> => {
-  if (!mapping || mapping.kind !== 'Event' || !mapping.path.trim()) return false;
-  const ctx = await screens.getSchemaContext(tenantId);
-  const root = eventNameToRoot(event.name, ctx);
-  if (!root) return false;
-  const resolution = resolvePath(ctx, root, parsePath(mapping.path));
-  return resolution.valid && resolution.node.kind === 'scalar' && resolution.node.contact === kind;
+  const node = await eventPathNode(screens, context, mapping);
+  return node?.kind === 'scalar' && node.contact === kind;
 };
 
 /**
@@ -160,7 +169,7 @@ export const makeNotifyStepDefinition = (
         }
         for (const id of contactInputs) {
           const mapping = configuration[id];
-          if (!(await isContactPath(screens, context.execution.tenantId, context.event, mapping, CONTACT_INPUTS[id]))) {
+          if (!(await isContactPath(screens, context, mapping, CONTACT_INPUTS[id]))) {
             return {
               success: false,
               message: NOT_CONTACT_FIELD[CONTACT_INPUTS[id]],
@@ -189,7 +198,7 @@ export const makeNotifyStepDefinition = (
       const opensRecord = inputs.openRecord === undefined || isChannelEnabled(inputs.openRecord);
       let target: RecordLinkTarget | null = null;
       if (toPortal && isConfigured(configuration.portalRecord)) {
-        const chosen = await portalRecordOf(screens, tenantId, context.event, configuration.portalRecord, inputs.portalRecord);
+        const chosen = await portalRecordOf(screens, context, configuration.portalRecord, inputs.portalRecord);
         if (!chosen.ok) return { success: false, message: '@core.automation/step.notify.portal.record-invalid' };
         target = chosen.target;
       } else if (toPortal || opensRecord) {

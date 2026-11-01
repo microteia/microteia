@@ -2563,7 +2563,8 @@ registro de que o aviso fala (`target`), pela MESMA corrente da projeção:
 
 **O passo.** `portalGuests` (Literal, `false` por padrão) e `portalRecord` (só `Event`). O registro é o
 do evento; `portalRecord` aponta outro por um caminho do evento — e é o TIPO do caminho
-(`resolvePath` sobre o `stepConfiguration`) que diz a coleção, como o editor já sabe. Caminho que não
+(`resolvePath` sobre o `stepConfiguration`, pela raiz de `workflowEventRoot` — os parâmetros, num fluxo
+chamado) que diz a coleção, como o editor já sabe. Caminho que não
 leva a um registro reprova o passo; o caminho certo que veio vazio só não avisa ninguém, e o log diz.
 Junto com `recipientMembers`, `recipientsFrom` ou `recipientPermission` o passo reprova
 (`step.notify.portal.mixed`): o texto escrito para dentro do escritório não pode sair para fora por
@@ -7638,6 +7639,21 @@ observações continua sendo observação.
 | Descadastro | callable `notificationOptOut`, página `/notifications/opt-out/:tenant/:bilhete` | sem login; `get\|opt-out\|opt-in` |
 | Configuração | aba "SMS" de Escritório › Notificações (`EmailTab/components/SmsServer`) | provedor, credencial, país padrão, endereço da aplicação |
 | Form Design | modal do campo, "Contato" | nenhum / e-mail / telefone — só nos tipos que aceitam, e zerado no dado quando o tipo deixa de aceitar |
+
+**Num fluxo chamado, o caminho parte dos parâmetros (EV-21).** O passo pergunta o tipo do caminho à
+raiz da AUTOMAÇÃO, e não à do evento: `workflowEventRoot(eventName, parameters, ctx)`
+(`eventCatalog.ts`, sincronizado) devolve os parâmetros declarados para `workflow.called` e a raiz do
+evento para todo outro gatilho. Antes, o hidratador, o editor de passo e o `ConditionBuilder` repetiam o
+ternário cada um, e o `notify` não o tinha: resolvia contra `eventNameToRoot('workflow.called')`, cuja
+raiz não tem campo nenhum, e recusava como "não é campo de contato" o mesmo caminho
+(`<parâmetro EntityReference>.<referência>.<contato>`) que o hidratador acabara de carregar. O mesmo valia
+para `portalRecord`. Agora os quatro usam a mesma função, e o passo recebe os parâmetros por
+`WorkflowContext.parameters`, preenchido num ponto só (`runWorkflow`, que serve partida e retomada de
+`delay`). Nada muda para os demais gatilhos — a raiz é a de antes —, e o fluxo chamado sem parâmetros
+continua com raiz vazia. As travas também não mudam: parâmetro de texto não é contato, por mais que o
+valor pareça e-mail. O empacotamento exige `kernel ^CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL` (2.93.0)
+do pacote com um `notify` assim num fluxo chamado (`calledPathTypeKernelIssues`): num kernel anterior o
+passo reprova em toda execução.
 
 **O público é exclusivo, como o do portal.** `audience: 'contacts'` não alcança membro nem convidado,
 e o passo recusa misturar. O texto escrito para quem está fora não pode sair para dentro, e vice-versa.

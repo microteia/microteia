@@ -1,5 +1,5 @@
 import type { BusinessCalendarSet } from '../schema/time/businessDays';
-import type { InputMapping, WorkflowEvent } from './Workflow';
+import type { InputMapping, WorkflowEvent, WorkflowParameter } from './Workflow';
 import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
 import type { RecordReader } from '../schema/memberVisibility';
 
@@ -82,6 +82,12 @@ export interface WorkflowContext {
     workflowDefinitionId: string;
     tenantId: string;
   };
+  /**
+   * Os parâmetros que a automação em execução DECLARA. Num fluxo chamado é contra eles, e não contra o
+   * evento, que um caminho `Event` resolve — o passo que pergunta o TIPO de um caminho precisa deles
+   * (`workflowEventRoot`). Ausente fora de uma automação (Script, relatório, agente).
+   */
+  parameters?: WorkflowParameter[];
   /**
    * QUEM disparou esta execução, quando alguém disparou.
    *

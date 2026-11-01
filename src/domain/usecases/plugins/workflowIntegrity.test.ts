@@ -5,6 +5,7 @@ import { workflowStepIssues } from './workflowIntegrity';
 import { PORTAL_TRACK_VIEWS_SINCE_KERNEL } from '../../schema/portal';
 import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { QUERY_PAGE_SINCE_KERNEL } from '../../schema/querySpec';
+import { CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL } from '../../schema/eventCatalog';
 
 /**
  * Cada caso aqui é um defeito que COMPILAVA e passava por toda a validação de pacote, e só falava no
@@ -601,5 +602,40 @@ describe('consulta lida em páginas', () => {
 
   it('a consulta sem página não cobra kernel nenhum', () => {
     expect(workflowStepIssues(comKernel([buscar({})], '^2.0.0'))).toEqual([]);
+  });
+});
+
+describe('notify num fluxo chamado, com caminho tipado pelos parâmetros', () => {
+  const fluxo = (eventName: string, kernel: string, configuration: WorkflowStep['configuration']): MarketplacePlugin => {
+    const base = pacote([passo({ id: 'avisar', configuration: { ...passo({}).configuration, ...configuration } })]);
+    return {
+      ...base,
+      manifest: { ...base.manifest, kernel },
+      workflows: base.workflows?.map((workflow) => ({ ...workflow, eventName })),
+    } as unknown as MarketplacePlugin;
+  };
+  const caminhos: WorkflowStep['configuration'] = {
+    toEmail: { kind: 'Literal', value: true },
+    recipientAddresses: { kind: 'Event', path: 'pedido.clienteId.email' },
+    portalRecord: { kind: 'Event', path: 'pedido' },
+  };
+  const kernelIssues = (plugin: MarketplacePlugin) => workflowStepIssues(plugin)
+    .filter((issue) => issue.message === '@core.marketplace/issue.step.input-kernel')
+    .map((issue) => [issue.messageParams?.input, issue.messageParams?.minimum]);
+
+  it('exige o kernel em que o caminho parte dos parâmetros — antes ele reprovava o passo em execução', () => {
+    expect(kernelIssues(fluxo('workflow.called', '^2.0.0', caminhos))).toEqual([
+      ['recipientAddresses', CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL],
+      ['portalRecord', CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL],
+    ]);
+    expect(kernelIssues(fluxo('workflow.called', `^${CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL}`, caminhos))).toEqual([]);
+  });
+
+  it('o gatilho de registro não cobra nada — lá o caminho sempre partiu do evento', () => {
+    expect(kernelIssues(fluxo('records.saved', '^2.0.0', caminhos))).toEqual([]);
+  });
+
+  it('o notify de fluxo chamado sem caminho tipado não cobra kernel nenhum', () => {
+    expect(kernelIssues(fluxo('workflow.called', '^2.0.0', { recipientMembers: { kind: 'Literal', value: ['u1'] } }))).toEqual([]);
   });
 });

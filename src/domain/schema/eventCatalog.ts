@@ -603,6 +603,30 @@ export const eventNameToRoot = (eventName: string, ctx?: SchemaContext): PathRoo
   findEventCatalogEntry(eventName, ctx)?.root ?? null;
 
 /**
+ * A raiz contra a qual os caminhos `Event` de UMA AUTOMAÇÃO resolvem. Para quase todo gatilho é a do
+ * evento; o fluxo chamado é a exceção, porque o evento dele não tem forma própria — o payload são os
+ * parâmetros que a automação declara, e só ela os conhece.
+ *
+ * É uma regra só, e mora aqui para que o hidratador, o editor e cada passo que pergunta o TIPO de um
+ * caminho respondam igual. Enquanto cada um repetia o ternário, o `notify` ficou sem ele: o hidratador
+ * carregava pelos parâmetros o contato do registro que um parâmetro de referência aponta, e o passo
+ * recusava o mesmo caminho por resolvê-lo contra uma raiz vazia.
+ */
+/**
+ * O kernel a partir do qual o passo que pergunta o TIPO de um caminho — o `notify`, em
+ * `recipientAddresses`, `recipientPhones` e `portalRecord` — o resolve, num fluxo chamado, pelos
+ * parâmetros declarados. Antes dele o mesmo caminho reprovava o passo em execução.
+ */
+export const CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL = '2.93.0';
+
+export const workflowEventRoot = (
+  eventName: string,
+  parameters: WorkflowParameter[] | undefined,
+  ctx?: SchemaContext,
+): PathRoot | null =>
+  eventName === WORKFLOW_CALLED_EVENT ? workflowParametersToRoot(parameters) : eventNameToRoot(eventName, ctx);
+
+/**
  * A entidade que um gatilho de registro alcança — a tela que EMITE o prefixo, mesmo quando ele não é o
  * nome da coleção (`eventPrefix`). É por ela que o gatilho de data sabe que coleção consultar e quais
  * campos de data existem.

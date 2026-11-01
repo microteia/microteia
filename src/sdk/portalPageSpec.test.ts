@@ -11,6 +11,7 @@ import type { Contribution, MarketplacePlugin, PortalPageSpec } from './index';
 import { PORTAL_EXTENSION_POINTS, portalPageSpecsOf } from '../domain/schema/portalExtensionPoints';
 import { validateContribution } from '../domain/schema/plugin/contribution';
 import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
+import { satisfiesRange } from '../domain/schema/plugin/semver';
 
 const LAW = '@br.com.microteia.dte.legislacao/portal.legislacao';
 const HELP = '@com.acme.portal/portal.help';
@@ -27,8 +28,8 @@ const portalIssues = (pkg: MarketplacePlugin) =>
   validatePluginPackage(pkg).filter((issue) => issue.message.includes('portal'));
 
 describe('portalPageSpec — a página do menu declarada, pela porta única de validação', () => {
-  it('o kernel que a desenha é o atual', () => {
-    expect(PORTAL_PAGE_SPEC_SINCE_KERNEL).toBe(KERNEL_VERSION);
+  it('o kernel atual desenha a página que exige o kernel em que ela nasceu', () => {
+    expect(satisfiesRange(KERNEL_VERSION, `^${PORTAL_PAGE_SPEC_SINCE_KERNEL}`)).toBe(true);
   });
 
   it('a página cujo texto vem de OUTRO namespace passa — quem traz a lei é o pacote do município', () => {

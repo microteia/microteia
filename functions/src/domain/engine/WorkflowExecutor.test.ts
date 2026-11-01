@@ -414,6 +414,28 @@ describe('runWorkflow — parâmetros obrigatórios', () => {
     expect(result.status).toBe('SUCCESS');
     expect(order).toEqual(['a']);
   });
+
+  it('o passo recebe os parâmetros declarados — é por eles que ele resolve o tipo de um caminho', async () => {
+    const seen: unknown[] = [];
+    const probe: StepDefinition = {
+      ...makeRecordStep([]),
+      id: 'probe',
+      createExecutor: () => ({
+        execute: async (_inputs, context) => {
+          seen.push(context.parameters);
+          return { success: true };
+        },
+      }),
+    };
+    const registry: StepRegistry = { register: () => undefined, resolve: () => probe, list: () => [probe] };
+    const parameters: WorkflowDefinition['parameters'] = [{ key: 'nome', label: 'Nome', type: 'String' }];
+    const step = { ...recordStep('a'), stepDefinitionId: 'probe' };
+
+    await runWorkflow({ definition: { ...withParams(parameters), steps: [step] }, event: makeEvent({}), registry, services });
+    await runWorkflow({ definition: makeDefinition([step]), event: makeEvent({}), registry, services });
+
+    expect(seen).toEqual([parameters, undefined]);
+  });
 });
 
 const exitStep = (): WorkflowStep => ({

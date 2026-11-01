@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeNotifyStepDefinition } from './NotifyStep';
 import type { DispatchNotificationRequest, DispatchNotificationUseCase } from '../../../domain/usecases/DispatchNotificationUseCase';
 import type { SchemaScreen } from '../../../domain/schema/pathResolver';
-import type { InputMapping, WorkflowEvent } from '../../../domain/entities/Workflow';
+import type { InputMapping, WorkflowEvent, WorkflowParameter } from '../../../domain/entities/Workflow';
 import type { WorkflowContext } from '../../../domain/entities/WorkflowContext';
 import { fakeScreenProvider } from '../../../domain/repositories/fakeScreenProvider';
 
@@ -32,7 +32,19 @@ const hearingsScreen: SchemaScreen = {
 
 const logger = { info: () => {}, warn: () => {}, error: () => {} };
 
-const run = async (inputs: Record<string, unknown>, configuration: Record<string, InputMapping> = {}) => {
+interface RunTrigger {
+  name: string;
+  payload: Record<string, unknown>;
+  parameters?: WorkflowParameter[];
+}
+
+const HEARING_SAVED: RunTrigger = { name: 'hearing.saved', payload: { id: 'h1', title: 'Hearing', caseId: 'k1' } };
+
+const run = async (
+  inputs: Record<string, unknown>,
+  configuration: Record<string, InputMapping> = {},
+  trigger: RunTrigger = HEARING_SAVED,
+) => {
   const requests: DispatchNotificationRequest[] = [];
   const dispatch: DispatchNotificationUseCase = {
     execute: async (request) => {
@@ -50,8 +62,8 @@ const run = async (inputs: Record<string, unknown>, configuration: Record<string
     event: {
       id: 'e1',
       tenantId: 't1',
-      name: 'hearing.saved',
-      payload: { id: 'h1', title: 'Hearing', caseId: 'k1' },
+      name: trigger.name,
+      payload: trigger.payload,
       timestamp: new Date(),
     } as WorkflowEvent,
     outputs: {},
@@ -59,6 +71,7 @@ const run = async (inputs: Record<string, unknown>, configuration: Record<string
     services: { logger, now: () => new Date() },
     logger,
     execution: { id: 'x1', workflowDefinitionId: 'w1', tenantId: 't1' },
+    ...(trigger.parameters ? { parameters: trigger.parameters } : {}),
     stepConfiguration: configuration,
   };
   const step = makeNotifyStepDefinition(dispatch, fakeScreenProvider([casesScreen, hearingsScreen]));
@@ -217,5 +230,98 @@ describe('NotifyStep — endereços de campos de contato', () => {
     expect(requests[0].audience).toBeUndefined();
     expect(requests[0].contacts).toBeUndefined();
     expect(requests[0].channels.sms).toBe(false);
+  });
+});
+
+describe('NotifyStep — caminhos de um fluxo chamado partem dos parâmetros declarados', () => {
+  const event = (path: string): InputMapping => ({ kind: 'Event', path });
+  const parameters: WorkflowParameter[] = [
+    { key: 'hearing', label: 'Hearing', type: 'EntityReference', entityType: 'hearings' },
+    { key: 'note', label: 'Note', type: 'String' },
+  ];
+  const called = (payload: Record<string, unknown>): RunTrigger => ({ name: 'workflow.called', payload, parameters });
+
+  it('um parâmetro de referência seguido de outra referência chega ao campo de contato', async () => {
+    const { result, requests } = await run(
+      { toEmail: true, recipientAddresses: 'case@x.com' },
+      { recipientAddresses: event('hearing.caseId.email') },
+      called({ hearing: 'h1' }),
+    );
+    expect(result.success).toBe(true);
+    expect(requests[0]).toMatchObject({ audience: 'contacts', contacts: { email: ['case@x.com'] } });
+  });
+
+  it('o contato do próprio registro apontado pelo parâmetro também vale', async () => {
+    const { result, requests } = await run(
+      { toSms: true, recipientPhones: '(71) 99999-8888' },
+      { recipientPhones: event('hearing.contactPhone') },
+      called({ hearing: 'h1' }),
+    );
+    expect(result.success).toBe(true);
+    expect(requests[0].contacts?.sms).toEqual(['(71) 99999-8888']);
+  });
+
+  it('a trava continua: parâmetro de texto não é campo de contato, ainda que o valor pareça e-mail', async () => {
+    const plain = await run(
+      { toEmail: true, recipientAddresses: 'parece@email.com' },
+      { recipientAddresses: event('note') },
+      called({ note: 'parece@email.com' }),
+    );
+    expect(plain.result).toMatchObject({
+      success: false,
+      message: '@core.automation/step.notify.contacts.not-contact-field.email',
+      messageParams: { path: 'note' },
+    });
+    const notContact = await run(
+      { toEmail: true, recipientAddresses: 'x' },
+      { recipientAddresses: event('hearing.notes') },
+      called({ hearing: 'h1' }),
+    );
+    expect(notContact.result).toMatchObject({ success: false, message: '@core.automation/step.notify.contacts.not-contact-field.email' });
+    expect([...plain.requests, ...notContact.requests]).toEqual([]);
+  });
+
+  it('`portalRecord` aponta o registro pelo parâmetro — a coleção vem do tipo declarado', async () => {
+    const direct = await run(
+      { portalGuests: true, toEmail: true, portalRecord: 'h1' },
+      { portalRecord: event('hearing') },
+      called({ hearing: 'h1' }),
+    );
+    expect(direct.result.success).toBe(true);
+    expect(direct.requests[0].target).toEqual({ collection: 'hearings', recordId: 'h1' });
+    const through = await run(
+      { portalGuests: true, toEmail: true, portalRecord: { id: 'k1' } },
+      { portalRecord: event('hearing.caseId') },
+      called({ hearing: 'h1' }),
+    );
+    expect(through.requests[0].target).toEqual({ collection: 'cases', recordId: 'k1' });
+  });
+
+  it('um parâmetro que não é referência não leva a registro nenhum', async () => {
+    const { result } = await run(
+      { portalGuests: true, toEmail: true, portalRecord: 'x' },
+      { portalRecord: event('note') },
+      called({ note: 'x' }),
+    );
+    expect(result).toMatchObject({ success: false, message: '@core.automation/step.notify.portal.record-invalid' });
+  });
+
+  it('sem parâmetros declarados o fluxo chamado recusa como antes — não há caminho por onde chegar', async () => {
+    const { result } = await run(
+      { toEmail: true, recipientAddresses: 'case@x.com' },
+      { recipientAddresses: event('hearing.caseId.email') },
+      { name: 'workflow.called', payload: { hearing: 'h1' } },
+    );
+    expect(result).toMatchObject({ success: false, message: '@core.automation/step.notify.contacts.not-contact-field.email' });
+  });
+
+  it('os parâmetros não mudam a raiz de um gatilho de registro', async () => {
+    const { result, requests } = await run(
+      { toEmail: true, recipientAddresses: 'case@x.com' },
+      { recipientAddresses: event('caseId.email') },
+      { ...HEARING_SAVED, parameters },
+    );
+    expect(result.success).toBe(true);
+    expect(requests[0].contacts?.email).toEqual(['case@x.com']);
   });
 });

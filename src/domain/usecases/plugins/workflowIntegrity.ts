@@ -29,8 +29,10 @@ import { QUERY_PAGE_SINCE_KERNEL, type QuerySpec } from '../../schema/querySpec'
 /** As entradas que fazem do convite um convite por identidade — qualquer uma delas exige o kernel novo. */
 const PORTAL_IDENTITY_CLAIM_INPUTS = ['requiredClaimName', 'requiredClaimValue', 'requiredClaimNormalize'] as const;
 import {
+  CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL,
   CHILD_RECORD_EVENTS_SINCE_KERNEL,
   PORTAL_VIEWED_ACTION,
+  WORKFLOW_CALLED_EVENT,
   splitChildRecordEventName,
   splitEntityEventName,
 } from '../../schema/eventCatalog';
@@ -306,6 +308,7 @@ const workflowIssues = (
     ...portalAccessIssues(steps, ref, pkg),
     ...upsertMatchKernelIssues(steps, ref, pkg),
     ...queryPageKernelIssues(steps, ref, pkg),
+    ...calledPathTypeKernelIssues(workflow, steps, ref, pkg),
     ...excludedStepIssues(workflow, steps, ref),
     ...delayIssues(workflow, steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
@@ -402,6 +405,33 @@ const upsertMatchKernelIssues = (
       messageParams: { step: step.id, input: 'upsert.matchPrimaryKey', minimum: UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL },
     }];
   });
+};
+
+/** As entradas do `notify` cujo caminho do evento vale pelo TIPO — e não só pelo valor que traz. */
+const NOTIFY_TYPED_PATH_INPUTS = ['recipientAddresses', 'recipientPhones', 'portalRecord'] as const;
+
+/**
+ * O `notify` que, num fluxo chamado, aponta um contato ou o registro do portal por um caminho dos
+ * parâmetros, num pacote que admite kernel anterior: lá o caminho é resolvido contra o evento, que não
+ * tem campo nenhum, e o passo reprova em toda execução.
+ */
+const calledPathTypeKernelIssues = (
+  workflow: WorkflowModuleTemplate,
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  if (workflow.eventName !== WORKFLOW_CALLED_EVENT) return [];
+  if (rangeExcludesBelow(pkg.manifest?.kernel ?? '', CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL)) return [];
+  return steps.flatMap((step) => step.stepDefinitionId !== 'notify'
+    ? []
+    : NOTIFY_TYPED_PATH_INPUTS
+      .filter((input) => step.configuration?.[input]?.kind === 'Event')
+      .map((input) => ({
+        ref,
+        message: '@core.marketplace/issue.step.input-kernel',
+        messageParams: { step: step.id, input, minimum: CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL },
+      })));
 };
 
 /**

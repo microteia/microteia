@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.189.0] — 2026-11-01
+
+- fix(workflow/notify): in a called workflow (`workflow.called`), `recipientAddresses`, `recipientPhones` and `portalRecord` resolved their `Event` path against the event's own root, which has no fields, so a path starting at a declared parameter (`<EntityReference param>.<reference>.<contact field>`) failed the step as `not-contact-field` / `portal.record-invalid` on every run — even though the hydrator had just loaded it through the parameters. The step now resolves against the workflow's root.
+- refactor(schema): new `workflowEventRoot(eventName, parameters, ctx)` in `eventCatalog.ts` — the parameters for `workflow.called`, the event root for every other trigger. `NotifyStep`, `EditWorkflowStep` and `ConditionBuilder` use it instead of each repeating the ternary. `WorkflowContext.parameters` carries the declared parameters to the step, set once in `runWorkflow` (start and `delay` resume). Other triggers and called workflows without parameters resolve exactly as before.
+- feat(marketplace/gate): `check` requires `kernel: "^2.93.0"` (`CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL`) from a package whose called workflow has a `notify` with an `Event` path in one of those inputs (`issue.step.input-kernel`) — an older kernel fails the step at run time. AUTHORING §10 documents it.
+- KERNEL_VERSION 2.93.0.
+
 #### [9.188.0] — 2026-10-31
 
 - feat(portal): a portal MENU page can be declared with no code (EV-42). `portal.view` accepts `impl.kind: 'widget'` on the `page` surface too (`PORTAL_DECLARED_SURFACES`), built by the SDK's `portalPageSpec({ key, title, icon, order }, spec)`; the tree is the home card's (`PortalPageSpec = PortalWidgetSpec`). `portalPageSpecsOf` collects them and `InstalledExtensionCache.portalViews()` returns `pages` from every ENABLED extension, outside the code-trust rule. Same menu entry as a code page (`portalPageEntryId`), so Settings > Portal orders and hides it unchanged; a code page with the same entry wins.

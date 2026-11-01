@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { Condition, FieldComparisonCondition, WorkflowParameter } from '../../../../domain/entities/Workflow';
 import type { WorkflowEventFieldOption } from '../../../../domain/services/workflowEventCatalog';
-import { eventNameToRoot, WORKFLOW_CALLED_EVENT, workflowParametersToRoot } from '../../../../domain/services/workflowEventCatalog';
+import { workflowEventRoot } from '../../../../domain/services/workflowEventCatalog';
 import type { PathRoot } from '../../../../domain/schema/pathResolver';
 import { resolvePath, stripEventPrefix } from '../../../../domain/schema/pathResolver';
 import type { StepOutputField, WorkflowVariable } from '../ExpressionEditor/autocompleteHelpers';
@@ -280,10 +280,7 @@ export const useConditionBuilderViewModel = (
   );
 
   const pathRoot = useMemo(
-    () =>
-      eventName === WORKFLOW_CALLED_EVENT
-        ? workflowParametersToRoot(parameters)
-        : eventNameToRoot(eventName, schemaContext),
+    () => workflowEventRoot(eventName, parameters, schemaContext),
     [eventName, schemaContext, parameters],
   );
   const { getLookupOptions } = useLookupValues();

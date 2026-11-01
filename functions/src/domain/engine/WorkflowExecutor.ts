@@ -135,6 +135,7 @@ export const runWorkflow = async ({
     services,
     logger: captureLogger,
     execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
+    ...(definition.parameters?.length ? { parameters: definition.parameters } : {}),
     ...(actor ? { actor } : {}),
   });
 

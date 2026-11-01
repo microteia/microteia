@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.189.0] — 2026-11-01
+
+- Uma automação chamada por um botão ou por outra automação agora consegue avisar por e-mail ou SMS a pessoa ligada ao registro que recebeu — por exemplo, o contato do cliente do pedido —, e também avisar no portal os convidados desse registro. Antes, esse aviso só funcionava em automações disparadas pela gravação do próprio registro.
+
 #### [9.188.0] — 2026-10-31
 
 - O portal pode ganhar páginas de texto — ajuda, termos de uso, a legislação aplicável — trazidas pelas extensões instaladas, com títulos, listas, tabelas e links.
