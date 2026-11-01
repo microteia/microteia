@@ -114,6 +114,8 @@ export interface PortalMenuEntry {
   collection?: string;
   pluginId?: string;
   viewKey?: string;
+  /** A página DECLARADA: a árvore já filtrada pelo servidor, com o texto no idioma do convidado. */
+  spec?: PortalWidgetSpec;
 }
 
 export interface PortalHome {

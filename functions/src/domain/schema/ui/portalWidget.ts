@@ -5,13 +5,17 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Portal Widget — o cartão da HOME do portal declarado em DSL (`portalWidgetSpec`), sem código.
+ * Portal Widget — o cartão da HOME do portal (`portalWidgetSpec`) e a PÁGINA do menu (`portalPageSpec`)
+ * declarados em DSL, sem código. As duas superfícies usam esta mesma árvore.
  *
- * A mesma árvore do `portal.template`, mais dois nós de DADOS sobre as projeções que o convidado já lê:
+ * A mesma árvore do `portal.template`, mais dois nós de DADOS sobre as projeções que o convidado já lê, e
+ * um de CONTEÚDO:
  *
  * - `records`: os registros de uma tela do portal, filtrados (`when`), ordenados (`orderBy`), limitados
  *   e desenhados com o cartão da tela ou com um próprio (`card`);
- * - `count`: quantos registros de uma tela passam no `when`.
+ * - `count`: quantos registros de uma tela passam no `when`;
+ * - `markdown`: um texto longo — referência de mensagem, de qualquer namespace instalado no escritório —
+ *   desenhado como Markdown sem HTML. O escritório pode editá-lo (`portalTexts`).
  *
  * Há dois ESCOPOS, e a régua de cada nó depende de onde ele está:
  *
@@ -44,6 +48,7 @@ import {
   PORTAL_TEMPLATE_MAX_NODES,
   portalConditionReadsOnly,
 } from './portalTemplate';
+import { isMessageRef } from '../i18n/messageRef';
 import type {
   PortalDividerNode,
   PortalFieldNode,
@@ -96,6 +101,16 @@ export interface PortalRecordsNode {
   empty?: string;
 }
 
+/**
+ * Um texto longo em Markdown. `content` é uma REFERÊNCIA de mensagem (`@ns/chave`), e pode ser de outro
+ * namespace: o texto chega pelo bundle de quem o instala no escritório — um pacote só de texto, como um de
+ * tradução. Na saída para o convidado, `content` já é o texto, no idioma dele; sem texto, o nó some.
+ */
+export interface PortalMarkdownNode {
+  type: 'markdown';
+  content: string;
+}
+
 export type PortalWidgetNode =
   | PortalWidgetRowNode
   | PortalWidgetStackNode
@@ -110,7 +125,8 @@ export type PortalWidgetNode =
   | PortalTextNode
   | PortalIconNode
   | PortalCountNode
-  | PortalRecordsNode;
+  | PortalRecordsNode
+  | PortalMarkdownNode;
 
 export type PortalWidgetNodeType = PortalWidgetNode['type'];
 
@@ -118,12 +134,15 @@ export interface PortalWidgetSpec {
   body: PortalWidgetNode[];
 }
 
+/** A página declarada do menu do portal: a MESMA árvore do cartão da home, numa página inteira. */
+export type PortalPageSpec = PortalWidgetSpec;
+
 /** Onde o nó está: no cartão do widget, ou no cartão de um registro de `records`. */
 export type PortalWidgetScope = 'widget' | 'record';
 
 export const PORTAL_WIDGET_NODE_TYPES: readonly PortalWidgetNodeType[] = [
   'row', 'stack', 'section', 'spacer', 'divider', 'title', 'field', 'fields', 'summary', 'updated', 'text',
-  'icon', 'count', 'records',
+  'icon', 'count', 'records', 'markdown',
 ] as const;
 
 /** Os nós que respondem sobre UM registro — só no cartão de `records`. */
@@ -137,14 +156,26 @@ export const PORTAL_WIDGET_RECORDS_MAX_LIMIT = 20;
 /** O primeiro kernel que desenha o widget declarado. Um anterior descarta a contribuição. */
 export const PORTAL_WIDGET_SPEC_SINCE_KERNEL = '2.90.0';
 
+/**
+ * O primeiro kernel que desenha a PÁGINA declarada e o nó `markdown`. Um anterior descarta a página (o
+ * `impl` não vale em `page`) e o nó (tipo desconhecido) — calado para quem declarou.
+ */
+export const PORTAL_PAGE_SPEC_SINCE_KERNEL = '2.92.0';
+
 const CONTAINER_TYPES: ReadonlySet<PortalWidgetNodeType> = new Set(['row', 'stack', 'section']);
 
 export const isPortalWidgetContainerType = (type: unknown): boolean =>
   typeof type === 'string' && CONTAINER_TYPES.has(type as PortalWidgetNodeType);
 
-/** O nó vale neste escopo: os de registro só no cartão de `records`, e `records` só fora dele. */
+/** Os nós que só valem fora de um registro: o cartão inteiro de `records` é um botão. */
+const OUTSIDE_RECORD_NODE_TYPES: readonly PortalWidgetNodeType[] = ['records', 'markdown'];
+
+/**
+ * O nó vale neste escopo: os de registro só no cartão de `records`; `records` e `markdown` só fora dele —
+ * um texto longo, com links, dentro de um cartão que inteiro é um botão não teria onde ser lido.
+ */
 export const isPortalWidgetNodeAllowed = (type: PortalWidgetNodeType, scope: PortalWidgetScope): boolean =>
-  scope === 'record' ? type !== 'records' : !PORTAL_WIDGET_RECORD_NODE_TYPES.includes(type);
+  scope === 'record' ? !OUTSIDE_RECORD_NODE_TYPES.includes(type) : !PORTAL_WIDGET_RECORD_NODE_TYPES.includes(type);
 
 const nonEmptyText = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
@@ -264,6 +295,11 @@ const readNode = (raw: unknown, scope: PortalWidgetScope, depth: number, budget:
         empty: nonEmptyText(raw.empty),
       });
     }
+    case 'markdown': {
+      // Sem `trim`: o espaço do fim de uma linha é quebra no Markdown.
+      const content = typeof raw.content === 'string' && raw.content.trim() !== '' ? raw.content : undefined;
+      return content ? { type, content } : null;
+    }
     default:
       return compact({ type, hiddenWhen }) as PortalWidgetNode;
   }
@@ -308,12 +344,37 @@ export const portalWidgetCollections = (nodes: readonly PortalWidgetNode[]): str
   ])),
 ];
 
+/** As referências que os nós `markdown` da árvore citam — o que o escritório pode editar. */
+export const portalWidgetMarkdownRefs = (nodes: readonly PortalWidgetNode[]): string[] => [
+  ...new Set(nodes.flatMap((node) => [
+    ...(node.type === 'markdown' ? [node.content] : []),
+    ...portalWidgetMarkdownRefs(portalWidgetNodeChildren(node)),
+  ])),
+];
+
+/**
+ * A árvore carrega SUBSTÂNCIA: dados (`count`, `records`) ou conteúdo (`markdown`). O resto é moldura —
+ * título de seção, ícone, texto curto em volta.
+ */
+const hasSubstance = (nodes: readonly PortalWidgetNode[]): boolean =>
+  nodes.some((node) => node.type === 'count' || node.type === 'records' || node.type === 'markdown'
+    || hasSubstance(portalWidgetNodeChildren(node)));
+
 /** Os campos que o convidado tem de cada tela do portal; `null` quando a coleção não está no portal. */
 export type PortalExposedFieldsOf = (collection: string) => ReadonlySet<string> | null;
+
+/**
+ * O texto de uma referência de conteúdo no idioma do convidado — o editado pelo escritório, senão o do
+ * bundle instalado; `null` quando nenhum dos dois o tem.
+ */
+export type PortalContentOf = (ref: string) => string | null;
+
+const NO_CONTENT: PortalContentOf = () => null;
 
 interface GuestWalk {
   exposedOf: PortalExposedFieldsOf;
   resolve: (text: string) => string;
+  content: PortalContentOf;
 }
 
 const hiddenWhenOf = (node: PortalWidgetNode): string | undefined => ('hiddenWhen' in node ? node.hiddenWhen : undefined);
@@ -360,6 +421,11 @@ const guestNodes = (
           empty: node.empty ? walk.resolve(node.empty) : undefined,
         })];
       }
+      case 'markdown': {
+        // Só referência: o texto literal de um pacote não traduz, e o escritório não teria o que editar.
+        const text = isMessageRef(node.content) ? walk.content(node.content) : null;
+        return text && text.trim() !== '' ? [{ type: 'markdown', content: text }] : [];
+      }
       default:
         return [node];
     }
@@ -376,18 +442,22 @@ const guestNodes = (
  *   tela, como no cartão do `portal.template`.
  * - Todo texto — `text`, `section.title`, o rótulo escrito de `field`, `records.empty` — vai no idioma do
  *   convidado.
+ * - O `markdown` sai com o TEXTO no lugar da referência (`content`): o editado pelo escritório, senão o do
+ *   bundle. Sem texto naquele idioma — nenhum pacote instalado traz a chave —, o nó some, em vez de
+ *   mostrar a referência crua.
  *
- * O widget que lia dados e ficou sem nenhum nó de dados some inteiro (`null`): sobraria o texto fixo em
- * volta — "A vencer" sobre nada —, e o convidado leria um painel vazio como "não há nada a vencer".
+ * A árvore que tinha substância — dados ou conteúdo — e perdeu toda some inteira (`null`): sobraria a
+ * moldura — "A vencer" sobre nada, a página "Legislação" sem lei —, e o convidado leria o vazio como
+ * resposta.
  */
 export const guestPortalWidgetSpec = (
   spec: PortalWidgetSpec | null | undefined,
   exposedOf: PortalExposedFieldsOf,
   resolve: (text: string) => string,
+  content: PortalContentOf = NO_CONTENT,
 ): PortalWidgetSpec | null => {
   if (!spec) return null;
-  const guest = readPortalWidgetSpec({ body: guestNodes(spec.body, null, { exposedOf, resolve }) });
+  const guest = readPortalWidgetSpec({ body: guestNodes(spec.body, null, { exposedOf, resolve, content }) });
   if (!guest) return null;
-  const readData = portalWidgetCollections(spec.body).length > 0;
-  return readData && portalWidgetCollections(guest.body).length === 0 ? null : guest;
+  return hasSubstance(spec.body) && !hasSubstance(guest.body) ? null : guest;
 };

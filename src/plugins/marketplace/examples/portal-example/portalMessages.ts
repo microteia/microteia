@@ -55,6 +55,8 @@ export const PORTAL_EXAMPLE_MESSAGES: Record<string, string> = {
   'portal.widget.attention.caption': 'urgent orders',
   'portal.widget.attention.empty': 'Nothing urgent right now.',
   'portal.widget.attention.clients': 'Orders by client',
+  'portal.page.help': 'Help',
+  'portal.help': '## Placing an order\n\n1. Open **Clients** and choose your company.\n2. Under **Orders**, press **+** and fill in the item and the quantity.\n3. The organization answers in the order itself — you are notified on the bell.\n\n## Response times\n\n| Urgency | Answer within |\n|---|---|\n| Urgent | 1 business day |\n| Soon | 3 business days |\n| Routine | 5 business days |\n\nStill need help? Write to the organization from the e-mail on your invitation.',
 
   'workflow.visit-scheduled': 'Tell the client about a new visit',
   'workflow.visit-scheduled.description': 'When a visit is scheduled, notifies the client\'s portal guests by e-mail and on the portal bell.',

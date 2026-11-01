@@ -44,3 +44,9 @@ export const PORTAL_SIGN_IN_REQUESTS_COLLECTION = 'portalSignInRequests';
  * registro nenhum. Some sozinha pelo TTL de `expiresAt`.
  */
 export const PORTAL_VIEW_MARKS_COLLECTION = 'portalViewMarks';
+/**
+ * O texto do portal EDITADO pelo escritório (`portal.content`): um documento por referência de mensagem,
+ * com o texto de cada idioma. Vence o do pacote no mesmo idioma, e só no conteúdo dos nós `markdown` das
+ * páginas e cartões declarados — o resto do catálogo não é tocado.
+ */
+export const PORTAL_TEXTS_COLLECTION = 'portalTexts';

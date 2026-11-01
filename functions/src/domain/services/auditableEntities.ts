@@ -2,6 +2,7 @@ import type { AuditAction } from '../entities/AuditLog';
 import type { EntityMetadata } from '../schema/entityRegistry';
 import type { IScreenDefinitionProvider } from '../repositories/IScreenDefinitionProvider';
 import { RESERVED_COLLECTIONS, resolveEntity } from '../schema/screenEntity';
+import { PORTAL_TEXTS_COLLECTION } from '../schema/portalCollections';
 
 type EntityData = Record<string, unknown>;
 
@@ -37,6 +38,13 @@ const FLAT_ENTITY_CONFIG: Record<string, AuditableEntityConfig> = {
     entityKey: 'ScreenDefinition',
     getDisplayName: (d) => asString(d.titlePlural ?? d.titleSingular),
     getEntityLink: () => 'screen-builder',
+  },
+  // O texto que o escritório pôs no lugar do texto de um pacote, no portal — a lei de um município, a
+  // ajuda. O log guarda o antes e o depois de cada idioma: é o que mostra o que o convidado leu e quando.
+  [PORTAL_TEXTS_COLLECTION]: {
+    entityKey: 'PortalText',
+    getDisplayName: (d) => asString(d.ref),
+    getEntityLink: () => 'tenant-settings:portal-texts',
   },
 };
 

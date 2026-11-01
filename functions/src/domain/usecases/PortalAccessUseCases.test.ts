@@ -591,6 +591,194 @@ describe('contexto do portal', () => {
     });
   });
 
+  describe('a página declarada do menu (`portalPageSpec`) e o texto em Markdown', () => {
+    const LAW = '@br.gov.dte.legislacao/portal.legislacao';
+    const HELP = '@com.acme.portal/portal.help';
+    const page = (key: string, spec: unknown, extra: { order?: number; icon?: string } = {}) => ({
+      pluginId: 'com.acme.portal', key, title: `@com.acme.portal/${key}`, spec: spec as never, ...extra,
+    });
+    const bundle = (namespace: string, locale: string, messages: Record<string, string>) => ({ locale, namespace, messages });
+    const contextOf = async (
+      fake: ReturnType<typeof makeFakePortalRepository>,
+      input: { tenantId?: string; pages?: ReturnType<typeof page>[]; bundles?: ReturnType<typeof bundle>[]; locale?: string; codePage?: boolean },
+    ) => makeGetPortalContextUseCase(fake.repo).execute({
+      tenantId: input.tenantId ?? TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: '', resolve: (value) => value,
+      extensionViews: {
+        views: input.codePage ? [{ pluginId: 'com.acme.portal', viewKey: 'lawView', key: 'law', surface: 'page' as const, source: 'x' }] : [],
+        bundles: [],
+        pages: input.pages ?? [page('law', { body: [{ type: 'markdown', content: LAW }] })],
+      },
+      content: { bundles: input.bundles ?? [], locale: input.locale ?? 'pt-BR' },
+    });
+    const fakeWithGuest = () => {
+      const fake = makeFakePortalRepository(CITY_SCREENS);
+      fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+      return fake;
+    };
+    const lawPage = (context: Awaited<ReturnType<typeof contextOf>>) =>
+      context.home.menu.find((entry) => entry.id === 'page.com.acme.portal.law');
+
+    it('entra no menu depois das telas, com a árvore e o texto já resolvido — sem view nem código', async () => {
+      const context = await contextOf(fakeWithGuest(), {
+        bundles: [bundle('br.gov.dte.legislacao', 'pt-BR', { 'portal.legislacao': '# Lei 1/2026\n\nArt. 1º' })],
+      });
+
+      expect(context.home.menu.at(-1)).toEqual({
+        id: 'page.com.acme.portal.law',
+        kind: 'page',
+        title: '@com.acme.portal/law',
+        icon: 'apps',
+        pluginId: 'com.acme.portal',
+        spec: { body: [{ type: 'markdown', content: '# Lei 1/2026\n\nArt. 1º' }] },
+      });
+      expect(context.views).toEqual([]);
+      expect(context.bundles).toEqual([]);
+    });
+
+    it('dois escritórios, dois textos: cada um lê a lei do pacote que instalou', async () => {
+      const fake = fakeWithGuest();
+      const salvador = await contextOf(fake, {
+        tenantId: 'salvador',
+        bundles: [bundle('br.gov.dte.legislacao', 'pt-BR', { 'portal.legislacao': 'Lei de Salvador' })],
+      });
+      const recife = await contextOf(fake, {
+        tenantId: 'recife',
+        bundles: [bundle('br.gov.dte.legislacao', 'pt-BR', { 'portal.legislacao': 'Lei do Recife' })],
+      });
+
+      expect(lawPage(salvador)?.spec).toEqual({ body: [{ type: 'markdown', content: 'Lei de Salvador' }] });
+      expect(lawPage(recife)?.spec).toEqual({ body: [{ type: 'markdown', content: 'Lei do Recife' }] });
+    });
+
+    it('o texto editado pelo escritório vence o do pacote no mesmo idioma, e só no escritório que o editou', async () => {
+      const fake = fakeWithGuest();
+      fake.portalTexts.set('salvador', [{ ref: LAW, texts: { 'pt-BR': 'Lei de Salvador, corrigida hoje' } }]);
+      const bundles = [bundle('br.gov.dte.legislacao', 'pt-BR', { 'portal.legislacao': 'Lei do pacote' })];
+
+      const edited = await contextOf(fake, { tenantId: 'salvador', bundles });
+      const other = await contextOf(fake, { tenantId: 'recife', bundles });
+
+      expect(lawPage(edited)?.spec).toEqual({ body: [{ type: 'markdown', content: 'Lei de Salvador, corrigida hoje' }] });
+      expect(lawPage(other)?.spec).toEqual({ body: [{ type: 'markdown', content: 'Lei do pacote' }] });
+    });
+
+    it('apagar a edição volta ao texto do pacote', async () => {
+      const fake = fakeWithGuest();
+      const bundles = [bundle('br.gov.dte.legislacao', 'pt-BR', { 'portal.legislacao': 'Lei do pacote' })];
+      fake.portalTexts.set(TENANT, [{ ref: LAW, texts: { 'pt-BR': 'Editada' } }]);
+      expect(lawPage(await contextOf(fake, { bundles }))?.spec?.body).toEqual([{ type: 'markdown', content: 'Editada' }]);
+
+      fake.portalTexts.delete(TENANT);
+      expect(lawPage(await contextOf(fake, { bundles }))?.spec?.body).toEqual([{ type: 'markdown', content: 'Lei do pacote' }]);
+    });
+
+    it('a edição em outro idioma não passa por cima do texto do pacote no idioma de quem lê', async () => {
+      const fake = fakeWithGuest();
+      fake.portalTexts.set(TENANT, [{ ref: LAW, texts: { en: 'Edited in English' } }]);
+      const bundles = [bundle('br.gov.dte.legislacao', 'pt-BR', { 'portal.legislacao': 'Lei do pacote' })];
+
+      expect(lawPage(await contextOf(fake, { bundles, locale: 'pt-BR' }))?.spec?.body)
+        .toEqual([{ type: 'markdown', content: 'Lei do pacote' }]);
+      expect(lawPage(await contextOf(fake, { bundles, locale: 'en' }))?.spec?.body)
+        .toEqual([{ type: 'markdown', content: 'Edited in English' }]);
+    });
+
+    it('sem pacote nenhum com a chave, a página não entra no menu — em vez de mostrar a referência crua', async () => {
+      const context = await contextOf(fakeWithGuest(), {
+        bundles: [bundle('br.gov.dte.legislacao', 'pt-BR', { 'portal.outra': 'Outra lei' })],
+        pages: [page('law', { body: [{ type: 'text', text: 'Legislação' }, { type: 'markdown', content: LAW }] })],
+      });
+
+      expect(lawPage(context)).toBeUndefined();
+      expect(JSON.stringify(context.home)).not.toContain(LAW);
+    });
+
+    it('sem o texto no idioma de quem lê, vale a mesma queda do catálogo: o idioma-fonte', async () => {
+      const context = await contextOf(fakeWithGuest(), {
+        bundles: [bundle('br.gov.dte.legislacao', 'en', { 'portal.legislacao': 'Law' })],
+      });
+      expect(lawPage(context)?.spec?.body).toEqual([{ type: 'markdown', content: 'Law' }]);
+    });
+
+    it('o texto que o escritório escreveu basta, mesmo sem pacote com a chave', async () => {
+      const fake = fakeWithGuest();
+      fake.portalTexts.set(TENANT, [{ ref: LAW, texts: { 'pt-BR': 'Só do escritório' } }]);
+      expect(lawPage(await contextOf(fake, {}))?.spec?.body).toEqual([{ type: 'markdown', content: 'Só do escritório' }]);
+    });
+
+    it('a edição só alcança o conteúdo do markdown — o título e o texto curto continuam os do catálogo', async () => {
+      const fake = fakeWithGuest();
+      fake.portalTexts.set(TENANT, [
+        { ref: '@com.acme.portal/law', texts: { 'pt-BR': 'Título trocado' } },
+        { ref: '@com.acme.portal/note', texts: { 'pt-BR': 'Nota trocada' } },
+      ]);
+      const context = await contextOf(fake, {
+        bundles: [bundle('com.acme.portal', 'pt-BR', { 'portal.help': 'Ajuda' })],
+        pages: [page('law', { body: [{ type: 'text', text: '@com.acme.portal/note' }, { type: 'markdown', content: HELP }] })],
+      });
+
+      expect(lawPage(context)).toMatchObject({
+        title: '@com.acme.portal/law',
+        spec: { body: [{ type: 'text', text: '@com.acme.portal/note' }, { type: 'markdown', content: 'Ajuda' }] },
+      });
+    });
+
+    it('o portal sem markdown não lê os textos editados', async () => {
+      const fake = fakeWithGuest();
+      await contextOf(fake, { pages: [page('stats', { body: [{ type: 'count', collection: 'invoices' }] })] });
+      expect(fake.portalTextReads).toEqual([]);
+
+      await contextOf(fake, {});
+      expect(fake.portalTextReads).toEqual([TENANT]);
+    });
+
+    it('o escritório ordena e esconde a página declarada como qualquer página', async () => {
+      const fake = fakeWithGuest();
+      const bundles = [bundle('br.gov.dte.legislacao', 'pt-BR', { 'portal.legislacao': 'Lei' }), bundle('com.acme.portal', 'pt-BR', { 'portal.help': 'Ajuda' })];
+      const pages = [
+        page('law', { body: [{ type: 'markdown', content: LAW }] }, { order: 1 }),
+        page('help', { body: [{ type: 'markdown', content: HELP }] }, { order: 2, icon: 'help' }),
+      ];
+      fake.homeSettings.menu = { order: ['page.com.acme.portal.help'], hidden: ['page.com.acme.portal.law'] };
+
+      const context = await contextOf(fake, { pages, bundles });
+      const pageIds = context.home.menu.filter((entry) => entry.kind === 'page').map((entry) => entry.id);
+      expect(pageIds).toEqual(['page.com.acme.portal.help']);
+      expect(context.home.menu[0]).toMatchObject({ id: 'page.com.acme.portal.help', icon: 'help' });
+    });
+
+    it('a página de código de mesma entrada vence a declarada — o menu não repete a entrada', async () => {
+      const context = await contextOf(fakeWithGuest(), {
+        codePage: true,
+        bundles: [bundle('br.gov.dte.legislacao', 'pt-BR', { 'portal.legislacao': 'Lei' })],
+      });
+      const entries = context.home.menu.filter((entry) => entry.id === 'page.com.acme.portal.law');
+      expect(entries).toEqual([expect.objectContaining({ viewKey: 'lawView' })]);
+      expect(entries[0]).not.toHaveProperty('spec');
+    });
+
+    it('o cartão da home também desenha markdown, e some quando o texto não existe', async () => {
+      const fake = fakeWithGuest();
+      const context = await makeGetPortalContextUseCase(fake.repo).execute({
+        tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: '', resolve: (value) => value,
+        extensionViews: {
+          views: [],
+          bundles: [],
+          widgets: [
+            { pluginId: 'com.acme.portal', key: 'notice', spec: { body: [{ type: 'markdown', content: HELP }] } as never },
+            { pluginId: 'com.acme.portal', key: 'gone', spec: { body: [{ type: 'markdown', content: LAW }] } as never },
+            { pluginId: 'com.acme.portal', key: 'literal', spec: { body: [{ type: 'markdown', content: '**não é referência**' }] } as never },
+          ],
+        },
+        content: { bundles: [bundle('com.acme.portal', 'pt-BR', { 'portal.help': '**Aviso**' })], locale: 'pt-BR' },
+      });
+
+      expect(context.home.widgets).toEqual([
+        { id: 'com.acme.portal.notice', title: '', pluginId: 'com.acme.portal', spec: { body: [{ type: 'markdown', content: '**Aviso**' }] } },
+      ]);
+    });
+  });
+
   describe('o desenho declarado (`portal.template`)', () => {
     const withTemplate = (template: unknown): PortalScreen[] => CITY_SCREENS.map((screen) =>
       (screen.id === 'invoices' && screen.portal

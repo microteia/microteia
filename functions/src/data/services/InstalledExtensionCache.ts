@@ -8,8 +8,10 @@ import { businessCalendarCollectionsOf } from '../../domain/schema/time/extensio
 import { createHash } from 'node:crypto';
 import { extensionCodeOf, isCodeTrusted } from '../../domain/schema/plugin/codeTrust';
 import {
+  portalPageSpecsOf,
   portalViewsOf,
   portalWidgetSpecsOf,
+  type PortalPageSpecDescriptor,
   type PortalViewDescriptor,
   type PortalWidgetSpecDescriptor,
 } from '../../domain/schema/portalExtensionPoints';
@@ -41,6 +43,8 @@ interface CacheEntry {
   portalBundles: MessageBundle[];
   /** Os cartões da home DECLARADOS das extensões ligadas — não são código, e não pedem confiança. */
   portalWidgetSpecs: PortalWidgetSpecDescriptor[];
+  /** As páginas do menu DECLARADAS das extensões ligadas — pela mesma régua dos cartões declarados. */
+  portalPageSpecs: PortalPageSpecDescriptor[];
   /** As contribuições de tema das extensões ligadas, qualificadas e na ordem do registro. */
   themes: QualifiedContribution[];
   /** As máscaras, formatações e validações prontas que as extensões ligadas declaram. */
@@ -127,16 +131,22 @@ export class InstalledExtensionCache {
    * código confiável pela mesma régua da tela de Extensões (`isCodeTrusted`): a view roda no navegador
    * de quem é de fora, e o escritório não confiar no código é motivo de sobra para não mandá-lo.
    *
-   * Os cartões DECLARADOS (`widgets`) vêm de toda extensão ligada: não rodam código, e o texto deles é
-   * resolvido pelo servidor — não precisam dos `bundles`.
+   * Os cartões e as páginas DECLARADOS (`widgets`, `pages`) vêm de toda extensão ligada: não rodam código,
+   * e o texto deles é resolvido pelo servidor — não precisam dos `bundles`.
    */
   async portalViews(tenantId: string): Promise<{
     views: PortalViewDescriptor[];
     bundles: MessageBundle[];
     widgets: PortalWidgetSpecDescriptor[];
+    pages: PortalPageSpecDescriptor[];
   }> {
     const entry = await this.load(tenantId);
-    return { views: entry.portalViews, bundles: entry.portalBundles, widgets: entry.portalWidgetSpecs };
+    return {
+      views: entry.portalViews,
+      bundles: entry.portalBundles,
+      widgets: entry.portalWidgetSpecs,
+      pages: entry.portalPageSpecs,
+    };
   }
 
   /**
@@ -176,6 +186,7 @@ export class InstalledExtensionCache {
     const portalViews: PortalViewDescriptor[] = [];
     const portalBundleContributions: Contribution[] = [];
     const portalWidgetSpecs: PortalWidgetSpecDescriptor[] = [];
+    const portalPageSpecs: PortalPageSpecDescriptor[] = [];
     const themes: QualifiedContribution[] = [];
 
     for (const doc of snapshot.docs) {
@@ -201,6 +212,7 @@ export class InstalledExtensionCache {
         }
 
         portalWidgetSpecs.push(...portalWidgetSpecsOf(doc.id, contributes as Contribution[]));
+        portalPageSpecs.push(...portalPageSpecsOf(doc.id, contributes as Contribution[]));
 
         const pkg = (data.package ?? {}) as { views?: Array<{ key: string; source: string }>; startup?: string };
         const code = extensionCodeOf(pkg);
@@ -223,6 +235,7 @@ export class InstalledExtensionCache {
       portalViews,
       portalBundles: messageBundlesOf(portalBundleContributions),
       portalWidgetSpecs,
+      portalPageSpecs,
       themes: sortContributions(themes),
       fieldRulePresets: contributions
         .filter((contribution) => contribution?.point === DATA_FIELD_RULE_PRESET_POINT)

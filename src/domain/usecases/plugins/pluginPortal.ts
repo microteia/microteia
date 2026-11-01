@@ -16,9 +16,14 @@ import {
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { portalTemplateIssues } from '../../schema/ui/portalTemplateIssues';
-import { PORTAL_WIDGET_SPEC_SINCE_KERNEL } from '../../schema/ui/portalWidget';
+import {
+  PORTAL_PAGE_SPEC_SINCE_KERNEL,
+  PORTAL_WIDGET_SPEC_SINCE_KERNEL,
+  portalWidgetMarkdownRefs,
+  readPortalWidgetSpec,
+} from '../../schema/ui/portalWidget';
 import { portalWidgetSpecIssues } from '../../schema/ui/portalWidgetIssues';
-import { PORTAL_VIEW_POINT, asPortalViewMetadata } from '../../schema/portalExtensionPoints';
+import { PORTAL_DECLARED_SURFACES, PORTAL_VIEW_POINT, asPortalViewMetadata } from '../../schema/portalExtensionPoints';
 import type { LocalizedIssue } from './pluginReferences';
 
 const fieldsOf = (pkg: MarketplacePlugin, screen: ScreenModuleTemplate) => [
@@ -235,15 +240,18 @@ const templateIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
   });
 
 /**
- * Os cartões da home DECLARADOS (`portalWidgetSpec`): a superfície, a árvore pela régua de
- * `portalWidgetSpecIssues` e o `kernel`.
+ * Os cartões da home e as páginas do menu DECLARADOS (`portalWidgetSpec`, `portalPageSpec`): a
+ * superfície, a árvore pela régua de `portalWidgetSpecIssues` e o `kernel`.
  *
  * A coleção de uma tela DESTE pacote é conferida por inteiro — está no portal, e os campos lidos saem.
  * A de outra (uma dependência: o pacote do portal sobre as telas de outro) só pela forma: as telas dela
  * não estão aqui, e o servidor descarta o nó que ler o que não sai.
  *
- * O `kernel` é cobrado porque o anterior descarta a contribuição — calado, e o cartão só faltaria na
- * home de quem instalou.
+ * O `content` de um `markdown` não é conferido contra os bundles do pacote: a referência pode ser de
+ * OUTRO namespace, trazida por quem instala o texto. Sem texto no escritório, a página não aparece.
+ *
+ * O `kernel` é cobrado porque o anterior descarta a contribuição — calado, e o cartão ou a página só
+ * faltariam no portal de quem instalou. A página e o `markdown` pedem o kernel que os desenha.
  */
 const widgetSpecIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
   const declaring = (pkg.manifest.contributes ?? [])
@@ -260,17 +268,24 @@ const widgetSpecIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
   };
 
   const shape = declaring.flatMap(({ contribution, index }): LocalizedIssue[] => {
-    if (asPortalViewMetadata(contribution.metadata)?.surface !== 'widget') {
+    const surface = asPortalViewMetadata(contribution.metadata)?.surface;
+    if (!surface || !PORTAL_DECLARED_SURFACES.includes(surface)) {
       return [{ message: '@core.marketplace/issue.portal.widget.surface', messageParams: { id: contribution.id } }];
     }
     const spec = contribution.impl?.kind === 'widget' ? contribution.impl.spec : undefined;
     return portalWidgetSpecIssues(spec, exposedFieldsOf, `manifest.contributes[${index}].impl.spec`);
   });
 
-  const kernel = declaring.length > 0 && !rangeExcludesBelow(pkg.manifest.kernel ?? '', PORTAL_WIDGET_SPEC_SINCE_KERNEL)
+  const needsPage = declaring.find(({ contribution }) => {
+    if (asPortalViewMetadata(contribution.metadata)?.surface === 'page') return true;
+    const spec = readPortalWidgetSpec(contribution.impl?.kind === 'widget' ? contribution.impl.spec : undefined);
+    return !!spec && portalWidgetMarkdownRefs(spec.body).length > 0;
+  });
+  const minimum = needsPage ? PORTAL_PAGE_SPEC_SINCE_KERNEL : PORTAL_WIDGET_SPEC_SINCE_KERNEL;
+  const kernel = declaring.length > 0 && !rangeExcludesBelow(pkg.manifest.kernel ?? '', minimum)
     ? [{
       message: '@core.marketplace/issue.portal.widget.kernel',
-      messageParams: { id: declaring[0].contribution.id, minimum: PORTAL_WIDGET_SPEC_SINCE_KERNEL },
+      messageParams: { id: (needsPage ?? declaring[0]).contribution.id, minimum },
     }]
     : [];
 

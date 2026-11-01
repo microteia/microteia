@@ -38,7 +38,7 @@ import {
 } from '../domain/schema/ui/uiExtensionPoints';
 
 import { PORTAL_API_VERSION, PORTAL_VIEW_POINT, type PortalViewMetadata } from '../domain/schema/portalExtensionPoints';
-import type { PortalWidgetSpec } from '../domain/schema/ui/portalWidget';
+import type { PortalPageSpec, PortalWidgetSpec } from '../domain/schema/ui/portalWidget';
 import { notificationCategoryContribution, type NotificationCategoryMetadata } from '../domain/schema/notifications';
 
 const slug = (value: string): string =>
@@ -276,6 +276,35 @@ export const portalWidgetSpec = (metadata: PortalWidgetSpecMetadata, spec: Porta
   id: slug(`widget-${metadata.key}`),
   apiVersion: PORTAL_API_VERSION,
   metadata: { surface: 'widget', ...metadata },
+  impl: { kind: 'widget', spec: spec as unknown as Record<string, unknown> },
+});
+
+/** A entrada de uma página DECLARADA no menu do portal — a mesma do `portalView` de superfície `page`. */
+export interface PortalPageSpecMetadata {
+  /** O id da entrada, único no pacote — o mesmo espaço do `key` das páginas de código. */
+  key: string;
+  /** O rótulo no menu — referência de mensagem (`@ns/chave`). */
+  title?: string;
+  /** O ícone do menu, do conjunto curado de ícones de tela. */
+  icon?: string;
+  /** A posição SUGERIDA. Quem decide a ordem final é o escritório. */
+  order?: number;
+}
+
+/**
+ * Uma página no MENU do portal, DECLARADA — sem código. A árvore é a do cartão da home
+ * (`portalWidgetSpec`), e é onde o nó `markdown` faz sentido: termos de uso, perguntas frequentes, a
+ * legislação aplicável. O `content` do `markdown` é uma referência de mensagem, e pode ser de OUTRO
+ * namespace — o texto chega pelo bundle de quem o instala, e o escritório pode editá-lo.
+ *
+ * Por ser declaração, vale sem a confiança de código do escritório. A página que não tem o que mostrar
+ * ao convidado — o texto que nenhum pacote instalado traz — não entra no menu.
+ */
+export const portalPageSpec = (metadata: PortalPageSpecMetadata, spec: PortalPageSpec): Contribution => ({
+  point: PORTAL_VIEW_POINT,
+  id: slug(`page-${metadata.key}`),
+  apiVersion: PORTAL_API_VERSION,
+  metadata: { surface: 'page', ...metadata },
   impl: { kind: 'widget', spec: spec as unknown as Record<string, unknown> },
 });
 

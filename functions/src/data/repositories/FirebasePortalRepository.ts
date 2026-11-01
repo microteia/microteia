@@ -41,6 +41,13 @@ import { getBucket } from '../../infrastructure/firebase/initFirebase';
 import { recordDocumentStoragePath } from '../../domain/services/recordDocumentHash';
 import { recordDocumentLinkState } from '../../domain/services/recordDocumentLinks';
 import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
+import { PORTAL_TEXTS_COLLECTION, asPortalTextOverride, type PortalTextOverride } from '../../domain/schema/portalText';
+
+/**
+ * Quantos textos editados o contexto do portal lê de uma vez. Só há documento para a referência que o
+ * escritório editou — e só as dos nós `markdown` são citadas —, então o teto é guarda, não paginação.
+ */
+const PORTAL_TEXTS_READ_LIMIT = 200;
 
 const SCREENS_TTL_MS = 30_000;
 /** O teto do `array-contains-any` do Firestore. */
@@ -171,6 +178,14 @@ export class FirebasePortalRepository implements IPortalRepository {
   async getHomeSettings(tenantId: string): Promise<PortalHomeSettings> {
     const snapshot = await this.tenant(tenantId).collection('settings').doc(PORTAL_SETTINGS_DOC).get();
     return asPortalHomeSettings(snapshot.data());
+  }
+
+  async listPortalTexts(tenantId: string): Promise<PortalTextOverride[]> {
+    const snapshot = await this.tenant(tenantId).collection(PORTAL_TEXTS_COLLECTION).limit(PORTAL_TEXTS_READ_LIMIT).get();
+    return snapshot.docs.flatMap((doc) => {
+      const override = asPortalTextOverride(doc.data());
+      return override ? [override] : [];
+    });
   }
 
   async getScreens(tenantId: string, options?: { fresh?: boolean }): Promise<PortalScreen[]> {

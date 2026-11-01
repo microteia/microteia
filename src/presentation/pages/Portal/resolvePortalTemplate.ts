@@ -35,7 +35,8 @@ export type ResolvedPortalNode =
   | { kind: 'edit'; key: string; label: string }
   | { kind: 'actions'; key: string }
   | { kind: 'count'; key: string; text: string; size?: CardTextSize; tone: CardTone }
-  | { kind: 'records'; key: string; cards: PortalRecordCard[]; arrangement: PortalCardArrangement; empty: string };
+  | { kind: 'records'; key: string; cards: PortalRecordCard[]; arrangement: PortalCardArrangement; empty: string }
+  | { kind: 'markdown'; key: string; content: string };
 
 /** Os registros de um nó `records` já escolhidos e desenhados — e o texto de quando não há nenhum. */
 export interface PortalWidgetRecords {
@@ -149,6 +150,8 @@ const resolveNode = (
       if (!records || (records.cards.length === 0 && !records.empty)) return null;
       return { kind: 'records', key, ...records };
     }
+    case 'markdown':
+      return { kind: 'markdown', key, content: node.content };
     default:
       return null;
   }

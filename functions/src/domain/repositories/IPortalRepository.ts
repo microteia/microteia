@@ -1,5 +1,6 @@
 import type { PortalActionLike, PortalScreenLike } from '../schema/portal';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
+import type { PortalTextOverride } from '../schema/portalText';
 import type { PortalReprojectionState } from '../schema/portalReprojection';
 import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
 import type { PortalSubjectRole } from '../schema/portalRole';
@@ -136,6 +137,8 @@ export interface RecordPage {
 export interface IPortalRepository {
   /** O que o escritório configurou na home do portal — boas-vindas, menu e widgets. */
   getHomeSettings(tenantId: string): Promise<PortalHomeSettings>;
+  /** Os textos do portal que o escritório editou (`portalTexts`) — vencem o do pacote no mesmo idioma. */
+  listPortalTexts(tenantId: string): Promise<PortalTextOverride[]>;
   /** Todas as telas do escritório, com a declaração `portal` de cada uma (ou nenhuma). */
   getScreens(tenantId: string, options?: { fresh?: boolean }): Promise<PortalScreen[]>;
   /** As opções que o escritório cadastrou numa lista (`lookupCollection`) — só chave, rótulo e cor. */

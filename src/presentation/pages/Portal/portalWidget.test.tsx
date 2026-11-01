@@ -254,3 +254,71 @@ describe('a escolha dos registros do widget', () => {
     expect(countPortalWidgetRecords(notices, {}, 'companies/acme')).toBe(3);
   });
 });
+
+describe('a página declarada do menu e o texto em Markdown', () => {
+  const page = (declaredPage: unknown, openRecord = vi.fn()) => {
+    const vm = {
+      emptyScreens: false,
+      creating: null,
+      atHome: false,
+      justSubmitted: false,
+      justSaved: false,
+      openRecord,
+      entryMissing: false,
+      pageView: null,
+      declaredPage,
+      openedRecord: null,
+      detailView: null,
+      selected: null,
+      listView: null,
+      records: [],
+      recordsLoading: false,
+      home: { title: 'Hello', welcome: '', widgets: [], Component: null },
+    } as unknown as PortalViewModel;
+    return render(<PortalContent vm={vm} />, { wrapper: wrapperFor(storeWith(RECORDS)) });
+  };
+
+  it('desenha o título, o texto em Markdown — títulos, listas, tabelas, links — e os dados ao lado', () => {
+    const { nodes } = resolve(spec({
+      body: [
+        { type: 'markdown', content: '## Art. 1º\n\n- primeiro\n- segundo\n\n| Prazo | Dias |\n|---|---|\n| Ciência | 10 |\n\n[Diário Oficial](https://dom.example.gov)' },
+        { type: 'count', collection: 'notices', when: 'status == "open"' },
+      ],
+    }));
+    const { container } = page({ title: 'Legislação', nodes, loading: false });
+
+    expect(screen.getByText('Legislação')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Art. 1º' })).toBeTruthy();
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(container.querySelector('table td')?.textContent).toBe('Ciência');
+    const link = screen.getByRole('link', { name: 'Diário Oficial' });
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(screen.getByText('3')).toBeTruthy();
+  });
+
+  it('o texto de um pacote não desenha HTML nem imagem, e o link de script não sai', () => {
+    const { nodes } = resolve(spec({
+      body: [{
+        type: 'markdown',
+        content: 'Antes <form action="https://evil.example"><input name="cpf"></form> depois\n\n<iframe src="https://evil.example"></iframe>\n\n![rastreio](https://evil.example/pixel.png)\n\n[clique](javascript:alert(1))',
+      }],
+    }));
+    const { container } = page({ title: 'Ajuda', nodes, loading: false });
+
+    expect(container.querySelector('form, input, iframe, img, script')).toBeNull();
+    expect(container.innerHTML).not.toContain('evil.example');
+    expect(screen.getByText('clique').closest('a')?.getAttribute('href') ?? '').not.toContain('javascript');
+  });
+
+  it('enquanto as telas lidas não chegam, espera; sem nada a mostrar, diz isso', () => {
+    page({ title: 'Painel', nodes: [], loading: true });
+    expect(screen.getByText('Painel')).toBeTruthy();
+    expect(screen.queryByText('portal.page.empty')).toBeNull();
+  });
+
+  it('a página que ficou sem o que mostrar avisa, em vez de uma moldura vazia', () => {
+    page({ title: 'Painel', nodes: [], loading: false });
+    expect(screen.getByText('portal.page.empty')).toBeTruthy();
+  });
+});

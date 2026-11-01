@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.portal-example",
-    "version": "1.10.0",
-    "kernel": "^2.90.0",
+    "version": "1.11.0",
+    "kernel": "^2.92.0",
     "name": "@com.microteia.portal-example/package.name",
     "description": "@com.microteia.portal-example/package.description",
     "category": "@com.microteia.portal-example/package.category",
@@ -66,6 +66,8 @@
             "portal.widget.attention.caption": "urgent orders",
             "portal.widget.attention.empty": "Nothing urgent right now.",
             "portal.widget.attention.clients": "Orders by client",
+            "portal.page.help": "Help",
+            "portal.help": "## Placing an order\n\n1. Open **Clients** and choose your company.\n2. Under **Orders**, press **+** and fill in the item and the quantity.\n3. The organization answers in the order itself — you are notified on the bell.\n\n## Response times\n\n| Urgency | Answer within |\n|---|---|\n| Urgent | 1 business day |\n| Soon | 3 business days |\n| Routine | 5 business days |\n\nStill need help? Write to the organization from the e-mail on your invitation.",
             "workflow.visit-scheduled": "Tell the client about a new visit",
             "workflow.visit-scheduled.description": "When a visit is scheduled, notifies the client's portal guests by e-mail and on the portal bell.",
             "workflow.order-confirmed": "Release the documents of a confirmed order",
@@ -133,6 +135,8 @@
             "portal.widget.attention.caption": "pedidos urgentes",
             "portal.widget.attention.empty": "Nada urgente agora.",
             "portal.widget.attention.clients": "Pedidos por cliente",
+            "portal.page.help": "Ajuda",
+            "portal.help": "## Como fazer um pedido\n\n1. Abra **Clientes** e escolha a sua empresa.\n2. Em **Pedidos**, toque em **+** e preencha o item e a quantidade.\n3. O escritório responde no próprio pedido — você é avisado no sino.\n\n## Prazos de resposta\n\n| Urgência | Resposta em até |\n|---|---|\n| Urgente | 1 dia útil |\n| Em breve | 3 dias úteis |\n| Rotina | 5 dias úteis |\n\nAinda precisa de ajuda? Escreva ao escritório pelo e-mail do seu convite.",
             "workflow.visit-scheduled": "Avisar o cliente de uma visita nova",
             "workflow.visit-scheduled.description": "Quando uma visita é agendada, avisa os convidados do portal do cliente por e-mail e no sino do portal.",
             "workflow.order-confirmed": "Liberar os documentos de um pedido confirmado",
@@ -260,6 +264,29 @@
                     ]
                   }
                 ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "point": "portal.view",
+        "id": "page-help",
+        "apiVersion": "1.3.0",
+        "metadata": {
+          "surface": "page",
+          "key": "help",
+          "title": "@com.microteia.portal-example/portal.page.help",
+          "icon": "question",
+          "order": 30
+        },
+        "impl": {
+          "kind": "widget",
+          "spec": {
+            "body": [
+              {
+                "type": "markdown",
+                "content": "@com.microteia.portal-example/portal.help"
               }
             ]
           }

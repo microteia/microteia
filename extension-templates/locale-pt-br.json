@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.152.0",
+    "version": "1.153.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -180,6 +180,8 @@
             "permission.portal.manage": "Gerenciar o portal",
             "permission.portal.activity": "Receber a atividade do portal",
             "permission.portal.activity.description": "Ser avisado quando um convidado cria, altera ou anexa algo no portal — nas telas em que também pode alterar registros.",
+            "permission.portal.content": "Editar os textos do portal",
+            "permission.portal.content.description": "Trocar, para este escritório, o texto de uma página do portal que veio num pacote instalado — uma lei, a ajuda, os termos de uso — em cada idioma, e voltar ao texto do pacote. Toda mudança vai para a Auditoria.",
             "permission.portal.manage.description": "Convidar pessoas de fora do escritório para o portal e revogar o acesso delas. Cada convidado vê só os registros vinculados a ele, e só os campos que cada tela escolheu expor. Vincular um convidado a um registro continua exigindo poder ver esse registro.",
             "permission.record-import.run": "Importar registros de um arquivo",
             "permission.record-import.run.description": "Criar ou alterar muitos registros de uma tela de uma vez, a partir de um arquivo CSV ou JSON. Cada linha continua exigindo a permissão de criar ou de alterar registros daquela tela, e passa pelas mesmas conferências do formulário.",
@@ -1125,6 +1127,7 @@
             "audit.entity.record-note": "Nota de Registro",
             "audit.entity.role": "Perfil de acesso",
             "audit.entity.screen-definition": "Tela Personalizada",
+            "audit.entity.portal-text": "Texto do portal",
             "audit.entity.system": "Sistema",
             "audit.entity.tenant": "Escritório",
             "audit.entity.tenant-member": "Membro",
@@ -1763,8 +1766,8 @@
             "issue.portal.action.prompts": "A tela \"{screen}\" oferece a ação \"{action}\" no portal, mas declara `promptParameters` — o portal não tem formulário para eles. Dê à automação o que ela precisa a partir do registro (`context`).",
             "issue.portal.reference-titles.kernel": "A tela \"{screen}\" mostra o nome de registros vinculados fora do portal (`portal.referenceTitles`), o que só existe a partir do kernel {minimum} — declare `kernel: \"^{minimum}\"` (ou posterior) no manifest. Um kernel mais antigo ignora a declaração: esses vínculos chegariam ao convidado sem nome.",
             "issue.portal.reference-titles.field": "A tela \"{screen}\" lista \"{field}\" em `portal.referenceTitles`, mas ele não é um campo `reference` exposto. Só um campo que está em `portal.fields` e aponta para outra tela (`refEntity`) tem nome a mostrar.",
-            "issue.portal.widget.surface": "A contribuição \"{id}\" declara um widget do portal (`impl.kind: \"widget\"`) numa superfície que não é `widget`. O widget declarado é só um cartão da página inicial do portal — use `portalWidgetSpec`.",
-            "issue.portal.widget.kernel": "A contribuição \"{id}\" declara um cartão da página inicial do portal sem código (`portalWidgetSpec`), o que só existe a partir do kernel {minimum} — declare `kernel: \"^{minimum}\"` (ou posterior) no manifest. Um kernel mais antigo descarta a contribuição: o cartão simplesmente não apareceria.",
+            "issue.portal.widget.surface": "A contribuição \"{id}\" declara uma view do portal sem código (`impl.kind: \"widget\"`) numa superfície que não é `widget` nem `page`. A declaração é um cartão da página inicial do portal (`portalWidgetSpec`) ou uma página do menu do portal (`portalPageSpec`).",
+            "issue.portal.widget.kernel": "A contribuição \"{id}\" declara um cartão ou uma página do portal sem código, o que só existe a partir do kernel {minimum} — declare `kernel: \"^{minimum}\"` (ou posterior) no manifest. Um kernel mais antigo descarta a contribuição: o cartão ou a página simplesmente não apareceria.",
             "issue.edit-window.shape": "A janela de edição (`editWindow`) da tela \"{screen}\" precisa ser um objeto: `{ minutes, delete? }`.",
             "issue.edit-window.minutes": "A janela de edição (`editWindow`) da tela \"{screen}\" precisa de `minutes` como número inteiro maior que zero.",
             "issue.edit-window.delete": "A janela de edição (`editWindow`) da tela \"{screen}\" tem um `delete` que não é verdadeiro nem falso.",
@@ -2466,7 +2469,9 @@
             "portal-widget.issue.scope": "{where}: o escopo \"record\" só vale num \"count\" dentro do cartão de um nó \"records\" — ele conta os filhos daquele registro.",
             "portal-widget.issue.collection-missing": "{where}: falta a coleção.",
             "portal-widget.issue.collection-unexposed": "{where}: \"{collection}\" não é uma tela do portal, então o convidado não tem registro nenhum dela.",
-            "portal-widget.issue.limit": "{where}: o limite deve ser um número inteiro de 1 a {max}."
+            "portal-widget.issue.limit": "{where}: o limite deve ser um número inteiro de 1 a {max}.",
+            "portal-widget.issue.markdown-content": "{where}: o conteúdo de um bloco markdown deve ser uma referência de mensagem (`@namespace/chave`) — é o que traduz, o que outro pacote pode trazer e o que o escritório pode editar.",
+            "portal-widget.issue.markdown-in-card": "{where}: um bloco markdown não pode ficar dentro do cartão de uma lista de registros — o cartão inteiro é um botão. Coloque-o no corpo do cartão ou da página."
           }
         }
       },

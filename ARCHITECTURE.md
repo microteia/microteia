@@ -113,6 +113,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | Configuração de entrada do portal e segredos dos clientes OIDC | `tenants/{tenantId}/secrets/portal-identity` | Sim (só servidor; `managePortalSignIn` é a porta) |
 | Pedido de entrada no portal por OIDC (verificador PKCE, `nonce`) | `portalSignInRequests/{sha256(state)}` | Não (só servidor; TTL em `expiresAt`) |
 | Marca da última abertura registrada pelo portal (`trackViews`) | `portalViewMarks/{tenantId}__{uid}__{projeção}__{documento}` | Não (só servidor; TTL em `expiresAt`) |
+| Texto do portal editado pelo escritório (conteúdo dos nós `markdown`, por idioma) | `tenants/{tenantId}/portalTexts/{namespace}:{chave}` | Sim (lê e grava quem tem `portal.content`; auditado) |
 | Job de importação em massa (totais, primeiras linhas recusadas, quem importou) | `tenants/{tenantId}/record_imports/{id}` — TTL em `expiresAt` | Sim (só servidor; `importRecords` é a porta) |
 | `Notícia` (extensão `com.microteia.news`) | `tenants/{tenantId}/news/{id}` | Sim |
 | `Comentário` (extensão `com.microteia.news`) | `tenants/{tenantId}/newsComments/{id}` | Sim |
@@ -1903,7 +1904,8 @@ home não desenha, e o toque não fazia nada, sem erro. Numa página de extensã
 registro aberto fica POR CIMA da página, e o "Voltar" a devolve. `back()` sem nada aberto não faz nada.
 
 `portal.view` move o `KERNEL_VERSION` (2.54.0): é ponto novo que o pacote instalado contribui. O cartão
-da home também pode ser DECLARADO, sem código e sem confiança — ver "O cartão da home declarado".
+da home e a página do menu também podem ser DECLARADOS, sem código e sem confiança — ver "O cartão da home
+declarado" e "A página declarada e o texto do portal".
 
 ### A home e o menu do portal
 
@@ -2469,6 +2471,56 @@ falha para o lado do que já existia, mas calada para quem declarou, e por isso 
 `PORTAL_API_VERSION` fica em 1.3.0, como nas outras adições ao portal: subir o contrato do ponto tornaria
 incompatível, com o kernel instalado, toda view de código recompilada.
 
+### A página declarada e o texto do portal — `portalPageSpec` e `markdown` (EV-42)
+
+Todo portal tem páginas que são só texto — termos de uso, privacidade, perguntas frequentes, a lei que se
+aplica —, e só havia dois jeitos de mostrá-las: uma view de código (`portal.view` de superfície `page`), que
+o escritório precisa ler e confiar a cada versão, ou nenhum. E o texto é mais do ÓRGÃO que do pacote: a lei
+muda de um município para outro (cada município é um escritório da mesma instalação) e às vezes precisa de
+correção no mesmo dia.
+
+```ts
+portalPageSpec({ key: 'legislation', title: '@acme.portal/portal.legislation', icon: 'book', order: 10 }, {
+  body: [{ type: 'markdown', content: '@acme.legislation/portal.law' }],   // namespace de OUTRO pacote
+})
+```
+
+São três peças, e cada uma reaproveita o que já existia:
+
+| Peça | Como |
+|---|---|
+| **A página declarada** | `portal.view` de superfície `page` com `impl.kind: 'widget'` — a mesma árvore do cartão da EV-39 (`PortalPageSpec = PortalWidgetSpec`). `portalPageSpecsOf` colhe, `InstalledExtensionCache.portalViews().pages` entrega de toda extensão ligada, fora da régua `isCodeTrusted`. A entrada é a mesma da página de código (`portalPageEntryId`): Configurações › Portal a ordena e esconde sem mudança; a de código de mesma entrada vence, e o `id` da contribuição (`page-<key>`) já colide no `findDuplicateContributions` |
+| **O nó `markdown`** | `{ type: 'markdown', content }`, com `content` uma REFERÊNCIA de mensagem (o `check` recusa texto solto: não traduziria, e o escritório não teria o que editar). Vale no corpo da página e do cartão; nunca no `card` de `records`, que inteiro é um botão (`isPortalWidgetNodeAllowed`) |
+| **O texto de outro pacote** | a referência pode ser de qualquer namespace — `messageRefIssues` só confere a forma. O servidor resolve pelos bundles INSTALADOS no escritório, e o texto chega por um pacote só de mensagens, como um de tradução (`br.com.acme.legislacao.<município>`) |
+| **A edição do escritório** | `tenants/{t}/portalTexts/{ns}:{chave}` — `{ ref, texts: { <idioma>: texto } }` —, gravado por quem tem `portal.content`, na aba "Textos do portal" de Configurações, com pré-visualização |
+
+**O texto é resolvido no servidor, num catálogo PRÓPRIO.** `portalContentOf(bundles, overrides, locale)`
+(`schema/portalText.ts`, compartilhado) é a fusão de `buildMessageCatalog` com as edições NA FRENTE dos
+bundles. Daí saem as regras sem código próprio: no mesmo idioma a edição vence (quem chega primeiro fica com
+a chave); entre idiomas o mais específico vence — a edição em `en` não passa por cima do `pt-BR` do pacote
+para quem lê em português —; e a queda é a de toda mensagem (`pt-BR` → `pt` → `en`). Esse catálogo só
+responde o `content` dos nós `markdown`: o documento que citar a chave de um botão do kernel, ou o título da
+página, não muda nada. `guestPortalWidgetSpec` troca a referência pelo texto (`PortalContentOf`); a casca
+nunca vê a referência.
+
+| Decisão | Por quê |
+|---|---|
+| **Sem texto, sem nó; sem substância, sem página** | a referência sem texto no idioma (nem edição, nem bundle) leva o nó. A árvore que tinha substância — dados ou conteúdo — e perdeu toda some inteira (`hasSubstance`, a régua que a EV-39 aplicava só a dados): a página "Legislação" sem lei sai do menu, em vez de mostrar a referência crua ou uma moldura vazia. O cartão só de texto curto continua sendo aviso |
+| **O portal sem `markdown` não paga a leitura** | `listPortalTexts` (um `get` com teto) só roda quando alguma página ou cartão declarado cita conteúdo |
+| **Markdown sem HTML e sem imagem** | `MarkdownContent untrusted`: sem `rehype-raw`, `skipHtml`, `img` descartado, todo link externo em aba nova (`ExternalMarkdownLink`), e o `urlTransform` padrão tira `javascript:`. O Markdown do escritório desenha HTML (o editor de notas o grava); aqui o texto vem de um pacote que o escritório não precisou confiar e chega a quem é de fora — HTML desenharia um formulário por cima da página, e uma imagem de outro endereço contaria quem abriu |
+| **Permissão própria, aba própria** | `portal.content`, separada de `portal.manage`: quem corrige a lei no mesmo dia (jurídico, comunicação) não é quem decide quem entra no portal. A aba é outra pelo mesmo motivo — a do Portal pede `portal.manage` |
+| **Auditoria pelo gatilho que já existe** | `portalTexts` entra em `FLAT_ENTITY_CONFIG` (`PortalText`): o antes e o depois de cada idioma vão para o log. "Voltar ao texto do pacote" tira o idioma (`deleteField`) ou, se era o último, carimba `deletedBy*` e apaga o documento. O teto de 100.000 caracteres por idioma (`PORTAL_TEXT_MAX_LENGTH`) existe para dois textos caberem no mesmo log |
+| **O texto viaja no contexto** | o conteúdo já resolvido vai em `getPortalContext.home.menu[].spec` — nenhuma callable nova. São poucas páginas de texto por portal; se uma instalação tiver dezenas de textos longos, o caminho é pedir o conteúdo da página ao abri-la |
+
+As regras de `portalTexts` cobram a permissão, os campos permitidos, `texts` como mapa de até 20 idiomas e a
+referência gravada igual à do id (`'@' + textId.replace(':', '/')`) — sem isso, dois documentos disputariam a
+mesma chave e o que vale dependeria da ordem de leitura. `portalTexts` é coleção reservada.
+
+**Autoria.** `portalPageSpec` no SDK; o `check` aceita `widget` e `page` para a implementação declarada
+(`PORTAL_DECLARED_SURFACES`), confere a árvore pela régua da EV-39 e exige `kernel` a partir de
+`PORTAL_PAGE_SPEC_SINCE_KERNEL` (2.92.0) para a página e para o cartão com `markdown` — o kernel anterior
+descarta os dois, calado. `portal-example` 1.11.0 declara a página "Ajuda". `KERNEL_VERSION` 2.92.0.
+
 ### Garantias que a revisão da branch acrescentou
 
 - **O convite vale no instante.** As callables (alterar, anexar, URL de documento, criar dentro de
@@ -2541,8 +2593,12 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
   escritório —, e o e-mail não leva um "não quero mais receber". Pede uma callable e um campo em
   `portalUsers` (que só o servidor grava): o convidado não escreve em `settings/user_*`.
 - **Excluir pelo portal.** O convidado cria, altera e anexa; não apaga registro nem documento.
-- **View de portal declarativa** (Widget DSL): `portal.view` — inclusive `page`, `widget` e `home` — é só `code`. O `WidgetRenderer` lê os
-  stores do escritório, e o convidado não os tem.
+- **Home e layout declarados.** `portal.view` aceita declaração só em `widget` e `page` (EV-39, EV-42); `home`,
+  `layout`, `list` e `detail` continuam só `code`. O `WidgetRenderer` do escritório lê os stores dele, e o
+  convidado não os tem — o portal tem vocabulário próprio (`portalWidget.ts`).
+- **Texto editado fora do `markdown`.** A edição do escritório (`portalTexts`) só alcança o conteúdo dos nós
+  `markdown`; título de página, rótulo e texto curto continuam os do catálogo. Sobrepor qualquer mensagem
+  por escritório pediria o catálogo do cliente lendo `portalTexts` também.
 - **Escala.** A lista do portal traz as 200 projeções mais recentes por coleção, sem paginação por
   cursor; e os gatilhos de projeção leem as telas por um cache de 30 s por instância — uma gravação logo depois de mudar a
   declaração pode projetar pela declaração anterior, até a próxima gravação daquele registro.
@@ -2574,6 +2630,8 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
 `functions/src/domain/usecases/{PortalProjectionUseCases,PortalReprojectionUseCases,PortalAccessUseCases}.ts` ·
 `functions/src/infrastructure/handlers/{portalProjection,portalAccess}.ts` ·
 `functions/src/infrastructure/workflow/steps/PortalAccessSteps.ts` · `functions/src/infrastructure/portal/portalAccessAudit.ts` ·
+`domain/schema/portalText.ts` · `domain/schema/ui/{portalWidget,portalWidgetIssues}.ts` ·
+`presentation/pages/TenantSettings/PortalTextsTab/` · `rules-tests/portalTexts.test.ts` ·
 `domain/schema/portalIdentity.ts` · `functions/src/domain/usecases/PortalIdentityUseCases.ts` ·
 `functions/src/domain/repositories/IPortalIdentity.ts` · `functions/src/data/repositories/FirebasePortalIdentity.ts` ·
 `functions/src/infrastructure/portal/oidc/{FetchOidcClient,verifyIdToken}.ts` · `functions/src/infrastructure/handlers/portalSignIn.ts` ·

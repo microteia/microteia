@@ -454,6 +454,24 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // O texto do portal EDITADO pelo escritório (`portal.content`): um documento por referência de
+      // mensagem (`<namespace>:<chave>`), com o texto de cada idioma. Só quem tem a permissão lê e grava —
+      // o convidado recebe o texto pelo servidor, nunca daqui. A referência gravada tem de ser a do id:
+      // sem isso, dois documentos disputariam a mesma chave. A exclusão é "voltar ao texto do pacote", e
+      // antes dela vem o carimbo de quem excluiu (`deletedBy*`), que a Auditoria lê.
+      match /portalTexts/{textId} {
+        allow read, delete: if can(tenantId, 'portal.content');
+        allow create, update: if can(tenantId, 'portal.content')
+          && request.resource.data.keys().hasOnly([
+            'ref', 'texts', 'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL',
+            'deletedBy', 'deletedByName', 'deletedByPhotoURL'
+          ])
+          && request.resource.data.ref is string
+          && request.resource.data.ref == '@' + textId.replace(':', '/')
+          && request.resource.data.texts is map
+          && request.resource.data.texts.size() <= 20;
+      }
+
       // A adoção das chaves sobre os registros que já existiam (um documento por coleção). Todo
       // membro lê — a listagem tira dele o aviso, e o que ele expõe (nomes de chave, ids, os valores
       // repetidos) quem lê a coleção já vê. Ninguém grava do cliente: quem escrevesse `adopted` daria
@@ -655,7 +673,7 @@ service cloud.firestore {
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
         'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox', 'notification_dispatches', 'notification_contacts',
-        'portalIdentityInvites', 'portalRecords', 'portalUsers', 'portal_reprojections', 'reports', 'roles',
+        'portalIdentityInvites', 'portalRecords', 'portalTexts', 'portalUsers', 'portal_reprojections', 'reports', 'roles',
         // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de
         // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.

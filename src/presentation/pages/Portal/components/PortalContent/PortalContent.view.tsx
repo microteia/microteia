@@ -135,6 +135,17 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
     </S.Centered>
   ) : vm.pageView ? (
     <vm.pageView collection="" />
+  ) : vm.declaredPage ? (
+    <S.Detail>
+      <S.Title>{vm.declaredPage.title}</S.Title>
+      {vm.declaredPage.loading ? (
+        <S.Centered><Spinner size={28} /></S.Centered>
+      ) : vm.declaredPage.nodes.length === 0 ? (
+        <S.Muted>{t('portal.page.empty')}</S.Muted>
+      ) : (
+        <PortalTemplateNodes nodes={vm.declaredPage.nodes} onOpen={vm.openRecord} />
+      )}
+    </S.Detail>
   ) : vm.openedRecord === 'loading' ? (
     <S.Centered><Spinner size={28} /></S.Centered>
   ) : vm.openedRecord === 'missing' ? (

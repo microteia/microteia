@@ -6,6 +6,7 @@ import {
   PORTAL_VIEW_POINT,
   applyPortalPreference,
   asPortalViewMetadata,
+  portalPageSpecsOf,
   portalViewsOf,
   portalWidgetSpecsOf,
 } from './portalExtensionPoints';
@@ -76,5 +77,33 @@ describe('a ordem do escritório', () => {
 
   it('entrada nova aparece — esconder é gesto, não padrão', () => {
     expect(applyPortalPreference(entries, { order: [], hidden: [] }).map((entry) => entry.id)).toEqual(['c', 'd', 'a', 'b']);
+  });
+});
+
+describe('páginas do menu declaradas (`portalPageSpec`)', () => {
+  const SPEC = { body: [{ type: 'markdown' as const, content: '@br.gov.dte.legislacao/portal.legislacao' }] };
+
+  const declared = (metadata: Record<string, unknown>, impl: Contribution['impl'] = { kind: 'widget', spec: SPEC }): Contribution => ({
+    id: 'page-law', apiVersion: '1.3.0', point: PORTAL_VIEW_POINT, metadata, impl,
+  });
+
+  it('a contribuição de superfície `page` com implementação declarada vira página, com o ícone e a árvore', () => {
+    expect(portalPageSpecsOf('com.acme', [declared({ surface: 'page', key: 'law', title: '@acme/law', icon: 'book', order: 3 })]))
+      .toEqual([{ pluginId: 'com.acme', key: 'law', title: '@acme/law', icon: 'book', order: 3, spec: SPEC }]);
+  });
+
+  it('a de código, a de outra superfície e a árvore vazia não viram página — e o cartão não vira página', () => {
+    expect(portalPageSpecsOf('com.acme', [
+      declared({ surface: 'page', key: 'code' }, { kind: 'code', key: 'Law' }),
+      declared({ surface: 'widget', key: 'card' }),
+      declared({ surface: 'page', key: 'empty' }, { kind: 'widget', spec: { body: [] } }),
+    ])).toEqual([]);
+    expect(portalWidgetSpecsOf('com.acme', [declared({ surface: 'page', key: 'law' })])).toEqual([]);
+  });
+
+  it('extensão sem confiança de código declara a página', () => {
+    const point = PORTAL_EXTENSION_POINTS[0];
+    const diagnostics = validateContribution(declared({ surface: 'page', key: 'law' }), { pluginId: 'com.acme', trusted: false, point });
+    expect(diagnostics.filter((diagnostic) => diagnostic.severity === 'error')).toEqual([]);
   });
 });

@@ -39,7 +39,7 @@ describe('core.tenant — o escritório como plugin', () => {
    */
   it('entrega as abas como contribuição, não como código da tela', () => {
     const tabs = tabsOf(TENANT_SETTINGS_SURFACE);
-    expect(tabs.map((tab) => tab.key).sort()).toEqual(['agent', 'ai', 'email', 'members', 'office', 'portal', 'roles', 'security']);
+    expect(tabs.map((tab) => tab.key).sort()).toEqual(['agent', 'ai', 'email', 'members', 'office', 'portal', 'portal-texts', 'roles', 'security']);
   });
 
   it('deixa a aba de dados aberta a todo membro e as de gestão atrás de uma permissão', () => {
@@ -48,6 +48,8 @@ describe('core.tenant — o escritório como plugin', () => {
     expect(byKey.get('members')?.requiredPermissions).toEqual(['members.manage']);
     expect(byKey.get('roles')?.requiredPermissions).toEqual(['roles.manage']);
     expect(byKey.get('portal')?.requiredPermissions).toEqual(['portal.manage']);
+    // Quem corrige o texto de uma página do portal não é, por isso, quem decide quem entra nele.
+    expect(byKey.get('portal-texts')?.requiredPermissions).toEqual(['portal.content']);
     // Afrouxar a verificação em duas etapas tira uma barreira de todo mundo: permissão própria.
     expect(byKey.get('security')?.requiredPermissions).toEqual(['mfa.manage']);
     expect(byKey.get('ai')?.requiredPermissions).toEqual(['ai.manage']);

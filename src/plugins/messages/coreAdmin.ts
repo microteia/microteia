@@ -16,6 +16,7 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'audit.entity.record-note': 'Record note',
   'audit.entity.role': 'Access profile',
   'audit.entity.screen-definition': 'Custom screen',
+  'audit.entity.portal-text': 'Portal text',
   'audit.entity.system': 'System',
   'audit.entity.tenant': 'Organization',
   'audit.entity.tenant-member': 'Member',

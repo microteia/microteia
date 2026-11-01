@@ -27,6 +27,7 @@ export {
   notificationCategory,
   page,
   pointContribution,
+  portalPageSpec,
   portalView,
   portalWidgetSpec,
   recordAction,

@@ -4,6 +4,7 @@ import { S } from './PortalTemplateNodes.styles';
 import { S as CardList } from '../PortalCardList/PortalCardList.styles';
 import { Badge } from '../../../../components/ui/Badge';
 import { Button } from '../../../../components/ui/Button';
+import { MarkdownContent } from '../../../../components/ui/MarkdownContent';
 import { getScreenIcon } from '../../../../shared/screenIcons';
 import { PortalRecordActions } from '../PortalRecordActions';
 import type { ResolvedPortalNode } from '../../resolvePortalTemplate';
@@ -107,6 +108,12 @@ const NodeView: React.FC<{ node: ResolvedPortalNode } & Omit<PortalTemplateNodes
           ))}
         </CardList.List>
       );
+    case 'markdown':
+      return (
+        <S.Markdown>
+          <MarkdownContent untrusted>{node.content}</MarkdownContent>
+        </S.Markdown>
+      );
     default:
       return null;
   }
@@ -114,7 +121,7 @@ const NodeView: React.FC<{ node: ResolvedPortalNode } & Omit<PortalTemplateNodes
 
 /**
  * O desenho do portal declarado — pela tela (`portal.template`), já respondido para um registro, ou pelo
- * widget da home (`portalWidgetSpec`). Só desenha: o que aparece, com que valor e em que ordem veio
+ * widget da home (`portalWidgetSpec`) e pela página do menu (`portalPageSpec`). Só desenha: o que aparece, com que valor e em que ordem veio
  * decidido de `resolvePortalNodes`.
  */
 export const PortalTemplateNodes: React.FC<PortalTemplateNodesProps> = ({ nodes, onEdit, actions, onOpen }) => (

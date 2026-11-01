@@ -220,6 +220,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.portal.activity': 'Receive portal activity',
   'permission.portal.activity.description':
     'Be notified when a guest creates, changes or attaches something in the portal — on the screens where you can also change records.',
+  'permission.portal.content': 'Edit portal texts',
+  'permission.portal.content.description':
+    'Replace, for this organization, the text of a portal page that came with an installed package — a law, the help, the terms of use — in each language, and bring back the package text. Every change goes to the audit log.',
   'permission.record-import.run': 'Import records from a file',
   'permission.record-import.run.description':
     'Create or update many records of a screen at once from a CSV or JSON file. Each row still requires permission to create or to change records of that screen, and goes through the same checks as the form.',

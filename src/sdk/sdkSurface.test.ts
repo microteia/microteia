@@ -132,6 +132,10 @@ const PUBLISHED = [
   // `KERNEL_VERSION` (2.90.0): `portal.view` passa a aceitar a implementação `widget` no pacote instalado.
   'PORTAL_WIDGET_NODE_TYPES', 'PORTAL_WIDGET_RECORDS_MAX_LIMIT', 'PORTAL_WIDGET_SPEC_SINCE_KERNEL',
   'portalWidgetSpec', 'portalWidgetSpecIssues', 'readPortalWidgetSpec',
+  // A PÁGINA do portal declarada (`portalPageSpec`) e o nó `markdown`: o construtor e o kernel que os
+  // desenha. MOVE o `KERNEL_VERSION` (2.92.0): `portal.view` aceita a implementação `widget` em `page`, e a
+  // árvore ganha um tipo de nó.
+  'PORTAL_PAGE_SPEC_SINCE_KERNEL', 'portalPageSpec',
 ].sort();
 
 /**
@@ -145,6 +149,7 @@ const PUBLISHED_TYPES = [
   'PortalTemplate', 'PortalTemplateNode', 'PortalTemplateNodeType',
   'PortalCountNode', 'PortalRecordsNode', 'PortalWidgetFieldsOf', 'PortalWidgetNode', 'PortalWidgetNodeType',
   'PortalWidgetSpec', 'PortalWidgetSpecMetadata',
+  'PortalMarkdownNode', 'PortalPageSpec', 'PortalPageSpecMetadata',
   'DocumentOutputFormat', 'DocumentTemplateDataset', 'DocumentTemplateFormat', 'DocumentTemplateIssue',
   'DocumentTemplateSpec', 'TemplateIssue', 'TemplateNode',
   'ReportAccess', 'ReportAggregateMeasure', 'ReportChart', 'ReportChartKind',
@@ -255,7 +260,7 @@ describe('a superfície publicada do SDK', () => {
   it('todo construtor de contribuição é chamável', () => {
     for (const name of ['page', 'nav', 'command', 'recordAction', 'settingsSection', 'widgetPage',
       'surfaceTab', 'surfaceTabSpec', 'surfaceWidget', 'surfaceWidgetSpec', 'surfaceSlot',
-      'surfaceSlotSpec', 'menuItem', 'navGroup', 'authProvider', 'pointContribution', 'portalView', 'portalWidgetSpec', 'notificationCategory']) {
+      'surfaceSlotSpec', 'menuItem', 'navGroup', 'authProvider', 'pointContribution', 'portalView', 'portalWidgetSpec', 'portalPageSpec', 'notificationCategory']) {
       expect(typeof (sdk as unknown as Record<string, unknown>)[name], name).toBe('function');
     }
   });

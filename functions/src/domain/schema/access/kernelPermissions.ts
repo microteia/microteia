@@ -71,6 +71,12 @@ export const PERMISSION_PORTAL_MANAGE = 'portal.manage';
  */
 export const PERMISSION_PORTAL_ACTIVITY = 'portal.activity';
 /**
+ * Trocar, no escritório, o TEXTO de uma página do portal — a lei de um município, a ajuda — que veio num
+ * pacote. Separada de `portal.manage` porque quem corrige um texto legal no mesmo dia (o jurídico, a
+ * comunicação) não é quem decide quem entra no portal nem o que sai do escritório.
+ */
+export const PERMISSION_PORTAL_CONTENT = 'portal.content';
+/**
  * Importar registros EM MASSA numa tela, por arquivo. É uma permissão à parte da coleção porque o gesto
  * é outro: quem cadastra um registro de cada vez não ganha, por isso, o poder de criar ou alterar
  * milhares de uma vez. Ela não basta sozinha — cada linha cobra `<coleção>.create` ou `.update`. O
@@ -233,6 +239,11 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     id: PERMISSION_PORTAL_ACTIVITY,
     name: '@core.access/permission.portal.activity',
     description: '@core.access/permission.portal.activity.description',
+  },
+  {
+    id: PERMISSION_PORTAL_CONTENT,
+    name: '@core.access/permission.portal.content',
+    description: '@core.access/permission.portal.content.description',
   },
   {
     id: PERMISSION_RECORD_IMPORT_RUN,

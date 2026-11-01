@@ -175,4 +175,48 @@ export const S = {
     font-size: ${({ theme }) => theme.fontSizes.sm};
     color: ${({ theme }) => theme.colors.textMuted};
   `,
+
+  /**
+   * O texto longo de um `markdown`. A tabela rola DENTRO dela: no celular, uma tabela de lei larga não
+   * pode empurrar a página para o lado.
+   */
+  Markdown: styled.div`
+    min-width: 0;
+    font-size: ${({ theme }) => theme.fontSizes.md};
+    line-height: 1.6;
+    color: ${({ theme }) => theme.colors.text};
+    overflow-wrap: anywhere;
+
+    h1, h2, h3, h4 {
+      margin: ${({ theme }) => theme.spacing.md} 0 ${({ theme }) => theme.spacing.sm};
+      line-height: 1.3;
+    }
+    h1 { font-size: ${({ theme }) => theme.fontSizes.xl}; }
+    h2 { font-size: ${({ theme }) => theme.fontSizes.lg}; }
+    h3, h4 { font-size: ${({ theme }) => theme.fontSizes.md}; }
+    p, ul, ol { margin: 0 0 ${({ theme }) => theme.spacing.sm}; }
+    ul, ol { padding-left: ${({ theme }) => theme.spacing.lg}; }
+
+    table {
+      display: block;
+      max-width: 100%;
+      overflow-x: auto;
+      border-collapse: collapse;
+      margin: 0 0 ${({ theme }) => theme.spacing.sm};
+    }
+    th, td {
+      padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.sm};
+      border: 1px solid ${({ theme }) => theme.colors.border};
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: ${({ theme }) => theme.colors.surface}; }
+
+    blockquote {
+      margin: 0 0 ${({ theme }) => theme.spacing.sm};
+      padding-left: ${({ theme }) => theme.spacing.md};
+      border-left: 3px solid ${({ theme }) => theme.colors.border};
+      color: ${({ theme }) => theme.colors.textSecondary};
+    }
+  `,
 };

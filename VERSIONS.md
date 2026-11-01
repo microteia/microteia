@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.188.0] — 2026-10-31
+
+- O portal pode ganhar páginas de texto — ajuda, termos de uso, a legislação aplicável — trazidas pelas extensões instaladas, com títulos, listas, tabelas e links.
+- Nova aba "Textos do portal" em Configurações: quem tem a permissão "Editar os textos do portal" troca o texto de uma dessas páginas para o seu escritório, em cada idioma, vendo como ficará antes de salvar, e pode voltar ao texto original a qualquer momento. Toda alteração fica registrada na Auditoria.
+- Uma página cujo texto não está disponível no escritório deixa de aparecer no menu do portal, em vez de mostrar um código no lugar do texto.
+
 #### [9.187.1] — 2026-10-31
 
 - O botão que remove um filtro da barra de filtros agora mostra a dica no idioma escolhido, em vez de sempre em português.

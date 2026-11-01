@@ -27,6 +27,9 @@ export type PortalViewSurface = 'list' | 'detail' | 'page' | 'widget' | 'home' |
 
 export const PORTAL_VIEW_SURFACES: readonly PortalViewSurface[] = ['list', 'detail', 'page', 'widget', 'home', 'layout'];
 
+/** As superfícies em que a implementação pode ser DECLARADA (`impl.kind: 'widget'`) em vez de código. */
+export const PORTAL_DECLARED_SURFACES: readonly PortalViewSurface[] = ['widget', 'page'];
+
 /** As superfícies que pertencem a UMA coleção — e por isso exigem `collection`. */
 const COLLECTION_SURFACES: ReadonlySet<PortalViewSurface> = new Set(['list', 'detail']);
 /** As que entram numa lista ordenável pelo escritório — e por isso exigem `key`. */
@@ -54,9 +57,10 @@ export interface PortalViewMetadata {
  * O convidado não lê `installed_extensions`. A view não alcança `@microteia/data`: o convidado não tem
  * os stores do escritório. Ela recebe `@microteia/portal`, que lê só as projeções.
  *
- * Declaração (`widget`), só na superfície `widget`: o cartão da home em DSL (`PortalWidgetSpec`). Não
- * roda código, e por isso vale para toda extensão LIGADA, sem a confiança do escritório — o servidor só
- * deixa sair o que lê campo exposto (`guestPortalWidgetSpec`).
+ * Declaração (`widget`), nas superfícies `widget` e `page`: o cartão da home e a página do menu em DSL
+ * (`PortalWidgetSpec`). Não roda código, e por isso vale para toda extensão LIGADA, sem a confiança do
+ * escritório — o servidor só deixa sair o que lê campo exposto, e só o conteúdo que tem texto
+ * (`guestPortalWidgetSpec`).
  */
 export const PORTAL_EXTENSION_POINTS: ExtensionPointDefinition[] = [
   {
@@ -145,6 +149,38 @@ export const portalWidgetSpecsOf = (
     pluginId,
     key: metadata.key,
     ...(metadata.title ? { title: metadata.title } : {}),
+    ...(metadata.order !== undefined ? { order: metadata.order } : {}),
+    spec,
+  }];
+});
+
+/** Uma página do menu DECLARADA (`impl.kind: 'widget'`): de quem é, a entrada e a árvore. */
+export interface PortalPageSpecDescriptor {
+  pluginId: string;
+  key: string;
+  title?: string;
+  icon?: string;
+  order?: number;
+  spec: PortalWidgetSpec;
+}
+
+/**
+ * As páginas declaradas de UM pacote instalado: as contribuições `portal.view` de superfície `page` com
+ * implementação `widget`. A régua é a dos cartões: a árvore sem nada aproveitável é descartada.
+ */
+export const portalPageSpecsOf = (
+  pluginId: string,
+  contributions: readonly Contribution[],
+): PortalPageSpecDescriptor[] => contributions.flatMap((contribution) => {
+  if (contribution?.point !== PORTAL_VIEW_POINT || contribution.impl?.kind !== 'widget') return [];
+  const metadata = asPortalViewMetadata(contribution.metadata);
+  const spec = readPortalWidgetSpec(contribution.impl.spec);
+  if (metadata?.surface !== 'page' || !metadata.key || !spec) return [];
+  return [{
+    pluginId,
+    key: metadata.key,
+    ...(metadata.title ? { title: metadata.title } : {}),
+    ...(metadata.icon ? { icon: metadata.icon } : {}),
     ...(metadata.order !== undefined ? { order: metadata.order } : {}),
     spec,
   }];

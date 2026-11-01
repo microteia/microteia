@@ -52,6 +52,7 @@ const SHARED_FILES = [
   'domain/schema/ui/portalWidget.ts',
   'domain/schema/portal.ts',
   'domain/schema/portalCollections.ts',
+  'domain/schema/portalText.ts',
   'domain/schema/portalFieldInput.ts',
   'domain/schema/portalExtensionPoints.ts',
   'domain/schema/portalReprojection.ts',

@@ -140,11 +140,10 @@ export const getPortalContext = onCall({ region: REGION, cors: true }, async (re
     // produto em português pela preferência pessoal de quem administra não tem padrão gravado, e sem
     // isto o convidado caía no navegador dele.
     const configured = configuredLocale(own, office) ?? guest?.locale ?? null;
-    const catalog = agentCatalog(
-      await di.getInstalledExtensionCache().messageBundles(tenantId),
-      configured ?? (browserLocale || DEFAULT_LOCALE),
-    );
+    const guestLocale = configured ?? (browserLocale || DEFAULT_LOCALE);
     const extensions = di.getInstalledExtensionCache();
+    const bundles = await extensions.messageBundles(tenantId);
+    const catalog = agentCatalog(bundles, guestLocale);
     return await di.getPortalContextUseCase().execute({
       tenantId,
       userId,
@@ -153,6 +152,7 @@ export const getPortalContext = onCall({ region: REGION, cors: true }, async (re
       timeZone: resolveTimeZone({ user: own, tenant: office }),
       resolve: (value) => agentText(catalog, value).text,
       extensionViews: await extensions.portalViews(tenantId),
+      content: { bundles, locale: guestLocale },
       themes: await extensions.themes(tenantId),
       documentTypes: await documentTypeOptions(tenantId, catalog),
       fieldInputs: await extensions.fieldInputCatalogs(tenantId),

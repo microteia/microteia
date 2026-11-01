@@ -18,6 +18,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.188.0] — 2026-10-31
+
+- feat(portal): a portal MENU page can be declared with no code (EV-42). `portal.view` accepts `impl.kind: 'widget'` on the `page` surface too (`PORTAL_DECLARED_SURFACES`), built by the SDK's `portalPageSpec({ key, title, icon, order }, spec)`; the tree is the home card's (`PortalPageSpec = PortalWidgetSpec`). `portalPageSpecsOf` collects them and `InstalledExtensionCache.portalViews()` returns `pages` from every ENABLED extension, outside the code-trust rule. Same menu entry as a code page (`portalPageEntryId`), so Settings > Portal orders and hides it unchanged; a code page with the same entry wins.
+- feat(portal): new `markdown` node (`{ type: 'markdown', content }`) for pages and home cards, never inside a `records` card. `content` must be a message reference (`portal-widget.issue.markdown-content`) and may be of ANY namespace: the server resolves it from the bundles installed in the tenant, so a text-only package (a city's law) can supply it. `guestPortalWidgetSpec` gained a `PortalContentOf` resolver and replaces the reference with the text; a missing text drops the node, and a tree that had substance (data or content) and lost all of it is dropped — the page leaves the menu instead of showing the raw reference.
+- feat(portal): per-tenant text edits. `tenants/{t}/portalTexts/{namespace}:{key}` (`{ ref, texts: { <locale>: text } }`, reserved collection) is merged IN FRONT of the bundles by `portalContentOf` (shared `schema/portalText.ts`): the edit wins in the same locale, the more specific locale still wins across locales, and the usual fallback applies. It only feeds `markdown` content — titles and labels are untouched. Read only when some declared spec cites content (`IPortalRepository.listPortalTexts`). `getPortalContext` receives `content: { bundles, locale }`.
+- feat(access): kernel permission `portal.content` (separate from `portal.manage`), with the new Settings tab "Portal texts" (edit per locale, live preview, "bring back the package text"). Rules: read/write require `portal.content`, allowed keys only, `texts` a map of at most 20 locales, and `ref` must match the document id. Audited by `auditFlatEntityChange` as `PortalText`.
+- feat(ui): `MarkdownContent` gained `untrusted`: no raw HTML (`skipHtml`, no `rehype-raw`), no images, every link external (`ExternalMarkdownLink`). The portal always renders `markdown` this way.
+- feat(marketplace/gate): `check` accepts declared `page`, runs the tree rules, and requires `kernel: "^2.92.0"` (`PORTAL_PAGE_SPEC_SINCE_KERNEL`) for a page or for a home card with `markdown` — an older kernel silently drops them.
+- KERNEL_VERSION 2.92.0. SDK exports `portalPageSpec`, `PortalPageSpec`, `PortalPageSpecMetadata`, `PortalMarkdownNode`, `PORTAL_PAGE_SPEC_SINCE_KERNEL`. `portal-example` 1.11.0 declares a Help page; `com.microteia.locale-pt-br` 1.153.0. AUTHORING §4 documents it. Deploy `firestore.rules`.
+
 #### [9.187.1] — 2026-10-31
 
 - fix(ui/filter): the remove button of a filter chip had a hardcoded Portuguese tooltip (`Remover filtro …`), shown in every language. It now reads `core.ui/filter.remove` ("Remove filter {field}"); `com.microteia.locale-pt-br` 1.152.0 carries the translation.

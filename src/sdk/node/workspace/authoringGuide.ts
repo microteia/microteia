@@ -30,6 +30,7 @@ import { CARD_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/cardTempla
 import { NAV_FILTER_PRESENCE_SINCE_KERNEL } from '../../../domain/schema/ui/uiExtensionPoints';
 import { PORTAL_DETAIL_ONLY_NODE_TYPES, PORTAL_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/portalTemplate';
 import {
+  PORTAL_PAGE_SPEC_SINCE_KERNEL,
   PORTAL_WIDGET_RECORDS_DEFAULT_LIMIT,
   PORTAL_WIDGET_RECORDS_MAX_LIMIT,
   PORTAL_WIDGET_RECORD_NODE_TYPES,
@@ -761,6 +762,44 @@ The tree is the one \`portal.template\` uses (\`row\`, \`stack\`, \`section\`, \
   of yours, and no code trust, involved.
 - Requires \`kernel: "^${PORTAL_WIDGET_SPEC_SINCE_KERNEL}"\`. An older kernel discards the contribution and the
   card would simply be missing, so \`check\` refuses the package without it.
+
+#### A page of text in the menu with no code — \`portalPageSpec\` and \`markdown\`
+
+Every portal has pages that are only text, and the text belongs to the organization more than to your
+package: terms of use, the privacy notice, frequent questions, contacts, the law that applies. Declare the
+page — an entry in the portal menu drawn by the same tree as the home card — and put the text in a
+\`markdown\` node:
+
+\`\`\`ts
+portalPageSpec({ key: 'help', title: label('portal.help.title'), icon: 'question', order: 30 }, {
+  body: [{ type: 'markdown', content: label('portal.help') }],
+})
+\`\`\`
+
+- **\`content\` is a message REFERENCE, never the text.** The text lives in your \`i18n.messages\` bundles, one
+  per language. \`check\` refuses literal text: it would not translate, and the organization would have
+  nothing to edit.
+- **The reference may be of ANOTHER namespace.** A page declared by your portal package can show a text that
+  a separate, text-only package brings — \`@com.acme.legislation/portal.law\`, with each city or client
+  installing its own \`com.acme.legislation.<city>\` that contributes only that bundle (it installs like a
+  translation package). Nothing checks that the key exists when you build: it exists where it is installed.
+- **No text, no page.** The server resolves the text in the guest's language, falling back like every
+  message (\`pt-BR\` → \`pt\` → \`en\`). When no installed package — and no edit of the organization —
+  has it, the \`markdown\` node is dropped, and a page (or home card) left with nothing to show stays out
+  of the portal instead of showing the raw reference.
+- **The organization can replace it.** Whoever holds \`portal.content\` edits the text in Settings > Portal
+  texts, per language, with a preview; the edit wins over your bundle in that language, only in that
+  organization, and "bring back the package text" undoes it. Every change goes to the audit log. Only the
+  content of \`markdown\` nodes is editable there — titles and short \`text\` stay yours.
+- **Safe Markdown only.** Headings, emphasis, lists, tables, quotes and links (opened in a new tab). Raw HTML
+  and images are not drawn: the text reaches people outside the organization, and comes from a package the
+  organization did not have to trust.
+- \`markdown\` also works in a home card (\`portalWidgetSpec\`), but never inside the \`card\` of a \`records\`
+  node — that whole card is a button. Put \`records\` and \`count\` next to the text when the page needs data.
+- The page is one more menu entry: the organization shows, hides and orders it in Settings > Portal, like
+  a page of code. A code page with the same \`key\` wins.
+- Requires \`kernel: "^${PORTAL_PAGE_SPEC_SINCE_KERNEL}"\` — for the page, and for a home card with
+  \`markdown\`. An older kernel discards both, so \`check\` refuses the package without it.
 
 The standard create and edit form fills a field the way the organization's form does. A \`masked\`
 field types into the template of its \`mask\` preset, and a field with \`logic.onChangeLookup\` runs

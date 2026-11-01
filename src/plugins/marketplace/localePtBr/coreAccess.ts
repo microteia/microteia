@@ -213,6 +213,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.portal.activity': 'Receber a atividade do portal',
   'permission.portal.activity.description':
     'Ser avisado quando um convidado cria, altera ou anexa algo no portal — nas telas em que também pode alterar registros.',
+  'permission.portal.content': 'Editar os textos do portal',
+  'permission.portal.content.description':
+    'Trocar, para este escritório, o texto de uma página do portal que veio num pacote instalado — uma lei, a ajuda, os termos de uso — em cada idioma, e voltar ao texto do pacote. Toda mudança vai para a Auditoria.',
   'permission.portal.manage.description':
     'Convidar pessoas de fora do escritório para o portal e revogar o acesso delas. Cada convidado vê só os registros vinculados a ele, e só os campos que cada tela escolheu expor. Vincular um convidado a um registro continua exigindo poder ver esse registro.',
   'permission.record-import.run': 'Importar registros de um arquivo',

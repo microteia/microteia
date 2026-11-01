@@ -17,6 +17,7 @@ export const ENTITY_KEYS: Record<string, string> = {
   CustomRecordDocument: 'audit.entity.custom-record-document',
   RecordNote: 'audit.entity.record-note',
   ScreenDefinition: 'audit.entity.screen-definition',
+  PortalText: 'audit.entity.portal-text',
   Tenant: 'audit.entity.tenant',
   Workflow: 'audit.entity.workflow',
   [AUDIT_RETENTION_COLLECTION]: 'audit.entity.audit-retention',

@@ -21,6 +21,7 @@ import type { PortalWidgetNodeType, PortalWidgetScope } from './portalWidget';
 import type { CardTemplateFieldInfo, CardTemplateIssue } from './cardTemplateIssues';
 import { isScreenIconKey } from './screenIconCatalog';
 import { extractFieldExpressionPaths, fieldExpressionSyntaxError } from '../fieldExpression';
+import { isMessageRef } from '../i18n/messageRef';
 
 /**
  * As frases de cada problema — literais, para que `verify-messages` confira que existem. As de forma e de
@@ -52,6 +53,8 @@ const ISSUE_KEYS = {
   'collection-missing': '@core.records/portal-widget.issue.collection-missing',
   'collection-unexposed': '@core.records/portal-widget.issue.collection-unexposed',
   'limit': '@core.records/portal-widget.issue.limit',
+  'markdown-content': '@core.records/portal-widget.issue.markdown-content',
+  'markdown-in-card': '@core.records/portal-widget.issue.markdown-in-card',
 } as const;
 
 type IssueCode = keyof typeof ISSUE_KEYS;
@@ -162,7 +165,8 @@ const walkNode = (raw: unknown, where: string, depth: number, place: Place, walk
     return;
   }
   if (!isPortalWidgetNodeAllowed(type, place.scope)) {
-    walk.issues.push(issue(type === 'records' ? 'nested-records' : 'record-only', `${where}.type`, { type }));
+    const code: IssueCode = type === 'records' ? 'nested-records' : type === 'markdown' ? 'markdown-in-card' : 'record-only';
+    walk.issues.push(issue(code, `${where}.type`, { type }));
     return;
   }
   walk.count += 1;
@@ -229,6 +233,10 @@ const walkNode = (raw: unknown, where: string, depth: number, place: Place, walk
       }
       break;
     }
+    case 'markdown':
+      // Só referência: é o que traduz, o que outro pacote pode trazer e o que o escritório pode editar.
+      if (!isMessageRef(raw.content)) walk.issues.push(issue('markdown-content', `${where}.content`));
+      break;
     default:
       break;
   }
@@ -249,7 +257,8 @@ const walkNode = (raw: unknown, where: string, depth: number, place: Place, walk
  * Além da forma, cobra o que é do portal: a coleção de `count` e de `records` precisa ser de uma tela DO
  * portal, e todo campo que o widget nomeia ou que uma condição lê — `when`, `orderBy`, e no cartão de
  * `records` os nós de registro e o `hiddenWhen` — precisa estar EXPOSTO. E cobra o escopo: o nó de
- * registro só dentro do cartão de `records`, `records` nunca dentro de outro.
+ * registro só dentro do cartão de `records`; `records` e `markdown` nunca dentro dele. O `content` do
+ * `markdown` é uma referência de mensagem — de qualquer namespace: quem traz o texto pode ser outro pacote.
  */
 export const portalWidgetSpecIssues = (
   raw: unknown,

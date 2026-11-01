@@ -78,11 +78,11 @@ describe('portalWidgetSpec — o cartão da home declarado, pela porta única de
     }]);
   });
 
-  it('a superfície errada é recusa: o widget declarado é só cartão da home', () => {
+  it('a superfície errada é recusa: a declaração é cartão da home ou página do menu, e a home inteira é código', () => {
     const pkg = notices(DUE);
     const [contribution] = pkg.manifest.contributes ?? [];
-    const onPage = { ...pkg, manifest: { ...pkg.manifest, contributes: [{ ...contribution, metadata: { surface: 'page', key: 'due' } }] } };
-    expect(portalIssues(onPage)).toEqual([{
+    const onHome = { ...pkg, manifest: { ...pkg.manifest, contributes: [{ ...contribution, metadata: { surface: 'home' } }] } };
+    expect(portalIssues(onHome)).toEqual([{
       source: 'package',
       message: '@core.marketplace/issue.portal.widget.surface',
       messageParams: { id: 'widget-due' },

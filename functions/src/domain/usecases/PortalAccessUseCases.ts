@@ -18,6 +18,7 @@ import {
   portalPageEntryId,
   portalScreenEntryId,
   portalWidgetEntryId,
+  type PortalPageSpecDescriptor,
   type PortalViewDescriptor,
   type PortalWidgetSpecDescriptor,
 } from '../schema/portalExtensionPoints';
@@ -62,7 +63,9 @@ import { portalFieldInput, type PortalFieldInput } from '../schema/portalFieldIn
 import { buildFieldRulePresetCatalog, type FieldRulePreset } from '../schema/fieldRulePresets';
 import { buildLookupProviderCatalog, type LookupProviderSpec } from '../schema/lookupProviderSpec';
 import { guestPortalTemplate, type PortalTemplate } from '../schema/ui/portalTemplate';
-import { guestPortalWidgetSpec, type PortalWidgetSpec } from '../schema/ui/portalWidget';
+import { guestPortalWidgetSpec, portalWidgetMarkdownRefs, type PortalWidgetSpec } from '../schema/ui/portalWidget';
+import { portalContentOf } from '../schema/portalText';
+import type { MessageBundle } from '../schema/i18n/messages';
 import { portalGuestActor, portalSubjectRoleOf, readPortalRoleInput, type PortalSubjectRole } from '../schema/portalRole';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -672,9 +675,10 @@ export interface PortalMenuEntry {
   icon: string;
   /** `screen`: a coleção da tela. */
   collection?: string;
-  /** `page`: a view que desenha a página. */
+  /** `page`: a view que desenha a página (`viewKey`), ou a árvore declarada (`spec`) já filtrada. */
   pluginId?: string;
   viewKey?: string;
+  spec?: PortalWidgetSpec;
 }
 
 /**
@@ -735,7 +739,14 @@ export type GetPortalContextUseCase = {
       bundles: PortalContext['bundles'];
       /** Os cartões da home declarados — de toda extensão ligada, sem a régua de confiança de código. */
       widgets?: PortalWidgetSpecDescriptor[];
+      /** As páginas do menu declaradas — pela mesma régua dos cartões. */
+      pages?: PortalPageSpecDescriptor[];
     };
+    /**
+     * Os bundles das extensões instaladas e o idioma do convidado: de onde sai o texto dos nós `markdown`,
+     * com o que o escritório editou (`portalTexts`) na frente. Sem isto, nenhum `markdown` tem texto.
+     */
+    content?: { bundles: MessageBundle[]; locale: string };
     themes?: QualifiedContribution[];
     /** Os tipos de documento do escritório — os fixos mais os cadastrados, já com rótulo. */
     documentTypes?: Array<{ key: string; label: string }>;
@@ -806,7 +817,7 @@ const withoutOrder = <T extends { order?: number }>(value: T): Omit<T, 'order'> 
 };
 
 export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalContextUseCase => ({
-  execute: async ({ tenantId, userId, tenant, locale, timeZone, resolve, extensionViews, themes = [], documentTypes = [], fieldInputs }) => {
+  execute: async ({ tenantId, userId, tenant, locale, timeZone, resolve, extensionViews, content, themes = [], documentTypes = [], fieldInputs }) => {
     const guest = await repo.getPortalUser(tenantId, userId);
     if (!guest) throw permissionDenied('@core.tenant/portal.not-invited');
     if (guest.suspended) throw permissionDenied('@core.tenant/portal.signin.identity-required');
@@ -842,6 +853,43 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
       const link = portalLinkOf(screen);
       return !link || !screenFor(link.targetEntity);
     });
+    const guestFields = new Map(screens.map((screen) => [screen.collection, guestFieldKeys(screen)]));
+    const exposedOf = (collection: string) => guestFields.get(collection) ?? null;
+    const declaredPageSpecs = extensionViews?.pages ?? [];
+    const declaredWidgetSpecs = extensionViews?.widgets ?? [];
+    // O texto editado só é lido quando há conteúdo a resolver: o portal sem `markdown` não paga a leitura.
+    const citesContent = [...declaredPageSpecs, ...declaredWidgetSpecs]
+      .some((declared) => portalWidgetMarkdownRefs(declared.spec.body).length > 0);
+    const contentOf = citesContent && content
+      ? portalContentOf(content.bundles, await repo.listPortalTexts(tenantId), content.locale)
+      : undefined;
+    const codePages = views.filter((view) => view.surface === 'page' && view.key).map((view) => ({
+      id: portalPageEntryId(view.pluginId, view.key as string),
+      kind: 'page' as const,
+      title: view.title ? resolve(view.title) : view.key as string,
+      icon: view.icon ?? 'apps',
+      pluginId: view.pluginId,
+      viewKey: view.viewKey,
+      order: view.order,
+    }));
+    const codePageIds = new Set(codePages.map((page) => page.id));
+    // A página declarada que perdeu tudo o que mostrava — a lei que nenhum pacote instalado traz — sai do
+    // menu. A de mesma entrada que uma página de código cede o lugar a ela.
+    const declaredPages = declaredPageSpecs.flatMap((page) => {
+      const id = portalPageEntryId(page.pluginId, page.key);
+      const spec = codePageIds.has(id) ? null : guestPortalWidgetSpec(page.spec, exposedOf, resolve, contentOf);
+      return spec
+        ? [{
+          id,
+          kind: 'page' as const,
+          title: page.title ? resolve(page.title) : page.key,
+          icon: page.icon ?? 'apps',
+          pluginId: page.pluginId,
+          spec,
+          order: page.order,
+        }]
+        : [];
+    });
     const menu = applyPortalPreference<PortalMenuEntry & { order?: number }>([
       // As telas vêm antes por padrão — são o portal; as páginas de extensão o completam.
       ...roots.map((screen, index) => ({
@@ -852,19 +900,11 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         icon: screen.icon,
         collection: screen.collection,
       })),
-      ...views.filter((view) => view.surface === 'page' && view.key).map((view) => ({
-        id: portalPageEntryId(view.pluginId, view.key as string),
-        kind: 'page' as const,
-        title: view.title ? resolve(view.title) : view.key as string,
-        icon: view.icon ?? 'apps',
-        pluginId: view.pluginId,
-        viewKey: view.viewKey,
-        order: view.order,
-      })),
+      ...codePages,
+      ...declaredPages,
     ], settings.menu).map(withoutOrder);
-    const guestFields = new Map(screens.map((screen) => [screen.collection, guestFieldKeys(screen)]));
-    const declaredWidgets = (extensionViews?.widgets ?? []).flatMap((widget) => {
-      const spec = guestPortalWidgetSpec(widget.spec, (collection) => guestFields.get(collection) ?? null, resolve);
+    const declaredWidgets = declaredWidgetSpecs.flatMap((widget) => {
+      const spec = guestPortalWidgetSpec(widget.spec, exposedOf, resolve, contentOf);
       return spec
         ? [{
           id: portalWidgetEntryId(widget.pluginId, widget.key),

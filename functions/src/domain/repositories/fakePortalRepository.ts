@@ -12,6 +12,7 @@ import type {
   SharedRecordDocument,
 } from './IPortalRepository';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
+import type { PortalTextOverride } from '../schema/portalText';
 import { portalSubjectRoleOf, withPortalSubjectRole, withoutPortalSubjectRoles } from '../schema/portalRole';
 
 /** Uma página por id de documento, como o Firestore a entrega: `startAfter(after)`, `limit(pageSize)`. */
@@ -34,9 +35,15 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
   const lookups = new Map<string, PortalFieldOption[]>();
   const actions = new Map<string, PortalActionDefinition>();
   const homeSettings: PortalHomeSettings = { welcome: '', menu: { order: [], hidden: [] }, widgets: { order: [], hidden: [] }, layout: '' };
+  const portalTexts = new Map<string, PortalTextOverride[]>();
+  const portalTextReads: string[] = [];
 
   const repo: IPortalRepository = {
     getHomeSettings: async () => homeSettings,
+    listPortalTexts: async (tenantId) => {
+      portalTextReads.push(tenantId);
+      return portalTexts.get(tenantId) ?? [];
+    },
     getScreens: async () => screens,
     getLookupOptions: async (_t, collection) => lookups.get(collection) ?? [],
     getRecord: async (_t, collection, id) => records.get(`${collection}/${id}`),
@@ -177,6 +184,7 @@ export const makeFakePortalRepository = (screens: PortalScreen[]) => {
 
   return {
     repo, records, documents, projections, projectedDocuments, users, invites, homeSettings, staged, reprojections, lookups, actions,
+    portalTexts, portalTextReads,
   };
 };
 

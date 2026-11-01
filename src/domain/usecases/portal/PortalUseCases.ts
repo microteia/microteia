@@ -1,5 +1,9 @@
 import type { IPortalRepository } from '../../repositories/IPortalRepository';
 import type { PortalHomeSettings } from '../../schema/portalExtensionPoints';
+import { PORTAL_TEXT_MAX_LENGTH, portalTextDocId, type PortalTextOverride } from '../../schema/portalText';
+import { isValidLocale, normalizeLocale } from '../../schema/i18n/localeNegotiation';
+import { LocalizedError } from '../../errors/LocalizedError';
+import type { DeletionActor } from '../../entities';
 import type { PortalRequiredClaim } from '../../schema/portalIdentity';
 import { PORTAL_CREATE_TARGETS_MAX } from '../../schema/portal';
 import type {
@@ -152,6 +156,39 @@ export type SavePortalHomeSettingsUseCase = { execute: (tenantId: string, settin
 
 export const makeSavePortalHomeSettingsUseCase = (repo: IPortalRepository): SavePortalHomeSettingsUseCase => ({
   execute: (tenantId, settings) => repo.saveHomeSettings(tenantId, settings),
+});
+
+export type ListPortalTextsUseCase = { execute: (tenantId: string) => Promise<PortalTextOverride[]> };
+
+export const makeListPortalTextsUseCase = (repo: IPortalRepository): ListPortalTextsUseCase => ({
+  execute: (tenantId) => repo.listPortalTexts(tenantId),
+});
+
+export type SavePortalTextUseCase = {
+  execute: (tenantId: string, input: { ref: string; locale: string; text: string; actor: DeletionActor }) => Promise<void>;
+};
+
+/**
+ * Grava o texto do escritório para uma referência num idioma. O texto vazio não é edição — é voltar ao do
+ * pacote, que tem gesto próprio —, e o que passa do teto não cabe no log de Auditoria.
+ */
+export const makeSavePortalTextUseCase = (repo: IPortalRepository): SavePortalTextUseCase => ({
+  execute: async (tenantId, input) => {
+    if (!portalTextDocId(input.ref) || !isValidLocale(input.locale)) throw new LocalizedError('@core.tenant/portal.texts.invalid');
+    if (input.text.trim() === '') throw new LocalizedError('@core.tenant/portal.texts.empty');
+    if (input.text.length > PORTAL_TEXT_MAX_LENGTH) {
+      throw new LocalizedError('@core.tenant/portal.texts.too-long', { max: String(PORTAL_TEXT_MAX_LENGTH) });
+    }
+    await repo.savePortalText(tenantId, { ...input, locale: normalizeLocale(input.locale) });
+  },
+});
+
+export type RestorePortalTextUseCase = {
+  execute: (tenantId: string, input: { ref: string; locale: string; actor: DeletionActor }) => Promise<void>;
+};
+
+export const makeRestorePortalTextUseCase = (repo: IPortalRepository): RestorePortalTextUseCase => ({
+  execute: (tenantId, input) => repo.restorePortalText(tenantId, { ...input, locale: normalizeLocale(input.locale) }),
 });
 
 export type UploadPortalDocumentUseCase = {

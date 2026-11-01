@@ -15,6 +15,7 @@ export const CORE_ADMIN: Record<string, string> = {
   'audit.entity.record-note': 'Nota de Registro',
   'audit.entity.role': 'Perfil de acesso',
   'audit.entity.screen-definition': 'Tela Personalizada',
+  'audit.entity.portal-text': 'Texto do portal',
   'audit.entity.system': 'Sistema',
   'audit.entity.tenant': 'Escritório',
   'audit.entity.tenant-member': 'Membro',

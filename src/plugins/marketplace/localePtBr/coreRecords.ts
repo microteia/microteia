@@ -657,4 +657,6 @@ export const CORE_RECORDS: Record<string, string> = {
   'portal-widget.issue.collection-missing': '{where}: falta a coleção.',
   'portal-widget.issue.collection-unexposed': '{where}: "{collection}" não é uma tela do portal, então o convidado não tem registro nenhum dela.',
   'portal-widget.issue.limit': '{where}: o limite deve ser um número inteiro de 1 a {max}.',
+  'portal-widget.issue.markdown-content': '{where}: o conteúdo de um bloco markdown deve ser uma referência de mensagem (`@namespace/chave`) — é o que traduz, o que outro pacote pode trazer e o que o escritório pode editar.',
+  'portal-widget.issue.markdown-in-card': '{where}: um bloco markdown não pode ficar dentro do cartão de uma lista de registros — o cartão inteiro é um botão. Coloque-o no corpo do cartão ou da página.',
 };

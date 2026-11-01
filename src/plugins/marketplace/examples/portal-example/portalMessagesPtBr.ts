@@ -54,6 +54,8 @@ const PORTAL_EXAMPLE_PT_BR: Record<string, string> = {
   'portal.widget.attention.caption': 'pedidos urgentes',
   'portal.widget.attention.empty': 'Nada urgente agora.',
   'portal.widget.attention.clients': 'Pedidos por cliente',
+  'portal.page.help': 'Ajuda',
+  'portal.help': '## Como fazer um pedido\n\n1. Abra **Clientes** e escolha a sua empresa.\n2. Em **Pedidos**, toque em **+** e preencha o item e a quantidade.\n3. O escritório responde no próprio pedido — você é avisado no sino.\n\n## Prazos de resposta\n\n| Urgência | Resposta em até |\n|---|---|\n| Urgente | 1 dia útil |\n| Em breve | 3 dias úteis |\n| Rotina | 5 dias úteis |\n\nAinda precisa de ajuda? Escreva ao escritório pelo e-mail do seu convite.',
 
   'workflow.visit-scheduled': 'Avisar o cliente de uma visita nova',
   'workflow.visit-scheduled.description': 'Quando uma visita é agendada, avisa os convidados do portal do cliente por e-mail e no sino do portal.',

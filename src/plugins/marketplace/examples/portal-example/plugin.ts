@@ -5,7 +5,7 @@ import type {
   TemplateField,
   WorkflowModuleTemplate,
 } from '../../../../domain/entities/MarketplacePlugin';
-import { portalView, portalWidgetSpec } from '../../../contributionBuilders';
+import { portalPageSpec, portalView, portalWidgetSpec } from '../../../contributionBuilders';
 import { mergeViewSources } from '../../../../sdk/mergeSources';
 import CLIENT_PORTAL_VIEW from './views/ClientPortal.view.tsx?raw';
 import CLIENT_PORTAL_VIEWMODEL from './views/ClientPortal.viewmodel.tsx?raw';
@@ -29,6 +29,7 @@ import { portalExamplePtBrContribution } from './portalMessagesPtBr';
  * | a page of your own in the portal | `portalView({ collection, surface: 'detail' }, viewKey)` |
  * | a card on the portal home | `portalView({ surface: 'widget', key, title }, viewKey)` |
  * | a card on the portal home with NO code | `portalWidgetSpec({ key, title }, spec)` — `records` and `count` |
+ * | a page of text in the portal menu with NO code | `portalPageSpec({ key, title, icon }, spec)` — a `markdown` node |
  * | what those can read | `@microteia/portal` — never `@microteia/data` |
  * | a screen over a collection named apart from its key | `dataCollection` — links point at the COLLECTION |
  * | telling the guests something happened | a `notify` step with `portalGuests` — never members in the same step |
@@ -390,8 +391,8 @@ const CLIENT_PORTAL_SOURCE = mergeViewSources({
 export const portalExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.portal-example',
-    version: '1.10.0',
-    kernel: '^2.90.0',
+    version: '1.11.0',
+    kernel: '^2.92.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -463,6 +464,24 @@ export const portalExamplePlugin: MarketplacePlugin = {
             }],
           },
         ],
+      }),
+
+      /**
+       * A page in the portal MENU with NO code — the help a client reads before calling the organization.
+       * `markdown` takes a message REFERENCE, never the text itself: the text travels in this package's
+       * bundles (one per language), so it translates like any other message.
+       *
+       * The reference may be of ANOTHER namespace: a page declared here can show a text that a separate,
+       * text-only package brings — the terms of one organization, the law of one city. When no installed
+       * package has the key in the guest's language (or in English), the page stays out of the menu
+       * instead of showing the raw reference.
+       *
+       * The organization can replace the text in Settings > Portal texts (`portal.content`), per language;
+       * its text wins over this one until it brings the package text back. The portal draws titles, lists,
+       * tables and links — no HTML and no images.
+       */
+      portalPageSpec({ key: 'help', title: message('portal.page.help'), icon: 'question', order: 30 }, {
+        body: [{ type: 'markdown', content: message('portal.help') }],
       }),
     ],
   },

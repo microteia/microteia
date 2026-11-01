@@ -665,4 +665,6 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'portal-widget.issue.collection-missing': '{where}: the collection is missing.',
   'portal-widget.issue.collection-unexposed': '{where}: "{collection}" is not a screen in the portal, so the guest has none of its records.',
   'portal-widget.issue.limit': '{where}: the limit must be a whole number from 1 to {max}.',
+  'portal-widget.issue.markdown-content': '{where}: the content of a markdown block must be a message reference (`@namespace/key`) — it is what translates, what another package can bring and what the organization can edit.',
+  'portal-widget.issue.markdown-in-card': '{where}: a markdown block cannot go inside the card of a record list — the whole card is a button. Put it in the body of the card or page.',
 };

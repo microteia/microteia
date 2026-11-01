@@ -124,6 +124,11 @@ export interface PortalViewModel {
   };
   /** A página de extensão aberta pelo menu. */
   pageView: PortalViewComponent | null;
+  /**
+   * A página DECLARADA aberta pelo menu (`portalPageSpec`), já respondida sobre o que o convidado tem: o
+   * texto e os dados vêm prontos do servidor, e aqui só se responde o que lê as projeções.
+   */
+  declaredPage: { title: string; nodes: ResolvedPortalNode[]; loading: boolean } | null;
   /** O item do link não existe mais — saiu do menu, ou a extensão foi desligada. */
   entryMissing: boolean;
   /**
@@ -430,6 +435,12 @@ export const usePortalViewModel = (): PortalViewModel => {
     }),
     [homeConfig, viewByKey, widgetOf],
   );
+  // Um registro aberto de dentro da página fica por cima dela, como na página de código.
+  const declaredPage = useMemo(() => {
+    if (entry?.kind !== 'page' || !entry.spec || top) return null;
+    const { nodes, loading } = widgetOf(entry.spec);
+    return { title: entry.title, nodes, loading };
+  }, [entry, top, widgetOf]);
   const ListComponent = rootCollection ? viewFor(rootCollection, 'list') : null;
   const DetailComponent = topRecord && topScreen ? viewFor(topScreen.collection, 'detail') : null;
 
@@ -470,7 +481,8 @@ export const usePortalViewModel = (): PortalViewModel => {
       Component: homeConfig?.view ? viewByKey(homeConfig.view.pluginId, homeConfig.view.viewKey) : null,
     },
     // Um registro aberto de dentro da página fica por cima dela; o Voltar a devolve.
-    pageView: entry?.kind === 'page' && !top ? viewByKey(entry.pluginId, entry.viewKey) : null,
+    pageView: entry?.kind === 'page' && entry.viewKey && !top ? viewByKey(entry.pluginId, entry.viewKey) : null,
+    declaredPage,
     entryMissing: !!entryId && !!portal.context && !entry && !topScreen,
     openedRecord: top && topScreen && !topRecord
       ? (isCollectionLoading(top.collection) ? 'loading' : 'missing')

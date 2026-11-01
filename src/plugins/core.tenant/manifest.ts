@@ -10,6 +10,7 @@ import {
   PERMISSION_AI_MANAGE,
   PERMISSION_MEMBERS_MANAGE,
   PERMISSION_MFA_MANAGE,
+  PERMISSION_PORTAL_CONTENT,
   PERMISSION_PORTAL_MANAGE,
   PERMISSION_ROLES_MANAGE,
   PERMISSION_TENANT_PREFIX_MANAGE,
@@ -45,6 +46,7 @@ export const coreTenantPlugin: PluginRecord = {
     AITabView: lazyView(() => import('../../presentation/pages/TenantSettings/AITab/AITab.view'), 'AITabView'),
     AgentTabView: lazyView(() => import('../../presentation/pages/TenantSettings/AgentTab/AgentTab.view'), 'AgentTabView'),
     PortalTabView: lazyView(() => import('../../presentation/pages/TenantSettings/PortalTab/PortalTab.view'), 'PortalTabView'),
+    PortalTextsTabView: lazyView(() => import('../../presentation/pages/TenantSettings/PortalTextsTab/PortalTextsTab.view'), 'PortalTextsTabView'),
     SecurityTabView: lazyView(() => import('../../presentation/pages/TenantSettings/SecurityTab/SecurityTab.view'), 'SecurityTabView'),
   },
   manifest: {
@@ -100,6 +102,16 @@ export const coreTenantPlugin: PluginRecord = {
         order: 22,
         requiredPermissions: [PERMISSION_PORTAL_MANAGE],
       }, 'PortalTabView'),
+      // O TEXTO das páginas do portal que veio num pacote — a lei, a ajuda —, trocado pelo escritório. Aba
+      // à parte, e com permissão própria: quem corrige um texto no mesmo dia não é quem decide quem entra.
+      surfaceTab({
+        surface: TENANT_SETTINGS_SURFACE,
+        key: 'portal-texts',
+        title: '@core.tenant/tenant.tab.portal-texts',
+        icon: 'fileText',
+        order: 23,
+        requiredPermissions: [PERMISSION_PORTAL_CONTENT],
+      }, 'PortalTextsTabView'),
       surfaceTab({
         surface: TENANT_SETTINGS_SURFACE,
         key: 'roles',

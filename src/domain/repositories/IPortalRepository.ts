@@ -12,6 +12,8 @@ import type {
 } from '../entities/Portal';
 import type { PortalRequiredClaim, PortalSignInOptions, PortalSignInSettings } from '../schema/portalIdentity';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
+import type { PortalTextOverride } from '../schema/portalText';
+import type { DeletionActor } from '../entities';
 import type { PortalReprojectionState } from '../schema/portalReprojection';
 
 export interface IPortalRepository {
@@ -89,6 +91,16 @@ export interface IPortalRepository {
   /** Do lado do ESCRITÓRIO: a home do portal — boas-vindas, ordem do menu e dos widgets. */
   getHomeSettings(tenantId: string): Promise<PortalHomeSettings>;
   saveHomeSettings(tenantId: string, settings: PortalHomeSettings): Promise<void>;
+
+  /** Do lado do ESCRITÓRIO: os textos do portal que ele editou (`portalTexts`), por referência. */
+  listPortalTexts(tenantId: string): Promise<PortalTextOverride[]>;
+  /** Grava o texto de UMA referência num idioma — os outros idiomas editados ficam como estão. */
+  savePortalText(tenantId: string, input: { ref: string; locale: string; text: string; actor: DeletionActor }): Promise<void>;
+  /**
+   * Volta ao texto do pacote naquele idioma. Era o último idioma editado: o documento sai, com o carimbo
+   * de quem o tirou antes (`deletedBy*`), que a Auditoria lê.
+   */
+  restorePortalText(tenantId: string, input: { ref: string; locale: string; actor: DeletionActor }): Promise<void>;
 
   /** Do lado do ESCRITÓRIO: quem é convidado, e de quê. */
   subscribeGuests(

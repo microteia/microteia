@@ -3,6 +3,7 @@ import {
   PORTAL_WIDGET_RECORDS_MAX_LIMIT,
   guestPortalWidgetSpec,
   portalWidgetCollections,
+  portalWidgetMarkdownRefs,
   readPortalWidgetSpec,
 } from './portalWidget';
 import { portalWidgetSpecIssues } from './portalWidgetIssues';
@@ -235,5 +236,59 @@ describe('widget declarado do portal — o portão de autoria', () => {
   it('sem corpo não há widget', () => {
     expect(codes([])).toEqual([['portal-widget.issue.not-object', 'spec']]);
     expect(codes({ body: [] })).toEqual([['portal-widget.issue.body', 'spec.body']]);
+  });
+});
+
+describe('o nó markdown — páginas e cartões', () => {
+  const LAW = '@br.gov.dte.legislacao/portal.legislacao';
+  const contentOf = (ref: string) => (ref === LAW ? '# Lei\n\nArt. 1º  \nlinha' : null);
+
+  it('vale no corpo, e nunca no cartão de um registro — o cartão inteiro é um botão', () => {
+    expect(readPortalWidgetSpec({
+      body: [
+        { type: 'markdown', content: LAW },
+        { type: 'markdown', content: '   ' },
+        { type: 'records', collection: 'notices', card: [{ type: 'title' }, { type: 'markdown', content: LAW }] },
+      ],
+    })).toEqual({
+      body: [
+        { type: 'markdown', content: LAW },
+        { type: 'records', collection: 'notices', card: [{ type: 'title' }] },
+      ],
+    });
+    expect(portalWidgetMarkdownRefs([{ type: 'stack', children: [{ type: 'markdown', content: LAW }] }])).toEqual([LAW]);
+  });
+
+  it('sai para o convidado com o TEXTO no lugar da referência, sem aparar o espaço que é quebra de linha', () => {
+    expect(guestPortalWidgetSpec({ body: [{ type: 'markdown', content: LAW }] }, exposedOf, upper, contentOf))
+      .toEqual({ body: [{ type: 'markdown', content: '# Lei\n\nArt. 1º  \nlinha' }] });
+  });
+
+  it('sem texto, ou com conteúdo que não é referência, o nó some — e a página que só tinha ele também', () => {
+    expect(guestPortalWidgetSpec({
+      body: [{ type: 'text', text: 'Legislação' }, { type: 'markdown', content: '@outro.pacote/ausente' }],
+    }, exposedOf, upper, contentOf)).toBeNull();
+    expect(guestPortalWidgetSpec({ body: [{ type: 'markdown', content: '**literal**' }] }, exposedOf, upper, contentOf)).toBeNull();
+    expect(guestPortalWidgetSpec({ body: [{ type: 'markdown', content: LAW }] }, exposedOf, upper)).toBeNull();
+  });
+
+  it('perder o texto não derruba a página que ainda tem dados', () => {
+    expect(guestPortalWidgetSpec({
+      body: [{ type: 'markdown', content: '@outro.pacote/ausente' }, { type: 'count', collection: 'notices' }],
+    }, exposedOf, upper, contentOf)).toEqual({ body: [{ type: 'count', collection: 'notices' }] });
+  });
+
+  it('no portão: o conteúdo é referência, e o markdown não entra no cartão de `records`', () => {
+    const issues = portalWidgetSpecIssues({
+      body: [
+        { type: 'markdown', content: LAW },
+        { type: 'markdown', content: '# texto solto' },
+        { type: 'records', collection: 'notices', card: [{ type: 'markdown', content: LAW }] },
+      ],
+    }, () => undefined).map((issue) => [issue.message.split('/')[1], issue.messageParams?.where]);
+    expect(issues).toEqual([
+      ['portal-widget.issue.markdown-content', 'spec.body[1].content'],
+      ['portal-widget.issue.markdown-in-card', 'spec.body[2].card[0].type'],
+    ]);
   });
 });

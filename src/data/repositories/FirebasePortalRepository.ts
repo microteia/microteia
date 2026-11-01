@@ -1,10 +1,15 @@
 import {
   collection,
   collectionGroup,
+  deleteDoc,
+  deleteField,
   doc,
+  FieldPath,
   getDoc,
   getDocs,
+  serverTimestamp,
   setDoc,
+  updateDoc,
   limit,
   onSnapshot,
   orderBy,
@@ -48,6 +53,14 @@ import { readPortalReprojectionState, type PortalReprojectionState } from '../..
 import { readPortalSubjectRoles } from '../../domain/schema/portalRole';
 import { dateOf, mapPortalRecord, stringsOf, textOf } from './portalRecordMapping';
 import { PORTAL_SETTINGS_DOC, asPortalHomeSettings, type PortalHomeSettings } from '../../domain/schema/portalExtensionPoints';
+import {
+  PORTAL_TEXTS_COLLECTION,
+  asPortalTextOverride,
+  portalTextDocId,
+  type PortalTextOverride,
+} from '../../domain/schema/portalText';
+import { stampDeletionActor } from '../utils/stampDeletionActor';
+import type { DeletionActor } from '../../domain/entities';
 
 const PAGE_LIMIT = PORTAL_RECORDS_WINDOW;
 
@@ -236,6 +249,57 @@ export class FirebasePortalRepository implements IPortalRepository {
 
   async saveHomeSettings(tenantId: string, settings: PortalHomeSettings): Promise<void> {
     await setDoc(doc(db, 'tenants', tenantId, 'settings', PORTAL_SETTINGS_DOC), settings);
+  }
+
+  async listPortalTexts(tenantId: string): Promise<PortalTextOverride[]> {
+    const snapshot = await getDocs(query(collection(db, 'tenants', tenantId, PORTAL_TEXTS_COLLECTION), limit(PAGE_LIMIT)));
+    return snapshot.docs.flatMap((entry) => {
+      const override = asPortalTextOverride(entry.data());
+      return override ? [override] : [];
+    });
+  }
+
+  async savePortalText(
+    tenantId: string,
+    { ref: textRef, locale, text, actor }: { ref: string; locale: string; text: string; actor: DeletionActor },
+  ): Promise<void> {
+    await setDoc(this.portalTextDoc(tenantId, textRef), {
+      ref: textRef,
+      texts: { [locale]: text },
+      updatedAt: serverTimestamp(),
+      updatedBy: actor.uid,
+      updatedByName: actor.name,
+      updatedByPhotoURL: actor.photoURL,
+    }, { merge: true });
+  }
+
+  async restorePortalText(
+    tenantId: string,
+    { ref: textRef, locale, actor }: { ref: string; locale: string; actor: DeletionActor },
+  ): Promise<void> {
+    const target = this.portalTextDoc(tenantId, textRef);
+    const snapshot = await getDoc(target);
+    if (!snapshot.exists()) return;
+    const texts = (snapshot.data().texts ?? {}) as Record<string, unknown>;
+    if (Object.keys(texts).some((other) => other !== locale)) {
+      await updateDoc(
+        target,
+        new FieldPath('texts', locale), deleteField(),
+        'updatedAt', serverTimestamp(),
+        'updatedBy', actor.uid,
+        'updatedByName', actor.name,
+        'updatedByPhotoURL', actor.photoURL,
+      );
+      return;
+    }
+    await stampDeletionActor(target, actor);
+    await deleteDoc(target);
+  }
+
+  private portalTextDoc(tenantId: string, textRef: string) {
+    const id = portalTextDocId(textRef);
+    if (!id) throw new Error(textRef);
+    return doc(db, 'tenants', tenantId, PORTAL_TEXTS_COLLECTION, id);
   }
 
   subscribeGuests(
