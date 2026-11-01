@@ -86,3 +86,27 @@ describe('nome de registro vinculado na aba Portal', () => {
     expect(fromPortalForm(form)).not.toHaveProperty('referenceTitles');
   });
 });
+
+describe('tela lida por todo convidado na aba Portal (EV-43)', () => {
+  it('ida e volta, com filtro e nome de vínculo', () => {
+    const portal = { subject: 'public' as const, fields: ['description', 'system'], visibleWhen: 'kind == "outage"', documents: false, referenceTitles: ['system'] };
+    const form = toPortalForm(portal);
+    expect(form.subjectKind).toBe('public');
+    expect(fromPortalForm(form)).toEqual(portal);
+  });
+
+  it('trocar para pública não grava o que pressupõe um dono, mesmo que estivesse marcado', () => {
+    const owned = toPortalForm({
+      subject: { field: 'companyId' },
+      fields: ['description'],
+      documents: true,
+      create: { fields: ['description'] },
+      edit: { fields: ['description'] },
+      uploads: { types: [] },
+      actions: ['accept'],
+      trackViews: true,
+      documentLinks: { expiresInMinutes: 5 },
+    });
+    expect(fromPortalForm({ ...owned, subjectKind: 'public' })).toEqual({ subject: 'public', fields: ['description'], documents: false });
+  });
+});

@@ -34,6 +34,7 @@ import {
   isPortalCreateOpen,
   PORTAL_CREATE_TARGETS_MAX,
   isPortalEditOpen,
+  isPortalPublicScreen,
   isPortalRecordVisible,
   portalCreateFieldKeys,
   portalEditFieldKeys,
@@ -628,6 +629,11 @@ export interface PortalContextFillableField extends PortalFieldInput {
 
 export interface PortalContextScreen {
   id: string;
+  /**
+   * A tela é lida por TODO convidado do escritório (`subject: 'public'`): a casca a lê por outra
+   * consulta, e ela nunca tem criação, edição, anexo, ação nem documento.
+   */
+  public?: true;
   /** O convidado anexa documentos aqui — escolhendo o tipo entre estes, nunca criando um. */
   uploads: { types: Array<{ key: string; label: string }> } | null;
   /** A tela-PAI no portal — a do registro a que os desta apontam. Os desta aparecem dentro dele. */
@@ -847,12 +853,15 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
     const views = (extensionViews?.views ?? [])
       .filter((view) => !view.collection || exposed.has(view.collection));
 
-    const screenFor = (entity: string) => portalTargetScreen(screens, entity);
-    // Raiz é a tela sem pai NO PORTAL: a nota de um prestador exposto aparece dentro dele, não no menu.
-    const roots = screens.filter((screen) => {
+    // O pai NO PORTAL — a tela para onde o vínculo aponta. A pública não é pai de ninguém: o registro não
+    // chega a sujeito nenhum por ela, e criar "dentro" de um aviso geral não teria dono.
+    const parentOf = (screen: PortalScreen) => {
       const link = portalLinkOf(screen);
-      return !link || !screenFor(link.targetEntity);
-    });
+      const target = link ? portalTargetScreen(screens, link.targetEntity) : undefined;
+      return target && !isPortalPublicScreen(target) ? target : undefined;
+    };
+    // Raiz é a tela sem pai NO PORTAL: a nota de um prestador exposto aparece dentro dele, não no menu.
+    const roots = screens.filter((screen) => !parentOf(screen));
     const guestFields = new Map(screens.map((screen) => [screen.collection, guestFieldKeys(screen)]));
     const exposedOf = (collection: string) => guestFields.get(collection) ?? null;
     const declaredPageSpecs = extensionViews?.pages ?? [];
@@ -952,8 +961,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         const exposed = guestFieldKeys(screen);
         const fillable = new Set(portalCreateFieldKeys(screen));
         const editable = new Set(portalEditFieldKeys(screen));
-        const link = portalLinkOf(screen);
-        const linkTarget = link ? screenFor(link.targetEntity) : undefined;
+        const linkTarget = parentOf(screen);
         const template = guestPortalTemplate(screen.portal?.template, exposed, resolve);
         const pickable = new Map(portalPickableReferences(screen, screens, [...fillable, ...editable])
           .map((pick) => [pick.fieldKey, { collection: pick.target.collection, multi: pick.multi }]));
@@ -968,6 +976,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         });
         return {
           id: screen.id,
+          ...(isPortalPublicScreen(screen) ? { public: true as const } : {}),
           uploads: screen.portal?.uploads && screen.portal.documents === true
             ? { types: portalUploadTypes(screen, documentTypes) }
             : null,

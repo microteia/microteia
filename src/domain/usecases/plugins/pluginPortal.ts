@@ -3,6 +3,7 @@ import {
   PORTAL_ACTIONS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINKS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
+  PORTAL_PUBLIC_SUBJECT_SINCE_KERNEL,
   PORTAL_REFERENCE_TITLES_SINCE_KERNEL,
   PORTAL_TRACK_VIEWS_SINCE_KERNEL,
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
@@ -10,6 +11,7 @@ import {
   portalActionIssues,
   portalCreateConditionIssues,
   portalDerivedFieldKeys,
+  portalPublicConflicts,
   portalReferenceTitleIssues,
   portalVisibilityIssues,
 } from '../../schema/portal';
@@ -107,6 +109,29 @@ const trackViewsIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
       messageParams: { screen: tracked.key, minimum: PORTAL_TRACK_VIEWS_SINCE_KERNEL },
     }]
     : [];
+};
+
+/**
+ * As telas do pacote lidas por TODO convidado (`subject: 'public'`): o que pressupõe um dono não vale
+ * nelas — a leitura o descarta, e por isso a recusa mora aqui, onde o autor ainda pode tirá-lo —, e o
+ * `kernel` que lê o sujeito. O anterior descarta a declaração inteira, e a tela sairia do portal calada.
+ */
+const publicSubjectIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
+  const declaring = (pkg.screens ?? []).filter((screen) => asPortalDeclaration(screen.portal)?.subject === 'public');
+
+  const conflicts = declaring.flatMap((screen) => portalPublicConflicts(screen.portal).map((option): LocalizedIssue => ({
+    message: '@core.marketplace/issue.portal.public.unsupported',
+    messageParams: { screen: screen.key, option },
+  })));
+
+  const kernel = declaring.length > 0 && !rangeExcludesBelow(pkg.manifest.kernel ?? '', PORTAL_PUBLIC_SUBJECT_SINCE_KERNEL)
+    ? [{
+      message: '@core.marketplace/issue.portal.public.kernel',
+      messageParams: { screen: declaring[0].key, minimum: PORTAL_PUBLIC_SUBJECT_SINCE_KERNEL },
+    }]
+    : [];
+
+  return [...conflicts, ...kernel];
 };
 
 /**
@@ -294,6 +319,7 @@ const widgetSpecIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
 
 /** O que o portal das telas do pacote declara e o kernel exigido não sustenta — cada um, uma recusa. */
 export const packagePortalIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
+  ...publicSubjectIssues(pkg),
   ...derivedFieldIssues(pkg),
   ...visibleWhenIssues(pkg),
   ...createWhenIssues(pkg),

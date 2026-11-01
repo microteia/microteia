@@ -7,7 +7,7 @@ import {
   type PortalTemplateFormState,
 } from './portalTemplateForm';
 
-export type PortalSubjectKind = 'self' | 'field' | 'parent';
+export type PortalSubjectKind = 'self' | 'field' | 'parent' | 'public';
 
 /** O que a aba "Portal" do Form Design edita — a declaração, desmontada em controles. */
 export interface PortalFormState {
@@ -79,7 +79,7 @@ export const toPortalForm = (portal: PortalDeclaration | null | undefined): Port
   const subject = portal.subject;
   return {
     enabled: true,
-    subjectKind: subject === 'self' || subject === 'parent' ? subject : 'field',
+    subjectKind: typeof subject === 'object' ? 'field' : subject,
     subjectField: typeof subject === 'object' ? subject.field : '',
     fields: [...portal.fields],
     visibleWhen: portal.visibleWhen ?? '',
@@ -114,6 +114,19 @@ const documentLinkMinutesOf = (text: string): number => {
 export const fromPortalForm = (form: PortalFormState): PortalDeclaration | null => {
   if (!form.enabled) return null;
   const template = fromPortalTemplateForm(form.template);
+  if (form.subjectKind === 'public') {
+    // Sem dono entre os convidados, a tela é só de leitura: o que pressupõe um dono não é gravado.
+    return {
+      subject: 'public',
+      fields: form.fields,
+      ...(form.visibleWhen.trim() ? { visibleWhen: form.visibleWhen.trim() } : {}),
+      documents: false,
+      ...(form.referenceTitles.some((key) => form.fields.includes(key))
+        ? { referenceTitles: form.referenceTitles.filter((key) => form.fields.includes(key)) }
+        : {}),
+      ...(template ? { template: template as PortalTemplate } : {}),
+    };
+  }
   return {
     subject: form.subjectKind === 'field' ? { field: form.subjectField } : form.subjectKind,
     fields: form.fields,

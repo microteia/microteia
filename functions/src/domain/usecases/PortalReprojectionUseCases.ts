@@ -20,7 +20,7 @@ const MAX_FAILED_IDS = 50;
 /** As entidades para onde o vínculo da tela aponta — o pai, ou o `refEntity` do campo-sujeito. */
 const subjectTargetsOf = (screen: PortalScreen): string[] => {
   const subject = screen.portal?.subject;
-  if (!subject || subject === 'self') return [];
+  if (!subject || subject === 'self' || subject === 'public') return [];
   if (subject === 'parent') return screen.parentEntity ? [screen.parentEntity] : [];
   const field = screen.fields.find((one) => one.key === subject.field);
   return field?.type === 'reference' && field.refEntity ? [field.refEntity] : [];

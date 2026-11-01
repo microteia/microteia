@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PORTAL_PUBLIC_SUBJECT_KEY,
   acceptsAutomationInvites,
   asPortalDeclaration,
   buildPortalEdit,
@@ -13,6 +14,9 @@ import {
   portalCreateFieldKeys,
   portalEditFieldKeys,
   portalOwnerOf,
+  isPortalPublicScreen,
+  portalLinkOf,
+  portalPublicConflicts,
   portalPickableReferences,
   portalPickedReferences,
   parsePortalSubjectKey,
@@ -727,5 +731,109 @@ describe('rótulo cujo apontado tem título por referência — o segundo salto 
     expect(isPortalProjectionBehind(PORTAL_PROJECTION_REVISION - 1, all, 'invoices')).toBe(false);
     expect(isPortalProjectionBehind(PORTAL_PROJECTION_REVISION - 2, all, 'invoices')).toBe(true);
     expect(isPortalProjectionBehind(PORTAL_PROJECTION_REVISION, all, 'notices')).toBe(false);
+  });
+});
+
+describe('registro público — subject: public (EV-43)', () => {
+  const outage: PortalScreenLike = {
+    id: 'outages',
+    collection: 'outages',
+    titleFieldKey: 'description',
+    fields: [
+      { key: 'description', type: 'text' },
+      { key: 'kind', type: 'text' },
+      { key: 'companyId', type: 'reference', refEntity: 'companies' },
+      { key: 'systemId', type: 'reference', refEntity: 'systems' },
+      { key: 'calendarId', type: 'reference', refEntity: 'calendars' },
+    ],
+    portal: { subject: 'public', fields: ['description', 'companyId', 'systemId', 'calendarId'], visibleWhen: 'kind == "outage"' },
+  };
+  const system: PortalScreenLike = { id: 'systems', collection: 'systems', titleFieldKey: 'name', fields: [{ key: 'name', type: 'text' }] };
+  const calendar: PortalScreenLike = {
+    id: 'calendars', collection: 'calendars', titleFieldKey: 'name',
+    fields: [{ key: 'name', type: 'text' }], portal: { subject: 'public', fields: ['name'] },
+  };
+  const note: PortalScreenLike = {
+    id: 'outageNotes',
+    collection: 'outageNotes',
+    fields: [{ key: 'outageId', type: 'reference', refEntity: 'outages' }, { key: 'text', type: 'text' }],
+    parentEntity: 'outages',
+    parentFieldKey: 'outageId',
+    portal: { subject: 'parent', fields: ['text'] },
+  };
+  const all = [company, invoice, outage, system, calendar, note];
+  const deps = (records: Record<string, Record<string, unknown>>): PortalSubjectDeps => ({
+    screenFor: (key) => portalTargetScreen(all, key),
+    getRecord: async (collection, id) => records[`${collection}/${id}`],
+  });
+
+  it('a declaração é lida, e o que pressupõe um dono entre os convidados é descartado', () => {
+    const declared = asPortalDeclaration({
+      subject: 'public',
+      fields: ['description'],
+      visibleWhen: 'kind == "outage"',
+      referenceTitles: ['systemId'],
+      create: { fields: ['description'] },
+      edit: { fields: ['description'] },
+      uploads: { types: [] },
+      documents: true,
+      documentLinks: { expiresInMinutes: 5 },
+      trackViews: true,
+      actions: ['accept'],
+      invites: { automation: true },
+    });
+    expect(declared).toEqual({
+      subject: 'public', fields: ['description'], visibleWhen: 'kind == "outage"', documents: false, referenceTitles: ['systemId'],
+    });
+    expect(isPortalPublicScreen(outage)).toBe(true);
+    expect(isPortalPublicScreen(company)).toBe(false);
+  });
+
+  it('o sujeito é um só, que nenhum convite pode ter — e o filtro continua escolhendo as linhas', async () => {
+    expect(await resolvePortalSubjectKeys(outage, 'o1', { kind: 'outage' }, deps({}))).toEqual([PORTAL_PUBLIC_SUBJECT_KEY]);
+    expect(await resolvePortalSubjectKeys(outage, 'o2', { kind: 'internal' }, deps({}))).toEqual([]);
+    expect(parsePortalSubjectKey(PORTAL_PUBLIC_SUBJECT_KEY)).toBeNull();
+  });
+
+  it('não se propaga: quem aponta para o público não chega a sujeito nenhum por ele, nem lê o registro', async () => {
+    let reads = 0;
+    const counting: PortalSubjectDeps = { ...deps({ 'outages/o1': { kind: 'outage' } }), getRecord: async () => { reads += 1; return { kind: 'outage' }; } };
+    expect(await resolvePortalSubjectKeys(note, 'n1', { outageId: 'o1' }, counting)).toEqual([]);
+    expect(reads).toBe(0);
+  });
+
+  it('não tem vínculo — é raiz no menu e não cria em pai nenhum', () => {
+    expect(portalLinkOf(outage)).toBeNull();
+  });
+
+  it('o rótulo sem declaração só vem de outra tela pública: o título de um sujeito sairia para todos', () => {
+    expect(portalReferenceLabels(all, outage).map((label) => label.fieldKey)).toEqual(['calendarId']);
+    const declaring = { ...outage, portal: { ...outage.portal!, referenceTitles: ['systemId', 'companyId'] } };
+    expect(portalReferenceLabels(all, declaring).map((label) => label.fieldKey)).toEqual(['companyId', 'systemId', 'calendarId']);
+    const bound = { ...invoice, portal: { ...invoice.portal!, fields: ['number', 'companyId'] } };
+    expect(portalReferenceLabels(all, bound).map((label) => label.fieldKey)).toEqual(['companyId']);
+  });
+
+  it('o convidado não aponta para um registro público ao criar ou alterar', () => {
+    const request: PortalScreenLike = {
+      id: 'requests', collection: 'requests',
+      fields: [{ key: 'companyId', type: 'reference', refEntity: 'companies' }, { key: 'calendarId', type: 'reference', refEntity: 'calendars' }],
+      portal: { subject: { field: 'companyId' }, fields: ['calendarId'], create: { fields: ['calendarId'] } },
+    };
+    expect(portalPickableReferences(request, all, ['calendarId'])).toEqual([]);
+  });
+
+  it('a aba Portal diz o que a tela pública não pode ter, e que ninguém chega a um sujeito por ela', () => {
+    expect(portalPublicConflicts({ subject: 'public', fields: [], documents: true, actions: [], create: null, trackViews: false })).toEqual(['documents']);
+    expect(portalPublicConflicts({ subject: 'self', fields: [], documents: true })).toEqual([]);
+    const crowded = { ...outage, portal: { ...outage.portal!, edit: { fields: ['description'] }, documents: true } };
+    expect(portalDeclarationIssues(crowded, all)).toEqual([
+      { message: '@core.records/portal.issue.public.unsupported', messageParams: { option: 'edit' } },
+      { message: '@core.records/portal.issue.public.unsupported', messageParams: { option: 'documents' } },
+    ]);
+    expect(portalDeclarationIssues(outage, all)).toEqual([]);
+    expect(portalDeclarationIssues(note, all)).toEqual([
+      { message: '@core.records/portal.issue.target.public', messageParams: { screen: 'outages' } },
+    ]);
   });
 });

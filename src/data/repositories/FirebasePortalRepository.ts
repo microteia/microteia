@@ -104,6 +104,26 @@ export class FirebasePortalRepository implements IPortalRepository {
     );
   }
 
+  subscribePublicRecords(
+    tenantId: string,
+    collectionName: string,
+    onUpdate: (records: PortalRecord[]) => void,
+    onError?: (error: Error) => void,
+  ): () => void {
+    // `public == true` faz o papel do `audience`: é o que deixa a regra provar a consulta.
+    return onSnapshot(
+      query(
+        collection(db, 'tenants', tenantId, PORTAL_RECORDS_COLLECTION),
+        where('public', '==', true),
+        where('collection', '==', collectionName),
+        orderBy('updatedAt', 'desc'),
+        limit(PAGE_LIMIT),
+      ),
+      (snapshot) => onUpdate(snapshot.docs.map((one) => mapPortalRecord(one.id, one.data()))),
+      (error) => onError?.(error),
+    );
+  }
+
   subscribeChildren(
     tenantId: string,
     userId: string,

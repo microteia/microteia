@@ -169,29 +169,34 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [context],
   );
   const collectionsKey = collections.join('|');
+  const publicCollectionsKey = useMemo(
+    () => [...new Set((context?.screens ?? []).filter((screen) => screen.public).map((screen) => screen.collection))].sort().join('|'),
+    [context],
+  );
 
   useEffect(() => {
     if (!tenantId || !userId || collectionsKey === '') return;
     const wanted = collectionsKey.split('|');
+    const publicOnes = new Set(publicCollectionsKey.split('|'));
     // eslint-disable-next-line react-hooks/set-state-in-effect -- outro conjunto de telas começa sem retrato nenhum
     setLoadedCollections(new Set());
     setRecordsByCollection({});
-    const unsubscribes = wanted.map((collection) => portalRepository.subscribeRecords(
-      tenantId,
-      userId,
-      collection,
-      (next) => {
+    const unsubscribes = wanted.map((collection) => {
+      const onUpdate = (next: PortalRecord[]) => {
         setRecordsByCollection((prev) => ({ ...prev, [collection]: next }));
         setLoadedCollections((prev) => new Set([...prev, collection]));
-      },
-      (err) => {
+      };
+      const onError = (err: Error) => {
         console.error('[PortalStore] records error:', collection, err);
         setRecordsByCollection((prev) => ({ ...prev, [collection]: [] }));
         setLoadedCollections((prev) => new Set([...prev, collection]));
-      },
-    ));
+      };
+      return publicOnes.has(collection)
+        ? portalRepository.subscribePublicRecords(tenantId, collection, onUpdate, onError)
+        : portalRepository.subscribeRecords(tenantId, userId, collection, onUpdate, onError);
+    });
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
-  }, [tenantId, userId, collectionsKey, portalRepository]);
+  }, [tenantId, userId, collectionsKey, publicCollectionsKey, portalRepository]);
 
   const isCollectionLoading = useCallback((collection: string) => !loadedCollections.has(collection), [loadedCollections]);
 

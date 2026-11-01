@@ -100,6 +100,12 @@ export interface PortalProjection {
   editable: boolean;
   /** Quem o criou pelo portal — o dono de `onlyOwn`. Criado no escritório, `null`. */
   portalOwner: string | null;
+  /**
+   * O registro é de TODO convidado ativo do escritório (`subject: 'public'`) — é o que a regra lê para
+   * liberá-lo sem `audience`. Ausente nos demais: a projeção que não é pública não ganha campo novo, e
+   * não é regravada por ele.
+   */
+  public?: true;
 }
 
 export interface PortalDocumentProjection {

@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import type { PortalRecord } from '../../domain/entities/Portal';
+import { PORTAL_PUBLIC_SUBJECT_KEY } from '../../domain/schema/portal';
 import { toPlainValues } from '../utils/plainValues';
 
 export const textOf = (value: unknown): string => (typeof value === 'string' ? value : '');
@@ -22,7 +23,10 @@ export const mapPortalRecord = (id: string, data: Record<string, unknown>): Port
   labels: (data.labels as Record<string, string> | undefined) ?? {},
   // Projeções gravadas antes do campo: o sujeito é o pai de quem aponta direto para a tela-sujeito,
   // que é o caso comum. O resto se acerta na próxima gravação do registro.
-  parentKeys: stringsOf(data.parentKeys).length > 0 ? stringsOf(data.parentKeys) : stringsOf(data.subjectKeys),
+  // O sujeito do registro público não é registro de ninguém, e não vira pai.
+  parentKeys: stringsOf(data.parentKeys).length > 0
+    ? stringsOf(data.parentKeys)
+    : stringsOf(data.subjectKeys).filter((key) => key !== PORTAL_PUBLIC_SUBJECT_KEY),
   editable: data.editable === true,
   portalOwner: textOf(data.portalOwner) || null,
   updatedAt: dateOf(data.updatedAt),

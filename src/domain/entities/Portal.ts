@@ -23,6 +23,11 @@ export interface PortalMembership {
 export interface PortalScreenInfo {
   id: string;
   collection: string;
+  /**
+   * Lida por TODO convidado do escritório (`subject: 'public'`): os registros vêm de outra consulta e
+   * são só de leitura. Ausente num contexto guardado antes dela — e então a tela é lida como as outras.
+   */
+  public?: boolean;
   titleSingular: string;
   titlePlural: string;
   icon: string;

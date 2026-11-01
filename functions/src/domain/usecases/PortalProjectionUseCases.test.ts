@@ -7,9 +7,10 @@ import {
   makeRefreshPortalReferenceLabelsUseCase,
   samePortalValue,
 } from './PortalProjectionUseCases';
-import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
+import { CITY_SCREENS, EXTENSION_CITY_SCREENS, PUBLIC_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 import { makeFakeRecordDocumentLinks } from '../repositories/fakeRecordDocumentLinks';
 import type { PortalScreen } from '../repositories/IPortalRepository';
+import { PORTAL_PUBLIC_SUBJECT_KEY } from '../schema/portal';
 
 const TENANT = 'salvador';
 
@@ -726,5 +727,53 @@ describe('referência a um registro cujo título é outra referência (EV-40)', 
     }
     await change('taxpayers', 't1', { name: 'Maria S. Lima' });
     expect(started).toEqual([['domiciles', 'notices']]);
+  });
+});
+
+describe('registro público — subject: public (EV-43)', () => {
+  it('sai para todo convidado sem lista de uids: `public`, `audience` vazio e o sujeito que nenhum convite tem', async () => {
+    const { write, projections } = setup(PUBLIC_CITY_SCREENS);
+    await write('outages', 'o1', { description: 'Sistema fora do ar das 8h às 10h', kind: 'outage', companyId: 'acme', internalTicket: 'INC-9' });
+
+    expect(projections.get('outages__o1')).toMatchObject({
+      public: true,
+      audience: [],
+      subjectKeys: [PORTAL_PUBLIC_SUBJECT_KEY],
+      data: { description: 'Sistema fora do ar das 8h às 10h', companyId: 'acme' },
+      parentKeys: [],
+      parentKey: '',
+      editable: false,
+    });
+    // O título da empresa é dos convidados DELA: numa tela pública, sairia para todos.
+    expect(projections.get('outages__o1')?.labels).toEqual({});
+  });
+
+  it('a projeção que não é pública não ganha o campo — e não é regravada por ele', async () => {
+    const { write, projections } = setup(PUBLIC_CITY_SCREENS);
+    await write('invoices', 'nf1', { number: 'NF-1', companyId: 'acme' });
+    expect(projections.get('invoices__nf1')).not.toHaveProperty('public');
+  });
+
+  it('o filtro continua escolhendo as linhas: o que deixa de passar some', async () => {
+    const { write, projections } = setup(PUBLIC_CITY_SCREENS);
+    await write('outages', 'o1', { description: 'Manutenção', kind: 'outage' });
+    expect(projections.has('outages__o1')).toBe(true);
+    await write('outages', 'o1', { description: 'Manutenção', kind: 'internal' });
+    expect(projections.has('outages__o1')).toBe(false);
+  });
+
+  it('não se propaga: a filha de um registro público não chega a convidado nenhum', async () => {
+    const { write, projections } = setup(PUBLIC_CITY_SCREENS);
+    await write('outages', 'o1', { description: 'Manutenção', kind: 'outage' });
+    await write('outageNotes', 'n1', { text: 'Detalhe interno', outageId: 'o1' });
+    expect(projections.has('outageNotes__n1')).toBe(false);
+  });
+
+  it('convidar alguém não refaz o público: ele não depende de convite', async () => {
+    const { write, projections, users, repo } = setup(PUBLIC_CITY_SCREENS);
+    await write('outages', 'o1', { description: 'Manutenção', kind: 'outage' });
+    users.set('caio', { userId: 'caio', email: 'caio@acme.com', displayName: 'Caio', subjectKeys: ['companies/acme'] });
+    await makeRefreshPortalAudienceUseCase(repo).execute(TENANT, ['companies/acme']);
+    expect(projections.get('outages__o1')?.audience).toEqual([]);
   });
 });

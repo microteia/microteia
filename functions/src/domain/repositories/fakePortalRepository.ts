@@ -262,3 +262,33 @@ export const EXTENSION_CITY_SCREENS: PortalScreen[] = [
   anchorScreen('invoices'),
   ...CITY_SCREENS.map((screen) => ({ ...screen, id: `city_${screen.id}` })),
 ];
+
+/**
+ * A mesma prefeitura com uma tela PÚBLICA — as indisponibilidades do sistema, de todo convidado — e uma
+ * filha dela, que tenta herdar o público pelo pai (e não herda).
+ */
+export const PUBLIC_CITY_SCREENS: PortalScreen[] = [
+  ...CITY_SCREENS,
+  {
+    id: 'outages',
+    collection: 'outages',
+    titleFieldKey: 'description',
+    titleSingular: 'Outage',
+    titlePlural: 'Outages',
+    icon: 'alert',
+    fields: [field('description'), field('kind'), field('companyId', { type: 'reference', refEntity: 'companies' })],
+    portal: { subject: 'public', fields: ['description', 'companyId'], visibleWhen: 'kind == "outage"' },
+  },
+  {
+    id: 'outageNotes',
+    collection: 'outageNotes',
+    titleFieldKey: 'text',
+    titleSingular: 'Note',
+    titlePlural: 'Notes',
+    icon: 'list',
+    parentEntity: 'outages',
+    parentFieldKey: 'outageId',
+    fields: [field('text'), field('outageId', { type: 'reference', refEntity: 'outages' })],
+    portal: { subject: 'parent', fields: ['text'] },
+  },
+];

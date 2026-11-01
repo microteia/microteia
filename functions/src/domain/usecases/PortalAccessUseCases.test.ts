@@ -10,7 +10,7 @@ import {
 } from './PortalAccessUseCases';
 import type { PortalAccessAuditEntry, PortalAccessDeps } from './PortalAccessUseCases';
 import { makeProjectPortalRecordUseCase } from './PortalProjectionUseCases';
-import { CITY_SCREENS, EXTENSION_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
+import { CITY_SCREENS, EXTENSION_CITY_SCREENS, PUBLIC_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 import type { IPortalAccountService, PortalScreen } from '../repositories/IPortalRepository';
 import { makeFakePortalIdentity } from '../repositories/fakePortalIdentity';
 import { makeFakeRecordDocumentLinks } from '../repositories/fakeRecordDocumentLinks';
@@ -1498,5 +1498,64 @@ describe('o convidado suspenso — o escritório desligou o método por que ele 
       tenantId: TENANT, userId: 'ana', projectionId: 'invoices__nf1', documentId: 'd1',
     })).rejects.toThrow('@core.tenant/portal.document.unavailable');
     expect(write).not.toHaveBeenCalled();
+  });
+});
+
+describe('registro público — de todo convidado, sem dono entre eles (EV-43)', () => {
+  const guestsOfTwoCompanies = (screens: PortalScreen[]) => {
+    const fake = makeFakePortalRepository(screens);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    fake.users.set('bia', { userId: 'bia', email: 'bia@globex.com', displayName: 'Bia', subjectKeys: ['companies/globex'] });
+    return fake;
+  };
+  const contextOf = (fake: ReturnType<typeof makeFakePortalRepository>, userId: string) =>
+    makeGetPortalContextUseCase(fake.repo).execute({
+      tenantId: TENANT, userId, tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
+    });
+
+  it('dois convidados de sujeitos diferentes recebem a mesma tela pública, só de leitura e no menu', async () => {
+    const fake = guestsOfTwoCompanies(PUBLIC_CITY_SCREENS);
+    for (const userId of ['ana', 'bia']) {
+      const context = await contextOf(fake, userId);
+      const outages = context.screens.find((screen) => screen.collection === 'outages');
+      expect(outages).toMatchObject({ public: true, parent: null, create: null, edit: null, uploads: null, documents: false, actions: false, trackViews: false });
+      expect(context.home.menu.map((entry) => entry.collection)).toContain('outages');
+      expect(context.screens.find((screen) => screen.collection === 'invoices')).not.toHaveProperty('public');
+    }
+  });
+
+  it('a tela que aponta para a pública não é filha dela, nem cria dentro dela', async () => {
+    const screens = PUBLIC_CITY_SCREENS.map((screen) => (screen.id === 'outageNotes'
+      ? { ...screen, portal: { ...screen.portal!, create: { fields: ['text'] } } }
+      : screen));
+    const context = await contextOf(guestsOfTwoCompanies(screens), 'ana');
+    expect(context.screens.find((screen) => screen.collection === 'outageNotes')).toMatchObject({ parent: null, create: null });
+  });
+
+  it('nenhum gesto de dono passa — nem se a declaração escapasse com edição, anexo e documentos', async () => {
+    const leaked = PUBLIC_CITY_SCREENS.map((screen) => (screen.id === 'outages'
+      ? { ...screen, portal: { ...screen.portal!, documents: true, uploads: { types: [] }, edit: { fields: ['description'] } } }
+      : screen));
+    const fake = guestsOfTwoCompanies(leaked);
+    fake.records.set('outages/o1', { description: 'Manutenção', kind: 'outage' });
+    await makeProjectPortalRecordUseCase(fake.repo).execute({
+      tenantId: TENANT, collection: 'outages', recordId: 'o1', data: fake.records.get('outages/o1')!,
+    });
+    fake.documents.set('outages/o1/d1', { name: 'x.pdf', portalShared: true, url: 'https://x' });
+    fake.staged.set('ana/up1', { data: Buffer.from('pdf'), contentType: 'application/pdf' });
+    const write = vi.fn(async () => ({ ok: true as const, id: 'o1' }));
+    const attach = vi.fn(async () => ({ id: 'doc' }));
+
+    await expect(makeUpdatePortalRecordUseCase(fake.repo, write).execute({
+      tenantId: TENANT, userId: 'ana', collection: 'outages', recordId: 'o1', data: { description: 'Outra' },
+    })).rejects.toThrow('@core.tenant/portal.edit.denied');
+    await expect(makeGetPortalDocumentUrlUseCase(fake.repo, makeFakeRecordDocumentLinks(fake.documents, TENANT).links).execute({
+      tenantId: TENANT, userId: 'ana', projectionId: 'outages__o1', documentId: 'd1',
+    })).rejects.toThrow('@core.tenant/portal.document.unavailable');
+    await expect(makeAttachPortalDocumentUseCase(fake.repo, { documentTypes: async () => [{ key: 'Nota', label: 'Nota' }], attach }).execute({
+      tenantId: TENANT, userId: 'ana', userName: 'Ana', collection: 'outages', recordId: 'o1', uploadId: 'up1', name: 'a.pdf', type: 'Nota',
+    })).rejects.toThrow('@core.tenant/portal.upload.denied');
+    expect(write).not.toHaveBeenCalled();
+    expect(attach).not.toHaveBeenCalled();
   });
 });

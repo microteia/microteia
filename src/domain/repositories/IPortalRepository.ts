@@ -29,6 +29,16 @@ export interface IPortalRepository {
     onError?: (error: Error) => void,
   ): () => void;
   /**
+   * Os registros de uma tela PÚBLICA (`subject: 'public'`) — os mesmos para todo convidado ativo do
+   * escritório, os mais recentes primeiro, até `PORTAL_RECORDS_WINDOW`.
+   */
+  subscribePublicRecords(
+    tenantId: string,
+    collection: string,
+    onUpdate: (records: PortalRecord[]) => void,
+    onError?: (error: Error) => void,
+  ): () => void;
+  /**
    * Os FILHOS de um registro (`parentKey` = `colecao/id`), os mais recentes primeiro, até `max` — é o
    * servidor que limita, e não a tela: a empresa de dez mil notas entrega as 15 de cima.
    */

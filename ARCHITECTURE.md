@@ -900,7 +900,7 @@ regra que tem uma decisão a defender:
 | `reports.test.ts` | definição lida por todo membro, escrita por quem gerencia — e o acesso ao DADO que a regra deliberadamente não decide |
 | `backendState.test.ts` | o cliente lê e nunca escreve: escrita liberada deixaria forjar a lista de órfãs do provisionamento |
 | `portalReprojections.test.ts` | o job da reprojeção: lê só quem tem `portal.manage`; ninguém grava do cliente |
-| `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
+| `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid — ou, a pública, por `public == true`, a mesma para dois convidados de sujeitos diferentes e para ninguém de fora; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
 | `memberMfa.test.ts` | o segundo fator: sem `mfa` no membro, nada muda; exigido, a sessão sem `mfaAt` não lê nem grava (mas lê o próprio escritório e o próprio documento de membro); a prova vencida lê e não grava; o curinga do dono não pula o fator; o `SYSTEM` não é alcançado — nem como DONO, no sino, no voto e no logo, e a conta rebaixada volta a ser cobrada sem rematerializar (EV-36); ninguém apaga `mfa` do membro; política e fator fechados ao cliente; o Storage segue a mesma conta |
 | `memberVisibility.test.ts` | a visibilidade por registro: só o registro que nomeia o membro, pelo campo simples ou pelo `multi` (e o mapa forjado não passa); a consulta sem filtro recusada e a do repositório aceita, inclusive com o filtro do pai; supervisão derivada, nomeada, dono e `SYSTEM`; declaração malformada fecha; alterar e excluir pedem ver, criar não; anotações, documentos e arquivos seguem o registro; quem só desenha telas não muda nem exclui a declaração |
 
@@ -1165,7 +1165,7 @@ administraria milhares deles, e cada um nasceria com limite e configuração pr�
 
 ```ts
 portal: {
-  subject: 'self' | { field: 'companyId' } | 'parent',
+  subject: 'self' | { field: 'companyId' } | 'parent' | 'public',
   fields: ['number', 'amount'],   // os ÚNICOS campos que saem do escritório
   visibleWhen: 'type == "revenue"', // os ÚNICOS registros que saem (opcional)
   documents: true,                // expõe os documentos marcados como compartilhados
@@ -1177,6 +1177,7 @@ portal: {
 | `'self'` | a tela-SUJEITO: cada registro dela recebe convidados (a empresa, o cliente) |
 | `{ field }` | um campo `reference` leva ao sujeito — ou a outra tela do portal, que leva até ele |
 | `'parent'` | herda do pai (`parentEntity`/`parentFieldKey`), como o *Parent scope* do Power Pages |
+| `'public'` | de ninguém em particular: todo convidado ativo do escritório lê, só leitura — ver "O registro de todo convidado" |
 
 **Duas portas para declarar, o mesmo dado.** A extensão escreve `portal` na tela do pacote; o
 escritório usa a aba **"Portal"** do Form Design (`ScreenBuilder/components/ScreenPortalPanel`), que
@@ -2521,6 +2522,55 @@ mesma chave e o que vale dependeria da ordem de leitura. `portalTexts` é coleç
 `PORTAL_PAGE_SPEC_SINCE_KERNEL` (2.92.0) para a página e para o cartão com `markdown` — o kernel anterior
 descarta os dois, calado. `portal-example` 1.11.0 declara a página "Ajuda". `KERNEL_VERSION` 2.92.0.
 
+### O registro de todo convidado — `subject: 'public'` (EV-43)
+
+Todo portal tem informação que é do órgão para todos — a lista de indisponibilidades do sistema, os
+comunicados gerais, o calendário de feriados, a tabela de taxas. Até aqui o portal só levava um registro a
+quem era convidado do registro-sujeito a que ele chega, e essa informação só chegava como texto fixo (EV-42)
+ou copiada para cada convidado por automação — milhares de cópias por registro, para apagar depois.
+
+```ts
+portal: { subject: 'public', fields: ['date', 'hours', 'description'], visibleWhen: 'published == true' }
+```
+
+**Um sujeito que nenhum convite tem.** O registro público resolve para UM sujeito,
+`PORTAL_PUBLIC_SUBJECT_KEY` (`'*'`), que não tem a forma `colecao/id` — `parsePortalSubjectKey` o recusa, e
+por isso nenhum convite pode tê-lo. A projeção sai com `public: true`, `audience: []` e esse sujeito. Daí o
+resto vem sem uma linha nova: tudo o que pergunta "este convidado é do sujeito deste registro?"
+(`guestSees`: alterar, anexar, ações, URL de documento, registro de abertura) responde não; o aviso por
+`portalGuests` não alcança ninguém (`ResolvePortalGuestsUseCase` devolve `inPortal` sem convidados — avisar
+"quem vê" seria escrever a todos, uma mala direta que esta porta não é); e `refreshPortalAudience` nunca o
+visita, porque convite nenhum aponta para ele.
+
+**A regra libera pelo `public`, e o convite continua sendo lido a cada consulta.** `portalRecords` aceita a
+leitura de `isInPortalAudience` OU de `isPortalPublicRecord` (`public == true` e `isPortalUser`). A lista é
+provada por `where('public', '==', true)` — sem o filtro, recusada inteira, como a do `audience` —, e por
+isso tem índice próprio (`public`, `collection`, `updatedAt`). O documento sob uma projeção pública não sai:
+a regra dele segue o `audience` do pai, que é vazio. Revogar e suspender fecham o público no instante, pela
+mesma leitura de `portalUsers` de toda consulta.
+
+| Decisão | Por quê |
+|---|---|
+| **`audience` vazio, e não a lista de todos os convidados** | a lista cresceria com o escritório (o documento tem teto de 1 MiB), e cada convite novo regravaria todo registro público. Com `public`, convidar não custa nada aqui |
+| **Só leitura** (`PORTAL_PUBLIC_UNSUPPORTED`) | `create`, `edit`, `uploads`, `actions`, `documents`, `documentLinks`, `trackViews` e `invites` pressupõem um dono entre os convidados: de quem seria o registro criado, quem responde pela abertura registrada. `asPortalDeclaration` os descarta na leitura (defesa em profundidade: mesmo uma declaração gravada com eles não abre nada), e as duas portas da declaração os recusam — a aba Portal (`portalDeclarationIssues` → `portal.issue.public.unsupported`) e o pacote (`packagePortalIssues` → `issue.portal.public.unsupported`, que lê a declaração CRUA por `portalPublicConflicts`) |
+| **Não se propaga** | em `resolvePortalSubjectKeys`, a tela pública como ELO corta a corrente, sem ler o registro: o filho de um aviso geral não vira aviso geral sem a tela dele o declarar. `portalDeclarationIssues` avisa `portal.issue.target.public`; no contexto, a pública não é pai de ninguém (`parentOf`), e a tela que aponta para ela vira raiz, sem criação |
+| **Rótulo de referência só de outra pública** | sem `referenceTitles`, o rótulo é o título que a tela apontada expõe aos convidados DELA; numa tela pública ele sairia para todos. `referenceLabelsOf` só o empresta de outra tela pública; com `referenceTitles`, a decisão de levar o nome foi tomada, campo a campo |
+| **Não se aponta** | `portalPickableReferences` não oferece a tela pública como segunda referência do formulário (EV-37): o servidor confere se o id é de um sujeito do convidado, e a resposta seria sempre não |
+| **A projeção que não é pública não muda** | `public` só é gravado quando é `true`; `samePortalValue` trata a chave ausente como ausente, e nenhuma projeção existente é regravada por ela. Não há subida de `PORTAL_PROJECTION_REVISION`: nada do que já estava no portal muda de forma |
+
+**Na casca.** `getPortalContext` marca a tela (`PortalContextScreen.public`), e `PortalStore` a assina por
+`subscribePublicRecords` em vez de `subscribeRecords` — a mesma janela (`PORTAL_RECORDS_WINDOW`), o mesmo
+`recordsByCollection`. Por isso o cartão e a página declarados (`records`, `count` da EV-39/EV-42) e as views
+de extensão (`usePortalRecords`) leem a tela pública sem mudança: ela é uma tela do portal como as outras. No
+menu ela é raiz, e o escritório a esconde ou ordena em Configurações › Portal como qualquer entrada. A API
+curada ganhou `PortalScreen.public`.
+
+**Autoria.** Na aba Portal do Form Design, "De ninguém em particular" é a quarta opção de "De quem são os
+registros"; escolhida, as seções de documentos, criação, edição, ações, aviso e convite somem, e
+`fromPortalForm` não grava o que pressupõe dono. No pacote, `PORTAL_PUBLIC_SUBJECT_SINCE_KERNEL` (2.94.0) é
+exigido: o kernel anterior não reconhece o sujeito e `asPortalDeclaration` descarta a declaração inteira — a
+tela sai do portal, calada. `KERNEL_VERSION` 2.94.0.
+
 ### Garantias que a revisão da branch acrescentou
 
 - **O convite vale no instante.** As callables (alterar, anexar, URL de documento, criar dentro de
@@ -2594,6 +2644,13 @@ não há recusa no empacotamento. `examples/portal-example` avisa o cliente de u
   escritório —, e o e-mail não leva um "não quero mais receber". Pede uma callable e um campo em
   `portalUsers` (que só o servidor grava): o convidado não escreve em `settings/user_*`.
 - **Excluir pelo portal.** O convidado cria, altera e anexa; não apaga registro nem documento.
+- **Página pública sem login.** A tela `subject: 'public'` (EV-43) é lida por todo convidado ATIVO; quem
+  ainda não entrou não a vê. Servir uma página a quem não tem conta pede uma porta que o portal não tem —
+  uma callable sem autenticação, com teto de chamadas por origem (o custo é de quem não se identificou) e
+  uma rota fora da casca —, e ela merece decisão própria.
+- **O público dentro do público.** A tela pública não tem pai nem filhos no portal: o calendário e os
+  feriados dele são duas telas públicas soltas no menu. Herdar o público pelo vínculo seria expor por
+  dedução, e o kernel corta a corrente de propósito.
 - **Home e layout declarados.** `portal.view` aceita declaração só em `widget` e `page` (EV-39, EV-42); `home`,
   `layout`, `list` e `detail` continuam só `code`. O `WidgetRenderer` do escritório lê os stores dele, e o
   convidado não os tem — o portal tem vocabulário próprio (`portalWidget.ts`).
@@ -14981,6 +15038,7 @@ daquela instalação. Ver "Artefatos de backend por extensão".
 | `tenants/{id}/downloads` | `ownerId` ASC, `createdAt` DESC | kernel | Downloads — os arquivos da pessoa, mais recente primeiro |
 | `tenants/{id}/downloads` | `visibility` ASC, `createdAt` DESC | kernel | Downloads — os da automação liberados para todos (a regra só aprova a lista provada pelo filtro) |
 | `tenants/{id}/portalRecords` | `audience` CONTAINS, `collection` ASC, `updatedAt` DESC | kernel | Portal — a lista de uma tela para o convidado, mais recente primeiro. O filtro por `audience` é o que a regra exige para aprovar a lista |
+| `tenants/{id}/portalRecords` | `public` ASC, `collection` ASC, `updatedAt` DESC | kernel | Portal — a lista de uma tela PÚBLICA (`subject: 'public'`, EV-43), a mesma para todo convidado. O filtro `public == true` é o que a regra exige para aprovar a lista |
 
 **Quatro índices de negócio saíram deste arquivo.** Três (`deadlines status+dueDate`,
 `financials status+dueDate`, `pushes emailId+processNumber`) eram declarados pelas extensões que os

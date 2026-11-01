@@ -96,6 +96,20 @@ export const PORTAL_NOTIFY_SINCE_KERNEL = '2.87.0';
 export const PORTAL_REFERENCE_TITLES_SINCE_KERNEL = '2.84.0';
 
 /**
+ * O kernel a partir do qual `subject: 'public'` é lido. Um kernel anterior não reconhece o sujeito e
+ * descarta a declaração inteira: a tela sai do portal, calada — fechado, mas a página pública que a
+ * extensão prometeu simplesmente não existe. Por isso o pacote que o usa tem de exigir este kernel.
+ */
+export const PORTAL_PUBLIC_SUBJECT_SINCE_KERNEL = '2.94.0';
+
+/**
+ * A chave de sujeito do registro PÚBLICO. Não tem a forma `colecao/id`, e por isso nenhum convite pode
+ * tê-la (`parsePortalSubjectKey` a recusa): tudo o que pergunta "este convidado é do sujeito deste
+ * registro?" — alterar, anexar, ações, documentos, avisos — responde não, sem uma linha a mais.
+ */
+export const PORTAL_PUBLIC_SUBJECT_KEY = '*';
+
+/**
  * A mesma abertura — o mesmo convidado, o mesmo registro, o mesmo documento — dentro desta janela não é
  * registrada de novo. A primeira é a que prova; as seguintes seriam ruído na Auditoria e uma execução
  * de automação a cada clique, e um convidado não pode disparar execuções sem limite.
@@ -133,8 +147,20 @@ export const portalUploadStagingPath = (tenantId: string, userId: string, upload
  * - `{ field }`: um campo `reference` aponta para o sujeito — ou para outra tela do portal, que leva
  *   até ele.
  * - `parent`: herda do registro-pai (`parentEntity` / `parentFieldKey`).
+ * - `public`: o registro não é de ninguém de fora — é do escritório para TODO convidado ativo dele: o
+ *   comunicado geral, o calendário de feriados, a tabela de taxas. Só leitura: sem dono, não há para
+ *   quem criar, alterar, anexar nem agir (`PORTAL_PUBLIC_UNSUPPORTED`). Não se propaga: a tela que
+ *   aponta para uma pública não chega a sujeito nenhum por ela.
  */
-export type PortalSubject = 'self' | 'parent' | { field: string };
+export type PortalSubject = 'self' | 'parent' | 'public' | { field: string };
+
+/**
+ * O que a tela PÚBLICA não declara: tudo o que pressupõe um dono entre os convidados. A leitura
+ * (`asPortalDeclaration`) descarta, e as duas portas da declaração recusam (`portalPublicConflicts`).
+ */
+export const PORTAL_PUBLIC_UNSUPPORTED = [
+  'create', 'edit', 'uploads', 'actions', 'documents', 'documentLinks', 'trackViews', 'invites',
+] as const;
 
 export interface PortalDeclaration {
   subject: PortalSubject;
@@ -322,7 +348,7 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
   const raw = value as Record<string, unknown>;
 
   let subject: PortalSubject | null = null;
-  if (raw.subject === 'self' || raw.subject === 'parent') subject = raw.subject;
+  if (raw.subject === 'self' || raw.subject === 'parent' || raw.subject === 'public') subject = raw.subject;
   else if (raw.subject && typeof raw.subject === 'object' && isNonEmptyString((raw.subject as Record<string, unknown>).field)) {
     subject = { field: ((raw.subject as Record<string, unknown>).field as string).trim() };
   }
@@ -378,6 +404,17 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
 
   const template = readPortalTemplate(raw.template);
 
+  if (subject === 'public') {
+    return {
+      subject,
+      fields,
+      ...(isNonEmptyString(raw.visibleWhen) ? { visibleWhen: raw.visibleWhen.trim() } : {}),
+      documents: false,
+      ...(referenceTitles.length > 0 ? { referenceTitles } : {}),
+      ...(template ? { template } : {}),
+    };
+  }
+
   return {
     subject,
     fields,
@@ -394,6 +431,23 @@ export const asPortalDeclaration = (value: unknown): PortalDeclaration | null =>
     ...(referenceTitles.length > 0 ? { referenceTitles } : {}),
     ...(template ? { template } : {}),
   };
+};
+
+/** A tela é do escritório para todo convidado (`subject: 'public'`). */
+export const isPortalPublicScreen = (screen: Pick<PortalScreenLike, 'portal'>): boolean => screen.portal?.subject === 'public';
+
+const isDeclaredValue = (value: unknown): boolean =>
+  value !== undefined && value !== null && value !== false && !(Array.isArray(value) && value.length === 0);
+
+/**
+ * As chaves que a declaração PÚBLICA traz e não pode ter — lida crua, porque `asPortalDeclaration` já
+ * as descarta. Vazio para a tela que não é pública.
+ */
+export const portalPublicConflicts = (value: unknown): string[] => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+  const raw = value as Record<string, unknown>;
+  if (raw.subject !== 'public') return [];
+  return PORTAL_PUBLIC_UNSUPPORTED.filter((key) => isDeclaredValue(raw[key]));
 };
 
 /** A tela registra as aberturas do convidado (`trackViews`). */
@@ -594,7 +648,7 @@ export const portalLinkOf = (
   screen: PortalScreenLike,
 ): { fieldKey: string; targetEntity: string; multi: boolean } | null => {
   const subject = screen.portal?.subject;
-  if (!subject || subject === 'self') return null;
+  if (!subject || subject === 'self' || subject === 'public') return null;
   if (subject === 'parent') {
     return screen.parentEntity && screen.parentFieldKey
       ? { fieldKey: screen.parentFieldKey, targetEntity: screen.parentEntity, multi: false }
@@ -775,7 +829,9 @@ export const portalPickableReferences = <T extends PortalScreenLike>(
   return screen.fields.flatMap((field) => {
     if (!fillable.has(field.key) || field.type !== 'reference' || !field.refEntity) return [];
     const target = portalTargetScreen(screens, field.refEntity);
-    return target?.portal ? [{ fieldKey: field.key, target, multi: field.multi === true }] : [];
+    // O registro público não é de ninguém: o convidado o lê, mas não o aponta — a conferência do servidor
+    // pergunta se ele é do sujeito do convite, e a resposta seria sempre não.
+    return target?.portal && !isPortalPublicScreen(target) ? [{ fieldKey: field.key, target, multi: field.multi === true }] : [];
   });
 };
 
@@ -876,6 +932,10 @@ export interface PortalSubjectDeps {
  * corta a corrente — e o registro fica sem sujeito, que é a resposta fechada. Um registro que não
  * passa no `visibleWhen` da tela dele corta do mesmo jeito, seja ele o próprio, um elo do meio ou o
  * sujeito: o que está escondido não leva ninguém a lugar nenhum.
+ *
+ * O registro da tela pública tem um sujeito só, `PORTAL_PUBLIC_SUBJECT_KEY`. Como ELO ele corta: o
+ * público não se propaga a quem aponta para ele — o filho de um aviso geral não vira aviso geral sem
+ * que a tela dele o declare.
  */
 export const resolvePortalSubjectKeys = async (
   screen: PortalScreenLike,
@@ -886,6 +946,7 @@ export const resolvePortalSubjectKeys = async (
 ): Promise<string[]> => {
   const subject = screen.portal?.subject;
   if (!subject || !isPortalRecordVisible(screen, data)) return [];
+  if (subject === 'public') return depth === 0 ? [PORTAL_PUBLIC_SUBJECT_KEY] : [];
   if (subject === 'self') return [portalSubjectKey(screen.collection, recordId)];
   if (depth >= PORTAL_SUBJECT_MAX_DEPTH) return [];
 
@@ -902,7 +963,7 @@ export const resolvePortalSubjectKeys = async (
   if (!entityKey || ids.length === 0) return [];
 
   const target = deps.screenFor(entityKey);
-  if (!target?.portal) return [];
+  if (!target?.portal || isPortalPublicScreen(target)) return [];
   // A tela-sujeito sem filtro dispensa a leitura: o id já é a chave. Com filtro, o sujeito é lido
   // como qualquer elo, para saber se ele mesmo está no portal.
   if (target.portal.subject === 'self' && !target.portal.visibleWhen) {
@@ -1006,6 +1067,9 @@ const referenceLabelsOf = <T extends PortalScreenLike>(
     const isDeclared = declared.has(fieldKey);
     const target = isDeclared ? referenceTitleScreen(screens, field.refEntity) : portalTargetScreen(screens, field.refEntity);
     if (!target) return [];
+    // O título que a tela apontada expõe é dos convidados DELA; na tela pública ele sairia para todos.
+    // Só a outra tela pública o empresta sem declaração — com `referenceTitles`, a decisão foi tomada.
+    if (!isDeclared && isPortalPublicScreen(screen) && !isPortalPublicScreen(target)) return [];
     const label: PortalReferenceLabel<T> = { fieldKey, multi: field.multi === true, target, declared: isDeclared };
     const through = chained ? titleReferenceLabel(screens, label) : undefined;
     return [through ? { ...label, through } : label];
@@ -1247,12 +1311,6 @@ export const portalDeclarationIssues = (
 
   issues.push(...portalVisibilityIssues(screen));
 
-  if (portal.uploads && portal.documents !== true) {
-    issues.push({ message: '@core.records/portal.issue.uploads.documents' });
-  }
-
-  issues.push(...portalDocumentLinkIssues(screen));
-
   issues.push(...portalReferenceTitleIssues(screen));
   for (const key of portalReferenceTitleKeys(screen)) {
     const refEntity = screen.fields.find((one) => one.key === key)?.refEntity as string;
@@ -1260,6 +1318,19 @@ export const portalDeclarationIssues = (
       issues.push({ message: '@core.records/portal.issue.reference-title.no-title', messageParams: { field: key, screen: refEntity } });
     }
   }
+
+  if (portal.subject === 'public') {
+    for (const option of portalPublicConflicts(portal)) {
+      issues.push({ message: '@core.records/portal.issue.public.unsupported', messageParams: { option } });
+    }
+    return issues;
+  }
+
+  if (portal.uploads && portal.documents !== true) {
+    issues.push({ message: '@core.records/portal.issue.uploads.documents' });
+  }
+
+  issues.push(...portalDocumentLinkIssues(screen));
 
   if (portal.invites?.automation && portal.subject !== 'self') {
     issues.push({ message: '@core.records/portal.issue.invites.not-subject' });
@@ -1325,12 +1396,17 @@ export const portalDeclarationIssues = (
       issues.push({ message: '@core.records/portal.issue.target.no-portal', messageParams: { screen: targetKey } });
       return issues;
     }
+    if (isPortalPublicScreen(target)) {
+      issues.push({ message: '@core.records/portal.issue.target.public', messageParams: { screen: targetKey } });
+      return issues;
+    }
     if (target.portal.subject === 'self') return issues;
     if (visited.has(target.id)) break;
     visited.add(target.id);
     const next = target.portal.subject;
     if (next === 'parent') targetKey = target.parentEntity;
-    else targetKey = target.fields.find((one) => one.key === next.field)?.refEntity;
+    else if (typeof next === 'object') targetKey = target.fields.find((one) => one.key === next.field)?.refEntity;
+    else targetKey = null;
     if (!targetKey) {
       issues.push({ message: '@core.records/portal.issue.target.no-portal', messageParams: { screen: target.id } });
       return issues;

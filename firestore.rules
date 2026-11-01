@@ -126,6 +126,13 @@ service cloud.firestore {
         && request.auth.uid in resource.data.audience
         && isPortalUser(tenantId);
     }
+    // O registro PÚBLICO (`subject: 'public'`) é de todo convidado ativo do escritório: não tem
+    // `audience`, e a consulta que o lista é provada por `public == true`. O convite continua sendo lido
+    // a cada consulta — revogar e suspender fecham o público também, no instante.
+    function isPortalPublicRecord(tenantId) {
+      return resource.data.public == true
+        && isPortalUser(tenantId);
+    }
 
     function can(tenantId, permission) {
       return isSystemAdmin()
@@ -311,7 +318,7 @@ service cloud.firestore {
       // a lista sem ler documento nenhum — a mesma forma de Downloads. Ninguém grava do cliente: quem
       // escrevesse o `audience` daria a si mesmo o registro de outro.
       match /portalRecords/{projectionId} {
-        allow read: if isInPortalAudience(tenantId);
+        allow read: if isInPortalAudience(tenantId) || isPortalPublicRecord(tenantId);
         allow write: if false;
 
         // O documento compartilhado não leva o `audience` consigo: a regra o lê do registro-pai. Uma

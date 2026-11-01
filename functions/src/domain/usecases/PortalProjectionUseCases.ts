@@ -3,6 +3,7 @@ import type { IRecordDocumentLinks } from '../repositories/IRecordDocumentLinks'
 import { wasEverPortalShared } from '../services/recordDocumentLinks';
 import type { StartPortalReprojectionUseCase } from './PortalReprojectionUseCases';
 import {
+  PORTAL_PUBLIC_SUBJECT_KEY,
   PORTAL_SUBJECT_MAX_DEPTH,
   evaluatePortalCondition,
   isPortalEditOpen,
@@ -167,12 +168,15 @@ export const makeProjectPortalRecordUseCase = (
         ? referencedIds(data[link.fieldKey]).map((id) => portalSubjectKey(linkTarget.collection, id))
         : [];
 
+      // O público não tem quem convidar: a regra o libera pelo `public`, e `audience` fica vazio — um
+      // convite novo não precisa refazer nada, e nenhuma lista de uids cresce com o escritório.
+      const isPublic = subjectKeys.includes(PORTAL_PUBLIC_SUBJECT_KEY);
       const projection: PortalProjection = {
         collection: screen.collection,
         recordId,
         screenId: screen.id,
         subjectKeys,
-        audience: await repo.audienceFor(tenantId, subjectKeys),
+        audience: isPublic ? [] : await repo.audienceFor(tenantId, subjectKeys),
         title: portalExposedTitle(screen, data, labels),
         data: projectPortalData(screen, data),
         labels,
@@ -180,6 +184,7 @@ export const makeProjectPortalRecordUseCase = (
         parentKey: parentKeys[0] ?? '',
         editable: isPortalEditOpen(screen, data, evaluatePortalCondition),
         portalOwner: portalOwnerOf(data),
+        ...(isPublic ? { public: true as const } : {}),
       };
       // Regravar o que ficou igual não muda nada para o convidado, e cada gravação acorda os gatilhos
       // que escutam o tenant inteiro — numa passada, milhares de invocações para nada.

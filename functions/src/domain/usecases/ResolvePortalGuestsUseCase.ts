@@ -1,7 +1,7 @@
 import type { IPortalRepository } from '../repositories/IPortalRepository';
 import type { PortalGuestContact } from '../repositories/INotificationDelivery';
 import type { RecordLinkTarget } from '../schema/recordLink';
-import { portalScreenOf, portalTargetScreen, resolvePortalSubjectKeys } from '../schema/portal';
+import { PORTAL_PUBLIC_SUBJECT_KEY, portalScreenOf, portalTargetScreen, resolvePortalSubjectKeys } from '../schema/portal';
 
 export interface PortalGuestsOfRecord {
   /** O registro está no portal: a tela dele declara portal, ele passa no filtro e chega a um sujeito. */
@@ -37,6 +37,9 @@ export const makeResolvePortalGuestsUseCase = (repo: IPortalRepository): Resolve
       getRecord: (collection, id) => repo.getRecord(tenantId, collection, id),
     });
     if (subjectKeys.length === 0) return closed;
+    // O registro público é de todo convidado do escritório, e avisar "quem o vê" seria escrever a todos —
+    // uma mala direta, que esta porta não é. Ele está no portal, e ninguém recebe.
+    if (subjectKeys.includes(PORTAL_PUBLIC_SUBJECT_KEY)) return { inPortal: true, guests: [] };
 
     const userIds = await repo.audienceFor(tenantId, subjectKeys);
     const invites = await Promise.all(userIds.map((userId) => repo.getPortalUser(tenantId, userId)));

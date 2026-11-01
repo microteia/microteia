@@ -142,6 +142,7 @@ const toProjection = (data: DocumentData): PortalProjection => ({
   parentKey: asString(data.parentKey),
   editable: data.editable === true,
   portalOwner: asString(data.portalOwner) || null,
+  ...(data.public === true ? { public: true as const } : {}),
 });
 
 const toSharedDocument = (id: string, data: DocumentData): SharedRecordDocument => ({

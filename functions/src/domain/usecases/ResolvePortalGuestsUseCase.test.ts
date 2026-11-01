@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeResolvePortalGuestsUseCase } from './ResolvePortalGuestsUseCase';
-import { CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
+import { CITY_SCREENS, PUBLIC_CITY_SCREENS, makeFakePortalRepository } from '../repositories/fakePortalRepository';
 
 const TENANT = 'salvador';
 
@@ -51,5 +51,13 @@ describe('quem do portal vê um registro', () => {
     const { uc, users } = setup();
     users.delete('ana');
     expect(await uc.execute(TENANT, { collection: 'invoices', recordId: 'nf1' })).toEqual({ inPortal: true, guests: [] });
+  });
+});
+
+describe('aviso de um registro público (EV-43)', () => {
+  it('está no portal, e ninguém recebe: avisar todo convidado seria mala direta', async () => {
+    const { uc, records } = setup(PUBLIC_CITY_SCREENS);
+    records.set('outages/o1', { description: 'Manutenção', kind: 'outage' });
+    expect(await uc.execute(TENANT, { collection: 'outages', recordId: 'o1' })).toEqual({ inPortal: true, guests: [] });
   });
 });

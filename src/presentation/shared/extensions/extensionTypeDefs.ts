@@ -1509,6 +1509,12 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
     titlePlural: string;
     icon: string;
     documents: boolean;
+    /**
+     * \`true\` on a screen declared \`portal: { subject: 'public' }\`: every active guest of the organization
+     * reads the same records, and they are read-only — \`create\`, \`edit\` and \`uploads\` are always \`null\`
+     * and \`documents\` is \`false\`. Absent on any other screen, and on older kernels.
+     */
+    public?: boolean;
     parent: { collection: string } | null;
     /**
      * A select's options are the field's own plus those of the organization's list, already labelled.

@@ -73,6 +73,7 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
     { value: 'self', label: t('portal.subject.self') },
     ...(props.referenceFieldOptions.length > 0 ? [{ value: 'field', label: t('portal.subject.field') }] : []),
     ...(props.hasParent ? [{ value: 'parent', label: t('portal.subject.parent') }] : []),
+    { value: 'public', label: t('portal.subject.public') },
   ];
 
   const layoutOptions = [
@@ -125,6 +126,7 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
                 disabled={readOnly}
               />
             )}
+            {form.subjectKind === 'public' && <InfoBanner variant="warning" message={t('portal.subject.public.hint')} />}
           </S.Section>
 
           <S.Section>
@@ -174,186 +176,190 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
             <S.Hint>{t('portal.visible-when.hint')}</S.Hint>
           </S.Section>
 
-          <S.Section>
-            <Checkbox
-              checked={form.documents}
-              onChange={props.onToggleDocuments}
-              label={t('portal.documents')}
-              disabled={readOnly || !props.hasDocuments}
-            />
-            <S.Hint>{props.hasDocuments ? t('portal.documents.hint') : t('portal.documents.unavailable')}</S.Hint>
-            <Checkbox
-              checked={form.allowUploads && form.documents}
-              onChange={props.onToggleUploads}
-              label={t('portal.uploads.enabled')}
-              disabled={readOnly || !form.documents}
-            />
-            <S.Hint>{form.documents ? t('portal.uploads.hint') : t('portal.uploads.requires-documents')}</S.Hint>
-            {form.allowUploads && form.documents && (
-              <>
-                <S.Hint>{t('portal.uploads.types-hint')}</S.Hint>
-                <S.FieldGrid>
-                  {props.documentTypeOptions.map((option) => (
-                    <Checkbox
-                      key={option.value}
-                      checked={form.uploadTypes.includes(option.value)}
-                      onChange={(allowed) => props.onToggleUploadType(option.value, allowed)}
-                      label={option.label}
-                      disabled={readOnly}
-                    />
-                  ))}
-                </S.FieldGrid>
-              </>
-            )}
-            <Checkbox
-              checked={form.documentLinks}
-              onChange={props.onToggleDocumentLinks}
-              label={t('portal.document-links')}
-              disabled={readOnly}
-            />
-            <S.Hint>{t('portal.document-links.hint')}</S.Hint>
-            {form.documentLinks && (
-              <>
-                <S.SectionTitle>{t('portal.document-links.minutes')}</S.SectionTitle>
-                <Input
-                  type="number"
-                  value={form.documentLinkMinutes}
-                  onChange={(event) => props.onDocumentLinkMinutes(event.target.value)}
+          {form.subjectKind !== 'public' && (
+            <>
+              <S.Section>
+                <Checkbox
+                  checked={form.documents}
+                  onChange={props.onToggleDocuments}
+                  label={t('portal.documents')}
+                  disabled={readOnly || !props.hasDocuments}
+                />
+                <S.Hint>{props.hasDocuments ? t('portal.documents.hint') : t('portal.documents.unavailable')}</S.Hint>
+                <Checkbox
+                  checked={form.allowUploads && form.documents}
+                  onChange={props.onToggleUploads}
+                  label={t('portal.uploads.enabled')}
+                  disabled={readOnly || !form.documents}
+                />
+                <S.Hint>{form.documents ? t('portal.uploads.hint') : t('portal.uploads.requires-documents')}</S.Hint>
+                {form.allowUploads && form.documents && (
+                  <>
+                    <S.Hint>{t('portal.uploads.types-hint')}</S.Hint>
+                    <S.FieldGrid>
+                      {props.documentTypeOptions.map((option) => (
+                        <Checkbox
+                          key={option.value}
+                          checked={form.uploadTypes.includes(option.value)}
+                          onChange={(allowed) => props.onToggleUploadType(option.value, allowed)}
+                          label={option.label}
+                          disabled={readOnly}
+                        />
+                      ))}
+                    </S.FieldGrid>
+                  </>
+                )}
+                <Checkbox
+                  checked={form.documentLinks}
+                  onChange={props.onToggleDocumentLinks}
+                  label={t('portal.document-links')}
                   disabled={readOnly}
                 />
-              </>
-            )}
-          </S.Section>
-
-          <S.Section>
-            <Checkbox
-              checked={form.trackViews}
-              onChange={props.onToggleTrackViews}
-              label={t('portal.track-views')}
-              disabled={readOnly}
-            />
-            <S.Hint>{t('portal.track-views.hint', { minutes: PORTAL_VIEW_REPEAT_MINUTES })}</S.Hint>
-          </S.Section>
-
-          <S.Section>
-            <Checkbox
-              checked={form.allowCreate && form.subjectKind !== 'self'}
-              onChange={props.onToggleCreate}
-              label={t('portal.create.enabled')}
-              disabled={readOnly || form.subjectKind === 'self'}
-            />
-            <S.Hint>{form.subjectKind === 'self' ? t('portal.create.self-hint') : t('portal.create.hint')}</S.Hint>
-            {form.allowCreate && form.subjectKind !== 'self' && (
-              <>
-                <S.FieldGrid>
-                  {props.createFieldOptions.map((option) => (
-                    <Checkbox
-                      key={option.value}
-                      checked={form.createFields.includes(option.value)}
-                      onChange={(fillable) => props.onToggleCreateField(option.value, fillable)}
-                      label={option.label}
+                <S.Hint>{t('portal.document-links.hint')}</S.Hint>
+                {form.documentLinks && (
+                  <>
+                    <S.SectionTitle>{t('portal.document-links.minutes')}</S.SectionTitle>
+                    <Input
+                      type="number"
+                      value={form.documentLinkMinutes}
+                      onChange={(event) => props.onDocumentLinkMinutes(event.target.value)}
                       disabled={readOnly}
                     />
-                  ))}
-                </S.FieldGrid>
-                <S.SectionTitle>{t('portal.create.when')}</S.SectionTitle>
-                <Input
-                  value={form.createWhen}
-                  onChange={(event) => props.onCreateWhen(event.target.value)}
-                  placeholder={t('portal.create.when.placeholder')}
+                  </>
+                )}
+              </S.Section>
+
+              <S.Section>
+                <Checkbox
+                  checked={form.trackViews}
+                  onChange={props.onToggleTrackViews}
+                  label={t('portal.track-views')}
                   disabled={readOnly}
                 />
-                <S.Hint>{t('portal.create.when.hint')}</S.Hint>
-              </>
-            )}
-          </S.Section>
+                <S.Hint>{t('portal.track-views.hint', { minutes: PORTAL_VIEW_REPEAT_MINUTES })}</S.Hint>
+              </S.Section>
 
-          <S.Section>
-            <Checkbox
-              checked={form.allowEdit}
-              onChange={props.onToggleEdit}
-              label={t('portal.edit.enabled')}
-              disabled={readOnly}
-            />
-            <S.Hint>{t('portal.edit.hint')}</S.Hint>
-            {form.allowEdit && (
-              <>
-                {props.editFieldOptions.length === 0 ? (
-                  <S.Hint>{t('portal.edit.no-exposed')}</S.Hint>
+              <S.Section>
+                <Checkbox
+                  checked={form.allowCreate && form.subjectKind !== 'self'}
+                  onChange={props.onToggleCreate}
+                  label={t('portal.create.enabled')}
+                  disabled={readOnly || form.subjectKind === 'self'}
+                />
+                <S.Hint>{form.subjectKind === 'self' ? t('portal.create.self-hint') : t('portal.create.hint')}</S.Hint>
+                {form.allowCreate && form.subjectKind !== 'self' && (
+                  <>
+                    <S.FieldGrid>
+                      {props.createFieldOptions.map((option) => (
+                        <Checkbox
+                          key={option.value}
+                          checked={form.createFields.includes(option.value)}
+                          onChange={(fillable) => props.onToggleCreateField(option.value, fillable)}
+                          label={option.label}
+                          disabled={readOnly}
+                        />
+                      ))}
+                    </S.FieldGrid>
+                    <S.SectionTitle>{t('portal.create.when')}</S.SectionTitle>
+                    <Input
+                      value={form.createWhen}
+                      onChange={(event) => props.onCreateWhen(event.target.value)}
+                      placeholder={t('portal.create.when.placeholder')}
+                      disabled={readOnly}
+                    />
+                    <S.Hint>{t('portal.create.when.hint')}</S.Hint>
+                  </>
+                )}
+              </S.Section>
+
+              <S.Section>
+                <Checkbox
+                  checked={form.allowEdit}
+                  onChange={props.onToggleEdit}
+                  label={t('portal.edit.enabled')}
+                  disabled={readOnly}
+                />
+                <S.Hint>{t('portal.edit.hint')}</S.Hint>
+                {form.allowEdit && (
+                  <>
+                    {props.editFieldOptions.length === 0 ? (
+                      <S.Hint>{t('portal.edit.no-exposed')}</S.Hint>
+                    ) : (
+                      <S.FieldGrid>
+                        {props.editFieldOptions.map((option) => (
+                          <Checkbox
+                            key={option.value}
+                            checked={form.editFields.includes(option.value)}
+                            onChange={(editable) => props.onToggleEditField(option.value, editable)}
+                            label={option.label}
+                            disabled={readOnly}
+                          />
+                        ))}
+                      </S.FieldGrid>
+                    )}
+                    <S.SectionTitle>{t('portal.edit.when')}</S.SectionTitle>
+                    <Input
+                      value={form.editWhen}
+                      onChange={(event) => props.onEditWhen(event.target.value)}
+                      placeholder={t('portal.edit.when.placeholder')}
+                      disabled={readOnly}
+                    />
+                    <S.Hint>{t('portal.edit.when.hint')}</S.Hint>
+                    {form.subjectKind !== 'self' && (
+                      <Checkbox
+                        checked={form.editOnlyOwn}
+                        onChange={props.onToggleEditOnlyOwn}
+                        label={t('portal.edit.only-own')}
+                        disabled={readOnly}
+                      />
+                    )}
+                  </>
+                )}
+              </S.Section>
+
+              <S.Section>
+                <S.SectionTitle>{t('portal.actions.title')}</S.SectionTitle>
+                <S.Hint>{t('portal.actions.hint')}</S.Hint>
+                {props.actionOptions.length === 0 ? (
+                  <S.Hint>{t('portal.actions.empty')}</S.Hint>
                 ) : (
                   <S.FieldGrid>
-                    {props.editFieldOptions.map((option) => (
+                    {props.actionOptions.map((option) => (
                       <Checkbox
                         key={option.value}
-                        checked={form.editFields.includes(option.value)}
-                        onChange={(editable) => props.onToggleEditField(option.value, editable)}
+                        checked={form.actions.includes(option.value)}
+                        onChange={(offered) => props.onToggleAction(option.value, offered)}
                         label={option.label}
                         disabled={readOnly}
                       />
                     ))}
                   </S.FieldGrid>
                 )}
-                <S.SectionTitle>{t('portal.edit.when')}</S.SectionTitle>
-                <Input
-                  value={form.editWhen}
-                  onChange={(event) => props.onEditWhen(event.target.value)}
-                  placeholder={t('portal.edit.when.placeholder')}
+              </S.Section>
+
+              <S.Section>
+                <Checkbox
+                  checked={form.notifyOffice}
+                  onChange={props.onToggleNotifyOffice}
+                  label={t('portal.notify.enabled')}
                   disabled={readOnly}
                 />
-                <S.Hint>{t('portal.edit.when.hint')}</S.Hint>
-                {form.subjectKind !== 'self' && (
-                  <Checkbox
-                    checked={form.editOnlyOwn}
-                    onChange={props.onToggleEditOnlyOwn}
-                    label={t('portal.edit.only-own')}
-                    disabled={readOnly}
-                  />
-                )}
-              </>
-            )}
-          </S.Section>
+                <S.Hint>{t('portal.notify.hint')}</S.Hint>
+              </S.Section>
 
-          <S.Section>
-            <S.SectionTitle>{t('portal.actions.title')}</S.SectionTitle>
-            <S.Hint>{t('portal.actions.hint')}</S.Hint>
-            {props.actionOptions.length === 0 ? (
-              <S.Hint>{t('portal.actions.empty')}</S.Hint>
-            ) : (
-              <S.FieldGrid>
-                {props.actionOptions.map((option) => (
-                  <Checkbox
-                    key={option.value}
-                    checked={form.actions.includes(option.value)}
-                    onChange={(offered) => props.onToggleAction(option.value, offered)}
-                    label={option.label}
-                    disabled={readOnly}
-                  />
-                ))}
-              </S.FieldGrid>
-            )}
-          </S.Section>
-
-          <S.Section>
-            <Checkbox
-              checked={form.notifyOffice}
-              onChange={props.onToggleNotifyOffice}
-              label={t('portal.notify.enabled')}
-              disabled={readOnly}
-            />
-            <S.Hint>{t('portal.notify.hint')}</S.Hint>
-          </S.Section>
-
-          <S.Section>
-            <Checkbox
-              checked={form.automationInvites && form.subjectKind === 'self'}
-              onChange={props.onToggleAutomationInvites}
-              label={t('portal.invites.automation')}
-              disabled={readOnly || form.subjectKind !== 'self'}
-            />
-            <S.Hint>
-              {form.subjectKind === 'self' ? t('portal.invites.automation.hint') : t('portal.invites.automation.self-only')}
-            </S.Hint>
-          </S.Section>
+              <S.Section>
+                <Checkbox
+                  checked={form.automationInvites && form.subjectKind === 'self'}
+                  onChange={props.onToggleAutomationInvites}
+                  label={t('portal.invites.automation')}
+                  disabled={readOnly || form.subjectKind !== 'self'}
+                />
+                <S.Hint>
+                  {form.subjectKind === 'self' ? t('portal.invites.automation.hint') : t('portal.invites.automation.self-only')}
+                </S.Hint>
+              </S.Section>
+            </>
+          )}
 
           <S.Section>
             <S.SectionTitle>{t('portal-template.title')}</S.SectionTitle>

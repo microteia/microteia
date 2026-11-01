@@ -329,3 +329,67 @@ describe('a entrada com identidade verificada', () => {
     await assertSucceeds(updateDoc(doc(fiscal, `tenants/${TENANT}/invoices/nf1`), { number: 'NF-1b', updatedVia: 'ui' }));
   });
 });
+
+describe('o registro público — de todo convidado, sem audience (EV-43)', () => {
+  const outage = {
+    ...projection([]),
+    collection: 'outages',
+    recordId: 'o1',
+    screenId: 'outages',
+    subjectKeys: ['*'],
+    data: { description: 'Sistema fora do ar' },
+    public: true,
+  };
+  const publicOf = (uid: string) => query(projections(uid), where('public', '==', true), where('collection', '==', 'outages'));
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore() as unknown as Firestore;
+      await setDoc(doc(db, `tenants/${TENANT}/portalRecords/outages__o1`), outage);
+      await setDoc(doc(db, `tenants/${TENANT}/portalRecords/outages__o1/documents/d1`), { name: 'x.pdf' });
+      await setDoc(doc(db, `tenants/${OTHER_TENANT}/portalRecords/outages__o9`), { ...outage, recordId: 'o9' });
+    });
+  });
+
+  it('dois convidados de sujeitos diferentes leem o MESMO registro, por id e pela lista filtrada', async () => {
+    for (const uid of ['ana', 'bia']) {
+      await assertSucceeds(getDoc(doc(asUser(env, uid), `tenants/${TENANT}/portalRecords/outages__o1`)));
+      const listed = await assertSucceeds(getDocs(publicOf(uid)));
+      if (listed.docs.map((one) => one.id).join() !== 'outages__o1') throw new Error(`${uid} listou ${listed.docs.map((one) => one.id)}`);
+    }
+  });
+
+  it('a lista sem o filtro `public` continua recusada — o público não abre o dos outros', async () => {
+    await assertFails(getDocs(query(projections('ana'), where('collection', '==', 'outages'))));
+    await assertFails(getDocs(query(projections('ana'), where('public', '==', false))));
+  });
+
+  it('quem não é convidado do escritório não lê — nem membro, nem conta qualquer, nem convidado de outro escritório', async () => {
+    for (const uid of ['fiscal', 'gestor', 'dono', 'estranho']) {
+      await assertFails(getDoc(doc(asUser(env, uid), `tenants/${TENANT}/portalRecords/outages__o1`)));
+      await assertFails(getDocs(publicOf(uid)));
+    }
+    await assertFails(getDoc(doc(asUser(env, 'ana'), `tenants/${OTHER_TENANT}/portalRecords/outages__o9`)));
+  });
+
+  it('revogar e suspender fecham o público no instante — o convite é lido a cada consulta', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore() as unknown as Firestore;
+      await deleteDoc(doc(db, `tenants/${TENANT}/portalUsers/ana`));
+      await updateDoc(doc(db, `tenants/${TENANT}/portalUsers/bia`), { suspended: true });
+    });
+    for (const uid of ['ana', 'bia']) {
+      await assertFails(getDoc(doc(asUser(env, uid), `tenants/${TENANT}/portalRecords/outages__o1`)));
+      await assertFails(getDocs(publicOf(uid)));
+    }
+  });
+
+  it('o documento sob o registro público não sai — ele segue o audience, que é vazio', async () => {
+    await assertFails(getDocs(collection(asUser(env, 'ana'), `tenants/${TENANT}/portalRecords/outages__o1/documents`)));
+  });
+
+  it('ninguém torna um registro público pelo cliente', async () => {
+    await assertFails(updateDoc(doc(asUser(env, 'dono'), `tenants/${TENANT}/portalRecords/invoices__nf1`), { public: true }));
+    await assertFails(setDoc(doc(asUser(env, 'ana'), `tenants/${TENANT}/portalRecords/outages__o2`), { ...outage, recordId: 'o2' }));
+  });
+});

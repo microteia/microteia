@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.191.0] — 2026-11-01
+
+- O portal agora pode mostrar a todos os convidados as informações que são do escritório para todos — comunicados gerais, indisponibilidades do sistema, um calendário de feriados, uma tabela de valores. Basta escolher, na aba Portal da tela, que os registros são "de ninguém em particular": todo convidado ativo passa a vê-los, sempre só os campos e os registros que você deixou sair, e apenas para leitura. Antes, essa informação só chegava ao portal como texto fixo, reescrito à mão a cada mudança.
+
 #### [9.190.0] — 2026-11-01
 
 - Ao atualizar uma extensão de que outra depende, a Microteia agora avisa quando a nova versão deixaria essa outra extensão fora do ar, dizendo qual é e que versões ela aceita — e só aplica depois que você confirmar. Antes, a outra extensão continuava aparecendo como instalada, mas parava de funcionar sem nenhum aviso.

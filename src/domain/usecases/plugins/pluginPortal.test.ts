@@ -4,9 +4,11 @@ import {
   PORTAL_ACTIONS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINKS_SINCE_KERNEL,
   PORTAL_DOCUMENT_LINK_MAX_MINUTES,
+  PORTAL_PUBLIC_SUBJECT_SINCE_KERNEL,
   PORTAL_REFERENCE_TITLES_SINCE_KERNEL,
   PORTAL_TRACK_VIEWS_SINCE_KERNEL,
   PORTAL_VISIBLE_WHEN_SINCE_KERNEL,
+  type PortalDeclaration,
 } from '../../schema/portal';
 import type { PortalTemplate } from '../../schema/ui/portalTemplate';
 import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
@@ -264,5 +266,46 @@ describe('desenho do portal no pacote (`portal.template`)', () => {
         messageParams: { where: 'screens[0].portal.template.detail.body[1].hiddenWhen', field: 'type' },
       },
     ]));
+  });
+});
+
+describe('tela pública no pacote (EV-43)', () => {
+  const published = (portal: Record<string, unknown>, kernel = `^${PORTAL_PUBLIC_SUBJECT_SINCE_KERNEL}`): MarketplacePlugin => {
+    const base = pkg(undefined, kernel);
+    return {
+      ...base,
+      screens: base.screens!.map((screen) => ({
+        ...screen,
+        portal: { subject: 'public', fields: ['description'], ...portal } as PortalDeclaration,
+      })),
+    };
+  };
+
+  it('só leitura, com filtro e o kernel que lê o sujeito, passa', () => {
+    expect(packagePortalIssues(published({ visibleWhen: 'type == "outage"' }))).toEqual([]);
+  });
+
+  it('o kernel anterior é recusa: ele descartaria a declaração e a tela sairia do portal, calada', () => {
+    expect(packageIssues(published({}, '^2.93.0'))).toContainEqual({
+      message: '@core.marketplace/issue.portal.public.kernel',
+      messageParams: { screen: 'entries', minimum: PORTAL_PUBLIC_SUBJECT_SINCE_KERNEL },
+    });
+  });
+
+  it('o que pressupõe um dono entre os convidados é recusa, um por opção', () => {
+    const issues = packagePortalIssues(published({
+      create: { fields: ['description'] },
+      edit: { fields: ['description'] },
+      documents: true,
+      uploads: { types: [] },
+      actions: ['accept'],
+      trackViews: true,
+      documentLinks: { expiresInMinutes: 10 },
+      invites: { automation: true },
+    }));
+    expect(issues.map((issue) => issue.messageParams?.option)).toEqual([
+      'create', 'edit', 'uploads', 'actions', 'documents', 'documentLinks', 'trackViews', 'invites',
+    ]);
+    expect(issues.every((issue) => issue.message === '@core.marketplace/issue.portal.public.unsupported')).toBe(true);
   });
 });
