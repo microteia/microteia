@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.190.0] — 2026-11-01
+
+- Ao atualizar uma extensão de que outra depende, a Microteia agora avisa quando a nova versão deixaria essa outra extensão fora do ar, dizendo qual é e que versões ela aceita — e só aplica depois que você confirmar. Antes, a outra extensão continuava aparecendo como instalada, mas parava de funcionar sem nenhum aviso.
+- Quando um botão de ação não se aplica ao registro aberto — porque a automação dele só vale para registros em outra situação —, a mensagem agora diz exatamente isso. Antes aparecia um erro técnico dizendo que a automação não tinha devolvido resposta, o que levava a procurar defeito onde não havia.
+- O exemplo de automação que acompanha as ferramentas de criação de extensões agora mostra como um botão recebe a resposta da automação que ele dispara, e essas ferramentas passaram a avisar quem escreve uma extensão quando um botão pode terminar sem resposta.
+
 #### [9.189.0] — 2026-11-01
 
 - Uma automação chamada por um botão ou por outra automação agora consegue avisar por e-mail ou SMS a pessoa ligada ao registro que recebeu — por exemplo, o contato do cliente do pedido —, e também avisar no portal os convidados desse registro. Antes, esse aviso só funcionava em automações disparadas pela gravação do próprio registro.

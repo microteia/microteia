@@ -2,6 +2,7 @@ import { ENTITY_EVENT_ACTIONS, WORKFLOW_CALLED_EVENT, WORKFLOW_EVENT_CATALOG } f
 import { DATE_REACHED_ACTION, WORKFLOW_SCHEDULE_EVENT } from '../../domain/schema/workflowClock';
 import type { WorkflowDateReached, WorkflowSchedule } from '../../domain/schema/workflowClock';
 import { CONTROL_STEP_TYPES, CORE_STEP_CATALOG } from '../../domain/schema/workflowStepCatalog';
+import { ACTION_RECORD_PARAMETER, ACTION_RETURN_KEYS } from '../../domain/entities/Action';
 import type { BehaviorEffect, BehaviorTransition, EffectKind } from './behaviorModel';
 import { effectEntity, isSelfLoop } from './behaviorModel';
 
@@ -98,10 +99,12 @@ export const BEHAVIOR_MECHANISMS: BehaviorMechanism[] = [
     declares: 'user-action',
     mechanism: `a callable workflow (\`${WORKFLOW_CALLED_EVENT}\`) plus the record action that invokes it`,
     declaredAs:
-      `workflows: [{ eventName: '${WORKFLOW_CALLED_EVENT}', parameters, steps }] `
+      `workflows: [{ eventName: '${WORKFLOW_CALLED_EVENT}', parameters: [{ key: '${ACTION_RECORD_PARAMETER}', `
+      + "type: 'EntityReference', entityType: <collection> }], steps: [..., <the answer map>] }] "
       + 'PLUS actions: [{ key, workflowId: <that templateId> }], and the action is listed in the target '
-      + "screen's cardActionIds / viewActionIds",
-    stepIds: [],
+      + "screen's cardActionIds / viewActionIds. The button sends its record as "
+      + `\`${ACTION_RECORD_PARAMETER}\` on every run, and reads ${ACTION_RETURN_KEYS.join(' / ')} from the last step`,
+    stepIds: ['map'],
     supported: true,
   },
   {
@@ -353,16 +356,54 @@ export interface MappedTransition {
   permission?: string;
   /** Como o `from` é conferido em runtime. Ausente quando o gatilho não tem mecanismo nenhum. */
   fromCheck?: TransitionFromCheck;
+  /**
+   * Só no gatilho de pessoa: como o fluxo declara o registro do botão. Ele chega SEMPRE em
+   * `recordId` — com ou sem formulário —, e é declará-lo como referência que deixa a condição ler os
+   * campos dele. Um parâmetro com outro nome só seria preenchido pelo formulário de `promptParameters`.
+   */
+  recordParameter?: ActionRecordParameter;
+  /** Só no gatilho de pessoa: o passo que responde ao botão, em todos os caminhos. */
+  returns?: ActionReturnPlan;
   /** `false` quando o gatilho não tem mecanismo; a transição não vira automação nenhuma. */
   supported: boolean;
 }
 
 /**
- * A chave do parâmetro de referência que a ação preenche — a entidade com a inicial minúscula.
- * Convenção, e declarada aqui uma vez para que o plano e o guia citem a MESMA.
+ * A chave que o plano propunha para o parâmetro de referência — a entidade com a inicial minúscula.
+ *
+ * @deprecated O plano deixou de usá-la: um parâmetro com esse nome só é preenchido pelo formulário de
+ * `promptParameters`, e o botão que não o abre mandava o fluxo rodar sem ele — a condição falhava e o
+ * fluxo era ignorado. O registro do botão chega sempre em `recordId`. Fica exportada porque é
+ * superfície do SDK.
  */
 export const referenceParameterKey = (entity: string): string =>
   entity.charAt(0).toLowerCase() + entity.slice(1);
+
+export interface ActionRecordParameter {
+  key: typeof ACTION_RECORD_PARAMETER;
+  type: 'EntityReference';
+  entityType: string;
+}
+
+export interface ActionReturnPlan {
+  /** O `stepDefinitionId` do passo que responde. */
+  step: 'map';
+  declaredAs: string;
+}
+
+/**
+ * A resposta do botão, escrita uma vez. O botão lê as saídas do ÚLTIMO passo executado; um `map` SEM
+ * nome as publica na raiz, que é onde o botão procura. Sem ele, o fluxo grava tudo e o botão diz que
+ * nada voltou.
+ */
+export const ACTION_RETURN_PLAN: ActionReturnPlan = {
+  step: 'map',
+  declaredAs: "a LAST step { stepDefinitionId: 'map', configuration: { map: { kind: 'Literal', value: { fields: "
+    + "[{ name: 'status', value: 'SUCCESS' }, { name: 'actions', value: ['refresh'] }] } } } } with NO `name` — a "
+    + "named map publishes { <name>: {...} } and the button finds nothing. A refusal inside the flow returns "
+    + "status 'ERROR' with its message in the same kind of step, BEFORE an 'exit': the exit keeps the step before it "
+    + 'as the answer',
+};
 
 /**
  * A tradução de UMA transição. Definição única — o validador e a resposta da tool leem daqui, para
@@ -394,8 +435,8 @@ export const mapTransition = (
 
   if (trigger.kind === 'user-action') {
     // `workflow.called` não carrega o registro: o `from` que PARA a passagem é o da ação, e o do
-    // fluxo só resolve através de um parâmetro de referência.
-    const parameter = referenceParameterKey(transition.entity);
+    // fluxo resolve pelo registro do botão, que chega sempre em `recordId`.
+    const parameter = ACTION_RECORD_PARAMETER;
     return {
       transition,
       ...permission,
@@ -403,7 +444,9 @@ export const mapTransition = (
       describable: DESCRIPTION_REQUIRED_EVENTS.includes(WORKFLOW_CALLED_EVENT),
       actionKey: trigger.action,
       workflowCondition: `${parameter}.${stateField} == "${transition.from}"`,
-      steps,
+      steps: [...steps, ACTION_RETURN_PLAN.step],
+      recordParameter: { key: parameter, type: 'EntityReference', entityType: collection },
+      returns: ACTION_RETURN_PLAN,
       fromCheck: {
         where: 'action-visibility',
         expression: `record.${stateField} == "${transition.from}"`,

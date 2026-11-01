@@ -1110,6 +1110,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'handler.action.no-workflow': 'This action has no workflow attached.',
   'handler.action.not-found': 'Action not found.',
   'handler.action.run-failed': 'The run of "{name}" failed. Check the workflow runs for the details.',
+  'handler.action.skipped':
+    '"{name}" did not run: the conditions of its workflow do not apply to this record, so nothing was changed.',
   'handler.action.workflow-invalid':
     'The attached workflow does not exist, is disabled, or is not of the "Called by another workflow" kind.',
   'handler.log-error.failed': 'Could not record the failure.',

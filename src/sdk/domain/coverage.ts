@@ -140,6 +140,7 @@ const STEP_INPUT_REACH: Record<string, string | null> = {
   'render-document.templateKey': 'effect "generate-document" (template)',
   'render-document.recordId': 'effect "generate-document" — the record of the transition',
   'query.query': 'trigger "schedule" — the collection and the `from` of the transition, as the filter',
+  'map.map': 'trigger "user-action" — the answer the button reads (status and actions), fixed by the plan',
 };
 
 const STEP_INPUT_NOTES: Record<string, string> = {
@@ -416,7 +417,8 @@ const ACTION_NOTES: Record<string, string> = {
   confirmMessage: 'asks before firing. Every irreversible passage wants one, and the model cannot say a passage is '
     + 'irreversible — `terminal` says a state has no way out, which is not the same thing',
   promptParameters: 'asks the person for the flow\'s parameters first. The model declares no parameter of a passage',
-  parameterDefaults: 'fills those parameters by expression before the flow runs',
+  parameterDefaults: 'pre-fills the form promptParameters opens, by expression — and only that form: without it the '
+    + 'map is never evaluated. The record of the button needs neither, it always reaches the flow as recordId',
   danger: 'draws the button as destructive. A visual consequence of "irreversible", which is also missing',
   order: 'HUMAN: the order gestures appear in',
   ownerPluginIds: 'the refcount of extensions sharing the action, set by the installation',
@@ -431,10 +433,12 @@ const WORKFLOW_REACH: Record<keyof WorkflowModuleTemplate, string | null> = {
   eventName: 'the trigger',
   version: null,
   lookupCollection: null,
-  parameters: 'the reference parameter a user-action flow needs to resolve the state field',
+  parameters: 'recordId, as a reference to the collection — the record the button always sends, and what the '
+    + 'condition of a user-action flow reads the state field through',
   schedule: 'trigger "schedule" — its `when`, as cron',
   dateReached: 'trigger "date-reached" — its field, offset and time',
-  steps: 'the guard, the state write and the effects, in order',
+  steps: 'the guard, the state write and the effects, in order — and, on a user-action flow, the map that answers '
+    + 'the button',
   condition: 'the `from` of the transition',
   ownerPluginIds: null,
   sourceId: null,

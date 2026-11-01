@@ -4,7 +4,7 @@ import { anyOf, notExpression, notTerm } from '../../domain/schema/expressionSyn
 import type { CatalogScreenInput } from './catalog';
 import type { BehaviorInvariant, BehaviorModel } from './behaviorModel';
 import { stateOfEntity } from './behaviorModel';
-import type { MappedTransition } from './behaviorMapping';
+import type { ActionRecordParameter, ActionReturnPlan, MappedTransition } from './behaviorMapping';
 import type { DomainEntity, DomainField, DomainIssue, DomainModel, EntityTabKind } from './domainModel';
 import type { DomainIssueCode } from './detectors';
 import type { ExpandedEmbed } from './toPlatform';
@@ -225,6 +225,10 @@ export interface PlannedRecordAction {
   eventName: string;
   /** O parâmetro de referência sem o qual a condição do fluxo não resolve o campo do estado. */
   requiresParameter?: string;
+  /** Como o fluxo declara o registro do botão — `recordId`, como referência à coleção da tela. */
+  recordParameter?: ActionRecordParameter;
+  /** O passo que responde ao botão, em todos os caminhos do fluxo. */
+  returns?: ActionReturnPlan;
   workflowCondition: string;
   /**
    * Quando o gesto é RECUSADO, no escopo da ação. Sai do `from` da transição somado a cada invariante
@@ -644,6 +648,8 @@ export const buildScreenPlan = (input: ScreenPlanInput): ScreenPlan => {
         ...(mapped.fromCheck?.requiresParameter === undefined
           ? {}
           : { requiresParameter: mapped.fromCheck.requiresParameter }),
+        ...(mapped.recordParameter === undefined ? {} : { recordParameter: mapped.recordParameter }),
+        ...(mapped.returns === undefined ? {} : { returns: mapped.returns }),
         workflowCondition: mapped.workflowCondition,
         disabledWhen,
         ...(mapped.permission === undefined

@@ -21,7 +21,6 @@ const LACUNAS_CONFERIDAS = [
   // de outros registros continua RECUSADO em vez de traduzido.
   'workflow-step\tregister-audit',
   'workflow-step\tset-variable',
-  'workflow-step\tmap',
   'workflow-step\tscript',
   'workflow-step\tai-detect-workflow',
   'workflow-step\tai-extract-parameters',

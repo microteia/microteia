@@ -4,8 +4,8 @@ import { getDI } from '../di/container';
 import { requirePermission } from './shared/requirePermission';
 import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access';
 import { getDb } from '../firebase/initFirebase';
-import { normalizeActionOutcome } from '../../domain/entities/Action';
-import type { ActionOutcome } from '../../domain/entities/Action';
+import { actionRunResponse } from './actionRunResponse';
+import type { RunActionResponse } from './actionRunResponse';
 
 interface RunActionRequest {
   tenantId: string;
@@ -15,14 +15,6 @@ interface RunActionRequest {
   recordId?: string | null;
   isNew: boolean;
   params?: Record<string, unknown>;
-}
-
-interface RunActionResponse {
-  outcome: ActionOutcome | null;
-  executionId: string | null;
-  /** REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
-  error: string | null;
-  errorParams?: Record<string, string>;
 }
 
 const failure = (message: string): RunActionResponse => ({
@@ -75,35 +67,6 @@ export const runAction = onCall(
       callDepth: 1,
     });
 
-    if (!result.found) {
-      return failure('@core.automation/handler.action.workflow-invalid');
-    }
-
-    if (result.status !== 'SUCCESS') {
-      return {
-        outcome: null,
-        executionId: result.executionId,
-        error: '@core.automation/handler.action.run-failed',
-        errorParams: { name: String(action.title ?? action.key ?? '') },
-      };
-    }
-
-    // O executor devolve só os outputs do ÚLTIMO step da travessia, e o Step "Saída do Workflow"
-    // emite uma chave por vez. Nenhuma das três chaves presentes quase sempre significa que o autor
-    // encadeou três Steps de saída — o que descartaria as duas primeiras silenciosamente.
-    const outputs = (result.outputs ?? {}) as Record<string, unknown>;
-    if (!('result' in outputs) && !('status' in outputs) && !('actions' in outputs)) {
-      return {
-        outcome: null,
-        executionId: result.executionId,
-        error: '@core.automation/handler.action.no-result',
-      };
-    }
-
-    return {
-      outcome: normalizeActionOutcome(outputs),
-      executionId: result.executionId,
-      error: null,
-    };
+    return actionRunResponse(result, String(action.title ?? action.key ?? ''));
   },
 );

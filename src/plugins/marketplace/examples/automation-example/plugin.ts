@@ -8,6 +8,7 @@ import type {
 import type { QuerySpec } from '../../../../domain/schema/querySpec';
 import type { UpsertStepConfig } from '../../../../domain/schema/mutationSpec';
 import type { MapStepConfig } from '../../../../domain/schema/mapSpec';
+import type { WorkflowStep } from '../../../../domain/entities/Workflow';
 import { notificationCategory } from '../../../contributionBuilders';
 import { automationMessagesContribution } from './automationMessages';
 import { automationPtBrContribution } from './automationMessagesPtBr';
@@ -30,6 +31,9 @@ import { automationPtBrContribution } from './automationMessagesPtBr';
  *    that difference is the single most expensive trap in authoring an automation.
  * 5. A `workflow.called` flow with `parameters`, which is what an action fires.
  * 6. An action with `promptParameters`, so a person supplies the value before the flow runs.
+ * 6a. The ANSWER a button reads: every flow an action fires ends in a `map` with no name, whose
+ *    `status` and `actions` the button applies. Without it the flow runs all the same, and the button
+ *    reports that nothing came back.
  * 7. A notification TYPE (`notificationCategory`). A `notify` step that sets
  *    `category: 'com.microteia.automation-example/large-request'` lets each person choose, on the
  *    Notifications page, which channels bring them that type — without muting everything else.
@@ -136,11 +140,38 @@ const SUMMARY_OBJECT: MapStepConfig = {
 const REVIEW_OBJECT: MapStepConfig = {
   name: 'review',
   fields: [
-    { name: 'id', value: { kind: 'Event', path: 'requestId' } },
+    { name: 'id', value: { kind: 'Event', path: 'recordId' } },
     { name: 'status', value: { kind: 'Event', path: 'decision' } },
     { name: 'note', value: { kind: 'Event', path: 'note' } },
   ],
 };
+
+/**
+ * What the button reads. A button takes the outputs of the LAST step that runs and looks for `result`,
+ * `status` and `actions` there — a `map` with NO name publishes its fields at the root, which is what
+ * puts them where the button looks. A named `map` would publish `{ <name>: {...} }` instead, and the
+ * button would find nothing. `refresh` reloads the record on screen, so the person sees what the flow
+ * wrote. A refusal would return `status: 'ERROR'` with its message in the same kind of step, BEFORE an
+ * `exit` — the exit keeps the step before it as the answer.
+ */
+const answerButton = (id: string, order: number): WorkflowStep => ({
+  id,
+  stepDefinitionId: 'map',
+  type: 'Action',
+  order,
+  enabled: true,
+  configuration: {
+    map: {
+      kind: 'Literal',
+      value: {
+        fields: [
+          { name: 'status', value: { kind: 'Literal', value: 'SUCCESS' } },
+          { name: 'actions', value: { kind: 'Literal', value: ['refresh'] } },
+        ],
+      } satisfies MapStepConfig,
+    },
+  },
+});
 
 const WORKFLOWS: WorkflowModuleTemplate[] = [
   /**
@@ -211,6 +242,11 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [
    * A CALLED flow: it has no trigger of its own, and `parameters` become the `event.` it receives.
    * This is what an action fires, and `promptParameters` on that action is what turns these
    * parameters into a form a person fills in first.
+   *
+   * `recordId` is the record of the button. The platform sends it on EVERY run — with or without the
+   * form — together with `action`, `source`, `context` and `isNew`, and none of the five is ever asked
+   * in the form. Declaring it as an `EntityReference` is what lets a condition or an expression read
+   * the record's fields (`recordId.status`); read as `{ kind: 'Event', path: 'recordId' }` it is the id.
    */
   {
     templateId: 'wf-review',
@@ -220,7 +256,13 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [
     version: 1,
     condition: { kind: 'AlwaysTrue' },
     parameters: [
-      { key: 'requestId', label: message('field.title'), type: 'String', required: true },
+      {
+        key: 'recordId',
+        label: message('screen.request'),
+        type: 'EntityReference',
+        entityType: 'automationRequest',
+        required: true,
+      },
       {
         key: 'decision',
         label: message('parameter.decision'),
@@ -263,6 +305,7 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [
           entityId: { kind: 'Output', stepId: 'writeReview', outputId: 'id' },
         },
       },
+      answerButton('answerReview', 3),
     ],
   },
 
@@ -347,14 +390,16 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [
           entityId: { kind: 'Output', stepId: 'writeSummary', outputId: 'id' },
         },
       },
+      answerButton('answerMirror', 6),
     ],
   },
 ];
 
 /**
- * The buttons. `promptParameters` opens the called flow's parameter form before firing, and
- * `parameterDefaults` maps a parameter to an expression for when the field on screen is not named
- * like the parameter in the flow — here, the record's own id feeding `requestId`.
+ * The buttons. `promptParameters` opens the called flow's parameter form before firing — here, for
+ * the decision and the note. `parameterDefaults` would pre-fill that FORM by expression, and it is only
+ * applied when the form opens: an action without `promptParameters` never evaluates it. The record
+ * itself needs neither — it always reaches the flow as `recordId`.
  *
  * `hiddenWhen` and `disabledWhen` are evaluated in the UI only, against the record on screen.
  */
@@ -372,7 +417,6 @@ const ACTIONS: ActionModuleTemplate[] = [
     disabledWhen: 'status != "open"',
     confirmMessage: message('action.review.confirm'),
     promptParameters: true,
-    parameterDefaults: { requestId: 'id' },
   },
   {
     templateId: 'act-mirror',
@@ -389,7 +433,7 @@ const ACTIONS: ActionModuleTemplate[] = [
 export const automationExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.automation-example',
-    version: '1.2.0',
+    version: '1.3.0',
     kernel: '^2.58.0',
     name: message('package.name'),
     description: message('package.description'),

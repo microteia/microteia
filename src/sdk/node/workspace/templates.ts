@@ -150,7 +150,9 @@ So the sequence, and it is not optional:
    \`parentFieldKey\`. Read it from there rather than re-reading the model: two readings of the same
    sentence is how they start to disagree. It also decides the SCREEN, by rule: which fields go to the
    list, which filter, which sections, which fields are read-only, and one record action per
-   user-action transition with the \`disabledWhen\` the blocking invariant produced. Pass the \`rule\`
+   user-action transition with the \`disabledWhen\` the blocking invariant produced — its flow declares
+   \`recordId\` (the record the button always sends) and ends in the \`map\` that answers the button,
+   on every path. Pass the \`rule\`
    from step 0 and the plan becomes that rule's batch — a diff of what the rule generated last time.
    What the plan does not decide it hands back, named: the icon, the menu order, and where an
    ambiguous action appears. Do not fill those in silently.

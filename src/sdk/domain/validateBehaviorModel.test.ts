@@ -730,13 +730,22 @@ describe('a invariante de transição — recusar e reagir são mecanismos difer
  * segundo ela não resolvia contra nada.
  */
 describe('o from — onde ele é conferido de verdade', () => {
+  /**
+   * O parâmetro é `recordId`, e não um nome derivado da entidade: o botão manda o registro SEMPRE em
+   * `recordId`, e um parâmetro com outro nome só seria preenchido pelo formulário de `promptParameters`
+   * — sem ele, a condição não resolvia e o fluxo era ignorado.
+   */
   it('no gesto: quem para a pessoa é a ação, e o fluxo precisa do parâmetro de referência', () => {
     const mapped = check(salesBehaviorModel()).transitions
       .find((one) => one.transition.name === 'confirm');
     expect(mapped?.fromCheck?.where).toBe('action-visibility');
     expect(mapped?.fromCheck?.expression).toBe('record.status == "draft"');
-    expect(mapped?.fromCheck?.requiresParameter).toBe('sale');
-    expect(mapped?.workflowCondition).toBe('sale.status == "draft"');
+    expect(mapped?.fromCheck?.requiresParameter).toBe('recordId');
+    expect(mapped?.workflowCondition).toBe('recordId.status == "draft"');
+    expect(mapped?.recordParameter).toMatchObject({ key: 'recordId', type: 'EntityReference' });
+    // O fluxo do botão termina respondendo a ele — sem isso o botão diz que nada voltou.
+    expect(mapped?.steps.at(-1)).toBe('map');
+    expect(mapped?.returns?.step).toBe('map');
     // Nenhum dos dois existe em `workflow.called`, e prometê-los seria a decoração de volta.
     expect(mapped?.fromCheck?.previousValue).toBeUndefined();
     expect(mapped?.fromCheck?.creationTest).toBeUndefined();

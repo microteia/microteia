@@ -328,8 +328,10 @@ describe('de uma frase de regra a um plano de telas', () => {
     const order = plan(purchaseModel()).screenPlan.screens.find((one) => one.entity === 'PurchaseOrder');
     const approve = order?.actions.find((one) => one.key === 'approve-order');
     expect(approve?.hiddenWhen).toBe('!hasPermission("purchaseOrders.update")');
-    expect(approve?.requiresParameter).toBe('purchaseOrder');
-    expect(approve?.workflowCondition).toBe('purchaseOrder.status == "draft"');
+    expect(approve?.requiresParameter).toBe('recordId');
+    expect(approve?.recordParameter).toEqual({ key: 'recordId', type: 'EntityReference', entityType: 'purchaseOrders' });
+    expect(approve?.workflowCondition).toBe('recordId.status == "draft"');
+    expect(approve?.returns?.step).toBe('map');
     expect(approve?.eventName).toBe('workflow.called');
   });
 

@@ -197,6 +197,10 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.reject': 'Recusar publicação',
   'extension.deprecate': 'Marcar como obsoleta',
   'extension.remove': 'Excluir da área privada',
+  'extension.range.title': 'Aplicar esta versão mesmo assim?',
+  'extension.range.message':
+    '{detail} Aplicar agora deixa essa extensão instalada, mas sem carregar, até que a outra também seja atualizada.',
+  'extension.range.confirm': 'Aplicar mesmo assim',
   'extension.remove.title': 'Excluir extensão',
   'extension.remove.message':
     'Excluir "{name}" da sua área privada? Cópias já instaladas (aqui ou em outros escritórios) e a versão publicada não são afetadas.',
@@ -466,6 +470,12 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'o passo "{step}" salva o modelo de documento "{template}" na aba Documentos do registro sem dizer qual registro é o dono — preencha "belongsTo", ou salve em Downloads.',
   'install.dependency-missing':
     'Esta extensão referencia {kind} "{id}" da extensão "{plugin}", que não está instalada — instale-a antes.',
+  'install.dependency-out-of-range':
+    'A extensão "{plugin}" aceita "{dependency}" {range}, e a "{dependency}" instalada está na versão {installed} — '
+    + '"{plugin}" não carrega até que "{dependency}" seja atualizada para uma versão dessa faixa.',
+  'install.dependent-out-of-range':
+    'A extensão "{dependent}" aceita "{plugin}" {range}, e esta versão é a {version} — "{dependent}" deixa de carregar '
+    + 'até ser atualizada para uma versão que a aceite.',
   'install.dependent-breaks':
     '{origin} "{name}" da extensão "{dependent}" referencia {kind} "{id}", que esta versão não traz '
     + 'mais — atualize ou remova essa extensão antes.',

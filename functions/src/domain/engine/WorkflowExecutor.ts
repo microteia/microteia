@@ -34,7 +34,14 @@ export interface WorkflowResume extends Omit<WorkflowSuspension, 'resumeAt'> {
   logs: WorkflowExecutionLogEntry[];
 }
 
-export type WorkflowRun = WorkflowExecution & { suspension?: WorkflowSuspension };
+/**
+ * Por que a porta deixou a execução de fora sem que isso seja falha: a condição da automação, ou o filtro
+ * de tela ou de lista. O status continua `SUCCESS` — para um gatilho, "não era comigo" não é erro —, e
+ * é esta marca que deixa o chamador distinguir "não rodou" de "rodou e não devolveu nada".
+ */
+export type WorkflowSkip = 'condition' | 'screen' | 'lookup';
+
+export type WorkflowRun = WorkflowExecution & { suspension?: WorkflowSuspension; skipped?: WorkflowSkip };
 
 export interface RunWorkflowParams {
   definition: WorkflowDefinition;
@@ -144,7 +151,7 @@ export const runWorkflow = async ({
    * contexto em que os passos rodam, ou o desfecho de quem não passou. Uma execução que CONTINUA depois
    * de esperar não passa por aqui de novo — ela já passou quando começou.
    */
-  type Admission = { context: WorkflowContext } | { refused: WorkflowExecution['status'] };
+  type Admission = { context: WorkflowContext } | { refused: WorkflowExecution['status']; skipped?: WorkflowSkip };
 
   const admit = (): Admission => {
     const conditionContext = buildContext(event.payload, {}, {});
@@ -158,17 +165,17 @@ export const runWorkflow = async ({
 
     if (!conditionResult) {
       log('INFO', '@core.automation/run.condition.false');
-      return { refused: 'SUCCESS' };
+      return { refused: 'SUCCESS', skipped: 'condition' };
     }
 
     if (definition.screenKey && event.payload.screenKey !== definition.screenKey) {
       log('INFO', '@core.automation/run.skipped.screen-mismatch');
-      return { refused: 'SUCCESS' };
+      return { refused: 'SUCCESS', skipped: 'screen' };
     }
 
     if (definition.lookupCollection && event.payload.collection !== definition.lookupCollection) {
       log('INFO', '@core.automation/run.skipped.lookup-mismatch');
-      return { refused: 'SUCCESS' };
+      return { refused: 'SUCCESS', skipped: 'lookup' };
     }
 
     const requiredIssues = collectRequiredIssues(definition.parameters, event.payload);
@@ -199,7 +206,10 @@ export const runWorkflow = async ({
   const admission: Admission = resume
     ? { context: buildContext(event.payload, resume.outputs, resume.variables) }
     : admit();
-  if ('refused' in admission) return finish(admission.refused, {});
+  if ('refused' in admission) {
+    const refused = finish(admission.refused, {});
+    return admission.skipped ? { ...refused, skipped: admission.skipped } : refused;
+  }
   const { context } = admission;
   if (resume) log('INFO', '@core.automation/run.delay.resumed');
 

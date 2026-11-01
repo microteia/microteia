@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { InstalledExtensionStoreContext, type InstallExtensionInput } from './useInstalledExtensions';
+import { InstalledExtensionStoreContext, type InstallExtensionInput, type InstallOptions } from './useInstalledExtensions';
 import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
@@ -8,7 +8,13 @@ import { prefixChangeIssue } from '../domain/usecases/plugins/installCollisions'
 import { storeEvents, StoreEvents } from '../infrastructure/events/StoreEventEmitter';
 import type { InstalledExtension } from '../domain/entities/InstalledExtension';
 import { hashExtensionCode } from '../domain/usecases/plugins/extensionCodeTrust';
-import { crossExtensionRefIssues, dependentRefIssues, emittedEventPrefixes } from '../domain/usecases/plugins/crossExtensionRefs';
+import {
+  DependencyRangeRefusal,
+  crossExtensionRefIssues,
+  dependencyRangeIssues,
+  dependentRefIssues,
+  emittedEventPrefixes,
+} from '../domain/usecases/plugins/crossExtensionRefs';
 import { translationOverwriteIssue } from '../domain/usecases/i18n/translationPackage';
 import { transpileScriptSource } from '../domain/services/scriptSource';
 import { appliedMigrationIds, planPluginMigrations, pendingPluginMigrations } from '../domain/services/pluginMigrations';
@@ -185,7 +191,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
     [installed],
   );
 
-  const install = useCallback(async (input: InstallExtensionInput) => {
+  const install = useCallback(async (input: InstallExtensionInput, options?: InstallOptions) => {
     if (!currentTenant || !user) return;
     const id = input.package.manifest.id;
     const existing = installed.find((extension) => extension.id === id);
@@ -230,6 +236,20 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       existing?.package,
     );
     if (brokenDependent) throw new LocalizedError(brokenDependent.message, brokenDependent.messageParams);
+    /**
+     * A faixa de versão, nos dois sentidos, e a única recusa desta porta que aceita consentimento: a
+     * troca que deixa outra extensão (ou esta) fora da faixa declarada não quebra artefato nenhum —
+     * ela desliga a extensão na próxima carga. Recusar sempre travaria a atualização encadeada de duas
+     * extensões; passar calado era o que deixava a dependente "instalada" e fora do ar sem aviso.
+     */
+    const ranges = dependencyRangeIssues(
+      input.package,
+      installed
+        .filter((extension) => extension.id !== id)
+        .map((extension) => ({ id: extension.id, package: extension.package })),
+      existing?.package,
+    );
+    if (ranges.length > 0 && options?.acceptDependencyRanges !== true) throw new DependencyRangeRefusal(ranges);
     /**
      * O prefixo declarado não muda entre versões, e um nome que o escritório já usa para outra coisa é
      * recusa — antes viraria `nome_2`, e quem dependesse do nome declarado leria a coleção de outro dono.
@@ -366,7 +386,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
    * convergidos, migração planejada contra o que este escritório já aplicou, e a confiança de código
    * reavaliada pelo hash.
    */
-  const restore = useCallback(async (id: string, revision: string) => {
+  const restore = useCallback(async (id: string, revision: string, options?: InstallOptions) => {
     if (!currentTenant) return;
     const version = await extensionHistoryRepository.getVersion(currentTenant.id, id, revision);
     if (!version) throw new LocalizedError('@core.marketplace/history.error.missing');
@@ -377,7 +397,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       authorId: version.authorId,
       authorName: version.authorName,
       authorPhotoURL: version.authorPhotoURL,
-    });
+    }, options);
   }, [currentTenant, extensionHistoryRepository, install]);
 
   const pendingMigrationsOf = useCallback(

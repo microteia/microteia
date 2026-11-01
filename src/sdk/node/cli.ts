@@ -18,6 +18,8 @@ import { navTargetReport } from './navTargetReport';
 import { undeclaredPathReport } from './undeclaredPaths';
 import { queryCeilingReport } from './queryCeilings';
 import { navGroupReport } from './navGroups';
+import { dependencyRangeReport } from './dependencyRanges';
+import { actionReturnReport } from './actionReturns';
 import { syncWorkspace } from './workspace/sync';
 import { functionDependencies } from './workspace/functionDependencies';
 import {
@@ -238,6 +240,40 @@ const sayQueryCeilings = (pkg: MarketplacePlugin): void => {
 };
 
 /**
+ * O contrato entre a action e o fluxo que ela dispara: o caminho que termina sem responder ao botão,
+ * `parameterDefaults` sem o formulário que o aplica, e o parâmetro exigido que o botão não manda. Só
+ * avisa, nunca reprova: o pacote que já roda assim continua rodando.
+ */
+const sayActionReturns = (pkg: MarketplacePlugin): void => {
+  const findings = actionReturnReport(pkg);
+  if (findings.length === 0) return;
+
+  say();
+  say(`  ${DIM}${findings.length} action(s) whose button may not get an answer${RESET}`);
+  for (const one of findings) {
+    say(`  ${YELLOW}!${RESET} ${one.action} ${DIM}(${one.kind}, workflow "${one.workflow}")${RESET}`);
+    say(`     ${DIM}${one.detail}${RESET}`);
+  }
+};
+
+/**
+ * A faixa de cada dependência contra a versão que este diretório enxerga, e a irmã que declara este
+ * pacote numa faixa que a versão dele não satisfaz. Só avisa, nunca reprova: a instalação também só pede
+ * confirmação, porque atualizar duas extensões encadeadas passa por um instante fora da faixa.
+ */
+const sayDependencyRanges = (pkg: MarketplacePlugin, root: string): void => {
+  const findings = dependencyRangeReport(pkg, root).filter((one) => one.status !== 'ok');
+  if (findings.length === 0) return;
+
+  say();
+  say(`  ${DIM}${findings.length} dependency range(s) to look at${RESET}`);
+  for (const one of findings) {
+    say(`  ${YELLOW}!${RESET} ${one.extension} ${DIM}(${one.range}, ${one.status})${RESET}`);
+    say(`     ${DIM}${one.detail}${RESET}`);
+  }
+};
+
+/**
  * Os grupos da barra lateral que o pacote declara ou em que põe item. Só avisa, nunca reprova: o
  * escritório pode ter uma extensão que este diretório não enxerga.
  */
@@ -349,6 +385,8 @@ const build = (args: Args, write: boolean): number => {
   const refusedRefs = sayCrossRefs(result.package, root) + sayEventRefs(result.package, root)
     + sayNavTargets(result.package, root) + sayDocumentSteps(result.package, root)
     + sayFieldPresets(result.package, root);
+  sayDependencyRanges(result.package, root);
+  sayActionReturns(result.package);
   sayUndeclaredPaths(result.package, root);
   sayQueryCeilings(result.package);
   sayRecordSurfaces(result.package, root);

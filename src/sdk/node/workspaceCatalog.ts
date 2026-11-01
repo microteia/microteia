@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
+import { dependencyRange } from '../../domain/schema/plugin/pluginManifest';
 import type { DeclaredNavGroup } from '../../domain/usecases/plugins/declaredNavGroups';
 import { declaredNavGroupsOf } from '../../domain/usecases/plugins/declaredNavGroups';
 import type { DocumentTemplateContract } from '../../domain/usecases/plugins/documentStepIntegrity';
@@ -145,6 +146,12 @@ export interface WorkspaceCatalog {
     documentTemplates?: DocumentTemplateContract[];
     /** Os presets de campo que o pacote declara — o que o `mask` de uma irmã que o declara pode nomear. */
     fieldPresets?: OfferedFieldPreset[];
+    /**
+     * As FAIXAS que o pacote declara em `dependencies`, por id. É o que deixa o `check` de uma irmã dizer
+     * que a versão dela sai da faixa que esta aceita — o sentido em que o retrato não ajuda, porque a
+     * irmã ainda não está instalada em lugar nenhum.
+     */
+    dependencies?: Record<string, string>;
   }[];
   /**
    * Os `plugin.ts` de `examples/`, como CAMINHO e nada mais.
@@ -259,6 +266,9 @@ export const readWorkspaceCatalog = (
         navGroups: declaredNavGroupsOf(pkg.manifest.contributes),
         documentTemplates: declaredDocumentTemplates(pkg.manifest.contributes),
         fieldPresets: declaredFieldPresets(pkg.manifest.contributes),
+        dependencies: Object.fromEntries(
+          Object.entries(pkg.manifest.dependencies ?? {}).map(([id, dependency]) => [id, dependencyRange(dependency)]),
+        ),
       });
     } catch (error) {
       failures.push({ path: relative(root, entry), error: error instanceof Error ? error.message : String(error) });

@@ -1108,6 +1108,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'handler.action.not-found': 'Ação não encontrada.',
   'handler.action.run-failed':
     'A execução de "{name}" falhou. Consulte as execuções do fluxo para os detalhes.',
+  'handler.action.skipped':
+    '"{name}" não foi executada: as condições do fluxo dela não se aplicam a este registro, e nada foi alterado.',
   'handler.action.workflow-invalid':
     'O fluxo de trabalho vinculado não existe, está desativado, ou não é do tipo "Workflow chamado".',
   'handler.log-error.failed': 'Erro ao registrar falha.',

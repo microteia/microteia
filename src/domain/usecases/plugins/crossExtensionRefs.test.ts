@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
-import { crossExtensionRefIssues, dependentRefIssues, emittedEventPrefixes, exportedSurface } from './crossExtensionRefs';
+import {
+  DependencyRangeRefusal,
+  crossExtensionRefIssues,
+  dependencyRangeIssues,
+  dependentRefIssues,
+  emittedEventPrefixes,
+  exportedSurface,
+} from './crossExtensionRefs';
 
 const consumer = (scriptId: string): MarketplacePlugin => ({
   summary: '',
@@ -287,5 +294,92 @@ describe('portão inverso do gatilho no evento de outra extensão', () => {
 
   it('o gatilho que já não resolvia antes da troca não é cobrado desta versão', () => {
     expect(dependentRefIssues(processo(), dependents, processo('outro'))).toEqual([]);
+  });
+});
+
+const versioned = (id: string, version: string, dependencies: Record<string, string> = {}): MarketplacePlugin => ({
+  summary: '',
+  manifest: { id, version, kernel: '^2.0.0', name: id, dependencies },
+  workflows: [],
+});
+
+/**
+ * A troca que tira uma extensão do ar pela FAIXA de versão, sem artefato nenhum quebrado: em 0.x,
+ * `^0.1.0` só admite 0.1.x, e o `PluginHost` deixa de carregar quem declarou a faixa.
+ */
+describe('a faixa de versão entre a que chega e as instaladas', () => {
+  const base = versioned('com.acme.base', '0.1.0');
+  const dependent = versioned('com.acme.uso', '0.1.1', { 'com.acme.base': '^0.1.0' });
+
+  it('avisa a dependente que a versão nova deixa fora da faixa, nomeando a extensão e a faixa', () => {
+    const issues = dependencyRangeIssues(
+      versioned('com.acme.base', '0.2.0'),
+      [{ id: dependent.manifest.id, package: dependent }],
+      base,
+    );
+    expect(issues).toEqual([{
+      message: '@core.marketplace/install.dependent-out-of-range',
+      messageParams: { dependent: 'com.acme.uso', plugin: 'com.acme.base', range: '^0.1.0', version: '0.2.0' },
+    }]);
+  });
+
+  it('não avisa a versão que continua dentro da faixa', () => {
+    expect(dependencyRangeIssues(
+      versioned('com.acme.base', '0.1.5'),
+      [{ id: dependent.manifest.id, package: dependent }],
+      base,
+    )).toEqual([]);
+  });
+
+  it('não repete o aviso da dependente que já estava fora da faixa antes desta troca', () => {
+    const alreadyOut = versioned('com.acme.uso', '0.1.1', { 'com.acme.base': '^0.0.1' });
+    expect(dependencyRangeIssues(
+      versioned('com.acme.base', '0.2.0'),
+      [{ id: alreadyOut.manifest.id, package: alreadyOut }],
+      base,
+    )).toEqual([]);
+  });
+
+  it('na instalação nova, não fala de dependente: ela já não carregava sem a dependência', () => {
+    expect(dependencyRangeIssues(
+      versioned('com.acme.base', '0.2.0'),
+      [{ id: dependent.manifest.id, package: dependent }],
+    )).toEqual([]);
+  });
+
+  it('avisa a extensão que chega declarando uma instalada numa faixa que a versão de lá não satisfaz', () => {
+    const issues = dependencyRangeIssues(
+      versioned('com.acme.uso', '0.2.0', { 'com.acme.base': '>=0.2.0 <1.0.0' }),
+      [{ id: base.manifest.id, package: base }],
+      dependent,
+    );
+    expect(issues).toEqual([{
+      message: '@core.marketplace/install.dependency-out-of-range',
+      messageParams: { plugin: 'com.acme.uso', dependency: 'com.acme.base', range: '>=0.2.0 <1.0.0', installed: '0.1.0' },
+    }]);
+  });
+
+  it('não avisa a dependência que a versão anterior já deixava fora da faixa', () => {
+    const before = versioned('com.acme.uso', '0.1.0', { 'com.acme.base': '^0.3.0' });
+    expect(dependencyRangeIssues(
+      versioned('com.acme.uso', '0.1.1', { 'com.acme.base': '^0.3.0' }),
+      [{ id: base.manifest.id, package: base }],
+      before,
+    )).toEqual([]);
+  });
+
+  it('a recusa carrega todas as faixas, e a mensagem é a da primeira', () => {
+    const issues = dependencyRangeIssues(
+      versioned('com.acme.base', '0.2.0'),
+      [
+        { id: dependent.manifest.id, package: dependent },
+        { id: 'com.acme.outra', package: versioned('com.acme.outra', '1.0.0', { 'com.acme.base': '~0.1.0' }) },
+      ],
+      base,
+    );
+    const refusal = new DependencyRangeRefusal(issues);
+    expect(refusal.issues).toHaveLength(2);
+    expect(refusal.message).toBe('@core.marketplace/install.dependent-out-of-range');
+    expect(refusal.messageParams).toMatchObject({ dependent: 'com.acme.uso' });
   });
 });

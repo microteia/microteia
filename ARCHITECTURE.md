@@ -6730,6 +6730,44 @@ Um botão configurável nas telas de dados que dispara um **workflow síncrono**
 
 > **O último Step precisa emitir as três chaves de uma vez.** O `WorkflowExecutor` devolve **apenas os outputs do último step da travessia** (`context.outputs[run.lastStepId]`), então um Step que emitisse uma chave por vez descartaria as anteriores. As formas corretas são **"Montar Objeto" sem nome** (o `MapStep` espalha os campos na raiz quando `config.name` é vazio) ou um **Step Script** retornando `{ result, status, actions }`. Como `normalizeActionOutcome` é tolerante, esse erro seria um no-op silencioso; por isso o `runAction` detecta a ausência das três chaves e devolve uma mensagem explicando a regra.
 
+**Todo caminho responde, e quem cobra é o `check` (EV-23).** A mensagem do `runAction` só aparece no
+clique — depois de o fluxo gravar, notificar e auditar. `actionReturnGaps` (`domain/schema/actionReturn.ts`)
+segue cada caminho do fluxo como o `WorkflowExecutor` o percorre — o ramo que converge, o laço que
+publica só o vetor, o `exit` que mantém o passo anterior (e o `exit` sem passo anterior, que devolve
+vazio) — e devolve os que terminam sem `result`/`status`/`actions` (`ACTION_RETURN_KEYS`). O veredito
+de cada passo sai do catálogo (saídas estáticas, ou a forma dinâmica `from-map-config` /
+`from-input-field`); script, fluxo chamado e passo de extensão ficam `unknown` e não viram aviso.
+`returningStepsOf` continua servindo o editor: ela responde "quais passos PODEM retornar" e aproxima —
+com um `exit` num ramo, deixa de olhar o fim normal —, o que basta para unir formas e não basta para
+afirmar que um caminho fica sem resposta.
+
+`actionReturnReport` (`src/sdk/node/actionReturns.ts`) liga cada action do pacote ao fluxo DELE e avisa,
+no `check` e no `validate_plugin`, três defeitos que instalam e só aparecem no clique: o caminho sem
+retorno; `parameterDefaults` sem `promptParameters` (o mapa só preenche o formulário que
+`promptParameters` abre — sem ele nunca é avaliado); e o parâmetro obrigatório que o botão sem
+formulário não manda. Só avisa: o pacote que já roda assim continua rodando.
+
+**O registro do botão chega em `recordId`** (`ACTION_RECORD_PARAMETER`), em toda execução, com ou sem
+formulário — junto dos outros de `ACTION_SYSTEM_PARAMETER_KEYS`, que agora moram no domínio e não mais
+na apresentação. Por isso o plano (`mapTransition`, gatilho `user-action`) declara `recordId` como
+`EntityReference` à coleção (`recordParameter`), escreve a condição sobre ele
+(`recordId.<estado> == "<from>"`) e termina no `map` sem nome que responde ao botão (`returns`,
+`ACTION_RETURN_PLAN`). O nome derivado da entidade (`referenceParameterKey`, agora `@deprecated`) só
+seria preenchido pelo formulário: sem ele, a condição falhava e o fluxo era ignorado. O
+`automation-example` 1.3.0 segue o contrato, e `actionReturns.test.ts` reprova o exemplo viajante que
+deixar um botão sem resposta.
+
+**"Não rodou" não é "não respondeu".** Quando a PORTA da execução deixa o fluxo de fora — a condição
+dele, o filtro de tela ou de lista —, o motor termina `SUCCESS` e sem saídas, exatamente como o fluxo
+que rodou e não devolveu as três chaves. O status fica: para um gatilho, "não era comigo" não é falha,
+e o `call-workflow` segue adiante como sempre seguiu. O que muda é a MARCA: `runWorkflow` devolve
+`skipped` (`WorkflowSkip`: `condition` | `screen` | `lookup`), o `RunCalledWorkflowUseCase` a repassa, e
+`actionRunResponse` (`handlers/actionRunResponse.ts`, extraída do `runAction` para ser testada sem o
+`onCall`) responde `handler.action.skipped` ANTES de conferir o retorno. Antes o botão mostrava
+`no-result`, cuja frase manda consertar o último passo — num fluxo em que não rodou passo nenhum. A
+marca não é gravada na execução: o repositório escreve campo por campo, e o histórico já tem a linha
+`run.condition.false`.
+
 `normalizeActionOutcome` (mesmo arquivo, com testes) traduz os outputs crus e é **deliberadamente tolerante**: saída ausente ou malformada vira "nada a aplicar", nunca exceção na tela. Aceita comando como string (`"merge"`) ou objeto (`{ type: 'merge' }`) — a forma-objeto existe para comandos parametrizados no futuro sem quebrar workflows já escritos.
 
 **Formas compactas do `status`.** O avaliador de expressões tem literal de **array** (`["a","b"]`) mas **não de objeto** — objeto só via a função `object(chave, valor, …)`. Para não obrigar a isso, `asStatus` aceita quatro formas: `{ code, message, fieldErrors? }` (única que carrega `fieldErrors`), `["SUCCESS", "Mensagem"]`, `["SUCCESS"]` e `"SUCCESS"`. Nas formas compactas, texto que **não** é um código conhecido vira a mensagem com código `SUCCESS` — `"Enviado"` e `["Enviado"]` são sucesso com mensagem. Na forma-objeto as posições são nomeadas, então um `code` desconhecido é **descartado** (cai para `SUCCESS` com mensagem vazia), não promovido a mensagem.
@@ -11262,6 +11300,36 @@ para B —, e a partir daí nenhum dos dois sairia sem que alguém descobrisse s
 restaurar A por uma versão do histórico. O gesto é deliberado, o `PluginHost` denuncia, e reinstalar
 A recria o artefato pelo mesmo `sourceId`: a referência volta a resolver sem que nada tenha sido
 reescrito.
+
+#### A FAIXA de versão — a única recusa da porta que aceita consentimento (EV-22)
+
+O portão acima confere o que uma versão TRAZ — artefato e prefixo de evento. A versão em si passava
+calada: `com.b` declarava `com.a` `^0.1.0` (em 0.x, só 0.1.x), aplicar `com.a` 0.2.0 convergia sem
+recusa nenhuma, e na carga seguinte o `PluginHost` deixava `com.b` de fora com
+`dependency.unsatisfied` — com a linha dela ainda dizendo "instalada". O mesmo valia no outro
+sentido, para a extensão que chega declarando uma instalada numa faixa que a de lá não satisfaz, sem
+referência a artefato (com referência, `crossExtensionRefIssues` já recusava).
+
+`dependencyRangeIssues(incoming, installed, previous)` (`crossExtensionRefs.ts`) confere os dois
+sentidos com a versão do MANIFESTO (a mesma que o `PluginHost` compara) e só conta o que ESTA troca
+desliga: o veredito é calculado com a versão anterior e com a que chega, como em
+`dependentEventIssues`. A dependente que já estava fora da faixa não vira aviso a cada reinstalação de
+quem não a mudou, e a instalação nova não fala de dependente — ele já não carregava sem ela.
+
+**Pede confirmação, não recusa.** A porta lança `DependencyRangeRefusal` (um `LocalizedError` com
+todas as faixas) a menos que `install(input, { acceptDependencyRanges: true })`. Recusar sempre travaria
+a saída: `com.a` 0.2 recusada por estar fora da faixa de `com.b` 0.1, e `com.b` 0.2 recusada pela
+referência cuja dona instalada ainda é `com.a` 0.1 — a ordem certa de atualizar passa por um instante
+em que uma das duas não carrega. A tela de Extensões transforma a recusa em `ConfirmModal`, listando
+cada extensão e faixa ("Aplicar mesmo assim"), para instalar, atualizar e restaurar do histórico
+(`restore(id, revision, options)`). Qualquer outra porta que não conheça o tipo — a tela de Traduções
+— recebe a recusa com a frase da primeira faixa, e não instala calada.
+
+No terminal, `dependencyRangeReport` (`src/sdk/node/dependencyRanges.ts`) faz a mesma pergunta no
+`check` e no `validate_plugin`: cada `dependencies` contra a irmã do diretório (que passou a carregar
+as próprias faixas em `WorkspaceCatalog.authored[].dependencies`) e contra o retrato da instalação, e
+o sentido inverso — a irmã que declara ESTE pacote numa faixa que a versão dele deixa. Só avisa, pela
+mesma razão da porta: reprovar quebraria o build de quem está no meio da troca. A frase é a do kernel.
 
 #### Quem PRODUZ a referência é a exportação, não o seletor
 

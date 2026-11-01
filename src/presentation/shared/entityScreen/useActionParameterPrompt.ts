@@ -5,6 +5,7 @@ import { evaluateActionExpression, ACTION_RESERVED_VARIABLES } from '../../../do
 import type { ActionExprContext } from '../../../domain/schema/actionExpression';
 import { loadNavigatedReferences, planReferenceNavigation } from '../../../domain/schema/referenceScope';
 import type { ActionDefinition } from '../../../domain/entities';
+import { ACTION_SYSTEM_PARAMETER_KEYS } from '../../../domain/entities/Action';
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 
 import { useT, useLabel, type TranslateFn } from '../i18n/useT';
@@ -13,13 +14,7 @@ import { useT, useLabel, type TranslateFn } from '../i18n/useT';
  * Os cinco parâmetros que TODA action entrega ao fluxo. Não entram no formulário: são do sistema, e
  * pedi-los ao usuário seria pedir que ele redigitasse o que a tela já sabe.
  */
-export const ACTION_SYSTEM_PARAMETERS: ReadonlySet<string> = new Set([
-  'action',
-  'source',
-  'context',
-  'recordId',
-  'isNew',
-]);
+export const ACTION_SYSTEM_PARAMETERS: ReadonlySet<string> = new Set(ACTION_SYSTEM_PARAMETER_KEYS);
 
 export interface ActionParameterPrompt {
   action: ActionDefinition;

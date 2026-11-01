@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.automation-example",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "kernel": "^2.58.0",
     "name": "@com.microteia.automation-example/package.name",
     "description": "@com.microteia.automation-example/package.description",
@@ -227,9 +227,10 @@
       },
       "parameters": [
         {
-          "key": "requestId",
-          "label": "@com.microteia.automation-example/field.title",
-          "type": "String",
+          "key": "recordId",
+          "label": "@com.microteia.automation-example/screen.request",
+          "type": "EntityReference",
+          "entityType": "automationRequest",
           "required": true
         },
         {
@@ -271,7 +272,7 @@
                     "name": "id",
                     "value": {
                       "kind": "Event",
-                      "path": "requestId"
+                      "path": "recordId"
                     }
                   },
                   {
@@ -333,6 +334,38 @@
               "kind": "Output",
               "stepId": "writeReview",
               "outputId": "id"
+            }
+          }
+        },
+        {
+          "id": "answerReview",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 3,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "fields": [
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "SUCCESS"
+                    }
+                  },
+                  {
+                    "name": "actions",
+                    "value": {
+                      "kind": "Literal",
+                      "value": [
+                        "refresh"
+                      ]
+                    }
+                  }
+                ]
+              }
             }
           }
         }
@@ -507,6 +540,38 @@
               "outputId": "id"
             }
           }
+        },
+        {
+          "id": "answerMirror",
+          "stepDefinitionId": "map",
+          "type": "Action",
+          "order": 6,
+          "enabled": true,
+          "configuration": {
+            "map": {
+              "kind": "Literal",
+              "value": {
+                "fields": [
+                  {
+                    "name": "status",
+                    "value": {
+                      "kind": "Literal",
+                      "value": "SUCCESS"
+                    }
+                  },
+                  {
+                    "name": "actions",
+                    "value": {
+                      "kind": "Literal",
+                      "value": [
+                        "refresh"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
         }
       ]
     }
@@ -632,10 +697,7 @@
       "hiddenWhen": "not hasPermission(\"automationRequest.update\")",
       "disabledWhen": "status != \"open\"",
       "confirmMessage": "@com.microteia.automation-example/action.review.confirm",
-      "promptParameters": true,
-      "parameterDefaults": {
-        "requestId": "id"
-      }
+      "promptParameters": true
     },
     {
       "templateId": "act-mirror",

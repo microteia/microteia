@@ -29,6 +29,8 @@ import {
 } from '../../../domain/usecases/plugins/extensionReputation';
 import type { PublisherVerification, StarKind } from '../../../domain/usecases/plugins/extensionReputation';
 import { wrappedErrorParams } from '../../../domain/errors/LocalizedError';
+import { DependencyRangeRefusal } from '../../../domain/usecases/plugins/crossExtensionRefs';
+import type { LocalizedIssue } from '../../../domain/usecases/plugins/pluginReferences';
 import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
 import { useInstalledRevision } from '../../../stores/useInstalledRevision';
 import { EXTENSION_HISTORY_LIMIT } from '../../../domain/usecases/plugins/extensionHistory';
@@ -319,6 +321,13 @@ export interface MarketplaceViewModel {
   busyId: string | null;
   removeTarget: { id: string; name: string } | null;
   /**
+   * A troca que deixaria uma extensão fora da faixa de versão que outra declara, esperando o
+   * consentimento: a frase inteira, com cada extensão que sai do ar. `null` quando não há o que perguntar.
+   */
+  rangeConfirmMessage: string | null;
+  confirmRange: () => Promise<void>;
+  cancelRange: () => void;
+  /**
    * A extensão que pede confiança para executar código. A pergunta é sobre QUEM a escreveu — autor e
    * selo de verificação —, não sobre a leitura da fonte, que um admin de escritório não tem como avaliar.
    */
@@ -418,6 +427,14 @@ const matchesTokens = (
     }
   });
 
+/** A aplicação recusada por faixa, guardando o gesto que a repete já com o consentimento. */
+interface PendingRangeConfirm {
+  id: string;
+  issues: readonly LocalizedIssue[];
+  retry: () => Promise<void>;
+  successMessage: string;
+}
+
 const rankOf = (row: ExtensionRow): number => (row.installed ? 0 : row.mine ? 1 : 2);
 
 const SORTS: MarketplaceSort[] = ['relevance', 'installs', 'rating', 'name'];
@@ -464,6 +481,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
+  const [rangeConfirm, setRangeConfirm] = useState<PendingRangeConfirm | null>(null);
   const [filter, setFilter] = useState<MarketplaceFilter>('all');
   const [sort, setSortState] = useState<MarketplaceSort>('relevance');
   const setSort = useCallback((value: string) => { if (isSort(value)) setSortState(value); }, []);
@@ -605,13 +623,21 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
 
   const openAuthor = useCallback(() => openTab('plugin-author'), [openTab]);
 
+  /**
+   * `retry` é o mesmo gesto já com o consentimento de faixa. Quem o passa aceita que a recusa de
+   * faixa vire PERGUNTA em vez de erro; quem não passa continua recebendo a recusa como sempre.
+   */
   const run = useCallback(
-    async (id: string, action: () => Promise<void>, successMessage: string) => {
+    async (id: string, action: () => Promise<void>, successMessage: string, retry?: () => Promise<void>) => {
       setBusyId(id);
       try {
         await action();
         notify(successMessage, 'success');
       } catch (err) {
+        if (retry && err instanceof DependencyRangeRefusal) {
+          setRangeConfirm({ id, issues: err.issues, retry, successMessage });
+          return;
+        }
         console.error('[marketplace] extension operation failed:', err);
         notify(t('extension.operation-failed', wrappedErrorParams(err)), 'error');
       } finally {
@@ -1085,11 +1111,21 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     if (inst) {
       const input = updateSourceOf(id, inst.installedVersion) ?? builtinUpdateOf(id, inst);
       if (!input) return Promise.resolve();
-      return run(id, () => installCopy(input), t('extension.updated'));
+      return run(
+        id,
+        () => installCopy(input),
+        t('extension.updated'),
+        () => installCopy(input, { acceptDependencyRanges: true }),
+      );
     }
     const input = privateInputOf(id) ?? publicInputOf(id) ?? builtinInputOf(id);
     if (!input) return Promise.resolve();
-    return run(id, () => installCopy(input), t('extension.installed'));
+    return run(
+      id,
+      () => installCopy(input),
+      t('extension.installed'),
+      () => installCopy(input, { acceptDependencyRanges: true }),
+    );
   }, [installed, updateSourceOf, builtinUpdateOf, privateInputOf, publicInputOf, builtinInputOf, run, installCopy, t]);
 
   /**
@@ -1129,6 +1165,24 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   }, [extensions, label]);
 
   const cancelRemove = useCallback(() => setRemoveTarget(null), []);
+
+  const rangeConfirmMessage = useMemo(
+    () => (rangeConfirm === null
+      ? null
+      : t('extension.range.message', {
+        detail: rangeConfirm.issues.map((issue) => label(issue.message, issue.messageParams)).join(' '),
+      })),
+    [rangeConfirm, t, label],
+  );
+
+  const confirmRange = useCallback(async () => {
+    if (!rangeConfirm) return;
+    const { id, retry, successMessage } = rangeConfirm;
+    setRangeConfirm(null);
+    await run(id, retry, successMessage);
+  }, [rangeConfirm, run]);
+
+  const cancelRange = useCallback(() => setRangeConfirm(null), []);
 
   const openReview = useCallback((id: string) => {
     if (installed.some((candidate) => candidate.id === id)) setReviewId(id);
@@ -1271,7 +1325,12 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     (id: string, revision: string) => {
       const entry = histories.get(id)?.entries.find((candidate) => candidate.revision === revision);
       setHistoryId(null);
-      return run(id, () => restoreVersion(id, revision), t('history.applied', { version: entry?.version ?? '' }));
+      return run(
+        id,
+        () => restoreVersion(id, revision),
+        t('history.applied', { version: entry?.version ?? '' }),
+        () => restoreVersion(id, revision, { acceptDependencyRanges: true }),
+      );
     },
     [histories, run, restoreVersion, t],
   );
@@ -1408,6 +1467,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     requestRemove,
     confirmRemove,
     cancelRemove,
+    rangeConfirmMessage,
+    confirmRange,
+    cancelRange,
     approve,
     reject,
     deprecate,

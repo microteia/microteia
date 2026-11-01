@@ -645,3 +645,45 @@ describe('runWorkflow — linhas do histórico', () => {
     expect(stepLine).toMatchObject({ stepDefinitionId: 'record', inputs: { tag: 'A' }, outputs: { value: 'A' } });
   });
 });
+
+/**
+ * A execução que a porta deixa de fora termina `SUCCESS` e sem saída, como a que rodou e não devolveu
+ * nada. A marca é o que deixa o chamador separar as duas — o status não muda: para um gatilho, "não era
+ * comigo" não é falha.
+ */
+describe('runWorkflow — a execução que a porta deixa de fora', () => {
+  it('a condição falsa marca a execução como pulada, sem rodar passo nem mudar o status', async () => {
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: { ...makeDefinition(withOrder([recordStep('A')])), condition: takeIf('yes') },
+      event: makeEvent({ branch: 'no' }),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result).toMatchObject({ status: 'SUCCESS', outputs: {}, skipped: 'condition' });
+    expect(order).toEqual([]);
+  });
+
+  it('o filtro de tela marca a execução como pulada pela tela', async () => {
+    const result = await runWorkflow({
+      definition: { ...makeDefinition(withOrder([recordStep('A')])), screenKey: 'orders' },
+      event: makeEvent({ screenKey: 'invoices' }),
+      registry: makeRegistry([]),
+      services,
+    });
+    expect(result).toMatchObject({ status: 'SUCCESS', skipped: 'screen' });
+  });
+
+  it('a execução que rodou não leva a marca — nem quando termina sem saída', async () => {
+    const ran = await runWorkflow({
+      definition: makeDefinition(withOrder([recordStep('A')])),
+      event: makeEvent({}),
+      registry: makeRegistry([]),
+      services,
+    });
+    const empty = await runWorkflow({ definition: makeDefinition([]), event: makeEvent({}), registry: makeRegistry([]), services });
+    expect('skipped' in ran).toBe(false);
+    expect(empty.status).toBe('SUCCESS');
+    expect('skipped' in empty).toBe(false);
+  });
+});

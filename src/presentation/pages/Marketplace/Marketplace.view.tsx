@@ -539,6 +539,17 @@ export const MarketplaceView: React.FC = () => {
         onCancel={vm.cancelRemove}
       />
 
+      <ConfirmModal
+        isOpen={vm.rangeConfirmMessage !== null}
+        title={t('extension.range.title')}
+        message={vm.rangeConfirmMessage ?? ''}
+        confirmLabel={t('extension.range.confirm')}
+        cancelLabel={t('core.ui/action.cancel')}
+        variant="danger"
+        onConfirm={vm.confirmRange}
+        onCancel={vm.cancelRange}
+      />
+
       {vm.detailsRow && (
         <Modal title={vm.detailsRow.name} size="large" onClose={vm.closeDetails}>
           <S.DetailsHeader>

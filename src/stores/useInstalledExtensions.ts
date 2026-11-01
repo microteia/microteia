@@ -15,6 +15,15 @@ export interface InstallExtensionInput {
   authorPhotoURL: string | null;
 }
 
+/**
+ * O que quem aplica JÁ ACEITOU. Ausente, a porta recusa a troca que tiraria uma extensão do ar por
+ * faixa de versão (`DependencyRangeRefusal`); com `acceptDependencyRanges`, aplica — é a resposta de
+ * quem leu a lista e confirmou.
+ */
+export interface InstallOptions {
+  acceptDependencyRanges?: boolean;
+}
+
 export interface InstalledExtensionStoreValue {
   installed: InstalledExtension[];
   isLoading: boolean;
@@ -31,7 +40,7 @@ export interface InstalledExtensionStoreValue {
    */
   histories: ReadonlyMap<string, ExtensionHistory>;
   /** Copia (fielmente) o pacote para o tenant; preserva `active` de uma instalação existente. */
-  install: (input: InstallExtensionInput) => Promise<void>;
+  install: (input: InstallExtensionInput, options?: InstallOptions) => Promise<void>;
   setActive: (id: string, active: boolean) => Promise<void>;
   /** Registra a revisão do código desta cópia: grava quem confiou, quando, e o hash do que foi revisado. */
   trustCode: (id: string) => Promise<void>;
@@ -48,7 +57,7 @@ export interface InstalledExtensionStoreValue {
    * Reaplica uma versão do histórico. Passa pela MESMA `install`, com o pacote lido da entrada — e
    * por isso não cria item novo no histórico: aquela revisão já está lá.
    */
-  restore: (id: string, revision: string) => Promise<void>;
+  restore: (id: string, revision: string, options?: InstallOptions) => Promise<void>;
 }
 
 export const InstalledExtensionStoreContext = createContext<InstalledExtensionStoreValue | null>(null);

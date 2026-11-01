@@ -204,6 +204,10 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.reject': 'Reject publication',
   'extension.deprecate': 'Mark as deprecated',
   'extension.remove': 'Delete from the private area',
+  'extension.range.title': 'Apply this version anyway?',
+  'extension.range.message':
+    '{detail} Applying it now leaves that extension installed but not loading until the other one is updated too.',
+  'extension.range.confirm': 'Apply anyway',
   'extension.remove.title': 'Delete extension',
   'extension.remove.message':
     'Delete "{name}" from your private area? Copies already installed (here or in other organizations) and the published version are not affected.',
@@ -473,6 +477,12 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'step "{step}" saves the document template "{template}" to the record\'s Documents tab without saying which record owns it — set "belongsTo", or save it to Downloads.',
   'install.dependency-missing':
     'This extension references {kind} "{id}" of extension "{plugin}", which is not installed — install it first.',
+  'install.dependency-out-of-range':
+    'Extension "{plugin}" accepts "{dependency}" {range}, and the installed "{dependency}" is version {installed} — '
+    + '"{plugin}" does not load until "{dependency}" is updated to a version in that range.',
+  'install.dependent-out-of-range':
+    'Extension "{dependent}" accepts "{plugin}" {range}, and this version is {version} — "{dependent}" stops loading '
+    + 'until it is updated to a version that accepts it.',
   'install.dependent-breaks':
     '{origin} "{name}" of extension "{dependent}" references {kind} "{id}", which this version no longer '
     + 'brings — update or remove that extension first.',

@@ -6,6 +6,7 @@ import type { IWorkflowExecutionRepository } from '../repositories/IWorkflowExec
 import type { StepRegistry } from '../engine/StepRegistry';
 import { WorkflowContextHydrator } from '../engine/WorkflowContextHydrator';
 import { hydrateAndRunWorkflow } from '../engine/hydrateAndRunWorkflow';
+import type { WorkflowSkip } from '../engine/WorkflowExecutor';
 import { WORKFLOW_CALLED_EVENT } from '../schema/eventCatalog';
 
 export interface RunCalledWorkflowParams {
@@ -38,6 +39,8 @@ export type RunCalledWorkflowResult =
       outputs: Record<string, unknown>;
       executionId: string;
       failures: CalledWorkflowFailure[];
+      /** A porta não deixou o fluxo rodar (ver `WorkflowSkip`). Ausente quando ele rodou. */
+      skipped?: WorkflowSkip;
     };
 
 export type RunCalledWorkflowUseCase = {
@@ -75,6 +78,13 @@ export const makeRunCalledWorkflowUseCase = (
         ...(entry.messageParams ? { messageParams: entry.messageParams } : {}),
       }));
 
-    return { found: true, status: execution.status, outputs: execution.outputs, executionId: execution.id, failures };
+    return {
+      found: true,
+      status: execution.status,
+      outputs: execution.outputs,
+      executionId: execution.id,
+      failures,
+      ...(execution.skipped ? { skipped: execution.skipped } : {}),
+    };
   },
 });

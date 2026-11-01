@@ -77,6 +77,8 @@ import { documentStepReport } from './documentSteps';
 import { fieldPresetReport } from './fieldPresets';
 import { undeclaredPathReport } from './undeclaredPaths';
 import { queryCeilingReport } from './queryCeilings';
+import { dependencyRangeReport } from './dependencyRanges';
+import { actionReturnReport } from './actionReturns';
 import { QUERY_MAX_RESULTS, QUERY_MAX_SCAN, QUERY_PAGE_SINCE_KERNEL } from '../../domain/schema/querySpec';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
@@ -297,6 +299,36 @@ const QUERY_CEILINGS_NOTE = [
   + `work, or a parameter of a called workflow). \`orderBy\` is refused with \`page\`. Needs kernel ${QUERY_PAGE_SINCE_KERNEL} or later.`,
 ];
 
+/**
+ * A faixa de cada dependência contra a versão que este diretório enxerga, e a irmã daqui que declara
+ * este pacote numa faixa que a versão dele não satisfaz. Aviso, como no `check` e como na instalação,
+ * que pede confirmação em vez de recusar.
+ */
+const describeDependencyRanges = (pkg: MarketplacePlugin, root: string): string => {
+  const findings = dependencyRangeReport(pkg, root);
+  if (findings.length === 0) return '';
+  const outside = findings.filter((one) => one.status !== 'ok');
+  const head = outside.length === 0
+    ? `${findings.length} dependency range(s), all satisfied by what this workspace sees:`
+    : `${outside.length} of ${findings.length} dependency range(s) to look at (warnings only, never refused — but `
+      + 'an extension outside a range it or another declares does not load):';
+  return `\n\n${head}\n${findings
+    .map((one) => `- [${one.status}] ${one.extension} ${one.range} — ${one.detail}`)
+    .join('\n')}`;
+};
+
+/**
+ * O contrato entre a action e o fluxo que ela dispara. Aviso, como no `check`: o pacote que já roda
+ * assim continua rodando — só o botão não recebe resposta.
+ */
+const describeActionReturns = (pkg: MarketplacePlugin): string => {
+  const findings = actionReturnReport(pkg);
+  if (findings.length === 0) return '';
+  return `\n\n${findings.length} action(s) whose button may not get an answer (warnings only, never refused):\n${findings
+    .map((one) => `- [${one.kind}] ${one.action} (workflow "${one.workflow}") — ${one.detail}`)
+    .join('\n')}`;
+};
+
 /** Os passos `query` com `limit` acima do teto. Aviso, como no `check`: o motor corta, não recusa. */
 const describeQueryCeilings = (pkg: MarketplacePlugin): string => {
   const findings = queryCeilingReport(pkg);
@@ -462,13 +494,13 @@ const TOOLS: ToolDefinition[] = [
       if (typeof input.json === 'string') {
         const parsed = parsePackage(input.json);
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeFieldPresets(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeQueryCeilings(parsed.package)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeFieldPresets(parsed.package, root)}${describeDependencyRanges(parsed.package, root)}${describeActionReturns(parsed.package)}${describeUndeclaredPaths(parsed.package, root)}${describeQueryCeilings(parsed.package)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const path = resolve(root, asString(input.path, 'path'));
       if (path.endsWith('.json')) {
         const parsed = parsePackage(readFileSync(path, 'utf8'));
         if (!parsed.ok) return `Not a valid package: ${describeMessage(parsed.error)}`;
-        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeFieldPresets(parsed.package, root)}${describeUndeclaredPaths(parsed.package, root)}${describeQueryCeilings(parsed.package)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
+        return `${describeIssues(validatePluginPackage(parsed.package))}${describeCrossRefs(parsed.package, root)}${describeEventRefs(parsed.package, root)}${describeDocumentSteps(parsed.package, root)}${describeFieldPresets(parsed.package, root)}${describeDependencyRanges(parsed.package, root)}${describeActionReturns(parsed.package)}${describeUndeclaredPaths(parsed.package, root)}${describeQueryCeilings(parsed.package)}${describeRecordSurfaces(parsed.package, root)}${describeNavTargets(parsed.package, root)}${describeNavGroups(parsed.package, root)}${describeNamespace(parsed.package, root)}`;
       }
       const result = buildPlugin({ entry: path });
       return `${result.package.manifest.id} v${result.package.manifest.version}\n${describeIssues(result.issues)}`
@@ -476,6 +508,8 @@ const TOOLS: ToolDefinition[] = [
         + describeEventRefs(result.package, root)
         + describeDocumentSteps(result.package, root)
         + describeFieldPresets(result.package, root)
+        + describeDependencyRanges(result.package, root)
+        + describeActionReturns(result.package)
         + describeUndeclaredPaths(result.package, root)
         + describeQueryCeilings(result.package)
         + describeRecordSurfaces(result.package, root)
@@ -787,6 +821,11 @@ const TOOLS: ToolDefinition[] = [
           // rodava em qualquer estado. `workflow.called` não carrega o registro — o campo do estado
           // chega lá por um parâmetro de referência, e é o que `requiresParameter` nomeia.
           fromCheck: one.fromCheck,
+          // Só no gesto de pessoa: o registro do botão chega SEMPRE em `recordId`, e o fluxo responde ao
+          // botão no último passo. Os dois eram o que o plano deixava de fora, e o botão rodava o fluxo
+          // inteiro para dizer que nada voltou.
+          recordParameter: one.recordParameter,
+          returns: one.returns,
           supported: one.supported || undefined,
         })),
         blocking: issues.filter((one) => one.severity === 'error').length,
@@ -954,6 +993,9 @@ const TOOLS: ToolDefinition[] = [
             + 'The disabledWhen of each action is not a suggestion: it carries the transition\'s `from` plus every '
             + 'invariant declared with enforcement "blocks", and that is the only place a blocking invariant can sit '
             + 'on a gesture.',
+            'The workflow of each record action declares `recordParameter` as its parameter — the button sends its '
+            + 'record there on every run, with or without a form — and ends in the step `returns` describes, on EVERY '
+            + 'path. Without it the flow runs and the button reports that nothing came back; validate_plugin warns.',
             ...(plan.trace === null
               ? [`Pass the \`rule\` next time and write the ${RULE_LEDGER_FILE} the answer hands you: without it, the `
                 + 'next version of this rule cannot be a diff of what this one generated.']

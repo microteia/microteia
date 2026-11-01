@@ -182,6 +182,21 @@ describe('RunCalledWorkflowUseCase', () => {
     expect(result.found && result.failures).toEqual([]);
   });
 
+  /** Sem a marca, o botão lia "terminou bem e sem saída" e culpava o último passo de um fluxo que não rodou. */
+  it('repassa que a condição do alvo deixou a execução de fora — e só quando deixou', async () => {
+    const refused = makeDeps(makeTarget({ condition: { kind: 'FieldComparison', fieldPath: 'event.payload.recordId', operator: '==', value: 'r1', valueType: 'literal' } }));
+    const useCase = (deps: ReturnType<typeof makeDeps>) =>
+      makeRunCalledWorkflowUseCase(deps.definitionRepository, deps.executionRepository, registry, services, passthroughHydrator);
+
+    const skipped = await useCase(refused).execute({ tenantId: 't1', targetWorkflowId: 'wf-b', params: { recordId: 'r2' }, callDepth: 1 });
+    expect(skipped).toMatchObject({ found: true, status: 'SUCCESS', outputs: {}, skipped: 'condition' });
+    expect(refused.created).toHaveLength(1);
+
+    const ran = await useCase(refused).execute({ tenantId: 't1', targetWorkflowId: 'wf-b', params: { recordId: 'r1' }, callDepth: 1 });
+    expect(ran).toMatchObject({ found: true, outputs: { value: 'B-out' } });
+    expect('skipped' in ran).toBe(false);
+  });
+
   it('retorna found:false quando o alvo não existe', async () => {
     const { definitionRepository, executionRepository } = makeDeps(null);
     const useCase = makeRunCalledWorkflowUseCase(

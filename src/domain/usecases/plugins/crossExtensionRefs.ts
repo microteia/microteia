@@ -1,4 +1,5 @@
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
+import { LocalizedError } from '../../errors/LocalizedError';
 import { parseArtifactRef } from '../../schema/plugin/artifactRef';
 import { dependencyRange } from '../../schema/plugin/pluginManifest';
 import { satisfiesRange } from '../../schema/plugin/semver';
@@ -402,3 +403,93 @@ const dependentEventIssues = (
     });
   });
 };
+
+/** O que a conta de faixa precisa saber de cada extensão instalada além da que está sendo aplicada. */
+export interface InstalledDependencySide {
+  id: string;
+  package: MarketplacePlugin;
+}
+
+const declaredRange = (pkg: MarketplacePlugin, dependencyId: string): string | undefined => {
+  const dependency = pkg.manifest.dependencies?.[dependencyId];
+  return dependency === undefined ? undefined : dependencyRange(dependency);
+};
+
+/**
+ * A FAIXA de versão entre a extensão que chega e as que já estão no escritório, nos dois sentidos.
+ *
+ * O portão acima confere o que uma versão TRAZ — artefato e prefixo de evento. O que ele não
+ * conferia era a versão em si: `com.b` declara `com.a` `^0.1.0`, e em 0.x isso só admite 0.1.x.
+ * Aplicar `com.a` 0.2.0 convergia sem recusa nenhuma; na carga seguinte o `PluginHost` deixava
+ * `com.b` de fora com `dependency.unsatisfied`, e a linha dela seguia dizendo "instalada". Nada no
+ * gesto avisava que ele desligava outra extensão.
+ *
+ * Os dois sentidos, porque a mesma troca quebra dos dois lados:
+ *
+ * - **dependente** — uma instalada declara a que chega numa faixa que a versão nova não satisfaz;
+ * - **dependência** — a que chega declara uma instalada numa faixa que a versão de lá não satisfaz.
+ *
+ * Só conta o que ESTA troca desliga, pela mesma regra de `dependentEventIssues`: o veredito é
+ * calculado com a versão anterior e com a que chega, e só entra o que era satisfeito antes. Uma
+ * extensão que já estava fora do ar por faixa não vira aviso a cada reinstalação de quem não a
+ * mudou. Sem `previous`, o sentido dependente fica de fora: a instalação nova não tira do ar quem
+ * já não carregava por falta dela.
+ *
+ * O resultado é AVISO que pede confirmação, nunca recusa definitiva — e não por cortesia. Recusar
+ * travaria a saída: `com.a` 0.2 recusada por estar fora da faixa de `com.b` 0.1, e `com.b` 0.2
+ * recusada pela referência cuja dona instalada ainda é `com.a` 0.1. A ordem certa de atualizar
+ * passa, necessariamente, por um instante em que uma das duas não carrega.
+ */
+export const dependencyRangeIssues = (
+  incoming: MarketplacePlugin,
+  installed: readonly InstalledDependencySide[],
+  previous?: MarketplacePlugin,
+): LocalizedIssue[] => {
+  const pluginId = incoming.manifest.id;
+  const version = incoming.manifest.version;
+  const others = installed.filter((extension) => extension.id !== pluginId);
+  const issues: LocalizedIssue[] = [];
+
+  if (previous !== undefined) {
+    for (const dependent of others) {
+      const range = declaredRange(dependent.package, pluginId);
+      if (range === undefined || satisfiesRange(version, range)) continue;
+      if (!satisfiesRange(previous.manifest.version, range)) continue;
+      issues.push({
+        message: '@core.marketplace/install.dependent-out-of-range',
+        messageParams: { dependent: dependent.id, plugin: pluginId, range, version },
+      });
+    }
+  }
+
+  for (const dependency of others) {
+    const range = declaredRange(incoming, dependency.id);
+    const installedVersion = dependency.package.manifest.version;
+    if (range === undefined || satisfiesRange(installedVersion, range)) continue;
+    const before = previous === undefined ? undefined : declaredRange(previous, dependency.id);
+    if (before !== undefined && !satisfiesRange(installedVersion, before)) continue;
+    issues.push({
+      message: '@core.marketplace/install.dependency-out-of-range',
+      messageParams: { plugin: pluginId, dependency: dependency.id, range, installed: installedVersion },
+    });
+  }
+
+  return issues;
+};
+
+/**
+ * A recusa da instalação que AINDA pode virar consentimento: as faixas que a troca deixaria de
+ * satisfazer, inteiras, para quem a mostra poder listar todas e perguntar uma vez.
+ *
+ * A mensagem do erro é a da primeira, para que qualquer porta que não conheça este tipo — a tela de
+ * Traduções, por exemplo — ainda exiba uma recusa que diz quem fica fora do ar e por quê.
+ */
+export class DependencyRangeRefusal extends LocalizedError {
+  readonly issues: readonly LocalizedIssue[];
+
+  constructor(issues: readonly LocalizedIssue[]) {
+    super(issues[0]?.message ?? '', issues[0]?.messageParams);
+    this.name = 'DependencyRangeRefusal';
+    this.issues = issues;
+  }
+}

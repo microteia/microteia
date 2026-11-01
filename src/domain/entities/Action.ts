@@ -75,6 +75,21 @@ export interface ActionDefinition {
   updatedByPhotoURL?: string;
 }
 
+/**
+ * O que TODA action entrega ao fluxo, preenchido pelo sistema e nunca pelo formulário. `recordId` é o
+ * registro do botão — a única forma de o fluxo saber sobre qual registro age quando a ação não abre o
+ * formulário dos parâmetros (`promptParameters`).
+ */
+export const ACTION_RECORD_PARAMETER = 'recordId';
+
+export const ACTION_SYSTEM_PARAMETER_KEYS = ['action', 'source', 'context', ACTION_RECORD_PARAMETER, 'isNew'] as const;
+
+/**
+ * As chaves que o fluxo de uma action devolve ao botão, nas saídas do ÚLTIMO passo executado. Sem
+ * nenhuma delas, o botão diz que nada voltou (`handler.action.no-result`).
+ */
+export const ACTION_RETURN_KEYS = ['result', 'status', 'actions'] as const;
+
 export type ActionLocalCommand = 'replace' | 'merge' | 'save' | 'refresh' | 'clone' | 'delete' | 'close';
 
 /**
@@ -115,7 +130,7 @@ export interface ActionOutcome {
   commands: ActionLocalCommand[];
 }
 
-const STATUS_CODES: readonly ActionStatusCode[] = ['SUCCESS', 'WARNING', 'ERROR'] as const;
+export const ACTION_STATUS_CODES: readonly ActionStatusCode[] = ['SUCCESS', 'WARNING', 'ERROR'] as const;
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -143,7 +158,7 @@ const asText = (value: unknown): string => (typeof value === 'string' ? value.tr
 
 const asCode = (value: unknown): ActionStatusCode | null => {
   const raw = asText(value).toUpperCase();
-  return STATUS_CODES.includes(raw as ActionStatusCode) ? (raw as ActionStatusCode) : null;
+  return ACTION_STATUS_CODES.includes(raw as ActionStatusCode) ? (raw as ActionStatusCode) : null;
 };
 
 /**

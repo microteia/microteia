@@ -42,6 +42,13 @@ import { PERMISSION_RECORD_IMPORT_RUN } from '../../../domain/schema/access/kern
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
+import {
+  ACTION_COMMAND_ORDER,
+  ACTION_RECORD_PARAMETER,
+  ACTION_RETURN_KEYS,
+  ACTION_STATUS_CODES,
+  ACTION_SYSTEM_PARAMETER_KEYS,
+} from '../../../domain/entities/Action';
 import type { WorkflowStepMetadata } from '../../../domain/schema/workflowStepCatalog';
 import { PORTAL_DOCUMENT_SHARING_SINCE_KERNEL, isStepExcludedFromTrigger } from '../../../domain/schema/workflowStepCatalog';
 import { CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL, CHILD_RECORD_EVENTS_SINCE_KERNEL } from '../../../domain/schema/eventCatalog';
@@ -602,7 +609,16 @@ organization runs, as of the day the snapshot was taken. \`describe_workflow_ste
 the input that takes the id, filtered to the kind that fits there.
 
 \`check\` confers the whole gate from here, not half of it: the reference's shape, the declared
-dependency, **and** whether the owner really exports that id at the version you asked for. What it will
+dependency, **and** whether the owner really exports that id at the version you asked for.
+
+**The range is a promise about versions you have not seen yet.** On \`0.x\`, \`^0.1.0\` admits only
+\`0.1.x\`: the day the owner ships \`0.2.0\`, an extension that declared \`^0.1.0\` stops loading in the
+organization that updates it — installed, listed, and off. \`check\` compares every declared range with
+the sibling \`plugin.ts\` in this directory (and with ${INSTALLED_CATALOG_FILE}), and on the owner's side it names
+the sibling whose range the new version leaves; both are warnings. Installing an update that leaves an
+installed extension outside its range asks the organization to confirm, naming the extension and the
+range. While your extensions are on \`0.x\`, declare the range you mean — \`'>=0.1.0 <1.0.0'\` — rather
+than a caret that closes at the next minor. What it will
 not invent is an absence — an owner this directory cannot see comes back as "cannot be checked here",
 with what to run to close the gap, never as a refusal.
 
@@ -3231,7 +3247,7 @@ declares \`parameters\`:
   version: 1,
   condition: { kind: 'AlwaysTrue' },
   parameters: [
-    { key: 'recordId', label: label('param.record'), type: 'String', required: true },
+    { key: 'recordId', label: label('param.record'), type: 'EntityReference', entityType: 'invoices', required: true },
     {
       key: 'decision', label: label('param.decision'), type: 'select', required: true,
       options: [
@@ -3245,7 +3261,10 @@ declares \`parameters\`:
 }
 \`\`\`
 
-**The parameters ARE the \`event.\` of that flow.** A step reads \`decision\` as
+**The parameters ARE the \`event.\` of that flow.** When an action fires it, \`${ACTION_RECORD_PARAMETER}\` is
+the record of the button, sent on every run; declare it as an \`EntityReference\` to the collection and a
+condition or an expression reads its fields (\`${ACTION_RECORD_PARAMETER}.status\`) — see "What a button reads
+back". A step reads \`decision\` as
 \`{ kind: 'Event', path: 'decision' }\`, or as \`event.decision\` inside an expression — there is no
 \`payload\` level here, because nothing was saved.
 
@@ -3307,6 +3326,58 @@ still falls back to \`defaultValue\`. An expression that throws is reported and 
 back as if it had none.
 
 A screen offers the action by putting its \`templateId\` in \`cardActionIds\` or \`viewActionIds\`.
+
+### What a button sends, and what it reads back
+
+**What it sends.** Every run of an action's flow receives ${ACTION_SYSTEM_PARAMETER_KEYS.map((key) => `\`${key}\``).join(', ')},
+filled by the platform — never by the form, never by \`parameterDefaults\`. \`${ACTION_RECORD_PARAMETER}\` is the
+record of the button. Every OTHER parameter of the flow reaches it only through the form
+\`promptParameters\` opens: \`parameterDefaults\` pre-fills that form, and an action without
+\`promptParameters\` never evaluates it. So a flow that needs the record declares \`${ACTION_RECORD_PARAMETER}\`
+(\`type: 'EntityReference'\`, \`entityType\` = the collection) — not \`invoiceId\` mapped from \`id\`, which arrives
+empty the moment the form is not opened, and takes the flow's condition down with it. A required
+parameter the button cannot send refuses the run before the first step. \`check\` warns about both.
+
+**What it reads back.** The button takes the outputs of the LAST step that runs and looks for
+${ACTION_RETURN_KEYS.map((key) => `\`${key}\``).join(', ')}. With none of them the whole flow still runs — it writes,
+notifies, audits — and the button reports that nothing came back. The step that answers is a \`map\`
+with **no \`name\`**, which publishes its fields at the root; a named \`map\` publishes \`{ <name>: {...} }\` and
+the button finds nothing.
+
+\`\`\`ts
+{
+  id: 'answer', stepDefinitionId: 'map', type: 'Action', order: 9, enabled: true,
+  configuration: {
+    map: {
+      kind: 'Literal',
+      value: {
+        fields: [
+          { name: 'status', value: { kind: 'Literal', value: 'SUCCESS' } },
+          { name: 'actions', value: { kind: 'Literal', value: ['refresh'] } },
+        ],
+      },
+    },
+  },
+}
+\`\`\`
+
+- \`status\` is ${ACTION_STATUS_CODES.map((code) => `\`"${code}"\``).join(', ')} — as text (\`"SUCCESS"\`), as a pair
+  \`["ERROR", "message"]\` (the form an Expression can build), or as an object
+  \`{ code, message, fieldErrors }\`. Text that is not a code becomes the message of a \`SUCCESS\`. With
+  \`ERROR\` the screen shows the message and applies none of the \`actions\`.
+- \`actions\` is a list of what the screen does next, applied in this order whatever order you write:
+  ${ACTION_COMMAND_ORDER.map((command) => `\`${command}\``).join(', ')}.
+- \`result\` is an object the screen merges into (\`merge\`) or puts in place of (\`replace\`) the values on
+  screen.
+
+**Every path answers.** A \`Condition\` that refuses returns \`status: ["ERROR", "<why>"]\` in a \`map\` and THEN
+\`exit\`s — \`exit\` has no output of its own and keeps the step before it as the answer; an \`exit\` with
+nothing before it answers nothing. A false workflow \`condition\` does not run the flow at all: the
+button reports that the action does not apply to this record, in the platform's words — a refusal that
+must say WHY belongs inside the flow, as a \`map\` with \`ERROR\`.
+\`check\` follows every path of the flow an action fires and warns about each one that ends without an
+answer, naming the step; a \`script\` or a called flow at the end is not judged — only the run knows what
+they return.
 
 ### Scripts
 
