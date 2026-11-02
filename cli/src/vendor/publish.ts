@@ -119,15 +119,21 @@ const readPublishedIndex = async (repo: string): Promise<PublishedIndex> => {
   return { index: parseIndex(text, `${repo}/${INDEX_PATH}`), sha: contents.sha, empty: false };
 };
 
+/** O caminho do README DENTRO do repositório de releases. */
+const README_PATH = 'README.md';
+
 /**
  * O que fica na raiz do repositório de releases, para quem chegar nele sem contexto.
  *
- * Ele é escrito UMA vez, ao semear — não é sobreposto depois. O que promete estar atual é o catálogo,
- * e é ele que a cada publicação é reescrito.
+ * É documento GERADO, e nenhuma pessoa escreve naquele repositório: por isso é sobreposto sempre que
+ * diverge deste texto. Escrito só ao semear, ele congelava no texto do primeiro `publish` — o link da
+ * documentação oficial nunca chegaria ao repositório que já existia.
  */
 const releasesReadme = (): string => `# Microteia — releases
 
 Distribution artifacts for the Microteia platform. **No source lives here**: what travels is compiled.
+
+📖 **Documentation: [doc.microteia.com](https://doc.microteia.com)**
 
 - \`kernel/index.json\` — the catalog the Microteia Console reads. It lists every published version with
   its size and sha256, and the absolute URLs of the files that carry it.
@@ -142,6 +148,17 @@ The Console reads the catalog, verifies what it downloads against the sha256 abo
 it in place.
 `;
 
+const writeReadme = async (repo: string, sha: string | null, message: string): Promise<void> => {
+  const content = Buffer.from(releasesReadme(), 'utf8').toString('base64');
+  const args = [
+    'api', '--method', 'PUT', `repos/${repo}/contents/${README_PATH}`,
+    '-f', `message=${message}`,
+    '-f', `content=${content}`,
+  ];
+  if (sha !== null) args.push('-f', `sha=${sha}`);
+  await captureOrThrow('gh', args);
+};
+
 /**
  * Dá ao repositório o primeiro commit, porque sem ele não existe release.
  *
@@ -152,13 +169,31 @@ it in place.
  */
 const seedRepository = async (repo: string): Promise<void> => {
   pending(`${repo} has no commits yet — writing its README first`);
-  const content = Buffer.from(releasesReadme(), 'utf8').toString('base64');
-  await captureOrThrow('gh', [
-    'api', '--method', 'PUT', `repos/${repo}/contents/README.md`,
-    '-f', 'message=the releases repository',
-    '-f', `content=${content}`,
-  ]);
+  await writeReadme(repo, null, 'the releases repository');
   success(`seeded ${repo}`);
+};
+
+/**
+ * O `sha` do README publicado quando ele diverge do texto atual; `null` quando já está em dia.
+ *
+ * Um README ausente num repositório que tem commits (alguém o apagou) também é divergência, e o PUT
+ * sem `sha` o recria.
+ */
+interface StaleReadme {
+  sha: string | null;
+}
+
+const staleReadme = async (repo: string): Promise<StaleReadme | null> => {
+  const result = await capture('gh', ['api', `repos/${repo}/contents/${README_PATH}`]);
+  if (result.code !== 0) {
+    if (`${result.stderr}${result.stdout}`.includes('HTTP 404')) return { sha: null };
+    throw new Error(
+      `Could not read ${README_PATH} from ${repo}.\n${result.stderr.trim() || result.stdout.trim()}`,
+    );
+  }
+  const contents = JSON.parse(result.stdout) as GitHubContents;
+  const text = Buffer.from(contents.content, 'base64').toString('utf8');
+  return text === releasesReadme() ? null : { sha: contents.sha };
 };
 
 const writePublishedIndex = async (
@@ -258,6 +293,7 @@ const publishKernel = async (
   const manifestPath = join(directory, 'manifest.json');
 
   const published = await readPublishedIndex(repo);
+  const readme = published.empty ? null : await staleReadme(repo);
 
   /**
    * O corpo do release cobre o INTERVALO, e não só a versão que está saindo. Um pacote leva tudo o que
@@ -288,6 +324,7 @@ const publishKernel = async (
 
   if (dryRun) {
     if (published.empty) info(`  ${repo} has no commits, so it would be seeded with a README first`);
+    if (readme !== null) info(`  ${README_PATH} in ${repo} differs from the current text, so it would be rewritten`);
     info(`  the catalog would go from ${published.index.kernel.length} to ${next.kernel.length} version(s)`);
     return;
   }
@@ -331,6 +368,18 @@ const publishKernel = async (
         : `${INDEX_PATH} updated — "microteia unpack --version ${version}" takes it; "latest" stays at `
           + `${next.channels[STABLE_CHANNEL]}`,
     );
+
+    /**
+     * Depois do catálogo, e sem derrubar a publicação: o README não é o que alguém instala, e uma
+     * falha nele não pode desfazer — nem fazer parecer desfeito — um release que já está no ar.
+     */
+    if (readme !== null) {
+      await writeReadme(repo, readme.sha, `README for kernel ${version}`)
+        .then(() => success(`${README_PATH} in ${repo} rewritten`))
+        .catch((error: unknown) => warn(
+          `${README_PATH} in ${repo} could not be rewritten: ${error instanceof Error ? error.message : String(error)}`,
+        ));
+    }
   } finally {
     await rm(notesRoot, { recursive: true, force: true });
   }

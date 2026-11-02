@@ -61,6 +61,10 @@ describe('Console empacotado para fora do repositório', () => {
     expect(readme).toContain('firebase login');
   });
 
+  it('e aponta para a documentação oficial — é a página que o npm mostra a quem nunca viu a Microteia', () => {
+    expect(consoleReadme('1.2.3')).toContain('https://doc.microteia.com');
+  });
+
   /**
    * O `ln -s ~/.local/bin` e o `npm link` eram a recomendação enquanto a pasta era entregue à mão.
    * Publicado o pacote, ensinar os dois é ensinar a instalar uma cópia que nada atualiza — e a que o

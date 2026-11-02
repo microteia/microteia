@@ -155,11 +155,22 @@ describe('artefatos primeiro, catálogo depois', () => {
       .toBeLessThan(kernel.indexOf("'release', 'create'"));
   });
 
-  /** O README nasce uma vez e não é sobreposto: quem promete estar atual é o catálogo. */
-  it('e a semente traz o README que o repositório precisa ter', () => {
+  it('e a semente traz o README que o repositório precisa ter, com o link da documentação', () => {
     expect(publish).toContain('const releasesReadme');
     expect(publish).toContain('No source lives here');
-    expect(publish.match(/contents\/README\.md/g)).toHaveLength(1);
+    expect(publish).toContain('https://doc.microteia.com');
+  });
+
+  /**
+   * Escrito só ao semear, o README congelava no texto do primeiro `publish`: o link da documentação
+   * oficial nunca chegaria ao repositório que já existia. Ele é regravado quando diverge — depois do
+   * catálogo, e sem derrubar a publicação, porque um release no ar não pode parecer desfeito por ele.
+   */
+  it('um README divergente é regravado depois do catálogo, e a falha só avisa', () => {
+    const kernel = publish.slice(publish.indexOf('const publishKernel ='), publish.indexOf('const publishedConsoleVersion'));
+    expect(kernel).toContain('await staleReadme(repo)');
+    expect(kernel.indexOf('await writePublishedIndex(')).toBeLessThan(kernel.indexOf('await writeReadme(repo, readme.sha'));
+    expect(kernel).toContain('could not be rewritten');
   });
 });
 

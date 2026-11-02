@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.193.0] — 2026-11-02
+
+- A apresentação do projeto passa a ser em inglês, como o restante da documentação da Microteia, e aponta para a documentação oficial em doc.microteia.com.
+
 #### [9.192.0] — 2026-11-02
 
 - Corrigido um problema em que as automações montadas a partir do plano de uma extensão — as que mudam a situação de um registro ao salvar, quando chega uma data ou ao apertar um botão — podiam simplesmente não rodar, e o botão respondia que a ação não se aplicava àquele registro.

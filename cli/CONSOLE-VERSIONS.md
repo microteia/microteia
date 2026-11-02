@@ -22,6 +22,11 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.35.0] — 2026-11-02
+
+- feat(publish): the releases repository README links to the official documentation (https://doc.microteia.com), and `publish` rewrites it whenever it differs from the current text — after the catalog, warning instead of failing. It was written only when seeding an empty repository, so the README of an existing one stayed frozen at the text of its first `publish` and no change to it ever arrived. `publish --dry-run` says when it would be rewritten.
+- docs(pack-console): the npm README of the Console links to https://doc.microteia.com.
+
 #### [2.34.0] — 2026-11-02
 
 - fix(publish): `withEntry` promotes `channels.stable` to the HIGHER of the current and the new version. Publishing out of order — a fix on an older line, `9.180.1` after `9.191.0` — moved `latest` back, and every `unpack --version latest` received the older version. `publish` says whether the version became `latest` or only joined the list.

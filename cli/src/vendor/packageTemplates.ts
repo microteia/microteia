@@ -202,6 +202,8 @@ export const consoleReadme = (version: string): string => `# Microteia Console $
 Installs and updates Microteia in a Firebase project you own. It has no npm dependencies of its own —
 what it needs are command-line tools that are already on the machine, listed at the bottom.
 
+📖 **Documentation: [doc.microteia.com](https://doc.microteia.com)**
+
 ## Installing it
 
     npm i -g ${CONSOLE_PACKAGE_NAME}

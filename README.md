@@ -1,51 +1,52 @@
 # Microteia
 
-Plataforma multi-tenant para **criar aplicações de negócio de forma declarativa**. O núcleo (kernel)
-não conhece nenhum domínio: entidades, telas, automações e traduções entram como **plugins e
-extensões**, e é isso que permite atender a um escritório de advocacia e a uma loja sem alterar o
-núcleo.
+Multi-tenant platform for **building business applications declaratively**. The kernel knows no
+domain at all: entities, screens, automations and translations come in as **plugins and
+extensions**, and that is what lets it serve a law office and a store without changing the kernel.
 
-Cada organização (tenant) opera isolada: os dados vivem em subcoleções dedicadas no Firestore
-(`tenants/{tenantId}/{coleção}/{docId}`). Um usuário pode pertencer a vários tenants e alternar entre
-eles após o login.
+Each organization (tenant) runs in isolation: its data lives in dedicated Firestore subcollections
+(`tenants/{tenantId}/{collection}/{docId}`). A user can belong to several tenants and switch between
+them after signing in.
 
-## Tecnologias
+📖 **Official documentation: [doc.microteia.com](https://doc.microteia.com)**
+
+## Technologies
 
 - **Frontend:** React 19 + TypeScript + Vite
-- **Estilização:** Styled Components — cor, fonte e espaçamento **sempre** via tema; o tema é uma contribuição de plugin (o núcleo traz `dark` e `light`; os demais vêm do catálogo)
+- **Styling:** Styled Components — color, font and spacing **always** come from the theme; the theme is a plugin contribution (the kernel ships `dark` and `light`; the others come from the catalog)
 - **Backend:** Firebase (Auth + Firestore + Storage + Functions)
-- **Roteamento:** React Router v7
-- **Arquitetura:** Clean Architecture + MVVM, sobre um kernel de plugins
+- **Routing:** React Router v7
+- **Architecture:** Clean Architecture + MVVM, on top of a plugin kernel
 
-## Pré-requisitos
+## Prerequisites
 
-- Node.js 22 — é o runtime das Cloud Functions; use a mesma versão localmente para não divergir do que roda na nuvem
+- Node.js 22 — it is the Cloud Functions runtime; use the same version locally so you don't drift from what runs in the cloud
 - npm
-- Conta Firebase com projeto configurado
+- A Firebase account with a configured project
 
-## Instalação
+## Setup
 
-1. Clone o repositório:
+1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd microteia
 ```
 
-2. Instale as dependências:
+2. Install the dependencies:
 ```bash
 npm install
 ```
 
-3. Configure as variáveis de ambiente. **Não existe `.env` na raiz, e isso é de propósito:** cada
-ambiente tem o seu, para que uma variável faltando estoure em vez de cair calada na configuração do
-outro projeto.
+3. Configure the environment variables. **There is no `.env` at the root, and that is on purpose:**
+each environment has its own, so that a missing variable fails loudly instead of silently falling back
+to the other project's configuration.
 
 ```bash
-cp .env.example .env.dev     # desenvolvimento -> projeto microteia-dev
-cp .env.example .env.prod    # produção        -> projeto curatino
+cp .env.example .env.dev     # development -> microteia-dev project
+cp .env.example .env.prod    # production  -> curatino project
 ```
 
-4. Preencha as credenciais do Firebase de cada ambiente (obtidas com
+4. Fill in each environment's Firebase credentials (obtained with
    `npx firebase apps:sdkconfig web --project <alias>`):
 
 ```env
@@ -58,303 +59,311 @@ VITE_APP_ID=your_app_id
 VITE_MEASUREMENT_ID=your_measurement_id
 ```
 
-A variável `TARGET` escolhe, ao mesmo tempo, o arquivo de ambiente e o projeto Firebase de destino —
-`dev` é o padrão em todo comando.
+The `TARGET` variable selects, at the same time, the environment file and the target Firebase
+project — `dev` is the default for every command.
 
-## Executando o projeto
+## Running the project
 
 ```bash
-# Desenvolvimento
-npm run dev          # http://localhost:5173 (usa .env.dev)
+# Development
+npm run dev          # http://localhost:5173 (uses .env.dev)
 
-# Verificação de qualidade (obrigatória antes de commit)
+# Quality gate (mandatory before committing)
 npm run verify       # typecheck (tsc -b --force) + eslint --max-warnings 0
-                     # + schemas gerados + extensões + catálogos de mensagens
+                     # + generated schemas + extensions + message catalogs
 npm test             # vitest
 
-# Alterou functions/? o gate da raiz NÃO usa o tsconfig (mais estrito) do backend:
+# Changed functions/? The root gate does NOT use the backend's (stricter) tsconfig:
 npx tsc -b functions
 
 # Build
-npm run build              # TARGET=dev por padrão
+npm run build              # TARGET=dev by default
 TARGET=prod npm run build
 ```
 
-## Deploy (nossos ambientes)
+## Deploy (our environments)
 
-Dois projetos Firebase: `microteia-dev` (desenvolvimento, padrão) e `curatino` (produção). Produção
-**nunca** é implícita — exige `TARGET=prod`.
+Two Firebase projects: `microteia-dev` (development, the default) and `curatino` (production).
+Production is **never** implicit — it requires `TARGET=prod`.
 
 ```bash
 npm run deploy:hosting          # build + hosting          -> microteia-dev
-npm run deploy:rules            # regras Firestore/Storage
-npm run deploy:indexes          # índices compostos
-npm run deploy:functions        # todas as Cloud Functions
-npm run deploy:functions:individual   # uma a uma (o lote estoura a quota de CPU)
+npm run deploy:rules            # Firestore/Storage rules
+npm run deploy:indexes          # composite indexes
+npm run deploy:functions        # every Cloud Function
+npm run deploy:functions:individual   # one at a time (the batch exceeds the CPU quota)
 
 TARGET=prod npm run deploy:hosting    # -> curatino
-npm run deploy:prod                   # tudo, em produção
+npm run deploy:prod                   # everything, in production
 ```
 
-Regras e índices são **código versionado** (`firestore.rules`, `storage.rules`,
-`firestore.indexes.json`): nunca edite pelo Console — o próximo deploy sobrescreve a regra e apaga o
-índice não declarado.
+Rules and indexes are **versioned code** (`firestore.rules`, `storage.rules`,
+`firestore.indexes.json`): never edit them in the Console — the next deploy overwrites the rule and
+deletes any undeclared index.
 
-Para instalar a Microteia no Firebase de um cliente, o caminho é outro — ver a seção seguinte.
+Installing Microteia in a customer's Firebase takes a different path — see the next section.
 
-## Distribuição — gerar o pacote e instalar no Firebase do escritório
+## Distribution — building the package and installing it in the office's Firebase
 
-O deploy acima publica **no nosso** Firebase (`microteia-dev` ou `curatino`). Esta seção é o outro
-caminho: a Microteia instalada no projeto Firebase **do escritório**, mantido por ele.
+The deploy above publishes to **our** Firebase (`microteia-dev` or `curatino`). This section is the
+other path: Microteia installed in the office's **own** Firebase project, maintained by the office.
 
-São dois lados, e nenhum comando atravessa a fronteira entre eles:
+There are two sides, and no command crosses the boundary between them:
 
-| Lado Microteia (este repositório) | Lado escritório (máquina de quem instala) |
+| Microteia side (this repository) | Office side (the installer's machine) |
 |---|---|
-| `microteia pack` → pacote versionado, **compilado** | `npm i -g @microteia/console` → o instalador |
-| `microteia publish` → release + catálogo + npm | `microteia init` → cria a instalação |
-| nunca vê o `projectId` do cliente | `microteia connect` → liga ao Firebase dele |
-| | `microteia unpack --version latest` → baixa e confere |
-| | `microteia deploy` → instala/atualiza |
+| `microteia pack` → versioned, **compiled** package | `npm i -g @microteia/console` → the installer |
+| `microteia publish` → release + catalog + npm | `microteia init` → creates the installation |
+| never sees the customer's `projectId` | `microteia connect` → links it to their Firebase |
+| | `microteia unpack --version latest` → downloads and verifies |
+| | `microteia deploy` → installs/updates |
 
-O `firebase login` é sempre do escritório: o Console não implementa autenticação própria e não guarda
-credencial de ninguém.
+`firebase login` always belongs to the office: the Console implements no authentication of its own and
+stores nobody's credentials.
 
-### O Console (CLI)
+### The Console (CLI)
 
-O Console é o 4º projeto TypeScript do repositório (`cli/`), compilado para `cli/lib` — que é
-gerado, não versionado. Depois de `npm install`:
+The Console is the repository's 4th TypeScript project (`cli/`), compiled to `cli/lib` — which is
+generated, not versioned. After `npm install`:
 
 ```bash
-npm run build:cli            # compila cli/ -> cli/lib
-npx microteia --help         # ou: node cli/lib/index.js --help
+npm run build:cli            # compiles cli/ -> cli/lib
+npx microteia --help         # or: node cli/lib/index.js --help
 ```
 
-| Comando | Lado | Para quê |
+| Command | Side | Purpose |
 |---|---|---|
-| `microteia pack [--output <dir>] [--skip-verify]` | Microteia | monta o pacote instalável do kernel |
-| `microteia pack-console [--output <dir>]` | Microteia | monta o próprio Console para rodar fora do repositório |
-| `microteia publish [--kernel-only\|--console-only] [--repo <owner/name>] [--dry-run]` | Microteia | põe no ar o que os dois acima produziram |
-| `microteia init [--name <escritório>] [--id <env>] [--force]` | escritório | cria a instalação no diretório atual |
-| `microteia connect --project <projectId> [--no-create-web-app]` | escritório | liga a instalação ao Firebase dele |
-| `microteia unpack --version <latest\|x.y.z>` | escritório | baixa a versão do catálogo, confere o `sha256` e a põe no lugar, sem publicar nada |
-| `microteia unpack --kernel <pacote.tgz>` | escritório | o mesmo, de um arquivo local — para quem não alcança o catálogo |
-| `microteia deploy [--only rules,indexes,functions,hosting] [--delay <s>] [--prune] [--all]` | escritório | publica o pacote que está no lugar |
-| `microteia provision [--prune] [--delay <s>] [--all]` | escritório | dá às extensões instaladas as functions e os índices que elas exigem |
-| `microteia export-catalog --tenant <tenantId> [--output <path>]` | escritório | escreve o que um escritório tem — telas, listas, extensões — para as ferramentas de autoria lerem |
-| `microteia plugin-init --namespace <com.acme> [--dir <path>] [--force]` | escritório | prepara `extensions/`, para escrever extensão em TypeScript, abaixo do namespace do escritório |
+| `microteia pack [--output <dir>] [--skip-verify]` | Microteia | builds the installable kernel package |
+| `microteia pack-console [--output <dir>]` | Microteia | builds the Console itself to run outside the repository |
+| `microteia publish [--kernel-only\|--console-only] [--repo <owner/name>] [--dry-run]` | Microteia | publishes what the two above produced |
+| `microteia init [--name <office>] [--id <env>] [--force]` | office | creates the installation in the current directory |
+| `microteia connect --project <projectId> [--no-create-web-app]` | office | links the installation to their Firebase |
+| `microteia unpack --version <latest\|x.y.z>` | office | downloads the version from the catalog, verifies its `sha256` and puts it in place, without publishing anything |
+| `microteia unpack --kernel <package.tgz>` | office | the same, from a local file — for those who cannot reach the catalog |
+| `microteia deploy [--only rules,indexes,functions,hosting] [--delay <s>] [--prune] [--all]` | office | publishes the package that is in place |
+| `microteia provision [--prune] [--delay <s>] [--all]` | office | gives installed extensions the functions and indexes they require |
+| `microteia export-catalog --tenant <tenantId> [--output <path>]` | office | writes what an office has — screens, lists, extensions — for the authoring tools to read |
+| `microteia plugin-init --namespace <com.acme> [--dir <path>] [--force]` | office | prepares `extensions/`, for writing extensions in TypeScript, under the office's namespace |
 
-Na máquina de quem instala ele vem do npm, e não daqui:
-
-```bash
-npm i -g @microteia/console     # ou: npx @microteia/console --help
-```
-
-Para gerar a pasta que é publicada — outra máquina, uma rede sem npm público, um teste antes de subir:
+On the installer's machine it comes from npm, not from here:
 
 ```bash
-npm run pack:console     # -> distributions/console/<versão do Console>/
+npm i -g @microteia/console     # or: npx @microteia/console --help
 ```
 
-A pasta tem `lib/`, um `package.json`, um README e o `CONSOLE-VERSIONS.md`, pesa ~500 KB e **não
-instala nada**: o Console usa só módulos nativos do Node. Ela roda como está (`node lib/index.js
---help`) e é exatamente o que o `publish` manda ao registry.
+To build the folder that gets published — another machine, a network without public npm, a test before
+uploading:
 
-O `package.json` é a razão de existir um comando em vez de um `cp -R`: o compilado é ESM, e sem
-`type: module` o Node só o carrega por adivinhação de sintaxe — que existe a partir do 22.7 e falha
-antes dele. E o `CONSOLE-VERSIONS.md` está no `files` por um motivo que não é documentação: o `unpack`
-lê aquele arquivo AO LADO do binário que está rodando, para pô-lo na raiz da instalação.
+```bash
+npm run pack:console     # -> distributions/console/<Console version>/
+```
 
-Nessa cópia, os comandos do escritório funcionam; `pack`, `pack-console` e `publish` recusam com
-mensagem clara, porque construir e publicar exigem o repositório.
+The folder has `lib/`, a `package.json`, a README and `CONSOLE-VERSIONS.md`, weighs ~500 KB and
+**installs nothing**: the Console uses only Node built-in modules. It runs as is (`node lib/index.js
+--help`) and is exactly what `publish` sends to the registry.
 
-### 1. Gerar uma versão do pacote (lado Microteia)
+The `package.json` is why there is a command instead of a `cp -R`: the compiled output is ESM, and
+without `type: module` Node only loads it by guessing the syntax — which exists from 22.7 on and fails
+before that. And `CONSOLE-VERSIONS.md` is in `files` for a reason that is not documentation: `unpack`
+reads that file NEXT TO the running binary, to place it at the root of the installation.
 
-A versão do pacote **é** a `version` do `package.json`. Então, antes de empacotar, incremente-a e
-acrescente a entrada correspondente no `VERSIONS.md` — o mesmo passo de qualquer commit.
+In that copy, the office commands work; `pack`, `pack-console` and `publish` refuse with a clear
+message, because building and publishing require the repository.
+
+### 1. Building a package version (Microteia side)
+
+The package version **is** the `version` in `package.json`. So, before packing, bump it and add the
+matching entry to `VERSIONS.md` — the same step as any commit.
 
 ```bash
 npm run pack:kernel
 ```
 
-Ele compila o Console e executa, em ordem: `npm run verify`, o build do frontend com
-`TARGET=dist`, o build das Cloud Functions, a auditoria do bundle, a montagem e o tarball.
+It compiles the Console and runs, in order: `npm run verify`, the frontend build with `TARGET=dist`,
+the Cloud Functions build, the bundle audit, the assembly and the tarball.
 
 ```
-distributions/kernel/<versão>/
-├── manifest.json                      # legível sem desempacotar; carrega o sha256 do tarball
-└── microteia-kernel-<versão>.tgz      # ~7 MB
+distributions/kernel/<version>/
+├── manifest.json                      # readable without unpacking; carries the tarball's sha256
+└── microteia-kernel-<version>.tgz     # ~7 MB
 ```
 
-O `manifest.json` de FORA é o único que carrega `tarball: { name, bytes, sha256 }`; o de dentro do
-tarball não — um manifesto não pode descrever o arquivo que o contém. É a única diferença entre as duas
-cópias, e é o que permite conferir o que foi baixado.
+The OUTER `manifest.json` is the only one that carries `tarball: { name, bytes, sha256 }`; the one
+inside the tarball does not — a manifest cannot describe the file that contains it. That is the only
+difference between the two copies, and it is what makes it possible to verify what was downloaded.
 
-Duas coisas que o `pack` garante, e que são o motivo de ele existir em vez de um `tar` à mão:
+Two things `pack` guarantees, and which are the reason it exists instead of a hand-rolled `tar`:
 
-- **Nenhum projeto Firebase dentro do bundle.** O build de distribuição usa `TARGET=dist`, para o qual
-  **não existe** `.env.dist` — nada é inlinado, e `cli/src/vendor/bundleAudit.ts` aborta o
-  empacotamento se achar credencial no artefato.
-- **Só compilado viaja.** Sem `src/` (nem do frontend nem das functions) e sem `.js.map`.
+- **No Firebase project inside the bundle.** The distribution build uses `TARGET=dist`, for which
+  **there is no** `.env.dist` — nothing is inlined, and `cli/src/vendor/bundleAudit.ts` aborts the
+  packing if it finds a credential in the artifact.
+- **Only compiled code travels.** No `src/` (neither the frontend's nor the functions') and no `.js.map`.
 
-O `manifest.json` é derivado do código, não escrito à mão: functions, callables, parâmetros do
-backend (`defineString`), região, versão do contrato do kernel e os pré-requisitos manuais.
+The `manifest.json` is derived from the code, not handwritten: functions, callables, backend
+parameters (`defineString`), region, kernel contract version and the manual prerequisites.
 
-`--skip-verify` pula só o gate de qualidade (útil ao iterar); `--output <dir>` muda o destino.
+`--skip-verify` skips only the quality gate (useful while iterating); `--output <dir>` changes the
+destination.
 
-#### 1.1 Publicar
+#### 1.1 Publishing
 
 ```bash
-npm run pack:console          # o Console da versão que vai junto
-microteia publish --dry-run   # diz o que subiria, e como o catálogo ficaria
+npm run pack:console          # the Console version that goes along
+microteia publish --dry-run   # says what would be uploaded, and what the catalog would look like
 microteia publish
 ```
 
-Ele **não constrói** — quem roda o gate de qualidade é o `pack`. O que ele faz é subir os assets ao
-repositório de releases (`gh`), publicar o Console no npm, e escrever o catálogo `kernel/index.json`
-**por último**: um índice apontando para um arquivo que não subiu quebra a instalação de todo mundo que
-pedir `latest`, enquanto um arquivo que o índice ainda não menciona não quebra nada. Versão já publicada
-é recusa — release não se reescreve. Detalhes e o motivo de o catálogo morar numa URL nossa: "O canal de
-distribuição" no [ARCHITECTURE.md](./ARCHITECTURE.md).
+It **does not build** — the quality gate is run by `pack`. What it does is upload the assets to the
+releases repository (`gh`), publish the Console to npm, and write the `kernel/index.json` catalog
+**last**: an index pointing to a file that was not uploaded breaks the installation of everyone who
+asks for `latest`, while a file the index does not mention yet breaks nothing. An already-published
+version is a refusal — a release is never rewritten. Details, and why the catalog lives at a URL of
+ours: the "O canal de distribuição" section of [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-### 2. Preparar o projeto Firebase do escritório
+### 2. Preparing the office's Firebase project
 
-Na máquina de quem instala: Node.js **22 ou mais novo**, `firebase-tools` autenticado
-(`firebase login`) e o `gcloud` autenticado (`gcloud auth login`) — ele é usado no passo do App Engine
-e, depois, para o `provision` ler quais extensões o escritório instalou.
+On the installer's machine: Node.js **22 or newer**, `firebase-tools` authenticated (`firebase login`)
+and `gcloud` authenticated (`gcloud auth login`) — it is used in the App Engine step and, later, for
+`provision` to read which extensions the office installed.
 
-> Numa máquina com Node mais novo que 22, o `npm install` das functions avisa `EBADENGINE`. É
-> **esperado**: o `engines.node` do pacote descreve o runtime das Cloud Functions (fixo em 22, é por ele
-> que o Firebase escolhe onde a function roda), e não a máquina de quem instala. As notas de
-> descontinuação que aparecem junto vêm de dependências do próprio Firebase. Nenhuma das duas impede o
-> deploy, e o `deploy` avisa disso antes de rodar o npm.
+> On a machine with Node newer than 22, the functions' `npm install` warns `EBADENGINE`. That is
+> **expected**: the package's `engines.node` describes the Cloud Functions runtime (pinned to 22, it is
+> what Firebase uses to choose where the function runs), not the installer's machine. The deprecation
+> notices that show up alongside come from Firebase's own dependencies. Neither prevents the deploy, and
+> `deploy` warns about this before running npm.
 
-No projeto Firebase, os passos abaixo são de console: **nenhum comando os faz**, e o `connect` imprime
-a lista inteira com o motivo de cada um (ela vive no manifesto, em `MANUAL_PREREQUISITES`, e viaja com
-o pacote porque quem instala não tem este repositório):
+In the Firebase project, the steps below are done in the console: **no command does them**, and
+`connect` prints the whole list with the reason for each one (it lives in the manifest, in
+`MANUAL_PREREQUISITES`, and travels with the package because the installer does not have this
+repository).
 
-Na mesma ordem em que o `connect` os imprime:
+In the same order `connect` prints them:
 
-| Passo | Por que não dá para automatizar |
+| Step | Why it cannot be automated |
 |---|---|
-| Plano **Blaze**, antes de tudo | Cloud Functions de 2ª geração não existem no gratuito, e sem billing nem o App Engine nem o bucket do Storage podem ser criados |
-| `gcloud app create --region=southamerica-east1 --project=<projectId>` | sem ele o deploy falha com um 404 que não menciona App Engine — e a região é definida uma única vez |
-| **Firestore** na mesma região das functions | localização permanente; região divergente faz gatilho nunca disparar |
-| **Cloud Storage** iniciado pelo console | habilitar a API não basta: o bucket padrão não existe e nenhum comando de CLI o cria |
-| **Authentication → Google** habilitado | sem ele ninguém entra |
-| Invocação das callables por `allUsers` — *só se a organização bloquear* | o deploy concede e depois verifica; política de organização pode recusar |
-| O que uma extensão instalada pedir (credencial de terceiro, tópico Pub/Sub) | o próprio `provision` imprime a lista, por extensão; credencial nunca é compartilhada entre instalações |
+| **Blaze** plan, before anything else | 2nd-generation Cloud Functions do not exist on the free tier, and without billing neither App Engine nor the Storage bucket can be created |
+| `gcloud app create --region=southamerica-east1 --project=<projectId>` | without it the deploy fails with a 404 that does not mention App Engine — and the region is set once and for all |
+| **Firestore** in the same region as the functions | the location is permanent; a different region makes triggers never fire |
+| **Cloud Storage** started from the console | enabling the API is not enough: the default bucket does not exist and no CLI command creates it |
+| **Authentication → Google** enabled | without it nobody can sign in |
+| Callable invocation by `allUsers` — *only if the organization blocks it* | the deploy grants it and then verifies; an organization policy may refuse it |
+| Whatever an installed extension asks for (third-party credential, Pub/Sub topic) | `provision` itself prints the list, per extension; credentials are never shared between installations |
 
-As políticas de **TTL** do Firestore (`auditLogs.expiresAt`, `workflow_trigger_marks.expiresAt`) não estão
-nesta lista porque não são passo de console: são declaradas com `"ttl": true` no `firestore.indexes.json`, e o
-deploy de índices as grava.
+Firestore **TTL** policies (`auditLogs.expiresAt`, `workflow_trigger_marks.expiresAt`) are not on this
+list because they are not a console step: they are declared with `"ttl": true` in
+`firestore.indexes.json`, and the index deploy writes them.
 
-### 3. Instalar (lado escritório)
+### 3. Installing (office side)
 
 ```bash
 npm i -g @microteia/console
 
 mkdir acme && cd acme
 
-microteia init --name "Escritório Acme"
+microteia init --name "Acme Office"
 microteia connect --project acme-microteia
 microteia unpack --version latest
 microteia deploy
 ```
 
-O `unpack --version` lê o catálogo publicado, baixa, confere `bytes` e `sha256`, e **só então** troca o
-que está no lugar — uma recusa (por exemplo, um pacote que exige um Console mais novo) deixa a versão
-anterior intacta. Numa máquina sem acesso ao catálogo, nomeie o arquivo:
-`microteia unpack --kernel /caminho/microteia-kernel-<versão>.tgz`. O download fica em
-`~/.microteia/cache`, fora da instalação, porque `.microteia/` é apagado a cada troca de kernel.
+`unpack --version` reads the published catalog, downloads, checks `bytes` and `sha256`, and **only
+then** replaces what is in place — a refusal (for example, a package that requires a newer Console)
+leaves the previous version intact. On a machine with no access to the catalog, name the file:
+`microteia unpack --kernel /path/to/microteia-kernel-<version>.tgz`. The download is kept in
+`~/.microteia/cache`, outside the installation, because `.microteia/` is wiped on every kernel change.
 
-O que fica no diretório:
+What ends up in the directory:
 
 ```
-microteia.yaml              # a instalação: nome, ambiente, projectId, região, versão do kernel
-.env.<projectId>            # SUAS configurações de backend — credenciais, gitignorado
-.gitignore                  # criado junto: este diretório tende a virar um repositório seu
-README.md                   # SEU: criado se não existir, e nunca mais reescrito
-MICROTEIA.md                # NOSSO: sobreposto a cada `unpack`, carimbado do pacote instalado
-KERNEL-VERSIONS.md          # o histórico técnico do kernel — vem dentro do pacote
-CONSOLE-VERSIONS.md         # o histórico técnico do Console — vem com o binário
-functions/                  # opcional: as Cloud Functions que você escreve (ver §5)
-extensions/                 # opcional: as extensões que você escreve (ver §6)
-.microteia/                 # DESCARTÁVEL: refeito do pacote + `connect`. Nada seu mora aqui
-├── firebase-config.json    # config web lida do projeto do escritório (por `connect`)
-└── install/                # o pacote desempacotado — é daqui que o deploy roda
+microteia.yaml              # the installation: name, environment, projectId, region, kernel version
+.env.<projectId>            # YOUR backend settings — credentials, gitignored
+.gitignore                  # created alongside: this directory tends to become a repository of yours
+README.md                   # YOURS: created if missing, and never rewritten
+MICROTEIA.md                # OURS: overwritten on every `unpack`, stamped from the installed package
+KERNEL-VERSIONS.md          # the kernel's technical history — ships inside the package
+CONSOLE-VERSIONS.md         # the Console's technical history — ships with the binary
+functions/                  # optional: the Cloud Functions you write (see §5)
+extensions/                 # optional: the extensions you write (see §6)
+.microteia/                 # DISPOSABLE: rebuilt from the package + `connect`. Nothing of yours lives here
+├── firebase-config.json    # web config read from the office's project (by `connect`)
+└── install/                # the unpacked package — this is where the deploy runs from
 ```
 
-**`unpack` e `deploy` são separados de propósito.** Trocar de kernel não obriga a publicar tudo: se
-naquela versão só o front mudou, `microteia deploy --only hosting` basta. E entre os dois há o momento
-de preencher uma configuração que o pacote novo passou a pedir — que é justamente quando se descobre
-que ela existe.
+**`unpack` and `deploy` are separate on purpose.** Changing kernels does not force you to publish
+everything: if only the frontend changed in that version, `microteia deploy --only hosting` is enough.
+And between the two there is the moment to fill in a setting the new package started asking for —
+which is exactly when you find out it exists.
 
-O `unpack` substitui o pacote e escreve no `.env.<projectId>` da raiz as configurações que faltam,
-**acrescentando** e nunca sobrescrevendo. O `deploy` carimba `hosting/firebase-config.js` com o projeto
-do escritório, copia o `.env.<projectId>` para onde o `firebase-functions` o lê, e publica na ordem:
-rules → índices → functions → hosting. As functions sobem **uma a uma** (em lote estouram a quota de CPU do projeto), com uma
-segunda passada para as de gatilho, que numa instalação nova falham por propagação de identidade de
-serviço. Ao final ele verifica, pelo mesmo caminho do navegador, se as callables respondem — e, se a
-permissão de invocação tiver sido recusada, imprime o comando exato de cada uma.
+`unpack` replaces the package and writes the missing settings to the root `.env.<projectId>`,
+**appending** and never overwriting. `deploy` stamps `hosting/firebase-config.js` with the office's
+project, copies `.env.<projectId>` to where `firebase-functions` reads it, and publishes in order:
+rules → indexes → functions → hosting. Functions go up **one at a time** (in a batch they exceed the
+project's CPU quota), with a second pass for trigger functions, which on a fresh installation fail
+because of service identity propagation. At the end it checks, through the same path the browser uses,
+whether the callables respond — and, if the invocation permission was refused, it prints the exact
+command for each one.
 
-O que sobe aqui é a **baseline**: o que toda instalação precisa. Function e índice que pertencem a uma
-extensão ficam de fora até que a extensão seja instalada — ver o passo a seguir.
+What goes up here is the **baseline**: what every installation needs. Functions and indexes that belong
+to an extension are left out until the extension is installed — see the next step.
 
-### 3.1. Extensões que precisam de recursos de servidor
+### 3.1. Extensions that need server resources
 
-Algumas extensões exigem do projeto Firebase o que nenhuma tela declara: Cloud Function, índice
-composto, credencial. Uma que receba e-mail, fale com uma API de terceiro ou consulte por dois campos
-ao mesmo tempo é o caso — isso mora no servidor.
+Some extensions require from the Firebase project what no screen declares: a Cloud Function, a
+composite index, a credential. One that receives e-mail, talks to a third-party API or queries by two
+fields at once is the case — that lives on the server.
 
-A extensão pode trazer as próprias Cloud Functions (em `extensions/<plugin>/functions/`) ou reivindicar
-uma que o pacote da plataforma já traz. Nos dois casos a declaração é a mesma, e o efeito é o mesmo:
-o artefato só existe no projeto do escritório que instalou a extensão.
+An extension can bring its own Cloud Functions (in `extensions/<plugin>/functions/`) or claim one that
+the platform package already ships. In both cases the declaration is the same, and so is the effect:
+the artifact only exists in the project of the office that installed the extension.
 
-Instalar uma dessas pela aplicação não basta: ela aparece na tela de Extensões com o aviso
-**"Backend pendente"** e **não** entra no menu. Quem cuida do projeto aplica o que falta:
+Installing one of these from the application is not enough: it shows up on the Extensions screen with
+the **"Backend pending"** notice and does **not** enter the menu. Whoever runs the project applies
+what is missing:
 
 ```bash
 microteia provision
 ```
 
-Ele lê o que os escritórios instalaram, cria os índices, deploya as functions que faltam, avisa dos
-parâmetros ainda vazios em `.env.<projectId>` e imprime os passos manuais que cada extensão declara —
-criar um cliente OAuth, um tópico do Pub/Sub, o que for. Recarregue a aplicação e a extensão está no ar.
+It reads what the offices installed, creates the indexes, deploys the missing functions, warns about
+parameters still empty in `.env.<projectId>` and prints the manual steps each extension declares —
+creating an OAuth client, a Pub/Sub topic, whatever it is. Reload the application and the extension is
+live.
 
-Isto exige o `gcloud` autenticado (`gcloud auth login`): é por ele que o Console lê o que está
-instalado. Ele não guarda credencial nenhuma — pede o token a cada execução.
+This requires `gcloud` authenticated (`gcloud auth login`): it is how the Console reads what is
+installed. It stores no credentials — it asks for the token on every run.
 
-**Preencheu (ou trocou) um valor em `.env.<projectId>`? Rode `microteia provision` de novo.**
-Uma Cloud Function só vê o valor do deploy que a carimbou: preencher o arquivo depois não alcança
-nenhuma delas, e a feature falha só na hora de usar. O `provision` compara o arquivo com o que já foi
-aplicado e redeploya justamente as functions que carregam o parâmetro que mudou — nem a baseline
-inteira, nem nada além delas. Não é preciso lembrar o que mudou nem passar flag: ele descobre.
+**Filled in (or changed) a value in `.env.<projectId>`? Run `microteia provision` again.**
+A Cloud Function only sees the value of the deploy that stamped it: filling in the file afterwards
+reaches none of them, and the feature only fails when it is used. `provision` compares the file with
+what was already applied and redeploys exactly the functions that carry the changed parameter — neither
+the whole baseline nor anything beyond them. You don't need to remember what changed or pass a flag: it
+finds out.
 
-Ao desinstalar uma extensão, `microteia provision` **relata** o que ficou órfão sem apagar nada.
-`microteia provision --prune` apaga as functions órfãs; índice nunca é apagado automaticamente, só
-listado com o comando (um deploy não remove índice, e apagar o errado custa uma consulta em produção).
+When you uninstall an extension, `microteia provision` **reports** what was left orphaned without
+deleting anything. `microteia provision --prune` deletes the orphaned functions; an index is never
+deleted automatically, only listed with the command (a deploy does not remove indexes, and deleting the
+wrong one costs a query in production).
 
-### 4. Atualizar uma instalação
+### 4. Updating an installation
 
 ```bash
-microteia --version              # diz se há versão nova publicada
+microteia --version              # says whether a newer version is published
 microteia unpack --version latest
-microteia deploy                 # ou --only hosting, --only functions, ...
+microteia deploy                 # or --only hosting, --only functions, ...
 ```
 
-E o Console, que tem versão própria: `npm i -g @microteia/console` de novo, ou `npm outdated -g`. Um
-pacote que exija um Console mais novo é recusado pelo `unpack` **antes** de qualquer troca.
+And the Console, which has its own version: `npm i -g @microteia/console` again, or `npm outdated -g`.
+A package that requires a newer Console is refused by `unpack` **before** anything is replaced.
 
-O kernel é substituído por inteiro, e o que é do escritório é preservado. Dentro de `.microteia/`,
-só `functions/node_modules` atravessa a troca — e ele é cache. **Tudo o que é seu vive FORA de
-`.microteia/`** — `.env.<projectId>`, `functions/` e `extensions/` ficam ao lado do `microteia.yaml`,
-e é isso que os torna imunes ao `unpack`.
+The kernel is replaced entirely, and what belongs to the office is preserved. Inside `.microteia/`,
+only `functions/node_modules` survives the swap — and it is a cache. **Everything of yours lives
+OUTSIDE `.microteia/`** — `.env.<projectId>`, `functions/` and `extensions/` sit next to
+`microteia.yaml`, and that is what makes them immune to `unpack`.
 
-### 4.1. Configurações de backend
+### 4.1. Backend settings
 
-Algumas extensões pedem uma credencial ou um identificador do lado do servidor. Elas ficam em
-**`.env.<projectId>`, ao lado do `microteia.yaml`** — nunca dentro de `.microteia/`:
+Some extensions ask for a server-side credential or identifier. These live in **`.env.<projectId>`,
+next to `microteia.yaml`** — never inside `.microteia/`:
 
 ```bash
 # .env.acme-microteia
@@ -362,133 +371,138 @@ GOOGLE_CLIENT_ID=123-abc.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=...
 ```
 
-O `unpack` descobre esses nomes de duas fontes: os `defineString` do pacote da plataforma e os das Cloud
-Functions que o próprio escritório escreveu. A linha tem de existir mesmo vazia — o `firebase-functions`
-valida os parâmetros globalmente, então um deles sem valor recusa o deploy de **todas** as functions do
-projeto, inclusive as que nada têm a ver com ele.
+`unpack` discovers these names from two sources: the platform package's `defineString`s and those of
+the Cloud Functions the office wrote itself. The line must exist even if empty — `firebase-functions`
+validates parameters globally, so one of them without a value refuses the deploy of **every** function
+in the project, including the ones that have nothing to do with it.
 
-O `unpack` cria o arquivo e acrescenta o que um pacote novo passou a pedir, sem tocar no que você já
-preencheu. O `init` cria o `.gitignore` que o cobre — são credenciais.
+`unpack` creates the file and appends whatever a new package started asking for, without touching what
+you already filled in. `init` creates the `.gitignore` that covers it — these are credentials.
 
-**Depois de mudar um valor, rode `microteia provision`.** O valor é carimbado em cada Cloud Function
-no deploy DELA, então uma function já no ar continua com o valor anterior até subir de novo; o
-`provision` reconhece a mudança (por uma impressão digital em `microteia.yaml`) e recoloca na fila
-exatamente as functions que carregam aquele parâmetro.
+**After changing a value, run `microteia provision`.** The value is stamped into each Cloud Function on
+ITS deploy, so a function already live keeps the previous value until it goes up again; `provision`
+detects the change (through a fingerprint in `microteia.yaml`) and re-queues exactly the functions that
+carry that parameter.
 
-### 5. Cloud Functions do próprio escritório
+### 5. The office's own Cloud Functions
 
-O kernel é imutável e se estende por acréscimo — e a fonte delas fica **fora** de `.microteia/`, em
-dois lugares que respondem a duas perguntas diferentes:
+The kernel is immutable and is extended by addition — and their source lives **outside**
+`.microteia/`, in two places that answer two different questions:
 
-| Onde | Quando | Sobe em |
+| Where | When | Goes up with |
 |---|---|---|
-| `functions/` (ao lado do `microteia.yaml`) | a function é COMUM a várias | `microteia deploy` |
-| `extensions/<plugin>/functions/` | a function é DAQUELA extensão | `microteia provision` |
+| `functions/` (next to `microteia.yaml`) | the function is SHARED by several | `microteia deploy` |
+| `extensions/<plugin>/functions/` | the function belongs to THAT extension | `microteia provision` |
 
-Cada diretório é lido pelo `index.ts` dele, e declara no `package.json` ao lado as dependências npm que
-precisar. O `deploy` monta `.microteia/install/functions/custom/src/` a partir dos dois, gera o barril e
-o `predeploy` compila **só** o `custom/`; o entrypoint soma kernel e customizado com nomes planos. Dois
-diretórios exportando o mesmo nome, ou um nome que colida com function do kernel, é **recusa**: o
-customizado é espalhado depois do kernel, então o repetido substituiria em silêncio — e um gatilho do
-kernel substituído não falha, simplesmente deixa de acontecer.
+Each directory is read through its `index.ts`, and declares in the `package.json` beside it the npm
+dependencies it needs. `deploy` assembles `.microteia/install/functions/custom/src/` from both,
+generates the barrel, and the `predeploy` compiles **only** `custom/`; the entrypoint merges kernel and
+custom with flat names. Two directories exporting the same name, or a name that collides with a kernel
+function, is a **refusal**: custom functions are spread after the kernel's, so the duplicate would
+silently replace it — and a replaced kernel trigger does not fail, it simply stops happening.
 
-Nesta etapa o escritório escreve contra `firebase-functions` e `firebase-admin`, não contra APIs
-internas do kernel.
+At this stage the office writes against `firebase-functions` and `firebase-admin`, not against the
+kernel's internal APIs.
 
-### 6. Extensões escritas pelo próprio escritório, em TypeScript
+### 6. Extensions written by the office itself, in TypeScript
 
-O sistema instala extensão a partir de um `.json`, mas ninguém precisa escrever `.json`: o pacote leva um
-SDK, e com ele o escritório escreve a extensão em TypeScript, no VSCode, com tipos e autocomplete — sem
-que o código-fonte do kernel saia daqui (o que viaja é compilado mais `.d.ts`).
+The system installs extensions from a `.json`, but nobody needs to write `.json`: the package ships an
+SDK, and with it the office writes the extension in TypeScript, in VSCode, with types and
+autocomplete — without the kernel's source code leaving this repository (what travels is compiled code
+plus `.d.ts`).
 
 ```bash
-microteia plugin-init --namespace com.acme   # cria "extensions/" ao lado do microteia.yaml
+microteia plugin-init --namespace com.acme   # creates "extensions/" next to microteia.yaml
 cd extensions
-npx microteia-plugin create hello             # vira com.acme.hello
-npx tsc --noEmit                              # tipos
-npx microteia-plugin check hello/plugin.ts    # o gate
-npx microteia-plugin build hello/plugin.ts    # gera hello/com.acme.hello.json
+npx microteia-plugin create hello             # becomes com.acme.hello
+npx tsc --noEmit                              # types
+npx microteia-plugin check hello/plugin.ts    # the gate
+npx microteia-plugin build hello/plugin.ts    # generates hello/com.acme.hello.json
 ```
 
-O `.json` gerado é importado na tela **Extensões**. Ajuste fino direto nele continua valendo: ele é o
-resultado final.
+The generated `.json` is imported on the **Extensions** screen. Fine-tuning it directly still works:
+it is the final output.
 
-Duas coisas valem a pena saber antes de começar:
+Two things are worth knowing before you start:
 
-- **`check` não é uma aproximação da validação da plataforma — é ela.** A mesma função, as mesmas
-  mensagens. Se o `check` passa, o pacote instala.
-- **Extensão que traz código (`views`/`startup`) instala inerte.** Um administrador abre a fonte, lê e
-  confia; a confiança fica presa àquele código exato, por hash. Trocar um caractere pede confiar de novo.
+- **`check` is not an approximation of the platform's validation — it is that validation.** The same
+  function, the same messages. If `check` passes, the package installs.
+- **An extension that brings code (`views`/`startup`) installs inert.** An administrator opens the
+  source, reads it and trusts it; the trust is bound to that exact code, by hash. Changing a single
+  character requires trusting it again.
 
-`extensions/` fica **fora** de `.microteia/` — é do escritório, e o upgrade não o toca, como o
-`functions/` da raiz. Mantê-lo em dia é do `unpack`: quando o diretório existe, ele chama
-`microteia-plugin sync` sozinho, e uma falha ali avisa sem derrubar a troca de kernel.
+`extensions/` sits **outside** `.microteia/` — it belongs to the office, and upgrades don't touch it,
+just like the root `functions/`. Keeping it up to date is `unpack`'s job: when the directory exists, it
+calls `microteia-plugin sync` on its own, and a failure there warns without bringing down the kernel
+swap.
 
-O diretório vem com o manual (`AUTHORING.md`), as regras operacionais (`AGENTS.md` — mais um `CLAUDE.md`
-que nasce uma vez e passa a ser seu), as extensões de primeira parte como FONTE em `examples/`, e um
-`.mcp.json` que registra um servidor MCP: uma IA no editor consulta os pontos de extensão, a API
-disponível e a validação **desta** instalação, em vez de um retrato da documentação.
+The directory comes with the manual (`AUTHORING.md`), the operating rules (`AGENTS.md` — plus a
+`CLAUDE.md` that is created once and becomes yours), the first-party extensions as SOURCE in
+`examples/`, and a `.mcp.json` that registers an MCP server: an AI in the editor queries the extension
+points, the available API and the validation of **this** installation, instead of a snapshot of the
+documentation.
 
-Três políticas convivem ali, e a diferença é de quem é o arquivo: `AGENTS.md`, `AUTHORING.md` e
-`examples/` são sobrepostos (prosa nossa); `CLAUDE.md` e `README.md` nascem uma vez e são seus; e
-`tsconfig.json`, `.mcp.json`, `.gitignore` e `package.json` são **conciliados** — o `sync` acrescenta o
-requisito que falta, nunca altera o que você escreveu, e avisa quando os dois divergem.
+Three policies coexist there, and the difference is who owns the file: `AGENTS.md`, `AUTHORING.md` and
+`examples/` are overwritten (our prose); `CLAUDE.md` and `README.md` are created once and are yours;
+and `tsconfig.json`, `.mcp.json`, `.gitignore` and `package.json` are **reconciled** — `sync` adds the
+missing requirement, never changes what you wrote, and warns when the two diverge.
 
-Motivo de cada decisão acima: seção **"Distribuição — a Microteia instalável no Firebase do cliente"**
-do [ARCHITECTURE.md](./ARCHITECTURE.md).
+The reason behind each decision above: the **"Distribuição — a Microteia instalável no Firebase do
+cliente"** section of [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-## Estrutura do Projeto
+## Project Structure
 
 ```
 src/
-├── kernel/          # O runtime de plugins: PluginHost e registries. NÃO conhece domínio nenhum
-├── plugins/         # Os plugins do núcleo (core.*), os temas e o catálogo do marketplace
-├── sdk/             # O SDK de autoria de extensão — só depende de domain/
-├── domain/          # Entidades, interfaces de repositório, use cases e os schemas compartilhados
-├── data/            # Implementações Firebase dos repositórios
-├── infrastructure/  # Config do Firebase, DIContainer, eventos, deeplink
-├── stores/          # Contextos React globais (Auth, Tenant, Data, Theme…)
-├── presentation/    # Páginas e componentes (padrão MVVM por pasta)
-├── routes/          # Proteção de rotas
-└── shared/          # Tipos e estilos globais
+├── kernel/          # The plugin runtime: PluginHost and registries. Knows NO domain at all
+├── plugins/         # The kernel plugins (core.*), the themes and the marketplace catalog
+├── sdk/             # The extension authoring SDK — depends only on domain/
+├── domain/          # Entities, repository interfaces, use cases and the shared schemas
+├── data/            # Firebase implementations of the repositories
+├── infrastructure/  # Firebase config, DIContainer, events, deeplink
+├── stores/          # Global React contexts (Auth, Tenant, Data, Theme…)
+├── presentation/    # Pages and components (MVVM-per-folder pattern)
+├── routes/          # Route protection
+└── shared/          # Global types and styles
 
-functions/           # Cloud Functions (o kernel do backend é GERADO por sync-schemas)
-cli/                 # O Console: pack, init, connect, deploy
-scripts/             # Automações de build/deploy e os verificadores do gate
+functions/           # Cloud Functions (the backend kernel is GENERATED by sync-schemas)
+cli/                 # The Console: pack, init, connect, deploy
+scripts/             # Build/deploy automation and the gate's checkers
 ```
 
-A hierarquia de dependência é `domain ← data ← infrastructure ← stores ← presentation`, e nunca ao
-contrário.
+The dependency hierarchy is `domain ← data ← infrastructure ← stores ← presentation`, and never the
+other way around.
 
-Para detalhes de arquitetura, padrões de código e regras Firestore, consulte [ARCHITECTURE.md](./ARCHITECTURE.md).
+For architecture details, code patterns and Firestore rules, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+For the platform's user and authoring documentation, see [doc.microteia.com](https://doc.microteia.com).
 
-## O que é do núcleo e o que é extensão
+## What belongs to the kernel and what is an extension
 
-O núcleo entrega **capacidades genéricas** — nenhum domínio de negócio:
+The kernel delivers **generic capabilities** — no business domain:
 
-| Capacidade | O que é |
+| Capability | What it is |
 |---|---|
-| **Construtor de telas** | Cria entidades, campos, listas e formulários sem escrever código |
-| **Automações** | Workflows com gatilhos, passos, expressões por campo e Scripts em sandbox |
-| **Marketplace** | Instala, atualiza e remove extensões por tenant |
-| **Escritório** | Membros, papéis, integrações e configurações do tenant |
-| **Auditoria** | Trilha de alterações com expiração por TTL |
-| **Idiomas e temas** | Ambos como contribuição: o inglês é o idioma-fonte, o resto é pacote |
+| **Screen builder** | Creates entities, fields, lists and forms without writing code |
+| **Automations** | Workflows with triggers, steps, per-field expressions and sandboxed Scripts |
+| **Marketplace** | Installs, updates and removes extensions per tenant |
+| **Office** | The tenant's members, roles, integrations and settings |
+| **Audit** | Change trail with TTL-based expiration |
+| **Languages and themes** | Both as contributions: English is the source language, everything else is a package |
 
-Os domínios vêm do catálogo, como extensões — e a prova de que o núcleo não depende deles é que a
-maioria já não está neste repositório: as sete extensões de escritório de advocacia (Pessoas, Contratos,
-Processos, Prazos, Financeiro, Pushes do Tribunal e Kanban de Processos) são mantidas fora dele, pelo
-escritório, e nada aqui as nomeia. Ficaram como exemplo de autoria as agnósticas de negócio: Notícias,
-Calendário, Dashboard, dados do Brasil e a tradução pt-BR.
+Domains come from the catalog, as extensions — and the proof that the kernel does not depend on them
+is that most of them are no longer in this repository: the seven law-office extensions (People,
+Contracts, Cases, Deadlines, Financials, Court Pushes and Case Kanban) are maintained outside it, by the
+office, and nothing here names them. The business-agnostic ones remained as authoring examples: News,
+Calendar, Dashboard, Brazil data and the pt-BR translation.
 
 ## Multi-tenant
 
-- Ao fazer login pela primeira vez, um tenant padrão `[displayName]([email])` é criado automaticamente, e o usuário é o `ownerId` dele — sem nenhum perfil semeado. O nome é montado só com o que o usuário trouxe. O PRIMEIRO usuário do sistema nasce `SYSTEM`.
-- O tenant ativo fica em `useTenant().currentTenant`; todos os stores de dados só carregam quando ele não é `null`.
-- **Não existe papel por escritório.** O escritório cria os próprios perfis (`tenants/{id}/roles`) e o membro os recebe em `roleIds`; todo código pergunta por PERMISSÃO (`can('screens.manage')`), nunca por papel. As duas exceções não são perfis: o papel global `SYSTEM` (administrador de todos os escritórios) e o dono do escritório (curinga `*`, lido de `Tenant.ownerId`).
-- Papel global: `SYSTEM` | `USER` — a única união fechada que resta.
-- O último tenant escolhido é salvo em `localStorage` com a chave `microteia:lastTenantId`.
+- On first sign-in, a default tenant `[displayName]([email])` is created automatically, and the user is its `ownerId` — with no role seeded. The name is built only from what the user brought. The FIRST user of the system is born `SYSTEM`.
+- The active tenant lives in `useTenant().currentTenant`; every data store only loads when it is not `null`.
+- **There are no per-office roles built in.** The office creates its own roles (`tenants/{id}/roles`) and members receive them in `roleIds`; all code asks for a PERMISSION (`can('screens.manage')`), never for a role. The two exceptions are not roles: the global `SYSTEM` role (administrator of every office) and the office owner (wildcard `*`, read from `Tenant.ownerId`).
+- Global role: `SYSTEM` | `USER` — the only closed union left.
+- The last chosen tenant is saved in `localStorage` under the key `microteia:lastTenantId`.
 
-## Autenticação
+## Authentication
 
-Firebase Authentication com Google Sign-In.
+Firebase Authentication with Google Sign-In.

@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.193.0] — 2026-11-02
+
+- docs(readme): the repository README is now in English, like every other document that describes the platform outside this repository, and links to the official documentation at https://doc.microteia.com. It was the only external-facing page of the kernel still in Portuguese.
+
 #### [9.192.0] — 2026-11-02
 
 - fix(sdk/plan): every workflow condition the behaviour plan emits now reads the workflow scope (`event.`). `mapTransition` wrote `status == "<from>"` for `entity-event` and `date-reached` transitions and `recordId.<state> == "<from>"` for `user-action` ones; the condition is evaluated before any step with only `event`, `input`, `output` and `actor` at the root, so the expression threw, `ConditionEvaluator` counted it as false, and the flow was skipped (`skipped: 'condition'`) — the button answered `handler.action.skipped`. The forms are now `event.<state>`, `event.recordId.<state>`, `event.old.<state>` and `event.changeType`; a guard folded into the condition is rewritten by `inWorkflowScope`. `screenPlanExpressions.test.ts` checks every emitted condition's roots against the workflow scope, and `WorkflowContextHydrator.test.ts` runs a called flow end to end with both forms.
