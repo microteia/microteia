@@ -199,20 +199,29 @@ Todo o onboarding de um usuário novo (`users/{uid}`, `userProfiles/{uid}` e o t
 - **O autocadastro pode ser desligado pela instalação** (`SELF_SERVICE_TENANTS=false` no `.env.<projectId>`): a conta nova não ganha escritório, recebe `origin: 'invitation'` (o sinal de "provisionado" para o `waitForProvisioning`) e espera ser adicionada. A primeira conta da instalação ganha o dela de qualquer jeito. Ver "Segundo fator de membro e autocadastro de escritório (EV-07)".
 - **Client não cria mais nada disso.** `users`/`tenants` negam `create` do client nas Security Rules (`allow create: if false`). O `AuthContext` (`src/stores/AuthContext.tsx`) não faz mais `createUserProfile` — em vez disso, `IUserRepository.waitForProvisioning` (`src/data/repositories/FirebaseUserRepository.ts`) abre um `onSnapshot` em `users/{uid}` e só resolve quando o documento existir **e** `tenantIds` não estiver vazio (sinal de que o bootstrap terminou), com timeout de 20s. Para quem já loga há tempos isso resolve quase instantaneamente (documento já existe); no primeiro login, cobre a espera pela Cloud Function. `TenantStore` (`src/stores/TenantStore.tsx`) não cria mais tenant algum — se `getTenantsForUser` retornar vazio nesse ponto (não deveria, dado o `waitForProvisioning`), trata como falha de provisionamento (`initError`) em vez de criar um tenant no client.
 
-### `TenantMember` não é entidade de domínio — não use como alvo de FK
+### `members` como alvo de referência — para quem TEM conta
 
-`members` existe **exclusivamente** para autenticação (quem entra no tenant e com qual papel) e para auditoria (`createdBy`/`updatedBy`/`completedBy`, e o `auditFlatEntityChange`). Nenhum campo de negócio referencia `members`: campos como "Advogado responsável" (o do Processo e o do Prazo) e "Responsável" (`Contract.responsibleId`) são FKs para **`persons`**, com `denormalizedFields: ['name', 'type', 'email']`. Um responsável é uma Pessoa do escritório, exista ou não uma conta de login correspondente — e continua válido depois que o membro sai do tenant.
+`members` é entidade embutida (`BUILTIN_REF_ENTITIES`) e um campo pode apontá-la (`refEntity: 'members'`,
+simples ou `multi`): é o que dá ao registro um responsável que É um membro do escritório, e é o que a
+visibilidade por registro exige (`memberVisibility.userFields` só aceita referência a `members` — o id do
+membro é o que as rules comparam). Fora isso, ela continua servindo à autenticação e à auditoria
+(`createdBy`/`updatedBy`).
 
-Registros gravados antes dessa correção guardam um `userId` de membro nesses campos; o valor não resolve mais para uma Pessoa e aparece como **valor órfão sinalizado** no `SearchSelect`, até ser reapontado manualmente para a Pessoa correta.
+O que NÃO cabe em `members`: alguém que pode existir sem conta, ou que precisa continuar valendo depois
+que o membro sai do escritório. Esse é um registro de uma tela do escritório (uma lista de pessoas,
+por exemplo), e a referência aponta a coleção dela. A pergunta que decide é se a pessoa entra no
+sistema.
+
+Uma referência cujo alvo não existe mais (o membro que saiu, o registro apagado) aparece como **valor órfão sinalizado** no `SearchSelect`, até ser reapontada.
 
 ### Limite de membros — adição atômica via Cloud Function
 
 `TenantMember` é criado/removido por duas Cloud Functions callable, **não** por escrita direta do client no Firestore (`match /tenants/{tenantId}/members/{memberId}` nega `create`/`delete` para qualquer client nas Security Rules):
 
-- `addTenantMember` (`functions/src/infrastructure/handlers/addTenantMember.ts`): recebe `{ tenantId, userId, role, displayName, email, photoURL }`, exige que o chamador seja admin do tenant (`AddTenantMemberUseCase`) e delega a `FirebaseTenantRepository.addMemberIfWithinLimit` (Admin SDK), que roda uma `db.runTransaction` lendo `tenant.memberCount`/`memberLimit`, valida o limite e escreve o membro + incrementa o contador **na mesma transação**. Se o tenant foi criado antes desta feature (sem `memberCount`), a primeira chamada faz um `count()` na subcoleção `members` como baseline (self-heal). Lança `MEMBER_LIMIT_REACHED` → `HttpsError('resource-exhausted', ...)` quando o limite já foi atingido. O primeiro membro (dono) de um tenant novo **não** passa por aqui — é adicionado pelo bootstrap (`onUserCreated`, ver acima), que chama `addMemberIfWithinLimit` diretamente.
+- `addTenantMember` (`functions/src/infrastructure/handlers/addTenantMember.ts`): recebe `{ tenantId, userId, roleIds, displayName, email, photoURL }`, exige do chamador a permissão `members.manage` no escritório, ou o papel global `SYSTEM` (`AddTenantMemberUseCase`) e delega a `FirebaseTenantRepository.addMemberIfWithinLimit` (Admin SDK), que roda uma `db.runTransaction` lendo `tenant.memberCount`/`memberLimit`, valida o limite e escreve o membro + incrementa o contador **na mesma transação**. Se o tenant foi criado antes desta feature (sem `memberCount`), a primeira chamada faz um `count()` na subcoleção `members` como baseline (self-heal). Lança `MEMBER_LIMIT_REACHED` → `HttpsError('resource-exhausted', ...)` quando o limite já foi atingido. O primeiro membro (dono) de um tenant novo **não** passa por aqui — é adicionado pelo bootstrap (`onUserCreated`, ver acima), que chama `addMemberIfWithinLimit` diretamente.
 - `removeTenantMember`: simétrica, decrementa `memberCount` (floor em 0) na mesma transação da exclusão.
 
-Rodar a lógica no Admin SDK (em vez de `runTransaction` do client + Security Rules) é o que garante que **duas adições concorrentes** (ex: dois admins em computadores diferentes clicando "Adicionar" para a última vaga) nunca ultrapassem o limite: o protocolo de transação do Firestore serializa as duas chamadas no servidor, e não existe nenhuma escrita direta que um client possa fazer para bypassar a checagem. `updateMemberRole` continua sendo escrita direta do client (não mexe no contador, sem risco de corrida).
+Rodar a lógica no Admin SDK (em vez de `runTransaction` do client + Security Rules) é o que garante que **duas adições concorrentes** (ex: dois admins em computadores diferentes clicando "Adicionar" para a última vaga) nunca ultrapassem o limite: o protocolo de transação do Firestore serializa as duas chamadas no servidor, e não existe nenhuma escrita direta que um client possa fazer para bypassar a checagem. `updateMemberRoles` continua sendo escrita direta do client (não mexe no contador, sem risco de corrida).
 
 Client: `src/data/repositories/FirebaseTenantRepository.ts` chama as duas functions via `httpsCallable` (mesmo padrão de `claimNickname`); `resource-exhausted` é convertido em `TenantMemberLimitReachedError` (`src/domain/errors/index.ts`) para o ViewModel de `TenantSettings/MembersTab` mostrar uma mensagem específica e desabilitar o formulário quando `memberCount >= memberLimit`.
 
@@ -1910,15 +1919,16 @@ declarado" e "A página declarada e o texto do portal".
 
 ### A home e o menu do portal
 
-`/portal/<escritório>` é a HOME: boas-vindas, o MENU em blocos e os cartões (`widget`) das extensões.
+`/portal/<escritório>` é a HOME: saudação, boas-vindas e os cartões (`widget`) das extensões.
 Os itens ficam em `/portal/<escritório>/<item>` — a tela pelo nome da coleção, a página de extensão por
 `page.<plugin>.<chave>` (nome de coleção não leva ponto, então não colidem) —, e um link para "Notas"
 abre Notas.
 
-O menu é UMA lista — as telas de topo do portal mais as páginas (`surface: 'page'`) — e três lugares a
-leem: os blocos da home, as abas do topo no computador e a barra fixa de baixo no celular (Início, os
-três primeiros, "Mais"). O ponto de quebra é um só, 768px, e é o mesmo que o guia de autoria manda as
-views respeitarem: o portal é usado primeiro no celular.
+O menu é UMA lista — as telas de topo do portal mais as páginas (`surface: 'page'`) — e é o LAYOUT que
+a desenha: a lateral do `SidebarLayout` ou as abas do `TopLayout`. Abaixo de 900px os dois a dobram numa
+gaveta aberta pela barra do topo; não há barra fixa embaixo nem menu em blocos na home. O conteúdo
+(`PortalContent`) cresce em colunas a partir de 768px, a quebra que o guia de autoria manda as views
+respeitarem: o portal é usado primeiro no celular.
 
 | Quem | Decide |
 |---|---|
@@ -1951,8 +1961,8 @@ prontos para reaproveitar. A escolha mora em `settings/portal.layout` (`sidebar`
 `layout.<plugin>.<chave>`); o servidor a resolve no contexto (`home.layout`) e devolve o padrão quando
 a extensão saiu ou o código dela deixou de ser confiável. Abaixo de 900px os dois layouts do kernel
 viram gaveta. O tema do convidado segue a regra do app (`ThemeProvider`: escolha no navegador, senão o
-claro/escuro do sistema), entre os temas embutidos — os instalados pelo escritório não chegam a quem
-não é membro. O menu existe num lugar só, e a home cumprimenta a pessoa: o nome do escritório está na
+claro/escuro do sistema): "Automático" mais os temas próprios da plataforma — os instalados pelo
+escritório não chegam a quem não é membro. É a mesma frase no guia de autoria. O menu existe num lugar só, e a home cumprimenta a pessoa: o nome do escritório está na
 marca.
 
 A pilha de registros abertos é do item do menu (`PortalNavigationProvider`, escopo `escritório|item`):
@@ -2808,19 +2818,26 @@ functions/
 
 ### Grupos Funcionais
 
-As Cloud Functions são organizadas em **5 grupos** para facilitar deploys seletivos:
+As Cloud Functions são organizadas em **13 grupos** (`deploy:<grupo>` no `package.json` raiz, a fonte de
+verdade — `scripts/deployLists.test.ts` cobra que toda function exportada esteja num deles):
 
 | Grupo | Funções | Quando alterar |
 |---|---|---|
 | **workflow** | Motor de automações | Mais frequente |
-| **audit** | Sistema de auditoria | Quando adicionar nova entidade auditada |
+| **reports** | Execução de relatórios | Quando os relatórios mudam |
+| **import** | Importação em massa de registros (`importRecords`) | Quando a importação muda |
+| **documents** | Modelos de documento e geração de arquivos | Quando os documentos mudam |
+| **audit** | Sistema de auditoria | Quando a auditoria muda |
 | **auth** | Autenticação e usuários | Raras alterações |
+| **access** | Perfis e permissões | Quando o RBAC muda |
 | **tenant** | Gestão de membros | Raras alterações |
 | **portal** | Convidados externos: convite, projeção e acesso a documentos | Quando o portal muda |
-| **import** | Importação em massa de registros (`importRecords`) | Quando a importação muda |
+| **agent** | MCP de execução e as concessões do agente | Quando o agente muda |
+| **marketplace** | Catálogo público de extensões | Quando o catálogo muda |
 | **util** | Utilitários gerais | Proxy AI, logs de erro, cascata |
+| **notifications** | Notificações | Quando as notificações mudam |
 
-Havia um sexto — **gmail**, com as cinco functions da ingestão de intimações. Ele saiu junto com a
+Havia mais um — **gmail**, com as cinco functions da ingestão de intimações. Ele saiu junto com a
 extensão que as usava: hoje elas vivem em `office/extensions/push/functions/`, são deployadas pelo
 `microteia provision` só onde a extensão está instalada, e este repositório não as conhece. Ver "As
 entidades de ESCRITÓRIO não moram aqui".
@@ -2835,7 +2852,7 @@ entidades de ESCRITÓRIO não moram aqui".
    export { minhaNovaFuncao } from './infrastructure/handlers/minhaNovaFuncao';
    ```
 3. **Adicionar ao grupo correto no `package.json` raiz:**
-   - Identificar o grupo funcional (workflow, audit, auth, tenant ou util)
+   - Identificar o grupo funcional (um dos 13 da tabela acima)
    - Adicionar a função no script `deploy:[grupo]` correspondente
    - Nome EXATO como exportado no `index.ts` (sem prefixos `auth_`, `workflow_`, etc)
 4. **Documentar no `functions/DEPLOY.md`:**
@@ -2939,7 +2956,7 @@ npx firebase apps:sdkconfig web --project dev   # preenche .env.dev
 gcloud app create --region=southamerica-east1 --project=microteia-dev
 npm run deploy:rules                            # regras do Firestore e do Storage
 npm run deploy:indexes                          # índices compostos
-npm run deploy:functions --force                # todas as functions (rode duas vezes)
+npm run deploy:functions -- --force             # todas as functions (rode duas vezes); o `--` entrega o --force ao firebase, e não ao npm
 ```
 
 > **Antes de qualquer um desses comandos, plano Blaze.** Cloud Functions de 2ª geração não existem no
@@ -3060,8 +3077,9 @@ verdade hoje, mas invisível para quem lê o HTML gerado.
 carimbado apontaria para o Firebase de quem empacotou em vez do de quem instalou — e faria isso em
 silêncio, escrevendo dados de cliente no nosso banco. Por isso `pack` compila com `TARGET=dist`, modo
 para o qual **não existe `.env.dist`**, e por isso a conferência é do artefato pronto e não do
-procedimento: `cli/src/vendor/bundleAudit.ts` varre o bundle contra os valores de todo `.env.*` da
-máquina e aborta o empacotamento se achar qualquer um.
+procedimento: `cli/src/vendor/bundleAudit.ts` varre o bundle contra os valores dos `.env.*` da
+RAIZ do repositório (menos o `.env.example`), mais o prefixo de toda chave de API web do Firebase — que
+pega o caso sem `.env` local para comparar —, e aborta o empacotamento se achar qualquer um.
 
 Dois ajustes vieram junto, ambos exigidos por projeto de cliente: `measurementId` saiu das chaves
 obrigatórias e `analytics` passou a ser `Analytics | null` (derrubar o boot por um produto opcional
@@ -3195,8 +3213,9 @@ declara é o lugar certo para o teste que os confere.
 | `microteia provision` | lê o que os escritórios instalaram e aplica o que falta |
 
 **Por que NÃO há fragmento de rules.** O `firestore.rules` já é data-driven: o curinga
-`match /{screenCollection}/{recordId}` autoriza qualquer coleção de extensão lendo `writeRoles` do
-próprio `screenDefinitions`. O único bloco de extensão que restava — `gmailConnections`, na raiz — era
+`match /{screenCollection}/{recordId}` autoriza qualquer coleção de extensão pela permissão derivada
+dela (`<coleção>.create|update|delete`, `canOnCollection`), com o que o `screenDefinitions` da coleção
+declara (`authorCanDelete`, `memberWritableFields`). O único bloco de extensão que restava — `gmailConnections`, na raiz — era
 `allow read, write: if false`, o que é **idêntico à ausência de regra**: o Firestore nega o que nenhuma
 regra libera, e `allow` só soma. Ele foi removido e trocado por um comentário que diz isso, porque a
 impressão de que a proteção morava ali era pior que a falta dela. Os quatro blocos de `cases`,
@@ -3941,7 +3960,7 @@ aplicação. `connect` antecipa o assunto quando a região não é a padrão do 
 ### O Console fora do repositório
 
 `microteia pack-console` monta a pasta que roda em qualquer lugar: `lib/` compilado, `package.json` e
-README, ~200 KB, sem dependência de npm a instalar — o Console usa só módulos nativos. O que ele
+README, ~500 KB, sem dependência de npm a instalar — o Console usa só módulos nativos. O que ele
 exige são BINÁRIOS da máquina (`firebase`, `npm`, `tar`, `gcloud`), e esses não caberiam num pacote.
 
 O `package.json` gerado é o motivo de o comando existir em vez de um `cp -R`: o compilado é ESM, e sem
@@ -4034,6 +4053,12 @@ publicado e o recorte acontece DEPOIS dessa leitura, não ao ler o pacote. É a 
 própria entrada — o arquivo de histórico começa antes do catálogo, e despejá-lo inteiro não seria
 descrever o que subiu. O comando imprime quais versões as notas carregam, inclusive no `--dry-run`.
 
+**Fora de ordem, o canal não anda para trás.** `withEntry` põe em `channels.stable` a MAIOR versão entre a
+que o canal já apontava e a que está subindo. Antes ela punha sempre a recém-publicada: uma correção numa
+linha antiga (`9.180.1` depois da `9.191.0`) fazia `latest` entregar a versão mais velha a todo
+`unpack --version latest`. O `publish` diz, no `--dry-run` e no fim, se a versão virou `latest` ou só
+entrou na lista. E o `pack --output <dir>` avisa que o `publish` lê só `distributions/kernel/<versão>/`.
+
 ### SDK de autoria — escrever extensão em TypeScript, sem o source do kernel
 
 O sistema lê extensão por `.json`, e isso está certo: é o artefato. Mas as extensões de primeira parte
@@ -4090,8 +4115,11 @@ chamar o compilador do SDK. Assim a nossa esteira diária é a prova de que a do
 
 Duas restrições da distribuição continuam valendo, e o SDK foi desenhado dentro delas:
 
-- **Superfície CURADA.** O barril não é um `export *`: é uma lista, e `sdkSurface.test.ts` a carimba —
-  ampliar é aditivo e pede o minor do `KERNEL_VERSION`; remover é quebra e pede o major.
+- **Superfície CURADA.** O barril não é um `export *`: é uma lista, e `sdkSurface.test.ts` a carimba.
+  O `KERNEL_VERSION` sobe só quando muda o que o KERNEL entende de um pacote instalado (ponto de
+  extensão, forma do manifest, `impl.kind`) — minor se aditivo, major se quebra. Símbolo que só serve à
+  AUTORIA (`AuthoredPlugin`, `sourceFile`, um construtor novo) não o move, porque não chega ao pacote
+  instalado. É a regra do `CLAUDE.md`.
 - **Sem comentário no `.d.ts` de `lib/`.** O JSDoc deste repositório é em português e narra decisões e
   incidentes internos. `removeComments` está ligado, e o `pack` **confere o artefato** (mesma postura do
   `bundleAudit`): acha `/*` num `.d.ts` empacotado, aborta. O que o autor lê é `sdk/types/` e o
@@ -4267,7 +4295,7 @@ que é permanente.
 |---|---|
 | `microteia plugin-init` | exige `--namespace` (ou pergunta, com terminal) e o grava na semente; com `--force`, reaproveita o gravado |
 | `microteia-plugin create` | parte dele: `billing` vira `com.acme.billing`; recusa id fora dele; num diretório anterior, pergunta uma vez e grava |
-| `check` / `build` / `validate_plugin` | **avisam**, nunca recusam, um id fora dele — uma extensão já publicada não pode ser renomeada |
+| `check` / `build` / `validate_plugin` | **recusam** um id fora dele, a menos que esteja em `microteia.keepIds` — e aí avisam: uma extensão já publicada não pode ser renomeada, e a exceção é declarada |
 | `sync` | preserva a chave ao carimbar o `kernelVersion`; avisa quando falta ou está fora do formato, sem inventar um |
 | `microteia://workspace/info` e `AGENTS.md` | dizem ao agente qual é, e que perguntar é o caminho quando não há |
 
@@ -4425,8 +4453,9 @@ snapshot: sem ele, "ligado de propósito" e "ligado por hábito" se escrevem igu
 #### A identidade universal da tela — a decisão que falha em SILÊNCIO
 
 O `sourceId` é por onde uma ATUALIZAÇÃO reconhece a tela. `buildScreenKeyMap` procura no escritório uma
-tela com o mesmo id universal e reusa a chave dela; não achando, reivindica a chave declarada e, se o nome
-já estiver ocupado, ganha sufixo (`produtos` → `produtos_2`). Então trocar o `sourceId` entre duas versões
+tela com o mesmo id universal e reusa a chave dela; não achando, reivindica a chave declarada — e, se o
+nome já estiver ocupado por outra tela, lista ou etiqueta, a instalação é RECUSADA antes de gravar nada
+(`installCollisionIssues`; ver "Prefixo de quem cria — e o fim da fusão e do `_2`"). Então trocar o `sourceId` entre duas versões
 do MESMO pacote não reprova em lugar nenhum: instala uma SEGUNDA tela ao lado da primeira, a primeira sai
 da lista da versão nova e é liberada, e os registros ficam na coleção antiga sem tela nenhuma por cima —
 em todo escritório de uma vez, sem sintoma local. O pacote valida, instala e roda.
@@ -5005,19 +5034,23 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 
 | Store | Responsabilidade |
 |---|---|
-| `AuthStore` | Usuário autenticado, `userRole`, `signIn`, `signOut`, `reloadUserProfile` |
-| `TenantStore` | Lista de tenants do usuário, `currentTenant`, `setCurrentTenant`, CRUD de membros |
-| `PersonStore` | Pessoas do tenant atual, CRUD de pessoas |
-| `PersonTagStore` | Etiquetas de pessoas do tenant atual, CRUD de tags, aplicação de tags em pessoas |
-| `CaseStore` | Processos do tenant atual, CRUD de processos |
-| `ContractStore` | Contratos do tenant atual, CRUD de contratos |
-| `ContractTagStore` | Etiquetas de contratos do tenant atual, CRUD de tags, aplicação de tags em contratos |
-| `ContractLookupStore` | Configs estático+dinâmico dos 10 lookups de contrato (tipo, categoria, status, objeto, índice/periodicidade de reajuste, moeda, forma de pagamento, banco, centro de custo) |
-| `FinancialStore` | Receitas/despesas do tenant atual, CRUD + `markPaid` |
-| `FinancialTagStore` | Etiquetas de lançamentos financeiros do tenant atual, CRUD de tags, aplicação de tags em lançamentos |
-| `WorkspaceStore` | Tabs abertas no shell, tab ativa |
-| `ThemeStore` | Tema em vigor, montado das contribuições `theme.definition` + `theme.tokens`. A escolha mora na configuração `theme.selected`, espelhada em `localStorage` (`'microteia:theme'`) para as telas públicas |
-| `WorkflowStore` | Automações (`WorkflowDefinition`) do tenant atual — CRUD de definição + steps embutidos. Execuções (`WorkflowExecution`) e catálogo de Steps são lidos direto via `useDI()` nas viewmodels de `ViewWorkflow`, sem store próprio (dado local à página, não compartilhado entre telas) |
+| `AuthContext` | Usuário autenticado, `signIn`, `signOut`, perfil da conta |
+| `TenantStore` | Escritórios do usuário, `currentTenant`, `setCurrentTenant`, membros |
+| `AuthorizationStore` / `RoleStore` | `can(...)` do membro atual / perfis do escritório (`tenants/{id}/roles`) |
+| `ScreenDefinitionStore` | Telas do escritório — do Form Design e das extensões |
+| `RecordStore` | Registros de QUALQUER coleção declarada por tela (`useRecords`); o kernel não conhece nenhuma pelo nome |
+| `LookupStore` / `TagStore` | Listas de opções e conjuntos de etiquetas |
+| `SavedFilterStore` | Filtros salvos por tela (`CompositeFilter`) |
+| `WorkflowStore` / `ScriptStore` / `ActionStore` | Automações, scripts e ações de registro |
+| `ReportDefinitionStore` / `DocumentTemplateStore` | Relatórios e modelos de documento |
+| `StepCatalogStore` / `ExpressionFunctionStore` | Catálogo de passos e de funções de expressão (com as contribuições das extensões) |
+| `InstalledExtensionStore` / `TenantExtensionStore` / `PublicExtensionStore` | Extensões instaladas, criadas no escritório e do catálogo público |
+| `SettingsStore` | Configurações do escritório e pessoais |
+| `PortalStore` | O portal do convidado |
+| `AuditLogStore` / `AuditLogAlertStore` | Trilha de auditoria e o alerta de eventos críticos |
+| `TextAnnotationStore` | Anotações de texto |
+| `WorkspaceStore` | Abas abertas no shell, aba ativa |
+| `ThemeContext` | Tema em vigor, montado das contribuições `theme.definition` + `theme.tokens`. A escolha mora na configuração `theme.selected`, espelhada em `localStorage` (`'microteia:theme'`) para as telas públicas |
 
 ### Stores que dependem do tenant
 
@@ -5033,12 +5066,17 @@ Arquivos `.tsx` exportam **apenas** componentes React. Hooks e tipos ficam em `.
 
 | Evento | Emitido por | Assina |
 |---|---|---|
-| `PERSONS_UPDATED` | `PersonStore` | — |
-| `CONTRACTS_UPDATED` | `ContractStore` | — |
-| `CONTRACT_TAG_UPDATED` | `ContractTagStore` | — |
-| `FINANCIALS_UPDATED` | `FinancialStore` | — |
-| `FINANCIAL_TAG_UPDATED` | `FinancialTagStore` | — |
+| `SCREEN_DEFINITIONS_UPDATED` | `ScreenDefinitionStore`, `InstalledExtensionStore` | `ScreenDefinitionStore` |
+| `RECORDS_UPDATED` | `RecordStore`, a ação de registro e a lista | — |
+| `SAVED_FILTER_UPDATED` | `SavedFilterStore` | `SavedFilterStore` |
 | `WORKFLOWS_UPDATED` | `WorkflowStore` | — |
+| `SCRIPTS_UPDATED` | `ScriptStore` | — |
+| `ACTIONS_UPDATED` | `ActionStore`, `InstalledExtensionStore` | `ActionStore` |
+| `REPORTS_UPDATED` | `ReportDefinitionStore` | `ReportDefinitionStore` |
+| `DOCUMENT_TEMPLATES_UPDATED` | `DocumentTemplateStore` | `DocumentTemplateStore` |
+| `RECORD_DOCUMENTS_UPDATED` | `DocumentTemplateStore`, o diálogo de anexar | a aba de Documentos (`useEntityDocuments`) |
+| `ROLES_UPDATED` | `RoleStore` | `RoleStore` |
+| `BUSINESS_CALENDARS_UPDATED` | `BusinessCalendarBridge` | `RecordStore` |
 
 ### Regra para nova entidade com store próprio
 
@@ -5129,10 +5167,14 @@ View (evento) → ViewModel (handler) → Store (método) → UseCase → Reposi
 
 ### 2. Página nova (ex: `Tasks`)
 
-1. Crie a pasta `presentation/pages/Tasks/` com os 3 arquivos MVVM
-2. Adicione `{ key: 'tasks', title: 'Tarefas', ... }` em `pageRegistry.tsx`
-3. Adicione o item em `WorkspaceSidebar.viewmodel.tsx` > `NAV_ITEMS`
-4. Crie `index.ts` re-exportando a View
+1. Crie a pasta `presentation/pages/Tasks/` com os 3 arquivos MVVM e o `index.ts` re-exportando a View
+2. No manifest do plugin `core.*` dono da página, registre a View em `implementations`
+   (`lazyView(() => import(...), 'TasksView')`) e contribua `page({ key: 'tasks', title: '@<namespace>/page.tasks', icon }, 'TasksView')`
+3. Contribua o item de menu no mesmo manifest: `nav({ key: 'tasks', label, icon, order, group, requiredPermissions })`
+4. Se a página é consultável, contribua o provedor do ⌘K com `command(id, { group }, '<Provider>')`
+
+Não há `pageRegistry` nem `NAV_ITEMS`: a página, o menu e o ⌘K são contribuições (ver "A UI como
+contribuição").
 
 ### 3. Campo novo em entidade existente
 
@@ -5162,13 +5204,17 @@ View (evento) → ViewModel (handler) → Store (método) → UseCase → Reposi
 ## Variáveis de Ambiente
 
 ```
-VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_AUTH_DOMAIN=
-VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-VITE_FIREBASE_APP_ID=
+VITE_API_KEY=
+VITE_AUTH_DOMAIN=
+VITE_PROJECT_ID=
+VITE_STORAGE_BUCKET=
+VITE_MESSAGING_SENDER_ID=
+VITE_APP_ID=
+VITE_MEASUREMENT_ID=
 ```
+
+Os nomes são os que `src/infrastructure/**/config.ts` lê — e só como fallback de desenvolvimento: numa
+instalação, a configuração vem de `window.__MICROTEIA_CONFIG__`.
 
 Nunca commite `.env`. O `.env.example` de cada lado documenta as chaves sem valores — e o de
 `functions/` está VAZIO de propósito: o kernel não declara parâmetro de backend nenhum, porque os quatro
@@ -5224,7 +5270,7 @@ Quem abre um documento no Firestore não distingue o que veio do kernel, de uma 
 próprio escritório.
 
 Convenção de tipos gravados: text/textarea/masked/markdown → `string` (masked guarda formatado);
-number/currency → `number | null`; date → `string 'YYYY-MM-DD'`; time → `string 'HH:mm'`;
+number/currency → `number | null`; date → `Timestamp` ao **meio-dia UTC** do dia (o formulário trabalha com o texto `'YYYY-MM-DD'`, e `coerceWriteValue` → `parseDateOnly` o converte na gravação — ver "Datas"); time → `string 'HH:mm'`;
 checkbox → `boolean`; select/reference single → `string | null`; multi → `string[]`;
 file → `string | null`, a **URL de download** do Firebase Storage.
 
@@ -5291,7 +5337,7 @@ Nota: as coleções de lista (`caseCourts`, `medico_especialidade`…) **não** 
 
 ### Navegação e renderização
 
-- **tabKeys** (builders/parser em `shared/constants/dynamicScreenKeys.ts`): `dyn:{screenKey}` (listagem), `new-dyn:{screenKey}`, `new-dyn:{screenKey}:clone:{recordId}` e `view-dyn:{screenKey}:{recordId}`. Os três prefixos estão registrados no `pageRegistry` apontando para `DynamicRecordList` e `ViewDynamicRecord`; o título real da aba é definido em runtime via `setTabTitle` (o ícone da aba é o genérico — o ícone escolhido pelo admin aparece no Sidebar).
+- **tabKeys** (builders/parser em `shared/constants/dynamicScreenKeys.ts`): `dyn:{screenKey}` (listagem), `new-dyn:{screenKey}`, `new-dyn:{screenKey}:clone:{recordId}` e `view-dyn:{screenKey}:{recordId}`. Os três prefixos são contribuições `page({ keyPrefix })` do `core.records`, apontando para `DynamicRecordList` e `ViewDynamicRecord`; o título real da aba é definido em runtime via `setTabTitle` (o ícone da aba é o genérico — o ícone escolhido pelo admin aparece no Sidebar).
 - **Motor de renderização:** `ui/CustomFieldsSection` renderiza qualquer `FieldDefinition[]` (agrupado por `section`) a partir de `values` + `onChange(fieldKey, value)`. Mapa de tipo→componente: text/number→`Input`, textarea→`Textarea`, currency→`CurrencyInput`, date→`DateInput`, time→`TimeInput`, checkbox nativo estilizado, select→`DynamicSelect` (opções fixas — as declaradas no campo mais as `isStatic` da lista — e as cadastradas pelo escritório, com `onAdd`/`onDelete`, todas resolvidas por `lookupCollection`), masked→`ui/MaskedInput` (novo wrapper das máscaras de `utils/formatters.ts`), reference→`SearchSelect`/`MultiSearchSelect` com opções de `presentation/hooks/useReferenceOptions.ts` (mapeia `refEntity` → registros do store correspondente, incluindo outras telas dinâmicas), markdown→`ui/MarkdownEditor`, file→`ui/FileInput` (ver "Campo de arquivo").
 - **Listagem (dinâmica e padrão) — hook `useCustomFieldListing`:** a lógica de `showInList`/`filterable` vive em `presentation/hooks/useCustomFieldListing.ts`. O hook recebe `(screenKey, fields, filterKeyPrefix)` e devolve: `filterDefs` do `CompositeFilter` a partir dos campos `filterable` (select/reference→multiselect, checkbox→Sim/Não, date→date com igualdade exata, demais→texto), o matcher `matchesFilters(values, tokenMap)`, `cardItems(values)` (pares label/valor dos campos `showInList`, formatados por tipo) renderizados pelo componente `ui/CustomFieldMetaRows`, e `searchText(values)` — o texto que a busca livre varre. **Campo `file` fica fora dos dois últimos pontos por decisão:** é excluído de `filterableFields` (o `default` de `filterDefs` cai em texto, e um filtro sobre URL de download nunca casa nada que alguém digite) e do `searchText` (a URL carrega `token` e `alt=media`, então buscar "png" trazia todo registro com imagem).
 - **Listagem dinâmica:** `DynamicRecordList` usa o hook sem prefixo de chave e com `savedFiltersScreenKey = tabKey`; exclui o `titleFieldKey` dos `cardItems`. Tela desativada/excluída renderiza `InfoBanner`, nunca quebra.
@@ -5818,7 +5864,7 @@ declaração de pacote, e é o que permite a entidade mudar de dono sem mudar na
 |---|---|---|
 | Opções de partida das listas | `lookups[].options` + `seed` — `when-empty` só em lista vazia; `required` acrescenta o que falta, uma vez por extensão | um escritório novo instalaria a extensão e não teria nenhuma Área, Fase ou Status |
 | Nome dos eventos | `ScreenDefinition.eventPrefix` (`case` → `case.saved`) | a coleção passaria a emitir `cases.saved` e toda automação que escuta `case.*` pararia |
-| Quem pode gravar | `ScreenDefinition.writeRoles` (`['admin','lawyer']`), lido pelo curinga das rules | a entidade perderia a restrição que a regra nomeada dava, e qualquer membro com escrita passaria a editar |
+| Quem pode gravar | a permissão derivada da coleção (`<coleção>.create\|update\|delete`), dada aos perfis do escritório e conferida pelo curinga das rules (`canOnCollection`). Até a autorização por permissão era `ScreenDefinition.writeRoles`, uma lista de papéis — removida | a entidade perderia a restrição que a regra nomeada dava, e qualquer membro com escrita passaria a editar |
 | Quem pode EXCLUIR | `ScreenDefinition.authorCanDelete`, lido pelo mesmo curinga | exclusão seria sempre de admin, e o autor de um comentário precisaria de um admin para apagar o que escreveu |
 | Quem grava CAMPO ISOLADO | `ScreenDefinition.memberWritableFields`, lido pelo mesmo curinga | o papel `user` (somente leitura) não conseguiria marcar uma notícia como lida nem curtir, e o selo pessoal do menu ficaria preso |
 
@@ -5857,29 +5903,28 @@ Detalhes que valem registrar:
   da coleção (a de permissão vem antes na ordem alfabética dos documentos). Deixar a dona do nome
   responder trocaria o nome dos eventos sozinho: o gatilho ofereceria `cases.saved` enquanto o motor
   publica `case.saved`, e nenhuma automação dispararia.
-- **`writeRoles` ALARGA, e não só estreita.** Declarada, a lista é a autoridade e substitui a
-  permissão padrão do escritório — é o que põe `user` (somente leitura no resto do sistema) a
-  comentar num mural. Ausente, vale o padrão de sempre. Enquanto ela só sabia estreitar (um `&&` com
-  `canWriteInTenant`), uma entidade participativa não tinha como sair do kernel: a exceção que a
-  regra nomeada abria não era escrevível.
+- **A permissão da coleção ALARGA, e não só estreita.** Quem recebe `<coleção>.create` grava ali,
+  mesmo sem escrita no resto do sistema — é o que põe um leitor a comentar num mural. Era o papel de
+  `writeRoles`, que dizia o mesmo nomeando papéis (`user`) que o produto impunha ao escritório; a
+  permissão derivada diz sem nomear papel nenhum, e `writeRoles` saiu.
 - **`memberWritableFields` é a porta do "por usuário".** Gravação no documento que OUTRA pessoa
   criou, limitada aos campos declarados: a alteração é recusada se tocar em qualquer um fora da
   lista (`affectedKeys().hasOnly(...)`, mais o `updatedAt` que o repositório sempre carimba). Existe
   porque marcar como lida, curtir e guardar para depois são gravações — e exigir permissão de
   ESCRITA na tela para elas transformaria todo leitor num editor.
-- **`authorCanDelete` anda com `writeRoles`.** Mesma trilha (documento da tela → curinga das rules →
+- **`authorCanDelete` mora na tela.** Trilha própria (documento da tela → curinga das rules →
   `canDelete` na UI) e mesma razão de existir: a permissão é da COLEÇÃO, não de quem a declarou. A
   exclusão continua sendo de admin por padrão; a declaração abre a exceção de quem CRIOU o registro,
   para a entidade em que a autoria é a posse.
-- **`writeRoles` mora no documento da COLEÇÃO.** As rules não têm como procurar "a tela que aponta
+- **A declaração mora no documento da COLEÇÃO.** As rules não têm como procurar "a tela que aponta
   para esta coleção", então a instalação de uma tela com `dataCollection` materializa/atualiza
   `screenDefinitions/{coleção}` com a permissão (`ensureTargetCollectionScreen`), preservando o que
   já existe no documento. O curinga só aplica a checagem quando o documento de tela existe — uma
   lista de opções ou um conjunto de etiquetas passa pelo mesmo `match` e não tem tela.
 - **Nulo não é ausência — e as rules leem lista por acessor.** O `.get(campo, padrão)` do Firestore
   devolve o padrão só quando o campo está **AUSENTE**; um campo gravado como nulo passa por ele, e
-  `.size()` sobre nulo estoura — e **regra que estoura NEGA**. A instalação grava `writeRoles: null`
-  quando o pacote não restringe papéis (é assim que uma reinstalação apaga uma restrição anterior),
+  `.size()` sobre nulo estoura — e **regra que estoura NEGA**. A instalação gravava `writeRoles: null`
+  quando o pacote não restringia papéis (é assim que uma reinstalação apaga uma restrição anterior),
   então toda gravação em `persons`, `deadlines` e `news` era recusada, enquanto `cases`, `financials`,
   `contracts` e `calendar` — que declaram a lista — gravavam. Por isso as rules leem toda lista de
   tela por `screenList(name, field)`, que checa `is list` antes de usar, e o teste em
@@ -5901,7 +5946,7 @@ apagados as páginas (`Cases`, `ViewCase`), o `CaseStore`, três repositórios e
 use cases de nota e documento, o tipo `Case` e suas uniões, o plugin `core.cases`, o
 `CaseMentionModal` e os deep links `view-case:`/`new-case`. `cases` e `caseTags` saíram de
 `RESERVED_COLLECTIONS`, e o `firestore.rules` perdeu a regra nomeada de Processos, as oito de listas
-e a de etiquetas — tudo passa pelo curinga, com a permissão vindo de `writeRoles`.
+e a de etiquetas — tudo passa pelo curinga, com a permissão derivada da coleção.
 
 As peças que o kernel ganhou para que as telas ainda nativas continuassem funcionando:
 
@@ -8665,9 +8710,10 @@ Um plugin de terceiro só contribui `script`/`widget`/`workflow` (nunca `code`).
 o que permite `widget`: uma descrição **serializável** de uma tela que o Kernel renderiza usando os
 próprios componentes do Microteia — zero `dangerouslySetInnerHTML`, zero `eval`, cor só via tema.
 
-**`WidgetSpec`** (`presentation/shared/widget/widgetSpec.ts`) é uma união discriminada por `type`.
-v1 (estática, sem ligação a dados): `stack`, `grid`, `heading`, `text`, `markdown`, `metric`,
-`keyValue`, `banner`, `divider`. Adicionar um nó é aditivo.
+**`WidgetSpec`** (`domain/schema/ui/widgetSpec.ts`, lista em `WIDGET_NODE_TYPES`) é uma união
+discriminada por `type`: `stack`, `grid`, `heading`, `text`, `markdown`, `metric`, `keyValue`, `banner`,
+`divider` — estáticos — e `report`, o nó LIGADO A DADOS, que desenha um relatório declarado. Adicionar um
+nó é aditivo.
 
 **`WidgetRenderer`** (`components/ui/WidgetRenderer/`) percorre a árvore recursivamente. **Nó
 desconhecido é ignorado, não derruba a tela** — um plugin escrito para uma versão mais nova do DSL
@@ -8684,8 +8730,8 @@ aparece como qualquer outra — o caminho está pronto.
 depender da carga por tenant. O segundo consumidor é `manifest.license` — ver "O termo de licença é
 da extensão, e soma ao da Microteia".
 
-**Falta para o Widget DSL completo:** ligação a dados (`source: query:/script:/field:`) e `when` por
-expressão — o que torna um widget dinâmico, não só descritivo.
+**Falta para o Widget DSL completo:** `when` por expressão. A ligação a dados existe pelo nó `report`
+(o relatório declarado é a consulta); uma fonte genérica (`source: query:/script:/field:`) não.
 
 O irmão ligado a dados é o **cartão declarado** da listagem — ver "O cartão da listagem é declarado —
 `cardTemplate`": mesmo molde (árvore, nó desconhecido ignorado, só tokens), com `field` e `hiddenWhen`
@@ -9912,7 +9958,8 @@ todos os níveis e não precisa.
 ### Três coisas que só falhariam no cliente
 
 1. **A coleção reescrita.** `dataset.table` de um relatório de pacote passa pelo `screenKeyMap`:
-   `buildScreenKeyMap` dá sufixo quando o nome já está ocupado no destino. Os **caminhos** não passam
+   `buildScreenKeyMap` devolve a chave da tela que o escritório já tinha com o mesmo `sourceId` (uma
+   instalação antiga pode estar em `produtos_2`). Os **caminhos** não passam
    por lá — um caminho nunca nomeia coleção, o hop sai do `refEntity` que a tela já reescreveu.
 2. **O portão do pacote.** `reportOutRefs` emite a coleção coberta, então um relatório apontando para
    o que o pacote não leva nem declara em `dependencies` é recusado no empacotamento.
@@ -10060,8 +10107,8 @@ de `installed_extensions` que já servia aos catálogos de mensagem.
 gesto de confiança — não há código a revisar.
 
 **O pacote aponta a tela pelo `sourceId`**, nunca pela chave: `screenSourceId` (vence `collection`) e
-`datasets[].fromSourceId` (vence `from`). A chave de uma tela de pacote pode ganhar sufixo na instalação
-(`contratos_2`), e um modelo preso à chave declarada deixaria de ser oferecido sem sintoma — é o mesmo
+`datasets[].fromSourceId` (vence `from`). A chave de uma tela de pacote pode não ser a declarada no
+escritório que já a tinha com o mesmo `sourceId` (uma instalação antiga em `contratos_2`), e um modelo preso à chave declarada deixaria de ser oferecido sem sintoma — é o mesmo
 motivo pelo qual a aba de registro é `record:<sourceId>`. Tela não instalada tira o modelo de circulação
 SEM tomar a chave: o próximo pacote na ordem pode declará-la. O exemplo de autoria é o `document-example`.
 
@@ -11032,7 +11079,7 @@ auditoria, não um valor enfiado no campo de autor de um documento de negócio.
 
 | | Onde | Por quê |
 |---|---|---|
-| Coleção `agentGrants`, permissão `agent.manage`, as três callables, a aba | **kernel** | coleção reservada, callables que validam contra o catálogo do escritório, e uma tela que precisa desse catálogo — a mesma divisão de `aiConnections`/`ai.manage` |
+| Coleção `agentGrants`, permissão `agent.manage`, as seis functions (o endpoint `agentMcp`, as callables `createAgentGrant`/`revokeAgentGrant` e as três do OAuth), a aba | **kernel** | coleção reservada, callables que validam contra o catálogo do escritório, e uma tela que precisa desse catálogo — a mesma divisão de `aiConnections`/`ai.manage` |
 | A DECISÃO de ter o recurso | **extensão** `com.microteia.agent` | `manifest.backend.functions` tira as seis da baseline do pacote: escritório que não instalou não tem endpoint HTTP no ar, que é garantia mais forte que qualquer checagem em tempo de requisição |
 
 A extensão carrega quase nada — um interruptor de configuração (`agent.selfServiceGrants`) e a
@@ -11222,8 +11269,13 @@ conjunto é **vazio** — de novo, falha fechada.
 ### O gesto
 
 No Marketplace, cópia instalada com código não confiado ganha o selo "Código não revisado" e a ação
-**Revisar e confiar**, que abre a fonte e exige confirmação. `codeTrust` grava quem confiou, quando e
-o hash. Reinstalar preserva o registro — quem decide é o hash, então código igual mantém a revisão e
+**Revisar e confiar o código**. Ela abre a pergunta de confiança no molde da do VS Code — "Você confia
+no autor desta extensão?" —, com quem publicou, se a identidade foi confirmada (sem confirmação,
+"Publicador não verificado") e o que o código passa a poder fazer (rodar no navegador de todo membro,
+com acesso aos dados que cada um vê, até ser desativado). **A fonte não aparece no diálogo:** a decisão
+é sobre o autor, e quem quer ler o código o lê no arquivo do pacote antes de importá-lo (o Marketplace
+baixa o pacote das extensões do sistema, das embutidas e das criadas no próprio escritório).
+`codeTrust` grava quem confiou, quando e o hash. Reinstalar preserva o registro — quem decide é o hash, então código igual mantém a revisão e
 código alterado volta a exigir o gesto.
 
 ### Catálogo embutido e pacotes distribuíveis
@@ -11615,7 +11667,7 @@ possível.
 | `collections` | **`chaveDeTemplate → coleção instalada`** |
 
 `collections` não é conveniência. A chave de tela declarada no pacote é **reivindicada** na
-instalação e ganha sufixo se o nome já estiver ocupado no escritório de destino; telas e automações
+instalação (nome ocupado é recusa) ou é a da tela que o escritório já tinha com o mesmo `sourceId`; telas e automações
 são reescritas na materialização, mas **o código de uma migração é texto opaco e ninguém o
 reescreveria**. Escrever `table: 'produto'` à mão produz uma migração que funciona no escritório de
 teste e falha em silêncio no do cliente — há teste de catálogo (`plugins/marketplace/migrations.test.ts`)
@@ -11675,8 +11727,8 @@ esperam. A alternativa seria obrigar cada tela da extensão a tolerar os dois fo
 — exatamente o custo que a migração existe para evitar. `required: false` está disponível para o
 preenchimento cosmético, que pode esperar sem que nada quebre.
 
-Consequência honesta: a fila só roda quando **um admin abre o app** — `runScript` exige `admin` ou
-`lawyer`, e o histórico só é gravável por admin. Escritório que nunca é aberto nunca migra, e é o
+Consequência honesta: a fila só roda quando **alguém com as permissões certas abre o app** — `runScript`
+exige `automation.run`, e o histórico (`extension_migrations`) só é gravável com `extensions.manage`. Escritório que nunca é aberto nunca migra, e é o
 fail-closed que torna isso seguro em vez de silencioso.
 
 ### Onde o histórico mora — e por que sobrevive à desinstalação
@@ -13384,8 +13436,8 @@ Um `ui.nav` (ou um `ui.menu` de `openTab`) podia abrir uma aba que nenhum `ui.pa
 recusava: a aba abria e o painel ficava em branco, sem erro e sem nome de quem o causou. O caso mais
 comum era o autor escrever a CHAVE DA TELA como chave de aba (`nav({ key: 'produtos' })` — o próprio
 scaffold do SDK gerava isso). A lista de uma tela é `dyn:<chave instalada>`, e a chave instalada só se
-conhece depois da instalação: ela ganha sufixo quando o nome está ocupado (`buildScreenKeyMap`), ou é
-a de uma tela que o escritório já tinha com o mesmo `sourceId`.
+conhece depois da instalação: é a declarada, ou a de uma tela que o escritório já tinha com o mesmo
+`sourceId` (`buildScreenKeyMap`) — nome ocupado por outra tela é recusa.
 
 1. **Um alvo que diz o que é** (`UiNavTarget`). O item nomeia UM de três: `key` (aba de um `ui.page`),
    `screen` (chave de uma tela DO PACOTE — abre a lista dela) ou `screenSourceId` (id universal, para a
@@ -13681,10 +13733,16 @@ cada escritório acrescenta sem passar por nós.
 `OAuthProvider` com o id da casa —, e é o mesmo mecanismo que atende `oidc`: o que muda é só quem
 escolhe o id.
 
-**`password` está na mesma lista, e é a decisão mais consequente do desenho.** Ele não é provedor
-externo: é o formulário desta casa. Estar ali é o que permite a uma instalação de **login único
-obrigatório** simplesmente NÃO declará-lo — e então o formulário, o link de criar conta e o de
-recuperar senha desaparecem juntos, porque os três só existem para quem tem senha aqui.
+**`password` está na mesma lista.** Ele não é provedor externo: é o formulário desta casa — e quem o
+declara, junto com `google`, é o próprio `core.auth`. Por isso os dois aparecem SEMPRE: uma extensão
+não os retira (`defaultEnabled: false` só esconde o provedor do pacote que o declara, e repetir a chave
+`password` não apaga a do kernel). O formulário, o link de criar conta e o de recuperar senha andam
+juntos, porque os três só existem para quem tem senha aqui.
+
+**Capacidade que falta: esconder a senha numa instalação de login único obrigatório.** Hoje ela não
+existe — o SSO entra AO LADO do formulário. O caminho declarativo seria a instalação (o carimbo de
+`login.extensions`, que é o que `/login` enxerga) poder retirar um provedor do núcleo; fica registrado
+aqui como pendência, e nenhum texto do produto deve prometê-lo antes disso.
 
 ### Um caminho de entrada, não um por provedor
 
@@ -15165,21 +15223,20 @@ O usuário pode remover o chip a qualquer momento como qualquer outro filtro.
 
 ## Command Palette (Cmd+K)
 
-Acessado via `Cmd+K` (Mac) ou `Ctrl+K` (Windows). Providers registrados em `CommandPaletteRegistry.ts`:
+Acessado via `Cmd+K` (Mac) ou `Ctrl+K` (Windows). Os provedores são contribuições `ui.command`
+(`command(id, { group }, '<Provider>')`) dos plugins internos — não há registro central:
 
-| Provider | Descrição |
-|---|---|
-| `NavigationCommandProvider` | Navega para páginas do `pageRegistry` |
-| `PersonCommandProvider` | Busca pessoas por nome/CPF/CNPJ/email/telefone |
-| `CaseCommandProvider` | Busca processos por título/número |
-| `ContractCommandProvider` | Busca contratos por título/número |
-| `SystemCommandProvider` | Alterar tema, acessar perfil, sair |
+| Provider | Plugin | Descrição |
+|---|---|---|
+| `NavigationCommandProvider` | `core.workspace` | Navega para as páginas contribuídas (`ui.page`) |
+| `SystemCommandProvider` | `core.workspace` | Alterar tema, acessar perfil, sair |
+| `DynamicRecordCommandProvider` | `core.records` | Busca registros de qualquer tela declarada |
+| `WorkflowCommandProvider` | `core.automation` | Automações |
+| `ReportCommandProvider` | `core.reports` | Relatórios |
 
-Para adicionar um provider de nova entidade (ex: Pessoas):
-1. Crie `PersonCommandProvider.tsx` implementando `ICommandPaletteProvider`
-2. Adicione `persons` no `CommandPaletteAppContext` em `ICommandPaletteProvider.ts`
-3. Passe os dados no `CommandPalette.viewmodel.tsx`
-4. Registre em `CommandPaletteRegistry.ts`
+Um registro de tela é achado pelo `DynamicRecordCommandProvider` sem provedor próprio — é por ele que
+nenhuma coleção de negócio precisa de código no ⌘K. Para um provedor novo: implemente-o, registre-o em
+`implementations` do manifest e contribua `command(...)`.
 
 ---
 

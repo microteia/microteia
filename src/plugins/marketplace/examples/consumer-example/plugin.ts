@@ -91,9 +91,13 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [
         configuration: {
           /** The library's FLOW, the same way. */
           targetWorkflowId: { kind: 'Literal', value: artifactRef(LIBRARY, 'wf-announce') },
+          /**
+           * An earlier step's outputs are `output.<step id>` — there is no `steps.` root, and an
+           * expression that reads one fails the step.
+           */
           params: {
             kind: 'Expression',
-            expression: 'object("code", steps.normalize.code, "reason", "tidied by the consumer example")',
+            expression: 'object("code", output.normalize.code, "reason", "tidied by the consumer example")',
           },
           waitForResult: { kind: 'Literal', value: false },
         },
@@ -105,7 +109,7 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [
 export const consumerExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.consumer-example',
-    version: '1.0.0',
+    version: '1.0.1',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),

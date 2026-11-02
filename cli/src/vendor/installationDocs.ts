@@ -202,10 +202,15 @@ deliberately, because you asked.
 They live in \`.env.<projectId>\`, next to \`microteia.yaml\`. \`unpack\` creates the file and adds any
 setting a new version introduces, **never overwriting what you filled in**.
 
-After changing a value, run \`microteia provision\`. The value is stamped into each Cloud Function at
-*its* deploy, so a function already running keeps the previous one until it is deployed again; provision
-notices the change (by a salted digest in \`microteia.yaml\`) and requeues exactly the functions that
-carry that setting.
+The value is stamped into each Cloud Function at *its* deploy, so a function already running keeps the
+previous one until it is deployed again. Which command deploys it again depends on who declares the
+setting:
+
+- **A setting of an extension, or of your own \`functions/\`** — run \`microteia provision\`. It notices the
+  change (by a salted digest in \`microteia.yaml\`) and requeues exactly the functions that carry it.
+- **A setting of the platform itself** (\`SELF_SERVICE_TENANTS\`, \`AUDIT_ARCHIVE_BUCKET\`, …) — run
+  \`microteia deploy --only functions\`. \`provision\` does not track them; the deploy compares each
+  function's stamp, which includes its environment, and redeploys the ones whose value changed.
 
 An empty line means "not configured". A feature that needs it stays off rather than failing halfway.
 

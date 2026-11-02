@@ -8,9 +8,9 @@ import { installSafeMemberOperator, withSafeEvaluation } from '../../schema/expr
 import { LocalizedError } from '../../errors/LocalizedError';
 import { toExpressionActor } from '../workflowActor';
 import {
-  addOperator, subtractOperator, multiplyOperator, divideOperator, remainderOperator, powerOperator, factorialOperator,
+  addOperator, subtractOperator, multiplyOperator, divideOperator, remainderOperator, powerOperator,
   equalOperator, notEqualOperator, lessThanOperator, lessOrEqualOperator, greaterThanOperator, greaterOrEqualOperator,
-  andOperator, orOperator, notOperatorSymbol, ternaryOperator, concatenateOperator, inOperator,
+  andOperator, orOperator, notOperatorSymbol, negationOperator, ternaryOperator, concatenateOperator, inOperator,
   sinFunction, cosFunction, tanFunction, asinFunction, acosFunction, atanFunction,
   sinhFunction, coshFunction, tanhFunction, asinhFunction, acoshFunction, atanhFunction,
   sqrtFunction, cbrtFunction, logFunction, lnFunction, log10Function, log2Function, lgFunction, log1pFunction,
@@ -21,9 +21,9 @@ import {
 
 // Registra operadores built-in do expr-eval para documentação
 [
-  addOperator, subtractOperator, multiplyOperator, divideOperator, remainderOperator, powerOperator, factorialOperator,
+  addOperator, subtractOperator, multiplyOperator, divideOperator, remainderOperator, powerOperator,
   equalOperator, notEqualOperator, lessThanOperator, lessOrEqualOperator, greaterThanOperator, greaterOrEqualOperator,
-  andOperator, orOperator, notOperatorSymbol, ternaryOperator, concatenateOperator, inOperator,
+  andOperator, orOperator, notOperatorSymbol, negationOperator, ternaryOperator, concatenateOperator, inOperator,
   sinFunction, cosFunction, tanFunction, asinFunction, acosFunction, atanFunction,
   sinhFunction, coshFunction, tanhFunction, asinhFunction, acoshFunction, atanhFunction,
   sqrtFunction, cbrtFunction, logFunction, lnFunction, log10Function, log2Function, lgFunction, log1pFunction,

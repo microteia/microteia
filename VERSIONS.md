@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.192.0] — 2026-11-02
+
+- Corrigido um problema em que as automações montadas a partir do plano de uma extensão — as que mudam a situação de um registro ao salvar, quando chega uma data ou ao apertar um botão — podiam simplesmente não rodar, e o botão respondia que a ação não se aplicava àquele registro.
+- A referência de operadores das automações deixou de apresentar o "!" como fatorial: ele sempre funcionou como negação ("não"), e agora é isso que a tela explica.
+- As descrições de algumas funções de expressão (como coalesce, isEmpty e formatMoney) passam a dizer onde o resultado muda entre uma tela e uma automação.
+- Ajustados textos da configuração do portal: o menu no celular abre numa gaveta, e as boas-vindas usam o nome da conta do convidado.
+
 #### [9.191.0] — 2026-11-01
 
 - O portal agora pode mostrar a todos os convidados as informações que são do escritório para todos — comunicados gerais, indisponibilidades do sistema, um calendário de feriados, uma tabela de valores. Basta escolher, na aba Portal da tela, que os registros são "de ninguém em particular": todo convidado ativo passa a vê-los, sempre só os campos e os registros que você deixou sair, e apenas para leitura. Antes, essa informação só chegava ao portal como texto fixo, reescrito à mão a cada mudança.

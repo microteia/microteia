@@ -25,8 +25,6 @@ class StoreEventEmitter {
 export const storeEvents = new StoreEventEmitter();
 
 export const StoreEvents = {
-  NEWS_UPDATED: 'news:updated',
-  NEWS_TAG_UPDATED: 'news_tag:updated',
   SAVED_FILTER_UPDATED: 'saved_filter:updated',
   SCREEN_DEFINITIONS_UPDATED: 'screen_definitions:updated',
   RECORDS_UPDATED: 'records:updated',

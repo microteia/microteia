@@ -5,6 +5,7 @@ import { CONTROL_STEP_TYPES, CORE_STEP_CATALOG } from '../../domain/schema/workf
 import { ACTION_RECORD_PARAMETER, ACTION_RETURN_KEYS } from '../../domain/entities/Action';
 import type { BehaviorEffect, BehaviorTransition, EffectKind } from './behaviorModel';
 import { effectEntity, isSelfLoop } from './behaviorModel';
+import { extractFieldExpressionDependencies } from '../../domain/schema/fieldExpression';
 
 /**
  * A TRADUÇÃO — comportamento para mecanismo que existe mesmo, e RECUSA alta para o que não existe.
@@ -208,7 +209,8 @@ export const BEHAVIOR_MECHANISMS: BehaviorMechanism[] = [
     concern: 'invariant',
     declares: "scope 'field'",
     mechanism: "the field's own rule — evaluated as the person types AND on the write path, which throws",
-    declaredAs: "field { rules: { validate: { expression, message } } }. This is the only invariant the platform "
+    declaredAs: "field { logic: { validate: 'if(<expression>, null, \"<message>\")' } } — the expression RETURNS the "
+      + 'error message, and null (or an empty text, or false) accepts the value. This is the only invariant the platform '
       + 'enforces before the document exists, and it is why a blocking rule is written as a field rule',
     stepIds: [],
     supported: true,
@@ -228,8 +230,8 @@ export const BEHAVIOR_MECHANISMS: BehaviorMechanism[] = [
     concern: 'invariant',
     declares: "scope 'transition', enforcement 'blocks'",
     mechanism: "the write path: the field's own rule, and the record action that refuses the gesture",
-    declaredAs: "field { rules: { validate: { expression, message } } } — which the repository THROWS on, before the "
-      + "document is written — plus, on a user-action transition, the action's disabledWhen / hiddenWhen over "
+    declaredAs: "field { logic: { validate: 'if(<expression>, null, \"<message>\")' } } — which the repository THROWS "
+      + "on, before the document is written — plus, on a user-action transition, the action's disabledWhen / hiddenWhen over "
       + "`record.<field>` and the flow's own condition, which is evaluated before the flow's upsert",
     stepIds: [],
     supported: true,
@@ -405,6 +407,31 @@ export const ACTION_RETURN_PLAN: ActionReturnPlan = {
     + 'as the answer',
 };
 
+/** As raízes do escopo de um fluxo: o resto não existe ali, e a expressão que o lê falha. */
+const WORKFLOW_SCOPE_ROOTS = new Set(['event', 'actor', 'input', 'output']);
+
+const WORKFLOW_EVENT_ROOT = 'event';
+
+/**
+ * Uma expressão sobre o registro em mãos, reescrita no escopo em que o FLUXO a avalia.
+ *
+ * O modelo escreve a guarda como a tela a escreveria — `total > 0`, `old.status` —, e o fluxo só tem
+ * `event`, `input`, `output` e `actor` na raiz: o registro é `event.<campo>`. Copiada sem a reescrita,
+ * a expressão falha, a condição conta como falsa e o fluxo é pulado sem passo nenhum rodar — o defeito
+ * não aparece onde se erra, só na tela de Execuções do escritório.
+ */
+export const inWorkflowScope = (expression: string): string => {
+  const roots = new Set(
+    extractFieldExpressionDependencies(expression).filter((name) => !WORKFLOW_SCOPE_ROOTS.has(name)),
+  );
+  if (roots.size === 0) return expression;
+  return expression.replace(
+    /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|(\.\s*)?\b([A-Za-z_][A-Za-z0-9_]*)\b/g,
+    (token: string, member: string | undefined, name: string | undefined) =>
+      member === undefined && name !== undefined && roots.has(name) ? `${WORKFLOW_EVENT_ROOT}.${name}` : token,
+  );
+};
+
 /**
  * A tradução de UMA transição. Definição única — o validador e a resposta da tool leem daqui, para
  * que a checagem não responda sobre um mecanismo diferente do que vai ser escrito.
@@ -424,7 +451,7 @@ export const mapTransition = (
   // ramo, e só o nível principal pausa. É equivalente, porque a guarda só lê o registro em mãos.
   const waits = transition.effects.some((effect) => effect.kind === 'wait');
   const guardSteps = transition.guard && !waits ? [CONTROL_STEP_TYPES[0]] : [];
-  const guardClause = waits && transition.guard ? ` and (${transition.guard.expression})` : '';
+  const guardClause = waits && transition.guard ? ` and (${inWorkflowScope(transition.guard.expression)})` : '';
   const effectSteps = transition.effects.flatMap(stepsOfEffect);
   const deletes = trigger.kind === 'entity-event' && trigger.event === 'deleted';
   // Numa exclusão não há documento em que gravar o estado novo: o `upsert` que estava aqui
@@ -432,6 +459,7 @@ export const mapTransition = (
   const stateSteps = isSelfLoop(transition) || deletes ? [] : ['upsert'];
   const permission = transition.permission === undefined ? {} : { permission: transition.permission };
   const steps = [...guardSteps, ...stateSteps, ...effectSteps];
+  const fromInEvent = `${WORKFLOW_EVENT_ROOT}.${stateField} == "${transition.from}"`;
 
   if (trigger.kind === 'user-action') {
     // `workflow.called` não carrega o registro: o `from` que PARA a passagem é o da ação, e o do
@@ -443,7 +471,7 @@ export const mapTransition = (
       eventName: WORKFLOW_CALLED_EVENT,
       describable: DESCRIPTION_REQUIRED_EVENTS.includes(WORKFLOW_CALLED_EVENT),
       actionKey: trigger.action,
-      workflowCondition: `${parameter}.${stateField} == "${transition.from}"`,
+      workflowCondition: `${WORKFLOW_EVENT_ROOT}.${parameter}.${stateField} == "${transition.from}"`,
       steps: [...steps, ACTION_RETURN_PLAN.step],
       recordParameter: { key: parameter, type: 'EntityReference', entityType: collection },
       returns: ACTION_RETURN_PLAN,
@@ -469,15 +497,15 @@ export const mapTransition = (
       ...permission,
       eventName: `${collection}.${trigger.event}`,
       describable: DESCRIPTION_REQUIRED_EVENTS.includes(`${collection}.${trigger.event}`),
-      workflowCondition: `${stateField} == "${transition.from}"${guardClause}`,
+      workflowCondition: `${fromInEvent}${guardClause}`,
       ...(note === undefined ? {} : { conditionNote: note }),
       steps,
       fromCheck: {
         where: 'workflow-condition',
-        expression: `${stateField} == "${transition.from}"`,
+        expression: fromInEvent,
         ...(deletes ? {} : {
-          previousValue: `old.${stateField}`,
-          creationTest: 'changeType == "created"',
+          previousValue: `${WORKFLOW_EVENT_ROOT}.old.${stateField}`,
+          creationTest: `${WORKFLOW_EVENT_ROOT}.changeType == "created"`,
         }),
       },
       supported: true,
@@ -493,9 +521,9 @@ export const mapTransition = (
       eventName: `${collection}.${DATE_REACHED_ACTION}`,
       dateReached: { field: trigger.field, offset: trigger.offset, ...(trigger.at === undefined ? {} : { at: trigger.at }) },
       describable: false,
-      workflowCondition: `${stateField} == "${transition.from}"${guardClause}`,
+      workflowCondition: `${fromInEvent}${guardClause}`,
       steps,
-      fromCheck: { where: 'workflow-condition', expression: `${stateField} == "${transition.from}"` },
+      fromCheck: { where: 'workflow-condition', expression: fromInEvent },
       supported: true,
     };
   }

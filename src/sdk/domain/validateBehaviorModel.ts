@@ -778,7 +778,7 @@ const enforcementIssues = (invariant: BehaviorInvariant, behavior: BehaviorModel
           + 'already committed: it reports the record that is wrong and never refuses it.',
         suggestion: 'The write path carries FIELD rules only, and it does refuse — the repository throws before the '
           + 'document is written. Split the rule into the fields it is really about: field '
-          + '{ rules: { validate: { expression, message } } }. If it is genuinely about the passage and not the record, '
+          + '{ logic: { validate: \'if(<expression>, null, "<message>")\' } }. If it is genuinely about the passage and not the record, '
           + 'declare it scope "transition" over a user-action transition, where the gesture can be refused.',
         howToDeclareException: 'enforcement: "reacts" — and then say so in the message, because "this cannot be saved" '
           + 'and "this was saved and is wrong" are read differently by whoever sees them.',
@@ -829,7 +829,7 @@ const enforcementIssues = (invariant: BehaviorInvariant, behavior: BehaviorModel
         + 'trigger: by the time it exists the document is committed. The condition and the "exit" step stop the rest of '
         + 'the flow; nothing rolls the write back.'}`,
       suggestion: 'Two ways, and both are declarations. Put the rule on the WRITE path — field '
-        + '{ rules: { validate: { expression, message } } }, which the repository throws on before the document is '
+        + '{ logic: { validate: \'if(<expression>, null, "<message>")\' } }, which the repository throws on before the document is '
         + 'written. Or make the passage a gesture: trigger { kind: "user-action", action }, and then the action\'s '
         + 'disabledWhen over `record.<field>` refuses it before anything runs, and the flow\'s own condition sits '
         + 'before the flow\'s own upsert.',
@@ -884,7 +884,7 @@ const invariantIssues = (
         message: invariant.field === undefined
           ? `An invariant over "${invariant.entity}" has scope "field" and names no field.`
           : `"${invariant.entity}" has no field "${invariant.field}".`,
-        suggestion: 'A field rule lives IN the field — { rules: { validate: { expression, message } } } — so it needs to '
+        suggestion: 'A field rule lives IN the field — { logic: { validate: \'if(<expression>, null, "<message>")\' } } — so it needs to '
           + 'know which one. A rule about the record as a whole is scope "record", and it becomes a validate-object step.',
         howToDeclareException: 'None.',
       }));

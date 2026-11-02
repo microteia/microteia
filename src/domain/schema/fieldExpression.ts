@@ -437,6 +437,15 @@ const buildParser = (): Parser => {
 
 const fieldParser = buildParser();
 
+/**
+ * As funções que o `expr-eval` resolve como OPERADOR — `min(a, b)` funciona aqui sem estar em
+ * `FIELD_EXPRESSION_FUNCTIONS`. Ficavam de fora de toda lista servida, e o guia as citava.
+ */
+const OPERATOR_FUNCTION_NAMES = ['abs', 'ceil', 'floor', 'min', 'max', 'sqrt'] as const;
+
+export const FIELD_EXPRESSION_OPERATOR_FUNCTIONS: readonly string[] =
+  OPERATOR_FUNCTION_NAMES.filter((name) => EXPRESSION_OPERATORS[name]);
+
 /** O catálogo desta ponta, para o teste que o confronta com o catálogo do Workflow. */
 export const FIELD_EXPRESSION_FUNCTION_NAMES: readonly string[] =
   Object.keys(FIELD_EXPRESSION_FUNCTIONS);

@@ -15,6 +15,7 @@ import {
   publishedBefore,
   serializeIndex,
   withEntry,
+  STABLE_CHANNEL,
 } from '../kernel/channel.js';
 import type { ChannelIndex } from '../kernel/channel.js';
 import type { KernelManifest } from '../kernel/manifest.js';
@@ -272,7 +273,13 @@ const publishKernel = async (
   }, new Date().toISOString()));
 
   success(`kernel ${version} verified: ${manifest.tarball?.bytes} bytes, sha256 ${manifest.tarball?.sha256.slice(0, 12)}…`);
-  info(`  tag ${tagOf(version)} in ${repo}, and ${INDEX_PATH} promoting it to "latest"`);
+  const promotes = next.channels[STABLE_CHANNEL] === version;
+  info(
+    promotes
+      ? `  tag ${tagOf(version)} in ${repo}, and ${INDEX_PATH} promoting it to "latest"`
+      : `  tag ${tagOf(version)} in ${repo}, and ${INDEX_PATH} listing it — "latest" stays at `
+        + `${next.channels[STABLE_CHANNEL]}, which is newer`,
+  );
   info(
     notes.versions.length === 1
       ? `  release notes: the ${version} entry of ${KERNEL_CHANGELOG}`
@@ -318,7 +325,12 @@ const publishKernel = async (
 
     // O catálogo por último, sempre. Ver a nota de ordem no topo deste módulo.
     await writePublishedIndex(repo, next, published.sha, version);
-    success(`${INDEX_PATH} updated — "microteia unpack --version latest" now takes ${version}`);
+    success(
+      promotes
+        ? `${INDEX_PATH} updated — "microteia unpack --version latest" now takes ${version}`
+        : `${INDEX_PATH} updated — "microteia unpack --version ${version}" takes it; "latest" stays at `
+          + `${next.channels[STABLE_CHANNEL]}`,
+    );
   } finally {
     await rm(notesRoot, { recursive: true, force: true });
   }

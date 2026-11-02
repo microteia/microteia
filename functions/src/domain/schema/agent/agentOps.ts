@@ -686,7 +686,8 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     name: 'search_audit_log',
     description:
       'The office audit log, newest first: who created, changed or deleted what and when, plus the '
-      + 'errors the platform recorded. Entries are kept for 30 days. Returns how many entries were '
+      + 'errors the platform recorded. Entries expire with the retention the organization set, so the oldest '
+      + 'may already be gone. Returns how many entries were '
       + 'scanned and whether the scan was complete — an incomplete scan means older matches may '
       + 'exist, so narrow the period rather than trusting the count.',
     inputSchema: object(

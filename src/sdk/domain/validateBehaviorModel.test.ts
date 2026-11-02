@@ -450,7 +450,7 @@ describe('quando uma data do registro chega — o gatilho date-reached', () => {
       supported: true,
       eventName: 'sales.dateReached',
       dateReached: { field: 'soldAt', offset: '+30d', at: '07:00' },
-      workflowCondition: 'status == "invoiced"',
+      workflowCondition: 'event.status == "invoiced"',
       fromCheck: { where: 'workflow-condition' },
     });
     expect(mapped?.steps).toContain('upsert');
@@ -510,7 +510,7 @@ describe('esperar no meio da passagem — o efeito wait', () => {
   it('com guarda, a guarda vai para a condição do fluxo e a espera fica no nível principal', () => {
     const transition = mapped(waiting({ guard: { expression: 'total > 0' } }));
     expect(transition?.steps).not.toContain('Condition');
-    expect(transition?.workflowCondition).toBe('status == "confirmed" and (total > 0)');
+    expect(transition?.workflowCondition).toBe('event.status == "confirmed" and (event.total > 0)');
   });
 
   it('sem espera, a guarda continua sendo o nó de condição', () => {
@@ -519,7 +519,7 @@ describe('esperar no meio da passagem — o efeito wait', () => {
       guard: { expression: 'total > 0' },
     })));
     expect(transition?.steps[0]).toBe('Condition');
-    expect(transition?.workflowCondition).toBe('status == "confirmed"');
+    expect(transition?.workflowCondition).toBe('event.status == "confirmed"');
   });
 
   it('recusa a espera numa passagem de botão e numa de relógio, dizendo o caminho', () => {
@@ -655,7 +655,7 @@ describe('a invariante de transição — recusar e reagir são mecanismos difer
     const issue = result.issues.find((one) => one.code === 'behavior.invariant.blocks-after-the-fact');
     expect(issue?.severity).toBe('error');
     expect(issue?.message).toContain('onDocumentWritten');
-    expect(issue?.suggestion).toContain('rules: { validate:');
+    expect(issue?.suggestion).toContain('logic: { validate:');
     expect(result.ok).toBe(false);
   });
 
@@ -741,7 +741,7 @@ describe('o from — onde ele é conferido de verdade', () => {
     expect(mapped?.fromCheck?.where).toBe('action-visibility');
     expect(mapped?.fromCheck?.expression).toBe('record.status == "draft"');
     expect(mapped?.fromCheck?.requiresParameter).toBe('recordId');
-    expect(mapped?.workflowCondition).toBe('recordId.status == "draft"');
+    expect(mapped?.workflowCondition).toBe('event.recordId.status == "draft"');
     expect(mapped?.recordParameter).toMatchObject({ key: 'recordId', type: 'EntityReference' });
     // O fluxo do botão termina respondendo a ele — sem isso o botão diz que nada voltou.
     expect(mapped?.steps.at(-1)).toBe('map');
@@ -757,9 +757,9 @@ describe('o from — onde ele é conferido de verdade', () => {
     const mapped = result.transitions.find((one) => one.transition.name === 'confirm');
     expect(mapped?.eventName).toBe('sales.saved');
     expect(mapped?.fromCheck?.where).toBe('workflow-condition');
-    expect(mapped?.fromCheck?.expression).toBe('status == "draft"');
-    expect(mapped?.fromCheck?.previousValue).toBe('old.status');
-    expect(mapped?.fromCheck?.creationTest).toBe('changeType == "created"');
+    expect(mapped?.fromCheck?.expression).toBe('event.status == "draft"');
+    expect(mapped?.fromCheck?.previousValue).toBe('event.old.status');
+    expect(mapped?.fromCheck?.creationTest).toBe('event.changeType == "created"');
   });
 
   it('e o payload de uma exclusão não os tem — nem há documento em que gravar o estado novo', () => {

@@ -4,7 +4,7 @@ import { flagValue, hasFlag } from '../shared/args.js';
 import type { ParsedArgs } from '../shared/args.js';
 import { repoRoot } from '../shared/paths.js';
 import { run } from '../shared/run.js';
-import { blank, bullets, heading, info, step, success } from '../shared/ui.js';
+import { blank, bullets, heading, info, step, success, warn } from '../shared/ui.js';
 import {
   DEFAULT_FUNCTIONS_REGION,
   KERNEL_COMPONENTS,
@@ -215,7 +215,8 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   const baselineFunctions = baselineFunctionsOf(functionNames, claims);
   const baselineIndexes = baselineIndexesOf(rootIndexes.indexes, claims);
 
-  const outputDir = flagValue(args, 'output') ?? join(root, 'distributions', 'kernel', version);
+  const defaultOutputDir = join(root, 'distributions', 'kernel', version);
+  const outputDir = flagValue(args, 'output') ?? defaultOutputDir;
   const stageDir = join(outputDir, 'package');
   const tarball = join(outputDir, kernelTarballName(version));
 
@@ -364,6 +365,13 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
     `size: ${(digest.bytes / 1_000_000).toFixed(1)} MB, sha256 ${digest.sha256.slice(0, 12)}…`,
   ]);
   blank();
+  if (outputDir !== defaultOutputDir) {
+    // O `publish` lê só `distributions/kernel/<versão>/`: o pacote escrito em outro lugar não é achado,
+    // e sem este aviso a recusa dele parecia um pacote que nunca foi feito.
+    warn(`--output wrote it outside ${relative(root, defaultOutputDir)}/, and "microteia publish" reads only there.`);
+    info('  Copy the folder there to publish it, or install the file directly (below).');
+    blank();
+  }
   info('Publish it with:');
   bullets(['microteia publish --dry-run   (says what would go up)', 'microteia publish']);
   blank();

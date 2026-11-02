@@ -9,6 +9,13 @@ import {
   REPORT_GRANULARITIES,
   REPORT_SHAPE_KINDS,
 } from '../../domain/schema/report/reportSpec';
+import {
+  PORTAL_VIEWED_ACTION,
+  buildWorkflowEventCatalog,
+  childRecordEventName,
+} from '../../domain/schema/eventCatalog';
+import { WORKFLOW_AUDIT_EVENT } from '../../domain/schema/workflowAuditTrigger';
+import { createSchemaContext } from '../../domain/schema/pathResolver';
 import { DOMAIN_ISSUE_CODES, RULE_LEDGER_FILE, SCREEN_PLAN_RULES, STORAGE_MECHANISMS, coverageGaps } from '../domain';
 
 /**
@@ -74,6 +81,21 @@ describe('o servidor MCP de autoria', () => {
       'microteia://workspace/info',
       'microteia://workspace/plugins',
     ]);
+  });
+
+  /**
+   * Um título que sai como chave (`core.auth/point.provider`) é o tradutor do terminal sem o catálogo
+   * daquele namespace. O `auth.provider` saiu assim enquanto `CORE_BUNDLES` não trazia `core.auth`.
+   */
+  it('nenhum ponto de extensão sai com título ou descrição em forma de chave', () => {
+    const answer = JSON.parse(readMcpResource('microteia://extension-points', ROOT)) as {
+      points: { id: string; title: string; description?: string }[];
+    };
+    const looksLikeKey = (text: string | undefined): boolean => text !== undefined && /^@?[a-z0-9.-]+\/[a-z0-9.-]+$/i.test(text);
+    for (const point of answer.points) {
+      expect(looksLikeKey(point.title), `${point.id}: ${point.title}`).toBe(false);
+      expect(looksLikeKey(point.description), `${point.id}: ${point.description}`).toBe(false);
+    }
   });
 
   /** Todo recurso publicado tem de responder — uma URI listada e ilegível é pior que ausente. */
@@ -179,6 +201,37 @@ describe('o servidor MCP de autoria', () => {
     expect(answer.forms.some((form) => form.eventName.includes('<collection>.saved'))).toBe(true);
     expect(answer.notes.join(' ')).toMatch(/ABSOLUTE/);
     expect(answer.notes.join(' ')).toMatch(/RELATIVE/);
+  });
+
+  /**
+   * A gramática servida é DERIVADA do catálogo que o motor usa: monta-se uma tela com tudo o que faz
+   * um gatilho existir (data, notas, documentos, portal rastreado) e todo nome que o catálogo oferece
+   * tem de ter a sua forma na lista. `portalViewed` e `audit.recorded` existiam no motor e no guia, e
+   * faltavam aqui — o agente que confia no recurso nunca os escrevia.
+   */
+  it('lista toda forma de evento que o catálogo do motor oferece', () => {
+    const answer = JSON.parse(readMcpResource('microteia://workflow/events', ROOT)) as { forms: { eventName: string }[] };
+    const served = answer.forms.flatMap((form) => form.eventName.split(' | '));
+    const ctx = createSchemaContext([{
+      id: 'things',
+      collection: 'things',
+      eventPrefix: 'thing',
+      titleSingular: 'Thing',
+      titleFieldKey: 'name',
+      hasNotes: true,
+      hasDocuments: true,
+      tracksPortalViews: true,
+      fields: [
+        { key: 'name', label: 'Name', type: 'text', required: false, order: 0, origin: 'plugin' },
+        { key: 'due', label: 'Due', type: 'date', required: false, order: 1, origin: 'plugin' },
+      ],
+    }]);
+    const offered = buildWorkflowEventCatalog(ctx)
+      .map((entry) => entry.name.replace(/^thing_/, '<prefix>_').replace(/^thing\./, '<collection>.'));
+    expect(offered).toContain(`<collection>.${PORTAL_VIEWED_ACTION}`);
+    expect(offered).toContain(WORKFLOW_AUDIT_EVENT);
+    expect(offered).toContain(childRecordEventName('<prefix>', 'note', 'saved'));
+    for (const name of offered) expect(served, name).toContain(name);
   });
 
   /**

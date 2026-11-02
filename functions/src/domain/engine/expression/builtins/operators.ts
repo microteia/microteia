@@ -56,15 +56,6 @@ export const powerOperator: ExpressionOperator = {
   category: '@core.automation/expr.category.arithmetic',
 };
 
-export const factorialOperator: ExpressionOperator = {
-  symbol: '!',
-  name: '@core.automation/expr.factorial.name',
-  description: '@core.automation/expr.factorial.description',
-  usage: 'n!',
-  example: '5! → 120',
-  category: '@core.automation/expr.category.arithmetic',
-};
-
 // ==================== OPERADORES DE COMPARAÇÃO ====================
 
 export const equalOperator: ExpressionOperator = {
@@ -147,6 +138,17 @@ export const notOperatorSymbol: ExpressionOperator = {
   description: '@core.automation/expr.notOperatorSymbol.description',
   usage: 'not a',
   example: 'not (5 > 3) → false',
+  category: '@core.automation/expr.category.logical',
+};
+
+// O `!` do expr-eval cru é o FATORIAL; os dois parsers o redefinem como negação, e o catálogo
+// anunciava `5! → 120` para um operador que devolve `false`.
+export const negationOperator: ExpressionOperator = {
+  symbol: '!',
+  name: '@core.automation/expr.negation.name',
+  description: '@core.automation/expr.negation.description',
+  usage: '!a',
+  example: '!(5 > 3) → false',
   category: '@core.automation/expr.category.logical',
 };
 

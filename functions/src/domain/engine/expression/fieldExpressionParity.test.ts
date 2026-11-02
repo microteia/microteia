@@ -2,7 +2,8 @@ import { Parser } from 'expr-eval';
 import { describe, expect, it } from 'vitest';
 import { coreExpressionsPlugin } from '../../../plugins/core.expressions/manifest';
 import { FIELD_EXPRESSION_FUNCTION_NAMES, evaluateFieldExpression } from '../../schema/fieldExpression';
-import { ENGINE_PARSER_OPERATORS, buildEngineParser } from './ExpressionEngine';
+import { ENGINE_PARSER_OPERATORS, buildEngineParser, expressionEngine } from './ExpressionEngine';
+import type { WorkflowContext } from '../../entities/WorkflowContext';
 
 /**
  * O ExpressionEditor valida o que o usuário escreve contra o catálogo do WORKFLOW, que vem deste
@@ -148,5 +149,34 @@ describe('as duas pontas concordam sobre o significado dos operadores', () => {
   it('`!` é negação nas duas, e não o fatorial do expr-eval', () => {
     expect(noMotor('!(status == "draft")')).toBe(false);
     expect(naTela('!(status == "draft")')).toBe(false);
+  });
+});
+
+/**
+ * O mesmo nome, resultados diferentes — e DECLARADOS. Unificar mudaria o que expressões já gravadas nos
+ * escritórios devolvem, então a diferença fica: dita na descrição de cada função e no catálogo servido
+ * ao autor (`EXPRESSION_ENGINE_DIFFERENCES`). Este teste prende o que cada motor faz HOJE; se um lado
+ * mudar, a descrição tem de mudar junto.
+ */
+describe('as diferenças declaradas entre a tela e a automação', () => {
+  const naAutomacao = (expression: string): unknown =>
+    expressionEngine.evaluate(expression, { event: { payload: {} }, input: {}, outputs: {}, variables: {} } as unknown as WorkflowContext);
+  const naTela = (expression: string): unknown =>
+    evaluateFieldExpression(expression, { value: null, data: {} });
+
+  it('coalesce: a tela pula texto vazio, a automação o devolve', () => {
+    expect(naTela('coalesce("", "x")')).toBe('x');
+    expect(naAutomacao('coalesce("", "x")')).toBe('');
+  });
+
+  it('isEmpty: objeto vazio só é vazio na automação', () => {
+    expect(naTela('isEmpty(object())')).toBe(false);
+    expect(naAutomacao('isEmpty(object())')).toBe(true);
+  });
+
+  it('formatMoney: a automação cai em pt-br para o idioma que não conhece', () => {
+    expect(naAutomacao('formatMoney(1234.5)')).toBe('R$ 1.234,50');
+    expect(naAutomacao('formatMoney(1234.5, "fr-fr")')).toBe('R$ 1.234,50');
+    expect(naTela('formatMoney(1234.5, "en-US")')).toContain('1,234.50');
   });
 });

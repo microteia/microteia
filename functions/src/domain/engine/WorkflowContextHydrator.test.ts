@@ -11,6 +11,7 @@ import { hydrateAndRunWorkflow } from './hydrateAndRunWorkflow';
 import { makeMapStepDefinition } from '../../infrastructure/workflow/steps/MapStep';
 import { makeUpsertStepDefinition } from '../../infrastructure/workflow/steps/UpsertStep';
 import { fakeScreenProvider } from '../../domain/repositories/fakeScreenProvider';
+import { WORKFLOW_CALLED_EVENT } from '../schema/eventCatalog';
 
 const screens: SchemaScreen[] = [
   // Processo é declarado por extensão: a coleção, o prefixo dos eventos e os campos — inclusive a
@@ -657,5 +658,68 @@ describe('referência lida sozinha numa automação é o id (regressão da 9.108
     );
 
     expect(repository.written[0].data).toMatchObject({ title: 'Contestação', caseId: 'k1' });
+  });
+});
+
+/**
+ * O fluxo de um botão recebe o registro em `recordId`, e a condição da automação é avaliada ANTES de
+ * qualquer passo — num escopo que só tem `event`, `input`, `output` e `actor`. O plano gerado escrevia
+ * `recordId.status`, que não existe na raiz: a expressão falhava, a condição virava `false` e o botão
+ * respondia que a ação não se aplicava ao registro, sem nenhum passo rodar.
+ */
+describe('condição de um fluxo chamado por botão', () => {
+  const ran: string[] = [];
+  const marker: StepDefinition = {
+    ...makeMapStepDefinition(),
+    id: 'marker',
+    inputs: [],
+    createExecutor: () => ({
+      execute: async () => {
+        ran.push('marker');
+        return { success: true };
+      },
+    }),
+  };
+  const registry: StepRegistry = {
+    register: () => undefined,
+    resolve: (id) => (id === 'marker' ? marker : undefined),
+    list: () => [marker],
+  };
+  const warnings: string[] = [];
+  const logger = { info: () => undefined, warn: (message: string) => { warnings.push(message); }, error: () => undefined };
+
+  const runWithCondition = async (expression: string) => {
+    ran.length = 0;
+    const definition = makeDefinition({
+      eventName: WORKFLOW_CALLED_EVENT,
+      parameters: [{ key: 'recordId', label: 'Registro', type: 'EntityReference', entityType: 'contracts' }],
+      condition: { kind: 'Expression', expression },
+      steps: [{ id: 'm', stepDefinitionId: 'marker', type: 'Action', order: 0, enabled: true, configuration: {} }],
+    });
+    return hydrateAndRunWorkflow(
+      definition,
+      { id: 'evt1', tenantId: 'tenant1', name: WORKFLOW_CALLED_EVENT, payload: { recordId: 'c1' }, timestamp: new Date() },
+      {
+        registry,
+        services: { logger, now: () => new Date('2026-11-02T12:00:00Z') },
+        hydrator: new WorkflowContextHydrator(createFakeFetcher().fetcher, screenProvider),
+      },
+    );
+  };
+
+  it('event.recordId.<campo> lê o registro do botão, já hidratado, e os passos rodam', async () => {
+    const execution = await runWithCondition('event.recordId.status == "Ativo"');
+
+    expect(execution.skipped).toBeUndefined();
+    expect(execution.status).toBe('SUCCESS');
+    expect(ran).toStrictEqual(['marker']);
+  });
+
+  it('recordId.<campo> na raiz não existe: a condição falha, o fluxo é pulado e o aviso fica no log da execução', async () => {
+    const execution = await runWithCondition('recordId.status == "Ativo"');
+
+    expect(execution.skipped).toBe('condition');
+    expect(ran).toStrictEqual([]);
+    expect(execution.logs.some((entry) => entry.level === 'WARN' && entry.message === '@core.automation/condition.expression.eval-failed')).toBe(true);
   });
 });

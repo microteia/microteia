@@ -73,9 +73,11 @@ const screenSourceId = (screen: Pick<ScreenDefinition, 'id' | 'sourceId'>): stri
  * (1) Deduplica por `sourceId`: se uma tela com o mesmo id universal já existe no tenant (trazida por
  * outra extensão, criada no Form Design ou instalada antes), reusa a chave DELA — instala uma vez só,
  * sem órfão de dados, e uma instalação antiga na chave longa continua onde está.
- * (2) Senão, reivindica a chave declarada, com sufixo se o nome estiver ocupado. `taken` traz as
- * coleções não-tela do escritório (listas e etiquetas); as telas existentes e as chaves já
- * reivindicadas por telas anteriores DESTE pacote entram aqui também.
+ * (2) Senão, reivindica a chave declarada. Na instalação, um nome ocupado por OUTRA tela, lista ou
+ * etiqueta já foi recusado antes daqui (`installCollisionIssues`), e o sufixo que sobra é defesa: só o
+ * alcança uma colisão dentro do próprio pacote. `taken` traz as coleções não-tela do escritório
+ * (listas e etiquetas); as telas existentes e as chaves já reivindicadas por telas anteriores DESTE
+ * pacote entram aqui também.
  */
 export const buildScreenKeyMap = (
   screens: ScreenModuleTemplate[],

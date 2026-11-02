@@ -344,7 +344,7 @@ traduz, que é uma extensão contribuindo apenas nesse ponto.
 
 ## Documentação
 
-**Sem comentários dentro do código** — nomes devem ser autoexplicativos. Documentação fica no `ARCHITECTURE.md`. (Exceção: comentário de justificativa de um `eslint-disable-next-line` pontual.)
+**Comentário diz o PORQUÊ, nunca o quê.** O nome é que diz o que a coisa faz; o comentário (JSDoc ou de linha, em português — exceto nas extensões que viajam como exemplo de autoria, ver "Idioma") registra a decisão, a restrição ou o incidente que o código sozinho não conta. Comentário que repete o código não entra. A referência de arquitetura fica no `ARCHITECTURE.md`; o `eslint-disable-next-line` pontual leva sempre a justificativa.
 
 ---
 
@@ -493,7 +493,7 @@ O `ARCHITECTURE.md` **não** guarda cópia das regras; a tabela de índices que 
 
 1. **Qual camada?** Verifique a hierarquia e que nenhum import a viola.
 2. **Entidade nova?** Siga "Como Adicionar uma Nova Feature" do `ARCHITECTURE.md`.
-3. **Página nova?** 3 arquivos MVVM + `<Route>` em `App.tsx`/`pageRegistry` + entrada no Command Palette (se consultável) + link no Sidebar.
+3. **Página nova?** 3 arquivos MVVM + contribuições no manifest do plugin dono: `page()` (com a View em `implementations`), `nav()` para o menu e `command()` se consultável no ⌘K. Não há `pageRegistry` nem `NAV_ITEMS`.
 4. **Componente novo?** Pasta MVVM em `ui/` ou `layout/` + `index.ts` re-exportando a View. Nunca arquivo solto `Componente.tsx` na raiz de `ui/`.
 5. **Entidade de tenant?** Todo repositório recebe `tenantId` e lê/escreve em `tenants/{tenantId}/{coleção}`.
 6. **Entidade filha de outra?** Planeje o `Delete[Entidade]UseCase` com cascata **antes** de escrever código (seção "Cascata de Exclusão").

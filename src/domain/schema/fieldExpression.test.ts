@@ -61,6 +61,13 @@ describe('evaluateFieldValidation', () => {
     expect(evaluateFieldValidation('false', ctx)).toBe(null);
   });
 
+  it('não é sim/não: true reprova com o erro genérico, e só texto vazio, null ou false aprovam', () => {
+    const ctx = { value: 'x', data: {} };
+    expect(evaluateFieldValidation('true', ctx)).toBe('@core.records/field.invalid-value');
+    expect(evaluateFieldValidation('""', ctx)).toBe(null);
+    expect(evaluateFieldValidation('"Valor recusado"', ctx)).toBe('Valor recusado');
+  });
+
   it('padrão obrigatório-condicional', () => {
     const expr = 'if(isEmpty(value) and status == "ativo", "Obrigatório para ativos", null)';
     expect(evaluateFieldValidation(expr, { value: '', data: { status: 'ativo' } })).toBe('Obrigatório para ativos');

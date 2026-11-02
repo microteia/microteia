@@ -159,7 +159,8 @@ const byVersionDescending = (left: ChannelEntry, right: ChannelEntry): number =>
   compareVersions(right.version, left.version);
 
 /**
- * Acrescenta a entrada e promove o canal, RECUSANDO uma versão que já está lá.
+ * Acrescenta a entrada e promove o canal à MAIOR versão entre a atual e a nova, RECUSANDO uma versão
+ * que já está lá.
  *
  * Republicar é a origem de "a mesma versão com dois conteúdos", e ela não tem conserto depois: alguém
  * conferiu um hash contra o download de ontem e a partir dali as duas instalações discordam sobre o que
@@ -173,9 +174,14 @@ export const withEntry = (index: ChannelIndex, entry: ChannelEntry): ChannelInde
     );
   }
 
+  // Publicar fora de ordem é permitido (uma correção numa linha antiga), e o canal não pode andar para
+  // trás por isso: `latest` passaria a entregar uma versão MAIS VELHA a quem atualiza.
+  const current = index.channels[STABLE_CHANNEL];
+  const stable = current !== undefined && compareVersions(current, entry.version) > 0 ? current : entry.version;
+
   return {
     schema: INDEX_SCHEMA,
-    channels: { ...index.channels, [STABLE_CHANNEL]: entry.version },
+    channels: { ...index.channels, [STABLE_CHANNEL]: stable },
     kernel: [entry, ...index.kernel].sort(byVersionDescending),
   };
 };

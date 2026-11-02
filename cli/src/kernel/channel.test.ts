@@ -112,6 +112,7 @@ describe('acrescentar uma versão ao catálogo', () => {
   it('e o número menor entra na posição dele, sem virar o canal errado', () => {
     const next = withEntry(parseIndex(catalog(['9.8.2'], '9.8.2'), 'x'), entry('9.7.9'));
     expect(next.kernel.map((candidate) => candidate.version)).toEqual(['9.8.2', '9.7.9']);
+    expect(next.channels.stable).toBe('9.8.2');
   });
 
   /**

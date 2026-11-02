@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.consumer-example",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "kernel": "^2.0.0",
     "name": "@com.microteia.consumer-example/package.name",
     "description": "@com.microteia.consumer-example/package.description",
@@ -160,7 +160,7 @@
             },
             "params": {
               "kind": "Expression",
-              "expression": "object(\"code\", steps.normalize.code, \"reason\", \"tidied by the consumer example\")"
+              "expression": "object(\"code\", output.normalize.code, \"reason\", \"tidied by the consumer example\")"
             },
             "waitForResult": {
               "kind": "Literal",

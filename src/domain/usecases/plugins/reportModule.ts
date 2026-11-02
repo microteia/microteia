@@ -4,10 +4,9 @@ import type { ReportSpec } from '../../schema/report/reportSpec';
 /**
  * Reescreve toda referência a COLEÇÃO dentro do spec para a chave INSTALADA.
  *
- * É a perna que resolve o sufixo: `buildScreenKeyMap` dá `produtos_2` quando `produtos` já está
- * ocupado no escritório de destino, e um relatório que continuasse apontando para `produtos` leria
- * uma coleção vazia — sem erro, sem aviso, e só no segundo escritório que instalasse duas extensões
- * com a mesma chave de tela.
+ * É a perna que resolve a ADOÇÃO: quando o escritório já tem a tela de mesmo `sourceId` sob outra
+ * chave (uma instalação antiga em `produtos_2`), `buildScreenKeyMap` devolve a chave dele, e um
+ * relatório que continuasse apontando para `produtos` leria uma coleção vazia — sem erro e sem aviso.
  *
  * Anda pelo `dataset` inteiro em vez de cutucar `dataset.table` porque `joins` entrará por aqui, e um
  * reescritor que conhece um campo só envelhece na primeira adição.

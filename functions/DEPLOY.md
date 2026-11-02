@@ -4,7 +4,11 @@
 > `scripts/deployLists.test.ts` é o que garante que nenhuma function exportada fique fora deles. Se as
 > duas pontas divergirem, o `package.json` está certo e este arquivo está velho.
 
-As 28 Cloud Functions estão organizadas em **6 grupos**, para deploys seletivos nos
+> **Desatualizado:** a contagem e as seções abaixo descrevem 28 functions em 6 grupos; hoje são 78
+> functions em 13 grupos (`workflow`, `reports`, `import`, `documents`, `audit`, `auth`, `access`, `tenant`,
+> `portal`, `agent`, `marketplace`, `util`, `notifications`). A lista por grupo é a do `package.json`.
+
+As Cloud Functions estão organizadas em grupos, para deploys seletivos nos
 NOSSOS ambientes (`microteia-dev` e `curatino`), onde todas sobem.
 
 **Grupo não é dono.** 5 destas functions pertencem a uma extensão, declaradas no

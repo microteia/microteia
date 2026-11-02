@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
+import { packageSizeAdvisory } from '../../domain/usecases/plugins/pluginReferences';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
 import { buildPlugin } from './compile';
 import { describeMessage, packageText } from './messages';
@@ -346,6 +347,29 @@ const sayNamespace = (id: string, root: string): number => {
   return 1;
 };
 
+/**
+ * Aviso, nunca recusa: `Contribution.when` existe no tipo e nenhuma superfície o avalia — a contribuição
+ * vale sempre. Recusar quebraria o pacote já publicado que o declara; calar deixava o autor achar que a
+ * condição esconde alguma coisa.
+ */
+const sayContributionWhen = (pkg: MarketplacePlugin): void => {
+  const declaring = (pkg.manifest.contributes ?? []).filter((one) => typeof one.when === 'string');
+  if (declaring.length === 0) return;
+  say();
+  warn(`${declaring.length} contribution(s) declare \`when\`, which the kernel does not evaluate:`);
+  for (const one of declaring) say(`  ${YELLOW}!${RESET} ${one.id} ${DIM}(${one.point})${RESET}`);
+  say(`  ${DIM}The contribution is always present. Gate what it shows inside the view, or with the${RESET}`);
+  say(`  ${DIM}point's own condition (an action's hiddenWhen, a badge's when).${RESET}`);
+};
+
+/** Aviso, nunca recusa: o mesmo da tela "Criar extensão", a partir de `PACKAGE_ADVISORY_BYTES`. */
+const saySizeAdvisory = (pkg: MarketplacePlugin): void => {
+  const advisory = packageSizeAdvisory(pkg);
+  if (!advisory) return;
+  say();
+  warn(describeMessage(advisory.message, advisory.messageParams));
+};
+
 /** Aviso, nunca recusa: as extensões anteriores ao prefixo continuam válidas. */
 const sayPrefix = (pkg: Parameters<typeof lacksPackagePrefix>[0]): void => {
   if (!lacksPackagePrefix(pkg)) return;
@@ -393,6 +417,8 @@ const build = (args: Args, write: boolean): number => {
   sayNavGroups(result.package, root);
   const outsideNamespace = sayNamespace(manifest.id, root);
   sayPrefix(result.package);
+  sayContributionWhen(result.package);
+  saySizeAdvisory(result.package);
   const problems = result.issues.length + refusedRefs + outsideNamespace;
 
   if (problems > 0) {

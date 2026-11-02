@@ -5,6 +5,7 @@ import { messageBundlesOf } from '../../domain/schema/i18n/extensionPoints';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { CORE_ACCESS_MESSAGES } from '../../plugins/messages/coreAccess';
 import { CORE_ADMIN_MESSAGES } from '../../plugins/messages/coreAdmin';
+import { CORE_AUTH_MESSAGES } from '../../plugins/messages/coreAuth';
 import { CORE_AUTOMATION_MESSAGES } from '../../plugins/messages/coreAutomation';
 import { CORE_DATA_MESSAGES } from '../../plugins/messages/coreData';
 import { CORE_I18N_MESSAGES } from '../../plugins/messages/coreI18n';
@@ -44,6 +45,7 @@ import { CORE_WORKSPACE_MESSAGES } from '../../plugins/messages/coreWorkspace';
 export const CORE_BUNDLES: MessageBundle[] = [
   ['core.access', CORE_ACCESS_MESSAGES],
   ['core.admin', CORE_ADMIN_MESSAGES],
+  ['core.auth', CORE_AUTH_MESSAGES],
   ['core.automation', CORE_AUTOMATION_MESSAGES],
   ['core.data', CORE_DATA_MESSAGES],
   ['core.i18n', CORE_I18N_MESSAGES],

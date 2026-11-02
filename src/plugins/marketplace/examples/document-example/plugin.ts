@@ -169,8 +169,9 @@ export const documentExamplePlugin: MarketplacePlugin = {
       documentMessagesContribution(),
       documentPtBrContribution(),
       /**
-       * The screens are addressed by `sourceId`, never by key: the installed key can gain a suffix when
-       * the name is taken in the organization (`docAgreement_2`), the `sourceId` never changes.
+       * The screens are addressed by `sourceId`, never by key: an organization that already had the
+       * screen keeps its own key (an older installation may sit under `docAgreement_2`), the `sourceId`
+       * never changes.
        */
       documentTemplateContribution({
         key: 'payment-plan',

@@ -13,11 +13,11 @@ import { authPtBrContribution } from './authMessagesPtBr';
  * `impl: code` here would have made signing in a first-party privilege — the exact opposite of what it
  * needs to be, since this is the integration every office adds without passing through us.
  *
- * **`password` is in the same list, and that is the most consequential choice in the design.** It is
- * not an external provider; it is this house's own form. Its being declarable is what lets an
- * installation with mandatory single sign-on simply NOT declare it — and then the form, the create
- * account link and the forgot password link disappear together, because all three exist only for
- * people who have a password here.
+ * **`password` is in the same list.** It is not an external provider; it is this house's own form,
+ * declared — like `google` — by the kernel itself, so both are always offered. An extension cannot
+ * withdraw them: `defaultEnabled: false` hides only a provider of the package that declares it. An
+ * installation with mandatory single sign-on adds its provider BESIDE the form; hiding the form is not
+ * possible yet.
  *
  * **Installing is not enough.** The screen that serves `/login` runs ABOVE any office: there is no
  * organization yet, so there is no installed-extensions document to read. A package that contributes

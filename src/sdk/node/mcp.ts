@@ -9,7 +9,8 @@ import { validatePluginPackage } from '../validate';
 import { buildPlugin } from './compile';
 import { hostModuleBlock, hostModuleNames, hostTypesPath, readHostTypes } from './hostTypes';
 import { referencedSymbols, sdkDeclaration, sdkSurfaceNames, sdkTypesRoot } from './sdkTypes';
-import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../domain/schema/fieldExpression';
+import { FIELD_EXPRESSION_FUNCTION_NAMES, FIELD_EXPRESSION_OPERATOR_FUNCTIONS } from '../../domain/schema/fieldExpression';
+import { EXPRESSION_ENGINE_DIFFERENCES } from './workspace/expressionEngines';
 import { describeMessage, packageText } from './messages';
 import {
   CONTROL_STEP_TYPES,
@@ -31,8 +32,11 @@ import { NUMERIC_AGGREGATION_OPS } from '../../domain/schema/fieldRules';
 import {
   ENTITY_EVENT_ACTIONS,
   NESTED_EVENT_SUFFIXES,
+  PORTAL_VIEWED_ACTION,
   WORKFLOW_CALLED_EVENT,
 } from '../../domain/schema/eventCatalog';
+import { AUDIT_EVENT_FIELDS, WORKFLOW_AUDIT_EVENT } from '../../domain/schema/workflowAuditTrigger';
+import { PORTAL_VIEW_REPEAT_MINUTES } from '../../domain/schema/portal';
 import {
   DATE_REACHED_ACTION,
   DEFAULT_DATE_REACHED_AT,
@@ -84,7 +88,7 @@ import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS } from './installedCatalog';
 import { EXAMPLES_DIR, findPluginFiles } from './workspacePlugins';
-import { belongsToNamespace, outsideNamespaceMessage, workspaceNamespace } from './workspace/namespace';
+import { belongsToNamespace, outsideNamespaceMessage, storedKeepIds, workspaceNamespace } from './workspace/namespace';
 import { describeExtension, exampleCoverageReport, listExamples } from './describeExtension';
 
 /**
@@ -266,12 +270,21 @@ const describeRecordSurfaces = (pkg: MarketplacePlugin, root: string): string =>
     .join('\n')}`;
 };
 
-/** Aviso, como no `check`: o id é permanente, e uma extensão já publicada fora do namespace fica como está. */
+/**
+ * A mesma regra do `check`: id fora do namespace é RECUSA de `check` e `build`, a menos que esteja em
+ * `microteia.keepIds` — aí é aviso. Dizer "nunca recusado" aqui fazia o agente seguir até o `build`, que
+ * recusava.
+ */
 const describeNamespace = (pkg: MarketplacePlugin, root: string): string => {
   const namespace = workspaceNamespace(root);
   if (namespace === null || belongsToNamespace(pkg.manifest.id, namespace)) return '';
-  return `\n\nWarning (never refused): ${outsideNamespaceMessage(pkg.manifest.id, namespace)} `
-    + 'Keep it only if this extension is already installed somewhere — its id cannot change.';
+  if (storedKeepIds(root).includes(pkg.manifest.id)) {
+    return `\n\nWarning: ${outsideNamespaceMessage(pkg.manifest.id, namespace)} `
+      + 'Kept: it is listed in package.json, under microteia.keepIds.';
+  }
+  return `\n\nRefused by check and build: ${outsideNamespaceMessage(pkg.manifest.id, namespace)} `
+    + 'If this extension is already installed somewhere, its id cannot change: add it to package.json, under '
+    + 'microteia.keepIds. If it is a copy, give it an id of your own.';
 };
 
 /**
@@ -1123,8 +1136,8 @@ const PURE_READS: ToolDefinition[] = [
       codeImplNote:
         'A package may declare impl kind "code" (a view or a startup, delivered as source). It is not '
         + 'refused by validation; it simply does not execute until an administrator of the organization '
-        + 'reads the source and trusts it, and the trust is bound to that exact code by hash. See '
-        + 'AUTHORING.md, "Code trust".',
+        + 'trusts its author, and the trust is bound to that exact code by hash. See AUTHORING.md, '
+        + '"Code trust".',
       points: ALL_POINTS.map((point) => ({
         id: point.id,
         apiVersion: point.apiVersion,
@@ -1195,6 +1208,13 @@ const PURE_READS: ToolDefinition[] = [
             + 'organization\'s time zone — once per record and per date value',
           eventPayload: 'the record, as on a save, without "changeType" and "old"',
         },
+        {
+          eventName: `<collection>.${PORTAL_VIEWED_ACTION}`,
+          fires: 'a portal guest opens a record of a screen that declares `portal.trackViews`, or gets the link of one '
+            + `of its documents — once per guest and per record or document within ${PORTAL_VIEW_REPEAT_MINUTES} minutes`,
+          eventPayload: 'the record, as on a save, without "changeType" and "old", plus "portalView" (at, email, '
+            + 'documentId, documentName, documentType); the guest is the `actor`',
+        },
         ...NESTED_EVENT_SUFFIXES.map((suffix) => ({
           eventName: `<prefix>${suffix}.${ENTITY_EVENT_ACTIONS.join(` | <prefix>${suffix}.`)}`,
           fires: `a ${suffix.slice(1)} of a record changes. <prefix> is the event prefix of the record's screen `
@@ -1211,6 +1231,12 @@ const PURE_READS: ToolDefinition[] = [
           eventName: WORKFLOW_CALLED_EVENT,
           fires: 'an action, or another workflow, invokes it — never on its own',
           eventPayload: 'the `parameters` the workflow declares, which become its `event.`',
+        },
+        {
+          eventName: WORKFLOW_AUDIT_EVENT,
+          fires: 'an entry of the organization\'s Audit trail that a PERSON caused — never one the kernel or an '
+            + 'automation wrote',
+          eventPayload: `the entry: "id", ${AUDIT_EVENT_FIELDS.map((field) => `"${field.key}"`).join(', ')}`,
         },
         {
           eventName: WORKFLOW_SCHEDULE_EVENT,
@@ -1283,11 +1309,12 @@ const PURE_READS: ToolDefinition[] = [
     inputSchema: { type: 'object', properties: {} },
     run: () => pretty({
       kernelVersion: KERNEL_VERSION,
-      functions: [...FIELD_EXPRESSION_FUNCTION_NAMES].sort(),
+      functions: [...FIELD_EXPRESSION_FUNCTION_NAMES, ...FIELD_EXPRESSION_OPERATOR_FUNCTIONS].sort(),
       operators: ['+', '-', '*', '/', '%', '^', '==', '!=', '>', '>=', '<', '<=', 'and', 'or', 'not', '!', '? :', 'in'],
+      differences: EXPRESSION_ENGINE_DIFFERENCES,
       note:
-        'A name resolved as an operator is not repeated as a function: "not", "abs", "ceil" and '
-        + '"floor" work through the operator form. "hasPermission" answers about whoever is looking, '
+        'The list includes the names resolved as operators (abs, ceil, floor, min, max, sqrt); "not" '
+        + 'works through the operator form only. "hasPermission" answers about whoever is looking, '
         + 'and accepts the patterns "<entity>.delete", "*.delete", "invoices.*" and "invoice%.read". '
         + '"addBusinessDays", "businessDaysBetween", "isBusinessDay" and "nextBusinessDay" count with the '
         + 'business-day calendars an extension declares on "time.business.calendar"; a missing calendar '

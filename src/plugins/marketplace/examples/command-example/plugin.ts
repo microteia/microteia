@@ -42,7 +42,7 @@ const NOTE_FIELDS: TemplateField[] = [
 
 /**
  * The screen exists so the palette and the mention have something to find. `sourceId` is how the
- * startup code locates it: the screen KEY can gain a suffix in the destination office, and the id it
+ * startup code locates it: an office that already had the screen keeps its own KEY, and the id it
  * ends up with is not the one declared here — the `sourceId` is stable everywhere.
  */
 const NOTE_SCREEN: ScreenModuleTemplate = {

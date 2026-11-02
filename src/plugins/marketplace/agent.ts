@@ -9,12 +9,13 @@ const message = (key: string): string => `@com.microteia.agent/${key}`;
  * **AI Agent Access** — the switch that puts the office's MCP endpoint in the air.
  *
  * The extension carries almost nothing, and that is the point of it. What it does carry is the one
- * thing declaring cannot replace: `backend.functions`. The three Cloud Functions it claims leave the
+ * thing declaring cannot replace: `backend.functions`. The six Cloud Functions it claims — the MCP
+ * endpoint, the two callables that issue and revoke an access, and the three of the OAuth flow — leave the
  * package baseline and are deployed ONLY in the projects of offices that installed it — so an office
  * that never wanted this has no HTTP endpoint in the air at all, which is a stronger guarantee than
  * any check made at request time.
  *
- * The three functions are the kernel's, not this extension's, and so are the `agentGrants` collection
+ * The six functions are the kernel's, not this extension's, and so are the `agentGrants` collection
  * and the `agent.manage` permission — for the same reason `aiConnections` and `ai.manage` are: the
  * collection is reserved, the callables validate against the office's own permission catalog, and the
  * screen that issues an access needs that catalog. What an extension can own is the DECISION to have

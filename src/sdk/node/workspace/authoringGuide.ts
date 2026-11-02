@@ -60,7 +60,8 @@ import {
   DEFAULT_AUDIT_RETENTION_DAYS,
 } from '../../../domain/schema/auditRetention';
 import type { StepType } from '../../../domain/entities/Workflow';
-import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../../domain/schema/fieldExpression';
+import { FIELD_EXPRESSION_FUNCTION_NAMES, FIELD_EXPRESSION_OPERATOR_FUNCTIONS } from '../../../domain/schema/fieldExpression';
+import { EXPRESSION_ENGINE_DIFFERENCES } from './expressionEngines';
 import { BUSINESS_CALENDAR_FIELDS } from '../../../domain/schema/time/businessDays';
 import { BUSINESS_CALENDAR_POINT } from '../../../domain/schema/time/extensionPoints';
 import { ARTIFACT_PREFIX_SINCE_KERNEL } from '../../../domain/schema/plugin/artifactPrefix';
@@ -661,8 +662,8 @@ Every record detail hosts a tab surface of its own, addressed by the screen's \`
 \`recordSurface('<sourceId>')\` returns \`${RECORD_SURFACE_PREFIX}<sourceId>\`. Contribute a \`ui.tab\` there with
 \`surfaceTab\` or \`surfaceTabSpec\` and it appears after Data, Notes and Documents, on saved records
 only, in the same list as the child-screen tabs — the organization orders and toggles both together in
-Settings, and by default child screens come first. Address the \`sourceId\`, never the installed key: the key may be disambiguated
-on install, the \`sourceId\` does not change. A screen of another extension is fair game — declare
+Settings, and by default child screens come first. Address the \`sourceId\`, never the installed key: an organization that already had a screen
+with the same \`sourceId\` keeps its own key, the \`sourceId\` does not change. A screen of another extension is fair game — declare
 that extension in \`dependencies\`.
 
 A \`code\` tab receives \`RecordTabProps\` from \`@microteia/data\`: \`recordId\`, \`record\` (as stored,
@@ -925,7 +926,8 @@ export default function CompactLayout({ children }: { children: React.ReactNode 
 \`\`\`
 
 \`shell\` carries the brand, the menu, the page title, the guest (whose name is the account's), the themes
-(the same "Automatic" plus installed themes the main app offers, remembered in the browser), switching
+("Automatic" plus the platform's own themes — the themes the organization installed do not reach a guest, who
+is not a member —, remembered in the browser), switching
 organization, signing out, and the open/closed state of a drawer (\`navOpen\`, \`toggleNav\`) and of the
 account menu. \`PortalUserMenu\` already offers all of it. A layout that draws its own account corner
 must offer the theme and signing out — and must keep the menu reachable.
@@ -945,8 +947,8 @@ the content area is about 1040px wide at most.
   keep it to a number, a short list or one call to action.
 - **Tap targets of at least 44px** (\`theme.spacing['2xl']\` is 48px). Text never below
   \`theme.fontSizes.sm\` on a phone.
-- **Theme only.** Colours, sizes and spaces come from the theme — the organization's theme is what the
-  guest sees, in light or dark.
+- **Theme only.** Colours, sizes and spaces come from the theme — the guest picks "Automatic" or one of the
+  platform's own themes, in light or dark; the themes the organization installed do not reach a guest.
 - **Check it at 360px wide** before publishing.
 
 #### Records for every guest — \`subject: 'public'\`
@@ -1208,8 +1210,8 @@ follows it to the screen that is in the portal for that collection, whatever its
 That matters for a screen over a collection named apart from its key (\`dataCollection\`): installing it
 also writes a bare screen under the collection's own name, so the organization has two screens over the
 same records, and only yours declares \`portal\`. Point at the collection (\`parentEntity: 'sites'\`),
-not at your screen's key — the key may get a suffix where it is installed, and the parent's record tabs
-are found by the collection too.
+not at your screen's key — the installed key is the organization's own when it already had a screen with
+the same \`sourceId\`, and the parent's record tabs are found by the collection too.
 
 Requires \`kernel: "^${PORTAL_LINK_BY_COLLECTION_SINCE_KERNEL}"\`. An older kernel stops at the bare screen,
 and the records behind that link reach nobody.
@@ -1269,8 +1271,8 @@ list again.
 
 \`collection\` follows the rule of every other reference: in your package (\`lookups\` or \`screens\`) or
 in a declared dependency (\`collections\`), and \`check\` refuses one that leads nowhere. Name a screen
-of your package by its key, as a field would: the platform finds the installed screen even when its
-key had to be disambiguated in the office.
+of your package by its key, as a field would: the platform finds the installed screen even when the
+office already had it, with the same \`sourceId\`, under another key.
 
 What the editor does, so you do not have to: it is the record form's own control, so options keep
 their colours and several values show as removable chips. A value whose option or record no longer
@@ -1296,10 +1298,11 @@ rather than drawn: a button that does not know whom to talk to locks out whoever
 \`flow: 'redirect'\` leaves the page and comes back, instead of opening a window. Use it wherever the
 window is blocked — a hardened corporate browser, an iframe, an embedded app.
 
-\`password\` is the platform's own e-mail-and-password form, declared through the same point. An
-installation that requires single sign-on simply does not declare it, and the form, the sign-up link
-and the password reset all disappear — the three together, because the three only exist for whoever
-has a password here.
+\`password\` is the platform's own e-mail-and-password form, declared through the same point — by the
+kernel itself, together with \`google\`, so both are ALWAYS offered. An extension cannot withdraw them:
+\`defaultEnabled: false\` hides only a provider of the package that declares it, and a contribution reusing
+the key \`password\` does not hide the kernel's. An installation that requires single sign-on cannot hide
+the form today; it adds its provider beside it.
 
 The sign-in screen runs ABOVE the organization: there is no tenant, no settings document and no
 permission there. So sign-in methods are decided by what is DECLARED, never by a setting — and the
@@ -1369,7 +1372,9 @@ id is the whole of how an update recognises the same contribution across version
 
 Two fields every contribution accepts, and both are easy to miss:
 
-- **\`when\`** — an expression. The contribution exists only while it is true.
+- **\`when\`** — accepted by the type and evaluated by no surface: the contribution is always present, and
+  \`check\` warns when one declares it. Gate what a contribution shows inside it, or with the point's own
+  condition (an action's \`hiddenWhen\`, a badge's \`when\`).
 - **\`priority\`** — who wins when several contributions land on the same single-valued point.
 
 Metadata for a screen, a tab or a widget also takes **\`requiredPermissions\`**: a list, and **one** of
@@ -1515,8 +1520,10 @@ Any other import throws. This is an import allowlist, not a sandbox: the code ru
 can reach \`fetch\` and the DOM like any script. The real containment is **provenance**.
 
 So: a package carrying \`views\` or \`startup\` installs **inert**. An administrator of the organization
-opens the source, reads it, and trusts it. The trust is bound to that exact code by content hash —
-change one character and it must be trusted again. Nothing you can put in the package changes this,
+is asked whether they trust its AUTHOR — the dialog shows who published it, whether that identity was
+confirmed, and what the code will be able to do; it does not show the source. Whoever needs to read the
+code reads it in the package file before importing it. The trust is bound to that exact code by content
+hash — change one character and it must be trusted again. Nothing you can put in the package changes this,
 and you should not design as though it might.
 
 Author views as real files:
@@ -1579,8 +1586,9 @@ A \`nav()\` — and a \`menuItem()\` whose action is \`openTab\` — names exact
 | \`screenSourceId: '<sourceId>'\` | the list of a screen, found by its universal id | a screen of a dependency |
 
 **A screen's key is not a tab key.** The list of a screen lives in a tab only the installation can name:
-the key may gain a suffix there (\`products\` becomes \`products_2\` when the name is taken), or be the key
-of a screen the organization already had with the same \`sourceId\`. \`screen\` is resolved after all of
+it is the key of a screen the organization already had with the same \`sourceId\` (an older installation
+may sit under \`products_2\`), and a key already taken by ANOTHER screen, list or tag set refuses the
+installation — nothing is renamed. \`screen\` is resolved after all of
 that, so the entry keeps working; you never write the tab yourself.
 
 \`check\` — and the installation — refuse an entry that leads nowhere: a \`key\` that no page of this
@@ -2531,14 +2539,13 @@ no statements, no assignment, no side effects.
 |---|---|
 | \`field.logic.compute\` | the field's value, derived from the record and stored on save |
 | \`field.logic.derive\` | the field's value, evaluated on every read and never stored |
-| \`field.logic.validate\` | whether the value is acceptable |
+| \`field.logic.validate\` | the error message: a text is the message shown, \`null\`, \`''\` or \`false\` accept the value, and any other result is the generic "invalid value". It is not a yes/no — \`true\` REFUSES |
 | \`field.logic.hiddenWhen\`, \`disabledWhen\` | whether the field is shown, and whether it can be edited |
 | \`field.logic.onChange\` | an object merged into the form when this field changes — seeds values the person can still edit |
 | \`field.aggregation.filter\` | which child records enter the aggregate |
 | \`report.dataset.includeWhen\` | which rows enter the report (§11) |
 | \`action.hiddenWhen\`, \`disabledWhen\`, \`activeWhen\` | whether a button appears, is pressable, or reads as ON |
 | \`nav().badge.when\` | which records the menu badge counts |
-| \`contribution.when\` | whether the contribution exists at all |
 | workflow \`condition\` of \`kind: 'Expression'\`, and any \`{ kind: 'Expression' }\` input mapping | whether the automation runs, and what a step receives |
 
 **The scope is what changes between them, and it is the thing that trips people up:**
@@ -2731,7 +2738,14 @@ collection that never counts business days pays nothing for the capability.
 
 The complete set the installed platform resolves, derived from it rather than from this table:
 
-${FIELD_EXPRESSION_FUNCTION_NAMES.map((name) => `\`${name}\``).join(', ')}
+${[...FIELD_EXPRESSION_FUNCTION_NAMES, ...FIELD_EXPRESSION_OPERATOR_FUNCTIONS].map((name) => `\`${name}\``).join(', ')}
+
+**Same name, two engines.** A field or action expression and an automation are evaluated by different
+engines, and a few functions answer differently — the served \`microteia://expression-functions\` lists them:
+
+| Function | Field or action expression | Automation |
+|---|---|---|
+${Object.entries(EXPRESSION_ENGINE_DIFFERENCES).map(([name, one]) => `| \`${name}\` | ${one.screen} | ${one.automation} |`).join('\n')}
 
 ## 10. Automation — workflows, actions and scripts
 
@@ -2776,8 +2790,8 @@ workflows: [{
 
 **\`eventName\`** is \`<collection>.saved\` or \`<collection>.deleted\` — for your own screens, for a screen
 the organization designed, for a collection that already exists. Also \`lookup.saved\` / \`lookup.deleted\`
-(with \`lookupCollection\` naming which list), \`<parent>.note.saved\` / \`.deleted\`, the same for
-\`document\`, \`workflow.called\` for a workflow that only exists to be invoked — that one declares
+(with \`lookupCollection\` naming which list), \`<prefix>_note.saved\` / \`.deleted\` and the same for
+\`document\` (\`<prefix>\` is the parent screen's \`eventPrefix\`, or its collection), \`workflow.called\` for a workflow that only exists to be invoked — that one declares
 \`parameters\`, which become the \`event.\` it receives —, \`schedule\` for one the clock starts,
 \`<collection>.dateReached\` for one that runs when a date of a record arrives, \`<collection>.portalViewed\`
 for one that runs when a portal guest opens a record (see below), and \`audit.recorded\` for
@@ -3294,8 +3308,9 @@ declares \`parameters\`:
 
 **The parameters ARE the \`event.\` of that flow.** When an action fires it, \`${ACTION_RECORD_PARAMETER}\` is
 the record of the button, sent on every run; declare it as an \`EntityReference\` to the collection and a
-condition or an expression reads its fields (\`${ACTION_RECORD_PARAMETER}.status\`) — see "What a button reads
-back". A step reads \`decision\` as
+condition or an expression reads its fields under \`event.\` (\`event.${ACTION_RECORD_PARAMETER}.status\`) — see "What a button reads
+back". A bare \`${ACTION_RECORD_PARAMETER}.status\` is not in scope: the workflow condition fails, counts as false, and
+the button reports that the action does not apply to the record. A step reads \`decision\` as
 \`{ kind: 'Event', path: 'decision' }\`, or as \`event.decision\` inside an expression — there is no
 \`payload\` level here, because nothing was saved.
 
@@ -3777,7 +3792,8 @@ CSV header and on the printed page. Do not work around it — a partial number p
 the one failure a reader cannot catch.
 
 **The collection name.** \`dataset.table\` is the \`key\` of a screen your package installs, and the
-installation rewrites it: the name can take a suffix in an organization that already uses it. Paths
+installation rewrites it: an organization that already had that screen, with the same \`sourceId\`, keeps
+its own key. Paths
 are NOT rewritten, because a path never names a collection. Point at a collection your package
 carries, or one a declared dependency brings — the package gate refuses anything else.
 
@@ -3831,7 +3847,7 @@ contributes: [
     key: 'acme-payment-plan',               // the address; the organization's template on the same key wins
     title: label('template.payment-plan'),  // a message reference, like every label
     collection: 'acmeAgreement',            // the screen key as you declared it...
-    screenSourceId: 'acme:agreement',       // ...and its sourceId, which wins: installed keys can get a suffix
+    screenSourceId: 'acme:agreement',       // ...and its sourceId, which wins: an adopted screen keeps the office's key
     format: 'markdown',
     body: PAYMENT_PLAN,                      // the text below
     fileName: 'Payment plan - {{party}}',
@@ -4328,8 +4344,8 @@ for the same reason: the part with a name is the part that can be tested.
 
 | | |
 |---|---|
-| Warning | ${kib(input.advisoryBytes)} |
-| Refused | ${kib(input.maxBytes)} |
+| Warning — from \`check\` and the app's Create extension screen; it still installs | ${kib(input.advisoryBytes)} |
+| Refused — by \`check\`, \`build\` and the installation | ${kib(input.maxBytes)} |
 
 A package is stored as a single document. If you are near the limit, the usual cause is code that
 should be several extensions, or a seed list that should be data.

@@ -330,7 +330,7 @@ describe('de uma frase de regra a um plano de telas', () => {
     expect(approve?.hiddenWhen).toBe('!hasPermission("purchaseOrders.update")');
     expect(approve?.requiresParameter).toBe('recordId');
     expect(approve?.recordParameter).toEqual({ key: 'recordId', type: 'EntityReference', entityType: 'purchaseOrders' });
-    expect(approve?.workflowCondition).toBe('recordId.status == "draft"');
+    expect(approve?.workflowCondition).toBe('event.recordId.status == "draft"');
     expect(approve?.returns?.step).toBe('map');
     expect(approve?.eventName).toBe('workflow.called');
   });

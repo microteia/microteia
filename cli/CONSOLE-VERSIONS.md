@@ -22,6 +22,12 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.34.0] — 2026-11-02
+
+- fix(publish): `withEntry` promotes `channels.stable` to the HIGHER of the current and the new version. Publishing out of order — a fix on an older line, `9.180.1` after `9.191.0` — moved `latest` back, and every `unpack --version latest` received the older version. `publish` says whether the version became `latest` or only joined the list.
+- fix(pack): `pack --output <dir>` warns that `publish` reads only `distributions/kernel/<version>/`; the package written elsewhere was simply not found.
+- docs(installation): a platform setting (`SELF_SERVICE_TENANTS`, `AUDIT_ARCHIVE_BUCKET`) reaches the functions with `microteia deploy --only functions`, not `provision`, which only tracks settings declared by extensions and by the installation's `functions/`. The prerequisites and `MICROTEIA.md` §3 said `provision`, which changed nothing.
+
 #### [2.33.0] — 2026-10-28
 
 - feat(export-catalog): each screen now carries `keys` — every record key of the collection as `name`, `kind`, `fields`, `scope`, `normalize` and `sparse`, plus `ownerPluginId` when an extension declared it — and each field carries `unique: true` when it is set. The conflict `message` and the deprecated `status` stay out: they do not change which reservation a record gets. Without this, the artifact plan proposed as new, on every run, a key the office declared in the Form Design or a third-party extension installed. Always written, even empty; a snapshot taken by an older Console is read as "keys unknown", and the authoring tools say so.

@@ -246,7 +246,7 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [
    * `recordId` is the record of the button. The platform sends it on EVERY run — with or without the
    * form — together with `action`, `source`, `context` and `isNew`, and none of the five is ever asked
    * in the form. Declaring it as an `EntityReference` is what lets a condition or an expression read
-   * the record's fields (`recordId.status`); read as `{ kind: 'Event', path: 'recordId' }` it is the id.
+   * the record's fields under `event.` (`event.recordId.status`) — a bare `recordId.status` is not in scope; read as `{ kind: 'Event', path: 'recordId' }` it is the id.
    */
   {
     templateId: 'wf-review',
