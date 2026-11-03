@@ -4,6 +4,7 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  documentId,
   FieldPath,
   getDoc,
   getDocs,
@@ -14,7 +15,10 @@ import {
   onSnapshot,
   orderBy,
   query,
+  startAfter,
   where,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { ref, uploadBytes } from 'firebase/storage';
@@ -26,6 +30,8 @@ import type {
   PortalGuest,
   PortalIdentityInvite,
   PortalLinkOption,
+  PortalListPage,
+  PortalListQuery,
   PortalMembership,
   PortalActionOutcome,
   PortalRecord,
@@ -63,6 +69,35 @@ import { stampDeletionActor } from '../utils/stampDeletionActor';
 import type { DeletionActor } from '../../domain/entities';
 
 const PAGE_LIMIT = PORTAL_RECORDS_WINDOW;
+
+/**
+ * A página das listas da aba Portal: pelo e-mail, desempatada pelo id, com UM documento a mais — é
+ * ele que diz se há página seguinte sem contar a coleção. A busca pelo começo do e-mail é um
+ * intervalo no próprio campo da ordem, e por isso o índice simples do Firestore basta.
+ */
+const listPageConstraints = (page: PortalListQuery): QueryConstraint[] => {
+  const prefix = page.search.trim().toLowerCase();
+  return [
+    ...(prefix ? [where('email', '>=', prefix), where('email', '<', `${prefix}\uf8ff`)] : []),
+    orderBy('email'),
+    orderBy(documentId()),
+    ...(page.after ? [startAfter(page.after.email, page.after.id)] : []),
+    limit(page.pageSize + 1),
+  ];
+};
+
+const listPageOf = <T>(
+  docs: QueryDocumentSnapshot[],
+  pageSize: number,
+  map: (one: QueryDocumentSnapshot) => T,
+): PortalListPage<T> => {
+  const shown = docs.slice(0, pageSize);
+  const last = shown[shown.length - 1];
+  return {
+    items: shown.map(map),
+    next: docs.length > pageSize && last ? { email: textOf(last.get('email')), id: last.id } : null,
+  };
+};
 
 export class FirebasePortalRepository implements IPortalRepository {
   async listMemberships(userId: string): Promise<PortalMembership[]> {
@@ -324,27 +359,28 @@ export class FirebasePortalRepository implements IPortalRepository {
 
   subscribeGuests(
     tenantId: string,
-    onUpdate: (guests: PortalGuest[]) => void,
+    page: PortalListQuery,
+    onUpdate: (page: PortalListPage<PortalGuest>) => void,
     onError?: (error: Error) => void,
   ): () => void {
     return onSnapshot(
-      collection(db, 'tenants', tenantId, PORTAL_USERS_COLLECTION),
-      (snapshot) => onUpdate(
-        snapshot.docs
-          .map((one): PortalGuest => {
-            const identity = asPortalVerifiedIdentity(one.get('identity'));
-            return {
-              userId: one.id,
-              email: textOf(one.get('email')),
-              displayName: textOf(one.get('displayName')),
-              subjectKeys: stringsOf(one.get('subjectKeys')),
-              subjectRoles: readPortalSubjectRoles(one.get('subjectRoles')),
-              ...(identity ? { identity } : {}),
-              ...(one.get('suspended') === true ? { suspended: true } : {}),
-            };
-          })
-          .sort((a, b) => a.email.localeCompare(b.email)),
-      ),
+      query(collection(db, 'tenants', tenantId, PORTAL_USERS_COLLECTION), ...listPageConstraints(page)),
+      (snapshot) => onUpdate(listPageOf(
+        snapshot.docs,
+        page.pageSize,
+        (one): PortalGuest => {
+          const identity = asPortalVerifiedIdentity(one.get('identity'));
+          return {
+            userId: one.id,
+            email: textOf(one.get('email')),
+            displayName: textOf(one.get('displayName')),
+            subjectKeys: stringsOf(one.get('subjectKeys')),
+            subjectRoles: readPortalSubjectRoles(one.get('subjectRoles')),
+            ...(identity ? { identity } : {}),
+            ...(one.get('suspended') === true ? { suspended: true } : {}),
+          };
+        },
+      )),
       (error) => onError?.(error),
     );
   }
@@ -386,28 +422,29 @@ export class FirebasePortalRepository implements IPortalRepository {
 
   subscribeIdentityInvites(
     tenantId: string,
-    onUpdate: (invites: PortalIdentityInvite[]) => void,
+    page: PortalListQuery,
+    onUpdate: (page: PortalListPage<PortalIdentityInvite>) => void,
     onError?: (error: Error) => void,
   ): () => void {
     return onSnapshot(
-      collection(db, 'tenants', tenantId, PORTAL_IDENTITY_INVITES_COLLECTION),
-      (snapshot) => onUpdate(
-        snapshot.docs
-          .map((one): PortalIdentityInvite => {
-            const claim = (one.get('claim') ?? {}) as Record<string, unknown>;
-            const normalize = PORTAL_CLAIM_NORMALIZERS.find((mode) => mode === claim.normalize) as PortalClaimNormalize | undefined;
-            return {
-              id: one.id,
-              email: textOf(one.get('email')),
-              displayName: textOf(one.get('displayName')),
-              claim: { name: textOf(claim.name), value: textOf(claim.value), ...(normalize ? { normalize } : {}) },
-              subjectKeys: stringsOf(one.get('subjectKeys')),
-              subjectRoles: readPortalSubjectRoles(one.get('subjectRoles')),
-              accepted: stringsOf(one.get('boundUserIds')).length > 0,
-            };
-          })
-          .sort((a, b) => a.email.localeCompare(b.email)),
-      ),
+      query(collection(db, 'tenants', tenantId, PORTAL_IDENTITY_INVITES_COLLECTION), ...listPageConstraints(page)),
+      (snapshot) => onUpdate(listPageOf(
+        snapshot.docs,
+        page.pageSize,
+        (one): PortalIdentityInvite => {
+          const claim = (one.get('claim') ?? {}) as Record<string, unknown>;
+          const normalize = PORTAL_CLAIM_NORMALIZERS.find((mode) => mode === claim.normalize) as PortalClaimNormalize | undefined;
+          return {
+            id: one.id,
+            email: textOf(one.get('email')),
+            displayName: textOf(one.get('displayName')),
+            claim: { name: textOf(claim.name), value: textOf(claim.value), ...(normalize ? { normalize } : {}) },
+            subjectKeys: stringsOf(one.get('subjectKeys')),
+            subjectRoles: readPortalSubjectRoles(one.get('subjectRoles')),
+            accepted: stringsOf(one.get('boundUserIds')).length > 0,
+          };
+        },
+      )),
       (error) => onError?.(error),
     );
   }

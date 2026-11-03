@@ -379,6 +379,13 @@ const CORE_TENANT_PT_BR: Record<string, string> = {
   'portal.identity-invites': 'Convites por identidade verificada',
   'portal.identity-invite.accepted': 'aceito',
   'portal.identity-invite.pending': 'aguardando o primeiro acesso',
+  'portal.guests': 'Convidados',
+  'portal.list.search': 'Buscar pelo e-mail…',
+  'portal.list.no-match': 'Nenhum e-mail começa com "{search}".',
+  'portal.list.page': 'Página {page}',
+  'portal.list.previous': 'Página anterior',
+  'portal.list.next': 'Próxima página',
+  'portal.identity.untitled': 'Novo provedor',
 };
 
 export const coreTenantPtBrContribution = (): Contribution =>

@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.194.0] — 2026-11-03
+
+- feat(portal/settings): the guest list and the identity-invite list in Settings › Portal are paged on the server. `IPortalRepository.subscribeGuests` and `subscribeIdentityInvites` now take a `PortalListQuery` (`search`, `after`, `pageSize`) and deliver a `PortalListPage` with the cursor of the next page; the query orders by `email` then document id and fetches one extra document to know whether another page exists. They used to listen to the whole collection, re-reading every guest on any change — unworkable for an organization with thousands of guests. The search is an `email` prefix range on the ordering field, so the built-in single-field index serves it: no new index, field, rule or data migration.
+- feat(portal/settings): each list renders in its own frame (`PortalListFrame`) with search, internal scroll and previous/next paging; identity providers are listed compactly and edited one at a time, like the portal texts.
+- fix(portal/settings): a subject whose screen title field is a reference showed the raw id of the pointed record ("Domicílio eletrônico: O2aJFann4uLX…"). Subject labels and the invite form's record picker now resolve titles through `useReferenceOptions`, the same resolver the reference fields use.
+
 #### [9.193.0] — 2026-11-02
 
 - docs(readme): the repository README is now in English, like every other document that describes the platform outside this repository, and links to the official documentation at https://doc.microteia.com. It was the only external-facing page of the kernel still in Portuguese.

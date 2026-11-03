@@ -374,4 +374,11 @@ export const CORE_TENANT_MESSAGES: Record<string, string> = {
   'portal.identity-invites': 'Invitations by verified identity',
   'portal.identity-invite.accepted': 'accepted',
   'portal.identity-invite.pending': 'waiting for the first sign-in',
+  'portal.guests': 'Guests',
+  'portal.list.search': 'Search by e-mail…',
+  'portal.list.no-match': 'No e-mail starts with "{search}".',
+  'portal.list.page': 'Page {page}',
+  'portal.list.previous': 'Previous page',
+  'portal.list.next': 'Next page',
+  'portal.identity.untitled': 'New provider',
 };

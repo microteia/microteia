@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.194.0] — 2026-11-03
+
+- Na aba Portal do Escritório, os convidados e os convites por identidade verificada ganharam cada um a sua própria lista, com busca pelo e-mail e páginas — a aba não cresce mais com o número de pessoas, e continua leve mesmo com milhares de convidados.
+- Os provedores de identidade agora aparecem numa lista resumida, com o botão de editar ao lado de cada um, como nos textos do portal.
+- Quando o nome de um registro vem de outro registro — como o domicílio eletrônico, que leva o nome do contribuinte —, o portal passa a mostrar esse nome no lugar de um código.
+
 #### [9.193.0] — 2026-11-02
 
 - A apresentação do projeto passa a ser em inglês, como o restante da documentação da Microteia, e aponta para a documentação oficial em doc.microteia.com.

@@ -1,16 +1,15 @@
 import React from 'react';
-import { RiCloseLine, RiMailSendLine, RiShieldCheckLine, RiUserUnfollowLine } from 'react-icons/ri';
 import { usePortalTabViewModel } from './PortalTab.viewmodel';
 import { S } from './PortalTab.styles';
 import { Button } from '../../../components/ui/Button';
 import { Input, Label } from '../../../components/ui/Input';
 import { SearchSelect } from '../../../components/ui/SearchSelect';
-import { ConfirmModal } from '../../../components/ui/ConfirmModal';
-import { Spinner } from '../../../components/ui/Spinner';
 import { InfoBanner } from '../../../components/ui/InfoBanner';
 import { useT } from '../../../shared/i18n/useT';
 import { PortalHomeSettings } from './components/PortalHomeSettings';
 import { PortalSignInSettings } from './components/PortalSignInSettings';
+import { PortalGuestList } from './components/PortalGuestList';
+import { PortalIdentityInviteList } from './components/PortalIdentityInviteList';
 import { PortalReprojectionStatus } from '../../../components/ui/PortalReprojectionStatus';
 
 export const PortalTabView: React.FC = () => {
@@ -96,112 +95,15 @@ export const PortalTabView: React.FC = () => {
         <InfoBanner variant="info" message={t('portal.claim.required-hint')} />
       )}
 
-      {vm.guestsLoading ? (
-        <S.SpinnerWrap><Spinner /></S.SpinnerWrap>
-      ) : vm.guests.length === 0 ? (
-        <S.Empty>{t('portal.guests.empty')}</S.Empty>
-      ) : (
-        <S.GuestList>
-          {vm.guests.map((guest) => (
-            <S.GuestRow key={guest.userId}>
-              <S.GuestInfo>
-                <S.GuestName>
-                  {guest.name}
-                  {guest.verified && <S.Verified><RiShieldCheckLine size={12} />{guest.verified}</S.Verified>}
-                  {guest.suspended && <S.Suspended>{t('portal.guest.suspended')}</S.Suspended>}
-                </S.GuestName>
-                {guest.name !== guest.email && <S.Empty>{guest.email}</S.Empty>}
-                <S.Subjects>
-                  {guest.subjects.map((subject) => (
-                    <S.Subject key={subject.key}>
-                      {subject.label}
-                      <S.SubjectRemove
-                        type="button"
-                        onClick={() => void vm.removeSubject(guest, subject.key)}
-                        title={t('portal.subject.remove')}
-                      >
-                        <RiCloseLine size={12} />
-                      </S.SubjectRemove>
-                    </S.Subject>
-                  ))}
-                </S.Subjects>
-              </S.GuestInfo>
-              <S.Actions>
-                {guest.canResendLink && (
-                  <Button variant="ghost" size="sm" onClick={() => void vm.resendLink(guest)} title={t('portal.link.resend')}>
-                    <RiMailSendLine size={14} />
-                  </Button>
-                )}
-                <Button variant="ghost" size="sm" onClick={() => vm.requestRevoke(guest)} title={t('portal.revoke')}>
-                  <RiUserUnfollowLine size={14} />
-                </Button>
-              </S.Actions>
-            </S.GuestRow>
-          ))}
-        </S.GuestList>
-      )}
-
-      {vm.identityInvites.length > 0 && (
-        <S.GuestList>
-          <S.ListTitle>{t('portal.identity-invites')}</S.ListTitle>
-          {vm.identityInvites.map((invite) => (
-            <S.GuestRow key={invite.id}>
-              <S.GuestInfo>
-                <S.GuestName>
-                  {invite.name}
-                  <S.Verified><RiShieldCheckLine size={12} />{invite.claim}</S.Verified>
-                </S.GuestName>
-                <S.Empty>
-                  {invite.email}
-                  {' · '}
-                  {invite.accepted ? t('portal.identity-invite.accepted') : t('portal.identity-invite.pending')}
-                </S.Empty>
-                <S.Subjects>
-                  {invite.subjects.map((subject) => (
-                    <S.Subject key={subject.key}>
-                      {subject.label}
-                      <S.SubjectRemove
-                        type="button"
-                        onClick={() => void vm.removeInviteSubject(invite, subject.key)}
-                        title={t('portal.subject.remove')}
-                      >
-                        <RiCloseLine size={12} />
-                      </S.SubjectRemove>
-                    </S.Subject>
-                  ))}
-                </S.Subjects>
-              </S.GuestInfo>
-              <S.Actions>
-                <Button variant="ghost" size="sm" onClick={() => vm.requestRevokeInvite(invite)} title={t('portal.revoke')}>
-                  <RiUserUnfollowLine size={14} />
-                </Button>
-              </S.Actions>
-            </S.GuestRow>
-          ))}
-        </S.GuestList>
-      )}
+      <PortalGuestList
+        describeSubject={vm.describeSubject}
+        verifiedBadge={vm.verifiedBadge}
+        identityRequired={vm.identityRequired}
+      />
+      <PortalIdentityInviteList describeSubject={vm.describeSubject} />
 
       {vm.hasSubjectScreens && <PortalSignInSettings onSaved={vm.reloadSignIn} />}
       {vm.hasSubjectScreens && <PortalHomeSettings />}
-
-      <ConfirmModal
-        isOpen={!!vm.guestToRevoke}
-        onConfirm={() => void vm.confirmRevoke()}
-        onCancel={vm.cancelRevoke}
-        title={t('portal.revoke.title')}
-        message={t('portal.revoke.message', { name: vm.guestToRevoke?.name ?? '' })}
-        confirmLabel={t('portal.revoke')}
-        variant="danger"
-      />
-      <ConfirmModal
-        isOpen={!!vm.inviteToRevoke}
-        onConfirm={() => void vm.confirmRevokeInvite()}
-        onCancel={vm.cancelRevokeInvite}
-        title={t('portal.revoke.title')}
-        message={t('portal.revoke.message', { name: vm.inviteToRevoke?.name ?? '' })}
-        confirmLabel={t('portal.revoke')}
-        variant="danger"
-      />
     </S.Container>
   );
 };

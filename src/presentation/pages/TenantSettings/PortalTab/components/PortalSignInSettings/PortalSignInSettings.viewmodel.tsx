@@ -31,12 +31,26 @@ export interface PortalProviderDraft {
   clearSecret: boolean;
 }
 
+/** Um provedor como a lista o mostra, fechado. */
+export interface PortalProviderRow {
+  key: string;
+  /** O nome do botão; sem ele, o id; sem os dois, "novo provedor". */
+  title: string;
+  issuer: string;
+}
+
 export interface PortalSignInSettingsViewModel {
   loading: boolean;
   saving: boolean;
   emailLink: boolean;
   setEmailLink: (value: boolean) => void;
-  providers: PortalProviderDraft[];
+  providerRows: PortalProviderRow[];
+  /** O provedor aberto para edição — um por vez, como os textos do portal. */
+  editing: PortalProviderDraft | null;
+  edit: (key: string) => void;
+  closeEditor: () => void;
+  /** Muda o provedor aberto. */
+  updateEditing: (patch: Partial<PortalProviderDraft>) => void;
   canAddProvider: boolean;
   addProvider: () => void;
   removeProvider: (key: string) => void;
@@ -96,6 +110,7 @@ export const usePortalSignInSettingsViewModel = (onSaved?: () => void): PortalSi
   const [saving, setSaving] = useState(false);
   const [emailLink, setEmailLink] = useState(true);
   const [providers, setProviders] = useState<PortalProviderDraft[]>([]);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const nextKey = useRef(0);
   const [callbackUrl] = useState(() => `${window.location.origin}${PORTAL_SIGN_IN_CALLBACK_PATH}`);
 
@@ -124,10 +139,12 @@ export const usePortalSignInSettingsViewModel = (onSaved?: () => void): PortalSi
       key, id: '', label: '', issuer: '', clientId: '', scopes: '', claims: '', levelClaim: '', userInfo: false,
       secret: '', hasSecret: false, clearSecret: false,
     }]);
+    setEditingKey(key);
   }, []);
 
   const removeProvider = useCallback((key: string) => {
     setProviders((current) => current.filter((provider) => provider.key !== key));
+    setEditingKey((current) => (current === key ? null : current));
   }, []);
 
   const updateProvider = useCallback((key: string, patch: Partial<PortalProviderDraft>) => {
@@ -154,12 +171,28 @@ export const usePortalSignInSettingsViewModel = (onSaved?: () => void): PortalSi
     }
   }, [tenantId, providers, emailLink, uc.save, load, notify, t, label, onSaved]);
 
+  const providerRows = useMemo<PortalProviderRow[]>(() => providers.map((provider) => ({
+    key: provider.key,
+    title: provider.label.trim() || provider.id.trim() || t('portal.identity.untitled'),
+    issuer: provider.issuer.trim(),
+  })), [providers, t]);
+
+  // Depois de salvar, os provedores voltam do servidor com chaves novas — e o editor fecha sozinho.
+  const editing = useMemo(
+    () => providers.find((provider) => provider.key === editingKey) ?? null,
+    [providers, editingKey],
+  );
+
   return {
     loading,
     saving,
     emailLink,
     setEmailLink,
-    providers,
+    providerRows,
+    editing,
+    edit: setEditingKey,
+    closeEditor: () => setEditingKey(null),
+    updateEditing: (patch) => { if (editingKey) updateProvider(editingKey, patch); },
     canAddProvider: providers.length < PORTAL_IDENTITY_PROVIDERS_MAX,
     addProvider,
     removeProvider,

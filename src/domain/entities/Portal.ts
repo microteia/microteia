@@ -227,6 +227,32 @@ export interface PortalIdentityInvite {
   accepted: boolean;
 }
 
+/**
+ * Onde a próxima página das listas do portal começa. A ordem é pelo e-mail, desempatada pelo id —
+ * dois convites por identidade podem ter o mesmo e-mail, e sem o id a página pulava um deles.
+ */
+export interface PortalListCursor {
+  email: string;
+  id: string;
+}
+
+/**
+ * Uma página das listas de convidados e de convites. `search` é o COMEÇO do e-mail: é a busca que a
+ * consulta resolve sozinha, sem índice novo nem campo novo gravado — numa prefeitura são milhares de
+ * convidados, e a lista inteira não cabe numa leitura.
+ */
+export interface PortalListQuery {
+  search: string;
+  after: PortalListCursor | null;
+  pageSize: number;
+}
+
+export interface PortalListPage<T> {
+  items: T[];
+  /** Ausente quando esta é a última página. */
+  next: PortalListCursor | null;
+}
+
 /** A configuração de entrada como a aba a vê — o segredo do cliente nunca volta, só SE existe. */
 export interface PortalSignInSettingsView extends PortalSignInSettings {
   providers: Array<PortalIdentityProvider & { hasSecret: boolean }>;

@@ -3,6 +3,8 @@ import type {
   PortalDocument,
   PortalGuest,
   PortalIdentityInvite,
+  PortalListPage,
+  PortalListQuery,
   PortalLinkOption,
   PortalMembership,
   PortalActionOutcome,
@@ -112,10 +114,11 @@ export interface IPortalRepository {
    */
   restorePortalText(tenantId: string, input: { ref: string; locale: string; actor: DeletionActor }): Promise<void>;
 
-  /** Do lado do ESCRITÓRIO: quem é convidado, e de quê. */
+  /** Do lado do ESCRITÓRIO: quem é convidado, e de quê — uma página por vez, ao vivo. */
   subscribeGuests(
     tenantId: string,
-    onUpdate: (guests: PortalGuest[]) => void,
+    page: PortalListQuery,
+    onUpdate: (page: PortalListPage<PortalGuest>) => void,
     onError?: (error: Error) => void,
   ): () => void;
   /**
@@ -141,10 +144,11 @@ export interface IPortalRepository {
   ): Promise<{ userId: string; created: boolean; inviteId?: string }>;
   /** Do convidado (`userId`) ou do convite por identidade (`inviteId`); sem sujeito, tudo. */
   revoke(tenantId: string, guest: { userId: string } | { inviteId: string }, subjectKey: string | null): Promise<void>;
-  /** Do lado do ESCRITÓRIO: os convites por identidade, aceitos ou não. */
+  /** Do lado do ESCRITÓRIO: os convites por identidade, aceitos ou não — uma página por vez, ao vivo. */
   subscribeIdentityInvites(
     tenantId: string,
-    onUpdate: (invites: PortalIdentityInvite[]) => void,
+    page: PortalListQuery,
+    onUpdate: (page: PortalListPage<PortalIdentityInvite>) => void,
     onError?: (error: Error) => void,
   ): () => void;
   getSignInSettings(tenantId: string): Promise<PortalSignInSettingsView>;
