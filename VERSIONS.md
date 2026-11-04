@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.195.0] — 2026-11-04
+
+- Primeiro passo da busca em listas grandes: as telas já podem indicar por quais campos um registro deve ser encontrado — como as partes de um processo ou o número dele —, além do título. A busca que usa essa indicação chega na próxima versão.
+
 #### [9.194.0] — 2026-11-03
 
 - Na aba Portal do Escritório, os convidados e os convites por identidade verificada ganharam cada um a sua própria lista, com busca pelo e-mail e páginas — a aba não cresce mais com o número de pessoas, e continua leve mesmo com milhares de convidados.

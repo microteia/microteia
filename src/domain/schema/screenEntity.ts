@@ -322,6 +322,7 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
           }
         : {}),
       ...(field.filterable ? { filter: true } : {}),
+      ...(field.searchable ? { search: true } : {}),
       // `hiddenInForm` vira `ui.form: false`, o mesmo sinal que o registro usa para os campos que
       // nunca vão ao formulário — um caminho só para as duas origens.
       ...(field.hiddenInForm ? { form: false } : {}),
@@ -397,6 +398,7 @@ export const nativeSpecToFieldDefinition = (
   listIcon: spec.ui?.list?.icon ?? null,
   listOrder: spec.ui?.list?.order ?? null,
   filterable: spec.ui?.filter === true,
+  searchable: spec.ui?.search === true,
   unique: spec.unique === true,
   ...(spec.contact ? { contact: spec.contact } : {}),
   hiddenInForm: spec.ui?.form === false,

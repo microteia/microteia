@@ -362,6 +362,10 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'Field "{field}" of "{screen}" names the preset "{preset}" in {path}, which neither the kernel, this package nor its dependencies ({dependencies}) declare, so the field would silently lose it. Did you mean "{suggestion}"?',
   'issue.package.field.preset.slot':
     'Field "{field}" of "{screen}" names the preset "{preset}" in {path}, but "{preset}" (declared by {owner}) declares no {part} section, so {path} would do nothing on that field.',
+  'issue.package.field.reserved-key':
+    'Field "{field}" of "{screen}" uses the key "{field}", which the platform reserves for the terms records are searched by. Rename the field.',
+  'issue.package.field.searchable.type':
+    'Field "{field}" of "{screen}" is declared searchable, but it is a {type} field. Search reads only {types}: a date, a number or a checkbox is filtered on the list, not searched.',
   'issue.package.icon.unknown':
     'Icon "{icon}" ({where}) is not in the platform catalogue. The installation would draw the generic marker instead. Ask the microteia-plugin MCP server for list_icons to see every key.',
   'issue.package.message.key':

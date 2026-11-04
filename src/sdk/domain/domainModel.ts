@@ -160,6 +160,8 @@ export interface DomainField {
   unique?: boolean;
   /** Vira filtro e coluna da listagem. */
   filterable?: boolean;
+  /** O registro é achado pelo valor do campo na busca — o título entra sempre. */
+  searchable?: boolean;
   showInList?: boolean;
   section?: string;
 }
@@ -447,6 +449,7 @@ const readField = (raw: unknown, entityName: string, issues: DomainIssue[]): Dom
   if (str(raw.lookup) !== undefined) field.lookup = str(raw.lookup) as string;
   if (bool(raw.unique) !== undefined) field.unique = bool(raw.unique) as boolean;
   if (bool(raw.filterable) !== undefined) field.filterable = bool(raw.filterable) as boolean;
+  if (bool(raw.searchable) !== undefined) field.searchable = bool(raw.searchable) as boolean;
   if (bool(raw.showInList) !== undefined) field.showInList = bool(raw.showInList) as boolean;
   if (str(raw.section) !== undefined) field.section = str(raw.section) as string;
   return field;

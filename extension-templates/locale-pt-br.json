@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.156.0",
+    "version": "1.157.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1682,6 +1682,8 @@
             "issue.package.field.preset.absent": "O campo \"{field}\" de \"{screen}\" usa o preset \"{preset}\" em {path}, que nem o kernel, nem este pacote, nem as dependências dele ({dependencies}) declaram. Em execução, preset desconhecido não faz nada: o campo o perderia sem aviso.",
             "issue.package.field.preset.absent.suggest": "O campo \"{field}\" de \"{screen}\" usa o preset \"{preset}\" em {path}, que nem o kernel, nem este pacote, nem as dependências dele ({dependencies}) declaram, e o campo o perderia sem aviso. Você quis dizer \"{suggestion}\"?",
             "issue.package.field.preset.slot": "O campo \"{field}\" de \"{screen}\" usa o preset \"{preset}\" em {path}, mas \"{preset}\" (declarado por {owner}) não declara a seção {part}, e o {path} não faria nada nesse campo.",
+            "issue.package.field.reserved-key": "O campo \"{field}\" de \"{screen}\" usa a chave \"{field}\", que a plataforma reserva para os termos pelos quais os registros são buscados. Renomeie o campo.",
+            "issue.package.field.searchable.type": "O campo \"{field}\" de \"{screen}\" é declarado pesquisável, mas é um campo do tipo {type}. A busca só lê {types}: data, número e caixa de seleção se filtram na listagem, não se buscam.",
             "issue.package.icon.unknown": "O ícone \"{icon}\" ({where}) não está no catálogo da plataforma. A instalação desenharia o marcador genérico no lugar dele. Peça `list_icons` ao servidor MCP microteia-plugin para ver todas as chaves.",
             "issue.package.message.key": "A chave de mensagem \"{key}\" ({where}) é descartada na instalação: uma chave aceita só letras, dígitos, ponto e hífen, começando por letra ou dígito. Escreva \"a-b\", não \"a_b\".",
             "issue.package.message.reference": "O texto \"{reference}\" ({where}) parece uma referência de mensagem, mas não é, e a tela o mostraria como está escrito: o namespace e a chave aceitam só letras, dígitos, ponto e hífen, começando por letra ou dígito. Escreva \"a-b\", não \"a_b\".",

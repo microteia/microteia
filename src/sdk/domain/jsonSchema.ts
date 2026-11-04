@@ -118,6 +118,12 @@ export const domainModelJsonSchema = (): Record<string, unknown> => ({
             + 'comparison or whether the value is optional, declare entity.keys instead.',
         },
         filterable: { type: 'boolean' },
+        searchable: {
+          type: 'boolean',
+          description: 'Records are found by this field\'s value in search (the command palette, the list search box, '
+            + 'the reference picker). The title field is always searchable. A reference contributes the title of the '
+            + 'record it points to; a select, the option label. Only text, textarea, masked, select and reference.',
+        },
         showInList: { type: 'boolean' },
         section: { type: 'string' },
       },

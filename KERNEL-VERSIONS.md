@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.195.0] — 2026-11-04
+
+- feat(schema/search): `FieldDefinition.searchable` (canonical `ui.search`), round-tripped by `screenEntity` and carried by the SDK domain model (`domainModel`, `jsonSchema`, `toPlatform`). The title field is always searchable; `searchable` adds text, textarea, masked, select (by option label) and reference (by the title of the record it points to). Kernel contract `2.95.0`: an older kernel drops the key, and the field is simply not searched.
+- feat(schema/search): `domain/schema/recordSearch.ts` (shared with `functions/`) — the one normalization both sides use: accent- and case-folded words, prefixes from 2 to 20 characters (`curat` finds `Curatela`), a digits-only word for punctuated numbers (a case number or a formatted CPF is found by its first digits), a 400-term cap with the title first. Plus the pure pieces the server-side derivation needs: `searchFieldsOf`, `searchReferencesOf` (what to read in one query per collection), `recordSearchTerms` and `searchReferrersOf` (who must be re-derived when a referenced title changes). Nothing writes the terms yet — the trigger and the backfill land in the next version.
+- feat(rules): the client can neither create nor change `searchTerms` on a screen record; it belongs to the backend, since it carries titles of records in other collections. `rules-tests/recordSearch.test.ts`.
+- feat(package): `issue.package.field.searchable.type` refuses `searchable` on a type search does not read (date, number, checkbox, file, markdown), and `issue.package.field.reserved-key` refuses a field keyed `searchTerms`.
+- fix(records): `FirebaseRecordRepository` drops `searchTerms` when mapping and when creating, so a record duplicated from another never carries them into a write the rules refuse, and the in-memory lists do not hold hundreds of strings per record.
+
 #### [9.194.0] — 2026-11-03
 
 - feat(portal/settings): the guest list and the identity-invite list in Settings › Portal are paged on the server. `IPortalRepository.subscribeGuests` and `subscribeIdentityInvites` now take a `PortalListQuery` (`search`, `after`, `pageSize`) and deliver a `PortalListPage` with the cursor of the next page; the query orders by `email` then document id and fetches one extra document to know whether another page exists. They used to listen to the whole collection, re-reading every guest on any change — unworkable for an organization with thousands of guests. The search is an `email` prefix range on the ordering field, so the built-in single-field index serves it: no new index, field, rule or data migration.

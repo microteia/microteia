@@ -15,13 +15,23 @@ export const OTHER_TENANT = 't2';
  * `firestore.rules` é lido do disco — é o MESMO arquivo que vai para produção. Um teste que
  * carregasse uma cópia provaria coisa nenhuma.
  */
+/**
+ * A porta vem de `FIRESTORE_EMULATOR_HOST`, que o `emulators:exec` define com a que ele de fato abriu.
+ * Fixa em 8080, a suíte não rodava na máquina em que a 8080 já está ocupada — por um túnel, por
+ * outro emulador —, nem com um `firebase.json` de porta trocada.
+ */
+const firestorePort = (): number => {
+  const port = Number(process.env.FIRESTORE_EMULATOR_HOST?.split(':').pop());
+  return Number.isInteger(port) && port > 0 ? port : 8080;
+};
+
 export const testEnv = (): Promise<RulesTestEnvironment> =>
   initializeTestEnvironment({
     projectId: 'demo-microteia',
     firestore: {
       rules: readFileSync('firestore.rules', 'utf8'),
       host: '127.0.0.1',
-      port: 8080,
+      port: firestorePort(),
     },
     // As regras do Storage leem o Firestore (`firestore.get`): o emulador dele, que roda junto, é o
     // mesmo que a semente preenche.

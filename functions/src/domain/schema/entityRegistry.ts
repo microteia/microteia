@@ -47,6 +47,8 @@ export interface FieldUiSpec {
   list?: { icon?: string; order?: number };
   /** O campo vira filtro na listagem — o mesmo `filterable` da forma de autoria. */
   filter?: boolean;
+  /** O registro é achado pelo valor do campo — o mesmo `searchable` da forma de autoria. */
+  search?: boolean;
 }
 
 /**

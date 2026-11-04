@@ -86,6 +86,16 @@ export interface FieldDefinition {
   listOrder?: number | null;
   filterable?: boolean;
   /**
+   * O registro é ACHADO pelo valor deste campo — no ⌘K, na caixa de busca da listagem e no seletor
+   * de referência —, e não só pelo título, que entra sempre. Num campo de referência, é o título do
+   * registro apontado que entra; numa lista, o rótulo da opção.
+   *
+   * Existe porque a busca saiu da memória para o servidor (`recordSearch.ts`): ela só acha o que foi
+   * gravado como termo, e o que entra como termo é a tela quem diz — "polo ativo" num processo é
+   * vocabulário de domínio, e o kernel não teria como adivinhar.
+   */
+  searchable?: boolean;
+  /**
    * Valor com que o campo NASCE num registro novo — o que o formulário mostra antes de o usuário
    * tocar nele. Só semeia: o valor é livremente editável, ao contrário de `logic.compute`, que
    * deriva sempre, e de `logic.onChange`, que reage a outro campo.

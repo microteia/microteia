@@ -52,6 +52,7 @@ import {
   storedRecordKeyRefs,
 } from '../../domain/schema/recordKeys';
 import { omitSequenceFields, planRecordSequences } from '../../domain/schema/recordSequence';
+import { RECORD_SEARCH_FIELD } from '../../domain/schema/recordSearch';
 import { runRecordSequenceTransaction } from '../utils/recordSequenceTransaction';
 import { ambientTimeZone } from '../../domain/schema/clockGate';
 
@@ -161,6 +162,18 @@ const describeDenial = async (
  * registro entra no front, tudo o que vem depois — lista, card, filtro, ordenação, expressão de
  * ação — os enxerga como enxerga qualquer campo gravado.
  */
+/**
+ * Os termos de busca ficam no servidor. Trazê-los pesaria centenas de textos por registro na
+ * memória, e um registro duplicado a partir de outro os levaria de volta numa gravação que a regra
+ * recusa — o campo é do backend.
+ */
+const withoutSearchTerms = (values: Record<string, unknown>): Record<string, unknown> => {
+  if (!(RECORD_SEARCH_FIELD in values)) return values;
+  const copy = { ...values };
+  delete copy[RECORD_SEARCH_FIELD];
+  return copy;
+};
+
 const mapRecord = (
   id: string,
   d: Record<string, unknown>,
@@ -168,7 +181,7 @@ const mapRecord = (
   collection: string,
   derive: <T extends object>(record: T) => T,
 ): EntityRecord => derive({
-  ...(toPlainValues(d) as Record<string, unknown>),
+  ...withoutSearchTerms(toPlainValues(d) as Record<string, unknown>),
   id,
   tenantId,
   collection,
@@ -199,7 +212,7 @@ const stripIdentity = (data: EntityRecordValues): Record<string, unknown> => {
   void collection;
   void createdAt;
   void updatedAt;
-  return rest;
+  return withoutSearchTerms(rest);
 };
 
 export class FirebaseRecordRepository implements IRecordRepository {

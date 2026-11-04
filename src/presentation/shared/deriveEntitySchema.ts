@@ -22,6 +22,7 @@ const fkToFieldDefinition = (fk: FkSpec, order: number): FieldDefinition => ({
   refEntity: fk.targetCollection,
   multi: fk.multi,
   filterable: fk.ui?.filter === true,
+  searchable: fk.ui?.search === true,
   logic: null,
 });
 

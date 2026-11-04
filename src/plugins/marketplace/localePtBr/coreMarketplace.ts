@@ -361,6 +361,10 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'O campo "{field}" de "{screen}" usa o preset "{preset}" em {path}, que nem o kernel, nem este pacote, nem as dependências dele ({dependencies}) declaram, e o campo o perderia sem aviso. Você quis dizer "{suggestion}"?',
   'issue.package.field.preset.slot':
     'O campo "{field}" de "{screen}" usa o preset "{preset}" em {path}, mas "{preset}" (declarado por {owner}) não declara a seção {part}, e o {path} não faria nada nesse campo.',
+  'issue.package.field.reserved-key':
+    'O campo "{field}" de "{screen}" usa a chave "{field}", que a plataforma reserva para os termos pelos quais os registros são buscados. Renomeie o campo.',
+  'issue.package.field.searchable.type':
+    'O campo "{field}" de "{screen}" é declarado pesquisável, mas é um campo do tipo {type}. A busca só lê {types}: data, número e caixa de seleção se filtram na listagem, não se buscam.',
   'issue.package.icon.unknown':
     'O ícone "{icon}" ({where}) não está no catálogo da plataforma. A instalação desenharia o marcador genérico no lugar dele. Peça `list_icons` ao servidor MCP microteia-plugin para ver todas as chaves.',
   'issue.package.message.key':

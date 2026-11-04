@@ -154,6 +154,7 @@ export const fieldToDefinition = (
   if (field.section) definition.section = field.section;
   if (field.multi === true) definition.multi = true;
   if (field.filterable === true) definition.filterable = true;
+  if (field.searchable === true) definition.searchable = true;
   if (field.showInList === true) definition.showInList = true;
   // O atalho atravessa como atalho: `resolveScreenKeys` o desaçucara na plataforma, e traduzi-lo
   // aqui para uma entrada em `keys` produziria a MESMA chave por dois caminhos — e a de cá venceria

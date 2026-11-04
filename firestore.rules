@@ -900,6 +900,17 @@ service cloud.firestore {
         return !request.resource.data.keys().hasAny(['sha256']);
       }
 
+      // Os termos de busca (`searchTerms`, `domain/schema/recordSearch.ts`) são do BACKEND: eles
+      // carregam o título de registros de outras coleções, e só o gatilho que vê todas as gravações os
+      // mantém coerentes. Um termo forjado pelo cliente faria um registro aparecer na busca por um nome
+      // que ele não tem — e nenhuma tela mostraria de onde veio.
+      function leavesSearchTermsToServerOnCreate() {
+        return !('searchTerms' in request.resource.data);
+      }
+      function leavesSearchTermsToServerOnUpdate() {
+        return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['searchTerms']);
+      }
+
       // Uma LISTA DE OPÇÕES e um CONJUNTO DE ETIQUETAS são vocabulário, não dado: toda tela que os
       // referencia precisa deles para desenhar um `select` ou um chip, e exigir permissão de leitura
       // própria só produziria a tela meio carregada de quem tem acesso ao registro mas não à lista
@@ -1002,12 +1013,14 @@ service cloud.firestore {
         allow create: if isWritableScreen(screenCollection)
           && canOnCollection(screenCollection, 'create')
           && declaresOnlyUiOnCreate()
+          && leavesSearchTermsToServerOnCreate()
           && respectsEditWindowOnCreate(screenCollection);
         // Alterar e excluir pedem também VER o registro: quem não o lê não grava nele às cegas, e a
         // recusa não lhe conta que ele existe. Criar não pede — o registro pode nascer nomeando outra
         // pessoa, e é o encaminhamento que a restrição existe para permitir.
         allow update: if isWritableScreen(screenCollection)
           && keepsWriteViaOnUpdate()
+          && leavesSearchTermsToServerOnUpdate()
           && respectsEditWindowOnUpdate(screenCollection)
           && (canOnCollection(screenCollection, 'update')
               || (isMember(tenantId) && touchesOnlyMemberWritableFields(screenCollection)))
