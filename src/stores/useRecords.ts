@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { EntityRecord, EntityRecordValues } from '../domain/entities';
+import type { RecordQuerySpec } from '../domain/services/recordListQuery';
 
 export interface RecordStoreState {
   /** Registros por COLEÇÃO — a mesma chave que identifica a tela e a entidade. */
@@ -19,6 +20,10 @@ export interface RecordStoreState {
    * devolve a função que solta. Use `useRecordDemand`, que faz isso no ciclo de vida do componente.
    */
   demand: (collections: readonly string[], limit: number) => () => void;
+  /** Pede uma consulta de listagem (`planRecordListQuery`) enquanto quem pede precisar. Use `useRecordQuery`. */
+  watchQuery: (spec: RecordQuerySpec) => () => void;
+  /** O que cada consulta pedida entregou, pela chave do plano sem o tamanho (`recordQueryKey`). */
+  queryResults: Record<string, EntityRecord[]>;
   /** Traz, numa leitura por lote, os registros pedidos que ninguém carregou ainda. Pedido repetido não lê de novo. */
   ensureRecords: (collection: string, ids: readonly string[]) => void;
   /** A busca no servidor. O que volta passa a ser conhecido — o seletor o oferece, o cartão o nomeia. */

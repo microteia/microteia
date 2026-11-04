@@ -10,7 +10,7 @@ import type { RecordListViewModel } from '../entityScreen/useRecordListViewModel
  */
 const MEMBERS: Record<keyof RecordListViewModel, true> = {
   definition: true, collection: true, isAvailable: true, isLoading: true, records: true,
-  filteredRecords: true, filterTokens: true, filterDefs: true, savedFiltersScreenKey: true, tags: true,
+  filteredRecords: true, hasMore: true, loadMoreRef: true, windowNotice: true, filterTokens: true, filterDefs: true, savedFiltersScreenKey: true, tags: true,
   setFilterTokens: true, canRead: true, canCreate: true, canUpdate: true, canDeleteRecords: true,
   openNewRecord: true, openRecord: true, getCardItems: true, getCardTitle: true, getCardSubtitle: true,
   cardSubtitleIconKey: true,

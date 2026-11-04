@@ -39,6 +39,13 @@ export interface EntityListOptions {
    * polo). O registro novo nasce preenchendo o primeiro.
    */
   parent?: EntityListParent;
+  /**
+   * A lista PAGINA: traz os 50 mais recentes e mais 50 a cada vez que a marca do fim (`loadMoreRef`)
+   * entra na tela, e o filtro vai ao servidor. Com isso, `records` passa a ser o que já foi trazido —
+   * não a coleção inteira. Ausente, vale o contrato de sempre: a janela dos mais recentes, filtrada
+   * em memória.
+   */
+  paginate?: boolean;
 }
 
 export type EntityListParent =
@@ -65,7 +72,7 @@ const FIELD_KEYS_SEPARATOR = '\n';
  * O QUE aparece continua governado pela configuração da tela — não por algo fixo no código.
  */
 export const useEntityList = (sourceId: string, options: EntityListOptions = {}): RecordListViewModel => {
-  const { editKeyPrefix, defaultFilterTokens, sortRecords } = options;
+  const { editKeyPrefix, defaultFilterTokens, sortRecords, paginate } = options;
   const { dynamicScreens } = useScreenDefinitions();
 
   const screen = useMemo(
@@ -115,5 +122,6 @@ export const useEntityList = (sourceId: string, options: EntityListOptions = {})
     defaultFilterTokens,
     sortRecords,
     parent,
+    paginate,
   });
 };

@@ -36,7 +36,7 @@ export const useDynamicRecordListViewModel = (tabKey: string): DynamicRecordList
   const label = useLabel();
   const screenKey = useMemo(() => parseDynamicTabKey(tabKey)?.screenKey ?? '', [tabKey]);
 
-  const vm = useRecordListViewModel({ screenKey, savedFiltersKey: tabKey });
+  const vm = useRecordListViewModel({ screenKey, savedFiltersKey: tabKey, paginate: true });
   const definition = vm.definition;
   const backfillNotice = useAggregateBackfillNotice(definition);
   useRecordSearchReconcile(definition);

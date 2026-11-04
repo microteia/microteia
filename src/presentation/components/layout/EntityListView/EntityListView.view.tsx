@@ -4,6 +4,7 @@ import { S } from './EntityListView.styles';
 import { Button } from '../../ui/Button';
 import { Spinner } from '../../ui/Spinner';
 import { CompositeFilter } from '../../ui/CompositeFilter';
+import { InfoBanner } from '../../ui/InfoBanner';
 import type { FilterDef, FilterToken } from '../../ui/CompositeFilter';
 
 export interface EntityListViewProps {
@@ -60,6 +61,13 @@ export interface EntityListViewProps {
 
   children: React.ReactNode;
   modals?: React.ReactNode;
+  /**
+   * A marca do fim da lista, quando há mais registros a trazer: o view model a observa e pede a
+   * página seguinte quando ela entra na tela. Ausente, a lista acaba onde acaba.
+   */
+  loadMoreRef?: React.RefObject<HTMLDivElement | null>;
+  /** O aviso sob a lista — o de que o filtro mostra só os primeiros que atendem. */
+  footerNotice?: string | null;
 }
 
 export const EntityListView: React.FC<EntityListViewProps> = ({
@@ -87,6 +95,8 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
   belowHeader,
   children,
   modals,
+  loadMoreRef,
+  footerNotice,
 }) => {
   const addIcon = newIcon ?? <RiAddLine size={16} />;
   const embedded = variant === 'embedded';
@@ -133,7 +143,15 @@ export const EntityListView: React.FC<EntityListViewProps> = ({
             )}
           </S.EmptyState>
         ) : (
-          <S.Grid $layout={layout} $minWidth={cardMinWidth}>{children}</S.Grid>
+          <>
+            <S.Grid $layout={layout} $minWidth={cardMinWidth}>{children}</S.Grid>
+            {footerNotice && (
+              <S.Footer>
+                <InfoBanner message={footerNotice} variant="info" />
+              </S.Footer>
+            )}
+            {loadMoreRef && <S.LoadMoreSentinel ref={loadMoreRef} />}
+          </>
         )}
       </S.Content>
 

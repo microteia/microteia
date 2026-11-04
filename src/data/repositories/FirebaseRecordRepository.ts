@@ -25,6 +25,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../infrastructure/firebase/config';
 import { RECORD_WINDOW_DEFAULT } from '../../domain/repositories/IRecordRepository';
 import type { IRecordRepository } from '../../domain/repositories/IRecordRepository';
+import type { RecordQuerySpec } from '../../domain/services/recordListQuery';
 import type { EntityRecord, EntityRecordValues } from '../../domain/entities/EntityRecord';
 import type { DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
@@ -101,6 +102,26 @@ const listQuery = (
     or(...clauses.map((clause) => where(clause.field, clause.op, visibleTo.uid))),
     limit(max),
   );
+};
+
+/** As pontas do intervalo de data. A data é gravada ao meio-dia UTC: o dia inteiro, nas duas pontas, a contém. */
+const dayStart = (iso: string): Timestamp => Timestamp.fromDate(new Date(`${iso}T00:00:00.000Z`));
+const dayEnd = (iso: string): Timestamp => Timestamp.fromDate(new Date(`${iso}T23:59:59.999Z`));
+
+const specQuery = (tenantId: string, spec: RecordQuerySpec): Query => {
+  const ref = recordsRef(tenantId, spec.collection);
+  const clauses = spec.anyOf.map((clause) => where(clause.field, clause.op, clause.value));
+  const order = spec.orderBy ? [orderBy(spec.orderBy.field, spec.orderBy.dir)] : [];
+  // A disjunção (a aba de filhos apontados por mais de um campo) não leva intervalo: o plano nunca
+  // junta os dois, porque a combinação pediria índice composto.
+  if (clauses.length > 1) return query(ref, or(...clauses), ...order, limit(spec.limit));
+  const range = spec.range
+    ? [
+      ...(spec.range.from ? [where(spec.range.field, '>=', dayStart(spec.range.from))] : []),
+      ...(spec.range.to ? [where(spec.range.field, '<=', dayEnd(spec.range.to))] : []),
+    ]
+    : [];
+  return query(ref, ...clauses, ...range, ...order, limit(spec.limit));
 };
 
 const createdMillis = (record: EntityRecord): number =>
@@ -261,6 +282,26 @@ export class FirebaseRecordRepository implements IRecordRepository {
       (error) => {
         console.error(`[RecordRepository] subscribe ${collection}:`, error.message);
         onError?.(collection, error);
+      },
+    );
+  }
+
+  subscribeQuery(
+    tenantId: string,
+    spec: RecordQuerySpec,
+    onUpdate: (records: EntityRecord[]) => void,
+    onError?: (collection: string, error: Error) => void,
+  ): () => void {
+    return onSnapshot(
+      specQuery(tenantId, spec),
+      (snap) => {
+        const derive = makeRecordDeriver(spec.collection);
+        const records = snap.docs.map((d) => mapRecord(d.id, d.data(), tenantId, spec.collection, derive));
+        onUpdate(spec.orderBy ? records : newestFirst(records));
+      },
+      (error) => {
+        console.error(`[RecordRepository] subscribeQuery ${spec.collection}:`, error.message);
+        onError?.(spec.collection, error);
       },
     );
   }

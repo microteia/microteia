@@ -1,6 +1,7 @@
 import type { DeletionActor } from '../entities';
 import type { EntityRecord, EntityRecordValues, RecordDocument, RecordNote } from '../entities/EntityRecord';
 import type { MemberVisibilityFilter } from '../schema/memberVisibility';
+import type { RecordQuerySpec } from '../services/recordListQuery';
 
 /**
  * A janela padrão de uma coleção assinada: os mais recentes, até este número. É o que a listagem
@@ -33,6 +34,16 @@ export interface IRecordRepository {
     visibleTo?: MemberVisibilityFilter | null,
     /** Quantos dos mais recentes. Ausente, `RECORD_WINDOW_DEFAULT`. */
     limit?: number,
+  ): () => void;
+  /**
+   * Uma consulta de listagem (`planRecordListQuery`): só as formas que os índices de campo único
+   * servem. O que o servidor não ordena volta do mais recente ao mais antigo, ordenado aqui.
+   */
+  subscribeQuery(
+    tenantId: string,
+    spec: RecordQuerySpec,
+    onUpdate: (records: EntityRecord[]) => void,
+    onError?: (collection: string, error: Error) => void,
   ): () => void;
   getById(tenantId: string, collection: string, recordId: string): Promise<EntityRecord | null>;
   /**

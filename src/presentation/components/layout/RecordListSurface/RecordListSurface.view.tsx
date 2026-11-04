@@ -148,6 +148,8 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
         : headerActions}
       belowHeader={summary}
       modals={modals}
+      loadMoreRef={vm.hasMore ? vm.loadMoreRef : undefined}
+      footerNotice={vm.windowNotice}
     >
       {vm.filteredRecords.map((record) => {
         if (declaredBody) {

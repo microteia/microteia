@@ -100,4 +100,11 @@ export const S = {
     font-weight: 600;
     color: ${({ theme }) => theme.colors.text};
   `,
+  /** A marca no fim da lista que a rolagem infinita observa: só precisa existir para ser vista. */
+  LoadMoreSentinel: styled.div`
+    height: 1px;
+  `,
+  Footer: styled.div`
+    margin-top: ${({ theme }) => theme.spacing.md};
+  `,
 };

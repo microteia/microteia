@@ -1108,9 +1108,11 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     isAvailable: boolean;
     isLoading: boolean;
     /**
-     * The WHOLE list - locked to the parent when options.parent is given, in the order of
-     * options.sortRecords, and blind to the filter the person typed. Use it to count, to find a record
-     * by id, to compute totals. To draw the list, use filteredRecords.
+     * The WHOLE list - the newest records of the collection, up to a window of 500 (all the parent's
+     * records when options.parent is given), in the order of options.sortRecords, and blind to the
+     * filter the person typed. Use it to count, to find a record by id, to compute totals. To draw the
+     * list, use filteredRecords. With options.paginate it is only what has been fetched so far, and the
+     * server-side filter has already narrowed it.
      */
     records: any[];
     /**
@@ -1119,6 +1121,20 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
      * list a person can narrow is the one they expect to see.
      */
     filteredRecords: any[];
+    /** options.paginate: there are records beyond the ones fetched. */
+    hasMore: boolean;
+    /**
+     * options.paginate: put ref={list.loadMoreRef} on an empty element after the last card, rendered
+     * while hasMore. When it scrolls into view, the next page is fetched. RecordListSurface does it for
+     * you.
+     */
+    loadMoreRef: { current: HTMLDivElement | null };
+    /**
+     * options.paginate with a filter: the sentence saying the list shows only the first records that
+     * match, ordered among themselves, and that scrolling loads more. null otherwise. Show it under the
+     * list; RecordListSurface does.
+     */
+    windowNotice: string | null;
     filterTokens: FilterToken[];
     filterDefs: FilterDef[];
     setFilterTokens: (tokens: FilterToken[]) => void;
@@ -1201,6 +1217,15 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
      * component.
      */
     sortRecords?: (a: any, b: any) => number;
+    /**
+     * The list PAGES: it fetches the 50 newest records and 50 more each time loadMoreRef scrolls into
+     * view, and a filter the person picks goes to the server (one equality there, the rest checked on
+     * what comes back; a date-only range pages by that date). records then holds only what has been
+     * fetched - do not count or look up by id in it. Without it, the list keeps the newest 500 and
+     * filters in memory, as always. Ignored together with sortRecords: a list in its own order needs
+     * the whole window to be in that order.
+     */
+    paginate?: boolean;
     /**
      * Locks the list to ONE record. A lock, not a filter the user can clear. Card actions see surface
      * 'parentTab' and the relation to the parent, and openNewRecord() opens the form with the field

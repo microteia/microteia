@@ -3,6 +3,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { EntityRecord } from '../domain/entities';
+import type { RecordQuerySpec } from '../domain/services/recordListQuery';
 
 interface Subscription {
   collection: string;
@@ -26,6 +27,11 @@ const repository = {
     subscriptions.push(subscription);
     return () => { subscription.active = false; };
   }),
+  subscribeQuery: vi.fn((_tenantId: string, spec: RecordQuerySpec, onUpdate: (records: EntityRecord[]) => void) => {
+    const subscription: Subscription = { collection: `query:${spec.collection}`, limit: spec.limit, deliver: onUpdate, active: true };
+    subscriptions.push(subscription);
+    return () => { subscription.active = false; };
+  }),
 };
 
 vi.mock('./useTenant', () => ({ useTenant: () => ({ currentTenant: { id: 't1', ownerId: 'u1' }, members: [] }) }));
@@ -37,6 +43,7 @@ vi.mock('../infrastructure/di/useDI', () => ({
 
 const { RecordStoreProvider } = await import('./RecordStore');
 const { useRecords } = await import('./useRecords');
+const { recordQueryKey } = await import('./useRecordQuery');
 
 const wrapper = ({ children }: { children: React.ReactNode }) => <RecordStoreProvider>{children}</RecordStoreProvider>;
 const live = (collection: string) => subscriptions.filter((subscription) => subscription.collection === collection && subscription.active);
@@ -45,6 +52,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   subscriptions.length = 0;
   repository.subscribe.mockClear();
+  repository.subscribeQuery.mockClear();
 });
 
 afterEach(() => {
@@ -100,5 +108,32 @@ describe('RecordStore — a coleção é assinada enquanto alguém a pede', () =
 
     expect(live('cases')).toHaveLength(0);
     expect(result.current.recordsByCollection.cases).toBeUndefined();
+  });
+});
+
+describe('RecordStore — as consultas da listagem', () => {
+  const spec = (limit: number): RecordQuerySpec => ({
+    collection: 'cases', limit, anyOf: [], range: null, orderBy: { field: 'createdAt', dir: 'desc' },
+  });
+
+  it('carregar mais reassina a MESMA consulta com o tamanho maior, e o que estava na tela fica até a resposta', () => {
+    const { result } = renderHook(() => useRecords(), { wrapper });
+    act(() => { result.current.watchQuery(spec(50)); });
+    act(() => live('query:cases')[0].deliver([{ id: 'c1', collection: 'cases' } as EntityRecord]));
+
+    act(() => { result.current.watchQuery(spec(100)); });
+
+    const key = recordQueryKey(spec(50));
+    expect(live('query:cases')).toHaveLength(1);
+    expect(live('query:cases')[0].limit).toBe(100);
+    expect(result.current.queryResults[key].map((record) => record.id)).toEqual(['c1']);
+    expect(repository.subscribe).not.toHaveBeenCalled();
+  });
+
+  it('o que a consulta trouxe passa a ser conhecido — o cartão e o seletor o nomeiam', () => {
+    const { result } = renderHook(() => useRecords(), { wrapper });
+    act(() => { result.current.watchQuery(spec(50)); });
+    act(() => live('query:cases')[0].deliver([{ id: 'c9', collection: 'cases' } as EntityRecord]));
+    expect(result.current.knownRecordsByCollection.cases?.map((record) => record.id)).toEqual(['c9']);
   });
 });

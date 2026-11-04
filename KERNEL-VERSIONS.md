@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.200.0] — 2026-11-04
+
+- feat(records/list): `planRecordListQuery` picks the list query that single-field indexes serve: no filter → `orderBy(createdAt desc)` paged by 50 (`RECORD_LIST_PAGE_SIZE`) with infinite scroll (`loadMoreRef`, an `IntersectionObserver`); with filters → ONE equality on the server (`==`, `in`, `array-contains-any`, tags by `tagIds`) without ordering, in a 500 window, the rest checked in memory and the order rebuilt among what came back (`windowNotice`, `core.records/list.filter.window`, with pt-BR); a date-only range → the range ordered by that same date, paged. Text, presence, unchecked, more than 30 values and two dates stay in memory over the 500 window; a reader restricted by `memberVisibility` keeps the restricted window.
+- feat(records/list): a parent tab queries only the parent's children (`or()` of the pointing fields) whether or not the list pages — still "all the children", without the collection window's cap.
+- feat(stores/records): `watchQuery` / `useRecordQuery` keep list queries subscribed like windows, keyed by the plan without its size, so loading more resubscribes the same query bigger and the cards stay until the answer arrives; their results join the known records. `IRecordRepository.subscribeQuery`, `SubscribeToRecordQueryUseCase`.
+- feat(extensions): `EntityListOptions.paginate` (opt-in) and `RecordListViewModel.hasMore`, `loadMoreRef`, `windowNotice`; `RecordListSurface` and `EntityListView` render the sentinel and the notice. Without `paginate`, `records` keeps its contract — the newest window, filtered in memory — since extensions count and look up by id in it. Ignored with `sortRecords`. Kernel contract `2.96.0`.
+- feat(list): the kernel record list (`DynamicRecordList`) pages.
+
 #### [9.199.0] — 2026-11-04
 
 - feat(stores/records): demand-driven subscriptions. `RecordStore` no longer subscribes every screen collection at login; `RecordStoreState.demand(collections, limit)` (via `useRecordDemand`) keeps a collection subscribed while someone asks for it, with the largest window asked, released after a 60 s grace. `loadedCollections` replaces the global loading flag per screen; a collection nobody asks for leaves `recordsByCollection`. `IRecordRepository.subscribe` takes the window size (`RECORD_WINDOW_DEFAULT` = 500).

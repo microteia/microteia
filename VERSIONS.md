@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.200.0] — 2026-11-04
+
+- As listagens passam a abrir com os registros mais recentes e trazem mais conforme você rola a tela, sem limite — mesmo em escritórios com milhares de registros.
+- Os filtros das listagens (status, área, responsável, etiquetas, datas) passaram a buscar em todo o escritório, e não só nos registros já carregados. Quando há mais resultados do que os mostrados, a tela avisa.
+- As abas de registros relacionados, como os processos de uma pessoa, passaram a mostrar todos eles, por mais antigos que sejam.
+
 #### [9.199.0] — 2026-11-04
 
 - O sistema abre mais rápido e consome menos: cada tela passa a carregar os seus registros só quando é aberta, e não mais todas de uma vez ao entrar no escritório.

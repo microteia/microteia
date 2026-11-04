@@ -5477,11 +5477,38 @@ O ⌘K e os seletores de referência não pedem nada: buscam no servidor. O sele
 pessoa digitar — decisão de produto, para que abrir um formulário não custe leitura nenhuma. O filtro
 de referência aparece mesmo sem opções carregadas, porque as opções vêm da busca.
 
-**O que ainda NÃO faz.** A listagem continua pedindo a janela inteira; a rolagem infinita, as abas de
-filhos consultando só os filhos do pai e os filtros por campo no servidor vêm a seguir. Uma expressão
-de formulário que atravessa mais de uma referência (`contrato.cliente.cpf`) só enxerga o segundo salto
-se ele estiver carregado: `useEnsureReferencedRecords` traz o primeiro. A lista de extensão
-(`useEntityList`) não ganhou a busca no servidor.
+**A consulta da listagem — `planRecordListQuery`.** A listagem deixou de filtrar sobre a janela: o
+plano escolhe a consulta que cabe nos índices de campo ÚNICO, e só três formas cabem.
+
+| Caso | Consulta | Por quê |
+|---|---|---|
+| sem filtro | `orderBy(createdAt desc) + limit(página)` | a rolagem infinita pede mais 50 (`RECORD_LIST_PAGE_SIZE`) quando a marca do fim (`loadMoreRef`, um `IntersectionObserver`) entra na tela |
+| com filtro | UMA igualdade (`==`, `in`, `array-contains-any`; etiqueta por `tagIds`), sem ordenar, janela de 500 | igualdade com ordenação pediria índice composto; o resto dos filtros é conferido em memória sobre o que volta, e a ordem é refeita entre os trazidos — `windowNotice` diz isso quando há mais |
+| só data (de/até) | o intervalo e `orderBy` pelo MESMO campo, paginado | intervalo e ordem no mesmo campo são servidos pelo índice simples |
+| aba de filhos | `or()` dos campos que apontam para o pai, janela de 500 | sempre, pagine ou não: continua sendo "todos os filhos daquele pai", sem o teto da coleção |
+
+O que o servidor não sabe fazer fica em memória sobre a janela grande: filtro de texto, presença
+("sem valor"/"com valor"), caixa desmarcada (o campo ausente também é desmarcado, e a igualdade não o
+acharia), mais de 30 valores, duas datas ao mesmo tempo. A data é gravada ao meio-dia UTC, e as pontas
+do intervalo vão como o dia inteiro (`00:00` e `23:59:59.999` UTC). Quem tem a leitura restrita por
+registro recebe a janela restrita de sempre, e os filtros em memória: a regra não aceita somar o plano
+ao `or()` da visibilidade.
+
+**Paginar é OPÇÃO, e a da extensão é dela.** `RecordListSource.paginate` — ligada pela listagem do
+kernel (`DynamicRecordList`) e por `EntityListOptions.paginate` numa extensão. Sem ela vale o contrato de
+sempre, porque é o que o autor lê: `records` como a janela inteira, filtrada em memória. As extensões
+contam por ele (os pendentes do Push), acham registro por id nele (a notícia aberta) e montam o
+calendário inteiro a partir dele; paginar por padrão faria as três contarem e acharem errado sem erro
+nenhum. A tela que declara a própria ordem (`sortRecords`) também fica na janela: paginar por cadastro
+mostraria a página errada de uma agenda. As consultas ficam no `RecordStore` (`watchQuery` /
+`useRecordQuery`) pelo molde das janelas, com a chave SEM o tamanho — carregar mais reassina a mesma
+consulta maior, e o que estava na tela fica até a resposta chegar.
+
+**O que ainda NÃO faz.** A API de extensão não tem o `recordMatches` no contexto do ⌘K nem a busca no
+servidor na menção; o nome de um registro apontado, numa view de extensão que o resolve por
+`useCollection`, só aparece se ele estiver na janela; e a contagem de um painel feito com
+`useCollection` vale sobre os 500 mais recentes. Uma expressão de formulário que atravessa mais de uma
+referência só enxerga o segundo salto se ele estiver carregado.
 
 ### O cartão da listagem é declarado — `cardTemplate`
 

@@ -21,6 +21,7 @@ vi.mock('../../../stores/useScreenDefinitions', () => ({
 const ensureRecordsStub = vi.fn();
 const loadedStub: ReadonlySet<string> = new Set(['deadlines']);
 const demandStub = vi.fn(() => () => undefined);
+const watchQueryStub = vi.fn<(spec: unknown) => () => void>(() => () => undefined);
 const searchStub = vi.fn<(collection: string, text: string, limit: number) => Promise<EntityRecord[]>>(async () => []);
 vi.mock('../../../stores/useRecords', () => ({
   useRecords: () => ({
@@ -28,6 +29,10 @@ vi.mock('../../../stores/useRecords', () => ({
     knownRecordsByCollection: { deadlines: state.records },
     loadedCollections: loadedStub,
     demand: demandStub,
+    watchQuery: watchQueryStub,
+    // Toda consulta devolve os registros do estado: o recorte é do servidor, e aqui o que se prova é
+    // o que a listagem faz com o que volta.
+    queryResults: new Proxy({}, { get: () => state.records }),
     allRecords: state.records,
     ensureRecords: ensureRecordsStub,
     searchRecords: searchStub,
@@ -124,6 +129,7 @@ const listar = (source: Parameters<typeof useRecordListViewModel>[0]) =>
   renderHook(() => useRecordListViewModel(source));
 
 beforeEach(() => {
+  watchQueryStub.mockClear();
   searchStub.mockReset();
   searchStub.mockImplementation(async () => []);
   abertas.length = 0;
@@ -651,5 +657,29 @@ describe('useRecordListViewModel — busca no servidor', () => {
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(searchStub).not.toHaveBeenCalled();
     expect(result.current.filteredRecords.map((r) => r.id)).toEqual(['a', 'c']);
+  });
+});
+
+describe('useRecordListViewModel — paginação', () => {
+  it('sem paginar, a lista fica na janela da coleção, como sempre', () => {
+    const { result } = listar(source());
+    expect(watchQueryStub).not.toHaveBeenCalled();
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it('a listagem paginada pede a primeira página e diz se há mais', () => {
+    state.records = Array.from({ length: 50 }, (_, index) => record(`r${index}`, 'Recurso', 'Pendente', 1));
+    const { result } = listar(source({ paginate: true }));
+    expect(watchQueryStub).toHaveBeenCalledWith(expect.objectContaining({ collection: 'deadlines', limit: 50 }));
+    expect(result.current.hasMore).toBe(true);
+    expect(result.current.windowNotice).toBeNull();
+  });
+
+  it('com filtro e mais a trazer, avisa que mostra só os primeiros que atendem', () => {
+    state.records = Array.from({ length: 500 }, (_, index) => record(`r${index}`, 'Recurso', 'Pendente', 1));
+    const { result } = listar(source({ paginate: true }));
+    act(() => result.current.setFilterTokens([{ key: 'status', values: ['Pendente'] }]));
+    expect(watchQueryStub).toHaveBeenLastCalledWith(expect.objectContaining({ anyOf: [{ field: 'status', op: '==', value: 'Pendente' }] }));
+    expect(result.current.windowNotice).toBe('core.records/list.filter.window');
   });
 });

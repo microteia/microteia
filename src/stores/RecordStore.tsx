@@ -11,11 +11,14 @@ import { makeUpdateRecordUseCase } from '../domain/usecases/records/UpdateRecord
 import { makeDeleteRecordUseCase } from '../domain/usecases/records/DeleteRecordUseCase';
 import { makeGetRecordsByIdsUseCase } from '../domain/usecases/records/GetRecordsByIdsUseCase';
 import { makeSearchRecordsUseCase } from '../domain/usecases/records/SearchRecordsUseCase';
+import { makeSubscribeToRecordQueryUseCase } from '../domain/usecases/records/SubscribeToRecordQueryUseCase';
 import { screenDataCollection } from '../domain/services/screenDataCollection';
 import { memberVisibilityFilter, readMemberVisibility } from '../domain/schema/memberVisibility';
 import type { MemberVisibilityFilter, RecordReader } from '../domain/schema/memberVisibility';
 import { UNRESTRICTED_PERMISSION } from '../domain/schema/access';
 import type { DeletionActor, EntityRecord, EntityRecordValues } from '../domain/entities';
+import type { RecordQuerySpec } from '../domain/services/recordListQuery';
+import { RECORD_WINDOW_DEFAULT } from '../domain/repositories/IRecordRepository';
 
 /**
  * Registros das telas SEM store próprio — as do Form Design e as de extensão. As entidades fixas
@@ -55,6 +58,7 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     create: makeCreateRecordUseCase(recordRepository),
     update: makeUpdateRecordUseCase(recordRepository),
     getByIds: makeGetRecordsByIdsUseCase(recordRepository),
+    subscribeQuery: makeSubscribeToRecordQueryUseCase(recordRepository),
     search: makeSearchRecordsUseCase(recordRepository),
     delete: makeDeleteRecordUseCase(recordRepository, recordNoteRepository, recordDocumentRepository),
   }), [recordRepository, recordNoteRepository, recordDocumentRepository]);
@@ -204,6 +208,96 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return visible;
   }, [snapshots, tenantId, activeCollections]);
 
+  /**
+   * As CONSULTAS da listagem (`useRecordQuery`), pelo mesmo molde das janelas: pedidas por quem usa,
+   * soltas com carência. A chave é o plano SEM o tamanho — carregar mais aumenta o tamanho da mesma
+   * consulta, e o que já estava na tela continua lá até a resposta maior chegar.
+   */
+  const [queryDemands, setQueryDemands] = useState<Record<string, { spec: Omit<RecordQuerySpec, 'limit'>; limits: Record<string, number> }>>({});
+  const [queryResults, setQueryResults] = useState<{ tenantId: string | null; byKey: Record<string, EntityRecord[]> }>(
+    { tenantId: null, byKey: {} },
+  );
+
+  const watchQuery = useCallback((spec: RecordQuerySpec) => {
+    const { limit, ...base } = spec;
+    const key = JSON.stringify(base);
+    demandSeq.current += 1;
+    const token = String(demandSeq.current);
+    setQueryDemands((prev) => ({
+      ...prev,
+      [key]: { spec: base, limits: { ...(prev[key]?.limits ?? {}), [token]: limit } },
+    }));
+    return () => {
+      const timer = setTimeout(() => {
+        releaseTimers.current.delete(timer);
+        setQueryDemands((prev) => {
+          const entry = prev[key];
+          if (!entry) return prev;
+          const limits = { ...entry.limits };
+          delete limits[token];
+          const next = { ...prev };
+          if (Object.keys(limits).length > 0) next[key] = { ...entry, limits };
+          else delete next[key];
+          return next;
+        });
+      }, DEMAND_GRACE_MS);
+      releaseTimers.current.add(timer);
+    };
+  }, []);
+
+  const queryKey = useMemo(() => JSON.stringify(
+    Object.entries(queryDemands)
+      .map(([key, entry]) => [key, { ...entry.spec, limit: Math.max(...Object.values(entry.limits)) }] as const)
+      .sort(([left], [right]) => (left < right ? -1 : 1)),
+  ), [queryDemands]);
+
+  const querySubscriptions = useRef(new Map<string, { signature: string; unsubscribe: () => void }>());
+
+  useEffect(() => {
+    const current = querySubscriptions.current;
+    const wanted = new Map(JSON.parse(queryKey) as [string, RecordQuerySpec][]);
+    for (const [key, subscription] of current) {
+      if (!tenantId || !wanted.has(key)) {
+        subscription.unsubscribe();
+        current.delete(key);
+      }
+    }
+    if (!tenantId) return;
+    for (const [key, spec] of wanted) {
+      const filter = visibleTo.get(spec.collection) ?? null;
+      const signature = JSON.stringify([tenantId, spec.limit, filter, derivationRevision]);
+      const existing = current.get(key);
+      if (existing?.signature === signature) continue;
+      existing?.unsubscribe();
+      const deliver = (records: EntityRecord[]) => setQueryResults((prev) => ({
+        tenantId,
+        byKey: { ...(prev.tenantId === tenantId ? prev.byKey : {}), [key]: records },
+      }));
+      // Quem lê só o que o nomeia não pode somar o plano à consulta de visibilidade (a regra recusaria
+      // a combinação, ou ela pediria índice composto): recebe a janela restrita, e a listagem filtra
+      // em memória — como sempre foi para essa pessoa.
+      const unsubscribe = filter
+        ? uc.subscribe.execute(tenantId, spec.collection, deliver, () => deliver([]), filter, Math.max(spec.limit, RECORD_WINDOW_DEFAULT))
+        : uc.subscribeQuery.execute(tenantId, spec, deliver, () => deliver([]));
+      current.set(key, { signature, unsubscribe });
+    }
+  }, [tenantId, queryKey, visibleTo, derivationRevision, uc.subscribe, uc.subscribeQuery]);
+
+  useEffect(() => {
+    const current = querySubscriptions.current;
+    return () => {
+      for (const subscription of current.values()) subscription.unsubscribe();
+      current.clear();
+    };
+  }, []);
+
+  const activeQueryResults = useMemo(() => {
+    if (queryResults.tenantId !== tenantId) return {};
+    const visible: Record<string, EntityRecord[]> = {};
+    for (const [key, records] of Object.entries(queryResults.byKey)) if (key in queryDemands) visible[key] = records;
+    return visible;
+  }, [queryResults, tenantId, queryDemands]);
+
   const loadedCollections = useMemo(() => new Set(Object.keys(recordsByCollection)), [recordsByCollection]);
   const isLoading = [...activeCollections].some((collection) => !loadedCollections.has(collection));
 
@@ -212,6 +306,16 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setSnapshots((prev) => {
       const records = prev.byCollection[collection];
       return records ? { ...prev, byCollection: { ...prev.byCollection, [collection]: change(records) } } : prev;
+    });
+    setQueryResults((prev) => {
+      let changed = false;
+      const byKey = { ...prev.byKey };
+      for (const [key, records] of Object.entries(prev.byKey)) {
+        if ((JSON.parse(key) as { collection?: string }).collection !== collection) continue;
+        byKey[key] = change(records);
+        changed = true;
+      }
+      return changed ? { ...prev, byKey } : prev;
     });
   }, []);
 
@@ -264,14 +368,24 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const knownRecordsByCollection = useMemo(() => {
     const known: Record<string, EntityRecord[]> = { ...recordsByCollection };
-    for (const [collection, extras] of Object.entries(fetchedByCollection)) {
+    // O que as consultas da listagem trouxeram também é conhecido: o cartão e o seletor o nomeiam.
+    const extrasByCollection: Record<string, Record<string, EntityRecord>> = {};
+    for (const records of Object.values(activeQueryResults)) {
+      for (const record of records) {
+        extrasByCollection[record.collection] = { ...(extrasByCollection[record.collection] ?? {}), [record.id]: record };
+      }
+    }
+    for (const [collection, byId] of Object.entries(fetchedByCollection)) {
+      extrasByCollection[collection] = { ...(extrasByCollection[collection] ?? {}), ...byId };
+    }
+    for (const [collection, extras] of Object.entries(extrasByCollection)) {
       const loaded = recordsByCollection[collection] ?? [];
       const inWindow = new Set(loaded.map((record) => record.id));
       const outside = Object.values(extras).filter((record) => !inWindow.has(record.id));
       if (outside.length > 0) known[collection] = [...loaded, ...outside];
     }
     return known;
-  }, [recordsByCollection, fetchedByCollection]);
+  }, [recordsByCollection, fetchedByCollection, activeQueryResults]);
 
   const ensureRecords = useCallback((collection: string, ids: readonly string[]) => {
     // Antes de a janela pedida responder, todo id pareceria faltar — e seria lido duas vezes.
@@ -364,6 +478,8 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       knownRecordsByCollection,
       loadedCollections,
       demand,
+      watchQuery,
+      queryResults: activeQueryResults,
       ensureRecords,
       searchRecords,
       isLoading,

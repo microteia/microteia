@@ -1,6 +1,8 @@
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useEnsureReferencedRecords } from '../useEnsureReferencedRecords';
 import { useServerRecordSearch } from '../useServerRecordSearch';
+import { useRecordQuery } from '../../../stores/useRecordQuery';
+import { planRecordListQuery, RECORD_LIST_PAGE_SIZE, recordQueryHasMore } from '../../../domain/services/recordListQuery';
 import { useRecordDemand } from '../../../stores/useRecordDemand';
 import { RECORD_SEARCH_MAX_RESULTS } from '../../../domain/schema/recordSearch';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -104,6 +106,8 @@ export interface RecordListSource {
    * consome nem escuta o recado de "abrir já filtrada", que é da listagem de verdade.
    */
   ignoreNavigationIntent?: boolean;
+  /** A lista pagina, com filtro no servidor. Ver `RecordListFilterInput.paginate`. */
+  paginate?: boolean;
 }
 
 export interface RecordListViewModel {
@@ -114,6 +118,15 @@ export interface RecordListViewModel {
   isLoading: boolean;
   records: EntityRecord[];
   filteredRecords: EntityRecord[];
+  /** Há registros além dos trazidos — a rolagem infinita tem o que pedir. */
+  hasMore: boolean;
+  /** A marca no fim da lista: quando ela entra na tela, a página seguinte é pedida. */
+  loadMoreRef: React.RefObject<HTMLDivElement | null>;
+  /**
+   * O aviso de que, com filtro, a lista mostra só os primeiros que atendem — a ordem é refeita entre
+   * os trazidos, e rolar traz mais. `null` sem filtro ou sem mais a trazer.
+   */
+  windowNotice: string | null;
   filterTokens: FilterToken[];
   filterDefs: FilterDef[];
   savedFiltersScreenKey: string;
@@ -195,7 +208,7 @@ export interface RecordListViewModel {
  * Com `parent`, a lista é restrita aos filhos daquele registro e o "novo" já nasce vinculado.
  */
 export const useRecordListViewModel = (source: RecordListSource): RecordListViewModel => {
-  const { screenKey, savedFiltersKey, parent, recordTabKeys, defaultFilterTokens, sortRecords, ignoreNavigationIntent } = source;
+  const { screenKey, savedFiltersKey, parent, recordTabKeys, defaultFilterTokens, sortRecords, ignoreNavigationIntent, paginate = false } = source;
   const { getDefinition, isLoading: definitionsLoading } = useScreenDefinitions();
   const { recordsByCollection, loadedCollections, updateRecord, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
@@ -285,16 +298,68 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   // nas DUAS listas: `filteredRecords` sai daqui pelo `filter`, que preserva a ordem. Ordenar só a
   // filtrada deixava `records` na ordem da coleção, e duas abas de registro saíram fora de ordem
   // desenhando `records`.
-  // A listagem é quem pede a coleção: sem a tela aberta, ela não é lida.
-  const collectionDemand = useMemo(() => (collection ? [collection] : []), [collection]);
+  const tokenMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    filterTokens.forEach((token) => { map[token.key] = token.values; });
+    return map;
+  }, [filterTokens]);
+
+  /**
+   * A consulta da listagem (`planRecordListQuery`): sem filtro, os mais recentes, de página em página;
+   * com filtro, uma igualdade no servidor e o resto em memória; na aba do pai, só os filhos dele. A tela
+   * que declara a própria ordem continua na janela da coleção, que é o que a ordem dela precisa.
+   *
+   * A página volta a uma quando o recorte muda: a chave dele vai junto com o tamanho, e um tamanho de
+   * outro recorte não vale para este.
+   */
+  const filterSignature = useMemo(
+    () => JSON.stringify([collection, parent, filterTokens.filter((token) => token.key !== 'search')]),
+    [collection, parent, filterTokens],
+  );
+  const [page, setPage] = useState<{ signature: string; limit: number }>({ signature: '', limit: RECORD_LIST_PAGE_SIZE });
+  const pageLimit = page.signature === filterSignature ? page.limit : RECORD_LIST_PAGE_SIZE;
+  const querySpec = useMemo(
+    () => (definition && collection
+      ? planRecordListQuery({ collection, fields: allFields, tokenMap, pageLimit, parent: parent ?? null, hasDeclaredOrder: !!sortRecords, paginate })
+      : null),
+    [definition, collection, allFields, tokenMap, pageLimit, parent, sortRecords, paginate],
+  );
+  const listQuery = useRecordQuery(querySpec);
+
+  // Sem consulta própria, a listagem pede a janela da coleção: sem a tela aberta, ela não é lida.
+  const collectionDemand = useMemo(() => (collection && !querySpec ? [collection] : []), [collection, querySpec]);
   useRecordDemand(collectionDemand);
-  const recordsLoading = !!collection && !loadedCollections.has(collection);
+  const sourceRecords = useMemo(
+    () => (querySpec ? listQuery.records : recordsByCollection[collection] ?? []),
+    [querySpec, listQuery.records, recordsByCollection, collection],
+  );
+  const recordsLoading = querySpec ? !listQuery.loaded : !!collection && !loadedCollections.has(collection);
+  const hasMore = !!querySpec && recordQueryHasMore(querySpec, listQuery.records.length);
+  const filtersActive = filterTokens.some((token) => token.key !== 'search' && token.values.some((value) => value !== ''));
+  const windowNotice = filtersActive && hasMore ? t('list.filter.window', { count: listQuery.records.length }) : null;
+
+  const loadMore = useCallback(() => {
+    setPage({ signature: filterSignature, limit: pageLimit + RECORD_LIST_PAGE_SIZE });
+  }, [filterSignature, pageLimit]);
+
+  // A rolagem infinita: a marca no fim da lista, quando aparece na tela, pede a página seguinte. Ela só
+  // existe enquanto há mais — e some enquanto a página pedida não chega, que é o que impede pedir duas.
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!hasMore || !target || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) loadMore();
+    }, { rootMargin: '400px' });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
 
   const records = useMemo(() => {
-    const all = recordsByCollection[collection] ?? [];
+    const all = sourceRecords;
     const locked = parent ? all.filter((record) => pointsToParent(record, parent.fieldKeys, parent.recordId)) : all;
     return sortRecords ? [...locked].sort(sortRecords) : locked;
-  }, [recordsByCollection, collection, parent, sortRecords]);
+  }, [sourceRecords, parent, sortRecords]);
 
 
   const tagCollection = useTagCollection(collection, definition?.tagCollection);
@@ -310,12 +375,6 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     ...((tagOptions ?? []).length > 0 ? [{ key: 'tag', label: t('core.ui/tags.title'), type: 'select' as const, options: tagOptions }] : []),
     ...listing.filterDefs,
   ], [tagOptions, listing.filterDefs, t]);
-
-  const tokenMap = useMemo(() => {
-    const map: Record<string, string[]> = {};
-    filterTokens.forEach((token) => { map[token.key] = token.values; });
-    return map;
-  }, [filterTokens]);
 
   /**
    * A busca livre procura também no SERVIDOR, pelos termos que o backend grava: o registro fora dos
@@ -341,7 +400,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     });
     // O que o servidor achou fora da janela passa pelos MESMOS filtros e pelo mesmo vínculo com o pai:
     // a busca acrescenta registros, não fura o recorte que a pessoa montou.
-    const loaded = new Set((recordsByCollection[collection] ?? []).map((record) => record.id));
+    const loaded = new Set(sourceRecords.map((record) => record.id));
     const outside = serverSearch.results.filter((record) =>
       !loaded.has(record.id)
       && (!parent || pointsToParent(record, parent.fieldKeys, parent.recordId))
@@ -349,7 +408,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     if (outside.length === 0) return local;
     const merged = [...local, ...outside];
     return sortRecords ? merged.sort(sortRecords) : merged;
-  }, [records, recordsByCollection, collection, parent, sortRecords, tokenMap, searchText, serverSearch, listing]);
+  }, [records, sourceRecords, parent, sortRecords, tokenMap, searchText, serverSearch, listing]);
 
   useEnsureReferencedRecords(filteredRecords, allFields);
 
@@ -669,6 +728,9 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     isLoading: definitionsLoading || recordsLoading,
     records,
     filteredRecords,
+    hasMore,
+    loadMoreRef,
+    windowNotice,
     filterTokens,
     filterDefs,
     savedFiltersScreenKey: savedFiltersKey,
