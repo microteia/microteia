@@ -80,6 +80,12 @@ export {
   reconcileAggregates,
 } from './infrastructure/handlers/aggregateBackfill';
 export {
+  deriveRecordSearchOnEntityChange,
+  runRecordSearchJob,
+  reconcileRecordSearchOnScreenChange,
+  reconcileRecordSearch,
+} from './infrastructure/handlers/recordSearch';
+export {
   reconcileRecordKeysOnScreenChange,
   runRecordKeyAdoption,
   recheckRecordKeysOnEntityChange,

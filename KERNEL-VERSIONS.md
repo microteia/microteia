@@ -18,6 +18,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.196.0] — 2026-11-04
+
+- feat(functions/search): `deriveRecordSearchOnEntityChange` writes `searchTerms` on every screen-record write, reading the referenced records in one `getAll` per collection and option labels by `where('key', 'in')`, and resolving `@namespace/key` labels in the organization's locale. The write carries `lastUpdateTime` from the snapshot it derived from, so a slower trigger never overwrites the terms of a newer edit; it does not touch `updatedAt`.
+- feat(functions/search): propagation. When a record's title changes or the record is deleted — and when a list option's label changes — `propagate:<collection>:<id>` in `record_search_jobs` re-derives every record whose searchable reference (or select) holds it, via `where(field, '==' | 'array-contains', id)` ordered by document id: single-field indexes only, nothing to declare. Creating a record never propagates. The job is deleted when it ends.
+- feat(functions/search): backfill. `backfill:<collection>` re-derives a whole collection in rounds of `RECORD_SEARCH_ROUND_SIZE` (200), each round's cursor write waking the next; it is started when `recordSearchSignature` (title key, key/type/target/list of each searchable field, plus `RECORD_SEARCH_VERSION`) differs from the job's, by `reconcileRecordSearchOnScreenChange` on any screen write and by the `reconcileRecordSearch` callable, which the record list calls (`useRecordSearchReconcile`) — the path that covers an organization upgrading with records that never had terms. Rounds advance only over the generation and round they read; a stalled pass is nudged by the next reconciliation. New deploy group `deploy:search`.
+- refactor(functions): `isRecordKeyBookkeepingWrite` becomes `isBookkeepingWrite` (`recordBookkeeping.ts`) and covers `keyRefs` and `searchTerms`: a write touching only those publishes no `.saved`, is not audited, recomputes no aggregate, no longer re-projects the portal, and does not re-derive search.
+- feat(form-design): the **Searchable** field option (`core.records/field.searchable`, with pt-BR; `locale-pt-br` 1.158.0), offered on the types search reads and stored `false` on the title field, which is always searchable.
+- feat(rules): `record_search_jobs` readable by members (the list checks its own collection's backfill) and written only by the Admin SDK; the name joins the reserved collections on both sides.
+- docs(sdk): the authoring guide documents `searchable`, with the readable types and `RECORD_SEARCH_SINCE_KERNEL` derived from the code.
+
 #### [9.195.0] — 2026-11-04
 
 - feat(schema/search): `FieldDefinition.searchable` (canonical `ui.search`), round-tripped by `screenEntity` and carried by the SDK domain model (`domainModel`, `jsonSchema`, `toPlatform`). The title field is always searchable; `searchable` adds text, textarea, masked, select (by option label) and reference (by the title of the record it points to). Kernel contract `2.95.0`: an older kernel drops the key, and the field is simply not searched.

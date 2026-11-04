@@ -47,6 +47,7 @@ import { FirebasePublicExtensionRepository } from '../../data/repositories/Fireb
 import { FirebaseExtensionReputationRepository } from '../../data/repositories/FirebaseExtensionReputationRepository';
 import { FirebaseSettingsRepository } from '../../data/repositories/FirebaseSettingsRepository';
 import { FirebaseAggregateBackfillRepository } from '../../data/repositories/FirebaseAggregateBackfillRepository';
+import { FirebaseRecordSearchJobRepository } from '../../data/repositories/FirebaseRecordSearchJobRepository';
 import { FirebaseRecordKeyAdoptionRepository } from '../../data/repositories/FirebaseRecordKeyAdoptionRepository';
 import { FirebaseRecordImportRepository } from '../../data/repositories/FirebaseRecordImportRepository';
 import { FirebaseBackendResidueRepository } from '../../data/repositories/FirebaseBackendResidueRepository';
@@ -106,6 +107,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     extensionReputationRepository: new FirebaseExtensionReputationRepository(),
     backendResidueRepository: new FirebaseBackendResidueRepository(),
     aggregateBackfillRepository: new FirebaseAggregateBackfillRepository(),
+    recordSearchJobRepository: new FirebaseRecordSearchJobRepository(),
     recordKeyAdoptionRepository: new FirebaseRecordKeyAdoptionRepository(),
     recordImportRepository: new FirebaseRecordImportRepository(),
     portalRepository:         new FirebasePortalRepository(),

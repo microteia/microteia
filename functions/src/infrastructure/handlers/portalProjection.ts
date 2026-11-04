@@ -4,6 +4,7 @@ import { RESERVED_COLLECTIONS } from '../../domain/schema/screenEntity';
 import { PORTAL_REPROJECTIONS_COLLECTION } from '../../domain/schema/portal';
 import { portalReprojectionScope } from '../../domain/usecases/PortalReprojectionUseCases';
 import { ensurePortalProjectionRevision } from '../portal/portalProjectionRevision';
+import { isBookkeepingWrite } from '../../domain/services/recordBookkeeping';
 
 const REGION = 'southamerica-east1';
 
@@ -24,6 +25,10 @@ export const projectPortalRecord = onDocumentWritten(
     if (RESERVED_COLLECTIONS.has(collection)) return;
     const after = event.data?.after;
     const data = after?.exists ? (after.data() as Record<string, unknown>) : null;
+    const previous = event.data?.before;
+    const before = previous?.exists ? (previous.data() as Record<string, unknown>) : null;
+    // Os termos de busca e as reservas de chave não saem no portal, nem mudam título nenhum.
+    if (isBookkeepingWrite(before, data)) return;
     try {
       const inPortal = await getDI().getProjectPortalRecordUseCase().execute({ tenantId, collection, recordId: docId, data });
       if (inPortal) await ensurePortalProjectionRevision(tenantId);
@@ -32,8 +37,6 @@ export const projectPortalRecord = onDocumentWritten(
     }
     // A coleção pode estar FORA do portal e ainda assim dar nome a um rótulo dele (`referenceTitles`).
     try {
-      const previous = event.data?.before;
-      const before = previous?.exists ? (previous.data() as Record<string, unknown>) : null;
       await getDI().getRefreshPortalReferenceLabelsUseCase().execute({ tenantId, collection, recordId: docId, before, after: data });
     } catch (error) {
       console.error(`[portal] Falha ao refazer os rótulos que mostram ${tenantId}/${collection}/${docId}:`, error);

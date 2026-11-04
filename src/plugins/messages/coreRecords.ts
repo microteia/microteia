@@ -216,6 +216,7 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.section.placeholder': 'Optional — groups fields under a heading',
   'field.required': 'Required',
   'field.filterable': 'Available as a filter in the listing',
+  'field.searchable': 'Records are found by this value in search',
   'field.file.extensions': 'Allowed extensions',
   'field.file.extensions.placeholder': 'png, jpg, pdf',
   'field.file.extensions.hint': 'Separate with commas. Leave empty to accept any extension.',

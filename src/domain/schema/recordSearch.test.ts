@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { FieldDefinition } from '../entities/entitySchemas';
 import {
+  isRecordSearchJobStalled,
   matchesSearchTerms,
+  planRecordSearchBackfill,
+  readRecordSearchJobState,
+  RECORD_SEARCH_STALL_MS,
+  recordSearchSignature,
+  recordSearchTitle,
+  searchLookupReferrersOf,
+  startRecordSearchJob,
   pickServerSearchTerm,
   recordSearchTerms,
   SEARCH_MAX_TERM_LENGTH,
@@ -138,5 +146,64 @@ describe('os campos que nomeiam um registro', () => {
       { collection: 'tasks', titleFieldKey: 'nome', fields: [field('nome', 'text'), field('dono', 'reference', { refEntity: 'persons' })] },
     ];
     expect(searchReferrersOf(screens, 'persons')).toEqual([{ collection: 'cases', fieldKey: 'polo', multi: true }]);
+  });
+});
+
+describe('a passada sobre os registros que já existem', () => {
+  const screen = {
+    titleFieldKey: 'titulo',
+    fields: [field('titulo', 'text'), field('polo', 'reference', { refEntity: 'persons', searchable: true }), field('obs', 'textarea')],
+  };
+
+  it('a assinatura muda com o que muda os termos, e não com rótulo nem ordem', () => {
+    const base = recordSearchSignature(screen);
+    const relabeled = { ...screen, fields: screen.fields.map((candidate) => ({ ...candidate, label: `${candidate.label}!`, order: 9 })) };
+    expect(recordSearchSignature(relabeled)).toBe(base);
+    const more = { ...screen, fields: screen.fields.map((candidate) => (candidate.key === 'obs' ? { ...candidate, searchable: true } : candidate)) };
+    expect(recordSearchSignature(more)).not.toBe(base);
+    expect(recordSearchSignature({ ...screen, titleFieldKey: 'obs' })).not.toBe(base);
+  });
+
+  it('começa quando não há job ou a assinatura é outra; acorda o que parou', () => {
+    const signature = recordSearchSignature(screen);
+    expect(planRecordSearchBackfill(signature, null, 0)).toEqual({ kind: 'start' });
+    const job = startRecordSearchJob('backfill', [], signature, null, 1000);
+    expect(planRecordSearchBackfill(signature, job, 1000)).toEqual({ kind: 'none' });
+    expect(planRecordSearchBackfill('outra', job, 1000)).toEqual({ kind: 'start' });
+    expect(isRecordSearchJobStalled(job, 1000 + RECORD_SEARCH_STALL_MS + 1)).toBe(true);
+    expect(planRecordSearchBackfill(signature, job, 1000 + RECORD_SEARCH_STALL_MS + 1)).toEqual({ kind: 'nudge' });
+    expect(planRecordSearchBackfill(signature, { ...job, status: 'done' }, 1000 + RECORD_SEARCH_STALL_MS + 1)).toEqual({ kind: 'none' });
+  });
+
+  it('o recomeço sobe a geração e zera o avanço', () => {
+    const first = { ...startRecordSearchJob('backfill', [], 'a', null, 1), round: 7, cursor: 'x', processed: 9 };
+    expect(startRecordSearchJob('backfill', [], 'b', first, 2)).toMatchObject({ generation: 2, round: 0, cursor: null, processed: 0 });
+  });
+
+  it('lê o documento do job sem confiar na forma', () => {
+    expect(readRecordSearchJobState({ scans: [{ collection: 'cases', fieldKey: 'polo', multi: true, value: 'p1' }, { nada: 1 }], round: -3 }))
+      .toMatchObject({ kind: 'backfill', status: 'done', scans: [{ collection: 'cases', fieldKey: 'polo', multi: true, value: 'p1' }], round: 0 });
+  });
+});
+
+describe('o título que vai para quem aponta', () => {
+  it('é o texto do título; a opção pelo rótulo; e um título que é referência não é seguido', () => {
+    expect(recordSearchTitle({ titleFieldKey: 'nome', fields: [field('nome', 'text')] }, { nome: ' Maria ' })).toBe('Maria');
+    expect(recordSearchTitle(
+      { titleFieldKey: 'area', fields: [field('area', 'select', { options: [{ key: 'f', label: 'Família' }] })] },
+      { area: 'f' },
+      (candidate, key) => candidate.options?.find((option) => option.key === key)?.label,
+    )).toBe('Família');
+    expect(recordSearchTitle({ titleFieldKey: 'dono', fields: [field('dono', 'reference', { refEntity: 'persons' })] }, { dono: 'p1' })).toBe('');
+    expect(recordSearchTitle({ titleFieldKey: 'nome', fields: [field('nome', 'text')] }, null)).toBe('');
+  });
+
+  it('sabe quem guarda a opção de uma lista em campo pesquisável', () => {
+    const screens = [{
+      collection: 'cases',
+      titleFieldKey: 'titulo',
+      fields: [field('titulo', 'text'), field('area', 'select', { lookupCollection: 'caseAreas', searchable: true }), field('fase', 'select', { lookupCollection: 'caseAreas' })],
+    }];
+    expect(searchLookupReferrersOf(screens, 'caseAreas')).toEqual([{ collection: 'cases', fieldKey: 'area', multi: false }]);
   });
 });

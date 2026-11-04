@@ -46,6 +46,7 @@ import type { IExtensionHistoryRepository } from '../../domain/repositories/IExt
 import type { IPublicExtensionRepository } from '../../domain/repositories/IPublicExtensionRepository';
 import type { IExtensionReputationRepository } from '../../domain/repositories/IExtensionReputationRepository';
 import type { IAggregateBackfillRepository } from '../../domain/repositories/IAggregateBackfillRepository';
+import type { IRecordSearchJobRepository } from '../../domain/repositories/IRecordSearchJobRepository';
 import type { IRecordKeyAdoptionRepository } from '../../domain/repositories/IRecordKeyAdoptionRepository';
 import type { IRecordImportRepository } from '../../domain/repositories/IRecordImportRepository';
 import type { IBackendResidueRepository } from '../../domain/repositories/IBackendResidueRepository';
@@ -106,6 +107,7 @@ export interface DIContainer {
   extensionReputationRepository: IExtensionReputationRepository;
   backendResidueRepository: IBackendResidueRepository;
   aggregateBackfillRepository: IAggregateBackfillRepository;
+  recordSearchJobRepository: IRecordSearchJobRepository;
   recordKeyAdoptionRepository: IRecordKeyAdoptionRepository;
   recordImportRepository: IRecordImportRepository;
   portalRepository: IPortalRepository;

@@ -5,6 +5,7 @@ import type { RecordListViewModel } from '../../shared/entityScreen/useRecordLis
 import { parseDynamicTabKey } from '../../../shared/constants/dynamicScreenKeys';
 import { useLabel } from '../../shared/i18n/useT';
 import { useAggregateBackfillNotice } from '../../shared/entityScreen/useAggregateBackfillNotice';
+import { useRecordSearchReconcile } from '../../shared/entityScreen/useRecordSearchReconcile';
 import { useRecordKeyAdoptionNotice } from '../../shared/entityScreen/useRecordKeyAdoptionNotice';
 import { useMemberVisibilityNotice } from '../../shared/entityScreen/useMemberVisibilityNotice';
 import { useAuthorization } from '../../../stores/useAuthorization';
@@ -38,6 +39,7 @@ export const useDynamicRecordListViewModel = (tabKey: string): DynamicRecordList
   const vm = useRecordListViewModel({ screenKey, savedFiltersKey: tabKey });
   const definition = vm.definition;
   const backfillNotice = useAggregateBackfillNotice(definition);
+  useRecordSearchReconcile(definition);
   const keyNotices = useRecordKeyAdoptionNotice(definition);
   const visibilityNotice = useMemberVisibilityNotice(definition);
   const notices = useMemo(

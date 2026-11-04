@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.196.0] — 2026-11-04
+
+- No Form Design, cada campo ganhou a opção **Pesquisável**: marque-a para que o registro possa ser encontrado também pelo que está nesse campo — como as partes de um processo, o número dele ou a vara —, além do título.
+- Quando o nome de uma pessoa (ou de qualquer registro) é corrigido, os registros que apontam para ela passam a ser encontrados pelo nome novo, sem que ninguém precise editá-los. O mesmo vale quando uma opção de lista é renomeada.
+- Os registros que já existiam são preparados para a busca sozinhos, em segundo plano, assim que a listagem da tela é aberta.
+
 #### [9.195.0] — 2026-11-04
 
 - Primeiro passo da busca em listas grandes: as telas já podem indicar por quais campos um registro deve ser encontrado — como as partes de um processo ou o número dele —, além do título. A busca que usa essa indicação chega na próxima versão.

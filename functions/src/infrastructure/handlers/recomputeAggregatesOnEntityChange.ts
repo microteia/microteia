@@ -2,7 +2,7 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getDI } from '../di/container';
 import { getWorkflowEventPrefix } from '../../domain/services/workflowEventEntities';
 import { recomputeAggregatesForChildChange } from '../../domain/services/recomputeAggregates';
-import { isRecordKeyBookkeepingWrite } from '../../domain/services/recordKeyAdoption';
+import { isBookkeepingWrite } from '../../domain/services/recordBookkeeping';
 
 /**
  * Mantém os campos agregados do PAI em dia quando um registro FILHO muda.
@@ -25,7 +25,7 @@ export const recomputeAggregatesOnEntityChange = onDocumentWritten(
       const beforeData = before?.exists ? (before.data() as Record<string, unknown>) : null;
       const afterData = after?.exists ? (after.data() as Record<string, unknown>) : null;
       if (!beforeData && !afterData) return;
-      if (isRecordKeyBookkeepingWrite(beforeData, afterData)) return;
+      if (isBookkeepingWrite(beforeData, afterData)) return;
 
       await recomputeAggregatesForChildChange(
         tenantId,

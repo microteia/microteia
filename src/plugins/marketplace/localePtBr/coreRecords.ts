@@ -215,6 +215,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.section.placeholder': 'Opcional — agrupa campos sob um título',
   'field.required': 'Preenchimento obrigatório',
   'field.filterable': 'Disponível como filtro na listagem',
+  'field.searchable': 'O registro é encontrado por este valor na busca',
   'field.file.extensions': 'Extensões permitidas',
   'field.file.extensions.placeholder': 'png, jpg, pdf',
   'field.file.extensions.hint': 'Separe por vírgulas. Vazio aceita qualquer extensão.',

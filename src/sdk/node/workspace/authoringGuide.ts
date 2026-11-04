@@ -26,6 +26,7 @@ import {
 import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
+import { RECORD_SEARCH_SINCE_KERNEL, SEARCHABLE_FIELD_TYPES } from '../../../domain/schema/recordSearch';
 import { CARD_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/cardTemplate';
 import { NAV_FILTER_PRESENCE_SINCE_KERNEL } from '../../../domain/schema/ui/uiExtensionPoints';
 import { PORTAL_DETAIL_ONLY_NODE_TYPES, PORTAL_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/portalTemplate';
@@ -2080,6 +2081,7 @@ Beyond \`key\`, \`label\`, \`type\`, \`order\` and \`required\`, the properties 
 | \`rules\` | \`validate\` (\`check\`, \`pattern\`, \`minLength\`, \`maxLength\`, \`message\`) and \`format\` (\`preset\`, or \`pattern\` + \`replacement\`). \`check\` and \`format.preset\` name a preset, held like \`mask\` (see \`masked\` above). A requirement that depends on other fields is an expression in \`logic.validate\` |
 | \`showInList\`, \`listLabel\`, \`listIcon\`, \`listOrder\` | whether and how the field appears on the list card |
 | \`filterable\` | the field becomes a filter on the list |
+| \`searchable\` | the field's value becomes a search term of the record, kept by the server — besides the title, which always is, without declaring it. A \`reference\` contributes the title of the record it points to, and stays current when that record is renamed; a \`select\`, the option label. Search matches the start of each word, ignoring accents and case, and a punctuated number by its digits. Only on ${inlineList([...SEARCHABLE_FIELD_TYPES])}: a date, a number or a checkbox is filtered (\`filterable\`), not searched, and \`check\` refuses it. Kernel \`^${RECORD_SEARCH_SINCE_KERNEL}\` |
 | \`hiddenInForm\` | keeps a field out of the form without deleting it |
 | \`contact: 'email' \\| 'phone'\` | the field holds a way to reach someone. It is what lets \`notify\` write to its value (\`recipientAddresses\`, \`recipientPhones\`, §10) — nothing else does. Only on a one-value \`text\` or \`masked\` field. Kernel \`^${CONTACT_NOTIFY_SINCE_KERNEL}\` |
 | \`file: { extensions, maxSizeMb }\` | what a \`file\` field accepts — the size is in megabytes |

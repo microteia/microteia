@@ -246,3 +246,201 @@ export const searchReferrersOf = (
   }
   return referrers;
 };
+
+/**
+ * Os campos de lista que levam o rótulo de uma opção de `lookupCollection` para os termos. É a
+ * contrapartida de `searchReferrersOf` para quando o escritório renomeia uma opção: o registro guarda
+ * a chave, e o rótulo novo só chega aos termos rederivando quem a guarda.
+ */
+export const searchLookupReferrersOf = (
+  screens: readonly (SearchScreen & { collection: string })[],
+  lookupCollection: string,
+): SearchReferrer[] => {
+  const seen = new Set<string>();
+  const referrers: SearchReferrer[] = [];
+  for (const screen of screens) {
+    for (const field of searchFieldsOf(screen)) {
+      if (field.type !== 'select' || field.lookupCollection !== lookupCollection) continue;
+      const id = `${screen.collection}/${field.key}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      referrers.push({ collection: screen.collection, fieldKey: field.key, multi: field.multi === true });
+    }
+  }
+  return referrers;
+};
+
+// ─── O título que vai para quem aponta ────────────────────────────────────────
+
+/**
+ * O texto do título de um registro, como ele entra nos termos de QUEM o aponta. Um nível só: o título
+ * que é ele mesmo uma referência não é seguido — a cadeia não tem fim conhecido, e cada salto seria uma
+ * leitura por registro derivado.
+ */
+export const recordSearchTitle = (
+  screen: SearchScreen,
+  data: Record<string, unknown> | null | undefined,
+  optionLabel: (field: FieldDefinition, key: string) => string | undefined = () => undefined,
+): string => {
+  if (!data || !screen.titleFieldKey) return '';
+  const field = screen.fields.find((candidate) => candidate.key === screen.titleFieldKey);
+  const value = data[screen.titleFieldKey];
+  if (field?.type === 'reference') return '';
+  if (field?.type === 'select') return idsOf(value).map((key) => optionLabel(field, key) ?? key).join(' ');
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number') return String(value);
+  return '';
+};
+
+// ─── A passada sobre os registros que já existem ──────────────────────────────
+
+/**
+ * Sobe quando a NORMALIZAÇÃO muda — o corte, os prefixos, o tratamento dos dígitos. A assinatura da
+ * coleção carrega este número, e uma regra nova de termo rederiva todos os registros sozinha, em vez
+ * de deixar os antigos com a regra velha até alguém os editar.
+ */
+export const RECORD_SEARCH_VERSION = 1;
+
+/**
+ * A partir de qual `KERNEL_VERSION` um registro é achado pelos campos `searchable`. É o que o guia de
+ * autoria cita.
+ */
+export const RECORD_SEARCH_SINCE_KERNEL = '2.95.0';
+
+/**
+ * Os jobs da busca: `backfill:<coleção>` rederiva a coleção inteira quando o que entra na busca muda;
+ * `propagate:<coleção>:<id>` rederiva quem aponta para um registro (ou para uma opção de lista) cujo
+ * título mudou.
+ */
+export const RECORD_SEARCH_JOBS_COLLECTION = 'record_search_jobs';
+
+/** Registros por rodada. Cada rodada é uma execução de function: a coleção grande vira muitas curtas. */
+export const RECORD_SEARCH_ROUND_SIZE = 200;
+
+/** Sem gravação no job por mais que isto, a passada `running` está parada e pode ser acordada. */
+export const RECORD_SEARCH_STALL_MS = 10 * 60_000;
+
+export const recordSearchBackfillJobId = (collection: string): string => `backfill:${collection}`;
+
+export const recordSearchPropagationJobId = (collection: string, id: string): string => `propagate:${collection}:${id}`;
+
+/**
+ * A identidade do que entra na busca de uma coleção: só o que muda os TERMOS. Rótulo do campo, ordem e
+ * seção ficam fora — renomear um rótulo não pode rederivar uma coleção de milhares de registros.
+ */
+export const recordSearchSignature = (screen: SearchScreen): string =>
+  JSON.stringify([
+    RECORD_SEARCH_VERSION,
+    screen.titleFieldKey ?? '',
+    searchFieldsOf(screen).map((field) => [
+      field.key,
+      field.type,
+      field.refEntity ?? null,
+      field.lookupCollection ?? null,
+      (field.options ?? []).map((option) => [option.key, option.label]),
+    ]),
+  ]);
+
+/**
+ * Uma varredura do job. Sem `fieldKey`, é a coleção inteira (o backfill); com ele, só os registros em
+ * que o campo guarda `value` — o id do registro renomeado ou a chave da opção cujo rótulo mudou.
+ */
+export interface RecordSearchScan {
+  collection: string;
+  fieldKey: string | null;
+  multi: boolean;
+  value: string | null;
+}
+
+export type RecordSearchJobKind = 'backfill' | 'propagate';
+export type RecordSearchJobStatus = 'running' | 'done';
+
+export interface RecordSearchJobState {
+  kind: RecordSearchJobKind;
+  status: RecordSearchJobStatus;
+  /** Backfill: a assinatura que a passada deriva. Com `done`, é o que já vale em toda a coleção. */
+  signature: string | null;
+  scans: RecordSearchScan[];
+  scanIndex: number;
+  /** Id do último registro processado na varredura em curso; `null` = começo. */
+  cursor: string | null;
+  /** Sobe a cada passada nova: a rodada de uma passada abandonada não grava sobre a seguinte. */
+  generation: number;
+  round: number;
+  touchedAt: number;
+  processed: number;
+  written: number;
+  failed: number;
+}
+
+export const isRecordSearchJobStalled = (state: RecordSearchJobState, now: number): boolean =>
+  state.status === 'running' && now - state.touchedAt > RECORD_SEARCH_STALL_MS;
+
+/** O job novo — ou o recomeço de um que já existia, com a geração seguinte. */
+export const startRecordSearchJob = (
+  kind: RecordSearchJobKind,
+  scans: RecordSearchScan[],
+  signature: string | null,
+  previous: RecordSearchJobState | null,
+  now: number,
+): RecordSearchJobState => ({
+  kind,
+  status: 'running',
+  signature,
+  scans,
+  scanIndex: 0,
+  cursor: null,
+  generation: (previous?.generation ?? 0) + 1,
+  round: 0,
+  touchedAt: now,
+  processed: 0,
+  written: 0,
+  failed: 0,
+});
+
+/**
+ * O que fazer com o backfill de uma coleção, dado o que ela declara agora: `start` quando a
+ * assinatura não é a que o job derivou (ou derivou por último, se ainda corre) — inclusive quando o
+ * job nunca existiu, que é o escritório que atualiza o kernel com registros antigos —; `nudge` quando
+ * a passada parou; `none` no resto.
+ */
+export type RecordSearchBackfillPlan = { kind: 'none' } | { kind: 'start' } | { kind: 'nudge' };
+
+export const planRecordSearchBackfill = (
+  signature: string,
+  state: RecordSearchJobState | null,
+  now: number,
+): RecordSearchBackfillPlan => {
+  if (!state || state.signature !== signature) return { kind: 'start' };
+  return isRecordSearchJobStalled(state, now) ? { kind: 'nudge' } : { kind: 'none' };
+};
+
+const asCount = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
+
+const asText = (value: unknown): string | null => (typeof value === 'string' && value !== '' ? value : null);
+
+const readScan = (raw: unknown): RecordSearchScan | null => {
+  const entry = raw as Record<string, unknown> | null;
+  const collection = asText(entry?.collection);
+  if (!collection) return null;
+  return { collection, fieldKey: asText(entry?.fieldKey), multi: entry?.multi === true, value: asText(entry?.value) };
+};
+
+/** Lê o documento do job sem confiar na forma — um campo ausente vale o neutro dele. */
+export const readRecordSearchJobState = (data: Record<string, unknown>): RecordSearchJobState => ({
+  kind: data.kind === 'propagate' ? 'propagate' : 'backfill',
+  status: data.status === 'running' ? 'running' : 'done',
+  signature: asText(data.signature),
+  scans: Array.isArray(data.scans)
+    ? data.scans.map(readScan).filter((scan): scan is RecordSearchScan => scan !== null)
+    : [],
+  scanIndex: asCount(data.scanIndex),
+  cursor: asText(data.cursor),
+  generation: asCount(data.generation),
+  round: asCount(data.round),
+  touchedAt: asCount(data.touchedAt),
+  processed: asCount(data.processed),
+  written: asCount(data.written),
+  failed: asCount(data.failed),
+});

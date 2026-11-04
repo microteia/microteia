@@ -112,6 +112,23 @@ npm run deploy:workflow
 
 ---
 
+### 🔎 SEARCH — Termos de busca dos registros
+Os termos pelos quais um registro é achado no servidor: a derivação a cada gravação, a propagação
+quando um título apontado muda e a passada sobre os registros que já existiam.
+
+**Functions:**
+- `deriveRecordSearchOnEntityChange` — deriva os termos do registro gravado e abre a propagação quando o título dele (ou o rótulo de uma opção de lista) muda
+- `runRecordSearchJob` — uma rodada de 200 registros por gravação no job (`record_search_jobs`)
+- `reconcileRecordSearchOnScreenChange` — confere o que entra na busca a cada gravação de tela
+- `reconcileRecordSearch` — a mesma conferência, pedida pela listagem
+
+**Deploy:**
+```bash
+npm run deploy:search
+```
+
+---
+
 ### 📄 DOCUMENTS — Geração de Documentos e Downloads
 A geração a partir de um modelo e a limpeza dos arquivos de Downloads vencidos.
 

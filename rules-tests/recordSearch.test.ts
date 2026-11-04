@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { addDoc, collection, deleteField, doc, updateDoc } from 'firebase/firestore';
-import { RECORD_SEARCH_FIELD } from '../src/domain/schema/recordSearch';
+import { addDoc, collection, deleteField, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { RECORD_SEARCH_FIELD, RECORD_SEARCH_JOBS_COLLECTION, recordSearchBackfillJobId } from '../src/domain/schema/recordSearch';
 import { TENANT, asUser, seed, testEnv } from './helpers';
 
 /**
@@ -17,7 +17,7 @@ afterAll(async () => { await env.cleanup(); });
 beforeEach(async () => {
   await env.clearFirestore();
   await seed(env, {
-    users: { escritor: {} },
+    users: { escritor: {}, estranho: {} },
     owners: { [TENANT]: 'dono' },
     members: { [TENANT]: { escritor: ['pet1.read', 'pet1.create', 'pet1.update'] } },
     screens: { [TENANT]: { pet1: { titleSingular: 'Pet', titlePlural: 'Pets', fields: [] } } },
@@ -44,5 +44,22 @@ describe('os termos de busca são do servidor', () => {
   it('não reescreve nem apaga os termos', async () => {
     await assertFails(updateDoc(pet(), { [RECORD_SEARCH_FIELD]: ['outro'], updatedVia: 'ui' }));
     await assertFails(updateDoc(pet(), { [RECORD_SEARCH_FIELD]: deleteField(), updatedVia: 'ui' }));
+  });
+});
+
+describe('os jobs da busca', () => {
+  const job = (uid: string) =>
+    doc(asUser(env, uid), `tenants/${TENANT}/${RECORD_SEARCH_JOBS_COLLECTION}/${recordSearchBackfillJobId('pet1')}`);
+
+  it('o membro lê o backfill da coleção — é como a listagem sabe se precisa pedir a conferência', async () => {
+    await assertSucceeds(getDoc(job('escritor')));
+  });
+
+  it('quem não é do escritório não lê', async () => {
+    await assertFails(getDoc(job('estranho')));
+  });
+
+  it('ninguém grava pelo cliente', async () => {
+    await assertFails(setDoc(job('escritor'), { status: 'done', signature: 'forjada' }));
   });
 });

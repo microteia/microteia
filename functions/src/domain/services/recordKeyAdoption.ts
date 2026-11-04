@@ -16,7 +16,8 @@ import type {
   RecordKeyAdoptionState,
 } from '../schema/recordKeyAdoption';
 import type { RecordKeyEntry, RecordKeySpec } from '../schema/recordKeys';
-import { planRecordKeys, RECORD_KEY_REFS_FIELD, storedRecordKeyRefs } from '../schema/recordKeys';
+import { planRecordKeys, storedRecordKeyRefs } from '../schema/recordKeys';
+import { isBookkeepingWrite } from './recordBookkeeping';
 import { resolveWritableTable } from '../schema/mutationSpec';
 import type { SchemaContext } from '../schema/pathResolver';
 import { resolveEntityKeys } from '../schema/screenEntity';
@@ -543,27 +544,6 @@ export const reconcileRecordKeyAdoptions = async (
 const sameJson = (left: unknown, right: unknown): boolean =>
   JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 
-/**
- * A gravação só mexeu em `keyRefs` — a contabilidade das reservas, que é o que a adoção grava. Não é
- * fato de negócio: não publica `.saved`, não audita, não recalcula agregado. Não precisa de marca,
- * porque nenhum caminho de negócio grava `keyRefs` sozinho — o formulário e a automação o gravam
- * junto com o valor que o justifica.
- */
-export const isRecordKeyBookkeepingWrite = (
-  before: Record<string, unknown> | null,
-  after: Record<string, unknown> | null,
-): boolean => {
-  if (!before || !after) return false;
-  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
-  let touched = false;
-  for (const key of keys) {
-    if (sameJson(before[key], after[key])) continue;
-    if (key !== RECORD_KEY_REFS_FIELD) return false;
-    touched = true;
-  }
-  return touched;
-};
-
 const isUnadopted = (
   ctx: SchemaContext,
   collection: string,
@@ -590,7 +570,7 @@ export const recordWriteMayResolveKeyIssue = (
   after: Record<string, unknown> | null,
 ): boolean => {
   const keys = resolveEntityKeys(ctx, collection).filter((key) => key.fields.length > 0);
-  if (keys.length === 0 || isRecordKeyBookkeepingWrite(before, after)) return false;
+  if (keys.length === 0 || isBookkeepingWrite(before, after)) return false;
   if (!sameJson(storedRecordKeyRefs(before), storedRecordKeyRefs(after))) return true;
   return isUnadopted(ctx, collection, keys, before) || isUnadopted(ctx, collection, keys, after);
 };

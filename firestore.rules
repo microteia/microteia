@@ -452,6 +452,13 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Os jobs da busca (`domain/schema/recordSearch.ts`): a listagem lê o backfill da própria
+      // coleção para saber se precisa pedir a conferência. Só o Admin SDK grava.
+      match /record_search_jobs/{jobId} {
+        allow read: if isMember(tenantId);
+        allow write: if false;
+      }
+
       // A reprojeção do portal depois que uma declaração mudou (um documento por coleção). Lê quem
       // decide o que sai do escritório — o que o documento expõe são nomes de coleção, contagens e
       // ids. Ninguém grava do cliente: o cursor e a reserva são do servidor, e um cliente que os
@@ -685,7 +692,7 @@ service cloud.firestore {
         // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.
         'tagDefinitions', 'plugin_installations',
-        'recordKeys', 'record_key_adoptions', 'recordSequences', 'record_imports',
+        'recordKeys', 'record_key_adoptions', 'recordSequences', 'record_imports', 'record_search_jobs',
         'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_clock',
         'workflow_definitions', 'workflow_events', 'workflow_executions', 'workflow_trigger_marks'
         ];

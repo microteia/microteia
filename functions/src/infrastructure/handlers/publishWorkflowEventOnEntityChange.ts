@@ -5,7 +5,7 @@ import { getWorkflowEventPrefix } from '../../domain/services/workflowEventEntit
 import { publishEvent } from '../workflow/publishEvent';
 import { resolveEventPrefix } from '../workflow/resolveEventPrefix';
 import { isAggregateBackfillWriteFresh } from '../../domain/services/aggregateBackfill';
-import { isRecordKeyBookkeepingWrite } from '../../domain/services/recordKeyAdoption';
+import { isBookkeepingWrite } from '../../domain/services/recordBookkeeping';
 
 /**
  * Publica eventos de entidades com o payload cru do documento:
@@ -49,8 +49,8 @@ export const publishWorkflowEventOnEntityChange = onDocumentWritten(
       if (!isDelete && !isCreate && beforeExists && afterExists) {
         const hasChanges = JSON.stringify(beforeData) !== JSON.stringify(afterData);
         if (!hasChanges) return;
-        // A adoção de uma chave só reserva o valor que o registro já tinha: nada aconteceu a ele.
-        if (isRecordKeyBookkeepingWrite(beforeData, afterData)) return;
+        // A adoção de uma chave e a derivação da busca só gravam contabilidade: nada aconteceu ao registro.
+        if (isBookkeepingWrite(beforeData, afterData)) return;
         // O recálculo dá ao registro o valor que ele já deveria ter: não é fato de negócio, e uma
         // automação de `.saved` rodaria sobre cada registro histórico da coleção.
         const di = getDI();

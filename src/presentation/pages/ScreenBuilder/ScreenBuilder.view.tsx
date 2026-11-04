@@ -861,6 +861,16 @@ export const ScreenBuilderView: React.FC = () => {
                 />
               </S.CheckboxCell>
             )}
+            {vm.fieldSupportsSearch && (
+              <S.CheckboxCell>
+                <Checkbox
+                  label={t('field.searchable')}
+                  checked={vm.fieldModalIsTitleField ? true : vm.fieldForm.searchable}
+                  disabled={vm.fieldModalIsTitleField}
+                  onChange={(next) => vm.updateFieldForm({ searchable: next })}
+                />
+              </S.CheckboxCell>
+            )}
             {vm.fieldSupportsUnique && (
               <S.CheckboxCell>
                 <Checkbox

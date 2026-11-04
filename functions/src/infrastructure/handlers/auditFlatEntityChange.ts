@@ -5,7 +5,7 @@ import { computeChangedFields, normalizeAllFields, buildAuditText, resolveSeveri
 import { logAuditError } from './shared/logAuditError';
 import type { AuditAction } from '../../domain/entities/AuditLog';
 import { isAggregateBackfillWriteFresh } from '../../domain/services/aggregateBackfill';
-import { isRecordKeyBookkeepingWrite } from '../../domain/services/recordKeyAdoption';
+import { isBookkeepingWrite } from '../../domain/services/recordBookkeeping';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -45,7 +45,7 @@ export const auditFlatEntityChange = onDocumentWritten(
       if (action === 'UPDATE') {
         // A adoção de chave e o recálculo são registrados no job de cada um, não em uma linha de
         // auditoria por registro.
-        if (isRecordKeyBookkeepingWrite(beforeData, afterData)) return;
+        if (isBookkeepingWrite(beforeData, afterData)) return;
         const di = getDI();
         const fromBackfill = await isAggregateBackfillWriteFresh(
           tenantId,

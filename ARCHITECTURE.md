@@ -127,6 +127,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `BackendResidue` (o que o provisionamento deixou no projeto) | `backend_state/current` | Não |
 | Reserva de chave (unicidade de registro) | `tenants/{tenantId}/recordKeys/{keyId}` — o `keyId` deriva do valor, e criá-lo É a trava | Sim |
 | Adoção de chave (registros antigos) | `tenants/{tenantId}/record_key_adoptions/{coleção}` — só o servidor grava | Sim |
+| Busca de registros (backfill e propagação) | `tenants/{tenantId}/record_search_jobs/{backfill:<coleção> \| propagate:<coleção>:<id>}` — só o servidor grava | Sim |
 | Endereço de contato já alcançado pelo `notify` e o descadastro dele (EV-11) | `tenants/{tenantId}/notification_contacts/{bilhete}` — o id é o HMAC do endereço | Sim (só servidor; nenhuma regra a libera) |
 | Credencial do provedor de SMS | `tenants/{tenantId}/secrets/notification-sms` | Sim (só servidor; `manageNotificationSms` é a porta) |
 | Chave dos bilhetes de descadastro (da instalação) | `kernel_secrets/notification-contacts` | Não (raiz; só servidor) |
@@ -2826,6 +2827,7 @@ verdade — `scripts/deployLists.test.ts` cobra que toda function exportada este
 | **workflow** | Motor de automações | Mais frequente |
 | **reports** | Execução de relatórios | Quando os relatórios mudam |
 | **import** | Importação em massa de registros (`importRecords`) | Quando a importação muda |
+| **search** | Termos de busca dos registros: derivação, propagação e backfill | Quando a busca muda |
 | **documents** | Modelos de documento e geração de arquivos | Quando os documentos mudam |
 | **audit** | Sistema de auditoria | Quando a auditoria muda |
 | **auth** | Autenticação e usuários | Raras alterações |
@@ -2852,7 +2854,7 @@ entidades de ESCRITÓRIO não moram aqui".
    export { minhaNovaFuncao } from './infrastructure/handlers/minhaNovaFuncao';
    ```
 3. **Adicionar ao grupo correto no `package.json` raiz:**
-   - Identificar o grupo funcional (um dos 13 da tabela acima)
+   - Identificar o grupo funcional (um dos 14 da tabela acima)
    - Adicionar a função no script `deploy:[grupo]` correspondente
    - Nome EXATO como exportado no `index.ts` (sem prefixos `auth_`, `workflow_`, etc)
 4. **Documentar no `functions/DEPLOY.md`:**
@@ -5349,6 +5351,75 @@ Nota: as coleções de lista (`caseCourts`, `medico_especialidade`…) **não** 
   renderiza `<CustomFieldMetaRows items={...} />` no cartão. É o que permite ao escritório acrescentar
   um campo à tela que uma extensão trouxe, e ver esse campo no filtro e no cartão.
 - **Deeplink de registro fora das 500 carregadas:** `ViewDynamicRecord` faz fallback de busca por id (`GetRecordByIdUseCase`).
+
+### A busca é do servidor — `searchTerms` (fase 1 de 3)
+
+A listagem consulta `limit(500)` por coleção, e toda busca rodava sobre esse conjunto em memória: o ⌘K
+(`allRecords`), a caixa "Filtrar…" e o seletor de referência (`useReferenceOptions`). Num escritório
+com milhares de registros, o 501º sumia da busca sem aviso nenhum. O Firestore não busca "contém o
+texto", mas busca `array-contains` sobre um array com índice de campo ÚNICO, que ele cria sozinho — e
+é isso que deixa uma coleção criada em runtime, que não pode declarar índice composto, ser pesquisada
+no servidor.
+
+**O que entra na busca é a TELA quem diz.** O título entra sempre; `FieldDefinition.searchable`
+(canônico `ui.search`, opção "Pesquisável" no Form Design) acrescenta texto, textarea, máscara, lista
+(pelo rótulo da opção, traduzido no idioma do escritório quando é referência `@`) e referência (pelo
+título do registro apontado, um nível só). Data, número e caixa de seleção se pedem por intervalo ou
+igualdade — é filtro, não busca —, e `issue.package.field.searchable.type` recusa `searchable` neles.
+"Polo ativo" é vocabulário de domínio: o kernel não teria como adivinhar que um processo é achado
+pelas partes.
+
+**A normalização é UMA função para os dois lados** (`domain/schema/recordSearch.ts`, sincronizado):
+sem acento, minúsculas, prefixos de 2 a 20 caracteres de cada palavra (`curat` acha `Curatela`), o
+trecho com dígitos e pontuação também só com os dígitos (número de processo, CPF formatado) e um teto
+de 400 termos, com os do título primeiro. É prefixo, não substring — `tela` não acha `Curatela`. O
+termo que vai ao servidor é o mais longo do que foi digitado (o Firestore aceita um `array-contains`
+por consulta); os demais são conferidos sobre os termos do documento que volta.
+
+**Quem grava é o backend, nunca o cliente.** Os termos carregam títulos de registros de OUTRAS
+coleções, e só um caminho que vê toda gravação — formulário, automação, MCP, portal, Console — os mantém
+coerentes. O `firestore.rules` recusa `searchTerms` na criação e na alteração pelo cliente, e o
+`FirebaseRecordRepository` o descarta ao ler e ao criar (pesaria centenas de textos por registro na
+memória, e um registro duplicado a partir de outro o levaria de volta numa gravação recusada).
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| `deriveRecordSearchOnEntityChange` | gatilho curinga de registro | deriva os termos do registro gravado; abre a PROPAGAÇÃO quando o título dele muda (ou ele é apagado), e quando muda o rótulo de uma opção de lista |
+| `runRecordSearchJob` | `tenants/{t}/record_search_jobs/{jobId}` | uma rodada de `RECORD_SEARCH_ROUND_SIZE` (200) registros; a gravação do avanço acorda a seguinte |
+| `reconcileRecordSearchOnScreenChange` | gravação de tela | compara a assinatura do que entra na busca com a do job e põe o BACKFILL em marcha |
+| `reconcileRecordSearch` | callable, chamada pela listagem (`useRecordSearchReconcile`) | a mesma conferência — cobre o escritório que atualizou o kernel e não salva tela nenhuma depois |
+
+- **A gravação dos termos é contabilidade.** `isBookkeepingWrite` (`functions/src/domain/services/recordBookkeeping.ts`)
+  generalizou o `isRecordKeyBookkeepingWrite`: a gravação que só muda `keyRefs` ou `searchTerms` não
+  publica `.saved`, não audita, não recalcula agregado, não reprojeta o portal e não rederiva a busca.
+  Sem isso, cada registro salvo produziria um segundo `.saved` e uma segunda linha de auditoria um
+  segundo depois, sem mudança que alguém tenha feito. Os termos são gravados sem tocar `updatedAt`.
+- **A gravação vale sobre a versão lida.** `writeTerms` passa `lastUpdateTime` do documento lido: se
+  alguém editou o registro entre a leitura e a gravação, ela é descartada — a edição dispara a própria
+  derivação. Sem isso, o gatilho de uma edição anterior que terminasse depois gravaria termos velhos.
+- **Propagar é barato porque renomear é raro.** A gravação comum compara dois títulos e sai. Só a
+  renomeação abre `propagate:<coleção>:<id>`, que consulta `where(campo, '==' | 'array-contains', id)`
+  ordenado por id — servido pelos índices de campo único, sem índice declarado — em cada campo
+  pesquisável que aponta para a coleção (`searchReferrersOf`; para lista, `searchLookupReferrersOf`).
+  Criar um registro não propaga: ninguém o aponta ainda. O job de propagação é apagado ao terminar.
+- **Uma leitura por coleção apontada, não por registro.** A rodada junta os ids de toda a página
+  (`searchReferencesOf`) e lê cada coleção com `getAll`; as opções de lista, por `where('key', 'in')`;
+  o catálogo de mensagens só quando algum rótulo é referência.
+- **O backfill tem assinatura.** `recordSearchSignature` é só o que muda os termos — chave do título,
+  e chave, tipo, alvo e lista de cada campo pesquisável —, mais `RECORD_SEARCH_VERSION`, que sobe quando
+  a normalização muda e rederiva todo escritório sozinho. Renomear um rótulo não rederiva a coleção.
+  A rodada relê a declaração (`freshSchemaContext`) e para se a assinatura mudou no meio: a conferência
+  que a mudança dispara recomeça com a geração seguinte.
+- **Rodada idempotente, avanço condicionado.** A rodada só avança sobre a geração e a rodada que leu;
+  uma entrega repetida do gatilho reprocessa a página (os termos iguais não são regravados) e perde a
+  transação. Passada parada há mais de `RECORD_SEARCH_STALL_MS` é acordada pela próxima conferência.
+
+**O que esta fase NÃO faz.** Nada ainda CONSULTA os termos: o ⌘K, a caixa de busca e os seletores
+continuam em memória até a fase 2 (a porta `IRecordRepository.search`, com a callable para quem tem
+`memberVisibility`, porque `array-contains` com o `or()` da visibilidade pediria dois `array-contains` e
+índice composto). A fase 3 tira a carga de todas as coleções do login: cada uma assinada enquanto alguém
+a usa (inclusive `useCollection` das extensões), com paginação por cursor — o filtro de data por
+intervalo pagina pelo próprio campo, com índice simples.
 
 ### O cartão da listagem é declarado — `cardTemplate`
 

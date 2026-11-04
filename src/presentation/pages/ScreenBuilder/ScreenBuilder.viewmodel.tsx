@@ -56,6 +56,7 @@ import {
   type PortalSubjectKind,
 } from './components/ScreenPortalPanel/screenPortalForm';
 import { PERMISSION_SCREENS_MANAGE } from '../../../domain/schema/access';
+import { isSearchableFieldType } from '../../../domain/schema/recordSearch';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import type { ScreenDefinitionSaveInput } from '../../../stores/useScreenDefinitions';
@@ -289,6 +290,7 @@ export interface FieldFormState {
   showInList: boolean;
   listLabel: string;
   filterable: boolean;
+  searchable: boolean;
   unique: boolean;
   contact: ContactKind | '';
   ruleFormatPreset: FormatPreset | '';
@@ -501,6 +503,8 @@ export interface ScreenBuilderViewModel {
   fieldSupportsRules: boolean;
   /** Campo `file` não filtra: não há URL que alguém digite num filtro. */
   fieldSupportsFilter: boolean;
+  /** O tipo é um que a busca lê (`SEARCHABLE_FIELD_TYPES`); o campo do título entra sempre. */
+  fieldSupportsSearch: boolean;
   /** O campo pode ser chave? Ver `fieldSupportsUnique` — derivado e arquivo não podem. */
   fieldSupportsUnique: boolean;
   /** O campo pode guardar um contato (e-mail, telefone)? Só texto de uma linha, de um valor. */
@@ -638,6 +642,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   showInList: false,
   listLabel: '',
   filterable: false,
+  searchable: false,
   unique: false,
   contact: '',
   ruleFormatPreset: '',
@@ -2070,6 +2075,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       showInList: field.showInList ?? false,
       listLabel: field.listLabel ?? '',
       filterable: field.filterable ?? false,
+      searchable: field.searchable === true,
       unique: field.unique === true,
       contact: field.contact ?? '',
       ...fieldRulesToForm(field.rules),
@@ -2118,6 +2124,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   );
 
   const fieldSupportsFilter = fieldForm.type !== 'file';
+  const fieldSupportsSearch = isSearchableFieldType(fieldForm.type);
 
   /**
    * Chave sobre um campo cujo valor NÃO fica gravado é reserva órfã: `logic.derive` é avaliado na
@@ -2639,6 +2646,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     // Um campo de arquivo não filtra, e o `filterable` é zerado no dado e não só escondido na tela:
     // um pacote — ou um documento editado à mão — ainda pode trazê-lo verdadeiro.
     const filterable = fieldForm.type === 'file' ? false : fieldForm.filterable;
+    // Pelo mesmo motivo: um tipo que a busca não lê não guarda `searchable` verdadeiro. O título entra
+    // na busca sempre, e marcá-lo também só faria a declaração dizer duas vezes a mesma coisa.
+    const searchable = isSearchableFieldType(fieldForm.type) && !fieldModalIsTitleField ? fieldForm.searchable : false;
     // Uma chave sobre um campo DERIVADO reservaria um valor que o registro não carrega — o derivado
     // é avaliado na leitura e nunca gravado —, e a reserva ficaria órfã na leitura seguinte. O valor
     // é zerado no dado, e não só escondido: o campo pode ter virado derivado depois de marcado.
@@ -2691,6 +2701,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             showInList: fieldForm.showInList,
             listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
             filterable,
+            searchable,
             unique,
             contact,
             rules,
@@ -2731,6 +2742,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           showInList: fieldForm.showInList,
           listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
           filterable,
+          searchable,
           unique,
           contact,
           rules,
@@ -2989,6 +3001,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     validateCheckOptions,
     fieldSupportsRules,
     fieldSupportsFilter,
+    fieldSupportsSearch,
     fieldSupportsUnique,
     fieldSupportsContact,
     contactOptions,

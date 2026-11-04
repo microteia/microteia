@@ -167,6 +167,10 @@ import { ScreenDefinitionCache } from '../../data/services/ScreenDefinitionCache
 import type { AggregateRecomputeDeps } from '../../domain/services/recomputeAggregates';
 import type { AggregateBackfillDeps } from '../../domain/services/aggregateBackfill';
 import { FirebaseAggregateBackfillRepository } from '../../data/repositories/FirebaseAggregateBackfillRepository';
+import { FirebaseRecordSearchRepository } from '../../data/repositories/FirebaseRecordSearchRepository';
+import type { RecordSearchDeps } from '../../domain/services/recordSearchEngine';
+import { agentCatalog } from '../agent/agentMessages';
+import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
 import type { SchemaContext } from '../../domain/schema/pathResolver';
 import { AGGREGATE_ENGINE_ACTOR } from '../../domain/schema/aggregateBackfill';
 import type { RecordKeyAdoptionDeps } from '../../domain/services/recordKeyAdoption';
@@ -294,6 +298,7 @@ class DIContainer {
   private screenDefinitionCache?: ScreenDefinitionCache;
   private aggregateRecomputeDeps?: AggregateRecomputeDeps;
   private aggregateBackfillDeps?: AggregateBackfillDeps;
+  private recordSearchDeps?: RecordSearchDeps;
   private recordKeyAdoptionDeps?: RecordKeyAdoptionDeps;
   private workflowClockDeps?: WorkflowClockDeps;
   private workflowContextHydrator?: WorkflowContextHydrator;
@@ -917,6 +922,28 @@ class DIContainer {
       };
     }
     return this.workflowClockDeps;
+  }
+
+  getRecordSearchDeps(): RecordSearchDeps {
+    if (!this.recordSearchDeps) {
+      this.recordSearchDeps = {
+        repository: new FirebaseRecordSearchRepository(getDb()),
+        schemaContext: (tenantId: string) => this.getScreenDefinitionCache().getSchemaContext(tenantId),
+        freshSchemaContext: (tenantId: string) => this.getFreshSchemaContext(tenantId),
+        // O rótulo de uma lista declarada por extensão é referência de mensagem: o termo é a palavra
+        // que o escritório LÊ, no idioma dele, e não a chave do catálogo.
+        catalog: async (tenantId: string) => {
+          const [bundles, office] = await Promise.all([
+            this.getInstalledExtensionCache().messageBundles(tenantId),
+            getDb().collection('tenants').doc(tenantId).collection('settings').doc('tenant').get(),
+          ]);
+          return agentCatalog(bundles, configuredLocale({}, settingsValuesOf(office.data())) ?? DEFAULT_LOCALE);
+        },
+        now: () => Date.now(),
+        logger: { warn: (message: string) => console.warn(`[record-search] ${message}`) },
+      };
+    }
+    return this.recordSearchDeps;
   }
 
   getAggregateBackfillDeps(): AggregateBackfillDeps {

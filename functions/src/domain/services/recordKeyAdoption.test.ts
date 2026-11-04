@@ -11,7 +11,6 @@ import {
   claimRecordKeyAdoptionRound,
   completeRecordKeyAdoptionRound,
   decideRecordKeyAdoption,
-  isRecordKeyBookkeepingWrite,
   recheckRecordKeyIssues,
   reconcileRecordKeyAdoptions,
   recordWriteMayResolveKeyIssue,
@@ -339,13 +338,6 @@ describe('o fechamento das rodadas', () => {
 });
 
 describe('as gravações de registro', () => {
-  it('só `keyRefs` mudou: é contabilidade da adoção, não fato de negócio', () => {
-    expect(isRecordKeyBookkeepingWrite({ a: 1 }, { a: 1, keyRefs: { k: 'x' } })).toBe(true);
-    expect(isRecordKeyBookkeepingWrite({ a: 1 }, { a: 2, keyRefs: { k: 'x' } })).toBe(false);
-    expect(isRecordKeyBookkeepingWrite({ a: 1 }, { a: 1 })).toBe(false);
-    expect(isRecordKeyBookkeepingWrite(null, { keyRefs: {} })).toBe(false);
-  });
-
   it('só chega ao job a gravação que pode ter resolvido um conflito', () => {
     const ctx = createSchemaContext([pessoas()]);
     const adopted = { email: 'a@x', keyRefs: { email: 'pessoas|email|a@x' } };
