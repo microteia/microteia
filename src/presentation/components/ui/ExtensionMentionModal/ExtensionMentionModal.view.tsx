@@ -3,6 +3,8 @@ import { Modal } from '../Modal';
 import { Input } from '../Input';
 import { S } from './ExtensionMentionModal.styles';
 import { useRecords } from '../../../../stores/useRecords';
+import { useRecordDemand } from '../../../../stores/useRecordDemand';
+import { screenDataCollection } from '../../../../domain/services/screenDataCollection';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import type { ExtensionMentionProvider, MentionResult } from '../../../shared/extensions/extensionServices';
 
@@ -24,6 +26,13 @@ export const ExtensionMentionModal: React.FC<ExtensionMentionModalProps> = ({ pr
   const { allRecords } = useRecords();
   const { definitions } = useScreenDefinitions();
   const [query, setQuery] = useState('');
+  // O provedor da extensão busca nos registros em memória: enquanto o seletor está aberto, as
+  // coleções das telas ficam assinadas, como ficavam sempre antes da carga sob demanda.
+  const mentionCollections = useMemo(
+    () => definitions.filter((definition) => definition.origin !== 'builtin').map(screenDataCollection),
+    [definitions],
+  );
+  useRecordDemand(mentionCollections);
 
   const results = useMemo(
     () => provider.search(query, { records: allRecords, screenDefinitions: definitions }).slice(0, 20),

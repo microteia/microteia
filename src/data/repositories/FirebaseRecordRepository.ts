@@ -23,6 +23,7 @@ import {
 import type { Query } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../infrastructure/firebase/config';
+import { RECORD_WINDOW_DEFAULT } from '../../domain/repositories/IRecordRepository';
 import type { IRecordRepository } from '../../domain/repositories/IRecordRepository';
 import type { EntityRecord, EntityRecordValues } from '../../domain/entities/EntityRecord';
 import type { DeletionActor } from '../../domain/entities';
@@ -65,7 +66,6 @@ import {
 import { runRecordSequenceTransaction } from '../utils/recordSequenceTransaction';
 import { ambientTimeZone } from '../../domain/schema/clockGate';
 
-const RECORDS_PAGE_LIMIT = 500;
 
 /** O teto do operador `in` do Firestore. */
 const IN_QUERY_LIMIT = 30;
@@ -82,7 +82,7 @@ const keysRef = (tenantId: string) => firestoreCollection(db, 'tenants', tenantI
  * regra prova — um `==` e um `array-contains` por campo, num `or()` — e perde o `orderBy`: ordenar pelo
  * servidor pediria um índice composto por disjunção, por campo declarado, e a tela do Form Design não
  * tem como declarar índice. A ordem volta em memória (`newestFirst`), sobre o que a pessoa vê — e o
- * teto de 500 vale para o que a NOMEIA, não para a coleção.
+ * teto da janela vale para o que a NOMEIA, não para a coleção.
  *
  * `null` quando a declaração não nomeia campo nenhum (malformada): não há consulta que a regra aceite,
  * e a pessoa não vê nada.
@@ -91,14 +91,15 @@ const listQuery = (
   tenantId: string,
   collection: string,
   visibleTo: MemberVisibilityFilter | null | undefined,
+  max: number,
 ): Query | null => {
-  if (!visibleTo) return query(recordsRef(tenantId, collection), orderBy('createdAt', 'desc'), limit(RECORDS_PAGE_LIMIT));
+  if (!visibleTo) return query(recordsRef(tenantId, collection), orderBy('createdAt', 'desc'), limit(max));
   const clauses = memberVisibilityClauses(visibleTo.spec);
   if (clauses.length === 0) return null;
   return query(
     recordsRef(tenantId, collection),
     or(...clauses.map((clause) => where(clause.field, clause.op, visibleTo.uid))),
-    limit(RECORDS_PAGE_LIMIT),
+    limit(max),
   );
 };
 
@@ -229,7 +230,7 @@ const stripIdentity = (data: EntityRecordValues): Record<string, unknown> => {
 
 export class FirebaseRecordRepository implements IRecordRepository {
   async getAll(tenantId: string, collection: string): Promise<EntityRecord[]> {
-    const q = query(recordsRef(tenantId, collection), orderBy('createdAt', 'desc'), limit(RECORDS_PAGE_LIMIT));
+    const q = query(recordsRef(tenantId, collection), orderBy('createdAt', 'desc'), limit(RECORD_WINDOW_DEFAULT));
     const snap = await getDocs(q);
     const derive = makeRecordDeriver(collection);
     return snap.docs.map((d) => mapRecord(d.id, d.data(), tenantId, collection, derive));
@@ -241,8 +242,9 @@ export class FirebaseRecordRepository implements IRecordRepository {
     onUpdate: (records: EntityRecord[]) => void,
     onError?: (collection: string, error: Error) => void,
     visibleTo?: MemberVisibilityFilter | null,
+    max: number = RECORD_WINDOW_DEFAULT,
   ): () => void {
-    const q = listQuery(tenantId, collection, visibleTo);
+    const q = listQuery(tenantId, collection, visibleTo, max);
     if (q === null) {
       onUpdate([]);
       return () => undefined;

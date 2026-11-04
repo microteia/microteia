@@ -12,6 +12,13 @@ export interface RecordStoreState {
    * na lista de ninguém.
    */
   knownRecordsByCollection: Record<string, EntityRecord[]>;
+  /** As coleções cuja assinatura já respondeu. Uma que ninguém pediu não está aqui, nem em `recordsByCollection`. */
+  loadedCollections: ReadonlySet<string>;
+  /**
+   * Pede que as coleções fiquem assinadas — os `limit` mais recentes — enquanto quem pede precisar;
+   * devolve a função que solta. Use `useRecordDemand`, que faz isso no ciclo de vida do componente.
+   */
+  demand: (collections: readonly string[], limit: number) => () => void;
   /** Traz, numa leitura por lote, os registros pedidos que ninguém carregou ainda. Pedido repetido não lê de novo. */
   ensureRecords: (collection: string, ids: readonly string[]) => void;
   /** A busca no servidor. O que volta passa a ser conhecido — o seletor o oferece, o cartão o nomeia. */

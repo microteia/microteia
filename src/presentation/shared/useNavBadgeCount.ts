@@ -1,5 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useNavContributions } from './useUiContributions';
+import { navMetadataOf } from './resolveUiContributions';
 import { useRecords } from '../../stores/useRecords';
+import { useRecordDemand } from '../../stores/useRecordDemand';
 import { useExprViewer } from './useExprViewer';
 import { evaluateFieldBoolean } from '../../domain/schema/fieldExpression';
 import { EMPTY_VIEWER, type ExprViewer } from '../../domain/schema/actionExpression';
@@ -35,6 +38,14 @@ export const countBadgeRecords = (
 export const useNavBadgeCount = (): ((badge: UiNavBadge | undefined) => number) => {
   const { recordsByCollection } = useRecords();
   const viewer = useExprViewer();
+  // O selo conta os registros carregados: as coleções que algum item do menu conta ficam assinadas
+  // enquanto o menu existir, que é o tempo todo.
+  const navContributions = useNavContributions();
+  const badgeCollections = useMemo(
+    () => navContributions.map((contribution) => navMetadataOf(contribution).badge?.collection ?? ''),
+    [navContributions],
+  );
+  useRecordDemand(badgeCollections);
 
   return useCallback(
     (badge) => (badge ? countBadgeRecords(recordsByCollection[badge.collection] ?? [], badge, viewer) : 0),

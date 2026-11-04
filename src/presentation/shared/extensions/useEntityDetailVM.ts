@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
+import { useRecordDemand } from '../../../stores/useRecordDemand';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuthorization } from '../../../stores/useAuthorization';
 import { PERMISSION_DOCUMENT_TYPES_MANAGE } from '../../../domain/schema/access';
@@ -69,6 +70,9 @@ export const useEntityDetailVM = (
   // Numa tela BOUND os registros (e as regras de gravação) são os da coleção alvo — ver
   // `screenDataCollection`. A chave da tela segue endereçando só as abas desta extensão.
   const collection = definition ? screenDataCollection(definition) : screenKey;
+  // O registro aberto é procurado entre os carregados da coleção, que este detalhe pede.
+  const collectionDemand = useMemo(() => (collection ? [collection] : []), [collection]);
+  useRecordDemand(collectionDemand);
   const canDeleteRecords = can(`${collection}.delete`);
   const isBound = !!definition && isBoundScreen(definition);
   const boundFields = useEntityFormFields(isBound ? collection : '');

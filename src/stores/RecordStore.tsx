@@ -21,14 +21,23 @@ import type { DeletionActor, EntityRecord, EntityRecordValues } from '../domain/
  * Registros das telas SEM store próprio — as do Form Design e as de extensão. As entidades fixas
  * seguem nos seus stores tipados; o contrato de leitura e gravação, porém, já é o mesmo.
  */
+/** Quanto uma coleção que ninguém mais pede continua assinada — trocar de aba e voltar não reassina. */
+const DEMAND_GRACE_MS = 60_000;
+
 export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant, members } = useTenant();
   const { user, userRole, effectiveName } = useAuth();
   const { definitions, dynamicScreens } = useScreenDefinitions();
   const { recordRepository, recordNoteRepository, recordDocumentRepository } = useDI();
 
-  const [recordsByCollection, setRecordsByCollection] = useState<Record<string, EntityRecord[]>>({});
-  const [isLoading, setIsLoading] = useState(false);
+  /**
+   * O que cada assinatura entregou, por escritório. Uma coleção está CARREGADA quando a assinatura
+   * dela respondeu (com dados ou com recusa); a que ninguém mais pede deixa de aparecer em
+   * `recordsByCollection` sem precisar ser apagada — o mesmo para a troca de escritório.
+   */
+  const [snapshots, setSnapshots] = useState<{ tenantId: string | null; byCollection: Record<string, EntityRecord[]> }>(
+    { tenantId: null, byCollection: {} },
+  );
   /**
    * Muda quando os calendários de dias úteis mudam. Um campo derivado é avaliado na LEITURA, dentro
    * do repositório, e um registro já lido não se recalcula sozinho: reassinar é o que faz o prazo
@@ -88,39 +97,123 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [visibilityKey],
   );
 
+  /**
+   * QUEM precisa de cada coleção, e de quantos registros. Nada é assinado por existir: a tela aberta,
+   * a aba de filhos, a view de extensão, o selo do menu e os calendários pedem (`useRecordDemand`) e
+   * soltam. Antes, o login assinava a janela de toda coleção do escritório — 500 documentos por tela,
+   * relidos a cada volta à aba, para telas que ninguém abria.
+   *
+   * Soltar espera `DEMAND_GRACE_MS`: trocar de aba e voltar não pode custar uma reassinatura.
+   */
+  const [demands, setDemands] = useState<Record<string, Record<string, number>>>({});
+  const demandSeq = useRef(0);
+  const releaseTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
+
   useEffect(() => {
-    if (!currentTenant) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing local state on tenant change is architecturally required
-      setRecordsByCollection({});
-      return;
-    }
-    setIsLoading(true);
-    let pending = collections.length;
-    if (pending === 0) setIsLoading(false);
-    // Uma coleção que RESPONDE — com dados ou com recusa — deixa de ser esperada. Contar só as
-    // respostas de sucesso é o que prendia a tela girando quando a regra negava a leitura: o erro
-    // ia para o console e o contador nunca chegava a zero.
-    const settle = () => {
-      pending -= 1;
-      if (pending <= 0) setIsLoading(false);
+    const timers = releaseTimers.current;
+    return () => {
+      for (const timer of timers) clearTimeout(timer);
+      timers.clear();
     };
-    const unsubscribers = collections.map((collection) =>
-      uc.subscribe.execute(
-        currentTenant.id,
-        collection,
-        (records) => {
-          setRecordsByCollection((prev) => ({ ...prev, [collection]: records }));
-          settle();
-        },
-        (deniedCollection) => {
-          setRecordsByCollection((prev) => ({ ...prev, [deniedCollection]: [] }));
-          settle();
-        },
-        visibleTo.get(collection) ?? null,
-      ),
-    );
-    return () => unsubscribers.forEach((unsub) => unsub());
-  }, [currentTenant, collections, uc.subscribe, derivationRevision, visibleTo]);
+  }, []);
+
+  const demand = useCallback((wanted: readonly string[], limit: number) => {
+    const unique = [...new Set(wanted.filter((collection) => collection !== ''))];
+    if (unique.length === 0) return () => undefined;
+    demandSeq.current += 1;
+    const token = String(demandSeq.current);
+    setDemands((prev) => {
+      const next = { ...prev };
+      for (const collection of unique) next[collection] = { ...(next[collection] ?? {}), [token]: limit };
+      return next;
+    });
+    return () => {
+      const timer = setTimeout(() => {
+        releaseTimers.current.delete(timer);
+        setDemands((prev) => {
+          const next = { ...prev };
+          for (const collection of unique) {
+            const rest = { ...(next[collection] ?? {}) };
+            delete rest[token];
+            if (Object.keys(rest).length > 0) next[collection] = rest;
+            else delete next[collection];
+          }
+          return next;
+        });
+      }, DEMAND_GRACE_MS);
+      releaseTimers.current.add(timer);
+    };
+  }, []);
+
+  /** Coleção → a MAIOR janela pedida. Texto, para que um pedido igual não reassine nada. */
+  const activeKey = useMemo(() => JSON.stringify(
+    Object.entries(demands)
+      .map(([collection, byToken]) => [collection, Math.max(...Object.values(byToken))] as const)
+      .sort(([left], [right]) => (left < right ? -1 : 1)),
+  ), [demands]);
+
+  const tenantId = currentTenant?.id ?? null;
+  const subscriptions = useRef(new Map<string, { signature: string; unsubscribe: () => void }>());
+
+  useEffect(() => {
+    const current = subscriptions.current;
+    const wanted = new Map(JSON.parse(activeKey) as [string, number][]);
+    for (const [collection, subscription] of current) {
+      if (!tenantId || !wanted.has(collection)) {
+        subscription.unsubscribe();
+        current.delete(collection);
+      }
+    }
+    if (!tenantId) return;
+    for (const [collection, limit] of wanted) {
+      const filter = visibleTo.get(collection) ?? null;
+      const signature = JSON.stringify([tenantId, limit, filter, derivationRevision]);
+      const existing = current.get(collection);
+      if (existing?.signature === signature) continue;
+      existing?.unsubscribe();
+      // Uma coleção que RESPONDE — com dados ou com recusa — está carregada. Esperar só pelo sucesso
+      // prendia a tela girando quando a regra negava a leitura.
+      const deliver = (records: EntityRecord[]) => setSnapshots((prev) => ({
+        tenantId,
+        byCollection: { ...(prev.tenantId === tenantId ? prev.byCollection : {}), [collection]: records },
+      }));
+      const unsubscribe = uc.subscribe.execute(tenantId, collection, deliver, () => deliver([]), filter, limit);
+      current.set(collection, { signature, unsubscribe });
+    }
+  }, [tenantId, activeKey, visibleTo, derivationRevision, uc.subscribe]);
+
+  useEffect(() => {
+    const current = subscriptions.current;
+    return () => {
+      for (const subscription of current.values()) subscription.unsubscribe();
+      current.clear();
+    };
+  }, []);
+
+  const activeCollections = useMemo(
+    () => new Set((JSON.parse(activeKey) as [string, number][]).map(([collection]) => collection)),
+    [activeKey],
+  );
+
+  const recordsByCollection = useMemo(() => {
+    if (snapshots.tenantId !== tenantId) return {};
+    const visible: Record<string, EntityRecord[]> = {};
+    for (const [collection, records] of Object.entries(snapshots.byCollection)) {
+      if (activeCollections.has(collection)) visible[collection] = records;
+    }
+    return visible;
+  }, [snapshots, tenantId, activeCollections]);
+
+  const loadedCollections = useMemo(() => new Set(Object.keys(recordsByCollection)), [recordsByCollection]);
+  const isLoading = [...activeCollections].some((collection) => !loadedCollections.has(collection));
+
+  /** O mesmo estado, com a gravação local otimista aplicada à coleção que já está na memória. */
+  const patchCollection = useCallback((collection: string, change: (records: EntityRecord[]) => EntityRecord[]) => {
+    setSnapshots((prev) => {
+      const records = prev.byCollection[collection];
+      return records ? { ...prev, byCollection: { ...prev.byCollection, [collection]: change(records) } } : prev;
+    });
+  }, []);
 
   const allRecords = useMemo(
     () => Object.values(recordsByCollection).flat(),
@@ -136,7 +229,6 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     { tenantId: null, byCollection: {} },
   );
   const requested = useRef<{ tenantId: string | null; keys: Set<string> }>({ tenantId: null, keys: new Set() });
-  const tenantId = currentTenant?.id ?? null;
   const fetchedByCollection = useMemo(
     () => (fetched.tenantId === tenantId ? fetched.byCollection : {}),
     [fetched, tenantId],
@@ -182,8 +274,9 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [recordsByCollection, fetchedByCollection]);
 
   const ensureRecords = useCallback((collection: string, ids: readonly string[]) => {
-    // Antes de a janela responder, todo id pareceria faltar — e seria lido duas vezes.
-    if (!tenantId || isLoading || ids.length === 0) return;
+    // Antes de a janela pedida responder, todo id pareceria faltar — e seria lido duas vezes.
+    if (!tenantId || ids.length === 0) return;
+    if (activeCollections.has(collection) && !loadedCollections.has(collection)) return;
     const inWindow = new Set((recordsByCollection[collection] ?? []).map((record) => record.id));
     const missing = [...new Set(ids)].filter((id) => id !== '' && !inWindow.has(id));
     const fresh = markRequested(tenantId, missing.map((id) => `${collection}/${id}`))
@@ -192,7 +285,7 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     uc.getByIds.execute(tenantId, collection, fresh, visibleTo.get(collection) ?? null)
       .then((records) => remember(tenantId, collection, records))
       .catch((error: unknown) => console.warn(`[RecordStore] ensureRecords ${collection}:`, (error as Error).message));
-  }, [tenantId, isLoading, recordsByCollection, markRequested, uc.getByIds, visibleTo, remember]);
+  }, [tenantId, activeCollections, loadedCollections, recordsByCollection, markRequested, uc.getByIds, visibleTo, remember]);
 
   const searchRecords = useCallback(async (collection: string, text: string, max: number) => {
     if (!tenantId) return [];
@@ -240,10 +333,7 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   ) => {
     if (!currentTenant) return;
     await uc.update.execute(currentTenant.id, collection, recordId, data);
-    setRecordsByCollection((prev) => ({
-      ...prev,
-      [collection]: (prev[collection] ?? []).map((r) => (r.id === recordId ? { ...r, ...data } : r)),
-    }));
+    patchCollection(collection, (records) => records.map((r) => (r.id === recordId ? { ...r, ...data } : r)));
     // O registro aberto de fora da janela também mostra o que acabou de ser gravado.
     setFetched((prev) => {
       const current = prev.byCollection[collection]?.[recordId];
@@ -251,16 +341,13 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return { ...prev, byCollection: { ...prev.byCollection, [collection]: { ...prev.byCollection[collection], [recordId]: { ...current, ...data } } } };
     });
     storeEvents.emit(StoreEvents.RECORDS_UPDATED);
-  }, [currentTenant, uc.update]);
+  }, [currentTenant, uc.update, patchCollection]);
 
   const deleteRecord = useCallback(async (collection: string, recordId: string) => {
     if (!currentTenant) return;
     const actor: DeletionActor = { uid: user?.id ?? '', name: effectiveName, photoURL: user?.photoURL ?? '' };
     await uc.delete.execute(currentTenant.id, collection, recordId, actor);
-    setRecordsByCollection((prev) => ({
-      ...prev,
-      [collection]: (prev[collection] ?? []).filter((r) => r.id !== recordId),
-    }));
+    patchCollection(collection, (records) => records.filter((r) => r.id !== recordId));
     setFetched((prev) => {
       if (!prev.byCollection[collection]?.[recordId]) return prev;
       const rest = { ...prev.byCollection[collection] };
@@ -268,13 +355,15 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return { ...prev, byCollection: { ...prev.byCollection, [collection]: rest } };
     });
     storeEvents.emit(StoreEvents.RECORDS_UPDATED);
-  }, [currentTenant, user, effectiveName, uc.delete]);
+  }, [currentTenant, user, effectiveName, uc.delete, patchCollection]);
 
   return (
     <RecordContext.Provider value={{
       recordsByCollection,
       allRecords,
       knownRecordsByCollection,
+      loadedCollections,
+      demand,
       ensureRecords,
       searchRecords,
       isLoading,

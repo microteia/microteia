@@ -10,13 +10,14 @@ import { BUSINESS_CALENDAR_POINT, businessCalendarCollectionsOf } from '../../do
 import { storeEvents, StoreEvents } from '../../infrastructure/events/StoreEventEmitter';
 import { useContributions } from '../../stores/useKernel';
 import { useRecords } from '../../stores/useRecords';
+import { useRecordDemand } from '../../stores/useRecordDemand';
 
 /**
  * Os calendários de dias úteis, do `RecordStore` para o gate das expressões.
  *
- * O `RecordStore` já assina a coleção de toda tela de extensão (as ocultas também), então não há
- * segunda leitura: a ponte só pergunta ao kernel QUAIS coleções as extensões declaram
- * (`time.business.calendar`) e entrega os documentos delas à conta.
+ * A ponte PEDE ao `RecordStore` as coleções que as extensões declaram (`time.business.calendar`) e
+ * entrega os documentos delas à conta. Ela vive enquanto o escritório está aberto, e por isso os
+ * calendários ficam assinados o tempo todo — a conta de um prazo não pode esperar alguém abrir a tela.
  *
  * Enquanto alguma coleção declarada não respondeu, o conjunto é "carregando" — e a conta recusa com
  * esse nome, em vez de contar sem os dias. Sem nenhuma declaração, é `null`: nenhuma extensão os traz.
@@ -29,6 +30,8 @@ export const BusinessCalendarBridge: React.FC = () => {
   const { recordsByCollection } = useRecords();
 
   const collections = useMemo(() => businessCalendarCollectionsOf(contributions), [contributions]);
+  // A conta de dias úteis precisa dos calendários o tempo todo, e a ponte vive enquanto o escritório.
+  useRecordDemand(collections);
 
   const { set, fingerprint } = useMemo((): { set: BusinessCalendarSet | null; fingerprint: string } => {
     if (collections.length === 0) return { set: null, fingerprint: '' };

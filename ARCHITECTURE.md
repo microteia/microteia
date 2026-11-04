@@ -5276,8 +5276,9 @@ number/currency → `number | null`; date → `Timestamp` ao **meio-dia UTC** do
 checkbox → `boolean`; select/reference single → `string | null`; multi → `string[]`;
 file → `string | null`, a **URL de download** do Firebase Storage.
 
-A listagem consulta `orderBy('createdAt','desc') + limit(500)` — sem filtro implícito e, portanto,
-**sem índice composto**. Filtro e ordenação continuam em memória, como antes.
+A janela de uma coleção é `orderBy('createdAt','desc') + limit(RECORD_WINDOW_DEFAULT)` (500) — sem
+filtro implícito e, portanto, **sem índice composto**. Ela só é assinada enquanto alguém a PEDE (ver
+"A coleção é assinada enquanto alguém a usa", abaixo).
 
 > Consequência aceita: coleções criadas em runtime não podem ter índice composto declarado em
 > `firestore.indexes.json`. É o motivo de o motor de workflow usar só igualdades no Firestore e
@@ -5288,7 +5289,7 @@ A listagem consulta `orderBy('createdAt','desc') + limit(500)` — sem filtro im
 - Conversões e validações puras: `domain/services/customFieldValues.ts` (`slugifyFieldKey`, `ensureUniqueKey`, `buildInitialFormValues`, `formValuesToStoredValues`, `validateRequiredFields`, `resolveRecordTitle`, `sortFieldsByOrder`).
 - Repositórios: `FirebaseScreenDefinitionRepository` (upsert preserva `createdAt/createdBy`; delete remove antes a subcoleção `tags` e grava o stamp `deletedBy*`) e `FirebaseRecordRepository`/`FirebaseRecordNoteRepository`/`FirebaseRecordDocumentRepository` — **genéricos por coleção**: recebem `collection` como argumento e servem qualquer entidade.
 - Use cases genéricos em `domain/usecases/records/` (`Create/Update/Delete/GetById/Get/SubscribeToRecord*`), todos parametrizados pela coleção.
-- Stores: `ScreenDefinitionStore` (definições + `tagsByScreen`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `RecordStore` (`recordsByCollection`, `allRecords` para o ⌘K, evento `RECORDS_UPDATED`; assina uma coleção por tela `design`/`plugin` e depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`). As 5 entidades fixas seguem com stores tipados próprios nesta etapa; o contrato de leitura e gravação, porém, já é o mesmo.
+- Stores: `ScreenDefinitionStore` (definições + `tagsByScreen`, eventos `SCREEN_DEFINITIONS_UPDATED`) e `RecordStore` (`recordsByCollection`, `allRecords` para o ⌘K, evento `RECORDS_UPDATED`; assina cada coleção enquanto alguém a pede por `useRecordDemand` e depende do `ScreenDefinitionStore` — ordem dos providers em `App.tsx`). As 5 entidades fixas seguem com stores tipados próprios nesta etapa; o contrato de leitura e gravação, porém, já é o mesmo.
 
 ### Anotações e Documentos em telas dinâmicas
 
@@ -5455,11 +5456,32 @@ A caixa "Filtrar…" da listagem soma ao que casa em memória o que o servidor a
 (`useServerRecordSearch` sobre a coleção da tela). O registro de fora da janela passa pelos MESMOS
 filtros e pelo mesmo vínculo com o pai: a busca acrescenta registros, não fura o recorte montado.
 
-**O que ainda NÃO faz.** A fase 3 tira a carga de todas as coleções do login: cada uma assinada
-enquanto alguém a usa (inclusive `useCollection` das extensões), com paginação por cursor — o filtro de
-data por intervalo pagina pelo próprio campo, com índice simples. Os filtros por campo (lista, data,
-etiqueta) continuam rodando sobre a janela carregada até lá; a lista de extensão (`useEntityList`) não
-ganhou a busca no servidor.
+**A coleção é assinada enquanto alguém a usa — `useRecordDemand`.** O login assinava a janela de
+toda coleção do escritório: 500 documentos por tela, relidos a cada volta à aba, para telas que
+ninguém abria. Agora nada é assinado por existir. Quem precisa da coleção na memória PEDE —
+`RecordStoreState.demand(coleções, limit)`, pelo gancho `useRecordDemand` no ciclo de vida do
+componente — e a assinatura vive enquanto houver um pedido, com a MAIOR janela pedida. Soltar espera
+`DEMAND_GRACE_MS` (60 s): trocar de aba e voltar não reassina. A coleção que ninguém mais pede sai de
+`recordsByCollection` sem precisar ser apagada, e `loadedCollections` diz quais já responderam (com
+dados ou com recusa) — é o "carregando" de cada tela, no lugar do `isLoading` global.
+
+| Quem pede | Por quê |
+|---|---|
+| a listagem (`useRecordListViewModel`) e o registro aberto (`ViewDynamicRecord`, `useEntityDetailVM`, `useEntityForm`) | a tela que mostra a coleção |
+| `useEntity` e `useCollection` da ponte de extensão | o contrato da view de extensão continua o de sempre — os mais recentes, até a janela —, agora enquanto ela está montada |
+| `useNavBadgeCount` | o selo conta os registros carregados; as coleções que algum item do menu conta ficam assinadas enquanto o menu existe |
+| `BusinessCalendarBridge` | a conta de dias úteis não pode esperar alguém abrir a tela dos calendários |
+| `ExtensionMentionModal` | o provedor de menção da extensão busca em memória; enquanto o seletor está aberto, as telas ficam assinadas |
+
+O ⌘K e os seletores de referência não pedem nada: buscam no servidor. O seletor fica vazio até a
+pessoa digitar — decisão de produto, para que abrir um formulário não custe leitura nenhuma. O filtro
+de referência aparece mesmo sem opções carregadas, porque as opções vêm da busca.
+
+**O que ainda NÃO faz.** A listagem continua pedindo a janela inteira; a rolagem infinita, as abas de
+filhos consultando só os filhos do pai e os filtros por campo no servidor vêm a seguir. Uma expressão
+de formulário que atravessa mais de uma referência (`contrato.cliente.cpf`) só enxerga o segundo salto
+se ele estiver carregado: `useEnsureReferencedRecords` traz o primeiro. A lista de extensão
+(`useEntityList`) não ganhou a busca no servidor.
 
 ### O cartão da listagem é declarado — `cardTemplate`
 

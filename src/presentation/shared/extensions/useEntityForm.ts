@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
+import { useRecordDemand } from '../../../stores/useRecordDemand';
 import {
   buildInitialFormValues,
   collectRequiredErrors,
@@ -61,6 +62,8 @@ export const useEntityForm = (sourceId: string, recordId?: string | null): Entit
   const declared = useMemo(() => (screen ? sortFieldsByOrder(screen.fields) : []), [screen]);
   const fields = useResolvedFields(declared);
   const isNew = !recordId;
+  const collectionDemand = useMemo(() => (screenKey ? [screenKey] : []), [screenKey]);
+  useRecordDemand(collectionDemand);
 
   const record = useMemo(
     () => (recordId ? (recordsByCollection[screenKey] ?? []).find((r) => r.id === recordId) ?? null : null),

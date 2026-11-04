@@ -3,6 +3,13 @@ import type { EntityRecord, EntityRecordValues, RecordDocument, RecordNote } fro
 import type { MemberVisibilityFilter } from '../schema/memberVisibility';
 
 /**
+ * A janela padrão de uma coleção assinada: os mais recentes, até este número. É o que a listagem
+ * sempre carregou, e o que continua valendo para quem precisa da coleção "inteira" na memória — os
+ * selos do menu, os calendários, as views de extensão (`useCollection`).
+ */
+export const RECORD_WINDOW_DEFAULT = 500;
+
+/**
  * Acesso genérico a registros por COLEÇÃO. A mesma implementação serve `persons`, `medico` ou
  * `vendas__produto` — é a coleção que muda, não o contrato.
  */
@@ -24,6 +31,8 @@ export interface IRecordRepository {
     onUpdate: (records: EntityRecord[]) => void,
     onError?: (collection: string, error: Error) => void,
     visibleTo?: MemberVisibilityFilter | null,
+    /** Quantos dos mais recentes. Ausente, `RECORD_WINDOW_DEFAULT`. */
+    limit?: number,
   ): () => void;
   getById(tenantId: string, collection: string, recordId: string): Promise<EntityRecord | null>;
   /**

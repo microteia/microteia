@@ -3,6 +3,7 @@ import { useTheme } from 'styled-components';
 import { useLookups } from '../../stores/useLookups';
 import { useReferenceOptions } from './useReferenceOptions';
 import { useReferenceSearch } from '../shared/useReferenceSearch';
+import { MEMBER_REFERENCE_ENTITY } from '../../domain/schema/memberVisibility';
 import { formatCurrencyBRL } from '../../utils/formatters';
 import {
   FILTER_EMPTY_KEY, FILTER_FILLED_KEY, FILTER_RANGE_TO_SUFFIX, fileNameFromUrl, isEmptyFieldValue, isPresenceFilterable,
@@ -146,7 +147,11 @@ export const useCustomFieldListing = (
         }
         case 'reference': {
           const options = referenceOptionsByEntity[field.refEntity ?? ''] ?? [];
-          if (options.length > 0) {
+          // A coleção apontada pode não estar carregada (ninguém a abriu): o filtro aparece assim
+          // mesmo, porque as opções vêm da busca no servidor. Membro é lista em memória, e sem membro
+          // não há o que filtrar.
+          const searchable = !!field.refEntity && field.refEntity !== MEMBER_REFERENCE_ENTITY;
+          if (options.length > 0 || searchable) {
             defs.push({
               key,
               label: field.label,

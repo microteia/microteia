@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.199.0] — 2026-11-04
+
+- feat(stores/records): demand-driven subscriptions. `RecordStore` no longer subscribes every screen collection at login; `RecordStoreState.demand(collections, limit)` (via `useRecordDemand`) keeps a collection subscribed while someone asks for it, with the largest window asked, released after a 60 s grace. `loadedCollections` replaces the global loading flag per screen; a collection nobody asks for leaves `recordsByCollection`. `IRecordRepository.subscribe` takes the window size (`RECORD_WINDOW_DEFAULT` = 500).
+- feat(records): the demand is declared by the record list, the record view and extension detail/form, `useEntity` and the extension `useCollection` (same contract: the newest records up to the window, now while the view is mounted), the nav badge counter (every badge collection, while the menu exists), `BusinessCalendarBridge` and the mention picker while it is open. The command palette and the reference pickers ask for nothing: they search the server, and the picker stays empty until the person types.
+- fix(records/list): a reference filter is offered even when its target collection has no records loaded, since its options come from the server search.
+- refactor: `useRecordResolver` reads the known records.
+
 #### [9.198.0] — 2026-11-04
 
 - feat(ui/select): `SearchSelect` and `MultiSearchSelect` take `onQueryChange` (the typed text; reset to `''` on open and on pick) and `searchMatches` (values the server found, shown even when the label does not contain the text).

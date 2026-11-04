@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
+import { useRecordDemand } from '../../../stores/useRecordDemand';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuthorization } from '../../../stores/useAuthorization';
 import { PERMISSION_DOCUMENT_TYPES_MANAGE } from '../../../domain/schema/access';
@@ -140,6 +141,10 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
 
   // Tela que é VISÃO sobre outra coleção lê e grava lá, e herda os campos da entidade alvo.
   const collection = definition ? screenDataCollection(definition) : screenKey;
+  // O registro é procurado entre os carregados (o fora da janela vem por id), e o código gerado
+  // (`autoValue`) confere a unicidade contra eles: a tela aberta pede a coleção.
+  const collectionDemand = useMemo(() => (collection ? [collection] : []), [collection]);
+  useRecordDemand(collectionDemand);
   const canDeleteRecords = can(`${collection}.delete`);
   const isBound = !!definition && isBoundScreen(definition);
   const boundFields = useEntityFormFields(isBound ? collection : '');

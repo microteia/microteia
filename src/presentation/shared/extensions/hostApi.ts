@@ -80,6 +80,7 @@ import { useLookups } from '../../../stores/useLookups';
 import { useSettingValue } from '../settings/useSettingValue';
 import { useSettingChoices } from '../settings/useSettingOptions';
 import { useRecords } from '../../../stores/useRecords';
+import { useRecordDemand } from '../../../stores/useRecordDemand';
 import type { EntityRecord, EntityRecordValues, LookupOption } from '../../../domain/entities';
 
 /**
@@ -106,6 +107,10 @@ import type { EntityRecord, EntityRecordValues, LookupOption } from '../../../do
  */
 const useCollection = (collection: string): EntityRecord[] => {
   const { recordsByCollection } = useRecords();
+  // Pedir é o que mantém a coleção assinada: a view que a lê é quem precisa dela, enquanto estiver
+  // montada. O contrato é o de sempre — os mais recentes, até a janela padrão.
+  const demanded = useMemo(() => [collection], [collection]);
+  useRecordDemand(demanded);
   return useMemo(() => recordsByCollection[collection] ?? [], [recordsByCollection, collection]);
 };
 

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.199.0] — 2026-11-04
+
+- O sistema abre mais rápido e consome menos: cada tela passa a carregar os seus registros só quando é aberta, e não mais todas de uma vez ao entrar no escritório.
+- Nos formulários, a lista de um campo que aponta para outro cadastro (como escolher uma pessoa) aparece assim que você começa a digitar, buscando em todo o escritório.
+
 #### [9.198.0] — 2026-11-04
 
 - Ao escolher uma pessoa (ou qualquer registro) num formulário, a busca passou a encontrar também quem foi cadastrado há muito tempo — e pelo CPF, pelo número ou por outro campo pesquisável, além do nome.

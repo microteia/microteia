@@ -3,12 +3,13 @@ import { useRecords } from '../../stores/useRecords';
 import type { RecordResolver } from '../../domain/schema/referenceScope';
 
 /**
- * Resolve um registro referenciado a partir do que o `RecordStore` já mantém em memória — não há
- * busca nova: ele assina todas as telas do tenant. Devolve sempre o próprio registro: os campos
+ * Resolve um registro referenciado a partir do que o `RecordStore` já conhece — não há busca nova
+ * aqui: quem traz o apontado que faltava é `useEnsureReferencedRecords`. Devolve sempre o próprio registro: os campos
  * estão na raiz em qualquer coleção.
  */
 export const useRecordResolver = (): RecordResolver => {
-  const { recordsByCollection } = useRecords();
+  // Os conhecidos: a janela assinada e o que veio por id (`useEnsureReferencedRecords`).
+  const { knownRecordsByCollection: recordsByCollection } = useRecords();
 
   const dynamicIndexes = useMemo(() => {
     const result = new Map<string, Map<string, Record<string, unknown>>>();

@@ -3,6 +3,7 @@ import { useLabel } from '../i18n/useT';
 import { useLookups } from '../../../stores/useLookups';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
+import { useRecordDemand } from '../../../stores/useRecordDemand';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import {
   buildCloneTabKey,
@@ -48,7 +49,7 @@ export interface ExtensionEntity {
 export const useEntity = (sourceId: string): ExtensionEntity => {
   const { dynamicScreens } = useScreenDefinitions();
   const { getOptions } = useLookups();
-  const { recordsByCollection, isLoading, deleteRecord } = useRecords();
+  const { recordsByCollection, loadedCollections, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
 
   const label = useLabel();
@@ -69,6 +70,11 @@ export const useEntity = (sourceId: string): ExtensionEntity => {
     [isBound, boundFields.fields, screen],
   );
   const fields = useResolvedFields(declared);
+
+  // A view da extensão é quem pede a coleção, e a mantém assinada enquanto estiver aberta.
+  const collectionDemand = useMemo(() => (collection ? [collection] : []), [collection]);
+  useRecordDemand(collectionDemand);
+  const isLoading = !!collection && !loadedCollections.has(collection);
 
   const records = useMemo(
     () => (collection ? recordsByCollection[collection] ?? [] : []),

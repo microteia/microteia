@@ -19,11 +19,15 @@ vi.mock('../../../stores/useScreenDefinitions', () => ({
   }),
 }));
 const ensureRecordsStub = vi.fn();
+const loadedStub: ReadonlySet<string> = new Set(['deadlines']);
+const demandStub = vi.fn(() => () => undefined);
 const searchStub = vi.fn<(collection: string, text: string, limit: number) => Promise<EntityRecord[]>>(async () => []);
 vi.mock('../../../stores/useRecords', () => ({
   useRecords: () => ({
     recordsByCollection: { deadlines: state.records },
     knownRecordsByCollection: { deadlines: state.records },
+    loadedCollections: loadedStub,
+    demand: demandStub,
     allRecords: state.records,
     ensureRecords: ensureRecordsStub,
     searchRecords: searchStub,

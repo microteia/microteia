@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useEnsureReferencedRecords } from '../useEnsureReferencedRecords';
 import { useServerRecordSearch } from '../useServerRecordSearch';
+import { useRecordDemand } from '../../../stores/useRecordDemand';
 import { RECORD_SEARCH_MAX_RESULTS } from '../../../domain/schema/recordSearch';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
@@ -196,7 +197,7 @@ export interface RecordListViewModel {
 export const useRecordListViewModel = (source: RecordListSource): RecordListViewModel => {
   const { screenKey, savedFiltersKey, parent, recordTabKeys, defaultFilterTokens, sortRecords, ignoreNavigationIntent } = source;
   const { getDefinition, isLoading: definitionsLoading } = useScreenDefinitions();
-  const { recordsByCollection, isLoading: recordsLoading, updateRecord, deleteRecord } = useRecords();
+  const { recordsByCollection, loadedCollections, updateRecord, deleteRecord } = useRecords();
   const { openTab } = useWorkspace();
   const { can, effectivePermissions } = useAuthorization();
   const { notify } = useNotification();
@@ -284,6 +285,11 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   // nas DUAS listas: `filteredRecords` sai daqui pelo `filter`, que preserva a ordem. Ordenar só a
   // filtrada deixava `records` na ordem da coleção, e duas abas de registro saíram fora de ordem
   // desenhando `records`.
+  // A listagem é quem pede a coleção: sem a tela aberta, ela não é lida.
+  const collectionDemand = useMemo(() => (collection ? [collection] : []), [collection]);
+  useRecordDemand(collectionDemand);
+  const recordsLoading = !!collection && !loadedCollections.has(collection);
+
   const records = useMemo(() => {
     const all = recordsByCollection[collection] ?? [];
     const locked = parent ? all.filter((record) => pointsToParent(record, parent.fieldKeys, parent.recordId)) : all;
