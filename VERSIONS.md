@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.198.0] — 2026-11-04
+
+- Ao escolher uma pessoa (ou qualquer registro) num formulário, a busca passou a encontrar também quem foi cadastrado há muito tempo — e pelo CPF, pelo número ou por outro campo pesquisável, além do nome.
+- Os filtros por referência das listagens, como **Polo ativo** ou **Advogado responsável**, passaram a encontrar qualquer pessoa do escritório enquanto se digita.
+- A caixa de busca das listagens passou a encontrar registros antigos, que antes não apareciam, sempre respeitando os demais filtros escolhidos.
+
 #### [9.197.0] — 2026-11-04
 
 - A busca rápida (⌘K) passou a encontrar registros de todo o escritório, e não só os mais recentes — também pelos campos marcados como pesquisáveis, como o número do processo ou o nome de uma das partes.

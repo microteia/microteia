@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { setNavigationIntent } from '../../../infrastructure/navigation/navigationIntent';
 import type { EntityRecord, ScreenDefinition } from '../../../domain/entities';
 
@@ -19,13 +19,14 @@ vi.mock('../../../stores/useScreenDefinitions', () => ({
   }),
 }));
 const ensureRecordsStub = vi.fn();
+const searchStub = vi.fn<(collection: string, text: string, limit: number) => Promise<EntityRecord[]>>(async () => []);
 vi.mock('../../../stores/useRecords', () => ({
   useRecords: () => ({
     recordsByCollection: { deadlines: state.records },
     knownRecordsByCollection: { deadlines: state.records },
     allRecords: state.records,
     ensureRecords: ensureRecordsStub,
-    searchRecords: vi.fn(async () => []),
+    searchRecords: searchStub,
     isLoading: false,
     createRecord: vi.fn(),
     newRecordId: vi.fn(),
@@ -119,6 +120,8 @@ const listar = (source: Parameters<typeof useRecordListViewModel>[0]) =>
   renderHook(() => useRecordListViewModel(source));
 
 beforeEach(() => {
+  searchStub.mockReset();
+  searchStub.mockImplementation(async () => []);
   abertas.length = 0;
   hostDoGesto = null;
   actionStore.actions = [];
@@ -617,5 +620,32 @@ describe('useRecordListViewModel — perguntas do cartão declarado', () => {
 
     const { result } = listar(source());
     expect(result.current.filterTokens).toEqual([{ key: 'status', values: ['Vencido'] }]);
+  });
+});
+
+/**
+ * A busca livre procura também no servidor: o registro fora dos 500 carregados entra na lista — e
+ * continua obedecendo aos outros filtros que a pessoa montou.
+ */
+describe('useRecordListViewModel — busca no servidor', () => {
+  const outside = (id: string, status: string) =>
+    ({ id, collection: 'deadlines', type: 'Embargos 8227479', status, dueDate: new Date(2026, 7, 1) }) as unknown as EntityRecord;
+
+  it('o achado pelo servidor fora da janela entra, e o que não passa nos outros filtros fica de fora', async () => {
+    searchStub.mockImplementation(async () => [outside('z1', 'Pendente'), outside('z2', 'Vencido')]);
+    const { result } = listar(source());
+
+    act(() => result.current.setFilterTokens([{ key: 'search', values: ['8227479'] }, { key: 'status', values: ['Pendente'] }]));
+
+    await waitFor(() => expect(result.current.filteredRecords.map((r) => r.id)).toEqual(['z1']));
+    expect(searchStub).toHaveBeenCalledWith('deadlines', '8227479', expect.any(Number));
+  });
+
+  it('sem texto de busca, não consulta o servidor', async () => {
+    const { result } = listar(source());
+    act(() => result.current.setFilterTokens([{ key: 'status', values: ['Pendente'] }]));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(searchStub).not.toHaveBeenCalled();
+    expect(result.current.filteredRecords.map((r) => r.id)).toEqual(['a', 'c']);
   });
 });

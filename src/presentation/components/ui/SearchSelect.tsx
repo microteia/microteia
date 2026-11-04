@@ -34,6 +34,16 @@ interface SearchSelectProps {
    * silêncio de uma lista de opções, de um lookup ou de uma referência sem tela de visualização.
    */
   onOpenSelected?: (value: string) => void;
+  /**
+   * O texto digitado na busca da lista, a cada mudança — para quem procura também no SERVIDOR o que
+   * não está entre as opções carregadas. Abrir e escolher zeram o texto, e avisam também.
+   */
+  onQueryChange?: (query: string) => void;
+  /**
+   * Os valores que o servidor achou para o texto atual. Eles aparecem mesmo quando o rótulo não contém
+   * o que foi digitado: o registro pode ter sido achado pelo número, pelo CPF, pelo nome de uma parte.
+   */
+  searchMatches?: ReadonlySet<string>;
 }
 
 const Wrapper = styled.div`
@@ -223,6 +233,8 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   disabled,
   orphanMessage,
   onOpenSelected,
+  onQueryChange,
+  searchMatches,
 }) => {
   const t = useT('core.ui');
   const orphanTitle = orphanMessage ?? t('reference.orphan.title');
@@ -239,13 +251,19 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
 
   const filtered = options.filter((o) =>
     o.label.toLowerCase().includes(query.toLowerCase()) ||
-    (o.meta ?? '').toLowerCase().includes(query.toLowerCase())
+    (o.meta ?? '').toLowerCase().includes(query.toLowerCase()) ||
+    (query !== '' && !!searchMatches?.has(o.value))
   );
+
+  const changeQuery = (next: string) => {
+    setQuery(next);
+    onQueryChange?.(next);
+  };
 
   const handleOpen = () => {
     if (disabled) return;
     reposition();
-    setQuery('');
+    changeQuery('');
     setActiveIdx(0);
     setOpen(true);
     setTimeout(() => searchRef.current?.focus(), 50);
@@ -255,7 +273,8 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
     onChange(val);
     setOpen(false);
     setQuery('');
-  }, [onChange]);
+    onQueryChange?.('');
+  }, [onChange, onQueryChange]);
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -336,7 +355,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
             <SearchInput
               ref={searchRef}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => changeQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={t('action.search')}
             />

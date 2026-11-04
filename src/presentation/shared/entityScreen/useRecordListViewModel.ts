@@ -1,5 +1,7 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useEnsureReferencedRecords } from '../useEnsureReferencedRecords';
+import { useServerRecordSearch } from '../useServerRecordSearch';
+import { RECORD_SEARCH_MAX_RESULTS } from '../../../domain/schema/recordSearch';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -309,17 +311,41 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     return map;
   }, [filterTokens]);
 
-  useEnsureReferencedRecords(records, allFields);
+  /**
+   * A busca livre procura também no SERVIDOR, pelos termos que o backend grava: o registro fora dos
+   * 500 carregados, e o achado por um campo pesquisável que a varredura em memória não lê como a
+   * busca lê (o número sem pontuação, o começo do nome de uma parte).
+   */
+  const searchText = tokenMap['search']?.[0] ?? '';
+  const searchCollections = useMemo(() => (searchText.trim() ? [collection] : []), [searchText, collection]);
+  const serverSearch = useServerRecordSearch(searchText, searchCollections, RECORD_SEARCH_MAX_RESULTS);
 
   const filteredRecords = useMemo(() => {
-    const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();
+    const searchQ = searchText.toLowerCase();
     const tagFilter = tokenMap['tag'] ?? [];
-    return records.filter((record) => {
-      if (searchQ && !listing.searchText(record).includes(searchQ)) return false;
+    const passesOtherFilters = (record: EntityRecord): boolean => {
       if (tagFilter.length > 0 && !tagFilter.some((tid) => record.tagIds?.includes(tid))) return false;
       return listing.matchesFilters(record, tokenMap);
+    };
+    const local = records.filter((record) => {
+      if (searchQ && !listing.searchText(record).includes(searchQ) && !serverSearch.matches.has(`${record.collection}/${record.id}`)) {
+        return false;
+      }
+      return passesOtherFilters(record);
     });
-  }, [records, tokenMap, listing]);
+    // O que o servidor achou fora da janela passa pelos MESMOS filtros e pelo mesmo vínculo com o pai:
+    // a busca acrescenta registros, não fura o recorte que a pessoa montou.
+    const loaded = new Set((recordsByCollection[collection] ?? []).map((record) => record.id));
+    const outside = serverSearch.results.filter((record) =>
+      !loaded.has(record.id)
+      && (!parent || pointsToParent(record, parent.fieldKeys, parent.recordId))
+      && passesOtherFilters(record));
+    if (outside.length === 0) return local;
+    const merged = [...local, ...outside];
+    return sortRecords ? merged.sort(sortRecords) : merged;
+  }, [records, recordsByCollection, collection, parent, sortRecords, tokenMap, searchText, serverSearch, listing]);
+
+  useEnsureReferencedRecords(filteredRecords, allFields);
 
   const getCardItems = useCallback(
     (record: EntityRecord): CustomFieldCardItem[] =>

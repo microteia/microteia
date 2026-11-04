@@ -121,6 +121,8 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
           placeholder={field.placeholder ?? t('action.select')}
           disabled={isDisabled}
           onOpenSelected={openReferenced ?? undefined}
+          onQueryChange={(text) => vm.onReferenceQuery(field, text)}
+          searchMatches={vm.referenceMatches(field)}
         />
       ) : (
         <SearchSelect
@@ -130,6 +132,8 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
           placeholder={field.placeholder ?? t('action.select')}
           disabled={isDisabled}
           onOpenSelected={openReferenced ?? undefined}
+          onQueryChange={(text) => vm.onReferenceQuery(field, text)}
+          searchMatches={vm.referenceMatches(field)}
         />
       );
     }

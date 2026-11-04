@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useTheme } from 'styled-components';
 import { useLookups } from '../../stores/useLookups';
 import { useReferenceOptions } from './useReferenceOptions';
+import { useReferenceSearch } from '../shared/useReferenceSearch';
 import { formatCurrencyBRL } from '../../utils/formatters';
 import {
   FILTER_EMPTY_KEY, FILTER_FILLED_KEY, FILTER_RANGE_TO_SUFFIX, fileNameFromUrl, isEmptyFieldValue, isPresenceFilterable,
@@ -75,6 +76,9 @@ export const useCustomFieldListing = (
   const t = useT('core.records');
   const { getOptions } = useLookups();
   const referenceOptionsByEntity = useReferenceOptions();
+  // O filtro de uma referência procura também no servidor: a pessoa que se quer achar pode estar fora
+  // das carregadas. O que volta vira opção pelo mesmo `useReferenceOptions`.
+  const referenceSearch = useReferenceSearch();
   const theme = useTheme();
 
   const listFields = useMemo(() => fields.filter((f) => f.showInList), [fields]);
@@ -148,6 +152,8 @@ export const useCustomFieldListing = (
               label: field.label,
               type: 'multiselect',
               options: options.map((o) => ({ value: o.value, label: o.label })),
+              onSearch: (query: string) => referenceSearch.onQuery(key, field.refEntity, query),
+              searchMatches: referenceSearch.matchesFor(key),
             });
           }
           break;
@@ -187,7 +193,7 @@ export const useCustomFieldListing = (
       defs.push({ key: `${filterKeyPrefix}${FILTER_FILLED_KEY}`, label: t('filter.filled'), type: 'multiselect', options });
     }
     return defs;
-  }, [filterableFields, presenceFields, filterKeyPrefix, selectOptionLabels, referenceOptionsByEntity, t]);
+  }, [filterableFields, presenceFields, filterKeyPrefix, selectOptionLabels, referenceOptionsByEntity, referenceSearch, t]);
 
   const matchesFilters = useCallback((values: RecordValues | undefined, tokenMap: Record<string, string[]>): boolean => {
     for (const field of filterableFields) {

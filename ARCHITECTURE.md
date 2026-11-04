@@ -5441,10 +5441,25 @@ mostra — legíveis, não filhas, sem `hideRecordsFromCommandPalette`. O que o 
 `CommandPaletteAppContext.recordMatches` e vale mesmo sem o título conter o que foi digitado; o que
 casa pelo título vem antes.
 
-**O que ainda NÃO faz.** O seletor de referência do formulário, os filtros de referência e a caixa de
-busca da listagem ainda buscam em memória (fase 2b). A fase 3 tira a carga de todas as coleções do
-login: cada uma assinada enquanto alguém a usa (inclusive `useCollection` das extensões), com paginação
-por cursor — o filtro de data por intervalo pagina pelo próprio campo, com índice simples.
+**Os seletores, os filtros e a caixa de busca.** `SearchSelect` e `MultiSearchSelect` ganharam
+`onQueryChange` (o texto digitado, zerado ao abrir e ao escolher) e `searchMatches` (os valores que o
+servidor achou, que aparecem mesmo sem o rótulo conter o texto — o registro pode ter sido achado pelo
+número ou pelo CPF). `FilterDef` ganhou `onSearch` e `searchMatches` pelo mesmo motivo, e a
+`CompositeFilter` passou a ler a definição VIVA pela chave: o retrato de quando o filtro abriu não via
+as opções que chegam enquanto a pessoa digita. `useReferenceSearch` é a consulta por trás deles —
+uma por tela, a do seletor em que se está digitando —, usada pela seção de campos do formulário, pelo
+`EntityReferenceControl` das automações e pelos filtros de referência de `useCustomFieldListing`. O que
+volta vira opção porque passa a ser conhecido pelo `RecordStore`.
+
+A caixa "Filtrar…" da listagem soma ao que casa em memória o que o servidor achou
+(`useServerRecordSearch` sobre a coleção da tela). O registro de fora da janela passa pelos MESMOS
+filtros e pelo mesmo vínculo com o pai: a busca acrescenta registros, não fura o recorte montado.
+
+**O que ainda NÃO faz.** A fase 3 tira a carga de todas as coleções do login: cada uma assinada
+enquanto alguém a usa (inclusive `useCollection` das extensões), com paginação por cursor — o filtro de
+data por intervalo pagina pelo próprio campo, com índice simples. Os filtros por campo (lista, data,
+etiqueta) continuam rodando sobre a janela carregada até lá; a lista de extensão (`useEntityList`) não
+ganhou a busca no servidor.
 
 ### O cartão da listagem é declarado — `cardTemplate`
 

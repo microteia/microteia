@@ -17,6 +17,13 @@ export interface FilterDef {
   type: FilterType;
   options?: FilterOption[];
   placeholder?: string;
+  /**
+   * O texto digitado enquanto se escolhem as opções — para quem as busca também no SERVIDOR (o filtro
+   * de uma referência: as pessoas cadastradas não cabem todas na memória).
+   */
+  onSearch?: (query: string) => void;
+  /** As opções que o servidor achou para o texto atual: valem mesmo sem o rótulo conter o texto. */
+  searchMatches?: ReadonlySet<string>;
 }
 
 export interface FilterToken {
@@ -113,8 +120,12 @@ export const useCompositeFilterViewModel = (
     d.label.toLowerCase().includes(inputValue.toLowerCase()),
   );
 
-  const filteredOptions = (activeDef?.options ?? []).filter((o) =>
-    o.label.toLowerCase().includes(inputValue.toLowerCase()),
+  // A definição VIVA, e não o retrato de quando o filtro abriu: as opções de uma referência crescem
+  // enquanto a pessoa digita, conforme a busca no servidor responde.
+  const liveDef = activeDef ? (defs.find((d) => d.key === activeDef.key) ?? activeDef) : null;
+  const filteredOptions = (liveDef?.options ?? []).filter((o) =>
+    o.label.toLowerCase().includes(inputValue.toLowerCase())
+    || (inputValue !== '' && !!liveDef?.searchMatches?.has(o.value)),
   );
 
   const close = useCallback(() => {
@@ -210,7 +221,8 @@ export const useCompositeFilterViewModel = (
   const onInputChange = useCallback((v: string) => {
     setInputValue(v);
     setActiveIdx(0);
-  }, []);
+    if (phase === 'value-select' && activeDef) defs.find((d) => d.key === activeDef.key)?.onSearch?.(v);
+  }, [phase, activeDef, defs]);
 
   const onToggleMulti = useCallback((value: string) => {
     setPendingMulti((prev) =>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useReferenceSearch } from '../../../shared/useReferenceSearch';
 import { useEnsureReferencedRecords } from '../../../shared/useEnsureReferencedRecords';
 import { useTheme } from 'styled-components';
 import { useLookups } from '../../../../stores/useLookups';
@@ -101,6 +102,10 @@ export interface CustomFieldsSectionViewModel {
   handleRecolorOption: (field: FieldDefinition, optionKey: string, color: string) => Promise<void>;
   handleDeleteOption: (field: FieldDefinition, optionKey: string) => Promise<void>;
   referenceOptions: (field: FieldDefinition) => ReferenceOption[];
+  /** O texto digitado no seletor de referência — é ele que vai ao servidor buscar além das opções carregadas. */
+  onReferenceQuery: (field: FieldDefinition, text: string) => void;
+  /** Os ids que o servidor achou para o texto do seletor deste campo. */
+  referenceMatches: (field: FieldDefinition) => ReadonlySet<string>;
   /**
    * O atalho até o registro que o campo aponta, ou `null` quando não há para onde ir — é o que dá ao
    * controle de referência o gesto de abrir o registro escolhido sem perder o formulário de vista.
@@ -289,6 +294,16 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [referenceOptionsByEntity],
   );
 
+  const referenceSearch = useReferenceSearch();
+  const onReferenceQuery = useCallback(
+    (field: FieldDefinition, text: string) => referenceSearch.onQuery(field.key, field.refEntity, text),
+    [referenceSearch],
+  );
+  const referenceMatches = useCallback(
+    (field: FieldDefinition) => referenceSearch.matchesFor(field.key),
+    [referenceSearch],
+  );
+
   const referenceOpener = useCallback(
     (field: FieldDefinition): ReferenceOpener | null => resolveReferenceOpener(field.refEntity),
     [resolveReferenceOpener],
@@ -380,6 +395,8 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     handleRecolorOption,
     handleDeleteOption,
     referenceOptions,
+    onReferenceQuery,
+    referenceMatches,
     referenceOpener,
     isFieldHidden,
     isFieldDisabled,

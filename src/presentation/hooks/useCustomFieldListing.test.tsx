@@ -15,6 +15,11 @@ vi.mock('./useReferenceOptions', () => ({
   useReferenceOptions: () => ({ people: [{ value: 'p1', label: 'Ana' }] }),
 }));
 
+const referenceSearch = { onQuery: () => undefined, matchesFor: () => new Set<string>() };
+vi.mock('../shared/useReferenceSearch', () => ({
+  useReferenceSearch: () => referenceSearch,
+}));
+
 vi.mock('styled-components', () => ({
   useTheme: () => ({ colors: {} }),
 }));

@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.198.0] — 2026-11-04
+
+- feat(ui/select): `SearchSelect` and `MultiSearchSelect` take `onQueryChange` (the typed text; reset to `''` on open and on pick) and `searchMatches` (values the server found, shown even when the label does not contain the text).
+- feat(ui/filter): `FilterDef.onSearch` and `FilterDef.searchMatches`; `CompositeFilter` now reads the live definition by key while choosing values — the snapshot taken when the filter opened never saw options arriving from a server search.
+- feat(records/search): `useReferenceSearch`, one server query per screen for the picker being typed into, used by the form's field section, the automation `EntityReferenceControl` and the reference filters of `useCustomFieldListing`. What comes back becomes an option because the `RecordStore` now knows it.
+- feat(records/list): the list's free-text search adds the server matches for the screen's collection; records outside the window go through the same field, tag and parent-link filters before joining `filteredRecords`.
+
 #### [9.197.0] — 2026-11-04
 
 - feat(records/search): `IRecordRepository.search` queries `where(searchTerms, 'array-contains', <longest word>) + limit(RECORD_SEARCH_WINDOW)` (50) and checks the other words against the raw terms before mapping, capped at `RECORD_SEARCH_MAX_RESULTS`. For a reader restricted by `memberVisibility` it goes through the new `searchRecords` callable (group `deploy:search`): the server reads `RECORD_SEARCH_RESTRICTED_WINDOW` (200) candidates, applies `readerSeesRecord` and returns ids only, which the client then reads under its own rules — the rules cannot accept the terms and the visibility `or()` in one query.

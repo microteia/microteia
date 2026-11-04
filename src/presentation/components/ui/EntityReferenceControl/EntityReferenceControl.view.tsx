@@ -23,6 +23,8 @@ export const EntityReferenceControl: React.FC<EntityReferenceControlProps> = ({ 
         onChange={onChangeMany}
         placeholder={t('select.placeholder')}
         onOpenSelected={vm.openSelected ?? undefined}
+        onQueryChange={vm.onQuery}
+        searchMatches={vm.searchMatches}
       />
     );
   }
@@ -34,6 +36,8 @@ export const EntityReferenceControl: React.FC<EntityReferenceControlProps> = ({ 
       onChange={onChange}
       placeholder={t('select.placeholder')}
       onOpenSelected={vm.openSelected ?? undefined}
+      onQueryChange={vm.onQuery}
+      searchMatches={vm.searchMatches}
     />
   );
 };

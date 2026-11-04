@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useReferenceSearch } from '../../../shared/useReferenceSearch';
 import { useReferenceOptions } from '../../../hooks/useReferenceOptions';
 import { useReferenceOpener } from '../../../shared/useReferenceOpener';
 import type { InputDefinition } from '../../../../domain/entities/WorkflowStepCatalog';
@@ -21,6 +22,10 @@ export interface EntityReferenceControlViewModel {
   options: SearchSelectOption[];
   /** O atalho até o registro escolhido, ou `null` quando nenhuma tela legível apresenta a entidade. */
   openSelected: ReferenceOpener | null;
+  /** O texto digitado na busca do seletor, que vai ao servidor buscar além das opções carregadas. */
+  onQuery: (text: string) => void;
+  /** Os ids que o servidor achou para esse texto. */
+  searchMatches: ReadonlySet<string>;
 }
 
 export const useEntityReferenceControlViewModel = (input: InputDefinition): EntityReferenceControlViewModel => {
@@ -33,5 +38,8 @@ export const useEntityReferenceControlViewModel = (input: InputDefinition): Enti
     [referenceOptionsByEntity, entityType],
   );
 
-  return { options, openSelected: resolveReferenceOpener(entityType) };
+  const search = useReferenceSearch();
+  const onQuery = useCallback((text: string) => search.onQuery('input', entityType, text), [search, entityType]);
+
+  return { options, openSelected: resolveReferenceOpener(entityType), onQuery, searchMatches: search.matchesFor('input') };
 };
