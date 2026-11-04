@@ -113,7 +113,7 @@ describe('RecordStore — a coleção é assinada enquanto alguém a pede', () =
 
 describe('RecordStore — as consultas da listagem', () => {
   const spec = (limit: number): RecordQuerySpec => ({
-    collection: 'cases', limit, anyOf: [], range: null, orderBy: { field: 'createdAt', dir: 'desc' },
+    collection: 'cases', limit, anyOf: [], allOf: [], range: null, orderBy: { field: 'createdAt', dir: 'desc' },
   });
 
   it('carregar mais reassina a MESMA consulta com o tamanho maior, e o que estava na tela fica até a resposta', () => {

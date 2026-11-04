@@ -1,11 +1,13 @@
 import { RECORD_CREATED_VIA_FIELD, RECORD_UPDATED_VIA_FIELD } from '../../domain/schema/mutationSpec';
 import type { RecordWriteVia } from '../../domain/schema/mutationSpec';
 import {
+  and,
   addDoc,
   collection as firestoreCollection,
   deleteDoc,
   doc,
   documentId,
+  getCountFromServer,
   getDoc,
   getDocs,
   limit,
@@ -25,7 +27,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../infrastructure/firebase/config';
 import { RECORD_WINDOW_DEFAULT } from '../../domain/repositories/IRecordRepository';
 import type { IRecordRepository } from '../../domain/repositories/IRecordRepository';
-import type { RecordQuerySpec } from '../../domain/services/recordListQuery';
+import type { RecordQueryClause, RecordQuerySpec } from '../../domain/services/recordListQuery';
 import type { EntityRecord, EntityRecordValues } from '../../domain/entities/EntityRecord';
 import type { DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
@@ -111,17 +113,18 @@ const dayEnd = (iso: string): Timestamp => Timestamp.fromDate(new Date(`${iso}T2
 const specQuery = (tenantId: string, spec: RecordQuerySpec): Query => {
   const ref = recordsRef(tenantId, spec.collection);
   const clauses = spec.anyOf.map((clause) => where(clause.field, clause.op, clause.value));
+  const required = spec.allOf.map((clause) => where(clause.field, clause.op, clause.value));
   const order = spec.orderBy ? [orderBy(spec.orderBy.field, spec.orderBy.dir)] : [];
   // A disjunção (a aba de filhos apontados por mais de um campo) não leva intervalo: o plano nunca
   // junta os dois, porque a combinação pediria índice composto.
-  if (clauses.length > 1) return query(ref, or(...clauses), ...order, limit(spec.limit));
+  if (clauses.length > 1) return query(ref, and(or(...clauses), ...required), ...order, limit(spec.limit));
   const range = spec.range
     ? [
       ...(spec.range.from ? [where(spec.range.field, '>=', dayStart(spec.range.from))] : []),
       ...(spec.range.to ? [where(spec.range.field, '<=', dayEnd(spec.range.to))] : []),
     ]
     : [];
-  return query(ref, ...clauses, ...range, ...order, limit(spec.limit));
+  return query(ref, ...clauses, ...required, ...range, ...order, limit(spec.limit));
 };
 
 const createdMillis = (record: EntityRecord): number =>
@@ -304,6 +307,27 @@ export class FirebaseRecordRepository implements IRecordRepository {
         onError?.(spec.collection, error);
       },
     );
+  }
+
+  async count(
+    tenantId: string,
+    collection: string,
+    clauses: readonly RecordQueryClause[],
+    visibleTo?: MemberVisibilityFilter | null,
+  ): Promise<number> {
+    const ref = recordsRef(tenantId, collection);
+    const required = clauses.map((clause) => where(clause.field, clause.op, clause.value));
+    let counted: Query;
+    if (visibleTo) {
+      // A regra só aceita a contagem que ela provaria: a mesma disjunção da assinatura restrita.
+      const visibility = memberVisibilityClauses(visibleTo.spec).map((clause) => where(clause.field, clause.op, visibleTo.uid));
+      if (visibility.length === 0) return 0;
+      counted = query(ref, and(or(...visibility), ...required));
+    } else {
+      counted = query(ref, ...required);
+    }
+    const snapshot = await getCountFromServer(counted);
+    return snapshot.data().count;
   }
 
   async getById(tenantId: string, collection: string, recordId: string): Promise<EntityRecord | null> {

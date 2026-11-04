@@ -217,6 +217,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.filterable': 'Disponível como filtro na listagem',
   'field.searchable': 'O registro é encontrado por este valor na busca',
   'list.filter.window': 'Mostrando os primeiros {count} registros que atendem ao filtro. Role para carregar mais.',
+  'list.window': 'Mostrando os primeiros {count} registros. Role para carregar mais.',
   'field.file.extensions': 'Extensões permitidas',
   'field.file.extensions.placeholder': 'png, jpg, pdf',
   'field.file.extensions.hint': 'Separe por vírgulas. Vazio aceita qualquer extensão.',

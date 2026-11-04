@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.201.0] — 2026-11-04
+
+- As abas de registros relacionados dentro de um registro passaram a funcionar como as listagens: trazem mais conforme você rola e os filtros buscam em todos os registros daquela aba.
+- As telas feitas sob medida para o escritório ganharam os mesmos recursos: listas sem limite, nomes de pessoas sempre encontrados nos cartões, contagens dos painéis corretas para qualquer quantidade de registros e a busca rápida encontrando também pelos campos pesquisáveis. Cada tela passa a usá-los quando for atualizada.
+
 #### [9.200.0] — 2026-11-04
 
 - As listagens passam a abrir com os registros mais recentes e trazem mais conforme você rola a tela, sem limite — mesmo em escritórios com milhares de registros.

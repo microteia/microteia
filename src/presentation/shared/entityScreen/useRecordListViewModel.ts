@@ -336,7 +336,10 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const recordsLoading = querySpec ? !listQuery.loaded : !!collection && !loadedCollections.has(collection);
   const hasMore = !!querySpec && recordQueryHasMore(querySpec, listQuery.records.length);
   const filtersActive = filterTokens.some((token) => token.key !== 'search' && token.values.some((value) => value !== ''));
-  const windowNotice = filtersActive && hasMore ? t('list.filter.window', { count: listQuery.records.length }) : null;
+  // A aba do pai é um recorte também — invisível, mas recorte: a ordem é refeita entre os trazidos.
+  const windowNotice = (filtersActive || !!parent) && hasMore
+    ? t(filtersActive ? 'list.filter.window' : 'list.window', { count: listQuery.records.length })
+    : null;
 
   const loadMore = useCallback(() => {
     setPage({ signature: filterSignature, limit: pageLimit + RECORD_LIST_PAGE_SIZE });

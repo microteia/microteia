@@ -45,6 +45,8 @@ import { Icon } from './HostIcon';
 import { resolveColor, getConfigColor, getDefaultTagColor } from '../../../shared/styles/colorUtils';
 import { applyMaskTemplate } from '../../../domain/schema/fieldRules';
 import { useEntityList } from './useEntityList';
+import { useRecordsByIds } from './useRecordsByIds';
+import { useRecordCounts } from './useRecordCounts';
 import { useEntityForm } from './useEntityForm';
 import { useEntityDetailVM } from './useEntityDetailVM';
 import {
@@ -327,6 +329,8 @@ const dataModule = {
   useEntityForm,
   useEntityDetailVM,
   useCollection,
+  useRecordsByIds,
+  useRecordCounts,
   useCreateRecord,
   useUpdateRecord,
   useDeleteRecord,

@@ -5485,7 +5485,7 @@ plano escolhe a consulta que cabe nos índices de campo ÚNICO, e só três form
 | sem filtro | `orderBy(createdAt desc) + limit(página)` | a rolagem infinita pede mais 50 (`RECORD_LIST_PAGE_SIZE`) quando a marca do fim (`loadMoreRef`, um `IntersectionObserver`) entra na tela |
 | com filtro | UMA igualdade (`==`, `in`, `array-contains-any`; etiqueta por `tagIds`), sem ordenar, janela de 500 | igualdade com ordenação pediria índice composto; o resto dos filtros é conferido em memória sobre o que volta, e a ordem é refeita entre os trazidos — `windowNotice` diz isso quando há mais |
 | só data (de/até) | o intervalo e `orderBy` pelo MESMO campo, paginado | intervalo e ordem no mesmo campo são servidos pelo índice simples |
-| aba de filhos | `or()` dos campos que apontam para o pai, janela de 500 | sempre, pagine ou não: continua sendo "todos os filhos daquele pai", sem o teto da coleção |
+| aba de filhos | `or()` dos campos que apontam para o pai (`anyOf`) E o filtro escolhido que o servidor sabe fazer (`allOf`), janela de 500 que cresce com a rolagem | é a listagem com o vínculo como filtro fixo e invisível: consulta só os filhos em qualquer caso, e a do kernel (`ChildRecordList`) pagina. O Firestore recusa `array-contains` com `array-contains-any` na mesma consulta e limita a 30 o produto das disjunções — fora disso, o filtro fica em memória sobre os filhos trazidos. O aviso (`list.window`) diz que a ordem é refeita entre os trazidos |
 
 O que o servidor não sabe fazer fica em memória sobre a janela grande: filtro de texto, presença
 ("sem valor"/"com valor"), caixa desmarcada (o campo ausente também é desmarcado, e a igualdade não o
@@ -5504,11 +5504,22 @@ mostraria a página errada de uma agenda. As consultas ficam no `RecordStore` (`
 `useRecordQuery`) pelo molde das janelas, com a chave SEM o tamanho — carregar mais reassina a mesma
 consulta maior, e o que estava na tela fica até a resposta chegar.
 
-**O que ainda NÃO faz.** A API de extensão não tem o `recordMatches` no contexto do ⌘K nem a busca no
-servidor na menção; o nome de um registro apontado, numa view de extensão que o resolve por
-`useCollection`, só aparece se ele estiver na janela; e a contagem de um painel feito com
-`useCollection` vale sobre os 500 mais recentes. Uma expressão de formulário que atravessa mais de uma
-referência só enxerga o segundo salto se ele estiver carregado.
+**A extensão além da janela.** Quatro portas, porque a view feita em código (a tela de Processos de um
+escritório) lê a coleção por conta própria e não passa pelo diretório do kernel:
+
+| Porta | O que resolve |
+|---|---|
+| `EntityListOptions.paginate` | a lista dela pagina e filtra no servidor, como a do kernel |
+| `useRecordsByIds(coleção, ids)` | o nome de quem um cartão aponta — `useCollection` é a janela, e quem é mais antigo sumia; usa `ensureRecords` e os conhecidos |
+| `useRecordCounts(coleção, grupos)` | o número de um painel, contado no servidor (`IRecordRepository.count` → `getCountFromServer`), um grupo de igualdades por número; com `memberVisibility`, conta só o que a pessoa vê, pela mesma disjunção da assinatura. Relido em `RECORDS_UPDATED` e na volta à aba — não é ao vivo |
+| `recordMatches` no contexto do ⌘K e da menção | o provedor da extensão recebe o que a busca no servidor achou, já somado a `records` |
+
+A partir de `SERVER_RECORDS_API_SINCE_KERNEL`, que o guia de autoria cita. Nenhuma delas muda o que já
+existia: uma extensão que não as usa continua com a janela, como sempre.
+
+**O que ainda NÃO faz.** Uma expressão de formulário que atravessa mais de uma referência
+(`contrato.cliente.cpf`) só enxerga o segundo salto se ele estiver carregado: `useEnsureReferencedRecords`
+traz o primeiro. A lista de uma extensão que não liga `paginate` continua na janela de 500.
 
 ### O cartão da listagem é declarado — `cardTemplate`
 

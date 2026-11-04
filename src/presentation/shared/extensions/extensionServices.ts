@@ -18,6 +18,12 @@ export interface MentionSearchContext {
   /** Registros de TODAS as telas do tenant, com os campos na raiz de cada um. */
   records: EntityRecord[];
   screenDefinitions: ScreenDefinition[];
+  /**
+   * `coleção/id` dos registros que a busca no SERVIDOR achou para a query — inclusive por um campo
+   * pesquisável que não é o título. Eles já estão em `records`; esta é a marca de que valem mesmo sem
+   * o título conter o que foi digitado.
+   */
+  recordMatches: ReadonlySet<string>;
 }
 
 /**

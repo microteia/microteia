@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { EntityRecord, EntityRecordValues } from '../domain/entities';
-import type { RecordQuerySpec } from '../domain/services/recordListQuery';
+import type { RecordQueryClause, RecordQuerySpec } from '../domain/services/recordListQuery';
 
 export interface RecordStoreState {
   /** Registros por COLEÇÃO — a mesma chave que identifica a tela e a entidade. */
@@ -24,6 +24,8 @@ export interface RecordStoreState {
   watchQuery: (spec: RecordQuerySpec) => () => void;
   /** O que cada consulta pedida entregou, pela chave do plano sem o tamanho (`recordQueryKey`). */
   queryResults: Record<string, EntityRecord[]>;
+  /** Quantos registros atendem a todas as cláusulas, contados no servidor, com a visibilidade de quem lê. */
+  countRecords: (collection: string, clauses: readonly RecordQueryClause[]) => Promise<number>;
   /** Traz, numa leitura por lote, os registros pedidos que ninguém carregou ainda. Pedido repetido não lê de novo. */
   ensureRecords: (collection: string, ids: readonly string[]) => void;
   /** A busca no servidor. O que volta passa a ser conhecido — o seletor o oferece, o cartão o nomeia. */

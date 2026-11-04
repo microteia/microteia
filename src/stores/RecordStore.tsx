@@ -12,12 +12,13 @@ import { makeDeleteRecordUseCase } from '../domain/usecases/records/DeleteRecord
 import { makeGetRecordsByIdsUseCase } from '../domain/usecases/records/GetRecordsByIdsUseCase';
 import { makeSearchRecordsUseCase } from '../domain/usecases/records/SearchRecordsUseCase';
 import { makeSubscribeToRecordQueryUseCase } from '../domain/usecases/records/SubscribeToRecordQueryUseCase';
+import { makeCountRecordsUseCase } from '../domain/usecases/records/CountRecordsUseCase';
 import { screenDataCollection } from '../domain/services/screenDataCollection';
 import { memberVisibilityFilter, readMemberVisibility } from '../domain/schema/memberVisibility';
 import type { MemberVisibilityFilter, RecordReader } from '../domain/schema/memberVisibility';
 import { UNRESTRICTED_PERMISSION } from '../domain/schema/access';
 import type { DeletionActor, EntityRecord, EntityRecordValues } from '../domain/entities';
-import type { RecordQuerySpec } from '../domain/services/recordListQuery';
+import type { RecordQueryClause, RecordQuerySpec } from '../domain/services/recordListQuery';
 import { RECORD_WINDOW_DEFAULT } from '../domain/repositories/IRecordRepository';
 
 /**
@@ -59,6 +60,7 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     update: makeUpdateRecordUseCase(recordRepository),
     getByIds: makeGetRecordsByIdsUseCase(recordRepository),
     subscribeQuery: makeSubscribeToRecordQueryUseCase(recordRepository),
+    count: makeCountRecordsUseCase(recordRepository),
     search: makeSearchRecordsUseCase(recordRepository),
     delete: makeDeleteRecordUseCase(recordRepository, recordNoteRepository, recordDocumentRepository),
   }), [recordRepository, recordNoteRepository, recordDocumentRepository]);
@@ -401,6 +403,11 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       .catch((error: unknown) => console.warn(`[RecordStore] ensureRecords ${collection}:`, (error as Error).message));
   }, [tenantId, activeCollections, loadedCollections, recordsByCollection, markRequested, uc.getByIds, visibleTo, remember]);
 
+  const countRecords = useCallback(async (collection: string, clauses: readonly RecordQueryClause[]) => {
+    if (!tenantId) return 0;
+    return uc.count.execute(tenantId, collection, clauses, visibleTo.get(collection) ?? null);
+  }, [tenantId, uc.count, visibleTo]);
+
   const searchRecords = useCallback(async (collection: string, text: string, max: number) => {
     if (!tenantId) return [];
     const records = await uc.search.execute(tenantId, collection, text, max, visibleTo.get(collection) ?? null);
@@ -480,6 +487,7 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       demand,
       watchQuery,
       queryResults: activeQueryResults,
+      countRecords,
       ensureRecords,
       searchRecords,
       isLoading,

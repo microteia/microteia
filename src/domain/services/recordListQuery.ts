@@ -2,6 +2,13 @@ import type { FieldDefinition } from '../entities/entitySchemas';
 import { RECORD_WINDOW_DEFAULT } from '../repositories/IRecordRepository';
 import { FILTER_RANGE_TO_SUFFIX } from './customFieldValues';
 
+/**
+ * A partir de qual `KERNEL_VERSION` a extensão tem os registros além da janela: `paginate` no
+ * `useEntityList`, `useRecordsByIds`, `useRecordCounts` e o `recordMatches` no ⌘K e na menção. É o que
+ * o guia de autoria cita.
+ */
+export const SERVER_RECORDS_API_SINCE_KERNEL = '2.97.0';
+
 /** Registros por página da listagem: a rolagem infinita pede mais deste tanto a cada vez. */
 export const RECORD_LIST_PAGE_SIZE = 50;
 
@@ -27,7 +34,8 @@ export interface RecordQueryClause {
  * Uma consulta de listagem que cabe nos índices de campo ÚNICO. Três formas, e só elas:
  *
  * - sem cláusula, ordenada por `createdAt` — a listagem sem filtro, paginada;
- * - com cláusulas em disjunção (`anyOf`), sem ordenação — a aba de filhos e a listagem filtrada;
+ * - com igualdades, sem ordenação — a listagem filtrada e a aba de filhos; as igualdades sem ordem são
+ *   servidas juntando índices de campo único;
  * - com intervalo de data e ordenada pelo MESMO campo — o filtro só de data, paginado.
  *
  * Qualquer combinação além destas pediria índice composto.
@@ -35,7 +43,10 @@ export interface RecordQueryClause {
 export interface RecordQuerySpec {
   collection: string;
   limit: number;
+  /** Disjunção: o vínculo com o pai, por qualquer dos campos que apontam para ele. */
   anyOf: RecordQueryClause[];
+  /** Conjunção, somada à disjunção: o filtro que a pessoa escolheu e que o servidor sabe fazer. */
+  allOf: RecordQueryClause[];
   /** Pontas em `AAAA-MM-DD`, inclusivas — a mesma forma do filtro da listagem. */
   range: { field: string; from: string | null; to: string | null } | null;
   orderBy: { field: string; dir: 'asc' | 'desc' } | null;
@@ -78,6 +89,24 @@ const serverClauseOf = (field: FieldDefinition, values: string[]): RecordQueryCl
   return null;
 };
 
+const isArrayOp = (op: RecordQueryOp): boolean => op === 'array-contains' || op === 'array-contains-any';
+
+/** Quantas disjunções a cláusula vale para o Firestore: `in` e `array-contains-any` contam cada valor. */
+const disjunctionsOf = (clause: RecordQueryClause): number =>
+  Array.isArray(clause.value) ? clause.value.length : 1;
+
+/** O filtro escolhido que o servidor sabe fazer, o primeiro deles: as etiquetas, e depois os campos na ordem da tela. */
+const firstServerClause = (fields: readonly FieldDefinition[], tokenMap: Record<string, string[]>): RecordQueryClause | null => {
+  const tags = valuesOf(tokenMap, TAG_TOKEN);
+  if (tags.length > 0 && tags.length <= MAX_DISJUNCTION_VALUES) return { field: TAG_FIELD, op: 'array-contains-any', value: tags };
+  for (const field of fields) {
+    if (!field.filterable) continue;
+    const clause = serverClauseOf(field, valuesOf(tokenMap, field.key));
+    if (clause) return clause;
+  }
+  return null;
+};
+
 /**
  * Qual consulta a listagem faz. `null` quando ela deve ficar na janela da coleção, como sempre foi:
  * a lista que não pagina e a tela que declara a própria ordem (paginar por cadastro mostraria a página
@@ -92,38 +121,44 @@ const serverClauseOf = (field: FieldDefinition, values: string[]): RecordQueryCl
 export const planRecordListQuery = (input: RecordListFilterInput): RecordQuerySpec | null => {
   const { collection, fields, tokenMap, pageLimit, parent, hasDeclaredOrder, paginate } = input;
 
-  const filtered = (limit: number, anyOf: RecordQueryClause[]): RecordQuerySpec =>
-    ({ collection, limit: Math.max(limit, RECORD_LIST_FILTER_WINDOW), anyOf, range: null, orderBy: null });
+  const windowed = (anyOf: RecordQueryClause[], allOf: RecordQueryClause[]): RecordQuerySpec => ({
+    collection,
+    // Sem paginar, a janela grande e fixa — o contrato de sempre. Paginando, ela cresce com a rolagem.
+    limit: paginate ? Math.max(pageLimit, RECORD_LIST_FILTER_WINDOW) : RECORD_LIST_FILTER_WINDOW,
+    anyOf,
+    allOf,
+    range: null,
+    orderBy: null,
+  });
 
-  // Os filhos de um pai são poucos, e a consulta por eles é a que corta: o resto vale em memória.
+  const active = Object.entries(tokenMap).filter(([key, values]) => key !== SEARCH_TOKEN && values.some((value) => value !== ''));
+  const userClause = paginate && active.length > 0 ? firstServerClause(fields, tokenMap) : null;
+
+  /**
+   * A aba do pai é a listagem com um filtro fixo e invisível: o vínculo. Ela consulta só os filhos em
+   * qualquer caso, e, paginando, leva junto o filtro que a pessoa escolheu — quando o Firestore aceita a
+   * combinação. Ele recusa `array-contains` com `array-contains-any` na mesma consulta, e limita a 30 o
+   * produto das disjunções: fora disso, o filtro fica em memória sobre os filhos trazidos.
+   */
   if (parent && parent.fieldKeys.length > 0) {
-    const anyOf = parent.fieldKeys.flatMap((key): RecordQueryClause[] => {
-      const field = fields.find((candidate) => candidate.key === key);
-      return field?.multi
-        ? [{ field: key, op: 'array-contains', value: parent.recordId }]
-        : [{ field: key, op: '==', value: parent.recordId }];
-    });
-    // Sem paginar, a aba continua sendo "todos os filhos": a janela grande, sem crescer.
-    return filtered(paginate ? pageLimit : RECORD_LIST_FILTER_WINDOW, anyOf);
+    const anyOf = parent.fieldKeys.map((key): RecordQueryClause => (
+      fields.find((candidate) => candidate.key === key)?.multi
+        ? { field: key, op: 'array-contains', value: parent.recordId }
+        : { field: key, op: '==', value: parent.recordId }
+    ));
+    const combinable = !!userClause
+      && !(isArrayOp(userClause.op) && anyOf.some((clause) => isArrayOp(clause.op)))
+      && anyOf.length * disjunctionsOf(userClause) <= MAX_DISJUNCTION_VALUES;
+    return windowed(anyOf, combinable && userClause ? [userClause] : []);
   }
 
   if (hasDeclaredOrder || !paginate) return null;
 
-  const active = Object.entries(tokenMap).filter(([key, values]) => key !== SEARCH_TOKEN && values.some((value) => value !== ''));
   if (active.length === 0) {
-    return { collection, limit: pageLimit, anyOf: [], range: null, orderBy: { field: 'createdAt', dir: 'desc' } };
+    return { collection, limit: pageLimit, anyOf: [], allOf: [], range: null, orderBy: { field: 'createdAt', dir: 'desc' } };
   }
 
-  const tags = valuesOf(tokenMap, TAG_TOKEN);
-  if (tags.length > 0 && tags.length <= MAX_DISJUNCTION_VALUES) {
-    return filtered(pageLimit, [{ field: TAG_FIELD, op: 'array-contains-any', value: tags }]);
-  }
-
-  for (const field of fields) {
-    if (!field.filterable) continue;
-    const clause = serverClauseOf(field, valuesOf(tokenMap, field.key));
-    if (clause) return filtered(pageLimit, [clause]);
-  }
+  if (userClause) return windowed([], [userClause]);
 
   const dateFilters = fields.filter((field) => field.filterable && field.type === 'date'
     && (valuesOf(tokenMap, field.key).length > 0 || valuesOf(tokenMap, `${field.key}${FILTER_RANGE_TO_SUFFIX}`).length > 0));
@@ -134,6 +169,7 @@ export const planRecordListQuery = (input: RecordListFilterInput): RecordQuerySp
       collection,
       limit: pageLimit,
       anyOf: [],
+      allOf: [],
       range: {
         field: field.key,
         from: valuesOf(tokenMap, field.key)[0] ?? null,
@@ -143,7 +179,7 @@ export const planRecordListQuery = (input: RecordListFilterInput): RecordQuerySp
     };
   }
 
-  return { collection, limit: Math.max(pageLimit, RECORD_LIST_FILTER_WINDOW), anyOf: [], range: null, orderBy: { field: 'createdAt', dir: 'desc' } };
+  return { collection, limit: Math.max(pageLimit, RECORD_LIST_FILTER_WINDOW), anyOf: [], allOf: [], range: null, orderBy: { field: 'createdAt', dir: 'desc' } };
 };
 
 /** A consulta trouxe tudo o que pediu: pode haver mais para trazer. */

@@ -986,6 +986,38 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
    */
   export function useCollection(collection: string): any[];
 
+  /**
+   * Records of a collection by id - the name of each party of a case, say. What is already loaded
+   * answers at once; the rest is fetched in one batch and appears when it arrives. An id that does not
+   * exist, or that the person cannot see, is left out. Use it to resolve the records a card points at:
+   * useCollection holds only the newest window (500), and a name built from it disappears for anyone
+   * registered before them.
+   */
+  export function useRecordsByIds(collection: string, ids: string[]): Record<string, any>;
+
+  /** One condition of a count: equality by default; 'in' for several values; 'array-contains' on a multi field. */
+  export interface RecordCountClause {
+    field: string;
+    op?: '==' | 'in' | 'array-contains';
+    value: unknown;
+  }
+
+  export interface RecordCounts {
+    /** Group name -> how many records match ALL of its conditions; null until the number arrives. */
+    counts: Record<string, number | null>;
+    loading: boolean;
+  }
+
+  /**
+   * How many records match each group of conditions, counted ON THE SERVER - a dashboard number that
+   * stays right at any collection size (counting over useCollection is wrong from the 501st record on).
+   * One group per number: { open: [{ field: 'status', value: 'open' }] }. A person who only sees the
+   * records naming them gets only those counted. Not live: re-read when a record is written in this
+   * session and when the person comes back to the tab. Costs one read per thousand records counted.
+   * Only the content of groups matters - a new object literal on each render does not count again.
+   */
+  export function useRecordCounts(collection: string, groups: Record<string, RecordCountClause[]>): RecordCounts;
+
   /** Writes fields of a record in any collection. */
   export function useUpdateRecord(): (collection: string, recordId: string, data: Record<string, any>) => Promise<void>;
 
@@ -1926,7 +1958,17 @@ interface MicroteiaCommandItem {
 interface MicroteiaCommandContext {
   openTab: (key: string) => void;
   close: () => void;
+  /**
+   * The records loaded in memory PLUS what the server search found for the query - records beyond the
+   * newest 500 of a collection included.
+   */
   records: any[];
+  /**
+   * 'collection/id' of every record the SERVER search found for the query, including by a searchable
+   * field that is not the title (a case number without punctuation, the name of a party). They are
+   * already in records: offer them even when the title does not contain what was typed.
+   */
+  recordMatches: ReadonlySet<string>;
   screenDefinitions: any[];
   /** Translator. A key with no '/' resolves in 'core.ui'; 'namespace/key' resolves anywhere. */
   t: (key: string, params?: Record<string, unknown>) => string;
@@ -1967,7 +2009,12 @@ interface MicroteiaMentionProvider {
   label: string;
   description?: string;
   icon?: string;
-  search: (query: string, context: { records: any[]; screenDefinitions: any[] }) => MicroteiaMentionResult[];
+  /**
+   * context.records holds the records in memory plus what the server search found for the query;
+   * context.recordMatches marks the server matches ('collection/id'), which count even when their
+   * title does not contain the query.
+   */
+  search: (query: string, context: { records: any[]; screenDefinitions: any[]; recordMatches: ReadonlySet<string> }) => MicroteiaMentionResult[];
 }
 
 interface MicroteiaSurfaceWidget {

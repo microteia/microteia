@@ -27,6 +27,8 @@ import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
 import { RECORD_SEARCH_SINCE_KERNEL, SEARCHABLE_FIELD_TYPES } from '../../../domain/schema/recordSearch';
+import { RECORD_LIST_PAGE_SIZE, SERVER_RECORDS_API_SINCE_KERNEL } from '../../../domain/services/recordListQuery';
+import { RECORD_WINDOW_DEFAULT } from '../../../domain/repositories/IRecordRepository';
 import { CARD_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/cardTemplate';
 import { NAV_FILTER_PRESENCE_SINCE_KERNEL } from '../../../domain/schema/ui/uiExtensionPoints';
 import { PORTAL_DETAIL_ONLY_NODE_TYPES, PORTAL_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/portalTemplate';
@@ -688,6 +690,21 @@ has the same value; a \`multi\` field or a second field tells something, and sta
 \`^2.51.0\`. Draw \`filteredRecords\` — the list after the person's filter, in
 the order of \`sortRecords\` —, and keep \`records\` (the whole list, same order) for counting, finding by id
 and totals; declare \`sortRecords\` instead of sorting by hand.
+
+**Beyond the window.** \`records\`, \`useCollection\` and the \`records\` a command or mention provider receives
+hold the newest ${RECORD_WINDOW_DEFAULT} of a collection, and an organization with thousands outgrows them silently: a
+count over them is wrong from the next one on, and a name built from them is missing for anyone older.
+Four doors reach the rest (kernel \`^${SERVER_RECORDS_API_SINCE_KERNEL}\`):
+
+- \`useEntityList(sourceId, { paginate: true })\` — the list fetches ${RECORD_LIST_PAGE_SIZE} at a time and the next ${RECORD_LIST_PAGE_SIZE} when
+  \`loadMoreRef\` scrolls into view (\`RecordListSurface\` places it), and the person's filter goes to the
+  server. \`records\` is then only what was fetched — do not count or look up by id in it. Show
+  \`windowNotice\` under the list. Ignored with \`sortRecords\`.
+- \`useRecordsByIds(collection, ids)\` — the records a card points at, by id, fetched when missing.
+- \`useRecordCounts(collection, groups)\` — a dashboard number counted on the server, one group of
+  equality conditions per number.
+- \`context.recordMatches\` in a command or mention provider — what the server search found for the
+  query, already in \`context.records\`, to be offered even when the title does not contain the query.
 
 The organization toggles and orders these tabs from Settings (\`<surface>.tabs\`). \`check\` refuses
 \`${RECORD_SURFACE_PREFIX}\` with no \`sourceId\`, and warns — without refusing — about a \`sourceId\` it

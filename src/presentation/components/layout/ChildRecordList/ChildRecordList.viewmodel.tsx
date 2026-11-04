@@ -26,5 +26,8 @@ export const useChildRecordListViewModel = (params: ChildRecordListParams): Reco
     screenKey,
     savedFiltersKey: buildListTabKey(screenKey),
     parent,
+    // A aba de filhos é a listagem com o vínculo como filtro fixo: cresce com a rolagem e leva ao
+    // servidor o filtro que a pessoa escolhe, como a listagem principal.
+    paginate: true,
   });
 };

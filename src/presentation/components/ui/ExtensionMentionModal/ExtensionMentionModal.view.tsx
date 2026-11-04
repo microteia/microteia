@@ -6,9 +6,13 @@ import { useRecords } from '../../../../stores/useRecords';
 import { useRecordDemand } from '../../../../stores/useRecordDemand';
 import { screenDataCollection } from '../../../../domain/services/screenDataCollection';
 import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
+import { useServerRecordSearch } from '../../../shared/useServerRecordSearch';
 import type { ExtensionMentionProvider, MentionResult } from '../../../shared/extensions/extensionServices';
 
 import { useT } from '../../../shared/i18n/useT';
+
+/** Por coleção: a lista mostra vinte resultados ao todo. */
+const MENTION_SEARCH_LIMIT = 10;
 
 export interface ExtensionMentionModalProps {
   provider: ExtensionMentionProvider;
@@ -33,10 +37,17 @@ export const ExtensionMentionModal: React.FC<ExtensionMentionModalProps> = ({ pr
     [definitions],
   );
   useRecordDemand(mentionCollections);
+  // E procura também no servidor: o registro fora da janela, e o achado por um campo pesquisável.
+  const serverSearch = useServerRecordSearch(query, mentionCollections, MENTION_SEARCH_LIMIT);
+  const records = useMemo(() => {
+    const loaded = new Set(allRecords.map((record) => `${record.collection}/${record.id}`));
+    const outside = serverSearch.results.filter((record) => !loaded.has(`${record.collection}/${record.id}`));
+    return outside.length > 0 ? [...allRecords, ...outside] : allRecords;
+  }, [allRecords, serverSearch.results]);
 
   const results = useMemo(
-    () => provider.search(query, { records: allRecords, screenDefinitions: definitions }).slice(0, 20),
-    [provider, query, allRecords, definitions],
+    () => provider.search(query, { records, screenDefinitions: definitions, recordMatches: serverSearch.matches }).slice(0, 20),
+    [provider, query, records, definitions, serverSearch.matches],
   );
 
   return (

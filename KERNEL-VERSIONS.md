@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.201.0] — 2026-11-04
+
+- feat(records/list): a parent tab is the list with the link as a fixed, invisible filter. `RecordQuerySpec` gains `allOf` (ANDed with the `anyOf` link): the person's filter goes to the server with the parent clauses when Firestore accepts the combination — not `array-contains` with `array-contains-any`, and at most 30 disjunctions — and stays in memory otherwise. The kernel child list (`ChildRecordList`) pages; `core.records/list.window` says the order is rebuilt among the fetched records.
+- feat(extensions): `useRecordsByIds(collection, ids)` in `@microteia/data` — records by id, fetched through `ensureRecords` when missing, so a card resolves anyone it points at, not only the newest window.
+- feat(extensions): `useRecordCounts(collection, groups)` — counts per group of equality conditions on the server (`IRecordRepository.count` → `getCountFromServer`, `CountRecordsUseCase`), restricted by `memberVisibility` like the subscription; re-read on `RECORDS_UPDATED` and when the tab comes back.
+- feat(extensions): `recordMatches` in the command provider context and in the mention provider context; the mention picker now adds the server search to `context.records`.
+- docs(sdk): the authoring guide's "Beyond the window", with `SERVER_RECORDS_API_SINCE_KERNEL` (`2.97.0`), the page size and the window derived from the code. Kernel contract `2.97.0`.
+
 #### [9.200.0] — 2026-11-04
 
 - feat(records/list): `planRecordListQuery` picks the list query that single-field indexes serve: no filter → `orderBy(createdAt desc)` paged by 50 (`RECORD_LIST_PAGE_SIZE`) with infinite scroll (`loadMoreRef`, an `IntersectionObserver`); with filters → ONE equality on the server (`==`, `in`, `array-contains-any`, tags by `tagIds`) without ordering, in a 500 window, the rest checked in memory and the order rebuilt among what came back (`windowNotice`, `core.records/list.filter.window`, with pt-BR); a date-only range → the range ordered by that same date, paged. Text, presence, unchecked, more than 30 values and two dates stay in memory over the 500 window; a reader restricted by `memberVisibility` keeps the restricted window.

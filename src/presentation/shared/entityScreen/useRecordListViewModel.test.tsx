@@ -679,7 +679,7 @@ describe('useRecordListViewModel — paginação', () => {
     state.records = Array.from({ length: 500 }, (_, index) => record(`r${index}`, 'Recurso', 'Pendente', 1));
     const { result } = listar(source({ paginate: true }));
     act(() => result.current.setFilterTokens([{ key: 'status', values: ['Pendente'] }]));
-    expect(watchQueryStub).toHaveBeenLastCalledWith(expect.objectContaining({ anyOf: [{ field: 'status', op: '==', value: 'Pendente' }] }));
+    expect(watchQueryStub).toHaveBeenLastCalledWith(expect.objectContaining({ allOf: [{ field: 'status', op: '==', value: 'Pendente' }] }));
     expect(result.current.windowNotice).toBe('core.records/list.filter.window');
   });
 });
