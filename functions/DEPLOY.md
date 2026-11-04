@@ -121,6 +121,7 @@ quando um título apontado muda e a passada sobre os registros que já existiam.
 - `runRecordSearchJob` — uma rodada de 200 registros por gravação no job (`record_search_jobs`)
 - `reconcileRecordSearchOnScreenChange` — confere o que entra na busca a cada gravação de tela
 - `reconcileRecordSearch` — a mesma conferência, pedida pela listagem
+- `searchRecords` — a busca de quem tem a leitura restrita por registro (`memberVisibility`): devolve só os ids que a pessoa vê
 
 **Deploy:**
 ```bash

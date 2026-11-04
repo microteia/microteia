@@ -113,6 +113,24 @@ export const searchQueryTerms = (input: string): string[] =>
 export const pickServerSearchTerm = (terms: readonly string[]): string | undefined =>
   terms.reduce<string | undefined>((best, term) => (best === undefined || term.length > best.length ? term : best), undefined);
 
+/**
+ * Quantos documentos uma busca lê por coleção. O servidor devolve os que têm o termo mais longo, e as
+ * outras palavras são conferidas aqui: a janela é maior que o que se mostra para que essa conferência
+ * ainda deixe resultado. Sem `orderBy` — `array-contains` com ordenação pediria índice composto, que
+ * uma coleção criada em runtime não pode declarar —, a ordem dos que voltam é a do índice.
+ */
+export const RECORD_SEARCH_WINDOW = 50;
+
+/**
+ * A janela da busca de quem tem a leitura restrita por registro (`memberVisibility`). Ela roda no
+ * servidor, que lê os candidatos e descarta os que a pessoa não vê; a janela é maior porque a maior
+ * parte do que o termo casa pode ser de outros.
+ */
+export const RECORD_SEARCH_RESTRICTED_WINDOW = 200;
+
+/** O teto de resultados que uma busca devolve, por coleção. */
+export const RECORD_SEARCH_MAX_RESULTS = 20;
+
 /** O registro tem TODAS as palavras pedidas? As que não foram ao servidor são conferidas aqui. */
 export const matchesSearchTerms = (stored: unknown, terms: readonly string[]): boolean => {
   if (!Array.isArray(stored)) return false;

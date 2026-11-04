@@ -41,6 +41,12 @@ export interface CommandPaletteAppContext {
   openTab: (key: string) => void;
   close: () => void;
   records: EntityRecord[];
+  /**
+   * `coleção/id` dos registros que a busca no SERVIDOR achou para a query atual — inclusive pelo valor
+   * de um campo pesquisável que não é o título (o número do processo, o nome de uma parte). Eles já
+   * estão em `records`; esta é a marca de que valem mesmo sem o título conter o que foi digitado.
+   */
+  recordMatches: ReadonlySet<string>;
   screenDefinitions: ScreenDefinition[];
   workflows: WorkflowDefinition[];
   reports: CommandPaletteReport[];

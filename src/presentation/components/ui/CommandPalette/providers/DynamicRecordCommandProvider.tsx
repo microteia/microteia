@@ -11,7 +11,7 @@ const contains = (text: string | null | undefined, query: string) =>
 export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
   group: '@core.records/command.group',
 
-  getItems(query: string, { screenDefinitions, records, openTab, close, label, can }: CommandPaletteAppContext): CommandPaletteItem[] {
+  getItems(query: string, { screenDefinitions, records, recordMatches, openTab, close, label, can }: CommandPaletteAppContext): CommandPaletteItem[] {
     if (!query) return [];
 
     // Telas filhas existem só dentro do registro-pai: ficam fora do ⌘K, e como `screenByKey`
@@ -54,7 +54,11 @@ export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
         const screen = screenByKey.get(record.collection);
         return { record, screen, title: resolveRecordTitle(record, screen?.titleFieldKey ?? '') };
       })
-      .filter(({ screen, title }) => !!screen && contains(title, query))
+      .map((entry) => ({ ...entry, byTitle: contains(entry.title, query) }))
+      .filter(({ record, screen, byTitle }) => !!screen && (byTitle || recordMatches.has(`${record.collection}/${record.id}`)))
+      // O que casa pelo título vem antes: é o que a pessoa reconhece de relance. O que o servidor achou
+      // por outro campo vem depois, e é o que antes não aparecia de jeito nenhum.
+      .sort((left, right) => Number(right.byTitle) - Number(left.byTitle))
       .slice(0, 8)
       .map(({ record, screen, title }) => {
         return {

@@ -5,6 +5,7 @@ import {
   collection as firestoreCollection,
   deleteDoc,
   doc,
+  documentId,
   getDoc,
   getDocs,
   limit,
@@ -20,7 +21,8 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import type { Query } from 'firebase/firestore';
-import { db } from '../../infrastructure/firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../infrastructure/firebase/config';
 import type { IRecordRepository } from '../../domain/repositories/IRecordRepository';
 import type { EntityRecord, EntityRecordValues } from '../../domain/entities/EntityRecord';
 import type { DeletionActor } from '../../domain/entities';
@@ -52,11 +54,21 @@ import {
   storedRecordKeyRefs,
 } from '../../domain/schema/recordKeys';
 import { omitSequenceFields, planRecordSequences } from '../../domain/schema/recordSequence';
-import { RECORD_SEARCH_FIELD } from '../../domain/schema/recordSearch';
+import {
+  matchesSearchTerms,
+  pickServerSearchTerm,
+  RECORD_SEARCH_FIELD,
+  RECORD_SEARCH_MAX_RESULTS,
+  RECORD_SEARCH_WINDOW,
+  searchQueryTerms,
+} from '../../domain/schema/recordSearch';
 import { runRecordSequenceTransaction } from '../utils/recordSequenceTransaction';
 import { ambientTimeZone } from '../../domain/schema/clockGate';
 
 const RECORDS_PAGE_LIMIT = 500;
+
+/** O teto do operador `in` do Firestore. */
+const IN_QUERY_LIMIT = 30;
 
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date));
 
@@ -255,6 +267,72 @@ export class FirebaseRecordRepository implements IRecordRepository {
     const snap = await getDoc(doc(recordsRef(tenantId, collection), recordId));
     if (!snap.exists()) return null;
     return mapRecord(snap.id, snap.data(), tenantId, collection, makeRecordDeriver(collection));
+  }
+
+  async getByIds(
+    tenantId: string,
+    collection: string,
+    ids: readonly string[],
+    visibleTo?: MemberVisibilityFilter | null,
+  ): Promise<EntityRecord[]> {
+    const unique = [...new Set(ids.filter((id) => id !== ''))];
+    if (unique.length === 0) return [];
+    const derive = makeRecordDeriver(collection);
+    // A consulta por `in` não carrega o filtro de visibilidade, e a regra recusaria o lote inteiro
+    // por um registro só que a pessoa não vê. Restrita, ela lê um a um, e cada recusa só tira aquele.
+    if (visibleTo) {
+      const snaps = await Promise.all(unique.map(async (id) => {
+        try {
+          return await getDoc(doc(recordsRef(tenantId, collection), id));
+        } catch (error) {
+          if (isPermissionDenied(error)) return null;
+          throw error;
+        }
+      }));
+      return snaps.flatMap((snap) =>
+        snap && snap.exists() ? [mapRecord(snap.id, snap.data(), tenantId, collection, derive)] : []);
+    }
+    const found: EntityRecord[] = [];
+    for (let start = 0; start < unique.length; start += IN_QUERY_LIMIT) {
+      const part = unique.slice(start, start + IN_QUERY_LIMIT);
+      const snap = await getDocs(query(recordsRef(tenantId, collection), where(documentId(), 'in', part)));
+      for (const d of snap.docs) found.push(mapRecord(d.id, d.data(), tenantId, collection, derive));
+    }
+    return found;
+  }
+
+  async search(
+    tenantId: string,
+    collection: string,
+    text: string,
+    max: number,
+    visibleTo?: MemberVisibilityFilter | null,
+  ): Promise<EntityRecord[]> {
+    const terms = searchQueryTerms(text);
+    const term = pickServerSearchTerm(terms);
+    if (!term) return [];
+    const cap = Math.min(Math.max(max, 1), RECORD_SEARCH_MAX_RESULTS);
+    if (visibleTo) {
+      const call = httpsCallable<
+        { tenantId: string; collection: string; query: string; limit: number },
+        { ids: string[] }
+      >(functions, 'searchRecords');
+      const { data } = await call({ tenantId, collection, query: text, limit: cap });
+      const byId = new Map((await this.getByIds(tenantId, collection, data.ids, visibleTo)).map((record) => [record.id, record]));
+      return data.ids.flatMap((id) => byId.get(id) ?? []);
+    }
+    const snap = await getDocs(query(
+      recordsRef(tenantId, collection),
+      where(RECORD_SEARCH_FIELD, 'array-contains', term),
+      limit(RECORD_SEARCH_WINDOW),
+    ));
+    const derive = makeRecordDeriver(collection);
+    // As palavras que não foram ao servidor são conferidas sobre os termos CRUS — o registro mapeado
+    // já não os traz.
+    const matched = snap.docs
+      .filter((d) => matchesSearchTerms(d.data()[RECORD_SEARCH_FIELD], terms))
+      .map((d) => mapRecord(d.id, d.data(), tenantId, collection, derive));
+    return newestFirst(matched).slice(0, cap);
   }
 
   newId(tenantId: string, collection: string): string {

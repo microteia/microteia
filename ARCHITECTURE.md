@@ -5352,7 +5352,7 @@ Nota: as coleções de lista (`caseCourts`, `medico_especialidade`…) **não** 
   um campo à tela que uma extensão trouxe, e ver esse campo no filtro e no cartão.
 - **Deeplink de registro fora das 500 carregadas:** `ViewDynamicRecord` faz fallback de busca por id (`GetRecordByIdUseCase`).
 
-### A busca é do servidor — `searchTerms` (fase 1 de 3)
+### A busca é do servidor — `searchTerms`
 
 A listagem consulta `limit(500)` por coleção, e toda busca rodava sobre esse conjunto em memória: o ⌘K
 (`allRecords`), a caixa "Filtrar…" e o seletor de referência (`useReferenceOptions`). Num escritório
@@ -5388,6 +5388,7 @@ memória, e um registro duplicado a partir de outro o levaria de volta numa grav
 | `runRecordSearchJob` | `tenants/{t}/record_search_jobs/{jobId}` | uma rodada de `RECORD_SEARCH_ROUND_SIZE` (200) registros; a gravação do avanço acorda a seguinte |
 | `reconcileRecordSearchOnScreenChange` | gravação de tela | compara a assinatura do que entra na busca com a do job e põe o BACKFILL em marcha |
 | `reconcileRecordSearch` | callable, chamada pela listagem (`useRecordSearchReconcile`) | a mesma conferência — cobre o escritório que atualizou o kernel e não salva tela nenhuma depois |
+| `searchRecords` | callable | a busca de quem tem `memberVisibility` restringindo — ver "A consulta" abaixo |
 
 - **A gravação dos termos é contabilidade.** `isBookkeepingWrite` (`functions/src/domain/services/recordBookkeeping.ts`)
   generalizou o `isRecordKeyBookkeepingWrite`: a gravação que só muda `keyRefs` ou `searchTerms` não
@@ -5414,12 +5415,36 @@ memória, e um registro duplicado a partir de outro o levaria de volta numa grav
   uma entrega repetida do gatilho reprocessa a página (os termos iguais não são regravados) e perde a
   transação. Passada parada há mais de `RECORD_SEARCH_STALL_MS` é acordada pela próxima conferência.
 
-**O que esta fase NÃO faz.** Nada ainda CONSULTA os termos: o ⌘K, a caixa de busca e os seletores
-continuam em memória até a fase 2 (a porta `IRecordRepository.search`, com a callable para quem tem
-`memberVisibility`, porque `array-contains` com o `or()` da visibilidade pediria dois `array-contains` e
-índice composto). A fase 3 tira a carga de todas as coleções do login: cada uma assinada enquanto alguém
-a usa (inclusive `useCollection` das extensões), com paginação por cursor — o filtro de data por
-intervalo pagina pelo próprio campo, com índice simples.
+**A consulta — `IRecordRepository.search` e `getByIds`.** O cliente pergunta
+`where(searchTerms, 'array-contains', <palavra mais longa>) + limit(RECORD_SEARCH_WINDOW)` e confere as
+outras palavras sobre os termos crus do documento, antes de mapeá-lo. Para quem tem a leitura restrita
+por registro (`visibleTo`), a regra não aceita os termos e o `or()` da visibilidade na mesma consulta —
+seriam dois `array-contains` e índice composto —, e a busca passa pela callable `searchRecords`: o
+servidor lê `RECORD_SEARCH_RESTRICTED_WINDOW` candidatos, aplica `readerSeesRecord` (a mesma pergunta
+da regra) e devolve SÓ os ids; o cliente lê cada um pela própria regra. Uma divergência entre as duas
+contas daria menos resultado, nunca um registro entregue a quem não o vê. `getByIds` lê por
+`where(documentId(), 'in')` em lotes de 30; restrita, um a um, porque a regra recusaria o lote inteiro
+por um registro que a pessoa não vê.
+
+**O diretório de registros — `knownRecordsByCollection`.** O `RecordStore` guarda, ao lado da janela
+assinada, os registros trazidos de fora dela: por id (`ensureRecords`) ou por busca (`searchRecords`).
+A listagem continua lendo `recordsByCollection` — um registro achado pela busca não entra na lista de
+ninguém —, e `useReferenceOptions` passa a ler os conhecidos: é o que dá nome, no cartão e no
+formulário, ao registro apontado que ficou fora dos 500 (`useEnsureReferencedRecords`, chamado pela
+listagem e pela seção de campos), e o que faz o achado pela busca virar opção do seletor. O que já foi
+pedido — achado ou não — não é relido; ao voltar à aba (`visibilitychange`), o que veio de fora da
+janela é esquecido, porque não é assinado.
+
+**O ⌘K** soma a busca no servidor (`useServerRecordSearch`: espera de 250 ms entre teclas, nada com
+menos de duas letras, resposta atrasada descartada) sobre as mesmas coleções cujos registros ele
+mostra — legíveis, não filhas, sem `hideRecordsFromCommandPalette`. O que o servidor achou entra em
+`CommandPaletteAppContext.recordMatches` e vale mesmo sem o título conter o que foi digitado; o que
+casa pelo título vem antes.
+
+**O que ainda NÃO faz.** O seletor de referência do formulário, os filtros de referência e a caixa de
+busca da listagem ainda buscam em memória (fase 2b). A fase 3 tira a carga de todas as coleções do
+login: cada uma assinada enquanto alguém a usa (inclusive `useCollection` das extensões), com paginação
+por cursor — o filtro de data por intervalo pagina pelo próprio campo, com índice simples.
 
 ### O cartão da listagem é declarado — `cardTemplate`
 

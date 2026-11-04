@@ -18,10 +18,14 @@ vi.mock('../../../stores/useScreenDefinitions', () => ({
     isLoading: false,
   }),
 }));
+const ensureRecordsStub = vi.fn();
 vi.mock('../../../stores/useRecords', () => ({
   useRecords: () => ({
     recordsByCollection: { deadlines: state.records },
+    knownRecordsByCollection: { deadlines: state.records },
     allRecords: state.records,
+    ensureRecords: ensureRecordsStub,
+    searchRecords: vi.fn(async () => []),
     isLoading: false,
     createRecord: vi.fn(),
     newRecordId: vi.fn(),

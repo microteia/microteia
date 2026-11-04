@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEnsureReferencedRecords } from '../../../shared/useEnsureReferencedRecords';
 import { useTheme } from 'styled-components';
 import { useLookups } from '../../../../stores/useLookups';
 import { useAuthorization } from '../../../../stores/useAuthorization';
@@ -130,6 +131,8 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   const { getOptions, addOption, recolorOption, removeOption } = useLookups();
   const { can, effectivePermissions } = useAuthorization();
   const referenceOptionsByEntity = useReferenceOptions();
+  const referencedFrom = useMemo(() => [rawValues as Record<string, unknown>], [rawValues]);
+  useEnsureReferencedRecords(referencedFrom, fields);
   const theme = useTheme();
   const label = useLabel();
 

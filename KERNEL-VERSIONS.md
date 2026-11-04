@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.197.0] — 2026-11-04
+
+- feat(records/search): `IRecordRepository.search` queries `where(searchTerms, 'array-contains', <longest word>) + limit(RECORD_SEARCH_WINDOW)` (50) and checks the other words against the raw terms before mapping, capped at `RECORD_SEARCH_MAX_RESULTS`. For a reader restricted by `memberVisibility` it goes through the new `searchRecords` callable (group `deploy:search`): the server reads `RECORD_SEARCH_RESTRICTED_WINDOW` (200) candidates, applies `readerSeesRecord` and returns ids only, which the client then reads under its own rules — the rules cannot accept the terms and the visibility `or()` in one query.
+- feat(records): `IRecordRepository.getByIds` — `where(documentId(), 'in')` in batches of 30, or one `getDoc` per id for a restricted reader, so one record they cannot see does not deny the whole batch.
+- feat(stores/records): `RecordStore` keeps a directory of records fetched outside the subscribed window — `knownRecordsByCollection`, `ensureRecords`, `searchRecords` — keyed by tenant, never re-requesting an id, forgotten on `visibilitychange`; updates and deletes reach it too. Lists still read `recordsByCollection`.
+- fix(records): `useReferenceOptions` reads the known records, and `useEnsureReferencedRecords` (record list and the form's field section) fetches referenced ids missing from the window. A card or a form pointing at a record outside the newest 500 showed it as not found.
+- feat(command-palette): the ⌘K adds a server search (`useServerRecordSearch`: 250 ms debounce, nothing under two letters, stale answers dropped) over the collections whose records it lists. `CommandPaletteAppContext.recordMatches` marks what the server found, which is shown even when the title does not contain the query, after the title matches.
+
 #### [9.196.0] — 2026-11-04
 
 - feat(functions/search): `deriveRecordSearchOnEntityChange` writes `searchTerms` on every screen-record write, reading the referenced records in one `getAll` per collection and option labels by `where('key', 'in')`, and resolving `@namespace/key` labels in the organization's locale. The write carries `lastUpdateTime` from the snapshot it derived from, so a slower trigger never overwrites the terms of a newer edit; it does not touch `updatedAt`.

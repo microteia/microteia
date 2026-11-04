@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RecordContext } from './useRecords';
 import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
@@ -9,6 +9,8 @@ import { makeSubscribeToRecordsUseCase } from '../domain/usecases/records/Subscr
 import { makeCreateRecordUseCase } from '../domain/usecases/records/CreateRecordUseCase';
 import { makeUpdateRecordUseCase } from '../domain/usecases/records/UpdateRecordUseCase';
 import { makeDeleteRecordUseCase } from '../domain/usecases/records/DeleteRecordUseCase';
+import { makeGetRecordsByIdsUseCase } from '../domain/usecases/records/GetRecordsByIdsUseCase';
+import { makeSearchRecordsUseCase } from '../domain/usecases/records/SearchRecordsUseCase';
 import { screenDataCollection } from '../domain/services/screenDataCollection';
 import { memberVisibilityFilter, readMemberVisibility } from '../domain/schema/memberVisibility';
 import type { MemberVisibilityFilter, RecordReader } from '../domain/schema/memberVisibility';
@@ -43,6 +45,8 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     subscribe: makeSubscribeToRecordsUseCase(recordRepository),
     create: makeCreateRecordUseCase(recordRepository),
     update: makeUpdateRecordUseCase(recordRepository),
+    getByIds: makeGetRecordsByIdsUseCase(recordRepository),
+    search: makeSearchRecordsUseCase(recordRepository),
     delete: makeDeleteRecordUseCase(recordRepository, recordNoteRepository, recordDocumentRepository),
   }), [recordRepository, recordNoteRepository, recordDocumentRepository]);
 
@@ -124,6 +128,81 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 
   /**
+   * Os registros trazidos FORA da janela, por escritório: trocar de escritório não precisa limpar nada,
+   * porque o que é de outro simplesmente deixa de valer. `requested` guarda o que já foi pedido — achado
+   * ou não —, para que um nome que não existe mais não seja relido a cada render.
+   */
+  const [fetched, setFetched] = useState<{ tenantId: string | null; byCollection: Record<string, Record<string, EntityRecord>> }>(
+    { tenantId: null, byCollection: {} },
+  );
+  const requested = useRef<{ tenantId: string | null; keys: Set<string> }>({ tenantId: null, keys: new Set() });
+  const tenantId = currentTenant?.id ?? null;
+  const fetchedByCollection = useMemo(
+    () => (fetched.tenantId === tenantId ? fetched.byCollection : {}),
+    [fetched, tenantId],
+  );
+
+  const remember = useCallback((owner: string, collection: string, records: EntityRecord[]) => {
+    if (records.length === 0) return;
+    setFetched((prev) => {
+      const base = prev.tenantId === owner ? prev.byCollection : {};
+      const merged = { ...(base[collection] ?? {}) };
+      for (const record of records) merged[record.id] = record;
+      return { tenantId: owner, byCollection: { ...base, [collection]: merged } };
+    });
+  }, []);
+
+  const markRequested = useCallback((owner: string, keys: string[]): string[] => {
+    if (requested.current.tenantId !== owner) requested.current = { tenantId: owner, keys: new Set() };
+    const fresh = keys.filter((key) => !requested.current.keys.has(key));
+    for (const key of fresh) requested.current.keys.add(key);
+    return fresh;
+  }, []);
+
+  // O que veio de fora da janela não é assinado: ao voltar à aba, esquece-se, e o próximo pedido relê.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      requested.current = { tenantId: null, keys: new Set() };
+      setFetched({ tenantId: null, byCollection: {} });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
+  const knownRecordsByCollection = useMemo(() => {
+    const known: Record<string, EntityRecord[]> = { ...recordsByCollection };
+    for (const [collection, extras] of Object.entries(fetchedByCollection)) {
+      const loaded = recordsByCollection[collection] ?? [];
+      const inWindow = new Set(loaded.map((record) => record.id));
+      const outside = Object.values(extras).filter((record) => !inWindow.has(record.id));
+      if (outside.length > 0) known[collection] = [...loaded, ...outside];
+    }
+    return known;
+  }, [recordsByCollection, fetchedByCollection]);
+
+  const ensureRecords = useCallback((collection: string, ids: readonly string[]) => {
+    // Antes de a janela responder, todo id pareceria faltar — e seria lido duas vezes.
+    if (!tenantId || isLoading || ids.length === 0) return;
+    const inWindow = new Set((recordsByCollection[collection] ?? []).map((record) => record.id));
+    const missing = [...new Set(ids)].filter((id) => id !== '' && !inWindow.has(id));
+    const fresh = markRequested(tenantId, missing.map((id) => `${collection}/${id}`))
+      .map((key) => key.slice(collection.length + 1));
+    if (fresh.length === 0) return;
+    uc.getByIds.execute(tenantId, collection, fresh, visibleTo.get(collection) ?? null)
+      .then((records) => remember(tenantId, collection, records))
+      .catch((error: unknown) => console.warn(`[RecordStore] ensureRecords ${collection}:`, (error as Error).message));
+  }, [tenantId, isLoading, recordsByCollection, markRequested, uc.getByIds, visibleTo, remember]);
+
+  const searchRecords = useCallback(async (collection: string, text: string, max: number) => {
+    if (!tenantId) return [];
+    const records = await uc.search.execute(tenantId, collection, text, max, visibleTo.get(collection) ?? null);
+    markRequested(tenantId, records.map((record) => `${collection}/${record.id}`));
+    remember(tenantId, collection, records);
+    return records;
+  }, [tenantId, uc.search, visibleTo, markRequested, remember]);
+
+  /**
    * A AUTORIA é carimbada aqui, e não em cada tela que grava: o formulário dinâmico, o editor de
    * extensão e o `useEntityForm` gravavam os três o mesmo `createdBy`, e nenhum deles o nome — que é
    * o que uma listagem precisa para mostrar quem escreveu. Um valor explícito em `data` ainda vence,
@@ -165,6 +244,12 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ...prev,
       [collection]: (prev[collection] ?? []).map((r) => (r.id === recordId ? { ...r, ...data } : r)),
     }));
+    // O registro aberto de fora da janela também mostra o que acabou de ser gravado.
+    setFetched((prev) => {
+      const current = prev.byCollection[collection]?.[recordId];
+      if (!current) return prev;
+      return { ...prev, byCollection: { ...prev.byCollection, [collection]: { ...prev.byCollection[collection], [recordId]: { ...current, ...data } } } };
+    });
     storeEvents.emit(StoreEvents.RECORDS_UPDATED);
   }, [currentTenant, uc.update]);
 
@@ -176,6 +261,12 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ...prev,
       [collection]: (prev[collection] ?? []).filter((r) => r.id !== recordId),
     }));
+    setFetched((prev) => {
+      if (!prev.byCollection[collection]?.[recordId]) return prev;
+      const rest = { ...prev.byCollection[collection] };
+      delete rest[recordId];
+      return { ...prev, byCollection: { ...prev.byCollection, [collection]: rest } };
+    });
     storeEvents.emit(StoreEvents.RECORDS_UPDATED);
   }, [currentTenant, user, effectiveName, uc.delete]);
 
@@ -183,6 +274,9 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     <RecordContext.Provider value={{
       recordsByCollection,
       allRecords,
+      knownRecordsByCollection,
+      ensureRecords,
+      searchRecords,
       isLoading,
       createRecord,
       newRecordId,

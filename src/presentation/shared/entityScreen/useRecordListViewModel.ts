@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useEnsureReferencedRecords } from '../useEnsureReferencedRecords';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -307,6 +308,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     filterTokens.forEach((token) => { map[token.key] = token.values; });
     return map;
   }, [filterTokens]);
+
+  useEnsureReferencedRecords(records, allFields);
 
   const filteredRecords = useMemo(() => {
     const searchQ = (tokenMap['search']?.[0] ?? '').toLowerCase();

@@ -16,12 +16,18 @@ const screen = (over: Partial<ScreenDefinition>): ScreenDefinition => ({
 const record = (id: string, collection: string, titulo: string): EntityRecord =>
   ({ id, collection, titulo } as unknown as EntityRecord);
 
-const context = (screenDefinitions: ScreenDefinition[]): CommandPaletteAppContext => ({
+const context = (
+  screenDefinitions: ScreenDefinition[],
+  extra: EntityRecord[] = [],
+  recordMatches: ReadonlySet<string> = new Set(),
+): CommandPaletteAppContext => ({
   screenDefinitions,
   records: [
     record('p1', 'processos', 'Processo 0841074-10'),
     record('i1', 'intimacoes', '[Push] Movimentação do processo 0841074-10'),
+    ...extra,
   ],
+  recordMatches,
   can: () => true,
   openTab: vi.fn(),
   close: vi.fn(),
@@ -48,5 +54,21 @@ describe('DynamicRecordCommandProvider', () => {
   it('o "Abrir <tela>" continua — mesmo com hideFromSidebar, ele é a entrada que sobra', () => {
     const hidden = intimacoes({ hideRecordsFromCommandPalette: true, hideFromSidebar: true });
     expect(ids('intima', [screen({}), hidden])).toEqual(['dyn-screen:intimacoes']);
+  });
+
+  it('o registro que o servidor achou por outro campo entra, depois dos que casam pelo título', () => {
+    const outside = record('p2', 'processos', 'Curatela 8227479-19');
+    const items = DynamicRecordCommandProvider
+      .getItems('maria', context([screen({})], [record('p3', 'processos', 'Maria x Banco'), outside], new Set(['processos/p2'])))
+      .map((item) => item.id);
+    expect(items).toEqual(['dyn-record:p3', 'dyn-record:p2']);
+  });
+
+  it('o que o servidor achou numa tela tirada do ⌘K continua fora', () => {
+    const found = record('i2', 'intimacoes', 'Intimação qualquer');
+    const items = DynamicRecordCommandProvider
+      .getItems('isabel', context([screen({}), intimacoes({ hideRecordsFromCommandPalette: true })], [found], new Set(['intimacoes/i2'])))
+      .map((item) => item.id);
+    expect(items).toEqual([]);
   });
 });

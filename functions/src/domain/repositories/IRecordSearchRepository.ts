@@ -22,6 +22,9 @@ export interface IRecordSearchRepository {
    */
   writeTerms(tenantId: string, collection: string, record: SearchableRecord, terms: string[]): Promise<boolean>;
 
+  /** Os registros cujos termos contêm `term`, até `limit` — a janela que a busca confere depois. */
+  searchCandidates(tenantId: string, collection: string, term: string, limit: number): Promise<SearchableRecord[]>;
+
   /** Uma página da varredura, em ordem de id, depois de `afterId`. */
   scanPage(tenantId: string, scan: RecordSearchScan, afterId: string | null, limit: number): Promise<SearchableRecord[]>;
 

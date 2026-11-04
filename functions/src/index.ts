@@ -84,6 +84,7 @@ export {
   runRecordSearchJob,
   reconcileRecordSearchOnScreenChange,
   reconcileRecordSearch,
+  searchRecords,
 } from './infrastructure/handlers/recordSearch';
 export {
   reconcileRecordKeysOnScreenChange,

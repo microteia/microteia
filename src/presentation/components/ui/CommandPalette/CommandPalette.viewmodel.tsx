@@ -14,6 +14,11 @@ import { useCommandProviders, usePageContributions } from '../../../shared/useUi
 import { navigablePages as selectNavigablePages } from '../../../shared/resolveUiContributions';
 import { useLabel, useT } from '../../../shared/i18n/useT';
 import type { CommandPaletteItem } from './providers/ICommandPaletteProvider';
+import { useServerRecordSearch } from '../../../shared/useServerRecordSearch';
+import { isOwnedByParentScreen, screenDataCollection, screenReadPermission } from '../../../../domain/services/screenDataCollection';
+
+/** Por coleção: o ⌘K mostra oito registros ao todo, e a janela por tela não precisa ser maior. */
+const PALETTE_SEARCH_LIMIT = 8;
 
 export interface CommandPaletteGroup {
   name: string;
@@ -86,11 +91,34 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
     inputRef.current?.focus();
   }, []);
 
+  /**
+   * As coleções que o ⌘K busca no servidor: as mesmas cujos registros ele mostra. Uma tela que a
+   * pessoa não lê, uma filha de outra ou uma que se tirou do ⌘K não custam consulta nenhuma.
+   */
+  const searchCollections = useMemo(
+    () => [...new Set(screenDefinitions
+      .filter((def) => def.origin !== 'builtin'
+        && def.enabled
+        && !isOwnedByParentScreen(def)
+        && !def.hideRecordsFromCommandPalette
+        && can(screenReadPermission(def)))
+      .map(screenDataCollection))],
+    [screenDefinitions, can],
+  );
+  const serverSearch = useServerRecordSearch(query, searchCollections, PALETTE_SEARCH_LIMIT);
+  const records = useMemo(() => {
+    if (serverSearch.results.length === 0) return allRecords;
+    const loaded = new Set(allRecords.map((record) => `${record.collection}/${record.id}`));
+    const outside = serverSearch.results.filter((record) => !loaded.has(`${record.collection}/${record.id}`));
+    return outside.length > 0 ? [...allRecords, ...outside] : allRecords;
+  }, [allRecords, serverSearch.results]);
+
   const appContext = useMemo(
     () => ({
       openTab,
       close,
-      records: allRecords,
+      records,
+      recordMatches: serverSearch.matches,
       screenDefinitions,
       workflows,
       reports: paletteReports,
@@ -104,7 +132,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       t,
       label,
     }),
-    [openTab, close, allRecords, screenDefinitions, workflows, paletteReports, themeId, themes, setTheme, signOut, userRole, can, navigablePages, t, label],
+    [openTab, close, records, serverSearch.matches, screenDefinitions, workflows, paletteReports, themeId, themes, setTheme, signOut, userRole, can, navigablePages, t, label],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {

@@ -97,6 +97,14 @@ export class FirebaseRecordSearchRepository implements IRecordSearchRepository {
     }
   }
 
+  async searchCandidates(tenantId: string, collection: string, term: string, limit: number): Promise<SearchableRecord[]> {
+    const snapshot = await this.collection(tenantId, collection)
+      .where(RECORD_SEARCH_FIELD, 'array-contains', term)
+      .limit(limit)
+      .get();
+    return snapshot.docs.map(toRecord);
+  }
+
   async scanPage(tenantId: string, scan: RecordSearchScan, afterId: string | null, limit: number): Promise<SearchableRecord[]> {
     let query: Query = this.collection(tenantId, scan.collection);
     // Igualdade (ou `array-contains`) no campo e ordem por id: os dois são servidos pelos índices de

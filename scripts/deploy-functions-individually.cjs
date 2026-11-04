@@ -91,6 +91,7 @@ const ALL_FUNCTIONS = [
   'runRecordSearchJob',
   'reconcileRecordSearchOnScreenChange',
   'reconcileRecordSearch',
+  'searchRecords',
   'reconcileAggregates',
   'reconcileRecordKeysOnScreenChange',
   'runRecordKeyAdoption',

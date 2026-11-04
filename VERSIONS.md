@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.197.0] — 2026-11-04
+
+- A busca rápida (⌘K) passou a encontrar registros de todo o escritório, e não só os mais recentes — também pelos campos marcados como pesquisáveis, como o número do processo ou o nome de uma das partes.
+- Os cartões e os formulários passaram a mostrar o nome da pessoa (ou de qualquer registro) apontada mesmo quando ela foi cadastrada há muito tempo, em vez de dizer que o registro não foi encontrado.
+
 #### [9.196.0] — 2026-11-04
 
 - No Form Design, cada campo ganhou a opção **Pesquisável**: marque-a para que o registro possa ser encontrado também pelo que está nesse campo — como as partes de um processo, o número dele ou a vara —, além do título.

@@ -14,6 +14,7 @@ import {
 import type { RecordSearchJobState, RecordSearchScan } from '../schema/recordSearch';
 import type { RecordSearchDeps } from './recordSearchEngine';
 import { deriveRecordSearchOnWrite, reconcileRecordSearch, runRecordSearchRound } from './recordSearchEngine';
+import { searchVisibleRecordIds } from './recordSearchQuery';
 
 const TENANT = 't1';
 
@@ -80,6 +81,13 @@ class MemoryRepository implements IRecordSearchRepository {
     stored.version += 1;
     this.writes += 1;
     return true;
+  }
+
+  async searchCandidates(_tenantId: string, collection: string, term: string, limit: number) {
+    return [...(this.collections.get(collection) ?? new Map<string, Stored>())]
+      .filter(([, stored]) => Array.isArray(stored.data.searchTerms) && stored.data.searchTerms.includes(term))
+      .slice(0, limit)
+      .map(([id, stored]) => ({ id, data: stored.data, version: String(stored.version) }));
   }
 
   async scanPage(_tenantId: string, scan: RecordSearchScan, afterId: string | null, limit: number) {
@@ -306,5 +314,31 @@ describe('o backfill dos registros que já existiam', () => {
     now.value += RECORD_SEARCH_STALL_MS + 1;
     expect(await reconcileRecordSearch(TENANT, deps)).toBeGreaterThanOrEqual(1);
     expect(repository.jobs.get(jobId)?.touchedAt).toBe(now.value);
+  });
+});
+
+describe('a busca de quem tem a leitura restrita', () => {
+  const restricted = (): SchemaScreen => ({ ...casesScreen(), memberVisibility: { userFields: ['owner'] } });
+
+  const seeded = async () => {
+    const state = setup([personsScreen(), restricted()]);
+    for (const [id, owner] of [['c1', 'u1'], ['c2', 'u2'], ['c3', 'u1']] as const) {
+      await deriveRecordSearchOnWrite(TENANT, 'cases', id, null, state.repository.put('cases', id, { title: `Curatela ${id}`, owner }), state.deps);
+    }
+    return state;
+  };
+
+  it('devolve só o que nomeia quem busca, e só o que tem todas as palavras', async () => {
+    const { deps } = await seeded();
+    const reader = { uid: 'u1', permissions: ['cases.read'] };
+    expect(await searchVisibleRecordIds(TENANT, 'cases', 'curatela', 10, reader, deps)).toEqual(['c1', 'c3']);
+    expect(await searchVisibleRecordIds(TENANT, 'cases', 'curatela c3', 10, reader, deps)).toEqual(['c3']);
+  });
+
+  it('quem supervisiona vê todos; sem palavra que a busca leia, não consulta', async () => {
+    const { deps } = await seeded();
+    expect(await searchVisibleRecordIds(TENANT, 'cases', 'curatela', 10, { uid: 'u9', permissions: ['cases.read-all'] }, deps))
+      .toEqual(['c1', 'c2', 'c3']);
+    expect(await searchVisibleRecordIds(TENANT, 'cases', 'a', 10, { uid: 'u1', permissions: [] }, deps)).toEqual([]);
   });
 });

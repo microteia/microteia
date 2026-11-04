@@ -9,7 +9,9 @@ import {
   runRecordSearchRound,
 } from '../../domain/services/recordSearchEngine';
 import { encodeRecordVersion } from '../../data/repositories/FirebaseRecordSearchRepository';
-import { isOfficeMember } from './shared/requirePermission';
+import { isOfficeMember, requirePermission } from './shared/requirePermission';
+import { searchVisibleRecordIds } from '../../domain/services/recordSearchQuery';
+import { collectionPermissionId } from '../../domain/schema/access/permission';
 
 const REGION = 'southamerica-east1';
 
@@ -107,5 +109,39 @@ export const reconcileRecordSearch = onCall(
     }
     const changed = await reconcileRecordSearchForTenant(tenantId, getDI().getRecordSearchDeps());
     return { changed };
+  },
+);
+
+const text = (value: unknown): string | null => (typeof value === 'string' && value.trim() !== '' ? value.trim() : null);
+
+/**
+ * A busca de quem tem a leitura restrita por registro numa coleção (`memberVisibility`). Pede a
+ * leitura da coleção, como a assinatura dela pede; o que a pessoa VÊ dentro dela é decidido registro
+ * a registro, pela mesma pergunta da regra. Devolve ids — o cliente lê cada um pela própria regra.
+ */
+export const searchRecords = onCall(
+  { region: REGION, cors: true },
+  async (request): Promise<{ ids: string[] }> => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
+    }
+    const data = (request.data ?? {}) as { tenantId?: unknown; collection?: unknown; query?: unknown; limit?: unknown };
+    const tenantId = text(data.tenantId);
+    const collection = text(data.collection);
+    const query = text(data.query);
+    if (!tenantId) throw new HttpsError('invalid-argument', '@core.automation/handler.tenant.missing');
+    if (!collection || RESERVED_COLLECTIONS.has(collection) || !query) return { ids: [] };
+
+    const permissions = await requirePermission(tenantId, request.auth, collectionPermissionId(collection, 'read'));
+    const limit = typeof data.limit === 'number' && Number.isFinite(data.limit) ? data.limit : 10;
+    const ids = await searchVisibleRecordIds(
+      tenantId,
+      collection,
+      query,
+      limit,
+      { uid: request.auth.uid, permissions },
+      getDI().getRecordSearchDeps(),
+    );
+    return { ids };
   },
 );

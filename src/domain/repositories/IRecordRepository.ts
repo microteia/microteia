@@ -27,6 +27,28 @@ export interface IRecordRepository {
   ): () => void;
   getById(tenantId: string, collection: string, recordId: string): Promise<EntityRecord | null>;
   /**
+   * Os registros pedidos, numa leitura por lote — o que não existe, ou o que a pessoa não vê, fica de
+   * fora. É o que resolve o nome de um registro apontado que não está entre os carregados.
+   */
+  getByIds(
+    tenantId: string,
+    collection: string,
+    ids: readonly string[],
+    visibleTo?: MemberVisibilityFilter | null,
+  ): Promise<EntityRecord[]>;
+  /**
+   * A busca no SERVIDOR, pelos termos que o backend grava (`domain/schema/recordSearch.ts`) — acha o
+   * registro que não está entre os carregados. Com `visibleTo`, a consulta passa pela callable: a
+   * regra não aceita os termos e o filtro de visibilidade na mesma consulta.
+   */
+  search(
+    tenantId: string,
+    collection: string,
+    text: string,
+    limit: number,
+    visibleTo?: MemberVisibilityFilter | null,
+  ): Promise<EntityRecord[]>;
+  /**
    * Id de registro gerado no CLIENTE, para que um arquivo enviado ANTES do save já caia no caminho
    * final — `tenants/{t}/{coleção}/{id}/…`. Sem ele, o arquivo de um registro novo teria de nascer
    * num caminho provisório e ser movido depois, e o Storage não move objetos.

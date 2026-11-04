@@ -9,7 +9,7 @@ const members: Partial<TenantMember>[] = [];
 const recordsByCollection: Record<string, EntityRecord[]> = {};
 
 vi.mock('../../stores/useRecords', () => ({
-  useRecords: () => ({ recordsByCollection }),
+  useRecords: () => ({ recordsByCollection, knownRecordsByCollection: recordsByCollection }),
 }));
 
 vi.mock('../../stores/useScreenDefinitions', () => ({

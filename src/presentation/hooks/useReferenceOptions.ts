@@ -13,19 +13,21 @@ export const useReferenceOptions = (): Record<string, ReferenceOption[]> => {
   const t = useT('core.records');
   const label = useLabel();
   const { getOptions } = useLookups();
-  const { recordsByCollection } = useRecords();
+  // Os CONHECIDOS, e não só a janela: o registro trazido por id ou achado pela busca no servidor
+  // também é opção, e o nome do apontado que ficou fora dos 500 carregados aparece no cartão.
+  const { knownRecordsByCollection } = useRecords();
   const { dynamicScreens } = useScreenDefinitions();
   const { members } = useTenant();
 
   return useMemo(
     () => buildReferenceOptions({
-      recordsByCollection,
+      recordsByCollection: knownRecordsByCollection,
       dynamicScreens,
       members,
       getOptions,
       label,
       untitled: t('record.untitled'),
     }),
-    [recordsByCollection, dynamicScreens, members, getOptions, label, t],
+    [knownRecordsByCollection, dynamicScreens, members, getOptions, label, t],
   );
 };
