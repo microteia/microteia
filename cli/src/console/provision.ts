@@ -44,7 +44,11 @@ import { outdatedByStamp } from './functionsUpToDate.js';
 import type { OutdatedFunctions } from './functionsUpToDate.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
 import { asArray, asMap, asNull, asString, asTimestamp, patchFields, patchMapField } from './firestoreRest.js';
+import type { FirestoreTypedValue } from './firestoreRest.js';
 import { pendingCauseOf } from './backendPending.js';
+import { settlePackagedSources } from './packagedApproval.js';
+import { clearPackagedSources, packagedSourceOf, parseApprovals } from './packagedSources.js';
+import type { PackagedClaim, PackagedSource } from './packagedSources.js';
 import type { PendingCause } from './backendPending.js';
 import { writeBackendResidue } from './backendResidue.js';
 import { listTenants, readInstalledExtensions } from './installedExtensions.js';
@@ -70,6 +74,11 @@ export interface InstalledClaim extends BackendClaim {
   tenantId: string;
   documentPath: string;
   applied: boolean;
+  /** A fonte das functions que veio no pacote — ver `PackagedSource`. */
+  source?: PackagedSource;
+  /** O hash aprovado nesta cópia, e por quem. A aprovação é do projeto: vale a de qualquer cópia. */
+  approvedHash?: string;
+  approvedBy?: string;
 }
 
 /**
@@ -120,7 +129,10 @@ export const surveyInstallations = async (projectId: string): Promise<InstalledS
       const backend = extension.manifest?.backend as PluginBackendRequirement | undefined;
       if (!hasBackendRequirement(backend)) continue;
 
-      const state = extension.data.backendState as { fingerprint?: string } | undefined;
+      const state = extension.data.backendState as
+        | { fingerprint?: string; approvedHash?: unknown; approvedBy?: unknown }
+        | undefined;
+      const source = packagedSourceOf(extension.data.package);
       claims.push({
         tenantId: extension.tenantId,
         documentPath: extension.documentPath,
@@ -128,7 +140,10 @@ export const surveyInstallations = async (projectId: string): Promise<InstalledS
         name: extension.name,
         version: extension.version,
         backend: backend as PluginBackendRequirement,
-        applied: state?.fingerprint === backendFingerprint(backend),
+        applied: state?.fingerprint === backendFingerprint(backend, source?.hash),
+        ...(source !== undefined ? { source } : {}),
+        ...(typeof state?.approvedHash === 'string' ? { approvedHash: state.approvedHash } : {}),
+        ...(typeof state?.approvedBy === 'string' ? { approvedBy: state.approvedBy } : {}),
       });
     }
   }
@@ -136,9 +151,21 @@ export const surveyInstallations = async (projectId: string): Promise<InstalledS
   return {
     tenants: tenants.length,
     extensions,
-    claims: claims.sort((a, b) => (a.pluginId < b.pluginId ? -1 : a.pluginId > b.pluginId ? 1 : 0)),
+    // A versão mais nova primeiro, dentro de cada extensão: é ela que `uniqueByPlugin` escolhe quando
+    // dois escritórios do projeto têm versões diferentes — e a function é uma só, do projeto.
+    claims: claims.sort((a, b) => (a.pluginId < b.pluginId ? -1 : a.pluginId > b.pluginId ? 1 : compareVersions(b.version, a.version))),
     installedIds,
   };
+};
+
+const compareVersions = (left: string, right: string): number => {
+  const parts = (value: string): number[] => value.split(/[.+-]/).slice(0, 3).map((part) => Number.parseInt(part, 10) || 0);
+  const [a, b] = [parts(left), parts(right)];
+  for (let index = 0; index < 3; index += 1) {
+    const difference = (a.at(index) ?? 0) - (b.at(index) ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
 };
 
 const uniqueByPlugin = (claims: InstalledClaim[]): InstalledClaim[] => {
@@ -171,6 +198,10 @@ export interface ProvisionOptions {
   refreshedStamps?: Map<string, string>;
   environmentFile: string;
   environment: Environment;
+  /** `--approve id@hash`: aprovação da fonte empacotada sem pergunta. Ver `settlePackagedSources`. */
+  approvals?: ReadonlyMap<string, string>;
+  /** Há um terminal para perguntar. Sem ele, o que não foi aprovado fica pendente. */
+  interactive?: boolean;
 }
 
 export interface ProvisionOutcome {
@@ -199,12 +230,32 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
    * pacote (nem poderia: o kernel não sabe o que o escritório vai escrever), e a extensão inteira era
    * rejeitada com "this kernel package does not contain".
    */
-  const office = await readOfficeFunctions(root);
-  const deployable = [...manifest.functions, ...office.all];
-
   const survey = await surveyInstallations(projectId);
   const claims = survey.claims;
-  const missing = functionClaimProblems(claims, deployable);
+
+  /**
+   * A fonte que veio NO PACOTE é decidida antes de qualquer conta: o que for aprovado é extraído para
+   * `.microteia/packaged-functions/` e passa a ser lido como qualquer fonte da instalação. A leitura
+   * local vem antes porque é ela que decide a precedência — o que a instalação já escreve vale mais que
+   * a cópia empacotada.
+   */
+  await clearPackagedSources(root);
+  const local = await readOfficeFunctions(root);
+  const settlement = await settlePackagedSources({
+    root,
+    projectId,
+    claims: packagedClaimsOf(claims),
+    provided: new Set([...manifest.functions, ...local.all]),
+    flags: options.approvals ?? new Map(),
+    interactive: options.interactive === true,
+  });
+  const office = settlement.extracted > 0 ? await readOfficeFunctions(root) : local;
+  const deployable = [...manifest.functions, ...office.all];
+
+  // A retida não entra em "nowhere to be found": a fonte dela existe, só não foi aprovada — e a
+  // explicação certa já foi dada acima. Ela continua RECUSADA (logo abaixo), e é isso que protege do
+  // `--prune` a function de uma versão anterior que ainda está no ar.
+  const missing = functionClaimProblems(claims.filter((claim) => !settlement.held.has(claim.pluginId)), deployable);
   const overlapping = baselineClaimProblems(claims, manifest.baselineFunctions ?? []);
   // A comum do escritório tem o MESMO desfecho da function da plataforma, e por isso a mesma recusa: o
   // `deploy` a sobe sempre, então reivindicá-la não muda nada — até o dia em que `--prune` a apaga.
@@ -313,6 +364,8 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     // mensagem cita DOIS ids, e casar por substring penduraria também a extensão cujo id foi copiado.
     for (const entry of misgated) rejected.add(entry.owner);
   }
+
+  for (const pluginId of settlement.held.keys()) rejected.add(pluginId);
 
   const valid = uniqueByPlugin(claims.filter((claim) => !rejected.has(claim.pluginId)));
 
@@ -614,6 +667,7 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   const deployedNow = new Set([...appliedNames, ...outcome.deployed, ...skippedNow]);
   const validIds = new Set(valid.map((claim) => claim.pluginId));
   const pendingInputs = {
+    held: settlement.held,
     deployable: new Set(deployable),
     refusedClaims,
     ungated: new Set(refused),
@@ -627,7 +681,7 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     // function que já estava aplicada continua satisfazendo a extensão mesmo que o portão dela tenha
     // saído da fila nesta execução.
     if (isValid && (claim.backend.functions ?? []).every((name) => deployedNow.has(name))) {
-      await stampApplied(projectId, claims, claim);
+      await stampApplied(projectId, claims, claim, settlement.approvedNow.get(claim.pluginId));
       continue;
     }
     if (isValid) outcome.pending.push(claim);
@@ -823,23 +877,63 @@ const stampApplied = async (
   projectId: string,
   all: InstalledClaim[],
   claim: InstalledClaim,
+  approvedNowBy: string | undefined,
 ): Promise<void> => {
-  const fingerprint = backendFingerprint(claim.backend);
+  const fingerprint = claimFingerprint(claim);
   const appliedAt = new Date();
+  /**
+   * A aprovação vai junto do carimbo quando a fonte veio no pacote. Aprovada agora, o aprovador é quem
+   * rodou o comando; aprovada antes, é quem a aprovou numa das cópias — e é isso que a PROPAGA para a
+   * cópia nova de um escritório que reinstalou, sem perguntar de novo pelo código que já roda.
+   */
+  const hash = claim.source?.hash;
+  const approval: Record<string, FirestoreTypedValue> = hash === undefined
+    ? {}
+    : {
+      approvedHash: asString(hash),
+      approvedBy: asString(
+        approvedNowBy
+          ?? all.find((entry) => entry.pluginId === claim.pluginId && entry.approvedHash === hash)?.approvedBy
+          ?? 'unknown',
+      ),
+      approvedAt: asTimestamp(appliedAt),
+    };
   for (const copy of all.filter((entry) => entry.pluginId === claim.pluginId)) {
-    if (backendFingerprint(copy.backend) !== fingerprint) continue;
+    if (claimFingerprint(copy) !== fingerprint) continue;
     // O motivo de uma recusa anterior sai na MESMA escrita: duas escritas abririam uma janela em que a
     // tela mostra a extensão no ar e, ao mesmo tempo, por que ela não estava.
     await patchFields(projectId, copy.documentPath, {
       backendState: asMap({
         fingerprint: asString(fingerprint),
         appliedAt: asTimestamp(appliedAt),
+        ...approval,
       }),
       backendPending: asNull(),
     });
   }
   success(`${claim.name} is ready in ${projectId}`);
 };
+
+/** O fingerprint que a cópia exige — o mesmo que a tela calcula, com o hash da fonte quando ela existe. */
+const claimFingerprint = (claim: InstalledClaim): string => backendFingerprint(claim.backend, claim.source?.hash);
+
+/**
+ * As extensões cuja fonte veio no pacote, uma por id — a escolhida por `uniqueByPlugin`, a versão mais
+ * nova —, com todos os hashes que QUALQUER cópia do projeto já aprovou.
+ */
+const packagedClaimsOf = (claims: InstalledClaim[]): PackagedClaim[] =>
+  uniqueByPlugin(claims).flatMap((claim) => (claim.source === undefined ? [] : [{
+    pluginId: claim.pluginId,
+    name: claim.name,
+    version: claim.version,
+    functions: claim.backend.functions ?? [],
+    source: claim.source,
+    approvedHashes: new Set(
+      claims
+        .filter((entry) => entry.pluginId === claim.pluginId && entry.approvedHash !== undefined)
+        .map((entry) => entry.approvedHash as string),
+    ),
+  }]));
 
 /**
  * Grava na instalação POR QUE ela continua pendente — o que até aqui só o terminal sabia.
@@ -853,10 +947,10 @@ const recordPending = async (
   claim: InstalledClaim,
   cause: PendingCause,
 ): Promise<void> => {
-  const fingerprint = backendFingerprint(claim.backend);
+  const fingerprint = claimFingerprint(claim);
   const recordedAt = new Date();
   for (const copy of all.filter((entry) => entry.pluginId === claim.pluginId)) {
-    if (copy.applied || backendFingerprint(copy.backend) !== fingerprint) continue;
+    if (copy.applied || claimFingerprint(copy) !== fingerprint) continue;
     await patchMapField(projectId, copy.documentPath, 'backendPending', {
       fingerprint: asString(fingerprint),
       reason: asString(cause.reason),
@@ -1133,6 +1227,8 @@ export const provision = async (args: ParsedArgs): Promise<void> => {
     all: hasFlag(args, 'all'),
     environmentFile: file,
     environment,
+    approvals: parseApprovals(flagValue(args, 'approve')),
+    interactive: process.stdin.isTTY === true,
   });
 
   blank();

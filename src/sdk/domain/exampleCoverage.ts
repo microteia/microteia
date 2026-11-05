@@ -119,6 +119,7 @@ const PACKAGE_NOTES: Record<keyof MarketplacePlugin, string> = {
   views: 'screens written in code, travelling as source',
   startup: 'the function that runs at load time and registers what a declaration cannot express',
   migrations: 'code that converts data an earlier version of the package wrote',
+  backendSource: 'the source of its own Cloud Functions, bundled by the build from functions/',
   overview: 'the rich description shown before installing',
 };
 

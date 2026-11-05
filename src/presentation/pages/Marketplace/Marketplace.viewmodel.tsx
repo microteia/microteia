@@ -401,6 +401,8 @@ const BACKEND_PENDING_DETAIL: Record<BackendPendingReason, string> = {
   'function-claim-refused': 'extension.backend-pending.reason.function-claim-refused',
   'gate-missing': 'extension.backend-pending.reason.gate-missing',
   'deploy-failed': 'extension.backend-pending.reason.deploy-failed',
+  'awaiting-approval': 'extension.backend-pending.reason.awaiting-approval',
+  'source-invalid': 'extension.backend-pending.reason.source-invalid',
 };
 
 const backendPendingDetailOf = (cause: ExtensionBackendPending | null): { key: string; functions: string } =>

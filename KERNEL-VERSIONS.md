@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.206.0] — 2026-11-05
+
+- feat(extensions/backend): packages may carry the source of their own Cloud Functions as `backendSource` — the `.ts`/`.json` files of `functions/` next to `plugin.ts` (no tests, `node_modules` or hidden files) plus a SHA-256 of `backendSourceCanonical(files)`. `microteia-plugin build` bundles it (`attachBackendSource`); `validatePluginPackage` refuses a path outside the folder, a missing `index.ts` and source without `manifest.backend.functions`. Before, `manifest.backend.functions` carried only names, and an extension installed anywhere stayed pending wherever nobody had copied its folder by hand.
+- feat(extensions/backend): `backendFingerprint(backend, sourceHash)` includes the source hash only when there is one, so nothing already stamped goes pending; new code with the same requirement is a new fingerprint. `backendState` gains `approvedHash`/`approvedBy`/`approvedAt`, preserved by in-app updates. New pending reasons `awaiting-approval` and `source-invalid`, explained on the Extensions screen.
+- feat(sdk): `KERNEL_VERSION` 2.100.0. `backend-example` (1.1.0) is built from its own entry and ships its functions; the locale pack moves to 1.162.0.
+
 #### [9.205.0] — 2026-11-05
 
 - feat(extensions/backend): installed extensions carry `backendPending` — `{ fingerprint, reason, functions, recordedAt }`, written by Console 2.37.0 — and the Extensions screen explains a pending backend by its cause (`function-source-missing`, `function-claim-refused`, `gate-missing`, `deploy-failed`) and the functions involved. Before, every pending extension told the reader to run `microteia provision`, including the ones `provision` had just refused, and the reason stayed in the terminal of whoever ran it. A cause recorded against a different requirement fingerprint is ignored, so updating the extension falls back to the generic instruction. `BACKEND_PENDING_REASONS` lives in `backendRequirement.ts`; the locale pack moves to 1.161.0.

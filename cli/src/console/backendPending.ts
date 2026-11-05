@@ -7,6 +7,12 @@ export interface PendingCause {
 
 /** O que uma execução do `provision` sabe sobre as functions — a mesma conta que ele já faz. */
 export interface PendingInputs {
+  /**
+   * As extensões cuja fonte EMPACOTADA não subiu nesta execução: aguardando aprovação, ou recusada por
+   * não conferir. Vem antes de tudo — sem ela, a fonte "não existe" para o resto da conta, e o motivo
+   * mandaria procurar a pasta que o autor nunca precisou criar.
+   */
+  held?: ReadonlyMap<string, BackendPendingReason>;
   /** O que existe para ser deployado: o pacote do kernel mais as fontes da instalação. */
   deployable: ReadonlySet<string>;
   /** Nome -> a extensão cuja reivindicação foi recusada por ele (plataforma, comum, portão trocado). */
@@ -33,6 +39,9 @@ export const pendingCauseOf = (
 ): PendingCause | null => {
   const names = claim.backend.functions ?? [];
   const pick = (test: (name: string) => boolean): string[] => names.filter(test);
+
+  const held = inputs.held?.get(claim.pluginId);
+  if (held !== undefined && names.length > 0) return { reason: held, functions: [...names] };
 
   const missing = pick((name) => !inputs.deployable.has(name));
   if (missing.length > 0) return { reason: 'function-source-missing', functions: missing };

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.206.0] — 2026-11-05
+
+- Extensões que têm funções de servidor próprias passam a levar esse código junto, no próprio arquivo da extensão. Instalada em outro escritório, ela não depende mais de alguém copiar arquivos à mão: quem cuida do projeto vê exatamente o que vai ao ar e aprova uma vez. Enquanto a aprovação não vem, a tela de Extensões diz que a extensão está aguardando essa revisão.
+
 #### [9.205.0] — 2026-11-05
 
 - Quando uma extensão fica com "Backend pendente", a tela de Extensões passa a dizer o motivo — por exemplo, que a fonte de uma função não foi encontrada na instalação, ou que a publicação dela falhou — e quais funções faltam, em vez de apenas pedir que o comando de provisionamento seja rodado de novo.

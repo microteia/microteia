@@ -2,6 +2,7 @@ import type { AuditAction } from './AuditLog';
 import type { LookupSeedMode } from '../schema/lookupSeed';
 import type { PluginManifest } from '../schema/plugin/pluginManifest';
 import type { PluginMigration } from '../schema/plugin/migration';
+import type { PackagedBackendSource } from '../schema/plugin/backendSource';
 import type { ReportModuleTemplate as ReportModuleTemplateType } from './Report';
 import type { WorkflowDefinition } from './Workflow';
 import type { Script } from './Script';
@@ -254,6 +255,12 @@ export interface MarketplacePlugin {
    * teardown, chamado ao desativar/desinstalar. Só executa de fonte confiável, como as `views`.
    */
   startup?: string;
+  /**
+   * A FONTE das Cloud Functions que `manifest.backend.functions` declara, capturada pelo build do SDK
+   * do diretório `functions/` ao lado do `plugin.ts`. O Console a monta e a põe no ar só depois que
+   * quem opera o projeto aprova o hash. Ver `PackagedBackendSource`.
+   */
+  backendSource?: PackagedBackendSource;
   /**
    * MIGRAÇÕES DE DADOS: código que roda uma vez por escritório para converter o dado que uma versão
    * anterior desta mesma extensão escreveu. Viajam no pacote e NÃO são materializadas como Scripts do

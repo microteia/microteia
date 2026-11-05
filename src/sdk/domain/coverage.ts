@@ -257,6 +257,8 @@ const PACKAGE_REACH: Record<keyof MarketplacePlugin, string | null> = {
   views: null,
   startup: null,
   migrations: 'plan.migrationsRequired names the conversion; the routine itself is code',
+  // Não é o plano que a preenche: é o build, a partir de `functions/` ao lado do `plugin.ts`.
+  backendSource: null,
   overview: null,
 };
 

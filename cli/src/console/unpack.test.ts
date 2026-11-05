@@ -168,7 +168,11 @@ describe('as functions que o escritório escreve chegam ao deploy', () => {
 
   it('o provision confere e escolhe contra o pacote MAIS o que o escritório escreveu', () => {
     expect(provision).toContain('const deployable = [...manifest.functions, ...office.all];');
-    expect(provision).toContain('functionClaimProblems(claims, deployable)');
+    // A retida (fonte empacotada aguardando aprovação) sai desta conferência: a fonte dela existe, e
+    // ela já é recusada por outro caminho — o que importa aqui é a régua continuar sendo `deployable`.
+    expect(provision).toContain(
+      'functionClaimProblems(claims.filter((claim) => !settlement.held.has(claim.pluginId)), deployable)',
+    );
     expect(provision).toContain('deployable.filter(');
     expect(provision).not.toContain('functionClaimProblems(claims, manifest.functions)');
   });

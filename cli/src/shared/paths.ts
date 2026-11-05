@@ -98,4 +98,4 @@ export const consoleRoot = resolve(here, '..', '..');
  * de código nunca chegou a quem instala. Este bloco fica sendo o que ele já era antes de crescer: a
  * política de semver da ferramenta, mais o registro do que motivou as versões até a `2.5.0`.
  */
-export const CLI_VERSION = '2.37.0';
+export const CLI_VERSION = '2.38.0';

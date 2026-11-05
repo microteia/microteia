@@ -9,6 +9,7 @@ import type { SourcePart } from '../mergeSources';
 import { mergeSources, rawPart } from '../mergeSources';
 import type { SdkIssue } from '../validate';
 import { validatePluginPackage } from '../validate';
+import { attachBackendSource } from './backendSource';
 
 /**
  * O compilador de extensão: um módulo TypeScript entra, o `.json` que a plataforma instala sai.
@@ -264,7 +265,10 @@ const pickExport = (
 export const buildPlugin = (input: BuildPluginInput): BuildPluginResult => {
   const entry = isAbsolute(input.entry) ? input.entry : resolve(input.entry);
   const [exportName, authored] = pickExport(loadModule(entry), input.exportName, entry);
-  const pkg = inlineAuthoredCode(authored, dirname(entry));
+  // A fonte das Cloud Functions vem de `functions/` ao lado do `plugin.ts`: é onde o autor já as escreve
+  // para o Console da instalação dele, e é o que faz a extensão funcionar numa instalação que não tem
+  // essa pasta. Ver `PackagedBackendSource`.
+  const pkg = attachBackendSource(inlineAuthoredCode(authored, dirname(entry)), dirname(entry));
   return { package: pkg, json: `${serializePackage(pkg)}\n`, issues: validatePluginPackage(pkg), exportName };
 };
 

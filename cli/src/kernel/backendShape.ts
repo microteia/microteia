@@ -44,10 +44,11 @@ const canonicalIndex = (index: FirestoreIndexSpec): string => JSON.stringify([
 ]);
 
 /** Cópia byte a byte de `domain/schema/plugin/backendRequirement.ts`. Ver o teste de paridade. */
-export const backendFingerprint = (backend?: PluginBackendRequirement): string => JSON.stringify({
+export const backendFingerprint = (backend?: PluginBackendRequirement, sourceHash?: string): string => JSON.stringify({
   functions: [...(backend?.functions ?? [])].sort(),
   indexes: [...(backend?.indexes ?? [])].map(canonicalIndex).sort(),
   parameters: [...(backend?.parameters ?? [])].sort(),
+  ...(sourceHash !== undefined ? { code: sourceHash } : {}),
 });
 
 /** Ver `BACKEND_PENDING_REASONS` no kernel — a paridade é cobrada por `backendShape.test.ts`. */
@@ -56,6 +57,8 @@ export const BACKEND_PENDING_REASONS = [
   'function-claim-refused',
   'gate-missing',
   'deploy-failed',
+  'awaiting-approval',
+  'source-invalid',
 ] as const;
 
 export type BackendPendingReason = typeof BACKEND_PENDING_REASONS[number];

@@ -88,6 +88,7 @@ const LACUNAS_CONFERIDAS = [
   'package-artifact\treports',
   'package-artifact\tviews',
   'package-artifact\tstartup',
+  'package-artifact\tbackendSource',
   'package-artifact\toverview',
 
   // As propriedades de tela. `sourceId` SAIU desta lista: era a mais consequente de todas — sem ela a

@@ -4194,6 +4194,25 @@ the extension is installed, removed by \`microteia provision --prune\` when noth
 
 A view calls one through \`@microteia/functions\`; ask \`describe_host_module\` for the shape.
 
+### They travel inside your package — and someone approves them
+
+\`microteia-plugin build\` bundles \`<folder>/functions/\` into the \`.json\` as \`backendSource\`: every
+\`.ts\` and \`.json\` file, without tests, \`node_modules\` or hidden files, plus a SHA-256 of the whole. An
+organization that installs your package from a file or from the catalogue gets the code with it — nobody
+has to copy your folder into their installation.
+
+It does not go live on its own. These functions run on the server with access to **every** organization
+in that Firebase project, so whoever runs \`microteia provision\` there is shown the files, the npm
+packages they add and what kind of function each one is, and approves that exact hash — or passes
+\`--approve <id>@<hash>\` outside a terminal. Until then the extension stays pending, and the Extensions
+screen says why. Approval belongs to the project: once one organization's copy carries it, another
+organization installing the same version is not asked again.
+
+Change one character in \`functions/\` and the hash changes: the next version asks for approval again,
+and that is the point. Where an installation already has the source — your own, in
+\`extensions/<folder>/functions/\` — that copy wins over the one in the package, so you keep developing
+the way you do now.
+
 ### A trigger of yours MUST be gated to your extension
 
 A Cloud Function belongs to the **project**. An installation belongs to an **organization**. Nothing in

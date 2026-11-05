@@ -77,6 +77,17 @@ describe('paridade do fingerprint entre o kernel e o Console', () => {
     }
   });
 
+  // Com a fonte das functions no pacote o hash entra no fingerprint — e SEM ela a string tem de ser a de
+  // sempre, ou toda instalação já carimbada voltaria a ficar pendente.
+  it('o hash da fonte entra igual nas duas pontas, e só quando existe', async () => {
+    const kernel = await import('../../../src/domain/schema/plugin/backendRequirement.js');
+    const backend = { functions: ['a'] };
+    const hash = 'f'.repeat(64);
+    expect(backendFingerprint(backend, hash)).toBe(kernel.backendFingerprint(backend, hash));
+    expect(backendFingerprint(backend, undefined)).toBe(backendFingerprint(backend));
+    expect(backendFingerprint(backend, hash)).not.toBe(backendFingerprint(backend));
+  });
+
   /**
    * Um motivo que só o Console conhece é descartado pela leitura do kernel (`isBackendPendingReason`),
    * e a tela volta à instrução genérica — o defeito que o motivo existe para fechar.

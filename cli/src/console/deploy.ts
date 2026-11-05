@@ -2,6 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { flagValue, hasFlag, requiredFlag } from '../shared/args.js';
 import type { ParsedArgs } from '../shared/args.js';
+import { parseApprovals } from './packagedSources.js';
 import { run } from '../shared/run.js';
 import { blank, bullets, failure, heading, info, step, success, warn } from '../shared/ui.js';
 import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
@@ -360,6 +361,8 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       refreshedStamps,
       environmentFile: file,
       environment: applied,
+      approvals: parseApprovals(flagValue(args, 'approve')),
+      interactive: process.stdin.isTTY === true,
     });
     if (provisioned.failed.length > 0) {
       failures.push(`${provisioned.failed.length} extension function(s): ${provisioned.failed.join(', ')}`);

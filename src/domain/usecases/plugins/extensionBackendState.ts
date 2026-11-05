@@ -14,6 +14,10 @@ import { backendFingerprint, hasBackendRequirement } from '../../schema/plugin/b
 export const extensionNeedsBackend = (extension: InstalledExtension): boolean =>
   hasBackendRequirement(extension.package.manifest.backend);
 
+/** O que a cópia instalada exige AGORA — inclusive o código, quando ele viaja no pacote. */
+const declaredFingerprint = (extension: InstalledExtension): string =>
+  backendFingerprint(extension.package.manifest.backend, extension.package.backendSource?.hash);
+
 /**
  * O comparado é o FINGERPRINT do que a extensão exige, não a versão dela: uma versão nova que passe a
  * pedir uma function nova volta a ficar pendente sozinha, e uma que só mude texto não re-pendura o que
@@ -22,7 +26,7 @@ export const extensionNeedsBackend = (extension: InstalledExtension): boolean =>
 export const isExtensionBackendApplied = (extension: InstalledExtension): boolean => {
   if (!extensionNeedsBackend(extension)) return true;
   const applied = extension.backendState?.fingerprint;
-  return applied !== undefined && applied === backendFingerprint(extension.package.manifest.backend);
+  return applied !== undefined && applied === declaredFingerprint(extension);
 };
 
 /** Instalada, ativa, exigindo backend e ainda sem ele — o que a tela de Extensões precisa mostrar. */
@@ -40,5 +44,5 @@ export const extensionBackendPendingCause = (extension: InstalledExtension): Ext
   if (!isExtensionBackendPending(extension)) return null;
   const pending = extension.backendPending;
   if (!pending) return null;
-  return pending.fingerprint === backendFingerprint(extension.package.manifest.backend) ? pending : null;
+  return pending.fingerprint === declaredFingerprint(extension) ? pending : null;
 };

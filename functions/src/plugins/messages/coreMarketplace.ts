@@ -187,8 +187,9 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     + '"microteia provision" in the Microteia Console.',
   'extension.backend-pending.reason.function-source-missing':
     'The Microteia Console did not find the source of {functions} in this installation, so it could not '
-    + 'deploy them. The extension does not ship it: whoever maintains the project puts the folder in '
-    + 'extensions/<folder>/functions/, next to microteia.yaml, and runs "microteia provision" again.',
+    + 'deploy them. This version of the extension does not bring it: install one built with its '
+    + 'functions/ folder, or have whoever maintains the project put that folder in '
+    + 'extensions/<folder>/functions/, next to microteia.yaml, and run "microteia provision" again.',
   'extension.backend-pending.reason.function-claim-refused':
     'The Microteia Console refused this extension\'s claim on {functions}: the name belongs to the '
     + 'platform or to a function shared by the whole installation, or its trigger guards another '
@@ -200,6 +201,26 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.backend-pending.reason.deploy-failed':
     'The deploy of {functions} failed the last time "microteia provision" ran. Its output says why; '
     + 'whoever maintains the project runs it again once that is fixed.',
+  'extension.backend-pending.reason.awaiting-approval':
+    'This extension brings the code of {functions}, which run on the server with access to every '
+    + 'organization of the project. They go live only after whoever maintains the project reviews that '
+    + 'exact code and approves it when running "microteia provision" in the Microteia Console.',
+  'extension.backend-pending.reason.source-invalid':
+    'The code of {functions} that came with this extension does not match its own checksum, or names a '
+    + 'file outside its folder, so the Microteia Console refused it. Install the extension again from a '
+    + 'file built by its author.',
+  'issue.backend-source.shape':
+    'The server code bundled in this package is malformed: it needs a list of files and a SHA-256 '
+    + 'checksum. Build the package again with "microteia-plugin build".',
+  'issue.backend-source.path':
+    'The server code bundled in this package includes "{path}", which cannot travel: only .ts and .json '
+    + 'files inside the functions/ folder, without tests or hidden files.',
+  'issue.backend-source.no-index':
+    'The server code bundled in this package has no index.ts. The Cloud Functions are read through it — '
+    + 'export from there what should be deployed.',
+  'issue.backend-source.undeclared':
+    'This package bundles server code but declares no Cloud Function in manifest.backend.functions, so '
+    + 'nothing would ever deploy it. Declare the functions it exports, or remove the functions/ folder.',
   'extension.badge.migration-pending': 'Data update pending',
   'extension.migration-pending.detail':
     'This extension needs to update data written by an earlier version of it, so it is installed but '

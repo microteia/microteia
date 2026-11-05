@@ -8,6 +8,7 @@ import {
   unscopedDeclarations,
 } from './functionGate.js';
 import type { TriggerDeclaration } from './functionGate.js';
+import { packagedFunctionsPath, packagedLabel } from './packagedPaths.js';
 
 /**
  * As Cloud Functions do ESCRITÓRIO — as que ele escreve, não as do kernel.
@@ -170,7 +171,7 @@ const readServes = async (path: string, label: string): Promise<Record<string, s
   return serves;
 };
 
-const readSource = async (
+export const readFunctionSource = async (
   path: string,
   label: string,
   slug: string,
@@ -234,7 +235,7 @@ export const findFunctionSources = async (root: string): Promise<FunctionSource[
   const found: FunctionSource[] = [];
 
   if (await exists(join(root, FUNCTIONS_DIR))) {
-    found.push(await readSource(join(root, FUNCTIONS_DIR), FUNCTIONS_DIR, 'shared', true));
+    found.push(await readFunctionSource(join(root, FUNCTIONS_DIR), FUNCTIONS_DIR, 'shared', true));
   }
 
   const extensions = join(root, EXTENSIONS_DIR);
@@ -243,7 +244,18 @@ export const findFunctionSources = async (root: string): Promise<FunctionSource[
       if (!entry.isDirectory() || entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
       const path = join(extensions, entry.name, FUNCTIONS_DIR);
       if (!await exists(path)) continue;
-      found.push(await readSource(path, `${EXTENSIONS_DIR}/${entry.name}/${FUNCTIONS_DIR}`, entry.name, false));
+      found.push(await readFunctionSource(path, `${EXTENSIONS_DIR}/${entry.name}/${FUNCTIONS_DIR}`, entry.name, false));
+    }
+  }
+
+  // A fonte que veio DENTRO do pacote de uma extensão, extraída pelo `provision` — só a que foi aprovada
+  // chega aqui. Entra como qualquer outra fonte de extensão: o portão, os nomes repetidos e as
+  // dependências são conferidos pelas mesmas funções, e é isso que dispensa uma segunda régua.
+  const packaged = packagedFunctionsPath(root);
+  if (await exists(packaged)) {
+    for (const entry of (await readdir(packaged, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+      if (!entry.isDirectory()) continue;
+      found.push(await readFunctionSource(join(packaged, entry.name), packagedLabel(entry.name), entry.name, false));
     }
   }
 

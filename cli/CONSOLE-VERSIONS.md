@@ -22,6 +22,11 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.38.0] — 2026-11-05
+
+- feat(provision): deploys the Cloud Functions source an extension ships in its package, after the project operator approves that exact SHA-256. The Console recomputes the hash over what it writes (mismatch or a path outside the folder is refused), shows the files, the npm dependencies and the kind of each function, and asks; outside a terminal it holds the extension and prints `microteia provision --approve <id>@<hash>`. Approved source goes to `.microteia/packaged-functions/` and is read like any extension source (gate, duplicate names, dependencies); the copy to read before approving goes to `.microteia/packaged-review/` and is never mounted. A source already in the installation or the kernel wins over the packaged one.
+- feat(provision): approval belongs to the project — the hash approved on any active copy counts, and the stamp propagates it with the approver (`gcloud` account) to every copy with the same fingerprint. A held extension stays refused, so `--prune` keeps the previous version's functions running. With different versions across organizations, the newest one is deployed. `deploy` passes `--approve` through.
+
 #### [2.37.0] — 2026-11-05
 
 - feat(provision): records on each installed copy WHY an extension is still pending (`backendPending`), refused claims included — function source not found, claim refused (platform or shared name, misgated trigger), gate missing, deploy failed — with the functions involved, so the Extensions screen can say it. The stamp now writes `backendState` and clears `backendPending` in one PATCH, so the screen never shows an extension as running and as refused at once. A copy already stamped is left alone.

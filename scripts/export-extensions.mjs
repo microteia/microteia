@@ -43,7 +43,13 @@ const TEMPLATES = {
   'report-example.json': 'reportExamplePlugin',
   'widget-example.json': 'widgetExamplePlugin',
   'access-example.json': 'accessExamplePlugin',
-  'backend-example.json': 'backendExamplePlugin',
+  // Pela entrada PRÓPRIA, e não pelo catálogo: é a pasta do `plugin.ts` que o build lê para levar a
+  // fonte das Cloud Functions (`functions/`), e o artefato tem de ser o mesmo que o autor obtém
+  // compilando o exemplo staged — `exampleSources.test.ts` cobra os dois byte a byte.
+  'backend-example.json': {
+    entry: 'src/plugins/marketplace/examples/backend-example/plugin.ts',
+    exportName: 'backendExamplePlugin',
+  },
   'library-example.json': 'libraryExamplePlugin',
   'consumer-example.json': 'consumerExamplePlugin',
   'patch-example.json': 'patchExamplePlugin',
@@ -59,8 +65,9 @@ const TEMPLATES = {
 const check = process.argv.includes('--check');
 let stale = 0;
 
-for (const [fileName, exportName] of Object.entries(TEMPLATES)) {
-  const { json, issues } = buildPlugin({ entry: CATALOG, exportName });
+for (const [fileName, target] of Object.entries(TEMPLATES)) {
+  const { entry, exportName } = typeof target === 'string' ? { entry: CATALOG, exportName: target } : target;
+  const { json, issues } = buildPlugin({ entry, exportName });
 
   // O mesmo veredito que a instalação daria. Publicar um artefato que o próprio kernel recusaria é o
   // defeito mais caro possível: ele só aparece no escritório de quem instalou.

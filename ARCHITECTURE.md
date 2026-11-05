@@ -3258,6 +3258,51 @@ substituição: `(aplicado ∩ exigido) ∪ subido agora ∪ órfão que sobrou`
 só com o que subiu **nesta** execução a esvaziava na segunda passada — e a terceira redeployava as cinco
 functions do Gmail achando que nenhuma existia.
 
+#### A fonte das functions viaja no pacote — `backendSource`, aprovada por hash
+
+`manifest.backend.functions` só leva NOMES. Antes da 9.206.0, uma extensão com function própria instalava
+pela tela em qualquer escritório, mas só ficava no ar no projeto em que alguém tivesse posto a fonte em
+`extensions/<pasta>/functions/` à mão — foi o caso da extensão de e-mail no `microteia-dev`, que ficava
+pendente para sempre porque a fonte só existia na instalação do `curatino`.
+
+**O pacote leva a FONTE** (`package.backendSource`, `domain/schema/plugin/backendSource.ts`): os
+arquivos `.ts` e `.json` de `functions/` ao lado do `plugin.ts`, sem teste, `node_modules` nem oculto,
+mais o sha256 de `backendSourceCanonical(files)`. Quem captura é o `buildPlugin` do SDK
+(`sdk/node/backendSource.ts`). Fonte e não JavaScript compilado porque o Console já compila a function
+do escritório junto com as do kernel e já mescla as dependências — o mesmo diretório reaproveita o
+caminho inteiro, e o código que alguém aprova é legível.
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| captura | `attachBackendSource` (SDK) | acopla `functions/` ao pacote; `backendSource` escrito à mão E pasta ao lado é recusa |
+| forma | `packageBackendSourceIssues`, dentro de `validatePluginPackage` | caminho que sai do diretório, falta de `index.ts`, fonte sem `backend.functions` |
+| hash | `backendFingerprint(backend, sourceHash)` | entra no fingerprint SÓ quando há fonte — sem ela a string é a de sempre, e nada já carimbado volta a pender |
+| integridade | `sourceProblems` (Console) | recalcula o hash sobre o que vai ao disco; o navegador não confere (só teria `crypto.subtle`, assíncrono) |
+| precedência | `decideWithoutAsking` | se o kernel ou `extensions/<pasta>/functions/` já exporta um nome reivindicado, a fonte local vale |
+| aprovação | `settlePackagedSources` | mostra arquivos, dependências npm e o tipo de cada function, e pergunta; fora de terminal, `--approve <id>@<hash>` |
+| montagem | `.microteia/packaged-functions/<slug>` | só a APROVADA vai para lá, e `findFunctionSources` a lê como qualquer fonte de extensão — portão, nome repetido e dependências pela mesma régua |
+| leitura | `.microteia/packaged-review/<slug>` | a cópia para quem vai decidir; não é montada |
+| registro | `backendState.approvedHash/approvedBy/approvedAt` | gravado pelo carimbo, em toda cópia com o mesmo fingerprint |
+
+**A aprovação é de quem opera o PROJETO, por hash, sempre** — e não de quem administra o escritório,
+nem por procedência. A view confia em `source: public`; a function não pode: ela roda com o Admin SDK e
+alcança todo escritório do projeto, sem Rules. Uma publicação comprometida no catálogo viraria acesso
+total em cada projeto que rodasse o `provision` por outro motivo. Um `--yes` genérico foi recusado pela
+mesma razão: aprovaria também a versão de amanhã.
+
+**A aprovação é do projeto, e não da cópia.** Ela fica gravada nas cópias instaladas, mas o
+`provision` aceita a de qualquer cópia ativa com o mesmo hash e a propaga para a que não a tem: o
+escritório que reinstala uma versão que outro escritório do projeto já roda não é perguntado de novo.
+Só se pergunta quando nenhuma cópia guarda aquele hash.
+
+**A retida continua RECUSADA**, e é isso que protege a versão anterior: ela não entra em "nowhere to be
+found" (a fonte existe), mas os nomes dela vão para `unresolved`, e o `--prune` não apaga a function de
+uma extensão viva que só espera a aprovação da versão nova.
+
+Duas versões da mesma extensão em escritórios diferentes do projeto: a function é uma só, então sobe a
+mais nova (`compareVersions` na ordem da varredura). A cópia da versão anterior fica pendente pelo
+fingerprint, como já ficava com fonte local.
+
 #### Índice de extensão que sobrevive à troca de kernel — `backend.indexes` no `microteia.yaml`
 
 O `lembrado` da frase acima é o que faltava, e a falta tinha um caminho exato: provisiona-se (o índice da

@@ -6,6 +6,7 @@ import { packageFingerprint, serializePackage } from '../src/domain/usecases/plu
 import { isVersionGreater } from '../src/domain/usecases/plugins/publicExtension';
 import { validatePluginPackage } from '../src/sdk/validate';
 import { MARKETPLACE_CATALOG } from '../src/plugins/marketplace/catalog';
+import { attachBackendSource } from '../src/sdk/node/backendSource';
 import { TRAVELLING_EXAMPLES } from '../src/plugins/marketplace/travellingExamples';
 import type { MarketplacePlugin } from '../src/domain/entities/MarketplacePlugin';
 import { READING_ONLY_EXAMPLES } from '../cli/src/vendor/exampleSources.js';
@@ -92,8 +93,11 @@ describe('pacotes distribuíveis das extensões de primeira parte', () => {
     (_file, template) => {
       const plugin = catalogById.get(template.id);
       expect(plugin, `${template.id} não está no catálogo`).toBeDefined();
+      // O objeto em memória não tem a fonte das Cloud Functions: quem a acopla é o build, lendo
+      // `functions/` ao lado do `plugin.ts` do exemplo. A conferência faz a mesma conta.
+      const folder = join(process.cwd(), 'src/plugins/marketplace/examples', template.file.replace(`${TEMPLATES_DIR}/`, '').replace('.json', ''));
       expect(template.content.trim(), 'desatualizado — rode "npm run build:extensions"')
-        .toBe(serializePackage(plugin as MarketplacePlugin).trim());
+        .toBe(serializePackage(attachBackendSource(plugin as MarketplacePlugin, folder)).trim());
     },
   );
 });
@@ -112,7 +116,7 @@ describe('pacotes distribuíveis das extensões de primeira parte', () => {
  * avisou".
  */
 const VERSAO_CONFERIDA: Record<string, { version: string; fingerprint: string }> = {
-  'com.microteia.locale-pt-br': { version: '1.161.0', fingerprint: '48809a54f475' },
+  'com.microteia.locale-pt-br': { version: '1.162.0', fingerprint: 'd60ec1eb0c92' },
   'com.microteia.agent': { version: '1.2.0', fingerprint: 'b94b8d0f7e84' },
   'com.microteia.brasil': { version: '1.2.1', fingerprint: '847c20bd7988' },
   'com.microteia.dashboard': { version: '1.3.0', fingerprint: '3f24844aa47f' },

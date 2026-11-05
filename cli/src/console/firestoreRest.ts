@@ -36,6 +36,20 @@ export const accessToken = async (): Promise<string> => {
 };
 
 /**
+ * A conta do `gcloud` que está agindo — é quem fica registrado como tendo aprovado o código de uma
+ * extensão. Vazio vira "unknown" em vez de recusa: a aprovação já aconteceu, e perdê-la por não saber
+ * dizer o nome seria pior que gravá-la sem ele.
+ */
+export const activeAccount = async (): Promise<string> => {
+  try {
+    const account = (await captureOrThrow(GCLOUD_BIN, ['config', 'get-value', 'account'])).trim();
+    return account === '' || account === '(unset)' ? 'unknown' : account;
+  } catch {
+    return 'unknown';
+  }
+};
+
+/**
  * `X-Goog-User-Project` diz de qual projeto é a cota. Sem ele, uma credencial de usuário é recusada
  * com uma mensagem sobre "quota project" que não menciona o que fazer.
  */

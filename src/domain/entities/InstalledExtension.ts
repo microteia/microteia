@@ -44,6 +44,14 @@ export type InstalledExtensionSource = 'public' | 'private' | 'builtin';
 export interface ExtensionBackendState {
   fingerprint: string;
   appliedAt: Date;
+  /**
+   * Quando a fonte das functions viaja no pacote: o hash que quem opera o projeto aprovou, com a conta
+   * do `gcloud` que aprovou. A aprovação é do PROJETO, e não do escritório — o Console a encontra em
+   * qualquer cópia ativa com o mesmo hash e a propaga para a que ainda não a tem.
+   */
+  approvedHash?: string;
+  approvedBy?: string;
+  approvedAt?: Date;
 }
 
 /**

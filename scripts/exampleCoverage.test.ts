@@ -21,6 +21,10 @@ import { EXAMPLE_NOTES } from '../src/sdk/node/exampleNotes';
  * fica. As duas são decisões; o que não é decisão é a lacuna aparecer sozinha.
  */
 const LACUNAS_RECONHECIDAS: Record<string, string> = {
+  'package-artifact/backendSource':
+    'a fonte das Cloud Functions. Ninguém a escreve no plugin.ts: o build a acopla a partir de functions/ ao '
+    + 'lado dele, e por isso o objeto em memória do exemplo nunca a tem. O backend-example a exerce de verdade '
+    + '— o .json dele leva a fonte, e exampleSources.test.ts o confere byte a byte.',
   'manifest-property/prefix':
     'o começo dos nomes que a extensão cria. Um exemplo é molde: o prefixo dele seria copiado junto com o código, '
     + 'e duas cópias com o mesmo prefixo colidiriam igual. O create sorteia ou sugere o prefixo de quem escreve, '

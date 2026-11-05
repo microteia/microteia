@@ -49,7 +49,17 @@ const mapBackendState = (raw: unknown): ExtensionBackendState | null => {
   if (!raw || typeof raw !== 'object') return null;
   const d = raw as Record<string, unknown>;
   if (typeof d.fingerprint !== 'string' || d.fingerprint === '') return null;
-  return { fingerprint: d.fingerprint, appliedAt: toDate(d.appliedAt) };
+  return {
+    fingerprint: d.fingerprint,
+    appliedAt: toDate(d.appliedAt),
+    ...(typeof d.approvedHash === 'string'
+      ? {
+        approvedHash: d.approvedHash,
+        approvedBy: typeof d.approvedBy === 'string' ? d.approvedBy : '',
+        approvedAt: toDate(d.approvedAt),
+      }
+      : {}),
+  };
 };
 
 /** Gravado pelo Console, pela REST: o mesmo cuidado de `mapBackendState` com a data. */
@@ -123,6 +133,15 @@ export class FirebaseInstalledExtensionRepository implements IInstalledExtension
         ? {
           fingerprint: extension.backendState.fingerprint,
           appliedAt: Timestamp.fromDate(extension.backendState.appliedAt),
+          // A aprovação viaja junto: perdê-la numa atualização pela tela faria o Console perguntar de
+          // novo por um código que o projeto já roda.
+          ...(extension.backendState.approvedHash !== undefined
+            ? {
+              approvedHash: extension.backendState.approvedHash,
+              approvedBy: extension.backendState.approvedBy ?? '',
+              approvedAt: Timestamp.fromDate(extension.backendState.approvedAt ?? extension.backendState.appliedAt),
+            }
+            : {}),
         }
         : null,
       backendPending: extension.backendPending

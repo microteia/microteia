@@ -75,10 +75,14 @@ const canonicalIndex = (index: FirestoreIndexSpec): string => JSON.stringify([
  * O vínculo é por CONTEÚDO, não por versão — mesma razão do `codeTrust`: uma extensão que passe a
  * exigir uma function nova volta a ficar pendente sozinha, sem código de migração.
  */
-export const backendFingerprint = (backend?: PluginBackendRequirement): string => JSON.stringify({
+export const backendFingerprint = (backend?: PluginBackendRequirement, sourceHash?: string): string => JSON.stringify({
   functions: [...(backend?.functions ?? [])].sort(),
   indexes: [...(backend?.indexes ?? [])].map(canonicalIndex).sort(),
   parameters: [...(backend?.parameters ?? [])].sort(),
+  // O hash da fonte empacotada (`PackagedBackendSource`) entra só quando ela existe: sem fonte, a string
+  // é a de sempre, e nenhuma instalação já carimbada volta a ficar pendente por causa deste campo. Com
+  // fonte, código novo com a mesma exigência é outro fingerprint — e pede aprovação de novo.
+  ...(sourceHash !== undefined ? { code: sourceHash } : {}),
 });
 
 /**
@@ -101,6 +105,10 @@ export const BACKEND_PENDING_REASONS = [
   'gate-missing',
   /** Tudo conferiu e o deploy falhou. */
   'deploy-failed',
+  /** A fonte veio no pacote e ainda não foi aprovada, por hash, por quem opera o projeto. */
+  'awaiting-approval',
+  /** A fonte veio no pacote e não confere: hash diferente do conteúdo, ou caminho que sai do diretório. */
+  'source-invalid',
 ] as const;
 
 export type BackendPendingReason = typeof BACKEND_PENDING_REASONS[number];

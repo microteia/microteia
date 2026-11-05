@@ -180,8 +180,9 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     + '"microteia provision", no Microteia Console.',
   'extension.backend-pending.reason.function-source-missing':
     'O Microteia Console não encontrou nesta instalação a fonte de {functions}, então não pôde '
-    + 'publicá-las. A extensão não a traz junto: quem cuida do projeto coloca a pasta em '
-    + 'extensions/<pasta>/functions/, ao lado do microteia.yaml, e roda "microteia provision" de novo.',
+    + 'publicá-las. Esta versão da extensão não a traz junto: instale uma gerada com a pasta functions/, '
+    + 'ou peça a quem cuida do projeto que coloque essa pasta em extensions/<pasta>/functions/, ao lado '
+    + 'do microteia.yaml, e rode "microteia provision" de novo.',
   'extension.backend-pending.reason.function-claim-refused':
     'O Microteia Console recusou o que esta extensão declara sobre {functions}: o nome é da plataforma '
     + 'ou de uma função comum a toda a instalação, ou o gatilho protege outra extensão. A saída do '
@@ -193,6 +194,26 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.backend-pending.reason.deploy-failed':
     'A publicação de {functions} falhou na última vez que "microteia provision" rodou. A saída dele diz '
     + 'por quê; quem cuida do projeto roda de novo depois de corrigir.',
+  'extension.backend-pending.reason.awaiting-approval':
+    'Esta extensão traz o código de {functions}, que roda no servidor com acesso a todos os escritórios '
+    + 'do projeto. Ele só vai ao ar depois que quem cuida do projeto revisa exatamente esse código e o '
+    + 'aprova ao rodar "microteia provision", no Microteia Console.',
+  'extension.backend-pending.reason.source-invalid':
+    'O código de {functions} que veio com esta extensão não confere com a própria soma de verificação, '
+    + 'ou cita um arquivo fora da pasta dela, e por isso o Microteia Console o recusou. Instale a '
+    + 'extensão de novo a partir de um arquivo gerado pelo autor.',
+  'issue.backend-source.shape':
+    'O código de servidor que acompanha este pacote está malformado: ele precisa de uma lista de '
+    + 'arquivos e de uma soma de verificação SHA-256. Gere o pacote de novo com "microteia-plugin build".',
+  'issue.backend-source.path':
+    'O código de servidor que acompanha este pacote inclui "{path}", que não pode viajar: só arquivos '
+    + '.ts e .json dentro da pasta functions/, sem testes nem arquivos ocultos.',
+  'issue.backend-source.no-index':
+    'O código de servidor que acompanha este pacote não tem index.ts. As funções de servidor são lidas '
+    + 'por ele — exporte dali o que deve ser publicado.',
+  'issue.backend-source.undeclared':
+    'Este pacote traz código de servidor, mas não declara nenhuma função em manifest.backend.functions, '
+    + 'então nada jamais o publicaria. Declare as funções que ele exporta, ou remova a pasta functions/.',
   'extension.badge.migration-pending': 'Atualização de dados pendente',
   'extension.migration-pending.detail':
     'Esta extensão precisa atualizar dados gravados por uma versão anterior dela, então está instalada '

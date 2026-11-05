@@ -79,7 +79,7 @@ const TICKET_SCREEN: ScreenModuleTemplate = {
 export const backendExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.backend-example',
-    version: '1.0.0',
+    version: '1.1.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),
