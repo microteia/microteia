@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { packageSizeAdvisory } from '../../domain/usecases/plugins/pluginReferences';
 import { KERNEL_VERSION } from '../../domain/schema/plugin/kernelVersion';
 import { buildPlugin } from './compile';
+import { buildTargets, defaultBuildOutDir } from './buildOutput';
+import { EXAMPLES_DIR, isExamplePlugin } from './workspacePlugins';
 import { describeMessage, packageText } from './messages';
 import { installationRegion, scaffoldFunction, scaffoldPlugin } from './scaffold';
 import { askerFor } from './prompt';
@@ -379,8 +381,12 @@ const sayPrefix = (pkg: Parameters<typeof lacksPackagePrefix>[0]): void => {
   say(`  ${DIM}installs both — and there the installation is refused. See AUTHORING.md, "Prefix".${RESET}`);
 };
 
-const build = (args: Args, write: boolean): number => {
-  const entry = entryFrom(args);
+/**
+ * Compila um `plugin.ts`. `taken` só existe no `--all`: guarda de qual fonte saiu cada id já gravado,
+ * porque duas pastas com o mesmo id gravariam o MESMO `dist/<id>.json`, e a segunda apagaria a primeira
+ * sem nenhum aviso.
+ */
+const buildOne = (args: Args, entry: string, write: boolean, taken?: Map<string, string>): number => {
   const result = buildPlugin({ entry, exportName: args.values.get('export') });
   const { manifest } = result.package;
   // O pacote traz os próprios textos; usá-los aqui é o que faz o terminal mostrar o nome da extensão
@@ -388,6 +394,15 @@ const build = (args: Args, write: boolean): number => {
   const describe = packageText(result.package);
 
   say(`${BOLD}${describe(manifest.name)}${RESET} ${manifest.id} ${DIM}v${manifest.version}${RESET}`);
+
+  const root = resolve(args.values.get('root') ?? process.cwd());
+  const previous = taken?.get(manifest.id);
+  if (previous !== undefined) {
+    say();
+    problem(`${relative(root, previous)} already has the id ${manifest.id} - one of the two must change.`);
+    return 1;
+  }
+  taken?.set(manifest.id, entry);
 
   const counts: string[] = [];
   const push = (label: string, value: number): void => { if (value > 0) counts.push(`${value} ${label}`); };
@@ -405,7 +420,6 @@ const build = (args: Args, write: boolean): number => {
     describeIssues(result.issues, describe);
   }
 
-  const root = resolve(args.values.get('root') ?? process.cwd());
   const refusedRefs = sayCrossRefs(result.package, root) + sayEventRefs(result.package, root)
     + sayNavTargets(result.package, root) + sayDocumentSteps(result.package, root)
     + sayFieldPresets(result.package, root);
@@ -415,7 +429,9 @@ const build = (args: Args, write: boolean): number => {
   sayQueryCeilings(result.package);
   sayRecordSurfaces(result.package, root);
   sayNavGroups(result.package, root);
-  const outsideNamespace = sayNamespace(manifest.id, root);
+  // O exemplo é o ORIGINAL, com o id de quem o publicou: a recusa existe para a cópia que o escritório
+  // fez dele e esqueceu de renomear, e não para o arquivo que o `sync` pôs ali.
+  const outsideNamespace = isExamplePlugin(root, entry) ? 0 : sayNamespace(manifest.id, root);
   sayPrefix(result.package);
   sayContributionWhen(result.package);
   saySizeAdvisory(result.package);
@@ -436,7 +452,7 @@ const build = (args: Args, write: boolean): number => {
     return 0;
   }
 
-  const outDir = args.values.get('out') ?? dirname(entry);
+  const outDir = args.values.get('out') ?? defaultBuildOutDir(entry);
   const file = join(outDir, `${manifest.id}.json`);
   mkdirSync(outDir, { recursive: true });
   writeFileSync(file, result.json);
@@ -451,6 +467,59 @@ const build = (args: Args, write: boolean): number => {
     say(`${DIM}source and trust it before the views run - see AUTHORING.md, "Code trust".${RESET}`);
   }
   return 0;
+};
+
+/**
+ * `--all`: todo `plugin.ts` do diretório, um depois do outro. Uma extensão recusada não interrompe as
+ * outras — quem compila tudo quer saber de TODAS que falham de uma vez, e não de uma por rodada.
+ */
+const buildAll = (args: Args, write: boolean): number => {
+  if (args.values.has('all') || args.positional.length > 1 || args.values.has('entry')) {
+    problem('--all compiles every extension here; do not name a plugin.ts with it.');
+    return 1;
+  }
+  const root = resolve(args.values.get('root') ?? process.cwd());
+  const { entries, skippedExamples } = buildTargets(root, args.flags.has('examples'));
+  const leftOut = (): void => {
+    if (skippedExamples === 0) return;
+    say(`${DIM}${skippedExamples} extension(s) in ${EXAMPLES_DIR}/ left out - pass --examples to include them.${RESET}`);
+  };
+
+  if (entries.length === 0) {
+    problem(`No plugin.ts under ${root}.`);
+    leftOut();
+    return 1;
+  }
+
+  const taken = new Map<string, string>();
+  const failed: string[] = [];
+  for (const entry of entries) {
+    say();
+    say(`${DIM}-- ${relative(root, entry)}${RESET}`);
+    let code: number;
+    try {
+      code = buildOne(args, entry, write, taken);
+    } catch (error) {
+      problem(error instanceof Error ? error.message : String(error));
+      code = 1;
+    }
+    if (code !== 0) failed.push(relative(root, entry));
+  }
+
+  say();
+  if (failed.length === 0) done(`${entries.length} extension(s) ${write ? 'built' : 'checked'}.`);
+  else problem(`${failed.length} of ${entries.length} extension(s) failed: ${failed.join(', ')}`);
+  leftOut();
+  return failed.length === 0 ? 0 : 1;
+};
+
+const build = (args: Args, write: boolean): number => {
+  if (args.flags.has('all') || args.values.has('all')) return buildAll(args, write);
+  if (args.flags.has('examples')) {
+    problem('--examples only applies with --all. To build one example, name its plugin.ts.');
+    return 1;
+  }
+  return buildOne(args, entryFrom(args), write);
 };
 
 /**
@@ -812,14 +881,16 @@ const COMMANDS: Command[] = [
   },
   {
     name: 'check',
-    usage: 'microteia-plugin check [plugin.ts] [--export <name>] [--root <path>]',
+    usage: 'microteia-plugin check [plugin.ts | --all [--examples]] [--export <name>] [--root <path>]',
     summary: 'Compile and validate without writing. This is the gate - run it before publishing.',
     run: (args) => build(args, false),
   },
   {
     name: 'build',
-    usage: 'microteia-plugin build [plugin.ts] [--out <dir>] [--export <name>] [--force] [--root <path>]',
-    summary: 'Compile to the .json the platform installs.',
+    usage: 'microteia-plugin build [plugin.ts | --all [--examples]] [--out <dir>] [--export <name>] [--force] [--root <path>]\n'
+      + '  --all       every extension in this directory, except examples/\n'
+      + '  --examples  with --all, the first-party extensions in examples/ too',
+    summary: 'Compile to the .json the platform installs - into dist/, beside package.json, unless --out says otherwise.',
     run: (args) => build(args, true),
   },
   {

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.204.0] — 2026-11-05
+
+- Quem escreve extensões passa a encontrar todos os pacotes compilados numa única pasta, `dist/`, pronta para importar na tela de Extensões — sem procurar o arquivo dentro da pasta de cada extensão. A pasta fica fora do controle de versão.
+- Agora é possível conferir ou compilar todas as extensões do escritório de uma só vez. Os exemplos que acompanham a Microteia ficam de fora, a menos que se peça para incluí-los.
+
 #### [9.203.0] — 2026-11-05
 
 - Os painéis feitos sob medida para o escritório podem agora somar valores em todos os registros — como o total a receber e a pagar do período —, e não só entre os mais recentes.

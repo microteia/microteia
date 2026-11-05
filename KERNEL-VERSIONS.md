@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.204.0] — 2026-11-05
+
+- feat(sdk/build): `microteia-plugin build` writes the package to `dist/<id>.json` in the extensions directory — the nearest `package.json` above `plugin.ts` — instead of beside the source. Importing ten extensions meant opening ten folders; now it is one. `--out <dir>` still overrides, and with no `package.json` above, `dist/` sits beside `plugin.ts`.
+- feat(sdk/sync): `dist/` joins the lines the extensions `.gitignore` requires, so `sync` adds it to an existing one. The `*.json` wildcard stays, for the packages earlier versions left beside each `plugin.ts`.
+- feat(sdk/build): `check --all` and `build --all` take every `plugin.ts` in the extensions directory (`buildTargets`), leaving `examples/` out unless `--examples` is given. A failing extension no longer stops the rest — the run reports all of them and exits 1 — and two folders declaring the same id are refused, since both would write the same `dist/<id>.json`. The workspace gains `check:all` and `build:all` as new scripts, so existing `package.json` files get them without a divergence warning.
+- fix(sdk/build): an extension under `examples/` is no longer refused by the namespace check. The check exists for a copy that kept somebody else's id; the example is the original, and the README's "build any of them" was failing for every one.
+
 #### [9.203.0] — 2026-11-05
 
 - feat(extensions): `useRecordSums(collection, field, groups)` in `@microteia/data` — the sum of a numeric field per group of conditions, on the server (`IRecordRepository.sum` → `getAggregateFromServer` with `sum()`, `SumRecordsUseCase`, `RecordStore.sumRecords`). Same conditions, `memberVisibility` restriction and re-reading as `useRecordCounts`: both hooks now wrap `useRecordAggregates`, and both repository methods build their query in `aggregateQuery`. A non-numeric value is left out of the sum; no record sums to 0 (Firestore answers `null`).

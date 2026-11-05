@@ -4241,6 +4241,21 @@ registrou** (registrar outro servidor é a primeira coisa que se faz num diretó
 linhas dele no `.gitignore`. O aviso nomeia o arquivo, a chave, o que se espera e o que se achou —
 um aviso que não diz o que ajustar transfere o trabalho sem transferir a informação.
 
+**O artefato vai para `dist/`** (`src/sdk/node/buildOutput.ts`). O `microteia-plugin build` grava o
+`.json` no `dist/` do diretório de extensões — o do `package.json` mais próximo acima do `plugin.ts` —,
+e não mais ao lado da fonte; `--out` continua mandando. Ao lado, cada artefato ficava numa pasta, e
+importar dez extensões era garimpar dez pastas. `dist/` está entre as linhas que o `.gitignore`
+exige, e o curinga `*.json` ficou para o artefato velho que ainda mora ao lado do `plugin.ts`.
+
+**`--all` compila o diretório inteiro, menos `examples/`** (`buildTargets`, no mesmo módulo). Vale para
+`check` e `build`, e o workspace ganha `check:all` e `build:all` — nomes NOVOS, porque mudar o `build`
+existente viraria aviso de script divergente em todo escritório. `examples/` só entra com `--examples`:
+não é do escritório, e o `.json` dele ficaria no `dist/` misturado aos que se vai importar. Uma extensão
+recusada não interrompe as outras, e duas pastas com o mesmo id são recusa — gravariam o mesmo arquivo,
+e a segunda apagaria a primeira calada. O exemplo também deixou de ser reprovado pela checagem de
+namespace: ela existe para a CÓPIA que esqueceu de trocar o id, e o arquivo de `examples/` é o original
+— o README prometia "build any of them", e o `build` recusava todos.
+
 Os requisitos de cada arquivo são deliberadamente poucos, e são o mínimo que faz uma view `.tsx` ser
 checada: os seis `paths` (os módulos curados não existem em `node_modules`), a entrada de `files` com a
 declaração ambiente do `?raw`, ter algum `jsx`, e a entrada `microteia` do `.mcp.json`. `strict`,

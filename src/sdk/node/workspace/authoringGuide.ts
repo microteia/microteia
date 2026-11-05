@@ -467,7 +467,8 @@ and every check it runs is \`microteia://domain-model/rules\` — both derived f
     npx microteia-plugin create                   # scaffold, guided
     npx tsc --noEmit                              # types
     npx microteia-plugin check hello/plugin.ts    # the gate
-    npx microteia-plugin build hello/plugin.ts    # writes the .json
+    npx microteia-plugin build hello/plugin.ts    # writes dist/<id>.json
+    npx microteia-plugin build --all              # every extension here, examples/ left out
 
 \`check\` is not an approximation of the platform's validation — it *is* the platform's validation, the
 same function, the same messages. If \`check\` passes, the package installs.
@@ -476,7 +477,14 @@ same function, the same messages. If \`check\` passes, the package installs.
 leave the file alone — the next \`sync\` replaces it — and report it with kernel contract
 ${input.kernelVersion}. What must be clean is everything outside \`examples/\`.
 
-Then import the \`.json\` on the **Extensions** screen.
+Then import the \`.json\` from \`dist/\` on the **Extensions** screen. Every extension built here lands
+in that one folder — \`--out <dir>\` sends it elsewhere — and \`.gitignore\` keeps it out of version
+control.
+
+\`--all\` works for \`check\` and \`build\` alike (\`npm run check:all\`, \`npm run build:all\`): it
+takes every \`plugin.ts\` in this directory, reports every extension that fails rather than stopping
+at the first, and refuses two folders that declare the same id — both would write the same file.
+\`examples/\` is left out unless you add \`--examples\`.
 
 An imported extension is used there — activated, installed, published to the catalogue — but never
 edited or downloaded: its source is *your* \`plugin.ts\`, not the copy in the organization. To change

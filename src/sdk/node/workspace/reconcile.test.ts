@@ -313,6 +313,7 @@ describe('conciliar o .gitignore', () => {
     expect(lines).toContain('# meus');
     expect(lines).toContain('.env.local');
     expect(lines).toContain('!package.json');
+    expect(lines).toContain('dist/');
     // `node_modules/` já estava lá: não entra duas vezes.
     expect(lines.filter((line) => line === 'node_modules/')).toHaveLength(1);
   });

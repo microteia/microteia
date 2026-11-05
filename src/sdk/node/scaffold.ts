@@ -569,9 +569,9 @@ const readmeMd = (spec: PluginSpec): string => `# ${spec.id}
 
     npx tsc --noEmit                              # types
     npx microteia-plugin check ${folderOf(spec.id)}/plugin.ts
-    npx microteia-plugin build ${folderOf(spec.id)}/plugin.ts   # writes ${spec.id}.json
+    npx microteia-plugin build ${folderOf(spec.id)}/plugin.ts   # writes dist/${spec.id}.json
 
-Import the \`.json\` on the **Extensions** screen.
+Import \`dist/${spec.id}.json\` on the **Extensions** screen.
 ${spec.view ? `
 This extension carries code (\`views\`). After importing it, an administrator has to open the source and
 trust it before the view runs — see \`../AUTHORING.md\`, "Code trust".

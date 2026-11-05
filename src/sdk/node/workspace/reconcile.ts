@@ -1,5 +1,6 @@
 import { DOMAIN_MODEL_FILE, RULE_LEDGER_FILE } from '../../domain';
 import { INSTALLED_CATALOG_FILE } from '../installedCatalog';
+import { BUILD_OUT_DIR } from '../buildOutput';
 
 /**
  * A configuração de `extensions/` — e a regra que a governa, que NÃO é a dos documentos.
@@ -110,9 +111,14 @@ export const MCP_SERVER = {
  * mesmo já caindo no `*.json`: ele carrega nome de tela e de campo que o ESCRITÓRIO digitou. Isso é
  * dado do tenant, não artefato do produto, e um repositório de extensão não é lugar para ele. A linha
  * explícita é o que mantém a decisão de pé se alguém afrouxar o curinga.
+ *
+ * O `dist/` é onde o `build` grava hoje. O curinga continua porque o `build` gravava ao lado do
+ * `plugin.ts` até a 9.203.0, e o artefato velho que ficou numa pasta não pode aparecer como arquivo novo
+ * no primeiro `git status` depois do `sync`.
  */
 export const REQUIRED_IGNORES = [
   'node_modules/',
+  `${BUILD_OUT_DIR}/`,
   '*.json',
   '!package.json',
   '!package-lock.json',
