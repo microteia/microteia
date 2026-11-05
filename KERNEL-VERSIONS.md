@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.203.0] — 2026-11-05
+
+- feat(extensions): `useRecordSums(collection, field, groups)` in `@microteia/data` — the sum of a numeric field per group of conditions, on the server (`IRecordRepository.sum` → `getAggregateFromServer` with `sum()`, `SumRecordsUseCase`, `RecordStore.sumRecords`). Same conditions, `memberVisibility` restriction and re-reading as `useRecordCounts`: both hooks now wrap `useRecordAggregates`, and both repository methods build their query in `aggregateQuery`. A non-numeric value is left out of the sum; no record sums to 0 (Firestore answers `null`).
+- docs(sdk): the authoring guide lists it with `RECORD_SUMS_SINCE_KERNEL` (`2.99.0`). Kernel contract `2.99.0`.
+
 #### [9.202.0] — 2026-11-05
 
 - feat(extensions): a DAY RANGE condition — `{ field, from, to }`, `'YYYY-MM-DD'`, both ends inclusive, either optional, the list filter's own shape — beside the equalities in `useRecordCounts`, one per group. `recordConditionsQuery` refuses two ranges, a day out of format and a range with no end at all (an empty variable that would otherwise count everything, silently); the group answers `null` and the console says why. `IRecordRepository.count` takes a `RecordCountSpec` (`allOf` + `range`); the range uses the same day bounds as the list (`rangeConstraints`), also inside the `and()` of a reader restricted by `memberVisibility`.

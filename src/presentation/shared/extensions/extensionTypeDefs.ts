@@ -1027,6 +1027,20 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
    */
   export function useRecordCounts(collection: string, groups: Record<string, RecordCountClause[]>): RecordCounts;
 
+  export interface RecordSums {
+    /** Group name -> the sum of the field over the records matching ALL of its conditions; null until it arrives. */
+    sums: Record<string, number | null>;
+    loading: boolean;
+  }
+
+  /**
+   * The sum of a numeric field (currency, number) over each group of conditions, computed ON THE
+   * SERVER - a dashboard total such as "to receive in the next 30 days" that stays right at any
+   * collection size. Conditions, visibility, re-reading and the composite index a combination needs are
+   * those of useRecordCounts. A value that is not a number is left out of the sum; no record sums to 0.
+   */
+  export function useRecordSums(collection: string, field: string, groups: Record<string, RecordCondition[]>): RecordSums;
+
   export interface RecordsWhere {
     /** The matching records, in orderBy order (newest first without one), at most limit. */
     records: any[];

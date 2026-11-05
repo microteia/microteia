@@ -5514,7 +5514,7 @@ mostraria a página errada de uma agenda. As consultas ficam no `RecordStore` (`
 `useRecordQuery`) pelo molde das janelas, com a chave SEM o tamanho — carregar mais reassina a mesma
 consulta maior, e o que estava na tela fica até a resposta chegar.
 
-**A extensão além da janela.** Quatro portas, porque a view feita em código (a tela de Processos de um
+**A extensão além da janela.** Seis portas, porque a view feita em código (a tela de Processos de um
 escritório) lê a coleção por conta própria e não passa pelo diretório do kernel:
 
 | Porta | O que resolve |
@@ -5522,6 +5522,7 @@ escritório) lê a coleção por conta própria e não passa pelo diretório do 
 | `EntityListOptions.paginate` | a lista dela pagina e filtra no servidor, como a do kernel |
 | `useRecordsByIds(coleção, ids)` | o nome de quem um cartão aponta — `useCollection` é a janela, e quem é mais antigo sumia; usa `ensureRecords` e os conhecidos |
 | `useRecordCounts(coleção, grupos)` | o número de um painel, contado no servidor (`IRecordRepository.count(RecordCountSpec)` → `getCountFromServer`), um grupo de condições por número; com `memberVisibility`, conta só o que a pessoa vê, pela mesma disjunção da assinatura. Relido em `RECORDS_UPDATED` e na volta à aba — não é ao vivo |
+| `useRecordSums(coleção, campo, grupos)` | o total de um painel (`IRecordRepository.sum` → `getAggregateFromServer` com `sum()`), um grupo de condições por total. A consulta é a MESMA da contagem (`aggregateQuery`, com a disjunção da visibilidade), e o hook também: `useRecordAggregates` é o núcleo das duas portas, para que a forma das condições, a recusa e a releitura não divirjam. Valor que não é número fica fora da soma — é o Firestore —, e por isso a porta é para `currency` e `number`, que o kernel grava como número. A partir de `RECORD_SUMS_SINCE_KERNEL` |
 | `useRecordsWhere(coleção, condições, { orderBy, limit })` | o cartão de um painel ("vencem esta semana"): um `RecordQuerySpec` montado das condições, assinado ao vivo por `useRecordQuery`, até `RECORDS_WHERE_MAX`. A resposta é conferida de novo em memória (`recordMatchesQuery`, `orderRecordsBy`), porque quem a visibilidade restringe recebe a janela restrita no lugar da consulta |
 | `recordMatches` no contexto do ⌘K e da menção | o provedor da extensão recebe o que a busca no servidor achou, já somado a `records` |
 

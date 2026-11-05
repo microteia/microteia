@@ -48,6 +48,7 @@ import { useEntityList } from './useEntityList';
 import { useRecordsByIds } from './useRecordsByIds';
 import { useRecordCounts } from './useRecordCounts';
 import { useRecordsWhere } from './useRecordsWhere';
+import { useRecordSums } from './useRecordSums';
 import { useEntityForm } from './useEntityForm';
 import { useEntityDetailVM } from './useEntityDetailVM';
 import {
@@ -333,6 +334,7 @@ const dataModule = {
   useRecordsByIds,
   useRecordCounts,
   useRecordsWhere,
+  useRecordSums,
   useCreateRecord,
   useUpdateRecord,
   useDeleteRecord,

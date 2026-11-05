@@ -7,6 +7,7 @@ import {
   deleteDoc,
   doc,
   documentId,
+  getAggregateFromServer,
   getCountFromServer,
   getDoc,
   getDocs,
@@ -16,6 +17,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  sum,
   setDoc,
   Timestamp,
   updateDoc,
@@ -310,27 +312,45 @@ export class FirebaseRecordRepository implements IRecordRepository {
     );
   }
 
-  async count(
-    tenantId: string,
-    spec: RecordCountSpec,
-    visibleTo?: MemberVisibilityFilter | null,
-  ): Promise<number> {
+  /**
+   * A consulta de uma agregação (`count()`, `sum()`): as cláusulas e o intervalo, e — para quem a
+   * visibilidade restringe — a mesma disjunção da assinatura, que é o que a regra aceita provar. `null`
+   * quando a declaração não tem campo: nenhuma consulta passaria, e a resposta é zero.
+   */
+  private aggregateQuery(tenantId: string, spec: RecordCountSpec, visibleTo?: MemberVisibilityFilter | null): Query | null {
     const ref = recordsRef(tenantId, spec.collection);
     const required = [
       ...spec.allOf.map((clause) => where(clause.field, clause.op, clause.value)),
       ...rangeConstraints(spec.range),
     ];
-    let counted: Query;
-    if (visibleTo) {
-      // A regra só aceita a contagem que ela provaria: a mesma disjunção da assinatura restrita.
-      const visibility = memberVisibilityClauses(visibleTo.spec).map((clause) => where(clause.field, clause.op, visibleTo.uid));
-      if (visibility.length === 0) return 0;
-      counted = query(ref, and(or(...visibility), ...required));
-    } else {
-      counted = query(ref, ...required);
-    }
+    if (!visibleTo) return query(ref, ...required);
+    const visibility = memberVisibilityClauses(visibleTo.spec).map((clause) => where(clause.field, clause.op, visibleTo.uid));
+    if (visibility.length === 0) return null;
+    return query(ref, and(or(...visibility), ...required));
+  }
+
+  async count(
+    tenantId: string,
+    spec: RecordCountSpec,
+    visibleTo?: MemberVisibilityFilter | null,
+  ): Promise<number> {
+    const counted = this.aggregateQuery(tenantId, spec, visibleTo);
+    if (!counted) return 0;
     const snapshot = await getCountFromServer(counted);
     return snapshot.data().count;
+  }
+
+  async sum(
+    tenantId: string,
+    spec: RecordCountSpec,
+    field: string,
+    visibleTo?: MemberVisibilityFilter | null,
+  ): Promise<number> {
+    const summed = this.aggregateQuery(tenantId, spec, visibleTo);
+    if (!summed) return 0;
+    const snapshot = await getAggregateFromServer(summed, { total: sum(field) });
+    // Sem nenhum registro, o Firestore responde `null`; a soma de nada é zero.
+    return snapshot.data().total ?? 0;
   }
 
   async getById(tenantId: string, collection: string, recordId: string): Promise<EntityRecord | null> {

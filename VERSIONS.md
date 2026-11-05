@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.203.0] — 2026-11-05
+
+- Os painéis feitos sob medida para o escritório podem agora somar valores em todos os registros — como o total a receber e a pagar do período —, e não só entre os mais recentes.
+
 #### [9.202.0] — 2026-11-05
 
 - Os painéis feitos sob medida para o escritório podem agora contar e listar por data em todos os registros — como os prazos vencidos e os que vencem na semana —, e não só entre os mais recentes.

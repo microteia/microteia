@@ -11,6 +11,7 @@ interface FakeSnapshotDoc { id: string; data: () => Record<string, unknown> }
 
 const subscribed: FakeQuery[] = [];
 const counted: FakeQuery[] = [];
+let sumAnswer: number | null = 0;
 let snapshotDocs: FakeSnapshotDoc[] = [];
 let readBackDenied = false;
 
@@ -42,6 +43,11 @@ vi.mock('firebase/firestore', () => ({
   getCountFromServer: async (query: FakeQuery) => {
     counted.push(query);
     return { data: () => ({ count: 3 }) };
+  },
+  sum: (field: string) => ({ sum: field }),
+  getAggregateFromServer: async (query: FakeQuery, spec: Record<string, unknown>) => {
+    counted.push({ constraints: [...query.constraints, spec] });
+    return { data: () => ({ total: sumAnswer }) };
   },
   where: (field: string, op: string, value: unknown) => ({ where: [field, op, value] }),
   orderBy: (field: string, dir: string) => ({ orderBy: [field, dir] }),
@@ -143,5 +149,33 @@ describe('a contagem com intervalo de dia', () => {
         { where: ['dueDate', '>=', { at: '2026-11-01T00:00:00.000Z' }] },
       ],
     }]);
+  });
+});
+
+describe('a soma no servidor', () => {
+  const spec = {
+    collection: 'respostas',
+    allOf: [{ field: 'status', op: '==' as const, value: 'Aberto' }],
+    range: { field: 'dueDate', from: null, to: '2026-12-05' },
+  };
+
+  it('soma o campo sob as mesmas cláusulas e pontas da contagem', async () => {
+    sumAnswer = 1250.5;
+    expect(await repo.sum('t1', spec, 'amount')).toBe(1250.5);
+    expect(counted[0].constraints).toEqual([
+      { where: ['status', '==', 'Aberto'] },
+      { where: ['dueDate', '<=', { at: '2026-12-05T23:59:59.999Z' }] },
+      { total: { sum: 'amount' } },
+    ]);
+  });
+
+  it('sem registro nenhum o Firestore responde null, e a soma de nada é zero', async () => {
+    sumAnswer = null;
+    expect(await repo.sum('t1', spec, 'amount')).toBe(0);
+  });
+
+  it('a declaração de visibilidade sem campo não consulta: zero, sem pedir ao servidor', async () => {
+    expect(await repo.sum('t1', spec, 'amount', { uid: 'ana', spec: { userFields: [] } })).toBe(0);
+    expect(counted).toHaveLength(0);
   });
 });

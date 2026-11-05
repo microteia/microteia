@@ -8,12 +8,14 @@ const store: {
   known: Record<string, EntityRecord[]>;
   ensureRecords: ReturnType<typeof vi.fn>;
   countRecords: ReturnType<typeof vi.fn>;
+  sumRecords: ReturnType<typeof vi.fn>;
   watched: RecordQuerySpec[];
   delivered: EntityRecord[] | undefined;
 } = {
   known: {},
   ensureRecords: vi.fn(),
   countRecords: vi.fn(async (spec: RecordCountSpec) => (spec.allOf[0]?.value === 'open' ? 7 : 2)),
+  sumRecords: vi.fn(async (spec: RecordCountSpec, field: string) => (field === 'amount' && spec.allOf[0]?.value === 'Receita' ? 900 : 300)),
   watched: [],
   delivered: undefined,
 };
@@ -23,6 +25,7 @@ vi.mock('../../../stores/useRecords', () => ({
     knownRecordsByCollection: store.known,
     ensureRecords: store.ensureRecords,
     countRecords: store.countRecords,
+    sumRecords: store.sumRecords,
   }),
 }));
 
@@ -36,6 +39,7 @@ vi.mock('../../../stores/useRecordQuery', () => ({
 const { useRecordsByIds } = await import('./useRecordsByIds');
 const { useRecordCounts } = await import('./useRecordCounts');
 const { useRecordsWhere } = await import('./useRecordsWhere');
+const { useRecordSums } = await import('./useRecordSums');
 const { storeEvents, StoreEvents } = await import('../../../infrastructure/events/StoreEventEmitter');
 
 const person = (id: string, name: string) => ({ id, collection: 'persons', name }) as unknown as EntityRecord;
@@ -44,6 +48,7 @@ beforeEach(() => {
   store.known = {};
   store.ensureRecords.mockClear();
   store.countRecords.mockClear();
+  store.sumRecords.mockClear();
   store.watched = [];
   store.delivered = undefined;
 });
@@ -150,5 +155,30 @@ describe('useRecordsWhere', () => {
   it('o limite tem teto: é consulta de cartão, a listagem tem paginate', () => {
     renderHook(() => useRecordsWhere('deadlines', [], { limit: 10_000 }));
     expect(store.watched.at(-1)?.limit).toBe(500);
+  });
+});
+
+describe('useRecordSums', () => {
+  it('soma o campo em cada grupo no servidor, com as condições da contagem', async () => {
+    const { result } = renderHook(() => useRecordSums('financials', 'amount', {
+      receber: [{ field: 'type', value: 'Receita' }, { field: 'dueDate', to: '2026-12-05' }],
+      pagar: [{ field: 'type', value: 'Despesa' }],
+    }));
+    expect(result.current.sums).toEqual({ pagar: null, receber: null });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.sums).toEqual({ pagar: 300, receber: 900 });
+    expect(store.sumRecords).toHaveBeenCalledWith({
+      collection: 'financials',
+      allOf: [{ field: 'type', op: '==', value: 'Receita' }],
+      range: { field: 'dueDate', from: null, to: '2026-12-05' },
+    }, 'amount');
+  });
+
+  it('relê quando um registro é gravado nesta sessão, como a contagem', async () => {
+    const { result } = renderHook(() => useRecordSums('financials', 'amount', { pagar: [{ field: 'type', value: 'Despesa' }] }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => storeEvents.emit(StoreEvents.RECORDS_UPDATED));
+    await waitFor(() => expect(store.sumRecords).toHaveBeenCalledTimes(2));
   });
 });

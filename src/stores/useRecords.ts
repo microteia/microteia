@@ -26,6 +26,8 @@ export interface RecordStoreState {
   queryResults: Record<string, EntityRecord[]>;
   /** Quantos registros atendem às cláusulas e ao intervalo, contados no servidor, com a visibilidade de quem lê. */
   countRecords: (spec: RecordCountSpec) => Promise<number>;
+  /** A soma de um campo nos registros que atendem às cláusulas e ao intervalo, feita no servidor, com a visibilidade de quem lê. */
+  sumRecords: (spec: RecordCountSpec, field: string) => Promise<number>;
   /** Traz, numa leitura por lote, os registros pedidos que ninguém carregou ainda. Pedido repetido não lê de novo. */
   ensureRecords: (collection: string, ids: readonly string[]) => void;
   /** A busca no servidor. O que volta passa a ser conhecido — o seletor o oferece, o cartão o nomeia. */

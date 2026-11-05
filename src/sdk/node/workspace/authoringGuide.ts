@@ -27,7 +27,13 @@ import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
 import { RECORD_SEARCH_SINCE_KERNEL, SEARCHABLE_FIELD_TYPES } from '../../../domain/schema/recordSearch';
-import { RECORD_CONDITIONS_SINCE_KERNEL, RECORD_LIST_PAGE_SIZE, RECORDS_WHERE_MAX, SERVER_RECORDS_API_SINCE_KERNEL } from '../../../domain/services/recordListQuery';
+import {
+  RECORD_CONDITIONS_SINCE_KERNEL,
+  RECORD_LIST_PAGE_SIZE,
+  RECORD_SUMS_SINCE_KERNEL,
+  RECORDS_WHERE_MAX,
+  SERVER_RECORDS_API_SINCE_KERNEL,
+} from '../../../domain/services/recordListQuery';
 import { RECORD_WINDOW_DEFAULT } from '../../../domain/repositories/IRecordRepository';
 import { CARD_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/cardTemplate';
 import { NAV_FILTER_PRESENCE_SINCE_KERNEL } from '../../../domain/schema/ui/uiExtensionPoints';
@@ -694,7 +700,7 @@ and totals; declare \`sortRecords\` instead of sorting by hand.
 **Beyond the window.** \`records\`, \`useCollection\` and the \`records\` a command or mention provider receives
 hold the newest ${RECORD_WINDOW_DEFAULT} of a collection, and an organization with thousands outgrows them silently: a
 count over them is wrong from the next one on, and a name built from them is missing for anyone older.
-Four doors reach the rest (kernel \`^${SERVER_RECORDS_API_SINCE_KERNEL}\`):
+Six doors reach the rest (kernel \`^${SERVER_RECORDS_API_SINCE_KERNEL}\`):
 
 - \`useEntityList(sourceId, { paginate: true })\` — the list fetches ${RECORD_LIST_PAGE_SIZE} at a time and the next ${RECORD_LIST_PAGE_SIZE} when
   \`loadMoreRef\` scrolls into view (\`RecordListSurface\` places it), and the person's filter goes to the
@@ -703,6 +709,8 @@ Four doors reach the rest (kernel \`^${SERVER_RECORDS_API_SINCE_KERNEL}\`):
 - \`useRecordsByIds(collection, ids)\` — the records a card points at, by id, fetched when missing.
 - \`useRecordCounts(collection, groups)\` — a dashboard number counted on the server, one group of
   conditions per number.
+- \`useRecordSums(collection, field, groups)\` — a dashboard total of a currency or number field, summed on
+  the server, one group of conditions per total (kernel \`^${RECORD_SUMS_SINCE_KERNEL}\`).
 - \`useRecordsWhere(collection, conditions, { orderBy, limit })\` — the records a dashboard card shows
   ("due this week"), queried on the server and live, at most ${RECORDS_WHERE_MAX} (kernel \`^${RECORD_CONDITIONS_SINCE_KERNEL}\`).
 - \`context.recordMatches\` in a command or mention provider — what the server search found for the

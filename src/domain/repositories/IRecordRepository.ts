@@ -55,6 +55,17 @@ export interface IRecordRepository {
     spec: RecordCountSpec,
     visibleTo?: MemberVisibilityFilter | null,
   ): Promise<number>;
+  /**
+   * A soma de `field` nos registros que atendem às cláusulas e ao intervalo, feita no servidor
+   * (`sum()`) — o total de um painel, certo acima da janela. Valor que não é número fica de fora da
+   * soma; sem registro nenhum, zero. Com `visibleTo`, soma só o que a pessoa vê.
+   */
+  sum(
+    tenantId: string,
+    spec: RecordCountSpec,
+    field: string,
+    visibleTo?: MemberVisibilityFilter | null,
+  ): Promise<number>;
   getById(tenantId: string, collection: string, recordId: string): Promise<EntityRecord | null>;
   /**
    * Os registros pedidos, numa leitura por lote — o que não existe, ou o que a pessoa não vê, fica de

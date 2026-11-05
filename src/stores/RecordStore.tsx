@@ -13,6 +13,7 @@ import { makeGetRecordsByIdsUseCase } from '../domain/usecases/records/GetRecord
 import { makeSearchRecordsUseCase } from '../domain/usecases/records/SearchRecordsUseCase';
 import { makeSubscribeToRecordQueryUseCase } from '../domain/usecases/records/SubscribeToRecordQueryUseCase';
 import { makeCountRecordsUseCase } from '../domain/usecases/records/CountRecordsUseCase';
+import { makeSumRecordsUseCase } from '../domain/usecases/records/SumRecordsUseCase';
 import { screenDataCollection } from '../domain/services/screenDataCollection';
 import { memberVisibilityFilter, readMemberVisibility } from '../domain/schema/memberVisibility';
 import type { MemberVisibilityFilter, RecordReader } from '../domain/schema/memberVisibility';
@@ -61,6 +62,7 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getByIds: makeGetRecordsByIdsUseCase(recordRepository),
     subscribeQuery: makeSubscribeToRecordQueryUseCase(recordRepository),
     count: makeCountRecordsUseCase(recordRepository),
+    sum: makeSumRecordsUseCase(recordRepository),
     search: makeSearchRecordsUseCase(recordRepository),
     delete: makeDeleteRecordUseCase(recordRepository, recordNoteRepository, recordDocumentRepository),
   }), [recordRepository, recordNoteRepository, recordDocumentRepository]);
@@ -408,6 +410,11 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return uc.count.execute(tenantId, spec, visibleTo.get(spec.collection) ?? null);
   }, [tenantId, uc.count, visibleTo]);
 
+  const sumRecords = useCallback(async (spec: RecordCountSpec, field: string) => {
+    if (!tenantId) return 0;
+    return uc.sum.execute(tenantId, spec, field, visibleTo.get(spec.collection) ?? null);
+  }, [tenantId, uc.sum, visibleTo]);
+
   const searchRecords = useCallback(async (collection: string, text: string, max: number) => {
     if (!tenantId) return [];
     const records = await uc.search.execute(tenantId, collection, text, max, visibleTo.get(collection) ?? null);
@@ -488,6 +495,7 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       watchQuery,
       queryResults: activeQueryResults,
       countRecords,
+      sumRecords,
       ensureRecords,
       searchRecords,
       isLoading,

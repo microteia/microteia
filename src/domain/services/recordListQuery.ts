@@ -15,6 +15,9 @@ export const SERVER_RECORDS_API_SINCE_KERNEL = '2.97.0';
  */
 export const RECORD_CONDITIONS_SINCE_KERNEL = '2.98.0';
 
+/** A partir de qual `KERNEL_VERSION` existe o `useRecordSums` — a soma no servidor. */
+export const RECORD_SUMS_SINCE_KERNEL = '2.99.0';
+
 /** O teto do `useRecordsWhere`: é uma consulta de cartão, não uma listagem — esta tem `paginate`. */
 export const RECORDS_WHERE_MAX = RECORD_WINDOW_DEFAULT;
 
