@@ -178,6 +178,21 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'Esta extensão precisa de funções de servidor ou de índices que este projeto Firebase ainda não '
     + 'tem, então ela está instalada mas não está no ar. Quem cuida do projeto aplica isso com '
     + '"microteia provision", no Microteia Console.',
+  'extension.backend-pending.reason.function-source-missing':
+    'O Microteia Console não encontrou nesta instalação a fonte de {functions}, então não pôde '
+    + 'publicá-las. A extensão não a traz junto: quem cuida do projeto coloca a pasta em '
+    + 'extensions/<pasta>/functions/, ao lado do microteia.yaml, e roda "microteia provision" de novo.',
+  'extension.backend-pending.reason.function-claim-refused':
+    'O Microteia Console recusou o que esta extensão declara sobre {functions}: o nome é da plataforma '
+    + 'ou de uma função comum a toda a instalação, ou o gatilho protege outra extensão. A saída do '
+    + '"microteia provision" diz qual, e a correção é na extensão.',
+  'extension.backend-pending.reason.gate-missing':
+    'O Microteia Console não publicou {functions}: elas agem sem conferir se esta extensão está '
+    + 'instalada no escritório, e agiriam sobre todos os escritórios do projeto. A correção é na '
+    + 'extensão; depois, rode "microteia provision" de novo.',
+  'extension.backend-pending.reason.deploy-failed':
+    'A publicação de {functions} falhou na última vez que "microteia provision" rodou. A saída dele diz '
+    + 'por quê; quem cuida do projeto roda de novo depois de corrigir.',
   'extension.badge.migration-pending': 'Atualização de dados pendente',
   'extension.migration-pending.detail':
     'Esta extensão precisa atualizar dados gravados por uma versão anterior dela, então está instalada '

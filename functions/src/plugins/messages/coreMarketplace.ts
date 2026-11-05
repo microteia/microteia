@@ -185,6 +185,21 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'This extension needs Cloud Functions or database indexes that this Firebase project does not have '
     + 'yet, so it is installed but not running. Whoever maintains the project applies them with '
     + '"microteia provision" in the Microteia Console.',
+  'extension.backend-pending.reason.function-source-missing':
+    'The Microteia Console did not find the source of {functions} in this installation, so it could not '
+    + 'deploy them. The extension does not ship it: whoever maintains the project puts the folder in '
+    + 'extensions/<folder>/functions/, next to microteia.yaml, and runs "microteia provision" again.',
+  'extension.backend-pending.reason.function-claim-refused':
+    'The Microteia Console refused this extension\'s claim on {functions}: the name belongs to the '
+    + 'platform or to a function shared by the whole installation, or its trigger guards another '
+    + 'extension. The output of "microteia provision" says which, and the fix is in the extension.',
+  'extension.backend-pending.reason.gate-missing':
+    'The Microteia Console did not deploy {functions}: they act without checking that this extension is '
+    + 'installed in the organization, and would act on every organization of the project. The fix is in '
+    + 'the extension; then run "microteia provision" again.',
+  'extension.backend-pending.reason.deploy-failed':
+    'The deploy of {functions} failed the last time "microteia provision" ran. Its output says why; '
+    + 'whoever maintains the project runs it again once that is fixed.',
   'extension.badge.migration-pending': 'Data update pending',
   'extension.migration-pending.detail':
     'This extension needs to update data written by an earlier version of it, so it is installed but '

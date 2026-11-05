@@ -12,7 +12,9 @@ import type { SeededLookupOptions } from '../../domain/schema/lookupSeed';
 import { db } from '../../infrastructure/firebase/config';
 import { pruneUndefined } from '../utils/pruneUndefined';
 import type { IInstalledExtensionRepository } from '../../domain/repositories/IInstalledExtensionRepository';
+import { isBackendPendingReason } from '../../domain/schema/plugin/backendRequirement';
 import type {
+  ExtensionBackendPending,
   ExtensionBackendState,
   ExtensionCodeTrust,
   InstalledExtension,
@@ -50,7 +52,18 @@ const mapBackendState = (raw: unknown): ExtensionBackendState | null => {
   return { fingerprint: d.fingerprint, appliedAt: toDate(d.appliedAt) };
 };
 
-const mapSeededLookupOptions = (raw: unknown): SeededLookupOptions | null => {
+/** Gravado pelo Console, pela REST: o mesmo cuidado de `mapBackendState` com a data. */
+const mapBackendPending = (raw: unknown): ExtensionBackendPending | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const d = raw as Record<string, unknown>;
+  if (typeof d.fingerprint !== 'string' || !isBackendPendingReason(d.reason)) return null;
+  const functions = Array.isArray(d.functions)
+    ? d.functions.filter((name): name is string => typeof name === 'string')
+    : [];
+  return { fingerprint: d.fingerprint, reason: d.reason, functions, recordedAt: toDate(d.recordedAt) };
+};
+
+const mapSeededLookupOptions =(raw: unknown): SeededLookupOptions | null => {
   if (!raw || typeof raw !== 'object') return null;
   const entries = Object.entries(raw as Record<string, unknown>)
     .filter((entry): entry is [string, unknown[]] => Array.isArray(entry[1]))
@@ -73,6 +86,7 @@ const mapInstalled = (id: string, tenantId: string, d: Record<string, unknown>):
   installedBy: (d.installedBy as string | undefined) ?? '',
   codeTrust: mapCodeTrust(d.codeTrust),
   backendState: mapBackendState(d.backendState),
+  backendPending: mapBackendPending(d.backendPending),
   seededLookupOptions: mapSeededLookupOptions(d.seededLookupOptions),
   installedAt: toDate(d.installedAt),
   updatedAt: toDate(d.updatedAt),
@@ -110,6 +124,9 @@ export class FirebaseInstalledExtensionRepository implements IInstalledExtension
           fingerprint: extension.backendState.fingerprint,
           appliedAt: Timestamp.fromDate(extension.backendState.appliedAt),
         }
+        : null,
+      backendPending: extension.backendPending
+        ? { ...extension.backendPending, recordedAt: Timestamp.fromDate(extension.backendPending.recordedAt) }
         : null,
       seededLookupOptions: extension.seededLookupOptions ?? null,
       installedAt: Timestamp.fromDate(extension.installedAt),

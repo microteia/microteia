@@ -278,6 +278,8 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       // aplicação não pode apagar o que já existe no projeto. Se a versão nova exigir outra coisa, é o
       // FINGERPRINT que deixa de bater — e a extensão volta a ficar pendente sozinha.
       backendState: existing?.backendState ?? null,
+      // Preservado pelo mesmo motivo: só o Console sabe por que recusou, e ele é quem o apaga.
+      backendPending: existing?.backendPending ?? null,
       seededLookupOptions: existing?.seededLookupOptions ?? null,
       installedAt: existing?.installedAt ?? new Date(),
       updatedAt: new Date(),

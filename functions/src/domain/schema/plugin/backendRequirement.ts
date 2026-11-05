@@ -81,6 +81,33 @@ export const backendFingerprint = (backend?: PluginBackendRequirement): string =
   parameters: [...(backend?.parameters ?? [])].sort(),
 });
 
+/**
+ * POR QUE a extensão ficou pendente na última execução do Console — gravado por ele no documento da
+ * instalação, ao lado do carimbo.
+ *
+ * Existe porque "pendente" sozinho mandava rodar `microteia provision`, inclusive para quem já tinha
+ * rodado: o comando recusava a extensão, explicava no terminal, e a tela continuava pedindo o mesmo
+ * comando. A explicação ficava com quem tinha o terminal, e a tela era lida por outra pessoa.
+ *
+ * O Console redeclara esta lista (`cli/src/kernel/backendShape.ts`) porque é publicado sem o `src/`;
+ * `backendShape.test.ts` confere que as duas são a mesma.
+ */
+export const BACKEND_PENDING_REASONS = [
+  /** A function declarada não está no pacote do kernel nem em `extensions/<pasta>/functions/`. */
+  'function-source-missing',
+  /** O nome é da plataforma ou de uma function comum, ou o gatilho guarda o id de outra extensão. */
+  'function-claim-refused',
+  /** A fonte existe, mas age sem conferir que a extensão está instalada no escritório. */
+  'gate-missing',
+  /** Tudo conferiu e o deploy falhou. */
+  'deploy-failed',
+] as const;
+
+export type BackendPendingReason = typeof BACKEND_PENDING_REASONS[number];
+
+export const isBackendPendingReason = (value: unknown): value is BackendPendingReason =>
+  typeof value === 'string' && (BACKEND_PENDING_REASONS as readonly string[]).includes(value);
+
 const FUNCTION_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 const PARAMETER_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const isStringArray = (value: unknown): value is string[] =>

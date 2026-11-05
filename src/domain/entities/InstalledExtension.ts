@@ -1,5 +1,6 @@
 import type { MarketplacePlugin } from './MarketplacePlugin';
 import type { SeededLookupOptions } from '../schema/lookupSeed';
+import type { BackendPendingReason } from '../schema/plugin/backendRequirement';
 
 /**
  * Gesto explícito de um admin do escritório autorizando o CÓDIGO desta cópia a executar. O vínculo é
@@ -45,6 +46,22 @@ export interface ExtensionBackendState {
   appliedAt: Date;
 }
 
+/**
+ * O motivo da última recusa do Console. Mora FORA do `backendState` de propósito: a ausência do
+ * carimbo continua significando "nunca aplicado", e o carimbo de sucesso apaga este campo na mesma
+ * escrita.
+ *
+ * Leva o `fingerprint` da exigência a que se refere: atualizar a extensão para uma versão que exija
+ * outra coisa torna o motivo velho, e a tela volta à instrução genérica em vez de explicar a versão
+ * anterior.
+ */
+export interface ExtensionBackendPending {
+  fingerprint: string;
+  reason: BackendPendingReason;
+  functions: string[];
+  recordedAt: Date;
+}
+
 export interface InstalledExtension {
   /** = package.manifest.id (domínio). Imutável. */
   id: string;
@@ -70,6 +87,7 @@ export interface InstalledExtension {
    * com o exigido, a extensão entra no boot; ausente ou divergente, ela fica pendente do Console.
    */
   backendState?: ExtensionBackendState | null;
+  backendPending?: ExtensionBackendPending | null;
   /**
    * As opções que esta extensão já entregou, por lista (`lookups[].seed: 'required'`). É o que impede
    * a atualização de ressuscitar a opção que o escritório apagou. Desinstalar apaga o registro, e uma

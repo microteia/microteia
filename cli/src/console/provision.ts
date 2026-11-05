@@ -43,7 +43,9 @@ import type { DeployedFunction } from './regionOrphans.js';
 import { outdatedByStamp } from './functionsUpToDate.js';
 import type { OutdatedFunctions } from './functionsUpToDate.js';
 import { checkCallables, invokerGrantCommand } from './callableAccess.js';
-import { asString, asTimestamp, patchMapField } from './firestoreRest.js';
+import { asArray, asMap, asNull, asString, asTimestamp, patchFields, patchMapField } from './firestoreRest.js';
+import { pendingCauseOf } from './backendPending.js';
+import type { PendingCause } from './backendPending.js';
 import { writeBackendResidue } from './backendResidue.js';
 import { listTenants, readInstalledExtensions } from './installedExtensions.js';
 import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
@@ -313,6 +315,20 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   }
 
   const valid = uniqueByPlugin(claims.filter((claim) => !rejected.has(claim.pluginId)));
+
+  /**
+   * Qual nome derrubou qual reivindicação — é o que vai para a tela da extensão no fim. As mensagens
+   * acima já dizem isto em prosa; o mapa existe porque a tela é lida por quem não tem o terminal.
+   */
+  const refusedClaims = new Map<string, string>();
+  const baselineNames = new Set(manifest.baselineFunctions ?? []);
+  const sharedNames = new Set(office.shared);
+  for (const claim of claims) {
+    for (const name of claim.backend.functions ?? []) {
+      if (baselineNames.has(name) || sharedNames.has(name)) refusedClaims.set(name, claim.pluginId);
+    }
+  }
+  for (const entry of misgated) refusedClaims.set(entry.name, entry.owner);
 
   /**
    * O nome que uma reivindicação RECUSADA carrega. Ele não entra em `wantedFunctions` — não há como
@@ -596,13 +612,27 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   // o mesmo que estar satisfeito. Deixá-lo de fora manteria a extensão "pendente" para sempre numa
   // instalação em que não falta nada.
   const deployedNow = new Set([...appliedNames, ...outcome.deployed, ...skippedNow]);
-  for (const claim of valid) {
-    const satisfied = (claim.backend.functions ?? []).every((name) => deployedNow.has(name));
-    if (satisfied) {
+  const validIds = new Set(valid.map((claim) => claim.pluginId));
+  const pendingInputs = {
+    deployable: new Set(deployable),
+    refusedClaims,
+    ungated: new Set(refused),
+    satisfied: deployedNow,
+  };
+  // As RECUSADAS entram aqui também: nunca foram carimbadas, e eram justamente as que a tela mandava
+  // "rodar o provision" sem dizer que ele já tinha rodado e recusado.
+  for (const claim of uniqueByPlugin(claims)) {
+    const isValid = validIds.has(claim.pluginId);
+    // A regra do carimbo é a de sempre — tudo o que ela pede está no ar —, e vem ANTES do motivo: uma
+    // function que já estava aplicada continua satisfazendo a extensão mesmo que o portão dela tenha
+    // saído da fila nesta execução.
+    if (isValid && (claim.backend.functions ?? []).every((name) => deployedNow.has(name))) {
       await stampApplied(projectId, claims, claim);
-    } else {
-      outcome.pending.push(claim);
+      continue;
     }
+    if (isValid) outcome.pending.push(claim);
+    const cause = pendingCauseOf(claim, pendingInputs);
+    if (cause !== null) await recordPending(projectId, claims, claim, cause);
   }
 
   /**
@@ -798,12 +828,42 @@ const stampApplied = async (
   const appliedAt = new Date();
   for (const copy of all.filter((entry) => entry.pluginId === claim.pluginId)) {
     if (backendFingerprint(copy.backend) !== fingerprint) continue;
-    await patchMapField(projectId, copy.documentPath, 'backendState', {
-      fingerprint: asString(fingerprint),
-      appliedAt: asTimestamp(appliedAt),
+    // O motivo de uma recusa anterior sai na MESMA escrita: duas escritas abririam uma janela em que a
+    // tela mostra a extensão no ar e, ao mesmo tempo, por que ela não estava.
+    await patchFields(projectId, copy.documentPath, {
+      backendState: asMap({
+        fingerprint: asString(fingerprint),
+        appliedAt: asTimestamp(appliedAt),
+      }),
+      backendPending: asNull(),
     });
   }
   success(`${claim.name} is ready in ${projectId}`);
+};
+
+/**
+ * Grava na instalação POR QUE ela continua pendente — o que até aqui só o terminal sabia.
+ *
+ * Vai para toda cópia daquela extensão com a mesma exigência, pelo mesmo motivo do carimbo: a recusa é
+ * do projeto. A cópia já carimbada fica de fora: ela está no ar, e um motivo nela só confundiria.
+ */
+const recordPending = async (
+  projectId: string,
+  all: InstalledClaim[],
+  claim: InstalledClaim,
+  cause: PendingCause,
+): Promise<void> => {
+  const fingerprint = backendFingerprint(claim.backend);
+  const recordedAt = new Date();
+  for (const copy of all.filter((entry) => entry.pluginId === claim.pluginId)) {
+    if (copy.applied || backendFingerprint(copy.backend) !== fingerprint) continue;
+    await patchMapField(projectId, copy.documentPath, 'backendPending', {
+      fingerprint: asString(fingerprint),
+      reason: asString(cause.reason),
+      functions: asArray(cause.functions.map(asString)),
+      recordedAt: asTimestamp(recordedAt),
+    });
+  }
 };
 
 /**

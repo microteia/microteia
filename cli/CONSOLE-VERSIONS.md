@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.37.0] — 2026-11-05
+
+- feat(provision): records on each installed copy WHY an extension is still pending (`backendPending`), refused claims included — function source not found, claim refused (platform or shared name, misgated trigger), gate missing, deploy failed — with the functions involved, so the Extensions screen can say it. The stamp now writes `backendState` and clears `backendPending` in one PATCH, so the screen never shows an extension as running and as refused at once. A copy already stamped is left alone.
+
 #### [2.36.1] — 2026-11-05
 
 - fix(publish): resuming an interrupted kernel publish now takes the release out of draft (`gh release edit --draft=false`) before writing the catalog. `gh release create` with assets creates a draft, uploads, then publishes; a GitHub 502 in between left the draft, and the resume only re-uploaded the assets — so `kernel/index.json` promoted to `latest` a tarball that only the publisher could download. On a release already published the edit changes nothing.

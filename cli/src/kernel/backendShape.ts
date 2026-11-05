@@ -50,6 +50,16 @@ export const backendFingerprint = (backend?: PluginBackendRequirement): string =
   parameters: [...(backend?.parameters ?? [])].sort(),
 });
 
+/** Ver `BACKEND_PENDING_REASONS` no kernel — a paridade é cobrada por `backendShape.test.ts`. */
+export const BACKEND_PENDING_REASONS = [
+  'function-source-missing',
+  'function-claim-refused',
+  'gate-missing',
+  'deploy-failed',
+] as const;
+
+export type BackendPendingReason = typeof BACKEND_PENDING_REASONS[number];
+
 export const hasBackendRequirement = (backend?: PluginBackendRequirement): boolean =>
   (backend?.functions?.length ?? 0) > 0
   || (backend?.indexes?.length ?? 0) > 0

@@ -237,7 +237,7 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
         <S.Problems>
           <S.Problem $error={false}>
             <RiErrorWarningLine size={13} />
-            <span>{t('extension.backend-pending.detail')}</span>
+            <span>{t(row.backendPendingDetail.key, { functions: row.backendPendingDetail.functions })}</span>
           </S.Problem>
         </S.Problems>
       )}

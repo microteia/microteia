@@ -11,7 +11,12 @@ import { useWorkspace } from '../../../stores/useWorkspace';
 import { packageFingerprint, parsePackage, serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
 import { isVersionGreater, publishRefusal } from '../../../domain/usecases/plugins/publicExtension';
 import { extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
-import { isExtensionBackendPending } from '../../../domain/usecases/plugins/extensionBackendState';
+import {
+  extensionBackendPendingCause,
+  isExtensionBackendPending,
+} from '../../../domain/usecases/plugins/extensionBackendState';
+import type { ExtensionBackendPending } from '../../../domain/entities/InstalledExtension';
+import type { BackendPendingReason } from '../../../domain/schema/plugin/backendRequirement';
 import { backendResidueCount } from '../../../domain/usecases/plugins/backendResidue';
 import { useDI } from '../../../infrastructure/di/useDI';
 import type { BackendResidue } from '../../../domain/entities/BackendResidue';
@@ -161,6 +166,12 @@ export interface ExtensionRow {
    * pior, aparecer e falhar toda chamada ao servidor como se fosse CORS.
    */
   backendPending: boolean;
+  /**
+   * A chave da explicação da pendência e as functions que ela cita. Sem motivo gravado pelo Console,
+   * é a instrução genérica: rodar o `provision`. Com motivo, é ele — dizer "rode o comando" a quem já
+   * rodou foi o que tornou o defeito da extensão de e-mail num diagnóstico de horas.
+   */
+  backendPendingDetail: { key: string; functions: string };
   /**
    * Instalada, com MIGRAÇÃO DE DADOS obrigatória em dívida. Também não está no ar: o servidor está lá,
    * mas o dado ainda não está no formato que as telas dela esperam. Ver `extensionMigrationState`.
@@ -383,6 +394,19 @@ export interface MarketplaceViewModel {
 }
 
 const hasCodeOf = (views: unknown[] | undefined): boolean => (views?.length ?? 0) > 0;
+
+/** `Record` e não `switch`: um motivo novo no contrato sem mensagem aqui é erro de tipo, não tela muda. */
+const BACKEND_PENDING_DETAIL: Record<BackendPendingReason, string> = {
+  'function-source-missing': 'extension.backend-pending.reason.function-source-missing',
+  'function-claim-refused': 'extension.backend-pending.reason.function-claim-refused',
+  'gate-missing': 'extension.backend-pending.reason.gate-missing',
+  'deploy-failed': 'extension.backend-pending.reason.deploy-failed',
+};
+
+const backendPendingDetailOf = (cause: ExtensionBackendPending | null): { key: string; functions: string } =>
+  cause === null
+    ? { key: 'extension.backend-pending.detail', functions: '' }
+    : { key: BACKEND_PENDING_DETAIL[cause.reason], functions: cause.functions.join(', ') };
 
 /** Sim e Não escolhidos ao mesmo tempo devolvem tudo — é o que escolher os dois quer dizer. */
 const matchesBoolean = (values: string[], actual: boolean): boolean =>
@@ -833,6 +857,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canDeprecate: false,
         needsCodeReview: false,
         backendPending: false,
+        backendPendingDetail: backendPendingDetailOf(null),
         migrationPending: false,
         migrationError: null,
         canRunMigrations: false,
@@ -935,6 +960,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canApprove: canModerate && publicStatus === 'pending',
         canDeprecate: canModerate && publicStatus === 'approved',
         backendPending: inst !== undefined && inst !== null && isExtensionBackendPending(inst),
+        backendPendingDetail: backendPendingDetailOf(inst ? extensionBackendPendingCause(inst) : null),
         migrationPending: inst ? isExtensionMigrationPending(inst, migrationStates) : false,
         migrationError: migrationErrorOf(inst),
         canRunMigrations: canManage && inst !== undefined && pendingMigrationsOf(id).length > 0,

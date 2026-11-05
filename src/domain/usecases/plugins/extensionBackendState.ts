@@ -1,4 +1,4 @@
-import type { InstalledExtension } from '../../entities/InstalledExtension';
+import type { ExtensionBackendPending, InstalledExtension } from '../../entities/InstalledExtension';
 import { backendFingerprint, hasBackendRequirement } from '../../schema/plugin/backendRequirement';
 
 /**
@@ -28,3 +28,17 @@ export const isExtensionBackendApplied = (extension: InstalledExtension): boolea
 /** Instalada, ativa, exigindo backend e ainda sem ele — o que a tela de Extensões precisa mostrar. */
 export const isExtensionBackendPending = (extension: InstalledExtension): boolean =>
   extensionNeedsBackend(extension) && !isExtensionBackendApplied(extension);
+
+/**
+ * O motivo gravado pelo Console, quando ele ainda explica a pendência de AGORA.
+ *
+ * Nulo quando não há motivo (o Console nunca rodou depois da instalação) e quando ele é de outra
+ * exigência — o escritório atualizou a extensão depois da recusa. Nos dois casos o certo é a instrução
+ * genérica: o que falta é rodar o `provision`, não corrigir o que ele disse da versão anterior.
+ */
+export const extensionBackendPendingCause = (extension: InstalledExtension): ExtensionBackendPending | null => {
+  if (!isExtensionBackendPending(extension)) return null;
+  const pending = extension.backendPending;
+  if (!pending) return null;
+  return pending.fingerprint === backendFingerprint(extension.package.manifest.backend) ? pending : null;
+};

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { repoRoot } from '../shared/paths.js';
 import {
+  BACKEND_PENDING_REASONS,
   backendFingerprint,
   baselineFunctionsOf,
   baselineIndexesOf,
@@ -74,6 +75,15 @@ describe('paridade do fingerprint entre o kernel e o Console', () => {
     for (const value of cases) {
       expect(backendFingerprint(value), JSON.stringify(value)).toBe(kernel.backendFingerprint(value));
     }
+  });
+
+  /**
+   * Um motivo que só o Console conhece é descartado pela leitura do kernel (`isBackendPendingReason`),
+   * e a tela volta à instrução genérica — o defeito que o motivo existe para fechar.
+   */
+  it('os motivos de pendência são os mesmos nas duas pontas', async () => {
+    const kernel = await import('../../../src/domain/schema/plugin/backendRequirement.js');
+    expect([...BACKEND_PENDING_REASONS]).toEqual([...kernel.BACKEND_PENDING_REASONS]);
   });
 });
 

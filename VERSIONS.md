@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.205.0] — 2026-11-05
+
+- Quando uma extensão fica com "Backend pendente", a tela de Extensões passa a dizer o motivo — por exemplo, que a fonte de uma função não foi encontrada na instalação, ou que a publicação dela falhou — e quais funções faltam, em vez de apenas pedir que o comando de provisionamento seja rodado de novo.
+
 #### [9.204.1] — 2026-11-05
 
 - Corrigido um problema raro na distribuição de novas versões da Microteia: se a publicação fosse interrompida no meio, a versão podia ficar anunciada como disponível sem que os escritórios conseguissem baixá-la.

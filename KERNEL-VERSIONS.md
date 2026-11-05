@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.205.0] — 2026-11-05
+
+- feat(extensions/backend): installed extensions carry `backendPending` — `{ fingerprint, reason, functions, recordedAt }`, written by Console 2.37.0 — and the Extensions screen explains a pending backend by its cause (`function-source-missing`, `function-claim-refused`, `gate-missing`, `deploy-failed`) and the functions involved. Before, every pending extension told the reader to run `microteia provision`, including the ones `provision` had just refused, and the reason stayed in the terminal of whoever ran it. A cause recorded against a different requirement fingerprint is ignored, so updating the extension falls back to the generic instruction. `BACKEND_PENDING_REASONS` lives in `backendRequirement.ts`; the locale pack moves to 1.161.0.
+
 #### [9.204.1] — 2026-11-05
 
 - fix(cli/publish): ships with Console 2.36.1, whose `publish` takes an interrupted kernel release out of draft before writing the catalog, instead of promoting to `latest` a tarball only the publisher could download. No kernel change.

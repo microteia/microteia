@@ -133,9 +133,10 @@ export type FirestoreTypedValue =
   | { timestampValue: string }
   | { integerValue: string }
   | { arrayValue: { values: FirestoreTypedValue[] } }
-  | { mapValue: { fields: Record<string, FirestoreTypedValue> } };
+  | { mapValue: { fields: Record<string, FirestoreTypedValue> } }
+  | { nullValue: null };
 
-export const asString = (value: string): FirestoreTypedValue => ({ stringValue: value });
+export const asString =(value: string): FirestoreTypedValue => ({ stringValue: value });
 
 /**
  * Inteiro como INTEIRO. A REST o transporta em string — é assim que ela representa um int64 sem perder
@@ -158,7 +159,10 @@ export const asMap = (fields: Record<string, FirestoreTypedValue>): FirestoreTyp
  * também o que permite ordenar e comparar o campo no banco. A REST exige RFC 3339 em UTC, que é
  * exatamente o que `toISOString` devolve.
  */
-export const asTimestamp = (value: Date): FirestoreTypedValue => ({ timestampValue: value.toISOString() });
+/** O campo continua no documento, valendo nulo — é o que o lado do kernel lê como "nada a dizer". */
+export const asNull = (): FirestoreTypedValue => ({ nullValue: null });
+
+export const asTimestamp =(value: Date): FirestoreTypedValue => ({ timestampValue: value.toISOString() });
 
 /**
  * Grava UM campo de mapa, com `updateMask` — o resto do documento não é tocado. É o que permite o
