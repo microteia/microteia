@@ -113,6 +113,16 @@ describe('artefatos primeiro, catálogo depois', () => {
   });
 
   /**
+   * O 502 do GitHub no meio do `gh release create` deixou um RASCUNHO, e a retomada subia os arquivos
+   * e escrevia o catálogo sem publicá-lo: `latest` apontava para um download que só quem publicou
+   * conseguia fazer.
+   */
+  it('a retomada publica o rascunho que a interrupção deixou, antes do catálogo', () => {
+    expect(at("'--draft=false'")).toBeGreaterThan(at("'--clobber'"));
+    expect(at("'--draft=false'")).toBeLessThan(at('await writePublishedIndex('));
+  });
+
+  /**
    * O catálogo é lido pela API de conteúdo do repositório, e não pela URL pública que o Pages serve: o
    * Pages responde de um cache que pode estar minutos atrás, e publicar contra ele perderia a entrada de
    * quem publicou antes.

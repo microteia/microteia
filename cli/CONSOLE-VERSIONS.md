@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.36.1] — 2026-11-05
+
+- fix(publish): resuming an interrupted kernel publish now takes the release out of draft (`gh release edit --draft=false`) before writing the catalog. `gh release create` with assets creates a draft, uploads, then publishes; a GitHub 502 in between left the draft, and the resume only re-uploaded the assets — so `kernel/index.json` promoted to `latest` a tarball that only the publisher could download. On a release already published the edit changes nothing.
+
 #### [2.36.0] — 2026-11-05
 
 - fix(environment): every command that acts on an installation (`readEnvironment`) refuses when the installation's `CONSOLE-VERSIONS.md` names a Console newer than the one running. An older Console rewrites `microteia.yaml` with only the sections it knows and replaces `CONSOLE-VERSIONS.md` and `MICROTEIA.md` with its own texts — nothing failed: a forgotten copy of Console 2.6.0, left in a folder of the installation, ran `unpack` there, the `login:` block disappeared and the Console history lost thirty versions without a word. No new field marks it, on purpose: an older Console would drop the field it does not know.

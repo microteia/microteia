@@ -348,6 +348,13 @@ const publishKernel = async (
         'release', 'upload', tagOf(version), tarball, manifestPath,
         '--repo', repo, '--clobber',
       ]);
+      /**
+       * O `gh release create` com arquivos cria o release como RASCUNHO, sobe os arquivos e só então o
+       * publica. Interrompido no meio — foi um 502 do GitHub —, sobra o rascunho, e o arquivo de um
+       * rascunho não se baixa sem credencial: retomar só subindo os arquivos gravava no catálogo um
+       * `latest` que nenhum escritório consegue instalar. Em release já publicado, isto não muda nada.
+       */
+      await run('gh', ['release', 'edit', tagOf(version), '--repo', repo, '--draft=false']);
     } else {
       pending(`creating ${tagOf(version)} in ${repo}`);
       await run('gh', [

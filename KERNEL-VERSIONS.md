@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.204.1] — 2026-11-05
+
+- fix(cli/publish): ships with Console 2.36.1, whose `publish` takes an interrupted kernel release out of draft before writing the catalog, instead of promoting to `latest` a tarball only the publisher could download. No kernel change.
+
 #### [9.204.0] — 2026-11-05
 
 - feat(sdk/build): `microteia-plugin build` writes the package to `dist/<id>.json` in the extensions directory — the nearest `package.json` above `plugin.ts` — instead of beside the source. Importing ten extensions meant opening ten folders; now it is one. `--out <dir>` still overrides, and with no `package.json` above, `dist/` sits beside `plugin.ts`.

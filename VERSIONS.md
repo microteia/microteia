@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.204.1] — 2026-11-05
+
+- Corrigido um problema raro na distribuição de novas versões da Microteia: se a publicação fosse interrompida no meio, a versão podia ficar anunciada como disponível sem que os escritórios conseguissem baixá-la.
+
 #### [9.204.0] — 2026-11-05
 
 - Quem escreve extensões passa a encontrar todos os pacotes compilados numa única pasta, `dist/`, pronta para importar na tela de Extensões — sem procurar o arquivo dentro da pasta de cada extensão. A pasta fica fora do controle de versão.
