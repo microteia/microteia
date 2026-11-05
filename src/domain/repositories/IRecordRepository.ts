@@ -1,7 +1,7 @@
 import type { DeletionActor } from '../entities';
 import type { EntityRecord, EntityRecordValues, RecordDocument, RecordNote } from '../entities/EntityRecord';
 import type { MemberVisibilityFilter } from '../schema/memberVisibility';
-import type { RecordQueryClause, RecordQuerySpec } from '../services/recordListQuery';
+import type { RecordCountSpec, RecordQuerySpec } from '../services/recordListQuery';
 
 /**
  * A janela padrão de uma coleção assinada: os mais recentes, até este número. É o que a listagem
@@ -46,14 +46,13 @@ export interface IRecordRepository {
     onError?: (collection: string, error: Error) => void,
   ): () => void;
   /**
-   * Quantos registros atendem a TODAS as cláusulas, contados no servidor (`count()`) — o número de um
-   * painel, certo acima da janela. Com `visibleTo`, conta só o que a pessoa vê, pela mesma restrição da
-   * assinatura.
+   * Quantos registros atendem a TODAS as cláusulas e ao intervalo de dia, contados no servidor
+   * (`count()`) — o número de um painel, certo acima da janela. Com `visibleTo`, conta só o que a
+   * pessoa vê, pela mesma restrição da assinatura.
    */
   count(
     tenantId: string,
-    collection: string,
-    clauses: readonly RecordQueryClause[],
+    spec: RecordCountSpec,
     visibleTo?: MemberVisibilityFilter | null,
   ): Promise<number>;
   getById(tenantId: string, collection: string, recordId: string): Promise<EntityRecord | null>;

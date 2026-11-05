@@ -10,6 +10,7 @@ interface FakeQuery { constraints: unknown[] }
 interface FakeSnapshotDoc { id: string; data: () => Record<string, unknown> }
 
 const subscribed: FakeQuery[] = [];
+const counted: FakeQuery[] = [];
 let snapshotDocs: FakeSnapshotDoc[] = [];
 let readBackDenied = false;
 
@@ -37,10 +38,15 @@ vi.mock('firebase/firestore', () => ({
   },
   query: (_ref: unknown, ...constraints: unknown[]) => ({ constraints }),
   or: (...filters: unknown[]) => ({ or: filters }),
+  and: (...filters: unknown[]) => ({ and: filters }),
+  getCountFromServer: async (query: FakeQuery) => {
+    counted.push(query);
+    return { data: () => ({ count: 3 }) };
+  },
   where: (field: string, op: string, value: unknown) => ({ where: [field, op, value] }),
   orderBy: (field: string, dir: string) => ({ orderBy: [field, dir] }),
   limit: (count: number) => ({ limit: count }),
-  Timestamp: class {},
+  Timestamp: class { static fromDate(date: Date) { return { at: date.toISOString() }; } },
 }));
 
 const { FirebaseRecordRepository } = await import('./FirebaseRecordRepository');
@@ -51,6 +57,7 @@ const SPEC = { userFields: ['emissor', 'equipe'] };
 
 beforeEach(() => {
   subscribed.length = 0;
+  counted.length = 0;
   snapshotDocs = [];
   readBackDenied = false;
   setRecordRulesScreens([{
@@ -109,5 +116,32 @@ describe('gravar numa tela com visibilidade por registro', () => {
 
   it('sem como saber se a coleção está vazia, a resposta é "tem registros" — a exclusão da tela não passa', async () => {
     await expect(repo.hasRecords('t1', 'respostas')).resolves.toBe(true);
+  });
+});
+
+describe('a contagem com intervalo de dia', () => {
+  const spec = {
+    collection: 'respostas',
+    allOf: [{ field: 'status', op: '==' as const, value: 'Pendente' }],
+    range: { field: 'dueDate', from: null, to: '2026-11-04' },
+  };
+
+  it('a igualdade e as pontas do dia vão juntas: o dia inteiro, até o último milissegundo UTC', async () => {
+    expect(await repo.count('t1', spec)).toBe(3);
+    expect(counted[0].constraints).toEqual([
+      { where: ['status', '==', 'Pendente'] },
+      { where: ['dueDate', '<=', { at: '2026-11-04T23:59:59.999Z' }] },
+    ]);
+  });
+
+  it('para quem a visibilidade restringe, o intervalo entra no `and()` ao lado da disjunção que a regra prova', async () => {
+    await repo.count('t1', { ...spec, range: { field: 'dueDate', from: '2026-11-01', to: null } }, { uid: 'ana', spec: { userFields: ['emissor'] } });
+    expect(counted[0].constraints).toEqual([{
+      and: [
+        { or: [{ where: ['emissor', '==', 'ana'] }, { where: ['emissor', 'array-contains', 'ana'] }] },
+        { where: ['status', '==', 'Pendente'] },
+        { where: ['dueDate', '>=', { at: '2026-11-01T00:00:00.000Z' }] },
+      ],
+    }]);
   });
 });

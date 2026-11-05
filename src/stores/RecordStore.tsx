@@ -18,7 +18,7 @@ import { memberVisibilityFilter, readMemberVisibility } from '../domain/schema/m
 import type { MemberVisibilityFilter, RecordReader } from '../domain/schema/memberVisibility';
 import { UNRESTRICTED_PERMISSION } from '../domain/schema/access';
 import type { DeletionActor, EntityRecord, EntityRecordValues } from '../domain/entities';
-import type { RecordQueryClause, RecordQuerySpec } from '../domain/services/recordListQuery';
+import type { RecordCountSpec, RecordQuerySpec } from '../domain/services/recordListQuery';
 import { RECORD_WINDOW_DEFAULT } from '../domain/repositories/IRecordRepository';
 
 /**
@@ -403,9 +403,9 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
       .catch((error: unknown) => console.warn(`[RecordStore] ensureRecords ${collection}:`, (error as Error).message));
   }, [tenantId, activeCollections, loadedCollections, recordsByCollection, markRequested, uc.getByIds, visibleTo, remember]);
 
-  const countRecords = useCallback(async (collection: string, clauses: readonly RecordQueryClause[]) => {
+  const countRecords = useCallback(async (spec: RecordCountSpec) => {
     if (!tenantId) return 0;
-    return uc.count.execute(tenantId, collection, clauses, visibleTo.get(collection) ?? null);
+    return uc.count.execute(tenantId, spec, visibleTo.get(spec.collection) ?? null);
   }, [tenantId, uc.count, visibleTo]);
 
   const searchRecords = useCallback(async (collection: string, text: string, max: number) => {

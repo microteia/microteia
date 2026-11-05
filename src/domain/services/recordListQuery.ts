@@ -1,6 +1,6 @@
 import type { FieldDefinition } from '../entities/entitySchemas';
 import { RECORD_WINDOW_DEFAULT } from '../repositories/IRecordRepository';
-import { FILTER_RANGE_TO_SUFFIX } from './customFieldValues';
+import { FILTER_RANGE_TO_SUFFIX, toDateFieldInput } from './customFieldValues';
 
 /**
  * A partir de qual `KERNEL_VERSION` a extensão tem os registros além da janela: `paginate` no
@@ -8,6 +8,15 @@ import { FILTER_RANGE_TO_SUFFIX } from './customFieldValues';
  * o guia de autoria cita.
  */
 export const SERVER_RECORDS_API_SINCE_KERNEL = '2.97.0';
+
+/**
+ * A partir de qual `KERNEL_VERSION` a condição de DIA (`{ field, from, to }`) vale no `useRecordCounts`, e
+ * o `useRecordsWhere` existe. É o que o guia de autoria cita.
+ */
+export const RECORD_CONDITIONS_SINCE_KERNEL = '2.98.0';
+
+/** O teto do `useRecordsWhere`: é uma consulta de cartão, não uma listagem — esta tem `paginate`. */
+export const RECORDS_WHERE_MAX = RECORD_WINDOW_DEFAULT;
 
 /** Registros por página da listagem: a rolagem infinita pede mais deste tanto a cada vez. */
 export const RECORD_LIST_PAGE_SIZE = 50;
@@ -47,9 +56,22 @@ export interface RecordQuerySpec {
   anyOf: RecordQueryClause[];
   /** Conjunção, somada à disjunção: o filtro que a pessoa escolheu e que o servidor sabe fazer. */
   allOf: RecordQueryClause[];
-  /** Pontas em `AAAA-MM-DD`, inclusivas — a mesma forma do filtro da listagem. */
-  range: { field: string; from: string | null; to: string | null } | null;
+  range: RecordDayRange | null;
   orderBy: { field: string; dir: 'asc' | 'desc' } | null;
+}
+
+/** Pontas em `AAAA-MM-DD`, inclusivas — a mesma forma do filtro "a partir de / até" da listagem. */
+export interface RecordDayRange {
+  field: string;
+  from: string | null;
+  to: string | null;
+}
+
+/** O que uma contagem pergunta: as igualdades todas juntas e, no máximo, um intervalo de dia. */
+export interface RecordCountSpec {
+  collection: string;
+  allOf: RecordQueryClause[];
+  range: RecordDayRange | null;
 }
 
 export interface RecordListFilterInput {
@@ -185,3 +207,84 @@ export const planRecordListQuery = (input: RecordListFilterInput): RecordQuerySp
 /** A consulta trouxe tudo o que pediu: pode haver mais para trazer. */
 export const recordQueryHasMore = (spec: RecordQuerySpec, delivered: number): boolean => delivered >= spec.limit;
 
+/**
+ * Uma condição como a EXTENSÃO a escreve (`useRecordCounts`, `useRecordsWhere`): uma igualdade — `op`
+ * é `==` por padrão — ou um intervalo de dia, com uma ponta ou as duas.
+ */
+export type RecordCondition =
+  | { field: string; op?: Extract<RecordQueryOp, '==' | 'in' | 'array-contains'>; value: unknown }
+  | { field: string; from?: string | null; to?: string | null };
+
+const DAY_TEXT = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * As condições da extensão na forma da consulta — ou `null` quando ela não cabe numa: dois intervalos
+ * (o plano tem um só, e cada campo de intervalo a mais é mais um índice composto a declarar), um dia
+ * que não é `AAAA-MM-DD`, ou um intervalo sem ponta nenhuma, que quase sempre é uma variável que veio
+ * vazia e contaria tudo sem ninguém perceber.
+ */
+export const recordConditionsQuery = (
+  conditions: readonly RecordCondition[],
+): { allOf: RecordQueryClause[]; range: RecordDayRange | null } | null => {
+  const allOf: RecordQueryClause[] = [];
+  let range: RecordDayRange | null = null;
+  for (const condition of conditions) {
+    if ('value' in condition) {
+      allOf.push({ field: condition.field, op: condition.op ?? '==', value: condition.value });
+      continue;
+    }
+    const from = condition.from || null;
+    const to = condition.to || null;
+    if (range || (!from && !to)) return null;
+    if ((from && !DAY_TEXT.test(from)) || (to && !DAY_TEXT.test(to))) return null;
+    range = { field: condition.field, from, to };
+  }
+  return { allOf, range };
+};
+
+const clauseMatches = (stored: unknown, clause: RecordQueryClause): boolean => {
+  const values = Array.isArray(clause.value) ? clause.value : [clause.value];
+  switch (clause.op) {
+    case '==': return stored === clause.value;
+    case 'in': return values.includes(stored);
+    case 'array-contains': return Array.isArray(stored) && stored.includes(clause.value);
+    case 'array-contains-any': return Array.isArray(stored) && stored.some((item) => values.includes(item));
+  }
+};
+
+/**
+ * O registro atende à consulta? É a MESMA pergunta que o servidor responde, feita em memória — para
+ * quem só lê o que o nomeia, que recebe a janela restrita no lugar da consulta (a regra recusaria
+ * somar o plano à visibilidade).
+ */
+export const recordMatchesQuery = (
+  record: object,
+  spec: Pick<RecordQuerySpec, 'anyOf' | 'allOf' | 'range'>,
+): boolean => {
+  const stored = record as Record<string, unknown>;
+  if (spec.anyOf.length > 0 && !spec.anyOf.some((clause) => clauseMatches(stored[clause.field], clause))) return false;
+  if (!spec.allOf.every((clause) => clauseMatches(stored[clause.field], clause))) return false;
+  if (!spec.range) return true;
+  const day = toDateFieldInput(stored[spec.range.field]);
+  if (!day) return false;
+  return (!spec.range.from || day >= spec.range.from) && (!spec.range.to || day <= spec.range.to);
+};
+
+const sortableOf = (value: unknown): number | string | null => {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number' || typeof value === 'string') return value;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  return null;
+};
+
+/** A ordem do servidor, refeita em memória. O valor ausente vai para o fim, nas duas direções. */
+export const orderRecordsBy = <T extends object>(records: readonly T[], orderBy: RecordQuerySpec['orderBy']): T[] => {
+  if (!orderBy) return [...records];
+  const sign = orderBy.dir === 'desc' ? -1 : 1;
+  return [...records].sort((left, right) => {
+    const a = sortableOf((left as Record<string, unknown>)[orderBy.field]);
+    const b = sortableOf((right as Record<string, unknown>)[orderBy.field]);
+    if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1;
+    return a < b ? -sign : a > b ? sign : 0;
+  });
+};

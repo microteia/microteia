@@ -27,7 +27,7 @@ import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
 import { RECORD_SEARCH_SINCE_KERNEL, SEARCHABLE_FIELD_TYPES } from '../../../domain/schema/recordSearch';
-import { RECORD_LIST_PAGE_SIZE, SERVER_RECORDS_API_SINCE_KERNEL } from '../../../domain/services/recordListQuery';
+import { RECORD_CONDITIONS_SINCE_KERNEL, RECORD_LIST_PAGE_SIZE, RECORDS_WHERE_MAX, SERVER_RECORDS_API_SINCE_KERNEL } from '../../../domain/services/recordListQuery';
 import { RECORD_WINDOW_DEFAULT } from '../../../domain/repositories/IRecordRepository';
 import { CARD_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/cardTemplate';
 import { NAV_FILTER_PRESENCE_SINCE_KERNEL } from '../../../domain/schema/ui/uiExtensionPoints';
@@ -702,9 +702,19 @@ Four doors reach the rest (kernel \`^${SERVER_RECORDS_API_SINCE_KERNEL}\`):
   \`windowNotice\` under the list. Ignored with \`sortRecords\`.
 - \`useRecordsByIds(collection, ids)\` — the records a card points at, by id, fetched when missing.
 - \`useRecordCounts(collection, groups)\` — a dashboard number counted on the server, one group of
-  equality conditions per number.
+  conditions per number.
+- \`useRecordsWhere(collection, conditions, { orderBy, limit })\` — the records a dashboard card shows
+  ("due this week"), queried on the server and live, at most ${RECORDS_WHERE_MAX} (kernel \`^${RECORD_CONDITIONS_SINCE_KERNEL}\`).
 - \`context.recordMatches\` in a command or mention provider — what the server search found for the
   query, already in \`context.records\`, to be offered even when the title does not contain the query.
+
+A condition is an equality (\`{ field, value }\`, \`op\` \`'in'\` or \`'array-contains'\` when needed) or, from
+kernel \`^${RECORD_CONDITIONS_SINCE_KERNEL}\`, a day range on a date field (\`{ field, from, to }\`, \`'YYYY-MM-DD'\`, both ends
+inclusive, either optional) — one per query. "Overdue" is \`[{ field: 'status', value: 'pending' }, { field:
+'dueDate', to: yesterday }]\`, with the days built from \`today()\` and \`dayOf()\`. An equality together with a
+range, or an \`orderBy\` on another field, needs a composite index — one per direction of the order: declare
+it in \`manifest.backend.indexes\` (\`collectionGroup\` is the collection's name, \`queryScope: 'COLLECTION'\`), and
+\`provision\` deploys it with your package.
 
 The organization toggles and orders these tabs from Settings (\`<surface>.tabs\`). \`check\` refuses
 \`${RECORD_SURFACE_PREFIX}\` with no \`sourceId\`, and warns — without refusing — about a \`sourceId\` it

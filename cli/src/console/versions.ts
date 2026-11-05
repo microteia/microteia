@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CLI_VERSION } from '../shared/paths.js';
-import { ENVIRONMENT_FILE, parseEnvironment } from './environment.js';
+import { ENVIRONMENT_FILE, newerConsoleThanThis, parseEnvironment } from './environment.js';
 import { installPath } from './unpack.js';
 
 /**
@@ -73,6 +73,16 @@ export const versionReport = async (directory: string, newer?: NewerLookup): Pro
   if (inPlace !== null && deployed !== null && inPlace !== deployed) {
     lines.push('');
     lines.push(`${inPlace} is in place and ${deployed} is what the project runs. "microteia deploy" publishes it.`);
+  }
+
+  /**
+   * É a pergunta que se faz quando um comando recusa por isto — e a resposta tem de estar aqui, porque
+   * o `--version` é o único que continua rodando com o Console velho.
+   */
+  const newerConsole = await newerConsoleThanThis(directory);
+  if (newerConsole !== null) {
+    lines.push('');
+    lines.push(`Console ${newerConsole} last updated this installation. This one is older and will not act on it.`);
   }
 
   /**

@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CLI_VERSION } from '../shared/paths.js';
-import { ENVIRONMENT_FILE, serializeEnvironment } from './environment.js';
+import { ENVIRONMENT_FILE, readEnvironment, serializeEnvironment } from './environment.js';
 import type { Environment } from './environment.js';
 import { versionReport } from './versions.js';
 
@@ -117,5 +117,36 @@ describe('quando o canal oferece uma versão mais nova', () => {
     await install({ version: '7.47.0' });
     const report = await versionReport(root, async () => null);
     expect(report.join('\n')).not.toContain('is published');
+  });
+});
+
+/**
+ * Uma cópia esquecida do Console 2.6.0, numa pasta da instalação, rodou o `unpack` de uma instalação que o
+ * 2.35.0 mantinha: o bloco `login:` sumiu do `microteia.yaml` e o `CONSOLE-VERSIONS.md` perdeu trinta
+ * versões, sem nenhum aviso. O sinal de que um Console mais novo passou por ali já estava no disco.
+ */
+describe('um Console mais velho que o último que mexeu na instalação', () => {
+  const [major, minor] = CLI_VERSION.split('.').map(Number);
+  const newer = `${major}.${minor + 1}.0`;
+  const history = (version: string) => `# Console\n\n#### [${version}] — 2026-11-05\n\n- feat: x\n`;
+
+  it('recusa agir — antes de qualquer escrita', async () => {
+    await install(null);
+    await writeFile(join(root, 'CONSOLE-VERSIONS.md'), history(newer));
+    await expect(readEnvironment(join(root, ENVIRONMENT_FILE))).rejects.toThrow(`last updated by Microteia Console ${newer}`);
+  });
+
+  it('o mesmo Console, ou um mais velho no histórico, segue normalmente', async () => {
+    await install(null);
+    await writeFile(join(root, 'CONSOLE-VERSIONS.md'), history(CLI_VERSION));
+    await expect(readEnvironment(join(root, ENVIRONMENT_FILE))).resolves.toMatchObject({ project: environment.project });
+    await writeFile(join(root, 'CONSOLE-VERSIONS.md'), history('1.0.0'));
+    await expect(readEnvironment(join(root, ENVIRONMENT_FILE))).resolves.toMatchObject({ project: environment.project });
+  });
+
+  it('o --version continua respondendo, e diz por que os outros comandos param', async () => {
+    await install(null);
+    await writeFile(join(root, 'CONSOLE-VERSIONS.md'), history(newer));
+    expect((await versionReport(root)).join('\n')).toContain(`Console ${newer} last updated this installation`);
   });
 });

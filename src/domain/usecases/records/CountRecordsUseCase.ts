@@ -1,16 +1,11 @@
 import type { IRecordRepository } from '../../repositories/IRecordRepository';
 import type { MemberVisibilityFilter } from '../../schema/memberVisibility';
-import type { RecordQueryClause } from '../../services/recordListQuery';
+import type { RecordCountSpec } from '../../services/recordListQuery';
 
 export type CountRecordsUseCase = {
-  execute: (
-    tenantId: string,
-    collection: string,
-    clauses: readonly RecordQueryClause[],
-    visibleTo?: MemberVisibilityFilter | null,
-  ) => Promise<number>;
+  execute: (tenantId: string, spec: RecordCountSpec, visibleTo?: MemberVisibilityFilter | null) => Promise<number>;
 };
 
 export const makeCountRecordsUseCase = (repo: IRecordRepository): CountRecordsUseCase => ({
-  execute: (tenantId, collection, clauses, visibleTo) => repo.count(tenantId, collection, clauses, visibleTo),
+  execute: (tenantId, spec, visibleTo) => repo.count(tenantId, spec, visibleTo),
 });

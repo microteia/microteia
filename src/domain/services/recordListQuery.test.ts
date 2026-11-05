@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { FieldDefinition } from '../entities/entitySchemas';
-import { planRecordListQuery, RECORD_LIST_FILTER_WINDOW, RECORD_LIST_PAGE_SIZE, recordQueryHasMore } from './recordListQuery';
+import {
+  orderRecordsBy,
+  planRecordListQuery,
+  RECORD_LIST_FILTER_WINDOW,
+  RECORD_LIST_PAGE_SIZE,
+  recordConditionsQuery,
+  recordMatchesQuery,
+  recordQueryHasMore,
+} from './recordListQuery';
 import type { RecordListFilterInput } from './recordListQuery';
 
 const field = (key: string, type: FieldDefinition['type'], extra: Partial<FieldDefinition> = {}): FieldDefinition => ({
@@ -129,5 +137,51 @@ describe('a consulta da listagem', () => {
     const spec = plan();
     expect(spec && recordQueryHasMore(spec, RECORD_LIST_PAGE_SIZE)).toBe(true);
     expect(spec && recordQueryHasMore(spec, 12)).toBe(false);
+  });
+});
+
+describe('as condições da extensão', () => {
+  it('igualdade por padrão, e o intervalo de dia separado', () => {
+    expect(recordConditionsQuery([
+      { field: 'status', value: 'Pendente' },
+      { field: 'tags', op: 'array-contains', value: 't1' },
+      { field: 'dueDate', to: '2026-11-04' },
+    ])).toEqual({
+      allOf: [{ field: 'status', op: '==', value: 'Pendente' }, { field: 'tags', op: 'array-contains', value: 't1' }],
+      range: { field: 'dueDate', from: null, to: '2026-11-04' },
+    });
+  });
+
+  it('recusa o que não cabe numa consulta: dois intervalos, intervalo sem ponta, dia fora de AAAA-MM-DD', () => {
+    expect(recordConditionsQuery([{ field: 'a', from: '2026-01-01' }, { field: 'b', to: '2026-01-01' }])).toBeNull();
+    expect(recordConditionsQuery([{ field: 'a', from: null, to: '' }])).toBeNull();
+    expect(recordConditionsQuery([{ field: 'a', to: '04/11/2026' }])).toBeNull();
+  });
+});
+
+describe('a mesma consulta em memória', () => {
+  const noon = (day: string) => new Date(`${day}T12:00:00.000Z`);
+  const spec = (over: Partial<Parameters<typeof recordMatchesQuery>[1]> = {}) => ({ anyOf: [], allOf: [], range: null, ...over });
+
+  it('as quatro igualdades do servidor', () => {
+    expect(recordMatchesQuery({ s: 'a' }, spec({ allOf: [{ field: 's', op: '==', value: 'a' }] }))).toBe(true);
+    expect(recordMatchesQuery({ s: 'b' }, spec({ allOf: [{ field: 's', op: 'in', value: ['a', 'b'] }] }))).toBe(true);
+    expect(recordMatchesQuery({ s: ['x', 'y'] }, spec({ allOf: [{ field: 's', op: 'array-contains', value: 'y' }] }))).toBe(true);
+    expect(recordMatchesQuery({ s: ['x'] }, spec({ allOf: [{ field: 's', op: 'array-contains-any', value: ['z'] }] }))).toBe(false);
+    expect(recordMatchesQuery({ p: 'p2' }, spec({ anyOf: [{ field: 'p', op: '==', value: 'p1' }, { field: 'p', op: '==', value: 'p2' }] }))).toBe(true);
+  });
+
+  it('o dia do intervalo é inclusivo nas duas pontas, e a data ausente fica de fora', () => {
+    const range = { field: 'dueDate', from: '2026-11-05', to: '2026-11-12' };
+    expect(recordMatchesQuery({ dueDate: noon('2026-11-05') }, spec({ range }))).toBe(true);
+    expect(recordMatchesQuery({ dueDate: noon('2026-11-12') }, spec({ range }))).toBe(true);
+    expect(recordMatchesQuery({ dueDate: noon('2026-11-13') }, spec({ range }))).toBe(false);
+    expect(recordMatchesQuery({}, spec({ range }))).toBe(false);
+  });
+
+  it('a ordem do servidor, com o valor ausente no fim', () => {
+    const records = [{ id: 'b', at: noon('2026-02-01') }, { id: 'x' }, { id: 'a', at: noon('2026-01-01') }];
+    expect(orderRecordsBy(records, { field: 'at', dir: 'asc' }).map((record) => record.id)).toEqual(['a', 'b', 'x']);
+    expect(orderRecordsBy(records, { field: 'at', dir: 'desc' }).map((record) => record.id)).toEqual(['b', 'a', 'x']);
   });
 });

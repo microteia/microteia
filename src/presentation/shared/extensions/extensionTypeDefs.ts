@@ -995,12 +995,21 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
    */
   export function useRecordsByIds(collection: string, ids: string[]): Record<string, any>;
 
-  /** One condition of a count: equality by default; 'in' for several values; 'array-contains' on a multi field. */
-  export interface RecordCountClause {
-    field: string;
-    op?: '==' | 'in' | 'array-contains';
-    value: unknown;
-  }
+  /**
+   * One condition of a count or of useRecordsWhere: equality by default; 'in' for several values;
+   * 'array-contains' on a multi field. Or a DAY RANGE on a date field - { field, from, to } as
+   * 'YYYY-MM-DD', both ends inclusive, either one optional (the list filter's "from"/"to"). One day range
+   * per query. Overdue = { field: 'dueDate', to: <yesterday> }; build the days with today() and dayOf().
+   * An equality together with a day range, or an order on another field, needs a composite index your
+   * package declares in manifest.backend.indexes; without it the query fails and the browser console
+   * shows the link that creates it.
+   */
+  export type RecordCountClause =
+    | { field: string; op?: '==' | 'in' | 'array-contains'; value: unknown }
+    | { field: string; from?: string | null; to?: string | null };
+
+  /** The same conditions, by the name useRecordsWhere reads better with. */
+  export type RecordCondition = RecordCountClause;
 
   export interface RecordCounts {
     /** Group name -> how many records match ALL of its conditions; null until the number arrives. */
@@ -1017,6 +1026,27 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
    * Only the content of groups matters - a new object literal on each render does not count again.
    */
   export function useRecordCounts(collection: string, groups: Record<string, RecordCountClause[]>): RecordCounts;
+
+  export interface RecordsWhere {
+    /** The matching records, in orderBy order (newest first without one), at most limit. */
+    records: any[];
+    loading: boolean;
+    /** limit was reached: there may be more. */
+    hasMore: boolean;
+  }
+
+  /**
+   * The records matching ALL the conditions, queried ON THE SERVER and live - a dashboard card such as
+   * "due this week" that stays right at any collection size (useCollection holds only the newest window,
+   * and a record created a year ago that is due tomorrow is not in it). limit defaults to 50, at most
+   * 500: for a scrolling list use useEntityList(sourceId, { paginate: true }). A person who only sees
+   * the records naming them gets only those. Only the content of conditions matters.
+   */
+  export function useRecordsWhere(
+    collection: string,
+    conditions: RecordCondition[],
+    options?: { orderBy?: { field: string; dir?: 'asc' | 'desc' }; limit?: number },
+  ): RecordsWhere;
 
   /** Writes fields of a record in any collection. */
   export function useUpdateRecord(): (collection: string, recordId: string, data: Record<string, any>) => Promise<void>;

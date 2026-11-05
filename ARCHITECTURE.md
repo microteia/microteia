@@ -4021,6 +4021,16 @@ escreveria na instalação o histórico de outro pacote — em silêncio, e sem 
 É o mesmo defeito que tirou os guias de `extensions/` de dentro do `cli/`, e o custo dele foi pago uma
 vez.
 
+**O topo do `CONSOLE-VERSIONS.md` é também a TRAVA contra o Console mais velho.** Ele diz qual Console
+trocou o kernel ali por último, e `readEnvironment` — o primeiro passo de todo comando que age sobre a
+instalação — recusa quando esse número é maior que o `CLI_VERSION` de quem está rodando
+(`newerConsoleThanThis`). O `--version` lê por outro caminho, continua respondendo e diz por que os
+outros param. A trava nasceu de um incidente: uma cópia esquecida do Console 2.6.0, numa pasta da
+instalação, rodou o `unpack` de uma instalação que o 2.35.0 mantinha — o bloco `login:` sumiu do
+`microteia.yaml` (o serializador escreve só as seções que conhece), e o `CONSOLE-VERSIONS.md` e o
+`MICROTEIA.md` voltaram meses, sem aviso nenhum. Não há campo novo no `microteia.yaml` para isso, de
+propósito: um Console antigo apagaria o campo que não conhece, que é o defeito inteiro.
+
 **Por que na RAIZ, e não em `extensions/`.** Aquele diretório é opcional (uma instalação que não escreve
 extensão não o tem, e o `--dir` pode tê-lo criado em qualquer lugar dentro da instalação), é escrito pelo
 SDK, e já tem um `VERSIONS.md` por extensão dentro dele — um segundo arquivo com o mesmo nome, um nível
@@ -5511,11 +5521,22 @@ escritório) lê a coleção por conta própria e não passa pelo diretório do 
 |---|---|
 | `EntityListOptions.paginate` | a lista dela pagina e filtra no servidor, como a do kernel |
 | `useRecordsByIds(coleção, ids)` | o nome de quem um cartão aponta — `useCollection` é a janela, e quem é mais antigo sumia; usa `ensureRecords` e os conhecidos |
-| `useRecordCounts(coleção, grupos)` | o número de um painel, contado no servidor (`IRecordRepository.count` → `getCountFromServer`), um grupo de igualdades por número; com `memberVisibility`, conta só o que a pessoa vê, pela mesma disjunção da assinatura. Relido em `RECORDS_UPDATED` e na volta à aba — não é ao vivo |
+| `useRecordCounts(coleção, grupos)` | o número de um painel, contado no servidor (`IRecordRepository.count(RecordCountSpec)` → `getCountFromServer`), um grupo de condições por número; com `memberVisibility`, conta só o que a pessoa vê, pela mesma disjunção da assinatura. Relido em `RECORDS_UPDATED` e na volta à aba — não é ao vivo |
+| `useRecordsWhere(coleção, condições, { orderBy, limit })` | o cartão de um painel ("vencem esta semana"): um `RecordQuerySpec` montado das condições, assinado ao vivo por `useRecordQuery`, até `RECORDS_WHERE_MAX`. A resposta é conferida de novo em memória (`recordMatchesQuery`, `orderRecordsBy`), porque quem a visibilidade restringe recebe a janela restrita no lugar da consulta |
 | `recordMatches` no contexto do ⌘K e da menção | o provedor da extensão recebe o que a busca no servidor achou, já somado a `records` |
 
 A partir de `SERVER_RECORDS_API_SINCE_KERNEL`, que o guia de autoria cita. Nenhuma delas muda o que já
 existia: uma extensão que não as usa continua com a janela, como sempre.
+
+**As condições da extensão** (`RecordCondition`, a partir de `RECORD_CONDITIONS_SINCE_KERNEL`) são as
+mesmas nas duas portas: igualdade (`==`, `in`, `array-contains`) ou um intervalo de DIA
+(`{ field, from, to }`, `AAAA-MM-DD`, inclusivo — a forma do filtro "a partir de / até"), um por
+consulta. `recordConditionsQuery` recusa dois intervalos, o dia fora do formato e o intervalo SEM
+ponta nenhuma — este quase sempre é uma variável que veio vazia, e contaria tudo em silêncio. A
+igualdade com intervalo, ou a ordem por outro campo, pede índice composto: o kernel não o declara,
+porque a coleção é da extensão — ela o põe em `manifest.backend.indexes`, um por direção da ordem, e o
+`provision` o publica. Sem o índice o Firestore recusa, e a mensagem com o link que o cria vai ao
+console do navegador (o grupo da contagem fica `null`).
 
 **O que ainda NÃO faz.** Uma expressão de formulário que atravessa mais de uma referência
 (`contrato.cliente.cpf`) só enxerga o segundo salto se ele estiver carregado: `useEnsureReferencedRecords`

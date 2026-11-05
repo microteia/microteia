@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.202.0] — 2026-11-05
+
+- Os painéis feitos sob medida para o escritório podem agora contar e listar por data em todos os registros — como os prazos vencidos e os que vencem na semana —, e não só entre os mais recentes.
+- O instalador da Microteia deixa de atualizar uma instalação quando é mais antigo que o último que passou por ela, e explica como atualizá-lo. Antes, uma cópia antiga podia apagar configurações sem avisar.
+
 #### [9.201.0] — 2026-11-04
 
 - As abas de registros relacionados dentro de um registro passaram a funcionar como as listagens: trazem mais conforme você rola e os filtros buscam em todos os registros daquela aba.

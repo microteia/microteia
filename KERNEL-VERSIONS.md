@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.202.0] — 2026-11-05
+
+- feat(extensions): a DAY RANGE condition — `{ field, from, to }`, `'YYYY-MM-DD'`, both ends inclusive, either optional, the list filter's own shape — beside the equalities in `useRecordCounts`, one per group. `recordConditionsQuery` refuses two ranges, a day out of format and a range with no end at all (an empty variable that would otherwise count everything, silently); the group answers `null` and the console says why. `IRecordRepository.count` takes a `RecordCountSpec` (`allOf` + `range`); the range uses the same day bounds as the list (`rangeConstraints`), also inside the `and()` of a reader restricted by `memberVisibility`.
+- feat(extensions): `useRecordsWhere(collection, conditions, { orderBy, limit })` in `@microteia/data` — the records of a dashboard card ("due this week"), queried on the server and live through `useRecordQuery`, at most 500 (`RECORDS_WHERE_MAX`). The answer is checked again in memory (`recordMatchesQuery`, `orderRecordsBy`), because a restricted reader receives the restricted window instead of the query.
+- docs(sdk): an equality with a range, or an order on another field, needs a composite index the extension declares in `manifest.backend.indexes`, one per direction of the order; without it the query fails and the browser console carries the link that creates it. `RECORD_CONDITIONS_SINCE_KERNEL` (`2.98.0`) in the authoring guide. Kernel contract `2.98.0`.
+
 #### [9.201.0] — 2026-11-04
 
 - feat(records/list): a parent tab is the list with the link as a fixed, invisible filter. `RecordQuerySpec` gains `allOf` (ANDed with the `anyOf` link): the person's filter goes to the server with the parent clauses when Firestore accepts the combination — not `array-contains` with `array-contains-any`, and at most 30 disjunctions — and stays in memory otherwise. The kernel child list (`ChildRecordList`) pages; `core.records/list.window` says the order is rebuilt among the fetched records.

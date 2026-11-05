@@ -1,4 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { compareVersions } from '../kernel/manifest.js';
+import { CLI_VERSION } from '../shared/paths.js';
+import { CONSOLE_CHANGELOG, changelogVersions } from '../vendor/changelogs.js';
 
 /**
  * Um Environment é UMA instalação da Microteia associada a UM projeto Firebase. Nada além disso por
@@ -213,15 +217,55 @@ login:
   extensions: ${quote(environment.login.extensions)}
 `;
 
+/**
+ * O Console que deixou esta instalação como ela está, quando ele é MAIS NOVO que o que está rodando.
+ *
+ * O sinal é o topo do `CONSOLE-VERSIONS.md` da raiz, que o `unpack` sobrepõe com o histórico do próprio
+ * binário — é, portanto, o último Console que trocou o kernel ali. Nenhum campo novo foi inventado para
+ * isso, e é deliberado: um Console antigo apagaria o campo que ele não conhece, que é o defeito inteiro.
+ *
+ * Sem o arquivo (instalação anterior a ele, ou apagado) não há o que comparar, e nada é recusado.
+ */
+export const newerConsoleThanThis = async (root: string): Promise<string | null> => {
+  const contents = await readFile(join(root, CONSOLE_CHANGELOG), 'utf8').catch(() => null);
+  const latest = contents === null ? undefined : changelogVersions(contents)[0];
+  return latest !== undefined && compareVersions(latest, CLI_VERSION) > 0 ? latest : null;
+};
+
+/**
+ * Lê o `microteia.yaml` — e RECUSA quando um Console mais novo já passou por aqui.
+ *
+ * Um Console antigo reescreve este arquivo só com as seções que conhece, e sobrepõe o
+ * `CONSOLE-VERSIONS.md` e o `MICROTEIA.md` com os textos dele. Nada disso falha: a configuração que ele
+ * não conhece some, e o histórico volta meses, em silêncio. Foi o que aconteceu quando uma cópia
+ * esquecida do Console, numa pasta da instalação, rodou o `unpack` — o bloco `login:` desapareceu, e o
+ * histórico do Console perdeu trinta versões.
+ *
+ * A recusa fica aqui porque este é o primeiro passo de todo comando que AGE sobre a instalação, antes de
+ * qualquer escrita. O `--version` lê o arquivo por outro caminho, e continua respondendo.
+ */
 export const readEnvironment = async (path: string): Promise<Environment> => {
+  let environment: Environment;
   try {
-    return parseEnvironment(await readFile(path, 'utf8'));
+    environment = parseEnvironment(await readFile(path, 'utf8'));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new Error(`No ${ENVIRONMENT_FILE} here. Run "microteia init" first.`, { cause: error });
     }
     throw error;
   }
+
+  const newer = await newerConsoleThanThis(dirname(path));
+  if (newer !== null) {
+    throw new Error(
+      `This installation was last updated by Microteia Console ${newer}, and this is ${CLI_VERSION}.\n`
+      + `An older Console rewrites ${ENVIRONMENT_FILE} without the settings it does not know, and replaces\n`
+      + `${CONSOLE_CHANGELOG} with an older history, so it stops here. Update it with "npm i -g @microteia/console",\n`
+      + 'and check that the "microteia" you ran is that one, not a copy left in a folder.',
+    );
+  }
+
+  return environment;
 };
 
 export const writeEnvironment = async (path: string, environment: Environment): Promise<void> => {

@@ -22,6 +22,11 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.36.0] — 2026-11-05
+
+- fix(environment): every command that acts on an installation (`readEnvironment`) refuses when the installation's `CONSOLE-VERSIONS.md` names a Console newer than the one running. An older Console rewrites `microteia.yaml` with only the sections it knows and replaces `CONSOLE-VERSIONS.md` and `MICROTEIA.md` with its own texts — nothing failed: a forgotten copy of Console 2.6.0, left in a folder of the installation, ran `unpack` there, the `login:` block disappeared and the Console history lost thirty versions without a word. No new field marks it, on purpose: an older Console would drop the field it does not know.
+- feat(version): `microteia --version` still answers in that case, and says which Console last updated the installation.
+
 #### [2.35.0] — 2026-11-02
 
 - feat(publish): the releases repository README links to the official documentation (https://doc.microteia.com), and `publish` rewrites it whenever it differs from the current text — after the catalog, warning instead of failing. It was written only when seeding an empty repository, so the README of an existing one stayed frozen at the text of its first `publish` and no change to it ever arrived. `publish --dry-run` says when it would be rewritten.

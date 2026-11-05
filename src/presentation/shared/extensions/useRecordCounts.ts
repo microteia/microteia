@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRecords } from '../../../stores/useRecords';
 import { storeEvents, StoreEvents } from '../../../infrastructure/events/StoreEventEmitter';
-import type { RecordQueryClause, RecordQueryOp } from '../../../domain/services/recordListQuery';
+import { recordConditionsQuery } from '../../../domain/services/recordListQuery';
+import type { RecordCondition } from '../../../domain/services/recordListQuery';
 
-/** Uma condição da contagem: igualdade, por padrão; `in` para vários valores, `array-contains` num campo múltiplo. */
-export interface RecordCountClause {
-  field: string;
-  op?: Extract<RecordQueryOp, '==' | 'in' | 'array-contains'>;
-  value: unknown;
-}
+/**
+ * Uma condição da contagem: igualdade, por padrão; `in` para vários valores, `array-contains` num campo
+ * múltiplo — ou um intervalo de DIA (`{ field, from, to }`), uma ponta ou as duas, inclusivas.
+ */
+export type RecordCountClause = RecordCondition;
 
 export interface RecordCounts {
   /** Grupo → quantos registros atendem às condições dele. `null` enquanto o número não chegou. */
@@ -22,7 +22,9 @@ export interface RecordCounts {
  * contava sobre ela errava em silêncio a partir do registro 501.
  *
  * Um grupo por número (`{ aberto: [{ field: 'status', value: 'open' }] }`), e as condições de um grupo
- * valem todas juntas. Não é ao vivo: o número é relido quando um registro é gravado nesta sessão e
+ * valem todas juntas. A igualdade com um intervalo de dia (`vencidos`: pendente E vencimento até ontem)
+ * pede o índice composto que a extensão declara em `manifest.backend.indexes` — sem ele, o grupo fica
+ * `null` e o console do navegador traz o link do índice. Não é ao vivo: o número é relido quando um registro é gravado nesta sessão e
  * quando a pessoa volta à aba. Custa uma leitura a cada mil registros contados.
  */
 export const useRecordCounts = (collection: string, groups: Record<string, readonly RecordCountClause[]>): RecordCounts => {
@@ -48,10 +50,16 @@ export const useRecordCounts = (collection: string, groups: Record<string, reado
     let cancelled = false;
     const entries = JSON.parse(groupsKey) as [string, RecordCountClause[]][];
     Promise.all(entries.map(async ([name, clauses]) => {
-      const normalized: RecordQueryClause[] = clauses.map((clause) => ({ field: clause.field, op: clause.op ?? '==', value: clause.value }));
+      const query = recordConditionsQuery(clauses);
+      if (!query) {
+        console.warn(`[useRecordCounts] ${collection}/${name}: one day range per group, with at least one end as YYYY-MM-DD.`);
+        return [name, null] as const;
+      }
       try {
-        return [name, await countRecords(collection, normalized)] as const;
-      } catch {
+        return [name, await countRecords({ collection, ...query })] as const;
+      } catch (error) {
+        // É aqui que o índice que falta aparece: a mensagem do Firestore traz o link que o cria.
+        console.warn(`[useRecordCounts] ${collection}/${name}:`, (error as Error).message);
         return [name, null] as const;
       }
     })).then((results) => {
