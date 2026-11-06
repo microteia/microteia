@@ -174,6 +174,10 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.badge.imported.hint': 'Brought in from a file. It can be activated, installed and published, but not edited or downloaded: its source belongs to whoever wrote it.',
   'extension.badge.has-code': 'With code',
   'extension.badge.unreviewed': 'Code not reviewed',
+  'extension.badge.server-code': 'Server code',
+  'extension.badge.server-code.hint':
+    'Brings the code of its own Cloud Functions. It runs on the server, with access to every organization '
+    + 'of the project, and goes live only after whoever maintains the project approves that exact code.',
   'extension.badge.backend-pending': 'Backend pending',
   'extension.backend-pending.detail':
     'This extension needs Cloud Functions or database indexes that this Firebase project does not have '

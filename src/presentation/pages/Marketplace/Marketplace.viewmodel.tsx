@@ -9,7 +9,12 @@ import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { packageFingerprint, parsePackage, serializePackage } from '../../../domain/usecases/plugins/packageSerialization';
-import { isVersionGreater, publishRefusal } from '../../../domain/usecases/plugins/publicExtension';
+import {
+  canPublishPublicly,
+  extensionHasServerCode,
+  isVersionGreater,
+  publishRefusal,
+} from '../../../domain/usecases/plugins/publicExtension';
 import { extensionHasCode } from '../../../domain/usecases/plugins/extensionCodeTrust';
 import {
   extensionBackendPendingCause,
@@ -102,6 +107,12 @@ export interface ExtensionRow {
   version: string;
   author: Author;
   hasCode: boolean;
+  /**
+   * Traz a fonte das próprias Cloud Functions. Selo à parte de "com código" porque o alcance é outro:
+   * a view roda no navegador de quem a abre; isto roda no servidor, com acesso a todo escritório do
+   * projeto, e só sobe depois que quem opera o projeto aprova.
+   */
+  hasServerCode: boolean;
   /** Descrição rica (Widget DSL) do pacote, exibida no modal de detalhes. */
   overview: unknown;
   /**
@@ -828,6 +839,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         version: pkg.manifest.version,
         author: { name: pkg.manifest.publisher?.name ?? null, photoURL: null },
         hasCode: false,
+        hasServerCode: false,
         overview: pkg.overview ?? null,
         license: licenseOf(pkg.manifest),
         description: label(pkg.manifest.description ?? ''),
@@ -931,6 +943,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         version: inst?.installedVersion ?? priv?.package.manifest.version ?? pub?.version ?? builtin?.manifest.version ?? '',
         author,
         hasCode: hasCodeOf(pkg.views),
+        hasServerCode: extensionHasServerCode(pkg),
         overview: pkg.overview ?? null,
         license: licenseOf(pkg.manifest),
         description: label(pkg.manifest.description ?? ''),
@@ -1402,7 +1415,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         name: label(parsed.package.manifest.name) || parsed.package.manifest.id,
         version: parsed.package.manifest.version,
         hasCode,
-        canPublish: canModerate || !hasCode,
+        // A regra de publicar é a das Rules (`pkgHasCode`), que conta também a fonte de servidor —
+        // oferecer o catálogo a quem ele recusaria seria pedir um gesto que falha.
+        canPublish: canPublishPublicly(parsed.package, canModerate),
       });
     } catch (err) {
       notify(t('extension.import-failed', wrappedErrorParams(err)), 'error');

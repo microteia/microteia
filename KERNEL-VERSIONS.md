@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.207.0] — 2026-11-05
+
+- feat(extensions/catalog): a package carrying `backendSource` counts as code for publication — `extensionHasCode` includes it (`extensionHasServerCode`), and `pkgHasCode()` in `firestore.rules` checks `backendSource` as well as `views`, so only `SYSTEM` puts server code in `public_extensions`. Before, an owner could publish a package with Cloud Function source and no view; the hash approval in the Console still applied at install, but nothing guarded the catalogue itself. The import dialog's `canPublish` now goes through `canPublishPublicly`, and a translation-only package may not carry `backendSource`.
+- feat(extensions): "Server code" badge on the Extensions screen, separate from "With code" because the reach differs. Locale pack 1.163.0. Requires `npm run deploy:rules`.
+
 #### [9.206.0] — 2026-11-05
 
 - feat(extensions/backend): packages may carry the source of their own Cloud Functions as `backendSource` — the `.ts`/`.json` files of `functions/` next to `plugin.ts` (no tests, `node_modules` or hidden files) plus a SHA-256 of `backendSourceCanonical(files)`. `microteia-plugin build` bundles it (`attachBackendSource`); `validatePluginPackage` refuses a path outside the folder, a missing `index.ts` and source without `manifest.backend.functions`. Before, `manifest.backend.functions` carried only names, and an extension installed anywhere stayed pending wherever nobody had copied its folder by hand.

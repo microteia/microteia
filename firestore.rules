@@ -1181,9 +1181,13 @@ service cloud.firestore {
     // - Trocar de dono, aprovar e obsoletar: só SYSTEM.
     // - Apagar: só SYSTEM (o dono usa 'deprecated', não apaga do catálogo).
     match /public_extensions/{domain} {
+      // `backendSource` conta como código, e é o mais pesado dos dois: a fonte de Cloud Function que
+      // viaja no pacote roda no SERVIDOR de cada projeto que a aprovar. A aprovação por hash no Console
+      // continua valendo na instalação; esta trava é a de quem PÕE no catálogo.
       function pkgHasCode() {
-        return ('views' in request.resource.data.package)
-          && request.resource.data.package.views.size() > 0;
+        return (('views' in request.resource.data.package)
+            && request.resource.data.package.views.size() > 0)
+          || ('backendSource' in request.resource.data.package);
       }
       // Extensão COM código roda no navegador de todo membro de todo escritório que a instalar: quem a
       // põe no catálogo é só a equipe global. Sem código o pacote é declaração, e quem administra o

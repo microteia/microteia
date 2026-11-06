@@ -173,6 +173,10 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.badge.imported.hint': 'Trazida de um arquivo. Pode ser ativada, instalada e publicada, mas não editada nem baixada: a fonte dela pertence a quem a escreveu.',
   'extension.badge.has-code': 'Com código',
   'extension.badge.unreviewed': 'Código não revisado',
+  'extension.badge.server-code': 'Código de servidor',
+  'extension.badge.server-code.hint':
+    'Traz o código das próprias funções de servidor. Ele roda no servidor, com acesso a todos os '
+    + 'escritórios do projeto, e só vai ao ar depois que quem cuida do projeto aprova exatamente esse código.',
   'extension.badge.backend-pending': 'Backend pendente',
   'extension.backend-pending.detail':
     'Esta extensão precisa de funções de servidor ou de índices que este projeto Firebase ainda não '

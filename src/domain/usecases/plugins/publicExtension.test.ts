@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { canPublishPublicly, extensionHasCode, isVersionGreater, publishRefusal } from './publicExtension';
+import {
+  canPublishPublicly,
+  extensionHasCode,
+  extensionHasServerCode,
+  isVersionGreater,
+  publishRefusal,
+} from './publicExtension';
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import type { PublicExtension } from '../../entities/PublicExtension';
 
@@ -36,6 +42,17 @@ describe('publicExtension helpers', () => {
     expect(canPublishPublicly(withCode, false)).toBe(false);
     expect(canPublishPublicly(withCode, true)).toBe(true);
     expect(canPublishPublicly(base, false)).toBe(true);
+  });
+
+  // Sem view nenhuma, mas com a fonte das próprias Cloud Functions: é código de SERVIDOR, e a mesma
+  // conta das Rules (`pkgHasCode`) — oferecer o catálogo ao dono seria pedir um gesto que falha.
+  it('a fonte de Cloud Function também é código, e também exige o SYSTEM', () => {
+    const withServerCode = { ...base, backendSource: { files: { 'index.ts': '' }, hash: 'a'.repeat(64) } };
+    expect(extensionHasServerCode(withServerCode)).toBe(true);
+    expect(extensionHasServerCode(withCode)).toBe(false);
+    expect(extensionHasCode(withServerCode)).toBe(true);
+    expect(canPublishPublicly(withServerCode, false)).toBe(false);
+    expect(canPublishPublicly(withServerCode, true)).toBe(true);
   });
 
   it('isVersionGreater compara semver', () => {

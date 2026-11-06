@@ -149,7 +149,8 @@ export const isTranslationOnlyPackage = (pkg: MarketplacePlugin): boolean => {
     (pkg.views?.length ?? 0) > 0 ||
     (pkg.lookups?.length ?? 0) > 0 ||
     (pkg.tagLists?.length ?? 0) > 0 ||
-    Boolean(pkg.startup);
+    Boolean(pkg.startup) ||
+    Boolean(pkg.backendSource);
 
   return !carriesArtifacts;
 };

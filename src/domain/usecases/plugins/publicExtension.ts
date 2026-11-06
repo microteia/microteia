@@ -2,8 +2,15 @@ import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import type { PublicExtension } from '../../entities/PublicExtension';
 import { compareSemVer, isValidSemVer, parseSemVer } from '../../schema/plugin/semver';
 
-/** Extensão "com código" = traz ao menos uma view de código. É o que restringe quem pode publicar. */
-export const extensionHasCode = (pkg: MarketplacePlugin): boolean => (pkg.views?.length ?? 0) > 0;
+/** Traz a fonte das próprias Cloud Functions — código que roda no SERVIDOR do projeto que o aprovar. */
+export const extensionHasServerCode = (pkg: MarketplacePlugin): boolean => pkg.backendSource !== undefined;
+
+/**
+ * Extensão "com código" = traz uma view de código OU a fonte de Cloud Function. É o que restringe quem
+ * pode publicar, e as Rules (`pkgHasCode`) cobram a mesma conta.
+ */
+export const extensionHasCode = (pkg: MarketplacePlugin): boolean =>
+  (pkg.views?.length ?? 0) > 0 || extensionHasServerCode(pkg);
 
 /**
  * Quem pode pôr a extensão no catálogo global.

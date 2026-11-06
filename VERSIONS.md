@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.207.0] — 2026-11-05
+
+- Extensões que trazem código de servidor passam a exibir o selo "Código de servidor" na tela de Extensões, com a explicação de que esse código só entra no ar depois de aprovado por quem cuida do projeto. Publicar uma extensão assim no catálogo, para outros escritórios, passa a exigir a equipe da Microteia, como já acontecia com extensões que têm telas em código.
+
 #### [9.206.0] — 2026-11-05
 
 - Extensões que têm funções de servidor próprias passam a levar esse código junto, no próprio arquivo da extensão. Instalada em outro escritório, ela não depende mais de alguém copiar arquivos à mão: quem cuida do projeto vê exatamente o que vai ao ar e aprova uma vez. Enquanto a aprovação não vem, a tela de Extensões diz que a extensão está aguardando essa revisão.

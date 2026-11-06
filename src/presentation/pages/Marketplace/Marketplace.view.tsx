@@ -223,6 +223,7 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
           {row.statusBadge && <S.Badge $tone={STATUS_LABEL[row.statusBadge].tone}>{t(STATUS_LABEL[row.statusBadge].labelKey)}</S.Badge>}
           {row.imported && <S.Badge $tone="neutral" title={t('extension.badge.imported.hint')}>{t('extension.badge.imported')}</S.Badge>}
           {row.hasCode && <S.Badge $tone="info">{t('extension.badge.has-code')}</S.Badge>}
+          {row.hasServerCode && <S.Badge $tone="warning" title={t('extension.badge.server-code.hint')}>{t('extension.badge.server-code')}</S.Badge>}
           {row.needsCodeReview && <S.Badge $tone="warning">{t('extension.badge.unreviewed')}</S.Badge>}
           {row.backendPending && <S.Badge $tone="warning">{t('extension.badge.backend-pending')}</S.Badge>}
           {row.migrationPending && <S.Badge $tone="warning">{t('extension.badge.migration-pending')}</S.Badge>}

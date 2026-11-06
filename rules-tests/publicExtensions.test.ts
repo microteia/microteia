@@ -31,6 +31,12 @@ const pkg = (over: Record<string, unknown> = {}) => ({
 
 const withCode = pkg({ views: [{ key: 'k', title: 'K', icon: 'layoutGrid', source: 'export default () => null;' }] });
 
+// Sem view nenhuma: só a fonte de Cloud Function que o build embute. É código de SERVIDOR.
+const withServerCode = pkg({
+  manifest: { id: DOMAIN, version: '1.0.0', kernel: '^2.0.0', name: 'CRM', backend: { functions: ['crmSync'] } },
+  backendSource: { files: { 'index.ts': 'export {};' }, hash: 'a'.repeat(64) },
+});
+
 const record = (over: Record<string, unknown> = {}) => ({
   domain: DOMAIN,
   package: pkg(),
@@ -102,6 +108,13 @@ describe('publicar COM código', () => {
   it('o dono não acrescenta código a um registro que já é seu', async () => {
     await seed(env, { root: { [`public_extensions/${DOMAIN}`]: record() } });
     await assertFails(setDoc(published('admin'), record({ package: withCode, hasCode: true })));
+  });
+
+  // A fonte de Cloud Function roda no servidor de cada projeto que a aprovar: quem a põe no catálogo é
+  // a equipe global, como a view — inclusive quando o pacote não tem view nenhuma.
+  it('fonte de servidor também é código: o dono não publica, o SYSTEM publica', async () => {
+    await assertFails(setDoc(published('admin'), record({ package: withServerCode, hasCode: true })));
+    await assertSucceeds(setDoc(published('sistema'), record({ package: withServerCode, hasCode: true })));
   });
 });
 

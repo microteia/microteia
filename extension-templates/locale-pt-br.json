@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.162.0",
+    "version": "1.163.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1543,6 +1543,8 @@
             "extension.badge.imported.hint": "Trazida de um arquivo. Pode ser ativada, instalada e publicada, mas não editada nem baixada: a fonte dela pertence a quem a escreveu.",
             "extension.badge.has-code": "Com código",
             "extension.badge.unreviewed": "Código não revisado",
+            "extension.badge.server-code": "Código de servidor",
+            "extension.badge.server-code.hint": "Traz o código das próprias funções de servidor. Ele roda no servidor, com acesso a todos os escritórios do projeto, e só vai ao ar depois que quem cuida do projeto aprova exatamente esse código.",
             "extension.badge.backend-pending": "Backend pendente",
             "extension.backend-pending.detail": "Esta extensão precisa de funções de servidor ou de índices que este projeto Firebase ainda não tem, então ela está instalada mas não está no ar. Quem cuida do projeto aplica isso com \"microteia provision\", no Microteia Console.",
             "extension.backend-pending.reason.function-source-missing": "O Microteia Console não encontrou nesta instalação a fonte de {functions}, então não pôde publicá-las. Esta versão da extensão não a traz junto: instale uma gerada com a pasta functions/, ou peça a quem cuida do projeto que coloque essa pasta em extensions/<pasta>/functions/, ao lado do microteia.yaml, e rode \"microteia provision\" de novo.",

@@ -3299,6 +3299,10 @@ Só se pergunta quando nenhuma cópia guarda aquele hash.
 found" (a fonte existe), mas os nomes dela vão para `unresolved`, e o `--prune` não apaga a function de
 uma extensão viva que só espera a aprovação da versão nova.
 
+**Publicar no catálogo** um pacote com `backendSource` é só do `SYSTEM` (9.207.0), como o com view: ver
+"Como uma extensão chega ao catálogo". A tela marca a extensão com o selo "Código de servidor", separado
+de "Com código" porque o alcance é outro.
+
 Duas versões da mesma extensão em escritórios diferentes do projeto: a function é uma só, então sobe a
 mais nova (`compareVersions` na ordem da varredura). A cópia da versão anterior fica pendente pelo
 fingerprint, como já ficava com fonte local.
@@ -9435,6 +9439,11 @@ falhe deixa a extensão importada em vez de perder o gesto inteiro.
   instalar, com acesso ao que aquela pessoa vê. Só o `SYSTEM` publica. Deixar isso entrar por
   autosserviço daria a qualquer admin de qualquer escritório uma porta para o navegador de todos os
   outros.
+- **Com fonte de Cloud Function** (`backendSource`, desde a 9.207.0) é código também, e com alcance
+  maior: roda no SERVIDOR de cada projeto que a aprovar. Mesma regra, mesma função — `extensionHasCode`
+  conta as duas, e `pkgHasCode()` nas Rules também. A aprovação por hash no Console (ver "A fonte das
+  functions viaja no pacote") continua valendo na instalação: esta trava é a de quem PÕE no catálogo,
+  aquela é a de quem PÕE NO AR, e nenhuma substitui a outra.
 
 Publicar é, portanto, gesto de quem já poderia aprovar: **toda publicação nova nasce `approved`**.
 O status `pending` é legado — veio de quando o admin do escritório enfileirava código para curadoria —
