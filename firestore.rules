@@ -237,7 +237,16 @@ service cloud.firestore {
         // documento que responde a ex-membro seria a única exceção.
         allow read: if isMember(tenantId)
           && (resource.data.userId == request.auth.uid || can(tenantId, 'agent.manage'));
-        allow write: if false;
+        // Apagar só o que já não autentica — revogado, ou com o CONSENTIMENTO vencido. É limpeza da
+        // lista, não um segundo caminho de revogação: o acesso ativo continua passando pela callable,
+        // e o vencimento do token curto do OAuth (`accessExpiresAt`) não conta, porque o refresh o
+        // renova. O `delete` não grava campo nenhum, então não reabre a escolha do `secretHash`.
+        allow delete: if isMember(tenantId)
+          && (resource.data.userId == request.auth.uid || can(tenantId, 'agent.manage'))
+          && (resource.data.get('revokedAt', null) != null
+            || (resource.data.get('expiresAt', null) != null
+              && resource.data.expiresAt <= request.time));
+        allow create, update: if false;
       }
 
       // Conexões de IA do escritório — quem tem `ai.manage` lê e escreve

@@ -1,5 +1,12 @@
 import React from 'react';
-import { RiAddLine, RiFileCopyLine, RiRobot2Line, RiCloseCircleLine } from 'react-icons/ri';
+import {
+  RiAddLine,
+  RiCloseCircleLine,
+  RiDeleteBinLine,
+  RiFileCopyLine,
+  RiRobot2Line,
+  RiShieldKeyholeLine,
+} from 'react-icons/ri';
 import { useAgentTabViewModel } from './AgentTab.viewmodel';
 import { AGENT_EXPIRY_CHOICES } from '../../../shared/agentExpiry';
 import type { AgentGrantRow } from './AgentTab.viewmodel';
@@ -29,6 +36,47 @@ export const AgentTabView: React.FC = () => {
     value: String(choice.days ?? ''),
     label: t(choice.labelKey),
   }));
+
+  const renderRow = (row: AgentGrantRow) => (
+    <S.Row key={row.id}>
+      <S.RowIcon $inactive={row.state !== 'active'}>
+        <RiRobot2Line />
+      </S.RowIcon>
+      <S.RowMain>
+        <S.RowHeading>
+          <S.RowName>{row.name}</S.RowName>
+          <S.State $state={row.state}>{t(STATE_KEY[row.state])}</S.State>
+        </S.RowHeading>
+        <S.RowMeta>
+          {row.expiresAt !== null && `${t('agent.meta.expires')} ${formatDate(row.expiresAt)}`}
+          {row.expiresAt === null && t('agent.meta.no-expiry')}
+          {row.lastUsedAt !== null && ` · ${t('agent.meta.last-used')} ${formatDate(row.lastUsedAt)}`}
+          {row.lastUsedAt === null && row.state === 'active' && ` · ${t('agent.meta.never-used')}`}
+          {row.signedInFrom !== null
+            && ` · ${t('agent.meta.signed-in-as', { client: row.signedInFrom })}`}
+          {!row.isOwn && ` · ${t('agent.meta.of-another')}`}
+        </S.RowMeta>
+      </S.RowMain>
+      <S.RowActions>
+        <Button variant="ghost" size="sm" onClick={() => vm.openPermissions(row)}>
+          <RiShieldKeyholeLine />
+          {t('agent.action.permissions', { count: row.permissions.length })}
+        </Button>
+        {row.canRevoke && (
+          <Button variant="ghost" size="sm" onClick={() => vm.askRevoke(row)}>
+            <RiCloseCircleLine />
+            {t('agent.action.revoke')}
+          </Button>
+        )}
+        {row.canRemove && (
+          <Button variant="ghost" size="sm" onClick={() => vm.askRemove(row)}>
+            <RiDeleteBinLine />
+            {t('agent.action.remove')}
+          </Button>
+        )}
+      </S.RowActions>
+    </S.Row>
+  );
 
   return (
     <S.Container>
@@ -62,44 +110,22 @@ export const AgentTabView: React.FC = () => {
 
       {vm.isLoading ? (
         <Spinner />
-      ) : vm.rows.length === 0 ? (
+      ) : vm.isEmpty ? (
         <S.Empty>{t('agent.empty')}</S.Empty>
       ) : (
-        <S.List>
-          {vm.rows.map((row) => (
-            <S.Row key={row.id} $inactive={row.state !== 'active'}>
-              <S.RowMain>
-                <S.RowName>
-                  <RiRobot2Line />
-                  {' '}
-                  {row.name}
-                </S.RowName>
-                <S.Chips>
-                  {row.permissions.map((permission) => (
-                    <S.Chip key={permission}>{permission}</S.Chip>
-                  ))}
-                </S.Chips>
-                <S.RowMeta>
-                  {t(STATE_KEY[row.state])}
-                  {row.expiresAt !== null && ` · ${t('agent.meta.expires')} ${formatDate(row.expiresAt)}`}
-                  {row.lastUsedAt !== null && ` · ${t('agent.meta.last-used')} ${formatDate(row.lastUsedAt)}`}
-                  {row.lastUsedAt === null && row.state === 'active' && ` · ${t('agent.meta.never-used')}`}
-                  {row.signedInFrom !== null
-                    && ` · ${t('agent.meta.signed-in-as', { client: row.signedInFrom })}`}
-                  {!row.isOwn && ` · ${t('agent.meta.of-another')}`}
-                </S.RowMeta>
-              </S.RowMain>
-              <S.RowActions>
-                {row.state === 'active' && (row.isOwn || vm.canManageOthers) && (
-                  <Button variant="ghost" size="sm" onClick={() => vm.askRevoke(row)}>
-                    <RiCloseCircleLine />
-                    {t('agent.action.revoke')}
-                  </Button>
-                )}
-              </S.RowActions>
-            </S.Row>
-          ))}
-        </S.List>
+        <>
+          {vm.activeRows.length > 0 && (
+            <S.List>{vm.activeRows.map(renderRow)}</S.List>
+          )}
+          {vm.inactiveRows.length > 0 && (
+            <S.Section>
+              <S.SectionTitle>
+                {t('agent.section.inactive', { count: vm.inactiveRows.length })}
+              </S.SectionTitle>
+              <S.List>{vm.inactiveRows.map(renderRow)}</S.List>
+            </S.Section>
+          )}
+        </>
       )}
 
       {vm.isFormOpen && (
@@ -169,6 +195,45 @@ export const AgentTabView: React.FC = () => {
           </S.Form>
         </Modal>
       )}
+
+      {vm.viewingPermissions !== null && (
+        <Modal
+          title={t('agent.permissions.title', { name: vm.viewingPermissions.name })}
+          onClose={vm.closePermissions}
+        >
+          <S.Form>
+            <S.FieldHint>{t('agent.permissions.hint')}</S.FieldHint>
+            <S.Groups>
+              {vm.viewingPermissionGroups.map((group) => (
+                <S.Group key={group.resource}>
+                  <S.GroupResource>{group.resource}</S.GroupResource>
+                  <S.Chips>
+                    {group.actions.map((action) => (
+                      <S.Chip key={action}>{action}</S.Chip>
+                    ))}
+                  </S.Chips>
+                </S.Group>
+              ))}
+            </S.Groups>
+            <S.ModalActions>
+              <Button variant="primary" onClick={vm.closePermissions}>
+                {t('agent.permissions.close')}
+              </Button>
+            </S.ModalActions>
+          </S.Form>
+        </Modal>
+      )}
+
+      <ConfirmModal
+        isOpen={vm.removing !== null}
+        title={t('agent.remove.title')}
+        message={t('agent.remove.message', { name: vm.removing?.name ?? '' })}
+        confirmLabel={t('agent.action.remove')}
+        variant="danger"
+        loading={vm.isRemoving}
+        onConfirm={vm.confirmRemove}
+        onCancel={vm.cancelRemove}
+      />
 
       <ConfirmModal
         isOpen={vm.revoking !== null}

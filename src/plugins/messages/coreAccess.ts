@@ -94,6 +94,19 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'agent.issued.command': 'To connect Claude Code',
   'agent.issued.command.hint': 'Run this in a terminal. Other AI clients ask for the address and the token separately.',
   'agent.token.copied': 'Token copied to the clipboard.',
+  'agent.action.permissions': 'Permissions ({count})',
+  'agent.action.remove': 'Delete',
+  'agent.meta.no-expiry': 'no expiry',
+  'agent.section.inactive': 'Inactive ({count})',
+  'agent.permissions.title': 'Permissions of "{name}"',
+  'agent.permissions.hint':
+    'The most this access may use. On each call it is narrowed to what its owner holds at that '
+    + 'moment, so removing a permission from the person also removes it from the agent.',
+  'agent.permissions.close': 'Close',
+  'agent.remove.title': 'Delete this access?',
+  'agent.remove.message':
+    'The access "{name}" no longer works, and deleting it only takes it off this list.',
+  'agent.remove.failed': 'The access could not be deleted. Try again.',
   'agent.revoke.title': 'Revoke this access?',
   'agent.revoke.message':
     'The access "{name}" stops working immediately, and no AI agent using it can reach this '

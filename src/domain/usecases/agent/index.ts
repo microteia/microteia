@@ -44,6 +44,16 @@ export const makeRevokeAgentGrantUseCase = (
   execute: (tenantId, grantId) => repo.revoke(tenantId, grantId),
 });
 
+export type RemoveAgentGrantUseCase = {
+  execute: (tenantId: string, grantId: string) => Promise<void>;
+};
+
+export const makeRemoveAgentGrantUseCase = (
+  repo: IAgentGrantRepository,
+): RemoveAgentGrantUseCase => ({
+  execute: (tenantId, grantId) => repo.remove(tenantId, grantId),
+});
+
 export type GetAgentAuthRequestUseCase = {
   execute: (requestId: string) => Promise<AgentAuthRequestView>;
 };

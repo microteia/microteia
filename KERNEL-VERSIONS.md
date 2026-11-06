@@ -18,6 +18,21 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.209.0] — 2026-11-06
+
+- feat(tenant/agent): the AI agents tab shows each grant as a compact row (name, state, dates) and
+  moves the permission ceiling into a modal, grouped by resource (`acs_x` → `create · read · …`).
+  The inline chips grew to dozens of lines per grant. Active and inactive grants are listed apart.
+- feat(rules/agentGrants): `allow delete` for a grant that no longer authenticates — `revokedAt`
+  set, or `expiresAt` in the past — by its owner or by `agent.manage`. Create and update stay closed:
+  deleting writes no field, so it does not reopen the choice of `secretHash`. An active grant still
+  leaves service only through `revokeAgentGrant`. New `IAgentGrantRepository.remove` and
+  `makeRemoveAgentGrantUseCase`. Requires `npm run deploy:rules`.
+- fix(tenant/agent): the tab decided the state with `accessExpiresAt` included, so an OAuth grant
+  whose short-lived access token had lapsed showed as "Expired" with no Revoke button, while the
+  refresh token kept it alive. The list now judges the consent (`revokedAt`/`expiresAt`) — the same
+  criterion the delete rule uses.
+
 #### [9.208.0] — 2026-11-06
 
 - feat(extensions): a "Pending" tab on the Extensions screen lists every installed, active extension

@@ -25,6 +25,9 @@ export interface IssuedAgentGrant {
  * todos). A ESCRITA é por callable, sem exceção: o segredo tem de ser sorteado no servidor e o
  * documento só pode nascer com o hash dele — uma escrita direta permitiria gravar um `secretHash`
  * escolhido, e quem escolhe o hash escolhe o token.
+ *
+ * A exceção é `remove`, direto pela regra: só alcança o acesso que já não autentica, e apagar não
+ * grava campo nenhum.
  */
 export interface IAgentGrantRepository {
   subscribe(
@@ -34,4 +37,6 @@ export interface IAgentGrantRepository {
   ): () => void;
   issue(tenantId: string, input: AgentGrantInput): Promise<IssuedAgentGrant>;
   revoke(tenantId: string, grantId: string): Promise<boolean>;
+  /** Tira da lista um acesso revogado ou vencido. O ativo é recusado pela regra. */
+  remove(tenantId: string, grantId: string): Promise<void>;
 }

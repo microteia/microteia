@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.209.0] — 2026-11-06
+
+- A aba Agentes de IA, em Escritório, ficou mais limpa: cada acesso mostra só o nome, a situação e as datas, e as permissões abrem numa janela própria pelo botão "Permissões", agrupadas por recurso.
+- Os acessos revogados ou vencidos agora ficam numa seção separada, "Inativos", e podem ser excluídos da lista.
+- Corrigido um problema em que um acesso conectado pelo login do cliente de IA aparecia como "Expirado", sem a opção de revogar, mesmo continuando em uso.
+
 #### [9.208.0] — 2026-11-06
 
 - A tela de Extensões ganhou a aba "Pendentes", que reúne as extensões do escritório que precisam de atenção: com atualização disponível, que não carregaram por falta de outra extensão, aguardando a configuração do servidor, com atualização de dados pendente ou com código esperando revisão. O número ao lado de "Extensões" no menu passa a contar todas essas pendências, e clicar nele abre direto essa aba.

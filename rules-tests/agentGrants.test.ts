@@ -14,6 +14,9 @@ import { OTHER_TENANT, TENANT, asUser, seed, testEnv } from './helpers';
  * ser sorteado no servidor e o documento só pode nascer com o HASH dele. Uma escrita direta
  * permitiria gravar um `secretHash` escolhido — e quem escolhe o hash escolhe o token, o que
  * transformaria a coleção inteira numa porta de entrada.
+ *
+ * A exceção é APAGAR o que já não autentica (revogado ou com o consentimento vencido): é limpeza da
+ * lista, não grava campo nenhum, e o acesso ativo continua só saindo de uso pela callable.
  */
 let env: RulesTestEnvironment;
 
@@ -93,7 +96,7 @@ describe('leitura', () => {
   });
 });
 
-describe('escrita — fechada para todo cliente, sem exceção', () => {
+describe('escrita — fechada para todo cliente', () => {
   it('o dono não cria o seu: quem escolhe o hash escolhe o token', async () => {
     await assertFails(setDoc(doc(asUser(env, 'dela'), `tenants/${TENANT}/agentGrants/novo`), {
       userId: 'dela',
@@ -119,7 +122,7 @@ describe('escrita — fechada para todo cliente, sem exceção', () => {
     await assertFails(updateDoc(grant('gestor'), { revokedAt: new Date() }));
   });
 
-  it('ninguém apaga', async () => {
+  it('ninguém apaga um acesso ATIVO — tirá-lo de uso é revogar, e revogar é da callable', async () => {
     await assertFails(deleteDoc(grant('dela')));
     await assertFails(deleteDoc(grant('gestor')));
   });
@@ -129,6 +132,61 @@ describe('escrita — fechada para todo cliente, sem exceção', () => {
   it('o administrador global lê e não escreve', async () => {
     await assertSucceeds(getDoc(grant('sistema')));
     await assertFails(updateDoc(grant('sistema'), { revokedAt: new Date() }));
+  });
+});
+
+describe('exclusão — só do que já não autentica', () => {
+  const seedInactive = (fields: Record<string, unknown>) => seed(env, {
+    owners: { [TENANT]: 'dono' },
+    records: {
+      [TENANT]: {
+        'agentGrants/dela1': {
+          userId: 'dela',
+          name: 'Claude no terminal',
+          permissions: ['clientes.read'],
+          secretHash: 'a'.repeat(64),
+          expiresAt: null,
+          revokedAt: null,
+          ...fields,
+        },
+      },
+    },
+  });
+
+  it('o dono apaga o seu depois de revogado', async () => {
+    await seedInactive({ revokedAt: new Date() });
+    await assertSucceeds(deleteDoc(grant('dela')));
+  });
+
+  it('o dono apaga o seu depois de vencido', async () => {
+    await seedInactive({ expiresAt: new Date(Date.now() - 60_000) });
+    await assertSucceeds(deleteDoc(grant('dela')));
+  });
+
+  it('quem tem agent.manage apaga o inativo de outro', async () => {
+    await seedInactive({ revokedAt: new Date() });
+    await assertSucceeds(deleteDoc(grant('gestor')));
+  });
+
+  it('um membro qualquer NÃO apaga o inativo de outro', async () => {
+    await seedInactive({ revokedAt: new Date() });
+    await assertFails(deleteDoc(grant('dele')));
+  });
+
+  // O token curto do OAuth vence a cada hora e o refresh o renova: apagá-lo por isso derrubaria um
+  // consentimento que continua valendo, sem passar pela revogação.
+  it('o token curto do OAuth vencido não torna o acesso apagável', async () => {
+    await seedInactive({
+      origin: 'oauth',
+      accessExpiresAt: new Date(Date.now() - 60_000),
+      expiresAt: new Date(Date.now() + 86_400_000),
+    });
+    await assertFails(deleteDoc(grant('dela')));
+  });
+
+  it('a validade futura não torna o acesso apagável', async () => {
+    await seedInactive({ expiresAt: new Date(Date.now() + 86_400_000) });
+    await assertFails(deleteDoc(grant('dela')));
   });
 });
 

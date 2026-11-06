@@ -71,7 +71,22 @@ const List = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 
-const Row = styled.div<{ $inactive?: boolean }>`
+const Section = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const SectionTitle = styled.h4`
+  margin: 0;
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.textMuted};
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+`;
+
+const Row = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -80,13 +95,34 @@ const Row = styled.div<{ $inactive?: boolean }>`
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.md};
-  opacity: ${({ $inactive }) => ($inactive ? 0.6 : 1)};
+  flex-wrap: wrap;
+`;
+
+const RowIcon = styled.span<{ $inactive?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  font-size: ${({ theme }) => theme.fontSizes.lg};
+  color: ${({ $inactive, theme }) => ($inactive ? theme.colors.textMuted : theme.colors.primary)};
+  background: ${({ $inactive, theme }) => ($inactive ? theme.colors.surfaceHover : theme.colors.primaryLight)};
 `;
 
 const RowMain = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.xs};
+  flex: 1;
+  min-width: 0;
+`;
+
+const RowHeading = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
   min-width: 0;
 `;
 
@@ -94,6 +130,31 @@ const RowName = styled.span`
   font-size: ${({ theme }) => theme.fontSizes.md};
   font-weight: 600;
   color: ${({ theme }) => theme.colors.text};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+/** O ponto colorido diz o estado de relance; o texto ao lado o diz para quem não distingue cor. */
+const State = styled.span<{ $state: 'active' | 'revoked' | 'expired' }>`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  flex-shrink: 0;
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  color: ${({ theme }) => theme.colors.textSecondary};
+
+  &::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ $state, theme }) => ({
+      active: theme.colors.success,
+      revoked: theme.colors.danger,
+      expired: theme.colors.textMuted,
+    })[$state]};
+  }
 `;
 
 const RowMeta = styled.span`
@@ -119,8 +180,39 @@ const Chip = styled.span`
 const RowActions = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
+  gap: ${({ theme }) => theme.spacing.xs};
   flex-shrink: 0;
+  margin-left: auto;
+`;
+
+/** Rolagem própria: um acesso pode carregar dezenas de recursos, e o modal não pode passar da tela. */
+const Groups = styled.div`
+  display: flex;
+  flex-direction: column;
+  max-height: 55vh;
+  overflow-y: auto;
+  border: 1px solid ${({ theme }) => theme.colors.borderSubtle};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+`;
+
+const Group = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.md};
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+  flex-wrap: wrap;
+
+  & + & {
+    border-top: 1px solid ${({ theme }) => theme.colors.borderSubtle};
+  }
+`;
+
+const GroupResource = styled.span`
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  color: ${({ theme }) => theme.colors.text};
+  overflow-wrap: anywhere;
 `;
 
 const Empty = styled.p`
@@ -172,13 +264,21 @@ export const S = {
   EndpointLabel,
   Mono,
   List,
+  Section,
+  SectionTitle,
   Row,
+  RowIcon,
   RowMain,
+  RowHeading,
   RowName,
+  State,
   RowMeta,
   Chips,
   Chip,
   RowActions,
+  Groups,
+  Group,
+  GroupResource,
   Empty,
   Form,
   Field,

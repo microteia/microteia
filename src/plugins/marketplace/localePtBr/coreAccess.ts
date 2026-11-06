@@ -94,6 +94,19 @@ export const CORE_ACCESS: Record<string, string> = {
   'agent.issued.command.hint':
     'Rode isto num terminal. Outros clientes de IA pedem o endereço e o token separadamente.',
   'agent.token.copied': 'Token copiado para a área de transferência.',
+  'agent.action.permissions': 'Permissões ({count})',
+  'agent.action.remove': 'Excluir',
+  'agent.meta.no-expiry': 'sem expiração',
+  'agent.section.inactive': 'Inativos ({count})',
+  'agent.permissions.title': 'Permissões de "{name}"',
+  'agent.permissions.hint':
+    'O máximo que este acesso pode usar. A cada chamada ele é limitado ao que o dono tem naquele '
+    + 'momento, então tirar uma permissão da pessoa também a tira do agente.',
+  'agent.permissions.close': 'Fechar',
+  'agent.remove.title': 'Excluir este acesso?',
+  'agent.remove.message':
+    'O acesso "{name}" já não funciona, e excluí-lo apenas o tira desta lista.',
+  'agent.remove.failed': 'Não foi possível excluir o acesso. Tente novamente.',
   'agent.revoke.title': 'Revogar este acesso?',
   'agent.revoke.message':
     'O acesso "{name}" para de funcionar imediatamente, e nenhum agente de IA que o use alcança mais '

@@ -1,4 +1,4 @@
-import { Timestamp, collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { Timestamp, collection, deleteDoc, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../infrastructure/firebase/config';
 import type { AgentGrant } from '../../domain/schema/agent/agentGrant';
@@ -70,5 +70,9 @@ export class FirebaseAgentGrantRepository implements IAgentGrantRepository {
       AGENT_REVOKE_GRANT_FUNCTION,
     );
     return (await call({ tenantId, grantId })).data.revoked;
+  }
+
+  async remove(tenantId: string, grantId: string): Promise<void> {
+    await deleteDoc(doc(grantsRef(tenantId), grantId));
   }
 }

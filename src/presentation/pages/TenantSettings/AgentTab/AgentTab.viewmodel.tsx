@@ -14,6 +14,7 @@ import type { AgentAvailability } from '../../../../domain/usecases/agent/agentA
 import { agentAvailability } from '../../../../domain/usecases/agent/agentAvailability';
 import {
   makeIssueAgentGrantUseCase,
+  makeRemoveAgentGrantUseCase,
   makeRevokeAgentGrantUseCase,
   makeSubscribeToAgentGrantsUseCase,
 } from '../../../../domain/usecases/agent';
@@ -39,7 +40,26 @@ export interface AgentGrantRow {
   expiresAt: Date | null;
   lastUsedAt: Date | null;
   createdAt: Date;
+  canRevoke: boolean;
+  canRemove: boolean;
 }
+
+/** `acs_fornecedores.read` e `acs_fornecedores.update` viram uma linha só, com as duas ações. */
+export interface AgentPermissionGroup {
+  resource: string;
+  actions: string[];
+}
+
+const groupPermissions = (permissions: readonly string[]): AgentPermissionGroup[] => {
+  const groups = new Map<string, string[]>();
+  for (const permission of [...permissions].sort()) {
+    const cut = permission.lastIndexOf('.');
+    const resource = cut > 0 ? permission.slice(0, cut) : permission;
+    const action = cut > 0 ? permission.slice(cut + 1) : '';
+    groups.set(resource, [...(groups.get(resource) ?? []), ...(action === '' ? [] : [action])]);
+  }
+  return [...groups].map(([resource, actions]) => ({ resource, actions }));
+};
 
 export interface AgentTabViewModel {
   availability: AgentAvailability;
@@ -47,9 +67,20 @@ export interface AgentTabViewModel {
   /** A linha pronta para colar num terminal, com o token do acesso recém-emitido. */
   connectCommand: string;
 
-  rows: AgentGrantRow[];
+  /**
+   * Os ativos em cima e os inativos à parte: o revogado e o vencido não autenticam mais, e
+   * misturá-los obrigava a ler a lista inteira para achar o que ainda está no ar.
+   */
+  activeRows: AgentGrantRow[];
+  inactiveRows: AgentGrantRow[];
+  isEmpty: boolean;
   isLoading: boolean;
-  canManageOthers: boolean;
+
+  /** O teto de um acesso é consulta rara, e por isso abre em modal em vez de ocupar a linha. */
+  viewingPermissions: AgentGrantRow | null;
+  viewingPermissionGroups: AgentPermissionGroup[];
+  openPermissions: (row: AgentGrantRow) => void;
+  closePermissions: () => void;
 
   isFormOpen: boolean;
   openForm: () => void;
@@ -74,6 +105,12 @@ export interface AgentTabViewModel {
   cancelRevoke: () => void;
   confirmRevoke: () => Promise<void>;
   isRevoking: boolean;
+
+  removing: AgentGrantRow | null;
+  askRemove: (row: AgentGrantRow) => void;
+  cancelRemove: () => void;
+  confirmRemove: () => Promise<void>;
+  isRemoving: boolean;
 }
 
 export const useAgentTabViewModel = (): AgentTabViewModel => {
@@ -103,6 +140,9 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<AgentGrantRow | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [viewingPermissions, setViewingPermissions] = useState<AgentGrantRow | null>(null);
+  const [removing, setRemoving] = useState<AgentGrantRow | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const subscribeUC = useMemo(
     () => makeSubscribeToAgentGrantsUseCase(agentGrantRepository),
@@ -110,6 +150,7 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
   );
   const issueUC = useMemo(() => makeIssueAgentGrantUseCase(agentGrantRepository), [agentGrantRepository]);
   const revokeUC = useMemo(() => makeRevokeAgentGrantUseCase(agentGrantRepository), [agentGrantRepository]);
+  const removeUC = useMemo(() => makeRemoveAgentGrantUseCase(agentGrantRepository), [agentGrantRepository]);
 
   const tenantId = currentTenant?.id ?? null;
 
@@ -139,22 +180,38 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
     [endpointUrl, issuedToken],
   );
 
+  const canManageOthers = can(PERMISSION_AGENT_MANAGE);
+
   const rows = useMemo<AgentGrantRow[]>(
-    () => grants.map((grant) => ({
-      id: grant.id,
-      name: grant.name,
-      permissions: grant.permissions,
-      // O estado é DECIDIDO aqui, com a mesma função que o gateway usa: a lista e a recusa do
-      // servidor não podem discordar sobre o que é um acesso expirado.
-      state: grantRefusal(grant, new Date()) ?? 'active',
-      isOwn: grant.userId === user?.id,
-      signedInFrom: grant.origin === 'oauth' ? grant.name : null,
-      expiresAt: grant.expiresAt,
-      lastUsedAt: grant.lastUsedAt,
-      createdAt: grant.createdAt,
-    })),
-    [grants, user?.id],
+    () => grants.map((grant) => {
+      // O estado é DECIDIDO aqui, com a mesma função que o gateway usa — mas sobre o CONSENTIMENTO
+      // (`revokedAt`/`expiresAt`), sem o `accessExpiresAt`. O token curto do OAuth vence toda hora e
+      // o refresh o renova; contá-lo aqui mostrava como "expirado", e sem o botão de revogar, um
+      // acesso que continuava no ar. É também o critério da regra que deixa apagar.
+      const state = grantRefusal(
+        { revokedAt: grant.revokedAt, expiresAt: grant.expiresAt },
+        new Date(),
+      ) ?? 'active';
+      const isOwn = grant.userId === user?.id;
+      const mayAct = isOwn || canManageOthers;
+      return {
+        id: grant.id,
+        name: grant.name,
+        permissions: grant.permissions,
+        state,
+        isOwn,
+        signedInFrom: grant.origin === 'oauth' ? grant.name : null,
+        expiresAt: grant.expiresAt,
+        lastUsedAt: grant.lastUsedAt,
+        createdAt: grant.createdAt,
+        canRevoke: state === 'active' && mayAct,
+        canRemove: state !== 'active' && mayAct,
+      };
+    }),
+    [grants, user?.id, canManageOthers],
   );
+  const activeRows = useMemo(() => rows.filter((row) => row.state === 'active'), [rows]);
+  const inactiveRows = useMemo(() => rows.filter((row) => row.state !== 'active'), [rows]);
 
   /**
    * A recusa do servidor, dita a quem clicou.
@@ -218,13 +275,38 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
     }
   }, [tenantId, revoking, revokeUC, report]);
 
+  const viewingPermissionGroups = useMemo(
+    () => (viewingPermissions === null ? [] : groupPermissions(viewingPermissions.permissions)),
+    [viewingPermissions],
+  );
+
+  const confirmRemove = useCallback(async () => {
+    if (tenantId === null || removing === null) return;
+    setIsRemoving(true);
+    try {
+      await removeUC.execute(tenantId, removing.id);
+      setRemoving(null);
+    } catch {
+      // Direto do Firestore, não de callable nossa: a `message` do erro não é referência do
+      // catálogo, e passá-la por `report` mostraria o texto cru do SDK.
+      notify(t('agent.remove.failed'), 'error');
+    } finally {
+      setIsRemoving(false);
+    }
+  }, [tenantId, removing, removeUC, notify, t]);
+
   return {
     availability,
     endpointUrl,
     connectCommand,
-    rows,
+    activeRows,
+    inactiveRows,
+    isEmpty: rows.length === 0,
     isLoading,
-    canManageOthers: can(PERMISSION_AGENT_MANAGE),
+    viewingPermissions,
+    viewingPermissionGroups,
+    openPermissions: useCallback((row: AgentGrantRow) => setViewingPermissions(row), []),
+    closePermissions: useCallback(() => setViewingPermissions(null), []),
     isFormOpen,
     openForm,
     closeForm,
@@ -245,5 +327,10 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
     cancelRevoke: useCallback(() => setRevoking(null), []),
     confirmRevoke,
     isRevoking,
+    removing,
+    askRemove: useCallback((row: AgentGrantRow) => setRemoving(row), []),
+    cancelRemove: useCallback(() => setRemoving(null), []),
+    confirmRemove,
+    isRemoving,
   };
 };
