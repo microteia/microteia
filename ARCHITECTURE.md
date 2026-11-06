@@ -8834,7 +8834,8 @@ o grupo é contribuição (`ui.nav.group`) de quem traz os itens, e o item escol
 ficava longe de quem as procurava. Hoje tem só o perfil (e a aparência, que o shell desenha): as
 ferramentas viraram `ui.nav` no grupo do objetivo delas, com a mesma permissão de antes. A Gestão de
 acessos é do administrador GLOBAL — por isso o `ui.nav` ganhou `requiresSystemAdmin`, o mesmo do
-`ui.menu`. O selo de extensões com atualização mudou junto, do menu do usuário para o item Extensões.
+`ui.menu`. O selo de extensões com atualização mudou junto, do menu do usuário para o item Extensões
+— e hoje conta toda PENDÊNCIA, não só atualização (ver "A aba Pendentes e o selo do menu").
 
 `groupNavSections` (função pura, em `resolveUiContributions`) reparte os itens já filtrados:
 
@@ -9392,6 +9393,26 @@ sumia em silêncio. Agora o `Marketplace.viewmodel` cruza `host.isLoaded(pluginI
 o card mostra "Esta extensão não pôde ser carregada: <motivo>". `usePluginDiagnostics()` já existia;
 aqui ele ganha consumidor.
 
+### A aba Pendentes e o selo do menu — uma conta só
+
+O selo do item Extensões contava só atualização. A extensão que não carregou por falta de dependência,
+a que espera o `microteia provision`, a que deve migração de dados e a que traz código sem revisão
+estavam fora do ar do mesmo jeito — e nada no menu apontava para elas.
+
+`extensionPendencies` (`domain/usecases/plugins/extensionPendencies.ts`) é a regra: dados os fatos de
+uma cópia instalada, devolve os motivos, na ordem de leitura — `load-failed`, `backend`, `migration`,
+`code-review`, `update`. **Desligada não deve nada**: ela não faz coisa alguma no escritório, e cobrar
+atenção por ela é pedir um gesto que não muda nada. `useExtensionPendencies`
+(`presentation/shared/`) junta os fatos — diagnóstico `error` do Kernel, `isExtensionBackendPending`,
+`isExtensionMigrationPending`, a confiança de código e `hasExtensionUpdate` — e é a ÚNICA fonte de três
+lugares que não se conhecem: o selo da barra lateral, o atalho do alto da tela (só para
+`extensions.manage`) e a aba **Pendentes** da tela de Extensões. Um número que discordasse da lista
+que ele abre seria pior do que número nenhum.
+
+A tela entra JÁ na aba Pendentes quando há alguma — é o gesto que o selo promete. A decisão é de
+entrada e acontece uma vez, quando as origens (incluindo o hash da confiança) terminam de carregar;
+depois, a aba é de quem está olhando.
+
 ### Como uma extensão chega ao catálogo — `public_extensions`
 
 A aba **Catálogo** da tela de Extensões não mostra o que está no bundle: mostra a coleção-raiz
@@ -9405,6 +9426,13 @@ O percurso tem dois passos, e o primeiro é sempre o mesmo:
 |---|---|---|
 | **Importar** (`.json`) ou autorar | `tenants/{id}/extensions` | só o escritório, na aba "Minhas" |
 | **Publicar** | `public_extensions/{domain}` | todo escritório autenticado, na aba "Catálogo" |
+
+Importar não põe no ar: a cópia privada é de AUTORIA, e só a instalada contribui. Como importar e
+esquecer de instalar era o caminho comum, o modal de importação traz **"Instalar neste escritório"**
+marcado (com cópia já instalada, "Atualizar a cópia instalada"). A ordem é importar → instalar →
+publicar, cada passo partindo do pacote que o anterior gravou; instalar passa pelo mesmo `run` do
+botão da linha, com a mesma pergunta de faixa de versão, e reimportar o pacote idêntico ao instalado
+não reaplica nada.
 
 **Origem: montada aqui ou importada — e só a primeira se edita.** "Criar extensão" é a forma de
 reunir os artefatos do PRÓPRIO escritório (telas, ações, automações, scripts) num pacote e
@@ -11526,7 +11554,11 @@ código; confiança presa à versão passaria a valer para código nunca revisad
 as `views` (ordenadas por chave) mais o `startup`, separados por `\u0000`.
 
 `useExtensionCodeTrust` calcula o conjunto de confiáveis de forma assíncrona; enquanto calcula, o
-conjunto é **vazio** — de novo, falha fechada.
+conjunto é **vazio** — de novo, falha fechada. Ele roda UMA vez, no `TenantKernelProvider`, que
+repassa o resultado por `ExtensionCodeTrustContext`; quem só lê usa `useInstalledCodeTrust()`. O
+resultado traz `ready`, que diz se o conjunto já corresponde às cópias de agora: para EXECUTAR o vazio
+é a resposta certa, mas quem CONTA pendências não pode tomá-lo por "ninguém revisou" — acenderia o
+selo do menu em toda extensão com código durante o segundo que o hash leva.
 
 ### O gesto
 

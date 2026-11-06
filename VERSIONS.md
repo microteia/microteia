@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.208.0] — 2026-11-06
+
+- A tela de Extensões ganhou a aba "Pendentes", que reúne as extensões do escritório que precisam de atenção: com atualização disponível, que não carregaram por falta de outra extensão, aguardando a configuração do servidor, com atualização de dados pendente ou com código esperando revisão. O número ao lado de "Extensões" no menu passa a contar todas essas pendências, e clicar nele abre direto essa aba.
+- Ao importar uma extensão, a opção "Instalar neste escritório" já vem marcada, para que ela entre em uso logo em seguida, sem precisar lembrar de instalá-la depois.
+- A janela de importação passa a mostrar o nome da extensão corretamente.
+
 #### [9.207.0] — 2026-11-05
 
 - Extensões que trazem código de servidor passam a exibir o selo "Código de servidor" na tela de Extensões, com a explicação de que esse código só entra no ar depois de aprovado por quem cuida do projeto. Publicar uma extensão assim no catálogo, para outros escritórios, passa a exigir a equipe da Microteia, como já acontecia com extensões que têm telas em código.

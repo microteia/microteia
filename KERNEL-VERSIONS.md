@@ -18,6 +18,25 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.208.0] — 2026-11-06
+
+- feat(extensions): a "Pending" tab on the Extensions screen lists every installed, active extension
+  that needs a gesture — failed to load, backend not provisioned, data migration owed, code awaiting
+  review, or update available. `extensionPendencies` (domain) is the rule and `useExtensionPendencies`
+  replaces `useExtensionUpdates`, so the sidebar badge, the top-bar shortcut and the tab report the
+  same count. The badge used to count updates only: an extension missing a dependency vanished from
+  the menu with nothing pointing at it. The screen opens on the tab when something is pending.
+- feat(extensions/import): the import dialog carries an "Install in this organization" checkbox,
+  checked by default ("Update the copy installed here" when one exists). Import → install → publish,
+  each step starting from the package the previous one wrote; installing goes through the same path
+  as the row button, dependency-range question included. Importing without installing left the
+  extension in My Extensions and off the air.
+- fix(extensions/import): the dialog resolves the package name from the package's own messages; it
+  showed the raw key (`<id>/extension.name`) for any package not yet listed.
+- refactor(stores): code-trust hashing runs once, in `TenantKernelProvider`, and is shared through
+  `ExtensionCodeTrustContext` (`useInstalledCodeTrust`), now with a `ready` flag so a pending count
+  does not flash every coded extension while SHA-256 runs.
+
 #### [9.207.0] — 2026-11-05
 
 - feat(extensions/catalog): a package carrying `backendSource` counts as code for publication — `extensionHasCode` includes it (`extensionHasServerCode`), and `pkgHasCode()` in `firestore.rules` checks `backendSource` as well as `views`, so only `SYSTEM` puts server code in `public_extensions`. Before, an owner could publish a package with Cloud Function source and no view; the hash approval in the Console still applied at install, but nothing guarded the catalogue itself. The import dialog's `canPublish` now goes through `canPublishPublicly`, and a translation-only package may not carry `backendSource`.

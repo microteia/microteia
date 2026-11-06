@@ -41,11 +41,12 @@ import type { PublisherVerification, StarKind } from '../../../domain/usecases/p
 import { wrappedErrorParams } from '../../../domain/errors/LocalizedError';
 import { DependencyRangeRefusal } from '../../../domain/usecases/plugins/crossExtensionRefs';
 import type { LocalizedIssue } from '../../../domain/usecases/plugins/pluginReferences';
-import { useExtensionCodeTrust } from '../../../stores/useExtensionCodeTrust';
+import { useInstalledCodeTrust } from '../../../stores/useExtensionCodeTrust';
 import { useInstalledRevision } from '../../../stores/useInstalledRevision';
 import { EXTENSION_HISTORY_LIMIT } from '../../../domain/usecases/plugins/extensionHistory';
 import { usePluginDiagnostics } from '../../../stores/useKernel';
-import { useExtensionUpdates } from '../../shared/useExtensionUpdates';
+import { useExtensionPendencies } from '../../shared/useExtensionPendencies';
+import type { ExtensionPendency } from '../../../domain/usecases/plugins/extensionPendencies';
 import { MARKETPLACE_CATALOG } from '../../../plugins/marketplace/catalog';
 import { SYSTEM_THEME_PACKAGES } from '../../../plugins/themes/systemThemes';
 import type { MarketplacePlugin } from '../../../domain/entities/MarketplacePlugin';
@@ -59,6 +60,8 @@ import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import { useT, useLocaleFormat } from '../../shared/i18n/useT';
 import { usePackageCatalog } from '../../shared/i18n/usePackageCatalog';
 import { resolveLabel } from '../../../domain/schema/i18n/messageRef';
+import { packageMessageCatalog } from '../../../domain/schema/i18n/extensionPoints';
+import { catalogWithFallback } from '../../../domain/schema/i18n/messages';
 import type { MessageCatalog, MessageParams } from '../../../domain/schema/i18n/messages';
 
 export interface Author {
@@ -225,6 +228,11 @@ export interface ExtensionRow {
   problems: ExtensionProblem[];
   /** Há erro (não só aviso): o plugin inteiro não carregou. */
   failed: boolean;
+  /**
+   * Por que esta extensão pede atenção — a MESMA resposta do selo do menu (`useExtensionPendencies`).
+   * Não ser vazio é o que a põe na aba "Pendentes".
+   */
+  pendencies: readonly ExtensionPendency[];
 }
 
 export interface ExtensionProblem {
@@ -232,7 +240,11 @@ export interface ExtensionProblem {
   message: string;
 }
 
-export type MarketplaceFilter = 'all' | 'installed' | 'mine' | 'catalog';
+/**
+ * `pending` é o recorte do selo do menu: as instaladas e ligadas que devem algum gesto. Ele vive ao
+ * lado de "Instaladas" porque é um subconjunto dela, e é por ele que a tela abre quando há pendência.
+ */
+export type MarketplaceFilter = 'all' | 'installed' | 'pending' | 'mine' | 'catalog';
 
 /**
  * A ordem da lista. `relevance` é a de sempre — instaladas, depois as do escritório, depois o resto —
@@ -256,6 +268,11 @@ export interface ImportTarget {
   hasCode: boolean;
   /** O catálogo global está aberto para ESTE pacote nas mãos de quem importa. */
   canPublish: boolean;
+  /**
+   * A versão que já está instalada neste escritório, ou `null`. Muda o que "instalar" quer dizer:
+   * com cópia instalada, o gesto é atualizá-la para o pacote importado.
+   */
+  installedVersion: string | null;
 }
 
 /**
@@ -386,6 +403,12 @@ export interface MarketplaceViewModel {
   importTarget: ImportTarget | null;
   importScope: ImportScope;
   setImportScope: (scope: ImportScope) => void;
+  /**
+   * Instalar (ou atualizar a cópia instalada) logo depois de importar. Marcado por padrão: importar e
+   * esquecer de instalar era o caminho comum, e a extensão ficava em "Minhas" sem estar no ar.
+   */
+  importInstall: boolean;
+  setImportInstall: (install: boolean) => void;
   confirmImport: () => Promise<void>;
   cancelImport: () => void;
   edit: (id: string) => void;
@@ -529,33 +552,34 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [importTarget, setImportTarget] = useState<ImportTarget | null>(null);
   const [importScope, setImportScope] = useState<ImportScope>('private');
+  const [importInstall, setImportInstall] = useState(true);
 
   const {
-    ready: updatesReady,
-    pendingIds: pendingUpdateIds,
-    pendingInUse: pendingUpdatesInUse,
-  } = useExtensionUpdates();
+    ready: pendenciesReady,
+    updateIds: pendingUpdateIds,
+    pendenciesOf,
+    pendingCount,
+  } = useExtensionPendencies();
   const [entryFilterDecided, setEntryFilterDecided] = useState(false);
 
   /**
-   * Entrar JÁ RECORTADO por "Atualização: sim" quando há alguma à espera — e sem recorte nenhum
-   * quando não há. É o gesto que o selo promete: quem clica no selo vem atualizar, e chegar na lista
+   * Entrar JÁ na aba "Pendentes" quando há alguma pendência — e na lista inteira quando não há. É o
+   * gesto que o selo promete: quem clica no selo vem resolver o que ele contou, e chegar na lista
    * inteira obrigaria a refazer à mão o recorte que o selo acabou de anunciar.
    *
-   * A decisão é de ENTRADA e acontece UMA vez, quando as três origens da atualização terminam de
-   * carregar: antes disso a contagem é zero por não se saber ainda, e depois disso o recorte é de
-   * quem está olhando — aplicar a última atualização não pode tirar da tela o filtro que a pessoa
-   * está usando.
+   * A decisão é de ENTRADA e acontece UMA vez, quando as origens terminam de carregar: antes disso a
+   * contagem é zero por não se saber ainda, e depois disso a aba é de quem está olhando — resolver a
+   * última pendência não pode tirar a pessoa da aba em que ela está.
    */
   useEffect(() => {
-    if (entryFilterDecided || !updatesReady) return;
+    if (entryFilterDecided || !pendenciesReady) return;
     /* eslint-disable react-hooks/set-state-in-effect -- a decisão de entrada só pode ser tomada quando as origens carregam, e é o carregamento que a dispara */
     setEntryFilterDecided(true);
-    if (pendingUpdatesInUse > 0) setFilterTokens([{ key: 'update', values: ['yes'] }]);
+    if (pendingCount > 0) setFilter('pending');
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [entryFilterDecided, updatesReady, pendingUpdatesInUse]);
+  }, [entryFilterDecided, pendenciesReady, pendingCount]);
 
-  const trustedIds = useExtensionCodeTrust(installed);
+  const { trustedIds } = useInstalledCodeTrust();
 
   /**
    * Todo pacote que esta tela pode mostrar, instalado ou não. É a lista de onde sai o catálogo de
@@ -885,6 +909,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         isSystem: true,
         problems: problemsByPlugin.get(id) ?? [],
         failed: false,
+        pendencies: [],
       });
     }
 
@@ -990,15 +1015,17 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         isSystem: false,
         problems,
         failed: problems.some((problem) => problem.severity === 'error'),
+        pendencies: pendenciesOf(id),
       });
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf, verifiedPublishers, reputationOf, verificationLabelOf]);
+  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, pendenciesOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf, verifiedPublishers, reputationOf, verificationLabelOf]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,
     installed: rows.filter((r) => r.installed).length,
+    pending: rows.filter((r) => r.pendencies.length > 0).length,
     mine: rows.filter((r) => r.mine).length,
     catalog: rows.filter((r) => r.isPublic).length,
   }), [rows]);
@@ -1087,6 +1114,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     const filtered = (() => {
       switch (filter) {
         case 'installed': return rows.filter((r) => r.installed);
+        case 'pending': return rows.filter((r) => r.pendencies.length > 0);
         case 'mine': return rows.filter((r) => r.mine);
         case 'catalog': return rows.filter((r) => r.isPublic);
         default: return rows.filter((r) => matchesTokens(r, filterTokens, label));
@@ -1409,30 +1437,58 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         return;
       }
       const hasCode = hasCodeOf(parsed.package.views);
+      const { manifest } = parsed.package;
+      // O pacote escolhido ainda não está em lista nenhuma, então o catálogo da tela não tem o texto
+      // dele: o nome aparecia como a chave crua (`br.com.acme.sales/extension.name`). Ele é lido do
+      // próprio pacote, por baixo do catálogo do escritório — a mesma precedência de `usePackageCatalog`.
+      const ownCatalog = catalogWithFallback(catalog, packageMessageCatalog(manifest.contributes ?? [], catalog.locale));
       setImportScope('private');
+      setImportInstall(true);
       setImportTarget({
         text,
-        name: label(parsed.package.manifest.name) || parsed.package.manifest.id,
-        version: parsed.package.manifest.version,
+        name: resolveLabel(ownCatalog, manifest.name) || manifest.id,
+        version: manifest.version,
         hasCode,
         // A regra de publicar é a das Rules (`pkgHasCode`), que conta também a fonte de servidor —
         // oferecer o catálogo a quem ele recusaria seria pedir um gesto que falha.
         canPublish: canPublishPublicly(parsed.package, canModerate),
+        installedVersion: installed.find((extension) => extension.id === manifest.id)?.installedVersion ?? null,
       });
     } catch (err) {
       notify(t('extension.import-failed', wrappedErrorParams(err)), 'error');
     } finally {
       setBusyId(null);
     }
-  }, [notify, t, label, canModerate]);
+  }, [notify, t, label, canModerate, catalog, installed]);
 
   const cancelImport = useCallback(() => setImportTarget(null), []);
 
   /**
-   * Importar é sempre a mesma escrita — a cópia privada do escritório. "Disponível para todos"
-   * acrescenta a publicação DEPOIS dela, e nessa ordem de propósito: o catálogo global guarda um
-   * pacote que já foi validado e gravado aqui, e uma publicação que falhe deixa a extensão importada
-   * em vez de deixar o gesto inteiro no vazio.
+   * A cópia instalada a partir do pacote que ACABOU de ser importado. Não sai de `privateInputOf`
+   * porque a lista de "Minhas" ainda não recebeu a gravação neste render; a autoria é a mesma que a
+   * importação grava — a de quem importou primeiro, ou a de quem importa agora.
+   */
+  const importedInputOf = useCallback((pkg: MarketplacePlugin): InstallExtensionInput => {
+    const previous = extensions.find((extension) => extension.id === pkg.manifest.id);
+    return {
+      package: pkg,
+      source: 'private',
+      version: pkg.manifest.version,
+      authorId: previous?.createdBy ?? user?.id ?? '',
+      authorName: previous?.createdByName ?? user?.displayName ?? '',
+      authorPhotoURL: previous?.createdByPhotoURL ?? user?.photoURL ?? null,
+    };
+  }, [extensions, user]);
+
+  /**
+   * Importar é sempre a mesma escrita — a cópia privada do escritório. Instalar e "disponível para
+   * todos" vêm DEPOIS dela, nessa ordem e de propósito: os dois partem de um pacote que já foi
+   * validado e gravado aqui, e um passo seguinte que falhe deixa a extensão importada em vez de deixar
+   * o gesto inteiro no vazio. Instalar vai antes de publicar porque é o que o escritório veio fazer;
+   * publicar é para os outros.
+   *
+   * Instalar passa pelo MESMO `run` dos botões da linha, com a mesma pergunta de faixa de versão: a
+   * caixa marcada é um atalho para o botão "Instalar", não uma porta com outras regras.
    */
   const confirmImport = useCallback(async () => {
     const target = importTarget;
@@ -1446,15 +1502,32 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         notify(t('extension.import-failed', { detail: label(result.error, result.errorParams) }), 'error');
         return;
       }
-      notify(t('extension.imported', { name: label(result.name) }), 'success');
+      notify(t('extension.imported', { name: target.name }), 'success');
       imported = { id: result.package.manifest.id, package: result.package };
     } catch (err) {
       notify(t('extension.import-failed', wrappedErrorParams(err)), 'error');
     } finally {
       setBusyId(null);
     }
-    if (imported && importScope === 'public') await publishPackage(imported.id, imported.package);
-  }, [importTarget, importScope, importExtension, publishPackage, notify, t, label]);
+    if (!imported) return;
+    if (importInstall) {
+      const current = installed.find((extension) => extension.id === imported.id);
+      // Reimportar o MESMO pacote que já está no ar não tem o que aplicar: reinstalá-lo só
+      // reconvergiria os artefatos para o estado em que eles já estão.
+      const unchanged = current !== undefined
+        && packageFingerprint(current.package) === packageFingerprint(imported.package);
+      if (!unchanged) {
+        const input = importedInputOf(imported.package);
+        await run(
+          imported.id,
+          () => installCopy(input),
+          t(current ? 'extension.updated' : 'extension.installed'),
+          () => installCopy(input, { acceptDependencyRanges: true }),
+        );
+      }
+    }
+    if (importScope === 'public') await publishPackage(imported.id, imported.package);
+  }, [importTarget, importScope, importInstall, importExtension, importedInputOf, installed, installCopy, run, publishPackage, notify, t, label]);
 
   return {
     canManage,
@@ -1498,6 +1571,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     importTarget,
     importScope,
     setImportScope,
+    importInstall,
+    setImportInstall,
     confirmImport,
     cancelImport,
     edit,

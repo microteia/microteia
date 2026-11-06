@@ -39,6 +39,7 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { Modal } from '../../components/ui/Modal';
 import { WidgetRenderer } from '../../components/ui/WidgetRenderer';
 import { RadioGroup } from '../../components/ui/RadioButton';
+import { Checkbox } from '../../components/ui/Checkbox';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { useMarketplaceViewModel } from './Marketplace.viewmodel';
 import type { Author, ExtensionRow, HistoryPanel, MarketplaceFilter, PublishAction, RatingSummary, StatusBadge } from './Marketplace.viewmodel';
@@ -53,6 +54,7 @@ type Tone = 'neutral' | 'success' | 'warning' | 'info' | 'danger' | 'primary';
 const FILTERS: { key: MarketplaceFilter; labelKey: string }[] = [
   { key: 'all', labelKey: 'filter.all' },
   { key: 'installed', labelKey: 'filter.installed' },
+  { key: 'pending', labelKey: 'filter.pending' },
   { key: 'mine', labelKey: 'filter.mine' },
   { key: 'catalog', labelKey: 'filter.catalog' },
 ];
@@ -502,7 +504,7 @@ export const MarketplaceView: React.FC = () => {
             </S.Sort>
           </S.Filters>
 
-          {/* O filtro fino é da aba "Todas": as outras três já SÃO um recorte, e um segundo por cima
+          {/* O filtro fino é da aba "Todas": as outras já SÃO um recorte, e um segundo por cima
               delas ofereceria o vazio como escolha. */}
           {vm.filter === 'all' && (
             <CompositeFilter
@@ -516,9 +518,11 @@ export const MarketplaceView: React.FC = () => {
 
           {vm.rows.length === 0 ? (
             <S.Empty>
-              {t(vm.filter === 'all' && vm.filterTokens.length === 0
-                ? 'marketplace.empty'
-                : 'marketplace.empty.filtered')}
+              {t(vm.filter === 'pending'
+                ? 'marketplace.empty.pending'
+                : vm.filter === 'all' && vm.filterTokens.length === 0
+                  ? 'marketplace.empty'
+                  : 'marketplace.empty.filtered')}
             </S.Empty>
           ) : (
             <S.List>
@@ -660,6 +664,15 @@ export const MarketplaceView: React.FC = () => {
           {!vm.importTarget.canPublish && (
             <InfoBanner message={t('import.code-requires-system')} variant="info" />
           )}
+          <S.ImportInstall>
+            <Checkbox
+              checked={vm.importInstall}
+              onChange={vm.setImportInstall}
+              label={vm.importTarget.installedVersion === null
+                ? t('import.install')
+                : t('import.install.update', { version: vm.importTarget.installedVersion })}
+            />
+          </S.ImportInstall>
           <S.ReviewActions>
             <Button variant="secondary" onClick={vm.cancelImport}>{t('core.ui/action.cancel')}</Button>
             <Button onClick={() => void vm.confirmImport()}>{t('import.confirm')}</Button>

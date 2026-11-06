@@ -697,6 +697,10 @@ export const S = {
     color: ${({ theme }) => theme.colors.textMuted};
   `,
 
+  ImportInstall: styled.div`
+    margin: ${({ theme }) => theme.spacing.md} 0;
+  `,
+
   ReviewActions: styled.div`
     display: flex;
     justify-content: flex-end;

@@ -4,7 +4,7 @@ import { useAuthorization } from '../../../../stores/useAuthorization';
 import { PERMISSION_EXTENSIONS_MANAGE } from '../../../../domain/schema/access';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import { useNavContributions } from '../../../shared/useUiContributions';
-import { useExtensionUpdates } from '../../../shared/useExtensionUpdates';
+import { useExtensionPendencies } from '../../../shared/useExtensionPendencies';
 import { navMetadataOf } from '../../../shared/resolveUiContributions';
 import { useLabel } from '../../../shared/i18n/useT';
 import { useNavBadgeCount } from '../../../shared/useNavBadgeCount';
@@ -52,7 +52,7 @@ export const useTopBarViewModel = (): TopBarViewModel => {
   const badgeCount = useNavBadgeCount();
   const resolveEntry = useNavEntryResolver();
   const openEntry = useOpenNavEntry();
-  const { pendingInUse: extensionUpdates } = useExtensionUpdates();
+  const { pendingCount: extensionPendencies } = useExtensionPendencies();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -115,17 +115,17 @@ export const useTopBarViewModel = (): TopBarViewModel => {
       });
     }
 
-    if (canManageExtensions && extensionUpdates > 0) {
+    if (canManageExtensions && extensionPendencies > 0) {
       kernel.push({
         key: 'marketplace',
-        label: label('@core.marketplace/nav.updates', { count: extensionUpdates }),
+        label: label('@core.marketplace/nav.pending', { count: extensionPendencies }),
         icon: getScreenIcon('store', 18),
-        count: extensionUpdates,
+        count: extensionPendencies,
       });
     }
 
     return [...contributed, ...kernel];
-  }, [navContributions, badgeCount, resolveEntry, label, canManageExtensions, extensionUpdates, unreadCriticalAuditCount]);
+  }, [navContributions, badgeCount, resolveEntry, label, canManageExtensions, extensionPendencies, unreadCriticalAuditCount]);
 
   const handleShortcutClick = useCallback((key: string) => {
     openEntry({ tabKey: key, intent: shortcuts.find((shortcut) => shortcut.key === key)?.intent });

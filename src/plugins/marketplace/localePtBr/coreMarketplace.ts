@@ -2,8 +2,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'page.marketplace': 'Extensões',
   'page.plugin-author': 'Criar extensão',
   'page.plugin-author-edit': 'Editar extensão',
-  'nav.updates.one': '{count} extensão com atualização à espera',
-  'nav.updates.other': '{count} extensões com atualização à espera',
+  'nav.pending.one': '{count} extensão precisa de atenção',
+  'nav.pending.other': '{count} extensões precisam de atenção',
 
   'author.template.view':
     'import { useCasePhases } from \'@microteia/data\';\n\nexport default function View() {\n  const phases = useCasePhases();\n  return (\n    <div style={{ padding: 16 }}>\n      Minha extensão — {phases.length} fase(s) cadastrada(s).\n    </div>\n  );\n}\n',
@@ -111,8 +111,11 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'marketplace.empty':
     'Nenhuma extensão ainda. Use "Criar extensão", importe um .json ou instale a partir do catálogo público.',
   'marketplace.empty.filtered': 'Nenhuma extensão nesta visão.',
+  'marketplace.empty.pending':
+    'Nada pendente: toda extensão ativa está atualizada, carregada e funcionando.',
   'filter.all': 'Todas',
   'filter.installed': 'Instaladas',
+  'filter.pending': 'Pendentes',
   'filter.mine': 'Minhas',
   'filter.catalog': 'Catálogo',
   'filter.compose.placeholder': 'Filtrar as extensões…',
@@ -260,6 +263,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'import.code-requires-system':
     'Esta extensão traz tela em código, e código roda no navegador de cada membro de cada escritório que '
     + 'a instalar — só um administrador do sistema a publica no catálogo. Importar a mantém neste escritório.',
+  'import.install': 'Instalar neste escritório',
+  'import.install.update': 'Atualizar a cópia instalada aqui (versão {version})',
   'import.confirm': 'Importar',
   'extension.review': 'Revisar e confiar no código',
   'extension.trust.title': 'Confiar nesta extensão?',

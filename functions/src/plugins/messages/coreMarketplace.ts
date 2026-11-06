@@ -9,8 +9,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'page.marketplace': 'Extensions',
   'page.plugin-author': 'Create extension',
   'page.plugin-author-edit': 'Edit extension',
-  'nav.updates.one': '{count} extension with an update waiting',
-  'nav.updates.other': '{count} extensions with an update waiting',
+  'nav.pending.one': '{count} extension needs attention',
+  'nav.pending.other': '{count} extensions need attention',
 
   'author.template.view':
     'import { useCasePhases } from \'@microteia/data\';\n\nexport default function View() {\n  const phases = useCasePhases();\n  return (\n    <div style={{ padding: 16 }}>\n      My extension — {phases.length} phase(s) registered.\n    </div>\n  );\n}\n',
@@ -118,8 +118,11 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'marketplace.empty':
     'No extension yet. Use "Create extension", import a .json, or install one from the public catalog.',
   'marketplace.empty.filtered': 'No extension in this view.',
+  'marketplace.empty.pending':
+    'Nothing pending: every active extension is up to date, loaded and running.',
   'filter.all': 'All',
   'filter.installed': 'Installed',
+  'filter.pending': 'Pending',
   'filter.mine': 'Mine',
   'filter.catalog': 'Catalog',
   'filter.compose.placeholder': 'Filter the extensions…',
@@ -268,6 +271,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'This extension brings a screen in code, and code runs in the browser of every member of every '
     + 'organization that installs it — only a system administrator publishes it to the catalog. '
     + 'Importing keeps it in this organization.',
+  'import.install': 'Install in this organization',
+  'import.install.update': 'Update the copy installed here (version {version})',
   'import.confirm': 'Import',
   'extension.review': 'Review and trust the code',
   'extension.trust.title': 'Trust this extension?',

@@ -3,7 +3,7 @@ import { KernelProvider } from './KernelContext';
 import { useInstalledExtensions } from './useInstalledExtensions';
 import { CORE_PLUGINS } from '../plugins';
 import { installedExtensionRecords } from '../domain/usecases/plugins/installedExtensionRecords';
-import { useExtensionCodeTrust } from './useExtensionCodeTrust';
+import { ExtensionCodeTrustContext, useExtensionCodeTrust } from './useExtensionCodeTrust';
 import { isExtensionMigrationPending } from '../domain/usecases/plugins/extensionMigrationState';
 import type { PluginRecord } from '../kernel';
 
@@ -33,11 +33,13 @@ const dedupeById = (records: PluginRecord[]): PluginRecord[] => {
  *
  * Instalar e EXECUTAR CÓDIGO são decisões separadas: `useExtensionCodeTrust` diz quais cópias podem
  * rodar JavaScript (catálogo público aprovado, ou revisão explícita de um admin). O resto do pacote
- * entra igual — o que não roda é só o código.
+ * entra igual — o que não roda é só o código. A mesma resposta desce por `ExtensionCodeTrustContext`:
+ * a tela de Extensões e o selo de pendências a leem daqui, em vez de digerir os pacotes de novo.
  */
 export const TenantKernelProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { installed, migrationStates } = useInstalledExtensions();
-  const trustedIds = useExtensionCodeTrust(installed);
+  const codeTrust = useExtensionCodeTrust(installed);
+  const { trustedIds } = codeTrust;
 
   const migrationPendingIds = useMemo(
     () => new Set(
@@ -56,5 +58,9 @@ export const TenantKernelProvider: React.FC<{ children: React.ReactNode }> = ({ 
     [installed, trustedIds, migrationPendingIds],
   );
 
-  return <KernelProvider records={records}>{children}</KernelProvider>;
+  return (
+    <ExtensionCodeTrustContext.Provider value={codeTrust}>
+      <KernelProvider records={records}>{children}</KernelProvider>
+    </ExtensionCodeTrustContext.Provider>
+  );
 };

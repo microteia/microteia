@@ -18,7 +18,7 @@ import { useSurfaceMenuLayout } from '../../../shared/settings/useSettingValue';
 import { useSettings } from '../../../../stores/useSettings';
 import { useNotification } from '../../../../stores/useNotification';
 import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
-import { useExtensionUpdates } from '../../../shared/useExtensionUpdates';
+import { useExtensionPendencies } from '../../../shared/useExtensionPendencies';
 import type { User } from '../../../../domain/entities';
 import { useLabel } from '../../../shared/i18n/useT';
 
@@ -150,7 +150,7 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const { themeId, preferred: preferredTheme, available: themes, setTheme } = useTheme();
   const { open: openCommandPalette } = useCommandPalette();
   const { unreadCriticalCount: unreadCriticalAuditCount } = useAuditLogAlert();
-  const { pendingInUse: extensionUpdates } = useExtensionUpdates();
+  const { pendingCount: extensionPendencies } = useExtensionPendencies();
   const { sidebarScreens } = useScreenDefinitions();
   const navContributions = useNavContributions();
   const navGroupContributions = useNavGroupContributions();
@@ -171,9 +171,10 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   /**
    * O selo de cada item. Duas origens: a DECLARADA (`badge` da contribuição), que é uma contagem de
    * registros — e enxerga `user`, então conta também o que ESTE usuário não leu —, e a do kernel:
-   * falhas críticas de auditoria ainda não vistas, e extensões com atualização à espera. Esta não se
-   * apaga ao entrar na tela, como a da auditoria: some quando a última atualização é aplicada, porque
-   * o que ela conta é uma pendência e não uma notícia.
+   * falhas críticas de auditoria ainda não vistas, e extensões com alguma pendência (atualização,
+   * falha de carga, backend, migração, revisão de código). Esta não se apaga ao entrar na tela, como a
+   * da auditoria: some quando a última pendência é resolvida, porque o que ela conta é uma pendência e
+   * não uma notícia.
    */
   const badgeCount = useNavBadgeCount();
   const resolveTarget = useNavTargetResolver();
@@ -181,9 +182,9 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
   const openEntry = useOpenNavEntry();
   const kernelBadge = useCallback((key: string): number => {
     if (key === 'audit-logs') return unreadCriticalAuditCount;
-    if (key === 'marketplace') return extensionUpdates;
+    if (key === 'marketplace') return extensionPendencies;
     return 0;
-  }, [unreadCriticalAuditCount, extensionUpdates]);
+  }, [unreadCriticalAuditCount, extensionPendencies]);
 
   const label = useLabel();
 
