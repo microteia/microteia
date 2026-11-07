@@ -50,6 +50,7 @@ import type { IRecordSearchJobRepository } from '../../domain/repositories/IReco
 import type { IRecordKeyAdoptionRepository } from '../../domain/repositories/IRecordKeyAdoptionRepository';
 import type { IRecordImportRepository } from '../../domain/repositories/IRecordImportRepository';
 import type { IBackendResidueRepository } from '../../domain/repositories/IBackendResidueRepository';
+import type { IAppliedBackendRepository } from '../../domain/repositories/IAppliedBackendRepository';
 import type { IInstalledCatalogSourceRepository } from '../../domain/repositories/IInstalledCatalogSourceRepository';
 import type { IAgentAuthRequestRepository } from '../../domain/repositories/IAgentAuthRequestRepository';
 import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGrantRepository';
@@ -107,6 +108,7 @@ export interface DIContainer {
   publicExtensionRepository: IPublicExtensionRepository;
   extensionReputationRepository: IExtensionReputationRepository;
   backendResidueRepository: IBackendResidueRepository;
+  appliedBackendRepository: IAppliedBackendRepository;
   installedCatalogSourceRepository: IInstalledCatalogSourceRepository;
   aggregateBackfillRepository: IAggregateBackfillRepository;
   recordSearchJobRepository: IRecordSearchJobRepository;

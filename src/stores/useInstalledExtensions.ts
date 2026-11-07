@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { InstalledExtension, InstalledExtensionSource } from '../domain/entities/InstalledExtension';
 import type { ExtensionHistory } from '../domain/entities/ExtensionHistory';
+import type { AppliedBackend } from '../domain/entities/AppliedBackend';
 import type { ExtensionMigrationState } from '../domain/entities/ExtensionMigration';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 import type { PluginMigration } from '../domain/schema/plugin/migration';
@@ -39,6 +40,13 @@ export interface InstalledExtensionStoreValue {
    * tinha depois de desinstalar. Ver `ExtensionHistory`.
    */
   histories: ReadonlyMap<string, ExtensionHistory>;
+  /**
+   * O que o PROJETO Firebase tem aplicado de backend de extensão (`backend_state/applied`), ou `null`
+   * quando o Console nunca o gravou. Toda pergunta de pendência de backend o recebe: a cópia instalada
+   * depois do último `provision`, exigindo o que o projeto já roda, não está pendente. Ver
+   * `extensionBackendState`.
+   */
+  appliedBackend: AppliedBackend | null;
   /** Copia (fielmente) o pacote para o tenant; preserva `active` de uma instalação existente. */
   install: (input: InstallExtensionInput, options?: InstallOptions) => Promise<void>;
   setActive: (id: string, active: boolean) => Promise<void>;

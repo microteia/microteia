@@ -22,6 +22,21 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.40.0] — 2026-11-07
+
+- feat(provision): writes `backend_state/applied` — the fingerprint each extension has live in the
+  project, with its approval — so a copy installed later with the same fingerprint is released by the
+  application without another run. Rewritten in full at the end of every run (empty included), from
+  what that run stamped.
+- feat(provision): copies whose fingerprint the project already has applied are stamped right after
+  the survey, carrying the recorded approval, so they never depend on the project document again.
+- feat(provision): before any deploy or `--prune`, the document is reduced to entries that stay true
+  whatever happens — installed extensions, newest copy's fingerprint. If that write fails the command
+  stops before changing the project: otherwise the document could keep announcing a function that
+  `--prune` was about to delete.
+- feat(firestore): `getDocument` reads one document over REST and returns `null` when it does not
+  exist.
+
 #### [2.39.0] — 2026-11-06
 
 - feat(export-catalog): the snapshot is built by `buildInstalledCatalog` from the `@microteia/sdk`

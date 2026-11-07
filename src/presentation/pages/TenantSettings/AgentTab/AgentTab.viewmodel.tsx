@@ -117,7 +117,7 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
   const { agentGrantRepository } = useDI();
   const { currentTenant } = useTenant();
   const { user } = useAuth();
-  const { installed } = useInstalledExtensions();
+  const { installed, appliedBackend } = useInstalledExtensions();
   const { can } = useAuthorization();
   const { notify } = useNotification();
   const label = useLabel();
@@ -173,7 +173,7 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
   );
   const isLoading = tenantId !== null && loaded?.tenantId !== tenantId;
 
-  const availability = useMemo(() => agentAvailability(installed), [installed]);
+  const availability = useMemo(() => agentAvailability(installed, appliedBackend), [installed, appliedBackend]);
   const endpointUrl = useMemo(() => httpFunctionUrl(AGENT_MCP_FUNCTION), []);
   const connectCommand = useMemo(
     () => `claude mcp add --transport http microteia ${endpointUrl} --header "Authorization: Bearer ${issuedToken ?? ''}"`,

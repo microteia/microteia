@@ -46,7 +46,7 @@ export const useOAuthConsentViewModel = (): OAuthConsentViewModel => {
   const [params] = useSearchParams();
   const { agentAuthRequestRepository } = useDI();
   const { currentTenant } = useTenant();
-  const { installed } = useInstalledExtensions();
+  const { installed, appliedBackend } = useInstalledExtensions();
   const { notify } = useNotification();
   const label = useLabel();
   const t = useT('core.access');
@@ -107,7 +107,7 @@ export const useOAuthConsentViewModel = (): OAuthConsentViewModel => {
   const request = settled?.request ?? null;
   // A ausência do parâmetro não precisa de busca nenhuma para ser sabida, e por isso não é estado.
   const error = requestId === '' ? t('agent.oauth.request.missing') : settled?.error ?? null;
-  const availability = useMemo(() => agentAvailability(installed), [installed]);
+  const availability = useMemo(() => agentAvailability(installed, appliedBackend), [installed, appliedBackend]);
 
   const allow = useCallback(async () => {
     if (request === null || currentTenant === null) return;

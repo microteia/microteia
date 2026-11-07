@@ -83,12 +83,12 @@ describe('pendência de migração da extensão instalada', () => {
   describe('efeito no boot do escritório', () => {
     it('exclui a extensão com migração pendente', () => {
       const ext = extension('com.a', [migration()]);
-      expect(installedExtensionRecords([ext], new Set(), new Set(['com.a']))).toEqual([]);
-      expect(installedExtensionRecords([ext], new Set(), new Set())).toHaveLength(1);
+      expect(installedExtensionRecords([ext], new Set(), null, new Set(['com.a']))).toEqual([]);
+      expect(installedExtensionRecords([ext], new Set(), null, new Set())).toHaveLength(1);
     });
 
     it('sem conjunto de pendentes, quem não declara migração entra normalmente', () => {
-      expect(installedExtensionRecords([extension('com.a')], new Set())).toHaveLength(1);
+      expect(installedExtensionRecords([extension('com.a')], new Set(), null)).toHaveLength(1);
     });
   });
 });

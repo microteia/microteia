@@ -530,6 +530,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     runMigrations: runExtensionMigrations,
     histories,
     restore: restoreVersion,
+    appliedBackend,
   } = useInstalledExtensions();
   const {
     publicExtensions,
@@ -1049,8 +1050,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canDelete: mine,
         canApprove: canModerate && publicStatus === 'pending',
         canDeprecate: canModerate && publicStatus === 'approved',
-        backendPending: inst !== undefined && inst !== null && isExtensionBackendPending(inst),
-        backendPendingDetail: backendPendingDetailOf(inst ? extensionBackendPendingCause(inst) : null),
+        backendPending: inst !== undefined && inst !== null && isExtensionBackendPending(inst, appliedBackend),
+        backendPendingDetail: backendPendingDetailOf(inst ? extensionBackendPendingCause(inst, appliedBackend) : null),
         migrationPending: inst ? isExtensionMigrationPending(inst, migrationStates) : false,
         migrationError: migrationErrorOf(inst),
         canRunMigrations: canManage && inst !== undefined && pendingMigrationsOf(id).length > 0,
@@ -1070,7 +1071,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, pendenciesOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf, verifiedPublishers, reputationOf, verificationLabelOf]);
+  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, pendenciesOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, appliedBackend, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf, verifiedPublishers, reputationOf, verificationLabelOf]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,

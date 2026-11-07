@@ -66,3 +66,37 @@ describe('o resíduo de backend do projeto', () => {
     await assertFails(deleteDoc(doc(asUser(env, 'sistema'), RESIDUE)));
   });
 });
+
+/**
+ * `backend_state/applied` — o fingerprint que cada extensão tem no ar no projeto. É ele que libera a
+ * cópia instalada depois do último `provision`, e por isso a escrita do cliente é ainda mais cara que no
+ * resíduo: um admin de UM escritório que pudesse escrevê-lo liberaria a extensão em TODOS os escritórios
+ * do projeto sem o backend dela — o defeito que parece CORS, espalhado.
+ */
+describe('o que o projeto tem aplicado', () => {
+  const APPLIED = 'backend_state/applied';
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore() as unknown as Firestore, APPLIED), {
+        writtenAt: new Date(),
+        consoleVersion: '2.40.0',
+        extensions: [{ pluginId: 'com.acme.sync', fingerprint: '{"functions":["acmeSync"]}' }],
+      });
+    });
+  });
+
+  it('qualquer autenticado lê — é o que o boot de todo escritório consulta', async () => {
+    await assertSucceeds(getDoc(doc(asUser(env, 'membro'), APPLIED)));
+  });
+
+  it('quem não entrou não lê', async () => {
+    await assertFails(getDoc(doc(asAnonymous(env), APPLIED)));
+  });
+
+  it('nem o SYSTEM escreve nem apaga: quem afirma que o backend está no ar é só o Console', async () => {
+    await assertFails(setDoc(doc(asUser(env, 'sistema'), APPLIED), { extensions: [] }));
+    await assertFails(setDoc(doc(asUser(env, 'membro'), APPLIED), { extensions: [] }));
+    await assertFails(deleteDoc(doc(asUser(env, 'sistema'), APPLIED)));
+  });
+});

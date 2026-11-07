@@ -129,7 +129,7 @@ describe('gate no registro do Kernel', () => {
   });
 
   it('conjunto vazio de confiáveis não deixa nada executar', () => {
-    const records = installedExtensionRecords([installedFrom()], new Set());
+    const records = installedExtensionRecords([installedFrom()], new Set(), null);
     expect(records[0].trusted).toBe(false);
   });
 
@@ -137,6 +137,7 @@ describe('gate no registro do Kernel', () => {
     const records = installedExtensionRecords(
       [installedFrom({ active: false })],
       new Set(['com.acme.x']),
+      null,
     );
     expect(records).toEqual([]);
   });

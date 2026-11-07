@@ -29,6 +29,7 @@ import {
 } from '../domain/usecases/plugins/runPluginMigrations';
 import type { ExtensionMigrationState } from '../domain/entities/ExtensionMigration';
 import type { ExtensionHistory } from '../domain/entities/ExtensionHistory';
+import type { AppliedBackend } from '../domain/entities/AppliedBackend';
 import { packageRevision } from '../domain/usecases/plugins/extensionHistory';
 import type { PluginMigration } from '../domain/schema/plugin/migration';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
@@ -49,6 +50,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
     installedExtensionRepository,
     extensionMigrationRepository,
     extensionHistoryRepository,
+    appliedBackendRepository,
     screenDefinitionRepository,
     workflowDefinitionRepository,
     scriptRepository,
@@ -77,6 +79,8 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
   const [isLoading, setIsLoading] = useState(false);
   const [migrationStates, setMigrationStates] = useState<ReadonlyMap<string, ExtensionMigrationState>>(new Map());
   const [histories, setHistories] = useState<ReadonlyMap<string, ExtensionHistory>>(new Map());
+  const [appliedBackend, setAppliedBackend] = useState<AppliedBackend | null>(null);
+  const hasTenant = currentTenant !== null;
 
   /**
    * O executor de migração é o sandbox do servidor, pela callable que já existe: ela recebe o código
@@ -112,6 +116,18 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
     });
     return () => unsubscribe();
   }, [currentTenant, installedExtensionRepository]);
+
+  // O documento é do PROJETO, e não do escritório: trocar de tenant não muda o que ele diz, e por isso a
+  // assinatura depende só de haver um tenant (e com ele um usuário autenticado), não de qual.
+  useEffect(() => {
+    if (!hasTenant) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- limpar estado local na saída do tenant é exigência arquitetural
+      setAppliedBackend(null);
+      return;
+    }
+    const unsubscribe = appliedBackendRepository.subscribe(setAppliedBackend);
+    return () => unsubscribe();
+  }, [hasTenant, appliedBackendRepository]);
 
   useEffect(() => {
     if (!currentTenant) {
@@ -466,6 +482,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       isLoading,
       migrationStates,
       histories,
+      appliedBackend,
       install,
       setActive,
       trustCode,
@@ -476,8 +493,8 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       restore,
     }),
     [
-      installed, isLoading, migrationStates, histories, install, setActive, trustCode, uninstall,
-      installedOf, pendingMigrationsOf, runMigrations, restore,
+      installed, isLoading, migrationStates, histories, appliedBackend, install, setActive, trustCode,
+      uninstall, installedOf, pendingMigrationsOf, runMigrations, restore,
     ],
   );
 

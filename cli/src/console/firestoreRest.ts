@@ -56,8 +56,8 @@ export const activeAccount = async (): Promise<string> => {
 const request = async (
   projectId: string,
   path: string,
-  init: { method: string; body?: unknown; query?: Record<string, string | string[]> } = { method: 'GET' },
-): Promise<Record<string, unknown>> => {
+  init: { method: string; body?: unknown; query?: Record<string, string | string[]>; allowMissing?: boolean } = { method: 'GET' },
+): Promise<Record<string, unknown> | null> => {
   const token = await accessToken();
   const url = new URL(`${HOST}/projects/${projectId}/databases/(default)/documents${path}`);
   for (const [key, value] of Object.entries(init.query ?? {})) {
@@ -75,6 +75,9 @@ const request = async (
   });
 
   const text = await response.text();
+  // Documento que ainda não existe é resposta, não falha, para quem pediu assim: é o caso de todo
+  // documento que o Console escreve pela primeira vez num projeto que nunca o recebeu.
+  if (response.status === 404 && init.allowMissing === true) return null;
   if (!response.ok) {
     const detail = text.slice(0, 400);
     if (response.status === 403) {
@@ -129,13 +132,23 @@ export const listDocuments = async (
       method: 'GET',
       query: { pageSize: '300', ...(pageToken === undefined ? {} : { pageToken }) },
     });
-    for (const entry of (page.documents as FirestoreDocument[] | undefined) ?? []) {
+    for (const entry of (page?.documents as FirestoreDocument[] | undefined) ?? []) {
       documents.push({ name: entry.name, fields: entry.fields ?? {} });
     }
-    pageToken = page.nextPageToken as string | undefined;
+    pageToken = page?.nextPageToken as string | undefined;
   } while (pageToken !== undefined);
 
   return documents;
+};
+
+/** Os campos de UM documento, decodificados — `null` quando ele não existe. */
+export const getDocument = async (
+  projectId: string,
+  path: string,
+): Promise<Record<string, unknown> | null> => {
+  const document = await request(projectId, path, { method: 'GET', allowMissing: true });
+  if (document === null) return null;
+  return decodeFields((document.fields as Record<string, unknown> | undefined) ?? {});
 };
 
 export const documentId = (document: FirestoreDocument): string =>

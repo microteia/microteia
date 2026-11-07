@@ -1,4 +1,5 @@
 import type { InstalledExtension } from '../../entities/InstalledExtension';
+import type { AppliedBackend } from '../../entities/AppliedBackend';
 import type { PluginRecord } from '../../../kernel';
 import { extensionRecordFrom } from './extensionRecordFrom';
 import { isExtensionBackendApplied } from './extensionBackendState';
@@ -27,10 +28,11 @@ import { isExtensionBackendApplied } from './extensionBackendState';
 export const installedExtensionRecords = (
   installed: InstalledExtension[],
   trustedIds: ReadonlySet<string>,
+  projectApplied: AppliedBackend | null,
   migrationPendingIds: ReadonlySet<string> = new Set<string>(),
 ): PluginRecord[] =>
   installed
     .filter((extension) => extension.active)
-    .filter(isExtensionBackendApplied)
+    .filter((extension) => isExtensionBackendApplied(extension, projectApplied))
     .filter((extension) => !migrationPendingIds.has(extension.id))
     .map((extension) => extensionRecordFrom(extension.package, trustedIds.has(extension.id)));

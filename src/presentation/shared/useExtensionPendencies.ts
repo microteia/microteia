@@ -45,7 +45,7 @@ export interface ExtensionPendencies {
  * conta é derivada, sem consulta própria e sem contador a manter sincronizado.
  */
 export const useExtensionPendencies = (): ExtensionPendencies => {
-  const { installed, migrationStates, isLoading: loadingInstalled } = useInstalledExtensions();
+  const { installed, migrationStates, appliedBackend, isLoading: loadingInstalled } = useInstalledExtensions();
   const { extensions, isLoading: loadingAuthored } = useTenantExtensions();
   const { publicExtensions, isLoading: loadingPublic } = usePublicExtensions();
   const codeTrust = useInstalledCodeTrust();
@@ -84,7 +84,7 @@ export const useExtensionPendencies = (): ExtensionPendencies => {
       const pendencies = extensionPendencies({
         active: copy.active,
         loadFailed: failedIds.has(copy.id),
-        backendPending: isExtensionBackendPending(copy),
+        backendPending: isExtensionBackendPending(copy, appliedBackend),
         migrationPending: isExtensionMigrationPending(copy, migrationStates),
         // Enquanto o hash não termina, o conjunto de confiáveis é vazio por falha fechada — e não por
         // falta de revisão. Contar isso acenderia o selo em toda extensão com código a cada carga.
@@ -102,5 +102,5 @@ export const useExtensionPendencies = (): ExtensionPendencies => {
       pendenciesOf: (id: string) => byId.get(id) ?? NONE,
       pendingCount: byId.size,
     };
-  }, [installed, migrationStates, extensions, publicExtensions, diagnostics, codeTrust, ready]);
+  }, [installed, migrationStates, appliedBackend, extensions, publicExtensions, diagnostics, codeTrust, ready]);
 };

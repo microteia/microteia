@@ -51,6 +51,13 @@ import { clearPackagedSources, packagedSourceOf, parseApprovals } from './packag
 import type { PackagedClaim, PackagedSource } from './packagedSources.js';
 import type { PendingCause } from './backendPending.js';
 import { writeBackendResidue } from './backendResidue.js';
+import {
+  appliedEntryOf,
+  readBackendApplied,
+  reduceBackendApplied,
+  writeBackendApplied,
+} from './backendApplied.js';
+import type { AppliedEntry } from './backendApplied.js';
 import { listTenants, readInstalledExtensions } from './installedExtensions.js';
 import { gatherCustomFunctions, readOfficeFunctions } from './customFunctions.js';
 import {
@@ -231,7 +238,9 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
    * rejeitada com "this kernel package does not contain".
    */
   const survey = await surveyInstallations(projectId);
-  const claims = survey.claims;
+  const claims = await settleProjectApplied(projectId, survey.claims);
+  /** O que esta execução carimbou — é o que `backend_state/applied` passa a dizer no fim. */
+  const stamped: AppliedEntry[] = [];
 
   /**
    * A fonte que veio NO PACOTE é decidida antes de qualquer conta: o que for aprovado é extraído para
@@ -681,7 +690,7 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     // function que já estava aplicada continua satisfazendo a extensão mesmo que o portão dela tenha
     // saído da fila nesta execução.
     if (isValid && (claim.backend.functions ?? []).every((name) => deployedNow.has(name))) {
-      await stampApplied(projectId, claims, claim, settlement.approvedNow.get(claim.pluginId));
+      stamped.push(await stampApplied(projectId, claims, claim, settlement.approvedNow.get(claim.pluginId)));
       continue;
     }
     if (isValid) outcome.pending.push(claim);
@@ -748,8 +757,83 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
   );
   reportOrphanIndexes(projectId, settled.orphans, options.prune);
   await publishResidue(projectId, remaining, settled.orphans, survey);
+  await publishApplied(projectId, stamped);
 
   return outcome;
+};
+
+/**
+ * O documento do projeto, conciliado com as cópias ANTES de qualquer conta.
+ *
+ * Primeiro materializa: a cópia sem carimbo próprio cujo fingerprint o projeto já tem aplicado recebe o
+ * carimbo agora, com a aprovação que veio de lá — é o que este comando gravaria se tivesse rodado quando
+ * ela foi atualizada. A partir daí ela se comporta como qualquer cópia carimbada, e a redução logo
+ * abaixo pode tirar a entrada dela sem tirá-la do ar.
+ *
+ * Depois reduz, e a redução vem antes de deploy e de `--prune` de propósito: se a escrita falhar, o
+ * comando para AQUI, antes de mudar o projeto. Seguir adiante deixaria o documento anunciando no ar a
+ * function que o `--prune` estaria prestes a apagar.
+ */
+const settleProjectApplied = async (
+  projectId: string,
+  surveyed: InstalledClaim[],
+): Promise<InstalledClaim[]> => {
+  let entries: AppliedEntry[] = [];
+  try {
+    entries = await readBackendApplied(projectId);
+  } catch (error) {
+    warn('could not read what this project already has applied:');
+    info(`  ${error instanceof Error ? error.message : String(error)}`);
+    info('  copies installed after the last run are not released early; this run stamps them as usual.');
+  }
+
+  const appliedAt = new Date();
+  const claims: InstalledClaim[] = [];
+  for (const claim of surveyed) {
+    const entry = claim.applied ? undefined : appliedEntryOf(entries, { pluginId: claim.pluginId, fingerprint: claimFingerprint(claim) });
+    if (entry === undefined) {
+      claims.push(claim);
+      continue;
+    }
+    await writeStamp(projectId, claim.documentPath, entry.fingerprint, appliedAt, approvalOf(entry.approvedHash, entry.approvedBy));
+    claims.push({
+      ...claim,
+      applied: true,
+      ...(entry.approvedHash !== undefined ? { approvedHash: entry.approvedHash } : {}),
+      ...(entry.approvedBy !== undefined ? { approvedBy: entry.approvedBy } : {}),
+    });
+  }
+
+  const newest = uniqueByPlugin(claims).map((claim) => ({ pluginId: claim.pluginId, fingerprint: claimFingerprint(claim) }));
+  try {
+    await writeBackendApplied(projectId, reduceBackendApplied(entries, newest));
+  } catch (error) {
+    throw new Error(
+      'could not update what this project has applied before changing it, so nothing was changed.\n'
+      + `  ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
+  return claims;
+};
+
+/**
+ * O que ficou aplicado, regravado por inteiro — inclusive vazio, que é o que apaga a entrada da extensão
+ * que saiu.
+ *
+ * Falhar aqui não derruba o comando, pela mesma razão do resíduo: o trabalho já foi feito. O documento
+ * fica como a redução o deixou, que só tem o que continua verdadeiro — o que se perde é o atalho, não a
+ * segurança.
+ */
+const publishApplied = async (projectId: string, stamped: AppliedEntry[]): Promise<void> => {
+  try {
+    await writeBackendApplied(projectId, stamped);
+  } catch (error) {
+    warn('could not record what this project has applied where the application can read it:');
+    info(`  ${error instanceof Error ? error.message : String(error)}`);
+    info('  every copy installed now is stamped. A copy installed later stays pending until the next');
+    info('  "microteia provision".');
+  }
 };
 
 /**
@@ -878,7 +962,7 @@ const stampApplied = async (
   all: InstalledClaim[],
   claim: InstalledClaim,
   approvedNowBy: string | undefined,
-): Promise<void> => {
+): Promise<AppliedEntry> => {
   const fingerprint = claimFingerprint(claim);
   const appliedAt = new Date();
   /**
@@ -887,31 +971,57 @@ const stampApplied = async (
    * cópia nova de um escritório que reinstalou, sem perguntar de novo pelo código que já roda.
    */
   const hash = claim.source?.hash;
-  const approval: Record<string, FirestoreTypedValue> = hash === undefined
-    ? {}
-    : {
-      approvedHash: asString(hash),
-      approvedBy: asString(
-        approvedNowBy
-          ?? all.find((entry) => entry.pluginId === claim.pluginId && entry.approvedHash === hash)?.approvedBy
-          ?? 'unknown',
-      ),
-      approvedAt: asTimestamp(appliedAt),
-    };
+  const approvedBy = hash === undefined
+    ? undefined
+    : approvedNowBy
+      ?? all.find((entry) => entry.pluginId === claim.pluginId && entry.approvedHash === hash)?.approvedBy
+      ?? 'unknown';
   for (const copy of all.filter((entry) => entry.pluginId === claim.pluginId)) {
     if (claimFingerprint(copy) !== fingerprint) continue;
-    // O motivo de uma recusa anterior sai na MESMA escrita: duas escritas abririam uma janela em que a
-    // tela mostra a extensão no ar e, ao mesmo tempo, por que ela não estava.
-    await patchFields(projectId, copy.documentPath, {
-      backendState: asMap({
-        fingerprint: asString(fingerprint),
-        appliedAt: asTimestamp(appliedAt),
-        ...approval,
-      }),
-      backendPending: asNull(),
-    });
+    await writeStamp(projectId, copy.documentPath, fingerprint, appliedAt, approvalOf(hash, approvedBy));
   }
   success(`${claim.name} is ready in ${projectId}`);
+  return {
+    pluginId: claim.pluginId,
+    fingerprint,
+    ...(hash !== undefined ? { approvedHash: hash } : {}),
+    ...(approvedBy !== undefined ? { approvedBy } : {}),
+  };
+};
+
+interface StampApproval {
+  hash: string;
+  by: string;
+}
+
+const approvalOf = (hash: string | undefined, by: string | undefined): StampApproval | undefined =>
+  hash === undefined ? undefined : { hash, by: by ?? 'unknown' };
+
+/** O carimbo numa cópia — o mesmo vindo do deploy desta execução ou do que o projeto já tinha aplicado. */
+const writeStamp = async (
+  projectId: string,
+  documentPath: string,
+  fingerprint: string,
+  appliedAt: Date,
+  approval: StampApproval | undefined,
+): Promise<void> => {
+  const approvalFields: Record<string, FirestoreTypedValue> = approval === undefined
+    ? {}
+    : {
+      approvedHash: asString(approval.hash),
+      approvedBy: asString(approval.by),
+      approvedAt: asTimestamp(appliedAt),
+    };
+  // O motivo de uma recusa anterior sai na MESMA escrita: duas escritas abririam uma janela em que a
+  // tela mostra a extensão no ar e, ao mesmo tempo, por que ela não estava.
+  await patchFields(projectId, documentPath, {
+    backendState: asMap({
+      fingerprint: asString(fingerprint),
+      appliedAt: asTimestamp(appliedAt),
+      ...approvalFields,
+    }),
+    backendPending: asNull(),
+  });
 };
 
 /** O fingerprint que a cópia exige — o mesmo que a tela calcula, com o hash da fonte quando ela existe. */

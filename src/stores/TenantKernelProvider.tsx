@@ -37,7 +37,7 @@ const dedupeById = (records: PluginRecord[]): PluginRecord[] => {
  * a tela de Extensões e o selo de pendências a leem daqui, em vez de digerir os pacotes de novo.
  */
 export const TenantKernelProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { installed, migrationStates } = useInstalledExtensions();
+  const { installed, migrationStates, appliedBackend } = useInstalledExtensions();
   const codeTrust = useExtensionCodeTrust(installed);
   const { trustedIds } = codeTrust;
 
@@ -53,9 +53,9 @@ export const TenantKernelProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const records = useMemo(
     () => dedupeById([
       ...CORE_PLUGINS,
-      ...installedExtensionRecords(installed, trustedIds, migrationPendingIds),
+      ...installedExtensionRecords(installed, trustedIds, appliedBackend, migrationPendingIds),
     ]),
-    [installed, trustedIds, migrationPendingIds],
+    [installed, trustedIds, appliedBackend, migrationPendingIds],
   );
 
   return (

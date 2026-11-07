@@ -1,4 +1,5 @@
 import type { InstalledExtension } from '../../entities/InstalledExtension';
+import type { AppliedBackend } from '../../entities/AppliedBackend';
 import { AGENT_MCP_FUNCTION } from '../../schema/agent/agentBackend';
 import { isExtensionBackendApplied } from '../plugins/extensionBackendState';
 
@@ -20,11 +21,14 @@ export type AgentAvailability = 'disabled' | 'pending' | 'ready';
  * que é dele. Escrever `com.microteia.agent` aqui prenderia a tela do núcleo a um pacote específico —
  * e quem bifurcasse a extensão para um pacote próprio veria a tela dizer que nada está ligado.
  */
-export const agentAvailability = (installed: readonly InstalledExtension[]): AgentAvailability => {
+export const agentAvailability = (
+  installed: readonly InstalledExtension[],
+  projectApplied: AppliedBackend | null,
+): AgentAvailability => {
   const claimants = installed.filter(
     (extension) => extension.active
       && (extension.package.manifest.backend?.functions ?? []).includes(AGENT_MCP_FUNCTION),
   );
   if (claimants.length === 0) return 'disabled';
-  return claimants.some(isExtensionBackendApplied) ? 'ready' : 'pending';
+  return claimants.some((extension) => isExtensionBackendApplied(extension, projectApplied)) ? 'ready' : 'pending';
 };

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.211.0] — 2026-11-07
+
+- Uma extensão com recursos de servidor que já foi ativada em um escritório agora fica disponível imediatamente quando outro escritório da mesma instalação instala ou atualiza a mesma versão. Antes, ela ficava como "Backend pendente" até alguém com acesso ao projeto rodar a ativação de novo, mesmo sem haver nada novo a ativar.
+
 #### [9.210.1] — 2026-11-07
 
 - Cada alteração da Microteia passa agora por uma conferência automática completa antes de virar versão, e a página do projeto mostra se ela foi aprovada, além da versão mais recente disponível para instalar.

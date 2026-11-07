@@ -125,6 +125,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `StepDefinition` (catálogo, espelho somente-leitura) | `workflow_step_catalog/{id}` | Não |
 | `Script` (código reutilizável do Step "Script") | `tenants/{tenantId}/scripts/{id}` | Sim |
 | `BackendResidue` (o que o provisionamento deixou no projeto) | `backend_state/current` | Não |
+| `AppliedBackend` (o fingerprint de backend que cada extensão tem no ar no projeto) | `backend_state/applied` | Não |
 | Reserva de chave (unicidade de registro) | `tenants/{tenantId}/recordKeys/{keyId}` — o `keyId` deriva do valor, e criá-lo É a trava | Sim |
 | Adoção de chave (registros antigos) | `tenants/{tenantId}/record_key_adoptions/{coleção}` — só o servidor grava | Sim |
 | Busca de registros (backfill e propagação) | `tenants/{tenantId}/record_search_jobs/{backfill:<coleção> \| propagate:<coleção>:<id>}` — só o servidor grava | Sim |
@@ -908,7 +909,7 @@ regra que tem uma decisão a defender:
 | `recordKeys.test.ts` | a unicidade: `create` liberado e `update` negado é o que faz duas gravações no mesmo instante não passarem as duas |
 | `recordKeyAdoptions.test.ts` | o job da adoção lido por todo membro e escrito por ninguém do cliente — quem escrevesse `adopted` daria por única uma chave com duplicatas embaixo |
 | `reports.test.ts` | definição lida por todo membro, escrita por quem gerencia — e o acesso ao DADO que a regra deliberadamente não decide |
-| `backendState.test.ts` | o cliente lê e nunca escreve: escrita liberada deixaria forjar a lista de órfãs do provisionamento |
+| `backendState.test.ts` | o cliente lê e nunca escreve: escrita liberada deixaria forjar a lista de órfãs do provisionamento — e, no `backend_state/applied`, liberar a extensão de qualquer escritório do projeto sem o backend dela |
 | `portalReprojections.test.ts` | o job da reprojeção: lê só quem tem `portal.manage`; ninguém grava do cliente |
 | `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid — ou, a pública, por `public == true`, a mesma para dois convidados de sujeitos diferentes e para ninguém de fora; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
 | `memberMfa.test.ts` | o segundo fator: sem `mfa` no membro, nada muda; exigido, a sessão sem `mfaAt` não lê nem grava (mas lê o próprio escritório e o próprio documento de membro); a prova vencida lê e não grava; o curinga do dono não pula o fator; o `SYSTEM` não é alcançado — nem como DONO, no sino, no voto e no logo, e a conta rebaixada volta a ser cobrada sem rematerializar (EV-36); ninguém apaga `mfa` do membro; política e fator fechados ao cliente; o Storage segue a mesma conta |
@@ -3645,9 +3646,10 @@ caso que hoje NÃO EXISTE (o kernel não declara `defineString` nenhum) seria de
 consulta. Se uma function da baseline passar a ler parâmetro, quem aplica é
 `microteia deploy --only functions`, que redeploya a baseline inteira.
 
-**O estado é uma propriedade da própria extensão instalada**, não um documento novo:
+**O estado é uma propriedade da própria extensão instalada**:
 `installed_extensions/{id}.backendState = { fingerprint, appliedAt }`. Quem grava é o Console; quem lê é
-o boot. Não houve regra nova nem coleção nova.
+o boot. Não houve regra nova nem coleção nova. A cópia que chega DEPOIS do último `provision` também é
+liberada pelo que o PROJETO tem aplicado — ver "A cópia que chega depois" logo abaixo.
 
 **O vínculo é por CONTEÚDO, não por versão** — mesma razão do `codeTrust`. O `fingerprint` é o JSON
 canônico de `functions`/`indexes`/`parameters`, e não um hash: precisa ser síncrono (o gate do boot não
@@ -3707,6 +3709,35 @@ reaberta muito mais vezes do que isso.
 escrita de admin). O efeito é ele carregar no próprio navegador uma extensão cujas functions não
 existem: prejuízo próprio, nenhum privilégio ganho. Fica registrado em vez de defendido — a alternativa
 seria tornar a coleção somente-servidor e perder instalar/desinstalar pela aplicação.
+
+#### A cópia que chega depois — o que o PROJETO tem aplicado
+
+O carimbo vive na cópia, e o `provision` o grava nas cópias que existem **quando ele roda**. O
+escritório B que atualizava para a versão que o escritório A já tinha posto no ar ficava "Backend
+pendente" até alguém rodar o comando de novo — e o comando não decidia nada: a aprovação por hash já é
+do projeto e as functions já estavam no ar. Ele só copiava um registro.
+
+**O que fecha:** `backend_state/applied` (`console/backendApplied.ts`), com a lista
+`{ pluginId, fingerprint, approvedHash?, approvedBy? }` do que o projeto roda. A tela libera a cópia se
+o carimbo DELA bate **ou** se o projeto tem aquele `(pluginId, fingerprint)`. Lista e não mapa porque o
+id tem pontos, e ponto em chave de mapa é caminho de campo.
+
+| Passo do `provision` | O que faz, e por quê |
+|---|---|
+| materializar, logo depois da varredura | a cópia sem carimbo cujo fingerprint está no documento recebe o carimbo agora, com a aprovação de lá. Daí em diante ela não depende mais do documento — e a redução pode tirar a entrada sem tirá-la do ar |
+| reduzir, antes de deploy e `--prune` | fica só o que continua verdadeiro aconteça o que acontecer: extensão instalada, com o fingerprint da cópia mais nova. **Só remove.** Se a escrita falhar, o comando PARA antes de mudar o projeto — seguir anunciaria no ar a function que o `--prune` estava prestes a apagar, e a próxima cópia nasceria liberada contra o nada |
+| reescrever, no fim | por inteiro, inclusive vazio, com o que esta execução carimbou. Falhar aqui só avisa: a redução já deixou só o que é verdade, e o que se perde é o atalho |
+
+| Decisão | Por quê |
+|---|---|
+| parâmetro OBRIGATÓRIO das funções de pendência | `isExtensionBackendApplied(extension, projectApplied)` — `null` é a resposta explícita de quem não tem o documento. Opcional, um ponto novo que decidisse pendência o esqueceria, e a tela discordaria do boot |
+| assinatura, não leitura única | é ela que tira o selo da tela de quem espera o `provision` terminar. O documento é do projeto: a assinatura depende de haver tenant, não de qual |
+| ausente ou recusado vira `null` | cai no carimbo da cópia, que é o comportamento fechado de antes. Console antigo não grava o documento, e nada muda |
+| a aplicação nunca grava o carimbo | quem afirma que o backend está no ar é só o Console. O derivado não é persistido nem quando o admin salva a extensão |
+| o código já aprovado passa a servir o escritório novo sem operador no circuito | é a mesma regra de "a aprovação é do projeto": o `provision` já propagava sem perguntar, e o comando que deixou de ser preciso não revisava nada. Projeto Firebase diferente continua pendente — a function não existe lá |
+
+Sem regra nova: o curinga `backend_state/{documentId}` já dá leitura a qualquer autenticado e nega
+escrita a todo cliente, e o documento não carrega dado de escritório.
 
 ### Os comandos
 

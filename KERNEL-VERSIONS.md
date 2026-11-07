@@ -18,6 +18,24 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.211.0] — 2026-11-07
+
+- feat(extensions): a copy installed or updated AFTER the last `microteia provision` is released when
+  the project already runs exactly what it declares. The Console now publishes
+  `backend_state/applied` — per extension, the backend fingerprint the project runs — and
+  `isExtensionBackendApplied` accepts either the copy's own `backendState` or a matching project
+  entry. Before, `provision` only stamped the copies that existed when it ran, so a second tenant
+  updating to the version a first tenant had already provisioned stayed "Backend pending" until
+  someone re-ran a command that decided nothing: the hash approval is already per project and the
+  functions were already live.
+- feat(extensions): the project document is now a required argument of `isExtensionBackendApplied`,
+  `isExtensionBackendPending`, `extensionBackendPendingCause`, `installedExtensionRecords` and
+  `agentAvailability`; `useInstalledExtensions()` exposes it as `appliedBackend`, from a live
+  subscription. Missing or unreadable document means `null`, which falls back to the per-copy stamp —
+  the gate stays fail-closed. The application never writes the stamp.
+- No rules change: `backend_state/{documentId}` already grants read to any signed-in user and denies
+  every client write. Works with older Consoles (no document, same behaviour as before).
+
 #### [9.210.1] — 2026-11-07
 
 - ci: GitHub Actions now runs the full gate on every push to `main` and every pull request —
