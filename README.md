@@ -1,5 +1,10 @@
 # Microteia
 
+[![CI](https://github.com/microteia/microteia/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/microteia/microteia/actions/workflows/ci.yml)
+[![Security Rules](https://github.com/microteia/microteia/actions/workflows/rules.yml/badge.svg?branch=main)](https://github.com/microteia/microteia/actions/workflows/rules.yml)
+[![Kernel](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmicroteia.github.io%2Freleases%2Fkernel%2Findex.json&query=%24.channels.stable&label=kernel&prefix=v&color=blue)](https://github.com/microteia/releases/releases)
+[![Console](https://img.shields.io/npm/v/%40microteia%2Fconsole?label=console&color=blue)](https://www.npmjs.com/package/@microteia/console)
+
 Multi-tenant platform for **building business applications declaratively**. The kernel knows no
 domain at all: entities, screens, automations and translations come in as **plugins and
 extensions**, and that is what lets it serve a law office and a store without changing the kernel.

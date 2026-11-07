@@ -18,6 +18,17 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.210.1] — 2026-11-07
+
+- ci: GitHub Actions now runs the full gate on every push to `main` and every pull request —
+  `build:host-types`, `verify`, `test` and `build:functions` on Node 22 (`.github/workflows/ci.yml`).
+  `build:host-types` runs first because `typecheck` reads `sdk/types/*.d.ts`, which is generated and
+  not versioned: a fresh clone failed `verify` that no developer machine ever reproduced.
+- ci: the Security Rules suite (`test:rules`, JDK 21 + emulators) runs in its own workflow, only when
+  `firestore.rules`, `storage.rules` or `rules-tests/` change (`.github/workflows/rules.yml`).
+- docs(readme): status badges for both workflows, plus the stable kernel version read from the
+  published `kernel/index.json` and the `@microteia/console` version read from npm.
+
 #### [9.210.0] — 2026-11-06
 
 - feat(extensions): "Export catalog" on the Extensions screen downloads `installed-catalog.json` for the

@@ -1,0 +1,57 @@
+# O mesmo gate que o CLAUDE.md exige antes de cada commit, agora conferido pelo GitHub — é o que
+# alimenta o selo do README e o ✓/✗ ao lado de cada commit.
+#
+# Repositório privado no plano Free tem cota mensal de minutos: por isso o cache do npm, o
+# cancelamento da execução anterior do mesmo ref e o teto de tempo. As Security Rules ficam no
+# rules.yml, que só roda quando elas mudam.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      # 22 é o runtime das Cloud Functions; o CI não pode divergir do que roda na nuvem.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - name: Install
+        run: |
+          npm ci --no-audit --no-fund
+          npm ci --prefix functions --no-audit --no-fund
+
+      # `sdk/` é gerado e está no .gitignore, mas o `typecheck` confere as views e scripts das
+      # extensões contra `sdk/types/*.d.ts` ANTES de o `verify` chegar ao `build:host-types`. Na
+      # máquina de quem desenvolve o arquivo já existe de uma rodada anterior; num clone limpo, não.
+      - name: Generate host types
+        run: npm run build:host-types
+
+      - name: Verify (typecheck, lint, schemas, SDK, extensions, messages)
+        run: npm run verify
+
+      - name: Test
+        run: npm test
+
+      - name: Build Cloud Functions
+        run: npm run build:functions

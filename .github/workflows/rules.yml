@@ -1,0 +1,61 @@
+# As Security Rules exercitadas contra os emuladores reais. Ficam fora do ci.yml pelo mesmo motivo
+# que ficam fora do `npm test`: exigem um JDK e sobem emuladores, e isso é minuto de cota gasto à
+# toa num commit que não tocou regra nenhuma.
+name: Security Rules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - firestore.rules
+      - storage.rules
+      - rules-tests/**
+      - vitest.rules.config.ts
+      - firebase.json
+      - .github/workflows/rules.yml
+  pull_request:
+    paths:
+      - firestore.rules
+      - storage.rules
+      - rules-tests/**
+      - vitest.rules.config.ts
+      - firebase.json
+      - .github/workflows/rules.yml
+  workflow_dispatch:
+
+concurrency:
+  group: rules-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    name: Firestore and Storage rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # O emulador é um .jar baixado na primeira execução; sem cache, cada rodada o baixa de novo.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('package-lock.json') }}
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Test rules
+        run: npm run test:rules

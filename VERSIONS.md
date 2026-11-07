@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.210.1] — 2026-11-07
+
+- Cada alteração da Microteia passa agora por uma conferência automática completa antes de virar versão, e a página do projeto mostra se ela foi aprovada, além da versão mais recente disponível para instalar.
+
 #### [9.210.0] — 2026-11-06
 
 - A tela de Extensões ganhou o botão "Exportar catálogo", que baixa um retrato das telas, listas e extensões instaladas no escritório para as ferramentas de criação de extensões. Antes, esse retrato só podia ser tirado por quem tinha acesso ao projeto inteiro; agora o administrador do escritório consegue tirá-lo sozinho, vendo apenas o que já via no sistema. O arquivo leva a estrutura das telas, nunca os registros.
