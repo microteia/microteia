@@ -136,6 +136,9 @@ const PUBLISHED = [
   // desenha. MOVE o `KERNEL_VERSION` (2.92.0): `portal.view` aceita a implementação `widget` em `page`, e a
   // árvore ganha um tipo de nó.
   'PORTAL_PAGE_SPEC_SINCE_KERNEL', 'portalPageSpec',
+  // O RETRATO da instalação: o escritor único, que o Console carrega daqui e a aplicação usa no botão
+  // Exportar catálogo. NÃO move o `KERNEL_VERSION` — é arquivo de autoria, nada dele chega ao pacote.
+  'INSTALLED_CATALOG_FILE', 'INSTALLED_CATALOG_VERSION', 'buildInstalledCatalog', 'serializeInstalledCatalog',
 ].sort();
 
 /**
@@ -208,6 +211,9 @@ const PUBLISHED_TYPES = [
   'BehaviorModel', 'BehaviorState', 'BehaviorStateOption', 'BehaviorTransition', 'BehaviorTrigger',
   'BehaviorValidation', 'EffectKind', 'InvariantEnforcement', 'InvariantScope', 'MappedTransition',
   'TransitionFromCheck', 'TriggerKind',
+  // O retrato da instalação — ver a nota na lista de runtime.
+  'InstalledCatalogExporter', 'InstalledCatalogSnapshot', 'InstalledCatalogSnapshotInput',
+  'InstalledCatalogSourceDocument', 'InstalledCatalogSources',
   // O fecho do pipeline — ver a nota na lista de runtime.
   'ActionPlacement', 'ArtifactPlanOptions', 'BusinessRule', 'CoverageItem', 'CoverageSummary',
   'CoverageSurface', 'EntityTab', 'EntityTabKind', 'LedgerProduced', 'NotAScreen',

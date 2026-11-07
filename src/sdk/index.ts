@@ -751,3 +751,27 @@ export {
   ruleLedgerEntry,
   withRuleEntry,
 } from './domain';
+
+/**
+ * O RETRATO DA INSTALAÇÃO (`installed-catalog.json`): o único escritor do arquivo que o diretório de
+ * autoria lê.
+ *
+ * Sai no barril para que o Console o carregue do SDK instalado em `extensions/` em vez de trazer uma
+ * cópia própria — era a cópia que deixava um Console de outra versão escrever um formato que o kernel
+ * instalado não lia. A aplicação usa a mesma função no botão Exportar catálogo da tela de Extensões.
+ *
+ * NÃO move o `KERNEL_VERSION`: o retrato é arquivo de autoria, e nada dele chega ao pacote instalado.
+ */
+export {
+  INSTALLED_CATALOG_FILE,
+  INSTALLED_CATALOG_VERSION,
+  buildInstalledCatalog,
+  serializeInstalledCatalog,
+} from '../domain/usecases/plugins/installedCatalogSnapshot';
+export type {
+  InstalledCatalogExporter,
+  InstalledCatalogSnapshot,
+  InstalledCatalogSnapshotInput,
+  InstalledCatalogSourceDocument,
+  InstalledCatalogSources,
+} from '../domain/usecases/plugins/installedCatalogSnapshot';

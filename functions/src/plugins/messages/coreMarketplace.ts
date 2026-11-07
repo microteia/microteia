@@ -257,6 +257,13 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.import': 'Import .json',
   'extension.imported': '{name} imported into My Extensions.',
   'extension.import-failed': 'Could not import: {detail}',
+  'extension.export-catalog': 'Export catalog',
+  'extension.export-catalog.hint':
+    'Download a snapshot of the screens, lists and installed extensions of this organization, for the '
+    + 'extension authoring tools. It carries their shape, never the records.',
+  'extension.catalog-exported':
+    'Catalog exported: {screens} screen(s) and {extensions} extension(s). Save it as {file} in your extensions folder.',
+  'extension.catalog-export-failed': 'Could not export the catalog: {detail}',
   'import.title': 'Import {name}',
   'import.intro': 'Version {version} of this extension was recognized. Choose where it will be available.',
   'import.scope.private': 'Only in this organization',

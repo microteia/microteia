@@ -86,7 +86,7 @@ import { actionReturnReport } from './actionReturns';
 import { QUERY_MAX_RESULTS, QUERY_MAX_SCAN, QUERY_PAGE_SINCE_KERNEL } from '../../domain/schema/querySpec';
 import { readWorkspaceCatalog } from './workspaceCatalog';
 import type { WorkspaceCatalog } from './workspaceCatalog';
-import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS } from './installedCatalog';
+import { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_OMITS, refreshInstalledCatalog } from './installedCatalog';
 import { EXAMPLES_DIR, findPluginFiles } from './workspacePlugins';
 import { belongsToNamespace, outsideNamespaceMessage, storedKeepIds, workspaceNamespace } from './workspace/namespace';
 import { describeExtension, exampleCoverageReport, listExamples } from './describeExtension';
@@ -439,8 +439,7 @@ const catalogProvenance = (read: WorkspaceCatalog): Record<string, unknown> => {
         ...read.installedProblems,
         `No ${INSTALLED_CATALOG_FILE} here, so nothing this organization actually runs is in this list: a `
         + 'screen somebody built in the Form Design, or an extension already installed there, is invisible. '
-        + 'ASK rather than assume the list is everything — or run "microteia export-catalog --tenant '
-        + '<tenantId>" in the installation to bring a snapshot of it in.',
+        + `ASK rather than assume the list is everything. ${refreshInstalledCatalog()}.`,
       ],
     };
   }
@@ -464,7 +463,8 @@ const catalogProvenance = (read: WorkspaceCatalog): Record<string, unknown> => {
       stale: installed.stale,
       staleAfterDays: installed.staleAfterDays,
       kernelVersion: installed.kernelVersion,
-      consoleVersion: installed.consoleVersion,
+      exportedBy: installed.exportedBy,
+      ...(installed.exportedBy === 'console' ? { consoleVersion: installed.consoleVersion } : {}),
       extensions: installed.extensions.map((one) =>
         `${one.name} ${one.version} (${one.id})${one.active ? '' : ' — switched off'}`),
       collectionsOnlyThere: installed.addedCollections,
@@ -1470,8 +1470,8 @@ const PURE_READS: ToolDefinition[] = [
         groups: summarizeNavGroups(visible.declarations),
         sameNameDifferentKeys: sameNameDifferentKeys(visible.declarations),
         installationSnapshot: visible.installationKnown === null
-          ? `none — run "microteia export-catalog --tenant <tenantId>" in the installation to see the groups `
-            + 'of the extensions installed there, including third-party ones'
+          ? `none — the groups of the extensions installed there, third-party ones included, are not visible. `
+            + refreshInstalledCatalog()
           : visible.installationKnown
             ? 'read'
             : `${INSTALLED_CATALOG_FILE} was taken by a Console that did not record sidebar groups; export it again`,

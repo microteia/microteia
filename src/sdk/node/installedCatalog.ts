@@ -9,6 +9,10 @@ import type { DocumentTemplateContract } from '../../domain/usecases/plugins/doc
 import { documentTemplateContractOf } from '../../domain/usecases/plugins/documentStepIntegrity';
 import type { FieldPresetSlot, OfferedFieldPreset } from '../../domain/usecases/plugins/fieldPresetRefs';
 import type { CatalogScreenInput, ParentRelation } from '../domain/catalog';
+import {
+  INSTALLED_CATALOG_FILE,
+  INSTALLED_CATALOG_VERSION,
+} from '../../domain/usecases/plugins/installedCatalogSnapshot';
 
 /**
  * O RETRATO DA INSTALAÇÃO — o que o servidor MCP passa a saber sem nunca falar com o Firestore.
@@ -21,8 +25,10 @@ import type { CatalogScreenInput, ParentRelation } from '../domain/catalog';
  *
  * Fechar isso ligando o SDK ao banco trocaria uma cegueira por um problema pior: `microteia-plugin` é
  * offline por desenho, e arrastar credencial para cá poria segredo do escritório dentro da ferramenta
- * de autoria. Quem já fala com o projeto é o Console, que tem o token do `gcloud` — então é ele que
- * EXPORTA (`microteia export-catalog`), e este módulo apenas LÊ o arquivo, se ele estiver lá.
+ * de autoria. Quem ESCREVE o arquivo é `buildInstalledCatalog` (`installedCatalogSnapshot.ts`, no
+ * domínio), chamado por duas portas: o Console (`microteia export-catalog`, credencial do projeto) e a
+ * aplicação (Extensões → Exportar catálogo, credencial do membro, sob as regras). Este módulo apenas
+ * LÊ o arquivo, se ele estiver lá.
  *
  * Daí as três propriedades que governam o formato:
  *
@@ -32,16 +38,21 @@ import type { CatalogScreenInput, ParentRelation } from '../domain/catalog';
  *   membro, segredo e configuração não. Ver `INSTALLED_CATALOG_OMITS`.
  * - **É opcional.** Sem o arquivo, tudo continua exatamente como antes.
  *
- * O Console NÃO importa este módulo — ele é compilado e distribuído sozinho, sem alcançar `src/`. As
- * duas pontas do contrato são casadas por teste (`installedCatalog.test.ts` do lado de cá,
- * `exportCatalog.test.ts` do lado de lá), e o `version` do arquivo é o que impede um Console de outra
- * época de ser lido como se falasse a mesma língua.
+ * O escritor e o leitor moram no mesmo kernel: o Console carrega o escritor do SDK instalado em
+ * `extensions/`, em vez de trazer uma cópia própria. O `version` do arquivo continua sendo o que recusa
+ * um formato de outra época, e as chaves ausentes (`exportsKnown`, `keysKnown`…) continuam valendo para
+ * o retrato tirado por um Console anterior a essa mudança, que ainda escrevia com a cópia dele.
  */
 
-export const INSTALLED_CATALOG_FILE = 'installed-catalog.json';
+export { INSTALLED_CATALOG_FILE, INSTALLED_CATALOG_VERSION };
 
-/** A forma do arquivo. Sobe quando um leitor antigo deixaria de entender o que um novo escreve. */
-export const INSTALLED_CATALOG_VERSION = 1;
+/**
+ * Como refazer o retrato — as DUAS portas, sempre juntas. Quem administra o escritório e não o projeto
+ * Firebase não consegue rodar o Console, e uma dica que só cita o comando o deixava sem saída.
+ */
+export const refreshInstalledCatalog = (tenantId = '<tenantId>'): string =>
+  `Take a fresh snapshot with "microteia export-catalog --tenant ${tenantId}" in the installation, or with `
+  + `"Export catalog" on the Extensions screen of the application, saving the file here as ${INSTALLED_CATALOG_FILE}`;
 
 /** A partir daqui o retrato é ANUNCIADO como velho — ele continua valendo, e quem lê fica sabendo. */
 export const INSTALLED_CATALOG_STALE_DAYS = 14;
@@ -170,13 +181,25 @@ export interface InstalledCatalogFile {
   exportedAt: string;
   /** A versão do CONTRATO do kernel que estava instalada quando o retrato foi tirado. */
   kernelVersion: string;
-  /** A versão do Console que o tirou — a única coisa aqui que não vem do banco. */
+  /**
+   * Quem o tirou. `unknown` só num arquivo sem a chave e sem `consoleVersion`; um retrato anterior a
+   * `exportedBy` que traz `consoleVersion` foi tirado pelo Console, a única porta que existia.
+   */
+  exportedBy: InstalledCatalogExportedBy;
+  /** A versão do Console que o tirou, ou `unknown` quando quem o tirou foi a aplicação. */
   consoleVersion: string;
   extensions: InstalledCatalogExtension[];
   screens: InstalledCatalogScreen[];
   lookups: InstalledCatalogList[];
   tagLists: InstalledCatalogList[];
 }
+
+export type InstalledCatalogExportedBy = 'console' | 'application' | 'unknown';
+
+const exportedByOf = (record: Record<string, unknown>): InstalledCatalogExportedBy => {
+  if (record.exportedBy === 'console' || record.exportedBy === 'application') return record.exportedBy;
+  return typeof record.consoleVersion === 'string' && record.consoleVersion !== '' ? 'console' : 'unknown';
+};
 
 /** O retrato lido e conferido, ou a razão de ele não ter podido ser usado. */
 export interface InstalledCatalogRead {
@@ -450,7 +473,7 @@ export const readInstalledCatalog = (root: string, now: Date = new Date()): Inst
       ...ABSENT(path),
       present: true,
       problems: [`${INSTALLED_CATALOG_FILE} is not readable JSON, so nothing from the installation was used. `
-        + 'Delete it and run "microteia export-catalog --tenant <tenantId>" again.'],
+        + `Delete it. ${refreshInstalledCatalog()}.`],
     };
   }
 
@@ -465,8 +488,7 @@ export const readInstalledCatalog = (root: string, now: Date = new Date()): Inst
       ...ABSENT(path),
       present: true,
       problems: [`${INSTALLED_CATALOG_FILE} is format version ${version}, and this kernel reads version `
-        + `${INSTALLED_CATALOG_VERSION}. It was ignored. Run "microteia export-catalog --tenant <tenantId>" `
-        + 'with the Console that came with this installation.'],
+        + `${INSTALLED_CATALOG_VERSION}. It was ignored. ${refreshInstalledCatalog()}.`],
     };
   }
 
@@ -493,6 +515,7 @@ export const readInstalledCatalog = (root: string, now: Date = new Date()): Inst
     tenantName: text(record.tenantName, tenantId),
     exportedAt,
     kernelVersion: text(record.kernelVersion, 'unknown'),
+    exportedBy: exportedByOf(record),
     consoleVersion: text(record.consoleVersion, 'unknown'),
     extensions: list(record.extensions)
       .map(readExtension)

@@ -20,6 +20,8 @@ export interface TenantSummary {
 export interface InstalledExtensionRecord {
   tenantId: string;
   documentPath: string;
+  /** O id do documento, que pode diferir do `manifest.id` — é por ele que a cópia é endereçada. */
+  documentId: string;
   id: string;
   name: string;
   version: string;
@@ -64,6 +66,7 @@ export const readInstalledExtensions = async (
     return {
       tenantId,
       documentPath: `/tenants/${tenantId}/installed_extensions/${fallbackId}`,
+      documentId: fallbackId,
       id: String(manifest?.id ?? fallbackId),
       name: String(manifest?.name ?? manifest?.id ?? fallbackId),
       version: String(manifest?.version ?? '0.0.0'),

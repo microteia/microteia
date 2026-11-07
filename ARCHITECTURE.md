@@ -4423,19 +4423,36 @@ foi escrito.
 
 **A saída não foi dar credencial ao SDK.** `microteia-plugin` é offline por desenho
 (`create|check|build|sync|mcp`), e arrastar segredo do escritório para dentro da ferramenta de autoria
-trocaria uma cegueira por um problema pior. Quem já fala com o projeto é o Console — o token vem do
-`gcloud`, a cada execução, e nada é guardado. Então o Console EXPORTA e o SDK apenas LÊ.
+trocaria uma cegueira por um problema pior. Quem já fala com o escritório EXPORTA, e o SDK apenas LÊ.
 
-```
-microteia export-catalog --tenant <tenantId> [--output <path>]
-```
+**Duas portas escrevem o MESMO arquivo**, e a diferença entre elas é de QUEM pode usá-las:
+
+| Porta | Credencial | Quem consegue |
+|---|---|---|
+| `microteia export-catalog --tenant <tenantId> [--output <path>]` | token do `gcloud` — de PROJETO, não passa pelas Security Rules | quem tem papel no projeto Firebase |
+| Extensões → **Exportar catálogo**, na aplicação | a do MEMBRO, sob as regras | quem tem `extensions.manage` no escritório |
+
+A segunda nasceu porque a primeira deixava sem saída justamente quem mais autora extensão: o admin do
+escritório, que não tem — e não deve ter — acesso ao Firebase inteiro. Dar a ele um papel IAM de leitura
+seria abrir os registros, segredos e membros de TODOS os escritórios do projeto, sem regra nenhuma no
+meio. E não era preciso: as quatro coleções do retrato (`screenDefinitions`, `lookupDefinitions`,
+`tagDefinitions`, `installed_extensions`) já são `isMember` nas regras, e o arquivo só leva esquema. O
+botão não amplia o que ninguém vê; o `extensions.manage` que o esconde é recorte de interface, não de
+segurança.
 
 | Peça | Onde | Papel |
 |---|---|---|
-| `cli/src/console/exportCatalog.ts` | Console | lê o Firestore do escritório e escreve o arquivo |
+| `src/domain/usecases/plugins/installedCatalogSnapshot.ts` | domínio | o ESCRITOR único (`buildInstalledCatalog`), puro, sobre os documentos CRUS |
+| `src/sdk/index.ts` | SDK | publica o escritor no barril, de onde o Console o carrega |
+| `cli/src/console/exportCatalog.ts` | Console | lê o Firestore pela REST e entrega ao escritor do SDK de `extensions/` (`loadCatalogWriter`) |
 | `cli/src/console/installedExtensions.ts` | Console | o caminho ÚNICO até `installed_extensions`; o `provision` passa por ele |
-| `src/sdk/node/installedCatalog.ts` | SDK | o formato, e o leitor que o confere |
+| `FirebaseInstalledCatalogSourceRepository` + `ExportInstalledCatalogUseCase` | aplicação | lê as quatro coleções como membro e chama o mesmo escritor |
+| `src/sdk/node/installedCatalog.ts` | SDK | o leitor que confere o formato, e `refreshInstalledCatalog` — a dica que cita as duas portas |
 | `src/sdk/node/workspaceCatalog.ts` | SDK | soma o retrato ao que já lia |
+
+**O escritor é lido do CRU, nunca da entidade mapeada.** Um mapeamento de repositório que descarte um
+campo (`ownerPluginId`, `sourceId`) faria o retrato afirmar uma ausência que o banco não tem. Por isso a
+aplicação lê com `getDocs` direto, e não pelos stores.
 
 Cinco decisões, e nenhuma é preferência:
 
@@ -4450,8 +4467,9 @@ Cinco decisões, e nenhuma é preferência:
 - **É ESQUEMA, nunca conteúdo.** Nome de tela, de campo e de lista viajam. Registro, valor de lista,
   membro, permissão, automação, script, ação, segredo e configuração, não. `INSTALLED_CATALOG_OMITS` é
   a lista, e é dela que sai o que as tools respondem e o que o `AUTHORING.md` imprime.
-- **Ele se ANUNCIA como retrato.** Carrega `projectId`, `tenantId`, `exportedAt`, `kernelVersion` e a
-  versão do Console. Toda resposta que usa o catálogo — `list_entities`, `validate_domain_model`,
+- **Ele se ANUNCIA como retrato.** Carrega `projectId`, `tenantId`, `exportedAt`, `kernelVersion` e
+  quem o tirou (`exportedBy: console | application`, com o `consoleVersion` quando foi o Console; o
+  retrato anterior a `exportedBy` que traz `consoleVersion` é lido como do Console). Toda resposta que usa o catálogo — `list_entities`, `validate_domain_model`,
   `generate_artifact_plan` — carrega `catalogSources`: de onde veio cada entidade, quando o retrato foi
   tirado, e o que ele não traz. Passados `INSTALLED_CATALOG_STALE_DAYS`, é avisado. Um catálogo
   apresentado como completo quando não é vale menos que nenhum, porque quem lê deixa de perguntar.
@@ -4467,12 +4485,15 @@ sombreada antes de montar o `SchemaContext`.
 **Sem o arquivo, nada muda.** O caminho de quem nunca exportou continua sendo exatamente o de antes — e
 `catalogSources` diz isso, com o comando que fecha a lacuna.
 
-**As duas pontas do formato são compiladas SEPARADAMENTE.** O Console não alcança `src/`: ele é
-distribuído sozinho, e uma versão dele pode ser mais velha que o kernel instalado. Sobra um formato
-escrito de um lado e lido de outro, que é a forma de acoplamento que envelhece calada. Duas coisas
-seguram isso: o campo `version` do arquivo, que o leitor RECUSA quando não é o dele (com o comando que
-o refaz), e `cli/src/console/exportCatalog.test.ts`, que monta o documento com o exportador e o entrega
-ao leitor do kernel — o percurso real do arquivo, atravessado num teste.
+**Escritor e leitor moram no mesmo kernel.** O Console trazia uma cópia do escritor, compilada à parte e
+casada com o leitor só por teste — e o Console é distribuído separadamente do kernel. Agora ele carrega
+`buildInstalledCatalog` do `@microteia/sdk` instalado em `extensions/` (`createRequire` a partir do
+`package.json` dali), e um Console de outra época não tem mais como escrever um formato que o kernel não
+lê. O SDK de um kernel anterior ao escritor não o tem, e aí o comando RECUSA dizendo como trazê-lo — em
+vez de cair numa cópia que já não é conferida contra nada. Por isso o `export-catalog` exige
+`extensions/` mesmo com `--output`. O `version` do arquivo continua sendo o que recusa um formato de outra
+época, e `cli/src/console/exportCatalog.test.ts` continua atravessando o percurso real: a resposta crua da
+REST, a decodificação, o escritor e o leitor do kernel.
 
 **As chaves da tela viajam** (`keys`, e o `unique` de cada campo), porque são esquema: o que não pode se
 repetir é parte do que a entidade É. Sem elas, uma chave que só existia na instalação — declarada no

@@ -1,7 +1,7 @@
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
 import { dependencyRange } from '../../domain/schema/plugin/pluginManifest';
 import { satisfiesRange } from '../../domain/schema/plugin/semver';
-import { INSTALLED_CATALOG_FILE } from './installedCatalog';
+import { INSTALLED_CATALOG_FILE, refreshInstalledCatalog } from './installedCatalog';
 import { describeMessage } from './messages';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { readWorkspaceCatalog } from './workspaceCatalog';
@@ -48,8 +48,6 @@ export interface DependencyRangeFinding {
   detail: string;
 }
 
-const REFRESH = 'Run "microteia export-catalog --tenant <tenantId>" in the installation';
-
 export const dependencyRangeFindings = (pkg: MarketplacePlugin, read: WorkspaceCatalog): DependencyRangeFinding[] => {
   const { id, version } = pkg.manifest;
   const siblings = new Map(read.authored.filter((one) => one.pluginId !== id).map((one) => [one.pluginId, one]));
@@ -88,7 +86,7 @@ export const dependencyRangeFindings = (pkg: MarketplacePlugin, read: WorkspaceC
         ...head,
         status: 'unverifiable',
         detail: `${dependency} is not authored in this workspace and there is no ${INSTALLED_CATALOG_FILE} here, so its `
-          + `version cannot be checked against the range. ${REFRESH}, or author it beside this package.`,
+          + `version cannot be checked against the range. ${refreshInstalledCatalog()} — or author it beside this package.`,
       };
     }
     return {

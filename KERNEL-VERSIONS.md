@@ -18,6 +18,29 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.210.0] — 2026-11-06
+
+- feat(extensions): "Export catalog" on the Extensions screen downloads `installed-catalog.json` for the
+  authoring workspace, read as the signed-in member under the Security Rules
+  (`FirebaseInstalledCatalogSourceRepository` + `makeExportInstalledCatalogUseCase`). The four
+  collections it reads (`screenDefinitions`, `lookupDefinitions`, `tagDefinitions`,
+  `installed_extensions`) were already `isMember`, and the file carries shape only — so no rule
+  changed. `microteia export-catalog` reads with the `gcloud` token, a project credential that bypasses
+  the rules: an organization administrator without a role on the Firebase project had no way to take
+  the snapshot, and granting one would open every organization in the project.
+- refactor(sdk): the snapshot writer moved out of the Console into
+  `domain/usecases/plugins/installedCatalogSnapshot.ts` (`buildInstalledCatalog`,
+  `serializeInstalledCatalog`, `INSTALLED_CATALOG_FILE`, `INSTALLED_CATALOG_VERSION`) and is published in
+  the `@microteia/sdk` barrel. The Console now loads it from the SDK in `extensions/`, so writer and
+  reader belong to the same kernel instead of being two compilations matched only by a test.
+  `KERNEL_VERSION` unchanged: the snapshot is an authoring file and never reaches an installed package.
+- feat(sdk/installedCatalog): the snapshot records `exportedBy: console | application`;
+  `consoleVersion` is written only by the Console. A file without `exportedBy` that carries
+  `consoleVersion` is read as the Console's. Format stays version 1 (additive). Every hint that told the
+  author to re-export (`check`, `validate_plugin`, MCP answers, `AUTHORING.md`, `AGENTS.md`) now goes
+  through `refreshInstalledCatalog` and names both doors.
+- chore(locale-pt-br): 1.166.0 with the four new `core.marketplace` keys.
+
 #### [9.209.0] — 2026-11-06
 
 - feat(tenant/agent): the AI agents tab shows each grant as a compact row (name, state, dates) and

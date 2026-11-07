@@ -4,7 +4,7 @@ import { eventRefChecks, eventRefIssue } from '../../domain/usecases/plugins/cro
 import { pendingEventRefs } from '../../domain/usecases/plugins/pluginReferences';
 import type { CatalogScreenInput } from '../domain/catalog';
 import { collectionOfScreen } from '../domain/catalog';
-import { INSTALLED_CATALOG_FILE } from './installedCatalog';
+import { INSTALLED_CATALOG_FILE, refreshInstalledCatalog } from './installedCatalog';
 import { describeMessage, packageText } from './messages';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { readWorkspaceCatalog } from './workspaceCatalog';
@@ -52,9 +52,6 @@ const visibleEmitters = (screens: readonly CatalogScreenInput[]): InstalledExten
   }
   return Array.from(byOwner, ([id, prefixes]) => ({ id, version: '0.0.0', eventPrefixes: [...prefixes] }));
 };
-
-const REFRESH = (tenantId: string): string =>
-  `Run "microteia export-catalog --tenant ${tenantId}" in the installation`;
 
 export const eventRefFindings = (pkg: MarketplacePlugin, read: WorkspaceCatalog): EventRefFinding[] => {
   const screens = read.catalog.screens;
@@ -109,8 +106,8 @@ export const eventRefFindings = (pkg: MarketplacePlugin, read: WorkspaceCatalog)
       detail: 'no screen of this package, of the kernel, of a plugin.ts in this workspace or of '
         + `${snapshot === null ? `an ${INSTALLED_CATALOG_FILE} (there is none here)` : INSTALLED_CATALOG_FILE} `
         + 'emits it. If the declared dependency that emits it is authored elsewhere, this is not a defect — '
-        + `but installing would be refused where none of them does. ${REFRESH(snapshot?.tenantId ?? '<tenantId>')}, `
-        + 'or author the dependency beside this package.',
+        + `but installing would be refused where none of them does. ${refreshInstalledCatalog(snapshot?.tenantId ?? '<tenantId>')} `
+        + '— or author the dependency beside this package.',
     };
   });
 };

@@ -2925,7 +2925,7 @@ The prefix is resolved against the screens of your dependencies. **On install**,
 view, and a prefix no declared dependency emits is refused — naming the prefix. **In \`check\`**, the
 dependencies are the \`plugin.ts\` files in this workspace and the \`installed-catalog.json\`; a prefix
 emitted by an extension you did NOT declare is refused, and one no visible source emits is a warning that
-says so (run \`microteia export-catalog\` to close the gap). With no dependency declared at all, there is
+says so (take a snapshot of the installation to close the gap — see "What the organization actually runs"). With no dependency declared at all, there is
 nowhere to look, and the trigger is refused.
 
 **\`condition\`** is evaluated once, before any step: \`AlwaysTrue\`, \`FieldComparison\`, \`LogicalAnd\`,
@@ -4512,17 +4512,25 @@ called \`customerName\` is a defect only *because* Customer is a thing. Without 
 matters most cannot fire against the entities that matter most.
 
 The server does not close it by talking to the database. \`microteia-plugin\` is offline by design, and
-putting a credential inside the authoring tool would trade a blind spot for something worse. What talks
-to the project is the Console, so the Console exports a **snapshot** and this directory reads it:
+putting a credential inside the authoring tool would trade a blind spot for something worse. Something
+that already talks to the organization exports a **snapshot**, and this directory reads it. There are two
+doors, and they write the same file:
 
-    microteia export-catalog --tenant <tenantId>
+- **The application** — on the Extensions screen, **Export catalog** downloads it. It reads as the
+  signed-in member, under the same access rules as everything else in the application, so it needs no
+  access to the Firebase project: an administrator of the organization is enough. Save the download here
+  as \`${INSTALLED_CATALOG_FILE}\`.
+- **The Console** — from the installation root (where \`microteia.yaml\` is), for whoever administers the
+  Firebase project:
 
-It writes \`${INSTALLED_CATALOG_FILE}\` here — screens with their fields and record keys, lists of
-options, tag lists, which extensions are installed, and **what each of them declares in
-\`manifest.exports\`**. Run it from the installation root (where \`microteia.yaml\` is); with no
-\`--tenant\` it lists the offices in the project rather than guessing one. It is **git-ignored**,
-because it carries screen and field names the organization typed: that is tenant data, not a product
-artifact.
+      microteia export-catalog --tenant <tenantId>
+
+  With no \`--tenant\` it lists the offices in the project rather than guessing one.
+
+Either way the file carries screens with their fields and record keys, lists of options, tag lists,
+which extensions are installed, and **what each of them declares in \`manifest.exports\`**. It is
+**git-ignored**, because it carries screen and field names the organization typed: that is tenant data,
+not a product artifact.
 
 The exported surface is what makes §3 usable from here. Without it you knew an extension was installed
 and had no way to learn the name of anything inside it — and a name you cannot see is a name you cannot
@@ -4536,8 +4544,8 @@ The \`kind\` is the part that decides where it fits: a script goes in \`scriptId
 the snapshot is shape. The name and the kind are contract.
 
 A snapshot taken by a Console older than this field carries no surface at all, and the answer says so
-rather than presenting an empty list as "these extensions export nothing". Re-run \`export-catalog\` with
-the Console that came with the installation.
+rather than presenting an empty list as "these extensions export nothing". Take the snapshot again,
+through either door.
 
 One thing the snapshot cannot cover, and it is the most common: the extension being authored **beside
 yours in this directory**, which is installed nowhere and therefore in no snapshot. Its surface is read

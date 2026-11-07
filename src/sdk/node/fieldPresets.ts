@@ -6,7 +6,7 @@ import {
   fieldPresetChecks,
   fieldPresetIssue,
 } from '../../domain/usecases/plugins/fieldPresetRefs';
-import { INSTALLED_CATALOG_FILE } from './installedCatalog';
+import { INSTALLED_CATALOG_FILE, refreshInstalledCatalog } from './installedCatalog';
 import { describeMessage } from './messages';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { readWorkspaceCatalog } from './workspaceCatalog';
@@ -64,9 +64,6 @@ const visibleOwners = (pkg: MarketplacePlugin, read: WorkspaceCatalog): { owners
   return { owners, where };
 };
 
-const REFRESH = (tenantId: string): string =>
-  `Run "microteia export-catalog --tenant ${tenantId}" in the installation`;
-
 export const fieldPresetFindings = (pkg: MarketplacePlugin, read: WorkspaceCatalog): FieldPresetFinding[] => {
   const { owners, where } = visibleOwners(pkg, read);
   const withWorkspace = fieldPresetChecks(pkg, owners);
@@ -108,7 +105,7 @@ export const fieldPresetFindings = (pkg: MarketplacePlugin, read: WorkspaceCatal
       const older = silent.length === 0
         ? ''
         : ` ${INSTALLED_CATALOG_FILE} does not record the field presets of ${silent.join(', ')} — it was taken by a `
-          + `Console older than that field. ${REFRESH(snapshot?.tenantId ?? '<tenantId>')} with the Console that came with it.`;
+          + `Console older than that field. ${refreshInstalledCatalog(snapshot?.tenantId ?? '<tenantId>')}.`;
       const why = here.verdict === 'unverifiable'
         ? `${here.unseen.join(', ')} is not authored in this workspace nor recorded in `
           + `${snapshot === null ? `an ${INSTALLED_CATALOG_FILE} (there is none here)` : INSTALLED_CATALOG_FILE}, so it `

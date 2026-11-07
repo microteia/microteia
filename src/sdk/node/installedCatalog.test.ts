@@ -330,3 +330,35 @@ describe('as chaves das telas', () => {
     ]);
   });
 });
+
+/**
+ * Duas portas escrevem o mesmo arquivo: o Console, com credencial do projeto, e a aplicação, com a do
+ * membro. O leitor tem de dizer qual delas o tirou — e reconhecer o retrato anterior a `exportedBy`,
+ * que só podia ter vindo do Console.
+ */
+describe('quem tirou o retrato', () => {
+  it('a aplicação se anuncia, e não finge versão de Console', () => {
+    write(snapshot({ exportedBy: 'application', consoleVersion: undefined }));
+    const read = readInstalledCatalog(workspace, TAKEN_AT);
+    expect(read.problems).toEqual([]);
+    expect(read.snapshot?.exportedBy).toBe('application');
+    expect(read.snapshot?.consoleVersion).toBe('unknown');
+  });
+
+  it('sem `exportedBy`, mas com `consoleVersion`, foi o Console — a única porta que existia', () => {
+    write(snapshot());
+    expect(readInstalledCatalog(workspace, TAKEN_AT).snapshot?.exportedBy).toBe('console');
+  });
+
+  it('sem nenhum dos dois, não se sabe — e não se inventa', () => {
+    write(snapshot({ consoleVersion: undefined }));
+    expect(readInstalledCatalog(workspace, TAKEN_AT).snapshot?.exportedBy).toBe('unknown');
+  });
+
+  it('a dica de refazer o retrato cita as duas portas', () => {
+    write('{ not json');
+    const [problem] = readInstalledCatalog(workspace, TAKEN_AT).problems;
+    expect(problem).toContain('microteia export-catalog');
+    expect(problem).toContain('Export catalog');
+  });
+});

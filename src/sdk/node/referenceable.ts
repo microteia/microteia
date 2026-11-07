@@ -4,7 +4,7 @@ import type { ExportedArtifact, ExportedArtifactKind, InstalledExtensionSummary 
 import { crossExtensionRefChecks, crossRefIssue } from '../../domain/usecases/plugins/crossExtensionRefs';
 import { REF_KIND_KEYS, SCRIPT_ID_INPUT, TARGET_WORKFLOW_ID_INPUT } from '../../domain/usecases/plugins/pluginReferences';
 import { referencedExtensionIds } from '../../domain/usecases/plugins/crossExtensionRefs';
-import { INSTALLED_CATALOG_FILE } from './installedCatalog';
+import { INSTALLED_CATALOG_FILE, refreshInstalledCatalog } from './installedCatalog';
 import { describeMessage, packageText } from './messages';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { readWorkspaceCatalog } from './workspaceCatalog';
@@ -144,9 +144,6 @@ export interface CrossRefFinding {
   detail: string;
 }
 
-const REFRESH = (tenantId: string): string =>
-  `Run "microteia export-catalog --tenant ${tenantId}" in the installation`;
-
 /**
  * O MESMO portão que a instalação cobra, rodado aqui — com uma diferença, e ela é a única: a ausência
  * da dona não é recusa, porque este diretório não é o escritório.
@@ -207,7 +204,7 @@ export const crossRefFindings = (pkg: MarketplacePlugin, read: WorkspaceCatalog)
         status: 'unverifiable',
         detail: `${check.pluginId} IS installed in ${snapshot?.tenantName}, but the snapshot does not record what it `
           + 'exports — it was taken by a Console older than that field. Whether this reference resolves cannot be '
-          + `told from here. ${REFRESH(snapshot?.tenantId ?? '<tenantId>')} with the Console that came with it.`,
+          + `told from here. ${refreshInstalledCatalog(snapshot?.tenantId ?? '<tenantId>')}.`,
       };
     }
 
@@ -217,7 +214,7 @@ export const crossRefFindings = (pkg: MarketplacePlugin, read: WorkspaceCatalog)
         status: 'unverifiable',
         detail: `${check.pluginId} is not authored in this workspace, and there is no ${INSTALLED_CATALOG_FILE} here, `
           + 'so whether it is installed — and whether it exports this artifact — cannot be told from here. '
-          + `${REFRESH('<tenantId>')}, or author it beside this package.`,
+          + `${refreshInstalledCatalog()} — or author it beside this package.`,
       };
     }
 

@@ -143,9 +143,10 @@ So the sequence, and it is not optional:
    it came from: \`kernel\`, \`workspace\` (a \`plugin.ts\` here, which you can edit) or \`installation\`
    (a snapshot of what the organization runs, which you cannot). Read \`catalogSources\` in the answer
    before trusting the list — if there is no snapshot, a screen somebody built in the Form Design and an
-   extension already installed there are both invisible, and asking beats assuming. Somebody with access
-   to the installation brings them in with \`microteia export-catalog --tenant <tenantId>\`; it writes
-   \`${INSTALLED_CATALOG_FILE}\` here, and the answer then says when it was taken.
+   extension already installed there are both invisible, and asking beats assuming. An administrator of
+   the organization brings them in with **Export catalog** on the Extensions screen of the application;
+   whoever administers the Firebase project can also run \`microteia export-catalog --tenant <tenantId>\`.
+   Either one writes \`${INSTALLED_CATALOG_FILE}\` here, and the answer then says when it was taken.
 2. **Write the domain model** — entities, what each field MEANS, and the relationships. The shape is
    \`microteia://domain-model/schema\`; every rule is \`microteia://domain-model/rules\`.
 3. **\`validate_domain_model\`** — a deterministic engine, not an opinion. It catches a field that

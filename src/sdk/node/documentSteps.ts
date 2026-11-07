@@ -7,7 +7,7 @@ import {
   renderDocumentStepIssues,
   renderDocumentTemplateKey,
 } from '../../domain/usecases/plugins/documentStepIntegrity';
-import { INSTALLED_CATALOG_FILE } from './installedCatalog';
+import { INSTALLED_CATALOG_FILE, refreshInstalledCatalog } from './installedCatalog';
 import { describeMessage, packageText } from './messages';
 import type { WorkspaceCatalog } from './workspaceCatalog';
 import { readWorkspaceCatalog } from './workspaceCatalog';
@@ -83,9 +83,6 @@ const visibleTemplates = (pkg: MarketplacePlugin, read: WorkspaceCatalog): Map<s
   return found;
 };
 
-const REFRESH = (tenantId: string): string =>
-  `Run "microteia export-catalog --tenant ${tenantId}" in the installation`;
-
 export const documentStepFindings = (pkg: MarketplacePlugin, read: WorkspaceCatalog): DocumentStepFinding[] => {
   const templates = visibleTemplates(pkg, read);
   const snapshot = read.installed;
@@ -121,7 +118,7 @@ export const documentStepFindings = (pkg: MarketplacePlugin, read: WorkspaceCata
     const older = silent.length === 0
       ? ''
       : ` ${INSTALLED_CATALOG_FILE} does not record the templates of ${silent.join(', ')} — it was taken by a `
-        + `Console older than that field. ${REFRESH(snapshot?.tenantId ?? '<tenantId>')} with the Console that came with it.`;
+        + `Console older than that field. ${refreshInstalledCatalog(snapshot?.tenantId ?? '<tenantId>')}.`;
     return {
       ...head,
       status: 'unverifiable',

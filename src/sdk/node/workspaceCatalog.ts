@@ -28,8 +28,9 @@ import {
   INSTALLED_CATALOG_STALE_DAYS,
   installedScreenInput,
   readInstalledCatalog,
+  refreshInstalledCatalog,
 } from './installedCatalog';
-import type { InstalledCatalogExtension, InstalledCatalogList } from './installedCatalog';
+import type { InstalledCatalogExportedBy, InstalledCatalogExtension, InstalledCatalogList } from './installedCatalog';
 
 /**
  * O CATÁLOGO DESTE WORKSPACE — o que o servidor MCP consegue saber, e nada além disso.
@@ -44,7 +45,8 @@ import type { InstalledCatalogExtension, InstalledCatalogList } from './installe
  * Design e a extensão de terceiro já instalada não existiam para este módulo, e o detector de "campo
  * que pertence a outra entidade conhecida" não podia disparar justamente contra elas. A saída não foi
  * dar credencial ao SDK — `microteia-plugin` é offline por desenho —, foi ler um RETRATO que o
- * Console exporta (`microteia export-catalog`), quando ele estiver lá. Ver `installedCatalog.ts`.
+ * Console (`microteia export-catalog`) ou a aplicação (Extensões → Exportar catálogo) exporta, quando
+ * ele estiver lá. Ver `installedCatalog.ts`.
  *
  * Precedência: uma entidade que apareça nas duas fontes resolve para a do WORKSPACE, que é a que o
  * autor está editando. A do retrato é descartada e a divergência é RELATADA — informação, nunca erro.
@@ -90,6 +92,8 @@ export interface InstalledContribution {
   /** A versão do contrato do kernel que tirou o retrato, e se ela difere da que roda aqui. */
   kernelVersion: string;
   kernelDiffers: boolean;
+  /** Quem tirou o retrato: o Console, com credencial do projeto, ou a aplicação, com a do membro. */
+  exportedBy: InstalledCatalogExportedBy;
   consoleVersion: string;
   extensions: InstalledCatalogExtension[];
   /**
@@ -321,6 +325,7 @@ export const readWorkspaceCatalog = (
       staleAfterDays: INSTALLED_CATALOG_STALE_DAYS,
       kernelVersion: snapshot.kernelVersion,
       kernelDiffers: installation.kernelDiffers,
+      exportedBy: snapshot.exportedBy,
       consoleVersion: snapshot.consoleVersion,
       extensions: snapshot.extensions,
       exportsKnown: installation.exportsKnown,
@@ -334,16 +339,16 @@ export const readWorkspaceCatalog = (
     if (installation.stale && installation.ageDays !== null) {
       installedProblems.push(
         `${INSTALLED_CATALOG_FILE} was taken ${installation.ageDays} day(s) ago, and anything created in `
-        + `${snapshot.tenantName} since then is missing from it. Run "microteia export-catalog --tenant `
-        + `${snapshot.tenantId}" in the installation to refresh it.`,
+        + `${snapshot.tenantName} since then is missing from it. `
+        + `${refreshInstalledCatalog(snapshot.tenantId)}.`,
       );
     }
     if (!installation.exportsKnown) {
       installedProblems.push(
         `${INSTALLED_CATALOG_FILE} was taken by a Console that did not record what each extension exports, `
         + 'so there is no telling which artifacts of them may be referenced. Do not read the absence of a '
-        + `list as "this extension exports nothing". Run "microteia export-catalog --tenant `
-        + `${snapshot.tenantId}" with the Console that came with this installation.`,
+        + `list as "this extension exports nothing". `
+        + `${refreshInstalledCatalog(snapshot.tenantId)}.`,
       );
     }
     // Só pesa sobre a tela que vem SÓ do retrato: a que o workspace também declara é lida do plugin.ts.
@@ -351,8 +356,8 @@ export const readWorkspaceCatalog = (
       installedProblems.push(
         `${INSTALLED_CATALOG_FILE} was taken by a Console that did not record record keys, so a key that `
         + `exists only in ${snapshot.tenantName} (${keysUnknown.sort().join(', ')}) is not visible, and the plan `
-        + 'proposes it as new. Do not read the absence of keys as "nothing here must be unique". Run '
-        + `"microteia export-catalog --tenant ${snapshot.tenantId}" with the Console that came with this installation.`,
+        + 'proposes it as new. Do not read the absence of keys as "nothing here must be unique". '
+        + `${refreshInstalledCatalog(snapshot.tenantId)}.`,
       );
     }
     if (installation.kernelDiffers) {

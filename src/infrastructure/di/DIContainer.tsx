@@ -51,6 +51,7 @@ import { FirebaseRecordSearchJobRepository } from '../../data/repositories/Fireb
 import { FirebaseRecordKeyAdoptionRepository } from '../../data/repositories/FirebaseRecordKeyAdoptionRepository';
 import { FirebaseRecordImportRepository } from '../../data/repositories/FirebaseRecordImportRepository';
 import { FirebaseBackendResidueRepository } from '../../data/repositories/FirebaseBackendResidueRepository';
+import { FirebaseInstalledCatalogSourceRepository } from '../../data/repositories/FirebaseInstalledCatalogSourceRepository';
 import { DIContext } from './useDI';
 import type { DIContainer } from './useDI';
 
@@ -106,6 +107,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     publicExtensionRepository: new FirebasePublicExtensionRepository(),
     extensionReputationRepository: new FirebaseExtensionReputationRepository(),
     backendResidueRepository: new FirebaseBackendResidueRepository(),
+    installedCatalogSourceRepository: new FirebaseInstalledCatalogSourceRepository(),
     aggregateBackfillRepository: new FirebaseAggregateBackfillRepository(),
     recordSearchJobRepository: new FirebaseRecordSearchJobRepository(),
     recordKeyAdoptionRepository: new FirebaseRecordKeyAdoptionRepository(),

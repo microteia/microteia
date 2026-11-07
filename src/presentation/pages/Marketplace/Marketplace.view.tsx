@@ -463,6 +463,15 @@ export const MarketplaceView: React.FC = () => {
             <Button variant="secondary" size="sm" onClick={vm.openAuthor}>
               <RiMagicLine size={16} /> {t('page.plugin-author')}
             </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              title={t('extension.export-catalog.hint')}
+              disabled={vm.exportingCatalog}
+              onClick={() => void vm.exportCatalog()}
+            >
+              <RiDownloadLine size={16} /> {t('extension.export-catalog')}
+            </Button>
             <S.ImportLabel $disabled={vm.busyId === '__import__'}>
               <RiUploadLine size={16} /> {t('extension.import')}
               <S.HiddenFile

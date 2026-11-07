@@ -250,6 +250,13 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.import': 'Importar .json',
   'extension.imported': '{name} importado para Minhas Extensões.',
   'extension.import-failed': 'Não foi possível importar: {detail}',
+  'extension.export-catalog': 'Exportar catálogo',
+  'extension.export-catalog.hint':
+    'Baixa um retrato das telas, listas e extensões instaladas deste escritório, para as ferramentas de '
+    + 'autoria de extensões. Ele leva a forma delas, nunca os registros.',
+  'extension.catalog-exported':
+    'Catálogo exportado: {screens} tela(s) e {extensions} extensão(ões). Salve-o como {file} na sua pasta de extensões.',
+  'extension.catalog-export-failed': 'Não foi possível exportar o catálogo: {detail}',
   'import.title': 'Importar {name}',
   'import.intro': 'Reconhecemos a versão {version} desta extensão. Escolha onde ela vai ficar disponível.',
   'import.scope.private': 'Só neste escritório',

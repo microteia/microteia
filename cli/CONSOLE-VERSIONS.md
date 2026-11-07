@@ -22,6 +22,18 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.39.0] — 2026-11-06
+
+- feat(export-catalog): the snapshot is built by `buildInstalledCatalog` from the `@microteia/sdk`
+  installed in `extensions/` (`loadCatalogWriter`, via `createRequire`), no longer by a copy inside the
+  Console. The Console still reads Firestore over REST; the format now has one owner, the same kernel
+  that reads it, and the same function the application uses for "Export catalog". The file gains
+  `exportedBy: "console"`.
+- feat(export-catalog): `extensions/` with an installed SDK is now required even with `--output`. An SDK
+  from a kernel that predates the writer is refused, pointing to `microteia unpack --version latest`,
+  instead of falling back to an unchecked copy. Without a role on the Firebase project, "Export catalog"
+  on the Extensions screen of the application writes the same file.
+
 #### [2.38.0] — 2026-11-05
 
 - feat(provision): deploys the Cloud Functions source an extension ships in its package, after the project operator approves that exact SHA-256. The Console recomputes the hash over what it writes (mismatch or a path outside the folder is refused), shows the files, the npm dependencies and the kind of each function, and asks; outside a terminal it holds the extension and prints `microteia provision --approve <id>@<hash>`. Approved source goes to `.microteia/packaged-functions/` and is read like any extension source (gate, duplicate names, dependencies); the copy to read before approving goes to `.microteia/packaged-review/` and is never mounted. A source already in the installation or the kernel wins over the packaged one.

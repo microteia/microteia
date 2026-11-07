@@ -24,6 +24,11 @@ import type { ExtensionBackendPending } from '../../../domain/entities/Installed
 import type { BackendPendingReason } from '../../../domain/schema/plugin/backendRequirement';
 import { backendResidueCount } from '../../../domain/usecases/plugins/backendResidue';
 import { useDI } from '../../../infrastructure/di/useDI';
+import { makeExportInstalledCatalogUseCase } from '../../../domain/usecases/plugins/ExportInstalledCatalogUseCase';
+import {
+  INSTALLED_CATALOG_FILE,
+  serializeInstalledCatalog,
+} from '../../../domain/usecases/plugins/installedCatalogSnapshot';
 import type { BackendResidue } from '../../../domain/entities/BackendResidue';
 import { extensionMigrationError, isExtensionMigrationPending } from '../../../domain/usecases/plugins/extensionMigrationState';
 import { licenseOf } from '../../../domain/usecases/plugins/pluginLicenses';
@@ -398,6 +403,12 @@ export interface MarketplaceViewModel {
   closeHistory: () => void;
   restore: (id: string, revision: string) => Promise<void>;
   openAuthor: () => void;
+  /**
+   * Baixa o `installed-catalog.json` deste escritório, para o diretório de autoria. É a porta de quem
+   * administra o escritório e não o projeto Firebase — o `microteia export-catalog` exige o segundo.
+   */
+  exportCatalog: () => Promise<void>;
+  exportingCatalog: boolean;
   onImportFile: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   /** O arquivo escolhido, esperando a decisão de onde a extensão vai ficar disponível. */
   importTarget: ImportTarget | null;
@@ -646,7 +657,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
    * Microteia Console, num terminal. Assinar o documento custaria uma conexão viva para observar algo
    * que muda quando alguém roda um comando — e a tela é reaberta muito mais vezes que isso.
    */
-  const { backendResidueRepository } = useDI();
+  const { backendResidueRepository, installedCatalogSourceRepository } = useDI();
   const [residueState, setResidueState] = useState<BackendResidue | null>(null);
 
   useEffect(() => {
@@ -683,6 +694,45 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   }, [residueState, t, formatDateTime]);
 
   const openAuthor = useCallback(() => openTab('plugin-author'), [openTab]);
+
+  const exportCatalogUseCase = useMemo(
+    () => makeExportInstalledCatalogUseCase(installedCatalogSourceRepository),
+    [installedCatalogSourceRepository],
+  );
+  const [exportingCatalog, setExportingCatalog] = useState(false);
+
+  /**
+   * Lê como o MEMBRO, sob as regras: as quatro coleções do retrato já são legíveis por quem está no
+   * escritório, e o arquivo só leva esquema. Nada aqui amplia o que alguém vê — tira do caminho a
+   * exigência de ter papel no projeto Firebase, que era o que o Console cobrava.
+   */
+  const exportCatalog = useCallback(async () => {
+    if (!currentTenant || exportingCatalog) return;
+    setExportingCatalog(true);
+    try {
+      const snapshot = await exportCatalogUseCase.execute(
+        { id: currentTenant.id, name: currentTenant.name },
+        new Date(),
+      );
+      const blob = new Blob([serializeInstalledCatalog(snapshot)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = INSTALLED_CATALOG_FILE;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      notify(t('extension.catalog-exported', {
+        screens: snapshot.screens.length,
+        extensions: snapshot.extensions.length,
+        file: INSTALLED_CATALOG_FILE,
+      }), 'success');
+    } catch (err) {
+      console.error('[marketplace] failed to export the installed catalog:', err);
+      notify(t('extension.catalog-export-failed', wrappedErrorParams(err)), 'error');
+    } finally {
+      setExportingCatalog(false);
+    }
+  }, [currentTenant, exportingCatalog, exportCatalogUseCase, notify, t]);
 
   /**
    * `retry` é o mesmo gesto já com o consentimento de faixa. Quem o passa aceita que a recusa de
@@ -1567,6 +1617,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     closeHistory,
     restore,
     openAuthor,
+    exportCatalog,
+    exportingCatalog,
     onImportFile,
     importTarget,
     importScope,

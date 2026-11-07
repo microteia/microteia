@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CATALOG_FILE, CATALOG_FORMAT_VERSION, buildCatalogExport } from './exportCatalog.js';
+import { loadCatalogWriter } from './exportCatalog.js';
 import type { CatalogSourceDocument } from './exportCatalog.js';
+import { CLI_VERSION } from '../shared/paths.js';
+import {
+  INSTALLED_CATALOG_FILE as CATALOG_FILE,
+  INSTALLED_CATALOG_VERSION as CATALOG_FORMAT_VERSION,
+  buildInstalledCatalog,
+} from '../../../src/domain/usecases/plugins/installedCatalogSnapshot';
 import type { InstalledExtensionRecord } from './installedExtensions.js';
 import { decodeFields, documentId } from './firestoreRest.js';
 import type { FirestoreDocument } from './firestoreRest.js';
@@ -17,13 +23,10 @@ import { buildDomainCatalog } from '../../../src/sdk/domain/catalog';
 /**
  * O RETRATO, montado a partir do que o Firestore devolve — e lido de volta pelo SDK.
  *
- * As duas pontas deste contrato são compiladas separadamente: o Console não alcança `src/`, porque ele
- * é distribuído sozinho e uma versão dele pode ser mais velha que o kernel instalado. Sobra um formato
- * escrito de um lado e lido de outro, que é exatamente a forma de acoplamento que envelhece calada — o
- * exportador acrescenta um campo, o leitor nunca soube dele, e nada reprova.
- *
- * Então o teste atravessa a fronteira de propósito: ele monta o documento com o exportador e o entrega
- * ao leitor DO KERNEL. É a única prova que vale, porque é o percurso real do arquivo.
+ * O Console não traz mais escritor próprio: ele carrega `buildInstalledCatalog` do SDK instalado em
+ * `extensions/` (`loadCatalogWriter`). Este teste exercita o percurso REAL do arquivo pelo Console — a
+ * resposta crua da REST, a decodificação, a cópia instalada como `readInstalledExtensions` a entrega, o
+ * escritor e o leitor DO KERNEL —, com o escritor importado da fonte, que é o que o SDK compila.
  *
  * A fixture é a resposta CRUA da REST do Firestore, com os `stringValue`/`arrayValue` que ela usa: se a
  * decodificação mudar, o retrato muda com ela, e é isso que se quer exercitar.
@@ -104,6 +107,7 @@ const EXTENSIONS: InstalledExtensionRecord[] = [
   {
     tenantId: 'tenant-1',
     documentPath: '/tenants/tenant-1/installed_extensions/com.example.billing',
+    documentId: 'com.example.billing',
     id: 'com.example.billing',
     name: 'Billing',
     version: '2.1.0',
@@ -117,6 +121,39 @@ const decode = (documents: FirestoreDocument[]): CatalogSourceDocument[] =>
   documents.map((one) => ({ id: documentId(one), data: decodeFields(one.fields) }));
 
 const EXPORTED_AT = new Date('2026-08-27T10:00:00.000Z');
+
+/**
+ * A cópia instalada como ela está GRAVADA: o manifesto dentro de `package`. É o que o Console entrega
+ * ao escritor (`data` do documento), e a fixture acima a descreve pelos campos já interpretados.
+ */
+const stored = (record: InstalledExtensionRecord): CatalogSourceDocument => {
+  const pkg = (record.data.package ?? {}) as Record<string, unknown>;
+  return {
+    id: record.documentId,
+    data: {
+      ...record.data,
+      active: record.active,
+      package: { ...pkg, manifest: { name: record.name, version: record.version, ...record.manifest } },
+    },
+  };
+};
+
+interface ConsoleExportInput {
+  projectId: string;
+  tenant: { id: string; name: string };
+  kernelVersion: string;
+  exportedAt: Date;
+  screens: CatalogSourceDocument[];
+  lookups: CatalogSourceDocument[];
+  tagLists: CatalogSourceDocument[];
+  extensions: InstalledExtensionRecord[];
+}
+
+const buildCatalogExport = (input: ConsoleExportInput) => buildInstalledCatalog({
+  ...input,
+  exporter: { tool: 'console', version: CLI_VERSION },
+  extensions: input.extensions.map(stored),
+});
 
 const build = () => buildCatalogExport({
   projectId: 'office-prod',
@@ -138,7 +175,8 @@ describe('a exportação do catálogo instalado', () => {
     expect(exported.tenantName).toBe('Escritório Central');
     expect(exported.exportedAt).toBe(EXPORTED_AT.toISOString());
     expect(exported.kernelVersion).toBe('2.7.0');
-    expect(exported.consoleVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(exported.exportedBy).toBe('console');
+    expect(exported.consoleVersion).toBe(CLI_VERSION);
   });
 
   it('traz a tela do Form Design e a da extensão, com a coleção e o pai de cada uma', () => {
@@ -522,6 +560,66 @@ describe('as chaves de cada tela', () => {
       const catalog = buildDomainCatalog(read.snapshot!.screens.map(installedScreenInput));
       expect(catalog.entities.find((one) => one.collection === 'customers')?.keys?.map((one) => one.name))
         .toStrictEqual(['field:email', 'customer-name']);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * O escritor vem do SDK de `extensions/`, não do Console. O que se prova aqui é a fronteira: o SDK que
+ * o tem é usado, e o que não o tem é RECUSADO com o caminho de saída — nunca substituído em silêncio por
+ * uma cópia que não é conferida contra o leitor.
+ */
+describe('o escritor carregado do SDK de extensions/', () => {
+  const workspace = (sdkSource: string | null): string => {
+    const directory = mkdtempSync(join(tmpdir(), 'microteia-writer-'));
+    writeFileSync(join(directory, 'package.json'), '{"name":"extensions","private":true}\n');
+    if (sdkSource !== null) {
+      const sdk = join(directory, 'node_modules', '@microteia', 'sdk');
+      mkdirSync(sdk, { recursive: true });
+      writeFileSync(join(sdk, 'package.json'), '{"name":"@microteia/sdk","main":"index.js"}\n');
+      writeFileSync(join(sdk, 'index.js'), sdkSource);
+    }
+    return directory;
+  };
+
+  it('sem SDK instalado, recusa dizendo como trazê-lo', () => {
+    const directory = workspace(null);
+    try {
+      expect(() => loadCatalogWriter(directory)).toThrow(/plugin-init/);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('com um SDK anterior ao escritor, recusa e aponta as duas portas', () => {
+    const directory = workspace('module.exports = { KERNEL_VERSION: "2.0.0" };\n');
+    try {
+      expect(() => loadCatalogWriter(directory)).toThrow(/unpack --version latest[\s\S]*Export catalog/);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('com o escritor no SDK, é ele que monta e serializa o arquivo', () => {
+    const directory = workspace([
+      'exports.INSTALLED_CATALOG_FILE = "installed-catalog.json";',
+      'exports.buildInstalledCatalog = (input) => ({ from: "sdk", tenantId: input.tenant.id });',
+      'exports.serializeInstalledCatalog = (snapshot) => JSON.stringify(snapshot);',
+    ].join('\n'));
+    try {
+      const writer = loadCatalogWriter(directory);
+      const built = writer.build({
+        projectId: 'office-prod',
+        tenant: { id: 'tenant-1', name: 'Escritório Central' },
+        kernelVersion: '2.7.0',
+        exportedAt: EXPORTED_AT,
+        exporter: { tool: 'console', version: CLI_VERSION },
+        screens: [], lookups: [], tagLists: [], extensions: [],
+      });
+      expect(writer.file).toBe('installed-catalog.json');
+      expect(writer.serialize(built)).toBe('{"from":"sdk","tenantId":"tenant-1"}');
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
