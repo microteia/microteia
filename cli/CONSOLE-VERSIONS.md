@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.40.1] — 2026-11-07
+
+- chore(cli/pack, cli/pack-console): `LICENSE` (AGPL-3.0-or-later) and `NOTICE` (section 7 terms and the Microteia Extension Exception) now ship with every artifact the Console builds — at the root of the kernel tarball and in the published Console folder (both listed in `files`). The Console's `package.json` declares `AGPL-3.0-or-later` and the repository URL instead of `UNLICENSED`, and its README gains a License section pointing to the source code.
+
 #### [2.40.0] — 2026-11-07
 
 - feat(provision): writes `backend_state/applied` — the fingerprint each extension has live in the

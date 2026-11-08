@@ -49,8 +49,14 @@ describe('Console empacotado para fora do repositório', () => {
    * não existe numa instalação global — e o comando passa a avisar que o Console não carrega histórico,
    * na máquina do escritório e só lá.
    */
-  it('publica o compilado, o README e o histórico que o unpack vai ler', () => {
-    expect(parsed().files).toEqual(['lib', 'README.md', 'CONSOLE-VERSIONS.md']);
+  it('publica o compilado, o README, o histórico que o unpack vai ler, a licença e o NOTICE', () => {
+    expect(parsed().files).toEqual(['lib', 'README.md', 'CONSOLE-VERSIONS.md', 'LICENSE', 'NOTICE']);
+  });
+
+  /** A AGPL exige que quem recebe o compilado saiba sob que licença o recebeu e onde está a fonte. */
+  it('declara a AGPL e diz onde está o código-fonte', () => {
+    expect(parsed().license).toBe('AGPL-3.0-or-later');
+    expect(consoleReadme('1.2.3')).toContain('https://github.com/microteia/microteia');
   });
 
   it('o README diz como instalar, como rodar a pasta, e o que a máquina precisa ter', () => {

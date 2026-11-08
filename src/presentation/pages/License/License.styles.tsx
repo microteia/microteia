@@ -139,5 +139,10 @@ export const S = {
     strong {
       color: ${({ theme }) => theme.colors.text};
     }
+
+    a {
+      color: ${({ theme }) => theme.colors.primary};
+      word-break: break-all;
+    }
   `,
 };

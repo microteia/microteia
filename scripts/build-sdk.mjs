@@ -13,7 +13,7 @@
  * `bundleAudit.ts`, que varre o bundle pronto em vez de confiar em ter rodado o build certo.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const check = process.argv.includes('--check');
@@ -35,7 +35,8 @@ const packageJson = () => `${JSON.stringify({
   name: '@microteia/sdk',
   version: pkg.version,
   description: 'Author Microteia extensions in TypeScript.',
-  license: 'UNLICENSED',
+  license: 'AGPL-3.0-or-later',
+  repository: { type: 'git', url: 'git+https://github.com/microteia/microteia.git' },
   main: 'lib/sdk/index.js',
   types: 'lib/sdk/index.d.ts',
   // Duas entradas, e a distinção é real: `@microteia/sdk` é isomórfico (tipos, validação, construtores)
@@ -61,6 +62,15 @@ the platform installs.
     npx microteia-plugin build
 
 Kernel contract: ${kernelVersion}. See \`AUTHORING.md\` in your \`extensions/\` directory.
+
+## License
+
+Free software, licensed under the GNU Affero General Public License, version 3 or (at your option) any
+later version — the full text is in \`LICENSE\`. Source code: https://github.com/microteia/microteia.
+
+**Your extension is yours.** \`NOTICE\` carries the Microteia Extension Exception: an extension that talks
+to the platform only through its published interfaces — this SDK among them — is not covered by the
+platform's licence, and you choose its terms. The exception also lets you start from the examples.
 `;
 
 const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -74,6 +84,9 @@ if (!check) {
   execFileSync('npx', ['tsc', '-p', 'tsconfig.sdk.json'], { cwd: root, stdio: 'inherit' });
   writeFileSync(join(sdkDir, 'package.json'), packageJson());
   writeFileSync(join(sdkDir, 'README.md'), readme());
+  // A AGPL exige que o texto da licença acompanhe cada cópia distribuída, e o NOTICE é o que dá ao
+  // autor a exceção para extensões. Sem `files` no manifesto, o `npm pack` do `stageSdk` leva os dois.
+  for (const file of ['LICENSE', 'NOTICE']) copyFileSync(join(root, file), join(sdkDir, file));
 }
 
 let ok = true;

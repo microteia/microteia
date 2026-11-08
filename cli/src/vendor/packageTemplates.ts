@@ -189,10 +189,11 @@ export const consolePackageJson = (version: string): string => JSON.stringify({
   name: CONSOLE_PACKAGE_NAME,
   version,
   description: 'Install and update Microteia in a Firebase project you own.',
-  license: 'UNLICENSED',
+  license: 'AGPL-3.0-or-later',
+  repository: { type: 'git', url: 'git+https://github.com/microteia/microteia.git' },
   type: 'module',
   bin: { microteia: 'lib/index.js' },
-  files: ['lib', 'README.md', 'CONSOLE-VERSIONS.md'],
+  files: ['lib', 'README.md', 'CONSOLE-VERSIONS.md', 'LICENSE', 'NOTICE'],
   engines: { node: '>=22' },
   publishConfig: { access: 'public' },
 }, null, 2) + '\n';
@@ -263,5 +264,12 @@ the Microteia repository.
 
 \`CONSOLE-VERSIONS.md\`, in this folder. \`unpack\` copies it into the installation it manages, beside the
 platform's own \`KERNEL-VERSIONS.md\` — each history travels with the artifact it describes.
+
+## License
+
+Free software, licensed under the GNU Affero General Public License, version 3 or (at your option) any
+later version — the full text is in \`LICENSE\`, and the additional terms in \`NOTICE\`, in this folder.
+The source code of this Console and of the platform it installs is at
+https://github.com/microteia/microteia.
 `;
 

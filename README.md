@@ -4,6 +4,7 @@
 [![Security Rules](https://github.com/microteia/microteia/actions/workflows/rules.yml/badge.svg?branch=main)](https://github.com/microteia/microteia/actions/workflows/rules.yml)
 [![Kernel](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmicroteia.github.io%2Freleases%2Fkernel%2Findex.json&query=%24.channels.stable&label=kernel&prefix=v&color=blue)](https://github.com/microteia/releases/releases)
 [![Console](https://img.shields.io/npm/v/%40microteia%2Fconsole?label=console&color=blue)](https://www.npmjs.com/package/@microteia/console)
+[![License: AGPL v3+](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](./LICENSE)
 
 Multi-tenant platform for **building business applications declaratively**. The kernel knows no
 domain at all: entities, screens, automations and translations come in as **plugins and
@@ -12,6 +13,9 @@ extensions**, and that is what lets it serve a law office and a store without ch
 Each organization (tenant) runs in isolation: its data lives in dedicated Firestore subcollections
 (`tenants/{tenantId}/{collection}/{docId}`). A user can belong to several tenants and switch between
 them after signing in.
+
+Microteia is **free software**, licensed under the [GNU Affero General Public License v3.0 or later](./LICENSE),
+with the additional terms in [NOTICE](./NOTICE). Extensions you write for it are yours, under the license you choose.
 
 📖 **Official documentation: [doc.microteia.com](https://doc.microteia.com)**
 
@@ -33,7 +37,7 @@ them after signing in.
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/microteia/microteia.git
 cd microteia
 ```
 
@@ -413,8 +417,7 @@ kernel's internal APIs.
 
 The system installs extensions from a `.json`, but nobody needs to write `.json`: the package ships an
 SDK, and with it the office writes the extension in TypeScript, in VSCode, with types and
-autocomplete — without the kernel's source code leaving this repository (what travels is compiled code
-plus `.d.ts`).
+autocomplete — without needing the kernel's source code (what travels is compiled code plus `.d.ts`).
 
 ```bash
 microteia plugin-init --namespace com.acme   # creates "extensions/" next to microteia.yaml
@@ -511,3 +514,57 @@ Calendar, Dashboard, Brazil data and the pt-BR translation.
 ## Authentication
 
 Firebase Authentication with Google Sign-In.
+
+## Contributing
+
+Contributions are welcome — read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request.
+The short version: the kernel never learns a business name, every change passes `npm run verify`, and
+every commit bumps the version and the changelogs.
+
+## License
+
+Copyright © Alexnaldo Carvalho dos Santos and the Microteia contributors.
+
+Microteia is free software: you can redistribute it and/or modify it under the terms of the
+**GNU Affero General Public License** as published by the Free Software Foundation, either
+**version 3** of the License, or (at your option) **any later version** — supplemented by the additional
+terms and the extension exception in [NOTICE](./NOTICE), under section 7 of the license.
+
+This program is distributed in the hope that it will be useful, but **WITHOUT ANY WARRANTY**; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+[GNU Affero General Public License](./LICENSE) for more details.
+
+### The platform: changes stay open, and the origin stays visible
+
+| You may | Provided that |
+|---|---|
+| run Microteia for any purpose, commercial included | — |
+| study and change the source code | — |
+| distribute it, changed or not — the compiled package included | it carries this same license, `LICENSE`, `NOTICE` and the complete corresponding source code |
+| offer a changed version to users **over a network**, as a service | those users can get the complete source code of the version they use — the AGPL closes the SaaS gap the GPL leaves open |
+
+And every copy, changed or not, must:
+
+- **keep the attribution** *“Based on Microteia — https://github.com/microteia/microteia”*, with the
+  copyright notice, on the application's Terms page and in its README;
+- **be marked as modified**, and never present itself as the original Microteia;
+- **not use the Microteia name or logo** beyond that attribution — the license grants no trademark
+  rights.
+
+### Extensions: yours, under the license you choose
+
+The **Microteia Extension Exception** (in [NOTICE](./NOTICE)) means that a plugin, module, theme,
+language package, script or Cloud Function written for Microteia, and that talks to it only through the
+published interfaces — the package format, the `@microteia/sdk` authoring SDK, the curated host API, the
+sandbox and the office functions API — **is not covered by the AGPL**. Its author picks the license:
+proprietary, permissive or copyleft, and may sell it. Code copied from the SDK's authoring examples may
+go into it under the same freedom.
+
+What the exception does **not** cover is a change to Microteia itself — the kernel, a first-party plugin
+or the SDK. That is a modification of the platform, and it stays under the AGPL.
+
+**The license covers the software, not your data.** The records, files and configuration an
+organization keeps in its installation belong to that organization.
+
+`LICENSE` and `NOTICE` also ship inside every package: the kernel tarball, the Console on npm and the
+authoring SDK.

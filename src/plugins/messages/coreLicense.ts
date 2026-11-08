@@ -23,7 +23,7 @@ export const CORE_LICENSE_MESSAGES: Record<string, string> = {
 
   'acceptance.title': '1. Acceptance of the terms',
   'acceptance.text':
-    'Microteia is an AI-first platform for business applications: each organization declares the application it needs — screens, collections, forms, automations and access profiles — and extends it with installable extensions. The software is licensed to be installed and operated by the organization itself. By creating an account or using an installation of Microteia, the user and the organization they belong to declare that they have read, understood and fully accepted these Terms of Use and this Privacy Policy. If you do not agree with any clause, you must not use the software.',
+    'Microteia is an AI-first platform for business applications: each organization declares the application it needs — screens, collections, forms, automations and access profiles — and extends it with installable extensions. The software is free software, made to be installed and operated by the organization itself. By creating an account or using an installation of Microteia, the user and the organization they belong to declare that they have read, understood and fully accepted these Terms of Use and this Privacy Policy. If you do not agree with any clause, you must not use the software.',
 
   'service.title': '2. Description of the service',
   'service.text':
@@ -91,9 +91,9 @@ export const CORE_LICENSE_MESSAGES: Record<string, string> = {
   'liability.text':
     'To the fullest extent permitted by applicable law, the author of Microteia is not liable for indirect damages, lost profits, loss of business, missed deadlines, loss or leakage of data, or any harm arising from the use of, or the inability to use, the software — including technical failures, unavailability, errors of the artificial intelligence, the behavior of the extensions and automations the organization chose to install or declare, and the acts or omissions of the cloud and third-party services the organization contracted. The installation runs in the organization’s own project and is operated by the organization; the author does not administer it. Using the software does not replace the professional judgment, the diligence and the manual review required by the activity the organization carries out in it.',
 
-  'ip.title': '9. Intellectual property',
+  'ip.title': '9. Intellectual property and software licence',
   'ip.text':
-    'All source code, design, trademark and other elements of Microteia are protected by copyright and belong to its author. The organization receives a non-exclusive, non-transferable licence to install and use the software in its own project, for its own operation; it does not receive the right to redistribute it, to sublicense it or to offer it as a service to third parties. Copying, reverse engineering and unauthorized commercial exploitation are prohibited. An extension authored by a third party belongs to its own author, and its use is governed by the terms that extension carries.',
+    'Microteia is free software: its source code is published and licensed under the GNU Affero General Public License, version 3 or (at your option) any later version (AGPL-3.0-or-later), with the additional terms and the extension exception stated in the NOTICE file that accompanies it. Anyone may run it for any purpose, study how it works, change it and redistribute it. Whoever distributes a modified version, or offers one to users over a network, must make its complete source code available under the same licence; and must keep the copyright notices and the attribution “Based on Microteia”, mark the version as modified and not present it as the original Microteia. The licence grants no rights to the Microteia name or trademarks. The full text of the licence travels with the source code and with every package of the software, and it prevails over these terms in everything that concerns copying, modifying and distributing the software. These terms do not restrict any freedom the licence grants: they govern the use of an installation and the treatment of the data in it. An extension authored by a third party that uses only the interfaces the platform publishes for extensions is not covered by the Microteia licence: it belongs to its own author, who chooses its licence, and its use is governed by the terms that extension carries.',
 
   'changes.title': '10. Changes to these terms',
   'changes.text':
@@ -109,6 +109,7 @@ export const CORE_LICENSE_MESSAGES: Record<string, string> = {
 
   'contact.title': 'Copyright and contact',
   'contact.text':
-    'All copyright over Microteia belongs to the author responsible for its development.',
+    'Based on Microteia. The copyright belongs to the author named below and to the contributors. Licensed under the GNU Affero General Public License, version 3 or later, and provided WITHOUT ANY WARRANTY, to the extent permitted by applicable law.',
   'contact.email-label': 'E-mail:',
+  'contact.source-label': 'Source code:',
 };

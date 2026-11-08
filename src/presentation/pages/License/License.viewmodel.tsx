@@ -10,11 +10,17 @@ import type { WidgetSpec } from '../../../domain/schema/ui/widgetSpec';
  *
  * Mexer nela é declarar que o documento mudou; ela não acompanha o deploy.
  */
-const LAST_UPDATED_AT = '2026-09-03';
+const LAST_UPDATED_AT = '2026-11-07';
 
 /** A identidade do autor é DADO, não texto: não traduz, e por isso não entra no catálogo. */
 const AUTHOR_NAME = 'Alexnaldo Carvalho dos Santos';
 const AUTHOR_EMAIL = 'alexnaldo.santos@gmail.com';
+
+/**
+ * A AGPL (seção 13) exige que quem usa a plataforma pela rede consiga chegar à fonte, e o NOTICE
+ * fixa esta seção da página como o lugar da atribuição — um fork tem de manter o link, não tirá-lo.
+ */
+const SOURCE_URL = 'https://github.com/microteia/microteia';
 
 /** Um termo de extensão pronto para a tela: o nome já no idioma em vigor, a árvore como veio. */
 export interface ExtensionTerm {
@@ -27,6 +33,7 @@ export interface LicenseViewModel {
   updatedAt: string;
   authorName: string;
   authorEmail: string;
+  sourceUrl: string;
   showBackButton: boolean;
   goBack: () => void;
   /**
@@ -62,6 +69,7 @@ export const useLicenseViewModel = (): LicenseViewModel => {
     updatedAt: formatLongDate(`${LAST_UPDATED_AT}T12:00:00`),
     authorName: AUTHOR_NAME,
     authorEmail: AUTHOR_EMAIL,
+    sourceUrl: SOURCE_URL,
     showBackButton,
     goBack,
     extensionTerms,

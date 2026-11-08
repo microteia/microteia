@@ -291,6 +291,12 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   // instalação. Escrito do conteúdo já conferido, para não ler o arquivo duas vezes.
   await writeFile(join(stageDir, KERNEL_CHANGELOG), changelog);
 
+  // A AGPL exige que o texto da licença acompanhe cada cópia distribuída do compilado, e o NOTICE
+  // carrega os termos da seção 7 — atribuição e exceção para extensões — que só valem se viajarem juntos.
+  for (const file of ['LICENSE', 'NOTICE']) {
+    await cp(join(root, file), join(stageDir, file));
+  }
+
   // O `firestore.indexes.json` do pacote é ESCRITO, não copiado: a raiz é o conjunto completo (é o que
   // roda em `microteia-dev` e `curatino`), e o que uma extensão reivindica sai daqui para ser criado
   // pelo `provision` quando ela for instalada. Os `fieldOverrides` são todos do kernel e vão inteiros.

@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.212.0] — 2026-11-07
+
+- A Microteia agora é software livre, distribuída sob a licença GNU AGPL versão 3 (ou posterior). Qualquer pessoa pode usar, estudar, alterar e redistribuir a plataforma, mas quem a modificar é obrigado a liberar as alterações sob a mesma licença — inclusive quando oferecer a versão modificada como serviço pela internet.
+- Toda cópia da plataforma, modificada ou não, precisa manter visível o crédito "Baseado no Microteia" e não pode se apresentar como o Microteia original nem usar a marca.
+- Quem cria extensões continua dono delas: uma extensão feita com as ferramentas de autoria pode ser distribuída sob a licença que o autor escolher, aberta ou fechada, inclusive a partir dos exemplos que acompanham a plataforma.
+- Os Termos de Uso foram atualizados para refletir a nova licença, e a página passou a exibir o endereço do código-fonte. As regras sobre os dados do escritório, a privacidade e a segurança não mudaram.
+- A extensão Notícias passou a declarar a licença da plataforma e a permissão de reaproveitar o código dela em extensões próprias.
+
 #### [9.211.1] — 2026-11-07
 
 - Corrigido um problema em que uma regra de "não pode repetir" pensada para valer dentro de cada registro principal valia no sistema inteiro. Por exemplo, um despacho registrado em um processo impedia registrar outro despacho no mesmo dia e horário em um processo diferente. Os registros já existentes são reorganizados automaticamente na primeira vez que um administrador abre a lista afetada.

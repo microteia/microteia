@@ -147,6 +147,10 @@ export const LicenseView: React.FC = () => {
           <S.ContactCard>
             <p><strong>{vm.authorName}</strong></p>
             <p>{t('contact.email-label')} {vm.authorEmail}</p>
+            <p>
+              {t('contact.source-label')}{' '}
+              <a href={vm.sourceUrl} target="_blank" rel="noopener noreferrer">{vm.sourceUrl}</a>
+            </p>
           </S.ContactCard>
         </S.Section>
       </S.Card>

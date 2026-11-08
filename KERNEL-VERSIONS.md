@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.212.0] — 2026-11-07
+
+- chore(license): Microteia is now free software under AGPL-3.0-or-later. `LICENSE` holds the unmodified AGPL text; `NOTICE` holds the section 7 additions — attribution (7b: "Based on Microteia" plus the copyright, on the `/license` page and in the README), marking of modified versions (7c), no trademark grant (7e) — and the Microteia Extension Exception, which leaves extensions that use only the published interfaces (package format, `@microteia/sdk`, curated host API, sandbox API, office functions API, MCP/callables) under terms their authors choose, examples included. Both files ship at the root of the kernel tarball and of the SDK package; `package.json`, `functions/package.json` and the SDK manifest declare `AGPL-3.0-or-later` instead of `UNLICENSED`.
+- feat(core.license): Terms of Use clause 9 no longer forbids copying, reverse engineering or redistribution — it states the AGPL, the attribution and marking duties, the absence of a trademark grant and the extension exception. The copyright section now carries the attribution and a link to the source code (AGPL section 13); new key `contact.source-label`. `core.license` 1.1.0 and `locale.pt-br.license` 1.3.0; terms dated 2026-11-07.
+- docs(sdk/authoring): `AUTHORING.md` explains that the extension's licence is the author's choice, and where the exception stops.
+- chore(com.microteia.news): 1.6.0 — the extension's licence terms state AGPL-3.0-or-later and that its code may be reused in an extension under any licence.
+
 #### [9.211.1] — 2026-11-07
 
 - fix(records/keys): a key declared with `scope: 'parent'` was enforced across the whole organization. `planRecordKeys` never read `scope`, so the reservation id was `collection|key|values` for both scopes — one `caseMovements` entry (date, time, type) in case A refused the same entry in case B. The parent id now enters the reservation id as a marked segment (`collection|key|~r<parentId>|values`), un-normalized and absent from the reservation body, so `firestore.rules` is unchanged. A record with no parent leaves a sparse key unreserved and is refused on a non-sparse one, naming the parent field.

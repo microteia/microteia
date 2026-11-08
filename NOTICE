@@ -1,0 +1,97 @@
+Microteia — An AI-First Business Application Platform
+Copyright (C) 2026 Alexnaldo Carvalho dos Santos and the Microteia contributors
+Source code: https://github.com/microteia/microteia
+
+This program is free software: you can redistribute it and/or modify it under the terms of the
+GNU Affero General Public License as published by the Free Software Foundation, either version 3 of
+the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
+General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along with this program, in
+the file LICENSE. If not, see <https://www.gnu.org/licenses/>.
+
+The license is supplemented by the additional terms and the additional permission below, as allowed
+by section 7 of the GNU Affero General Public License. Both apply to every copy of Microteia and to
+every work based on it, and this file must be conveyed together with the LICENSE file.
+
+
+===================================================================================================
+ADDITIONAL TERMS UNDER SECTION 7 OF THE GNU AFFERO GENERAL PUBLIC LICENSE
+===================================================================================================
+
+1. Attribution — section 7(b).
+
+   Every copy of Microteia, modified or not, that is conveyed or that users interact with remotely
+   over a computer network, must preserve the copyright notices and display the following
+   attribution, unaltered and legible:
+
+       Based on Microteia — https://github.com/microteia/microteia
+       Copyright (C) Alexnaldo Carvalho dos Santos and the Microteia contributors.
+       Licensed under the GNU Affero General Public License, version 3 or later.
+
+   The attribution must appear (a) in the Appropriate Legal Notices displayed by the interactive user
+   interface — in Microteia, the "Copyright and contact" section of the Terms of Use page, served at
+   the "/license" route, which is reachable before signing in — and (b) in the README, or equivalent
+   documentation, of every distribution. A translated interface may display the attribution in its
+   own language, provided the link and the names are kept.
+
+2. Marking of modified versions — section 7(c).
+
+   A modified version must be marked in reasonable ways as different from the original version, and
+   must not misrepresent its origin: it must not be presented as the original Microteia, nor as made,
+   endorsed or supported by its author or contributors.
+
+3. Trade names and trademarks — section 7(e).
+
+   This license grants no rights under trademark law to the name "Microteia", to its logos or to any
+   other brand identifier, beyond the use required to comply with the attribution in term 1 and to
+   state truthfully that a work is based on Microteia.
+
+
+===================================================================================================
+ADDITIONAL PERMISSION UNDER SECTION 7 — MICROTEIA EXTENSION EXCEPTION
+===================================================================================================
+
+Microteia is built to be extended without being modified. As a special exception, the copyright
+holders of Microteia give you permission to create an Extension, and to use, convey, sell and offer
+it to users over a computer network, under terms of your choice — proprietary, permissive or
+copyleft — and to run it together with Microteia, without the Extension, or the combination of the
+Extension with Microteia, being subject to the terms of the GNU Affero General Public License as to
+the Extension, provided that the Extension interacts with Microteia only through the Published
+Interfaces.
+
+"Extension" means a plugin, extension package, module, theme, language package, view, startup
+script, sandbox script, workflow, document template, or Cloud Function — together with its source
+code and with every artifact compiled from it — that is not itself part of Microteia and that is
+written to be installed in, or deployed beside, an installation of Microteia.
+
+"Published Interfaces" means:
+
+  a. the extension package format — the manifest, its extension points and the artifact that the
+     platform validates and installs;
+  b. the authoring SDK, published as "@microteia/sdk", including its command-line tools and its type
+     definitions;
+  c. the curated host API offered to extension views and startup scripts (the "@microteia/*"
+     modules described by the SDK type definitions);
+  d. the API offered to sandbox scripts;
+  e. the office functions API (the "office" entry point of the platform's functions package), and the
+     directories in which an installation mounts its own Cloud Functions;
+  f. the Model Context Protocol server and the callable functions that the platform exposes to
+     external clients.
+
+You may also copy code from the authoring examples that are distributed with the SDK (the
+"examples" directory of the SDK package and the first-party extensions it is built from) into an
+Extension, and convey that copied code as part of the Extension, under the Extension's terms.
+
+This exception does not cover modifications of Microteia itself. A change to the kernel, to a
+first-party plugin, to the SDK or to any other part of Microteia — including a change made in order
+to support an Extension — is a modification of Microteia and remains subject to the GNU Affero
+General Public License and to the additional terms above. The exception also grants no right to use
+the Microteia name or trademarks for an Extension beyond stating truthfully that the Extension works
+with Microteia.
+
+If you modify Microteia, you may extend this exception to your version, but you are not obligated to
+do so. If you do not wish to do so, delete this exception statement from your version.

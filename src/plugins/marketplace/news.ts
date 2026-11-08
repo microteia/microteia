@@ -212,7 +212,7 @@ const COMMENTS_SCREEN: ScreenModuleTemplate = {
 export const newsPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.news',
-    version: '1.5.0',
+    version: '1.6.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),

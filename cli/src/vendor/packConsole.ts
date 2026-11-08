@@ -57,6 +57,11 @@ export const packConsole = async (args: ParsedArgs): Promise<void> => {
   await writeFile(join(outputDir, 'package.json'), consolePackageJson(CLI_VERSION));
   await writeFile(join(outputDir, 'README.md'), consoleReadme(CLI_VERSION));
   await writeFile(join(outputDir, CONSOLE_CHANGELOG), changelog);
+  // A AGPL exige que o texto da licença acompanhe cada cópia distribuída — e esta é a que vai ao npm.
+  // O NOTICE carrega os termos da seção 7 (atribuição, exceção para extensões), que viajam junto.
+  for (const file of ['LICENSE', 'NOTICE']) {
+    await cp(join(repoRoot, file), join(outputDir, file));
+  }
   // Executável com o shebang que o entrypoint já tem: é o que permite apontar um link para ele em
   // qualquer diretório do PATH, sem npm e sem sudo. O `tsc` não carimba a permissão, e no repositório
   // ela vem do `npm install` (que a aplica no alvo do `bin`) — o que não existe numa pasta copiada.

@@ -1515,6 +1515,14 @@ applying.
 Write it with references, like every other string: a licence the organization cannot read in its own
 language is the one document in the package where that matters most.
 
+**Which licence is yours to decide.** Microteia is licensed under the GNU AGPL v3 or later, but its
+\`NOTICE\` carries the *Microteia Extension Exception*: an extension that talks to the platform only
+through the published interfaces — the package format, this SDK, the curated \`@microteia/*\` host API,
+the sandbox, and the office functions API — is not covered by the platform's licence. Proprietary,
+permissive or copyleft: you choose, and \`manifest.license\` is where you say it. The exception also lets
+you copy code from \`examples/\` into your extension under your own terms. What it does not cover is a
+change to the platform itself: that stays under the AGPL.
+
 ${describedTable('Node', WIDGET_NODE_TYPES, WIDGET_NODES)}
 
 \`\`\`ts

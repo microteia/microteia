@@ -36,7 +36,7 @@ const CORE_LICENSE: Record<string, string> = {
 
   'acceptance.title': '1. Aceitação dos termos',
   'acceptance.text':
-    'O Microteia é uma plataforma AI-first para aplicações de negócio: cada escritório declara a aplicação de que precisa — telas, coleções, formulários, automações e perfis de acesso — e a estende com extensões instaláveis. O software é licenciado para ser instalado e operado pelo próprio escritório. Ao criar uma conta ou utilizar uma instalação do Microteia, o usuário e o escritório ao qual ele pertence declaram ter lido, compreendido e aceito integralmente estes Termos de Uso e esta Política de Privacidade. Caso não concorde com qualquer cláusula, o usuário não deve utilizar o software.',
+    'O Microteia é uma plataforma AI-first para aplicações de negócio: cada escritório declara a aplicação de que precisa — telas, coleções, formulários, automações e perfis de acesso — e a estende com extensões instaláveis. O software é livre, feito para ser instalado e operado pelo próprio escritório. Ao criar uma conta ou utilizar uma instalação do Microteia, o usuário e o escritório ao qual ele pertence declaram ter lido, compreendido e aceito integralmente estes Termos de Uso e esta Política de Privacidade. Caso não concorde com qualquer cláusula, o usuário não deve utilizar o software.',
 
   'service.title': '2. Descrição do serviço',
   'service.text':
@@ -104,9 +104,9 @@ const CORE_LICENSE: Record<string, string> = {
   'liability.text':
     'Na máxima extensão permitida pela legislação aplicável, o autor do Microteia não se responsabiliza por danos indiretos, lucros cessantes, perda de negócios, perda de prazos, perda ou vazamento de dados, nem por quaisquer prejuízos decorrentes do uso ou da impossibilidade de uso do software — incluindo falhas técnicas, indisponibilidade, erros da inteligência artificial, o comportamento das extensões e automações que o escritório escolheu instalar ou declarar, e os atos ou omissões dos serviços de nuvem e de terceiros contratados pelo escritório. A instalação roda no projeto do próprio escritório e é operada por ele; o autor não a administra. O uso do software não substitui o julgamento profissional, a diligência e a conferência manual exigidos pela atividade que o escritório exerce nele.',
 
-  'ip.title': '9. Propriedade intelectual',
+  'ip.title': '9. Propriedade intelectual e licença do software',
   'ip.text':
-    'Todo o código-fonte, design, marca e demais elementos do Microteia são protegidos por direitos autorais e pertencem ao seu autor. O escritório recebe uma licença não exclusiva e não transferível para instalar e usar o software no próprio projeto, para a própria operação; não recebe o direito de redistribuí-lo, sublicenciá-lo ou oferecê-lo como serviço a terceiros. São vedadas a cópia, a engenharia reversa e a exploração comercial não autorizada. Uma extensão criada por terceiro pertence ao próprio autor dela, e seu uso é regido pelos termos que ela carrega.',
+    'O Microteia é software livre: seu código-fonte é publicado e licenciado sob a GNU Affero General Public License, versão 3 ou (a seu critério) qualquer versão posterior (AGPL-3.0-or-later), com os termos adicionais e a exceção para extensões descritos no arquivo NOTICE que o acompanha. Qualquer pessoa pode executá-lo para qualquer finalidade, estudar como ele funciona, alterá-lo e redistribuí-lo. Quem distribuir uma versão modificada, ou oferecê-la a usuários por meio de uma rede, deve disponibilizar o código-fonte completo dela sob a mesma licença; e deve manter os avisos de direitos autorais e a atribuição “Baseado no Microteia”, identificar a versão como modificada e não apresentá-la como o Microteia original. A licença não concede direito algum sobre o nome ou as marcas Microteia. O texto integral da licença acompanha o código-fonte e cada pacote do software, e prevalece sobre estes termos em tudo o que diz respeito a copiar, modificar e distribuir o software. Estes termos não restringem nenhuma liberdade que a licença concede: eles regem o uso de uma instalação e o tratamento dos dados nela. Uma extensão criada por terceiro que use apenas as interfaces que a plataforma publica para extensões não é coberta pela licença do Microteia: ela pertence ao próprio autor, que escolhe a licença dela, e seu uso é regido pelos termos que ela carrega.',
 
   'changes.title': '10. Alterações destes termos',
   'changes.text':
@@ -122,15 +122,16 @@ const CORE_LICENSE: Record<string, string> = {
 
   'contact.title': 'Direitos autorais e contato',
   'contact.text':
-    'Todos os direitos autorais sobre o Microteia pertencem ao autor responsável pelo seu desenvolvimento.',
+    'Baseado no Microteia. Os direitos autorais pertencem ao autor indicado abaixo e aos contribuidores. Licenciado sob a GNU Affero General Public License, versão 3 ou posterior, e fornecido SEM QUALQUER GARANTIA, na extensão permitida pela legislação aplicável.',
   'contact.email-label': 'E-mail:',
+  'contact.source-label': 'Código-fonte:',
 };
 
 export const ptBrLicensePlugin: PluginRecord = {
   trusted: true,
   manifest: {
     id: 'locale.pt-br.license',
-    version: '1.2.0',
+    version: '1.3.0',
     kernel: '^2.0.0',
     name: 'Terms and Privacy — Português (Brasil)',
     description: 'Translation of the Terms of Use and the Privacy Policy into Brazilian Portuguese.',
