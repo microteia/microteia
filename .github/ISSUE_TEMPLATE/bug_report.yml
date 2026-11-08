@@ -1,0 +1,215 @@
+name: Bug report
+description: Something in Microteia behaves differently from what it should.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is triaged with the help of an AI agent that reads the repository source. It cannot see
+        your screen, your Firebase project or your data — it only has what you write here. The most
+        useful report gives **facts, not interpretations**: exact steps, exact error text, and the raw
+        declaration (screen, automation, manifest) involved.
+
+        **Security vulnerability?** Do not open an issue. Follow
+        [Reporting a security issue](https://github.com/microteia/microteia/blob/main/CONTRIBUTING.md#reporting-a-security-issue).
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: This report contains no personal data, client data, credentials or API keys (replace them with placeholders).
+          required: true
+        - label: I reproduced it on the latest kernel release, or I state below the version where it happens.
+          required: false
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences. What breaks, and where.
+      placeholder: Saving a record fails when the screen has a unique key with scope "parent".
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where the failure shows up. Pick every one that applies; "Not sure" is a valid answer.
+      multiple: true
+      options:
+        - Not sure
+        - Sign-in, tenant selection or member access
+        - Permissions and roles (RBAC)
+        - Declarative screens, fields or field rules
+        - Record list, filters, search or Cmd+K
+        - Automations (workflow engine)
+        - Reports
+        - Documents and document templates
+        - Portal (external guests)
+        - Data import
+        - Extension runtime (view, startup, record tab, sandbox script)
+        - Extension backend (functions, indexes, migrations)
+        - Marketplace (install, update, rollback of an extension)
+        - SDK and extension authoring (compile, validate, types)
+        - Console CLI (init, connect, unpack, deploy, pack, publish)
+        - AI agent access (MCP)
+        - Translation or user-facing text
+        - Theme and appearance
+        - Audit log
+        - Firestore or Storage security rules
+    validations:
+      required: true
+
+  - type: dropdown
+    id: extension-involvement
+    attributes:
+      label: Is an extension involved?
+      description: This is the first thing triage decides — a kernel defect and an extension defect are fixed in different places.
+      options:
+        - "No — it happens with the kernel alone"
+        - "Yes — a first-party extension from the built-in catalog"
+        - "Yes — a third-party or custom extension"
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: |
+        Numbered and deterministic, starting from a state anyone can recreate (ideally a fresh tenant).
+        Include what you clicked, what you typed, and which member did it.
+      placeholder: |
+        1. In a fresh tenant, create a screen with the declaration below.
+        2. Create a parent record "A".
+        3. Open "A", add a child record with key value "X". Save.
+        4. Open another parent record "B", add a child with key value "X". Save.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: The second save succeeds, because the key is unique only inside its parent.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead. Quote on-screen messages word for word.
+      placeholder: 'The save is refused with "This value is already in use".'
+    validations:
+      required: true
+
+  - type: textarea
+    id: declaration
+    attributes:
+      label: Minimal declaration
+      description: |
+        The raw JSON (or extension source) that reproduces the problem: screen definition, automation,
+        report, document template, or the relevant part of an extension manifest. Trim it to the
+        smallest version that still fails. This lets the defect be reproduced without access to your data.
+      render: json
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Errors and logs
+      description: |
+        Paste as text, not screenshots. Useful sources: browser console, network response of the failing
+        call, Cloud Functions logs, the Audit screen entry (including its error code, e.g.
+        `error.workflow.not-found`), Console CLI output.
+      render: shell
+
+  - type: textarea
+    id: access
+    attributes:
+      label: Who performed the action
+      description: |
+        Authorization is by permission, so the same step can succeed for one member and fail for another.
+        Was it the tenant owner, a SYSTEM user, or a member? If a member, which roles and relevant permissions?
+      placeholder: Member with role "Clerk" (records.read, records.create — no records.update).
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: |
+        For an installation, run `microteia --version` at the installation root and paste the output.
+        Otherwise state the kernel version and list the extensions involved as `id@version`.
+      placeholder: |
+        Kernel 9.214.0, Console 2.42.0
+        com.example.inventory@1.4.2
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Installation in my own Firebase project (Console CLI)
+        - Running from source against Firebase emulators
+        - Running from source against a Firebase project
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: input
+    id: client
+    attributes:
+      label: Browser and OS
+      description: Only if the problem shows up in the interface.
+      placeholder: Chrome 131, macOS 15
+
+  - type: input
+    id: regression
+    attributes:
+      label: Last version where it worked
+      description: Leave empty if it never worked or you don't know. A known-good version narrows the search to a range of commits.
+      placeholder: 9.210.0
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it happen?
+      options:
+        - Every time
+        - Intermittently
+        - Only once so far
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - Blocks work, no workaround
+        - Blocks work, but there is a workaround
+        - Data is wrong, lost or exposed to the wrong person
+        - Cosmetic or minor
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround
+      description: If you found a way around it, describe it. It also tells where the defect is not.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: What you already ruled out, hypotheses (marked as such), related issues.

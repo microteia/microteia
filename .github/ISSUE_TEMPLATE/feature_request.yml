@@ -1,0 +1,178 @@
+name: Feature request
+description: Propose a capability Microteia does not offer today.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is triaged with the help of an AI agent that reads the repository source and checks
+        whether what you need can already be built with what the platform supports.
+
+        **Microteia's kernel never learns a business name.** Entities, screens, automations and
+        translations come in as declarations and extensions. So the question this form asks is not
+        "which feature for my business", but **which declarative capability is missing** — one that would
+        serve a business very different from yours just as well. A request that only makes sense for one
+        domain is usually an extension, not a kernel change, and that is a fine outcome.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: I read "The one rule that is not negotiable" in CONTRIBUTING.md.
+          required: true
+        - label: This request contains no personal data, client data or credentials.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you cannot do today. Describe the job to be done, not the solution.
+      placeholder: A record cannot be changed after it has been used as evidence, but today any member with update permission can edit it at any time.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Concrete scenario
+      description: |
+        A real example of applicability: who does what, how often, with which data. Use made-up
+        values. The more concrete, the easier it is to judge whether an existing capability covers it.
+      placeholder: |
+        A clerk registers a signed receipt. Once the receipt is attached to a payment, it must stay as it
+        was for audit. This happens ~200 times a month per tenant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: generality
+    attributes:
+      label: Same need in another domain
+      description: |
+        Describe how a business unrelated to yours would use the same capability (e.g. a clinic, a store,
+        a school). If you cannot think of one, say so — it is useful information, and it usually points
+        to an extension.
+      placeholder: A store locks an invoice once it is issued; a clinic locks a medical record after the visit is closed.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: today
+    attributes:
+      label: Can it be achieved today?
+      options:
+        - "No — I found no way"
+        - "Partially — there is a workaround, with limits"
+        - "Yes — but it costs too much (code, effort, performance)"
+        - "I don't know"
+    validations:
+      required: true
+
+  - type: textarea
+    id: attempts
+    attributes:
+      label: What you tried with what the platform supports
+      description: |
+        Which existing capabilities you considered or tried — screen fields and field rules, unique keys,
+        sequences, edit window, record visibility, permissions, automations, reports, document templates,
+        portal, extension views and record tabs, sandbox scripts, extension backend functions, MCP — and
+        exactly where each one fell short.
+      placeholder: |
+        - Field rules: can make a field read-only, but not the whole record after a condition.
+        - Automation on update: can notify after the edit, not prevent it.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: change-kind
+    attributes:
+      label: What kind of change do you think this is?
+      description: Your best guess. Triage may land somewhere else.
+      options:
+        - New property in an existing declaration (screen, field, automation, report…)
+        - New extension point or host API for extension authors
+        - New automation step or trigger
+        - Can be built as an extension, with no kernel change
+        - Console CLI or installation
+        - Documentation only
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: declaration-sketch
+    attributes:
+      label: What the declaration could look like
+      description: |
+        If this were declarative, sketch the JSON (or SDK call) a tenant or extension author would write.
+        It does not need to be valid — it is the clearest way to show the shape of the capability.
+      render: json
+      placeholder: |
+        {
+          "editWindow": { "lockWhen": { "field": "status", "equals": "issued" } }
+        }
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Observable behavior that proves it is done. One line per criterion, Given/When/Then if it helps.
+      placeholder: |
+        - Given a locked record, when a member with update permission saves it, then the save is refused with a translated message.
+        - The lock is enforced on the server, not only hidden in the interface.
+        - The refusal appears in the audit log.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: concerns
+    attributes:
+      label: Cross-cutting concerns
+      description: Check every one this request touches. Each becomes part of the analysis.
+      options:
+        - label: Needs a new permission, or changes who can do something
+        - label: Adds text the user reads (must be translatable)
+        - label: Changes the shape of data already stored (needs migration)
+        - label: Touches the portal, i.e. people outside the tenant
+        - label: Runs extension code or crosses the extension trust boundary
+        - label: Adds a query that may need a new Firestore index
+        - label: Must be available to AI agents (MCP)
+
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Out of scope
+      description: What this request deliberately does not cover. Keeps the analysis from growing the scope.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: How much does it matter to you?
+      options:
+        - Blocking adoption
+        - Important, with a painful workaround
+        - Nice to have
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you contribute?
+      options:
+        - Yes, I can open a pull request
+        - I can test or review
+        - No
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Links, references to other products, related issues.
