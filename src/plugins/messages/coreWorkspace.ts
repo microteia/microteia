@@ -51,6 +51,9 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
     'The browser blocked the sign-in window. Allow pop-ups for this site, or ask whoever installed '
     + 'the system to switch this method to redirect.',
   'login.error.popup-closed': 'The sign-in window was closed before finishing.',
+  'login.error.registration-closed':
+    'This system is not accepting new accounts, so yours was not created. A system administrator can allow '
+    + 'new accounts in the Access Management menu.',
   'login.error.provider-not-enabled':
     'This sign-in method is not enabled in the project. Whoever installed the system needs to enable it.',
   'login.error.not-verified-yet':

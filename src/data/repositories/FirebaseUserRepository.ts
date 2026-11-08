@@ -15,6 +15,8 @@ import type { AppUser, UserRole } from '../../domain/entities';
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
 
 import { LocalizedError } from '../../domain/errors/LocalizedError';
+import { REGISTRATION_CLOSED_MESSAGE, REGISTRATION_REFUSALS_COLLECTION } from '../../domain/schema/registration';
+
 const fromDoc = (id: string, data: Record<string, unknown>): AppUser => ({
   id,
   email: data.email as string,
@@ -34,36 +36,47 @@ export class FirebaseUserRepository implements IUserRepository {
   async waitForProvisioning(userId: string, timeoutMs = 20000): Promise<AppUser> {
     return new Promise((resolve, reject) => {
       let settled = false;
-      const timeoutId = setTimeout(() => {
+      const unsubscribers: Array<() => void> = [];
+      const settle = (finish: () => void) => {
         if (settled) return;
         settled = true;
-        unsubscribe();
-        reject(new LocalizedError('@core.workspace/account.setup-timeout'));
-      }, timeoutMs);
+        clearTimeout(timeoutId);
+        unsubscribers.forEach((unsubscribe) => unsubscribe());
+        finish();
+      };
+      const timeoutId = setTimeout(
+        () => settle(() => reject(new LocalizedError('@core.workspace/account.setup-timeout'))),
+        timeoutMs,
+      );
+      const fail = (err: unknown) => settle(() => reject(err));
 
-      const unsubscribe = onSnapshot(
+      unsubscribers.push(onSnapshot(
         doc(db, 'users', userId),
         (snap) => {
-          if (settled || !snap.exists()) return;
+          if (!snap.exists()) return;
           const data = snap.data();
           const tenantIds = (data.tenantIds as string[] | undefined) ?? [];
           // O convidado do portal não ganha escritório, nem a conta aberta numa instalação que desligou
           // o autocadastro (`invitation`): o sinal de que o bootstrap terminou, para eles, é a origem
           // carimbada no documento.
           if (tenantIds.length === 0 && data.origin !== 'portal' && data.origin !== 'invitation') return;
-          settled = true;
-          clearTimeout(timeoutId);
-          unsubscribe();
-          resolve(fromDoc(snap.id, data));
+          settle(() => resolve(fromDoc(snap.id, data)));
         },
-        (err) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeoutId);
-          unsubscribe();
-          reject(err);
+        fail,
+      ));
+      // A instalação fechada para contas novas não provisiona: o gatilho grava a recusa e apaga a conta.
+      // Sem ouvi-la, a pessoa esperaria o tempo-limite inteiro por um documento que não vem.
+      //
+      // O erro DESTA escuta não encerra a espera: ela é só a explicação de uma recusa. Com as regras
+      // ainda sem o bloco da recusa (projeto com deploy atrasado), ela respondia `permission-denied` e
+      // derrubava a espera inteira — o `SYSTEM` entrava como `USER` e perdia Gestão de Acessos.
+      unsubscribers.push(onSnapshot(
+        doc(db, REGISTRATION_REFUSALS_COLLECTION, userId),
+        (snap) => {
+          if (snap.exists()) settle(() => reject(new LocalizedError(REGISTRATION_CLOSED_MESSAGE)));
         },
-      );
+        () => undefined,
+      ));
     });
   }
 

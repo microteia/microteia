@@ -50,6 +50,9 @@ export const CORE_WORKSPACE: Record<string, string> = {
     'O navegador bloqueou a janela de entrada. Libere pop-ups para este site, ou peça a quem '
     + 'instalou o sistema para trocar este meio para redirecionamento.',
   'login.error.popup-closed': 'A janela de entrada foi fechada antes de terminar.',
+  'login.error.registration-closed':
+    'Este sistema não está aceitando novas contas, por isso a sua não foi criada. Um administrador do sistema '
+    + 'pode liberar novas contas no menu Gestão de Acessos.',
   'login.error.provider-not-enabled':
     'Este meio de entrada não está habilitado no projeto. Quem instalou o sistema precisa habilitá-lo.',
   'login.error.not-verified-yet':

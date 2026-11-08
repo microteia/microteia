@@ -69,6 +69,21 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'access.plan.placeholder': 'Plan…',
   'access.plan.update-failed': 'Could not update the organization plan.',
   'access.plan.updated': 'Organization plan updated.',
+  'access.registration.block': 'Block new accounts',
+  'access.registration.block.hint':
+    'When on, only accounts that already exist can sign in, in every organization. Anyone signing in for the '
+    + 'first time is refused. People invited to an organization portal can still sign in.',
+  'access.registration.blocked': 'New accounts are now blocked.',
+  'access.registration.opened': 'New accounts are now accepted.',
+  'access.registration.update-failed': 'Could not change what happens to new accounts.',
+  'access.registration.load-failed': 'Could not read what happens to new accounts.',
+  'access.registration.organizations.block': 'Block automatic organizations',
+  'access.registration.organizations.block.hint':
+    'When on, a new account no longer gets an organization of its own: it waits to be added to one, and only '
+    + 'the system administrator opens organizations, in the Organizations tab. The first account of the system '
+    + 'always gets one.',
+  'access.registration.organizations.blocked': 'New accounts no longer get an organization of their own.',
+  'access.registration.organizations.opened': 'Each new account now gets an organization of its own.',
   'access.role.placeholder': 'Select role',
   'access.role.system': 'System',
   'access.role.user': 'User',

@@ -14,6 +14,8 @@ import {
 } from '../domain/usecases/auth/SignInWithLinkUseCase';
 import type { User, UserRole } from '../domain/entities';
 import { authErrorKey, type AuthProviderSpec } from '../domain/schema/auth';
+import { LocalizedError } from '../domain/errors/LocalizedError';
+import { REGISTRATION_CLOSED_KEY, REGISTRATION_CLOSED_MESSAGE } from '../domain/schema/registration';
 import { AuthContext } from './useAuth';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -25,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profilePhotoURL, setProfilePhotoURL] = useState<string | null>(null);
   const [profileNickname, setProfileNickname] = useState<string | null>(null);
   const [profileFullName, setProfileFullName] = useState<string | null>(null);
-  const [redirectErrorKey, setRedirectErrorKey] = useState<string | null>(null);
+  const [entryErrorKey, setEntryErrorKey] = useState<string | null>(null);
 
   const signInWithProviderUseCase = useMemo(() => makeSignInWithProviderUseCase(authRepository), [authRepository]);
   const consumeRedirectResultUseCase = useMemo(() => makeConsumeRedirectResultUseCase(authRepository), [authRepository]);
@@ -60,12 +62,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let active = true;
     consumeRedirectResultUseCase.execute()
       .catch((error: unknown) => {
-        if (active) setRedirectErrorKey(authErrorKey(error));
+        if (active) setEntryErrorKey(authErrorKey(error));
       });
     return () => { active = false; };
   }, [consumeRedirectResultUseCase]);
 
-  const clearRedirectError = useCallback(() => setRedirectErrorKey(null), []);
+  const clearEntryError = useCallback(() => setEntryErrorKey(null), []);
 
   useEffect(() => {
     return authRepository.onAuthStateChanged((u) => {
@@ -92,7 +94,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const profile = await userRepository.waitForProvisioning(u.id);
           setUserRole(profile.role);
           await loadUserProfile(u.id);
-        } catch {
+        } catch (error) {
+          // A conta nova recusada já foi apagada pelo servidor: segurar a sessão dela só deixaria a
+          // pessoa num app vazio. A frase vai para a tela de entrada, que é para onde ela volta.
+          if (error instanceof LocalizedError && error.message === REGISTRATION_CLOSED_MESSAGE) {
+            await signOutUseCase.execute().catch(() => undefined);
+            setEntryErrorKey(REGISTRATION_CLOSED_KEY);
+            return;
+          }
           setUserRole('USER');
         } finally {
           setLoading(false);
@@ -101,7 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       resolveProfile();
     });
-  }, [authRepository, userRepository, loadUserProfile]);
+  }, [authRepository, userRepository, loadUserProfile, signOutUseCase]);
 
   useEffect(() => {
     const handle = () => {
@@ -213,7 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider value={{
       user, userRole, loading, isEmailVerified,
-      redirectErrorKey, clearRedirectError,
+      entryErrorKey, clearEntryError,
       effectivePhotoURL, effectiveName, reloadUserProfile,
       signInWithProvider, signInWithEmail, signUpWithEmail,
       sendSignInLink, isSignInLink, signInWithLink, signInWithToken,

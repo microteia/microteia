@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.214.0] — 2026-11-08
+
+- feat(access/registration): installation-wide lock on new accounts, `system/registration.acceptNewAccounts`, toggled by `SYSTEM` in Access Management › Users ("Block new accounts"). No deploy and no `.env`: the lock has to open and close in the time it takes one person to sign up. Missing document = open, so installations that predate it keep accepting sign-ups; the transaction that promotes the first account to `SYSTEM` writes `acceptNewAccounts: false`, so a new installation starts closed.
+- feat(bootstrap): with the lock closed, `BootstrapUserUseCase` refuses the account before creating any document — `IRegistrationRepository.refuse` writes `registrationRefusals/{uid}` (TTL on `expiresAt`, 1 day) and then deletes the Firebase Auth account. Blocking the creation itself needs `beforeUserCreated`, which requires the Identity Platform upgrade (irreversible, billed) already rejected for member MFA. Portal guests are exempt (the organization authorized them); an account that already has `users/{uid}` is never refused (`IUserRepository.exists`), so a redelivered trigger cannot delete an admitted user.
+- feat(auth): `waitForProvisioning` also listens to `registrationRefusals/{uid}` (an error on that listener is ignored, so rules not yet deployed cannot demote SYSTEM to USER) and rejects with `@core.workspace/login.error.registration-closed`; `AuthContext` signs out and exposes the key through `entryErrorKey`, which the sign-in screen shows. `redirectErrorKey`/`clearRedirectError` were renamed `entryErrorKey`/`clearEntryError` (internal to the shell, not part of the curated host API), since the slot now carries both the redirect error and the refusal.
+- feat(bootstrap)!: the backend parameter `SELF_SERVICE_TENANTS` is removed, with no fallback. Whether a new account gets an organization of its own is now `system/registration.selfServiceTenants` (missing = `true`), set by `SYSTEM` in Access Management › Users ("Block automatic organizations") and read by the bootstrap on every new account, so it takes effect without a redeploy. `IRegistrationRepository.getPolicy()` returns both fields; `makeBootstrapUserUseCase` loses its `selfServiceTenants` argument. An installation that had `SELF_SERVICE_TENANTS=false` opens organizations on sign-up again until SYSTEM ticks the option.
+- feat(rules): `system/registration` readable and writable only by `SYSTEM` (keys `acceptNewAccounts` and `selfServiceTenants`, each optional and boolean, `updatedBy == auth.uid`, `updatedAt == request.time`); the browser writes with `merge`, so changing one field never rewrites the other; `registrationRefusals/{uid}` readable only by that `uid`, never written by clients. `system/bootstrap` stays Admin-SDK only. New TTL field override `registrationRefusals.expiresAt`. Requires `deploy --only firestore` (rules and indexes) on the installation.
+- chore(locale-pt-br): 1.167.0, with the new access and sign-in messages.
+
 #### [9.213.0] — 2026-11-07
 
 - feat(cli/pack): the kernel manifest gains an optional `source: { commit, dirty }` — the commit the

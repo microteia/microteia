@@ -45,6 +45,20 @@ describe('FirebaseUserRepository.createUserIfMissing', () => {
     expect(store.get('system/bootstrap')?.claimedBy).toBe('u1');
   });
 
+  it('o primeiro usuário fecha a instalação para contas novas, na mesma transação', async () => {
+    const store: Store = new Map();
+    await new FirebaseUserRepository(makeFakeDb(store)).createUserIfMissing('u1', input);
+
+    expect(store.get('system/registration')).toMatchObject({ acceptNewAccounts: false, updatedBy: 'u1' });
+  });
+
+  it('banco anterior à marca não ganha a trava fechada: quem já se cadastrava continua podendo', async () => {
+    const store: Store = new Map([['users/antigo', { role: 'SYSTEM' }]]);
+    await new FirebaseUserRepository(makeFakeDb(store)).createUserIfMissing('u2', input);
+
+    expect(store.has('system/registration')).toBe(false);
+  });
+
   it('o segundo usuário nasce USER', async () => {
     const store: Store = new Map();
     const repo = new FirebaseUserRepository(makeFakeDb(store));

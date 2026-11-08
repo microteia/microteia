@@ -8,11 +8,12 @@ export interface AuthContextValue {
   loading: boolean;
   isEmailVerified: boolean;
   /**
-   * O erro com que um fluxo `redirect` voltou, como CHAVE de mensagem. Vive aqui, e não na tela de
-   * entrada, porque acontece ANTES dela montar: a página inteira foi recarregada pelo provedor.
+   * Por que a ENTRADA falhou fora do clique da tela, como CHAVE de mensagem: o fluxo `redirect` que
+   * voltou com erro (a página inteira foi recarregada pelo provedor, antes de a tela montar) ou a conta
+   * nova recusada porque a instalação não aceita contas novas (o servidor decidiu depois do clique).
    */
-  redirectErrorKey: string | null;
-  clearRedirectError: () => void;
+  entryErrorKey: string | null;
+  clearEntryError: () => void;
   effectivePhotoURL: string | null;
   effectiveName: string;
   reloadUserProfile: () => Promise<void>;

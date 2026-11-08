@@ -1,5 +1,6 @@
 import type { IUserRepository } from '../repositories/IUserRepository';
 import type { ITenantRepository } from '../repositories/ITenantRepository';
+import type { IRegistrationRepository } from '../repositories/IRegistrationRepository';
 import { generateArtifactPrefix } from '../schema/plugin/artifactPrefix';
 import { normalizePortalEmail } from '../schema/portal';
 import { isPortalIdentityAccount } from '../schema/portalIdentity';
@@ -64,15 +65,26 @@ export type BootstrapUserUseCase = {
 // Limite padrão de 1 membro (o próprio dono) — SYSTEM aumenta depois, se quiser,
 // na aba "Escritórios" de Gestão de Acessos.
 //
-// `selfServiceTenants` falso (`SELF_SERVICE_TENANTS=false`) é a instalação COMPARTILHADA: a conta nova
-// não ganha escritório e espera ser adicionada a um. A exceção é a primeira conta da instalação — a do
-// `SYSTEM` —, sem a qual não haveria escritório nenhum nem quem criasse o primeiro.
+// O que fazer com quem chega pela primeira vez é do `SYSTEM` (`system/registration`, Gestão de Acessos),
+// ver `domain/schema/registration.ts`:
+//
+// - `acceptNewAccounts` falso vem ANTES de tudo: a conta recém-criada no Firebase Auth é recusada e
+//   apagada. A primeira conta passa porque, até ela, o documento não existe; é a transação que a cria que
+//   fecha a trava.
+// - `selfServiceTenants` falso é a instalação COMPARTILHADA: a conta nova não ganha escritório e espera
+//   ser adicionada a um. A exceção é a primeira conta da instalação — a do `SYSTEM` —, sem a qual não
+//   haveria escritório nenhum nem quem criasse o primeiro.
+const ALWAYS_OPEN: IRegistrationRepository = {
+  getPolicy: async () => ({ acceptNewAccounts: true, selfServiceTenants: true }),
+  refuse: async () => undefined,
+};
+
 export const makeBootstrapUserUseCase = (
   userRepo: IUserRepository,
   tenantRepo: ITenantRepository,
   random: () => number = Math.random,
   portalInvites: { hasInvite: (email: string) => Promise<boolean> } = { hasInvite: async () => false },
-  selfServiceTenants: () => boolean = () => true,
+  registration: IRegistrationRepository = ALWAYS_OPEN,
 ): BootstrapUserUseCase => ({
   execute: async ({ userId, email, displayName, photoURL }) => {
     // Quem chegou por um convite do PORTAL é de fora: entra no escritório que o convidou, como
@@ -81,6 +93,13 @@ export const makeBootstrapUserUseCase = (
     // tem e-mail para marcar — o uid dela é a prova, porque só o servidor escolhe uid.
     const fromPortal = isPortalIdentityAccount(userId)
       || (email !== '' && await portalInvites.hasInvite(normalizePortalEmail(email)));
+    // `exists` protege a conta já admitida: o gatilho entregue duas vezes, depois de a trava fechar,
+    // apagaria alguém que entrou quando ela estava aberta.
+    const policy = await registration.getPolicy();
+    if (!fromPortal && !policy.acceptNewAccounts && !await userRepo.exists(userId)) {
+      await registration.refuse({ userId, email });
+      return;
+    }
     const created = await userRepo.createUserIfMissing(userId, {
       email,
       displayName,
@@ -91,7 +110,7 @@ export const makeBootstrapUserUseCase = (
 
     await userRepo.createUserProfileIfMissing(userId);
     if (fromPortal) return;
-    if (!created.firstUser && !selfServiceTenants()) {
+    if (!created.firstUser && !policy.selfServiceTenants) {
       await userRepo.setOrigin(userId, 'invitation');
       return;
     }

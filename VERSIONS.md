@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.214.0] — 2026-11-08
+
+- Nova opção "Bloquear novas contas" na Gestão de Acessos, exclusiva do administrador do sistema: ativada, só quem já tem conta consegue entrar, em todos os escritórios. Ela liga e desliga na hora, sem precisar reinstalar nada.
+- Uma instalação nova já começa com novas contas bloqueadas, assim que o administrador do sistema entra pela primeira vez.
+- A opção de não criar automaticamente um escritório para cada nova conta também passou para a Gestão de Acessos ("Bloquear escritório automático"), e vale na hora. Antes ela dependia de uma configuração na instalação: quem a usava precisa marcá-la uma vez na nova tela.
+- Quem tentar entrar sem ter conta enquanto o bloqueio estiver ativo vê o motivo na tela de entrada e a orientação de procurar o administrador do sistema. Convidados do portal de um escritório continuam entrando normalmente.
+
 #### [9.213.0] — 2026-11-07
 
 - A página do projeto passou a listar cada versão publicada da Microteia e a indicar onde baixar a mais recente, e cada versão fica marcada exatamente no ponto do código de onde saiu.

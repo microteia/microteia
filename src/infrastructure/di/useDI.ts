@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { IAuthRepository } from '../../domain/repositories/IAuthRepository';
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
+import type { IRegistrationPolicyRepository } from '../../domain/repositories/IRegistrationPolicyRepository';
 import type { IUserProfileRepository } from '../../domain/repositories/IUserProfileRepository';
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import type { ISavedFilterRepository } from '../../domain/repositories/ISavedFilterRepository';
@@ -65,6 +66,7 @@ export interface DIContainer {
   resolveService: <T>(serviceKey: string) => T | undefined;
   authRepository: IAuthRepository;
   userRepository: IUserRepository;
+  registrationPolicyRepository: IRegistrationPolicyRepository;
   userProfileRepository: IUserProfileRepository;
   aiConnectionRepository: IAIConnectionRepository;
   savedFilterRepository: ISavedFilterRepository;

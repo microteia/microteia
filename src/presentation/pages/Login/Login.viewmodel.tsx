@@ -55,7 +55,7 @@ const TERMS_NOT_ACCEPTED_ERROR = 'login.error.terms-required';
 
 export const useLoginViewModel = (): LoginViewModel => {
   const {
-    user, isEmailVerified, redirectErrorKey, clearRedirectError,
+    user, isEmailVerified, entryErrorKey, clearEntryError,
     signInWithProvider, signInWithEmail, signUpWithEmail,
     sendEmailVerification, sendPasswordResetEmail, checkEmailVerification, signOut,
   } = useAuth();
@@ -100,14 +100,17 @@ export const useLoginViewModel = (): LoginViewModel => {
     if (user && !isEmailVerified) setMode('verify-email');
   }, [user, isEmailVerified]);
 
-  // O erro com que um fluxo `redirect` voltou aconteceu antes desta tela existir: ela é o único lugar
-  // onde ele pode ser lido, e é consumido para não sobreviver à próxima tentativa.
+  // O erro de entrada nasce fora desta tela — na volta de um `redirect`, ou na recusa da conta nova pelo
+  // servidor —, e ela é o único lugar onde ele pode ser lido. É consumido para não sobreviver à próxima
+  // tentativa, e devolve a tela ao modo de entrada: a conta recusada que estava esperando a confirmação
+  // do e-mail já não existe.
   useEffect(() => {
-    if (!redirectErrorKey) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- o erro chega do boot, não de um evento desta tela
-    setError(t(redirectErrorKey));
-    clearRedirectError();
-  }, [redirectErrorKey, clearRedirectError, t]);
+    if (!entryErrorKey) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- o erro chega do AuthContext, não de um evento desta tela
+    setError(t(entryErrorKey));
+    setMode('login');
+    clearEntryError();
+  }, [entryErrorKey, clearEntryError, t]);
 
   const clearMessages = useCallback(() => {
     setError('');

@@ -108,6 +108,8 @@ npm run verify          # typecheck + lint + verify-schemas
 | `PortalRecord` (projeção do que uma tela expõe no portal; escrita só pelo servidor) | `tenants/{tenantId}/portalRecords/{coleção}__{id}` (+ `documents/{id}`) | Sim |
 | Reprojeção do portal (a passada que refaz as projeções de uma coleção; escrita só pelo servidor) | `tenants/{tenantId}/portal_reprojections/{coleção}` | Sim |
 | Marca de convite do portal (o bootstrap a lê para não abrir escritório) | `portalInvites/{e-mail}` | Não (só servidor) |
+| Contas novas da instalação (`acceptNewAccounts`, `selfServiceTenants`) | `system/registration` | Não (raiz; só o `SYSTEM` lê e grava — Gestão de Acessos › Usuários) |
+| Recusa de conta nova (a tela de entrada lê o motivo) | `registrationRefusals/{uid}` | Não (raiz; só servidor escreve, só o próprio `uid` lê; TTL em `expiresAt`) |
 | Contagem da hora dos convites do portal feitos por automação | `portalInviteRates/{tenantId}` | Não (só servidor; nenhuma regra a libera) |
 | Convite do portal por IDENTIDADE (a claim exigida e os sujeitos) | `tenants/{tenantId}/portalIdentityInvites/{id}` | Sim (lê quem tem `portal.manage`; escrita só do servidor) |
 | Configuração de entrada do portal e segredos dos clientes OIDC | `tenants/{tenantId}/secrets/portal-identity` | Sim (só servidor; `managePortalSignIn` é a porta) |
@@ -198,7 +200,8 @@ Todo o onboarding de um usuário novo (`users/{uid}`, `userProfiles/{uid}` e o t
 
 - `functions/src/infrastructure/handlers/onUserCreated.ts` — trigger `functions.auth.user().onCreate()` (API **v1** do `firebase-functions`; triggers de Auth `onCreate`/`onDelete` ainda não têm equivalente em v2). Dispara automaticamente logo após a criação da conta no Firebase Auth (Google, Facebook ou e-mail/senha — antes mesmo da verificação de e-mail).
 - `BootstrapUserUseCase` (`functions/src/domain/usecases/BootstrapUserUseCase.ts`), idempotente: `createUserIfMissing` cria `users/{uid}` (role `USER`) só se ainda não existir — se já existir (reexecução do trigger), a função **retorna sem fazer nada**, para não duplicar tenant; `createUserProfileIfMissing` cria `userProfiles/{uid}` vazio; em seguida cria o tenant (`ITenantRepository.createTenant`, com o nome `${displayName}(${email})` e `memberLimit: 1, memberCount: 0`) e adiciona o próprio usuário **sem perfil algum** (`roleIds: []`) via `addMemberIfWithinLimit` (mesma transação atômica descrita abaixo) — resultado final: `memberLimit: 1`, `memberCount: 1`. Todo usuário sempre tem exatamente 1 tenant (o seu) ao final do bootstrap; todo tenant sempre tem um `ownerId`.
-- **O autocadastro pode ser desligado pela instalação** (`SELF_SERVICE_TENANTS=false` no `.env.<projectId>`): a conta nova não ganha escritório, recebe `origin: 'invitation'` (o sinal de "provisionado" para o `waitForProvisioning`) e espera ser adicionada. A primeira conta da instalação ganha o dela de qualquer jeito. Ver "Segundo fator de membro e autocadastro de escritório (EV-07)".
+- **Contas novas podem ser travadas pelo `SYSTEM`** (`system/registration`, Gestão de Acessos › Usuários): fechada a trava, o bootstrap grava a recusa em `registrationRefusals/{uid}` e APAGA a conta do Firebase Auth antes de criar qualquer documento; o `waitForProvisioning` lê a recusa e a tela de entrada explica o motivo. Instalação nova já nasce fechada — a transação que promove a primeira conta a `SYSTEM` fecha a trava. Ver "Trava de contas novas".
+- **O autocadastro de escritório pode ser desligado pelo `SYSTEM`** (`system/registration.selfServiceTenants`, Gestão de Acessos › Usuários): a conta nova não ganha escritório, recebe `origin: 'invitation'` (o sinal de "provisionado" para o `waitForProvisioning`) e espera ser adicionada. A primeira conta da instalação ganha o dela de qualquer jeito. Ver "Segundo fator de membro e autocadastro de escritório (EV-07)".
 - **Client não cria mais nada disso.** `users`/`tenants` negam `create` do client nas Security Rules (`allow create: if false`). O `AuthContext` (`src/stores/AuthContext.tsx`) não faz mais `createUserProfile` — em vez disso, `IUserRepository.waitForProvisioning` (`src/data/repositories/FirebaseUserRepository.ts`) abre um `onSnapshot` em `users/{uid}` e só resolve quando o documento existir **e** `tenantIds` não estiver vazio (sinal de que o bootstrap terminou), com timeout de 20s. Para quem já loga há tempos isso resolve quase instantaneamente (documento já existe); no primeiro login, cobre a espera pela Cloud Function. `TenantStore` (`src/stores/TenantStore.tsx`) não cria mais tenant algum — se `getTenantsForUser` retornar vazio nesse ponto (não deveria, dado o `waitForProvisioning`), trata como falha de provisionamento (`initError`) em vez de criar um tenant no client.
 
 ### `members` como alvo de referência — para quem TEM conta
@@ -945,7 +948,7 @@ dono continua podendo tudo dentro do dele.
 
 Duas portas de ENTRADA que a plataforma não tinha. Nenhuma das duas muda nada para quem não as liga: sem
 documento em `memberMfaPolicies/{tenantId}`, nenhum membro ganha o campo `mfa` e as regras respondem como
-antes; sem `SELF_SERVICE_TENANTS`, o cadastro abre escritório como sempre.
+antes; sem `system/registration.selfServiceTenants` falso, o cadastro abre escritório como sempre.
 
 ### O que foi decidido, e o que foi recusado
 
@@ -1029,7 +1032,7 @@ As três pontas fazem a MESMA conta:
 
 O `SYSTEM` não é alcançado por política de escritório — nem nas regras (`isSystemAdmin()` é o primeiro
 termo de `can`) nem nas callables (consultado só quando a sessão falharia). A conta global deve ser
-protegida pelo provedor de entrada; o pré-requisito `self-service-tenants` diz isso a quem instala.
+protegida por um provedor de entrada que exija o próprio segundo fator.
 
 #### A dispensa do `SYSTEM` mora na PERGUNTA, não no documento (EV-36)
 
@@ -1114,19 +1117,17 @@ restantes), códigos novos (`LOW`), trava (`HIGH`), `reset` (`HIGH`), e a polít
 alcança muda a FRASE (`…everyone.text`), e não um parâmetro: "todos" gravado como parâmetro seria uma
 palavra nossa fora do alcance da tradução.
 
-### Autocadastro de escritório — `SELF_SERVICE_TENANTS`
+### Autocadastro de escritório — `system/registration.selfServiceTenants`
 
-O roteiro pedia `auth.selfServiceTenants` no `microteia.yaml`. Ele mora no `.env.<projectId>`, pela
-divisão que a instalação já faz: o `.yaml` é estado que os comandos do Console escrevem; o `.env` é o
-que uma pessoa decide e digita, e é o único dos dois que chega às functions — com o `provision`
-percebendo a troca e redeployando quem o carrega. É o segundo parâmetro opcional do kernel, ao lado de
-`AUDIT_ARCHIVE_BUCKET`.
+Foi `SELF_SERVICE_TENANTS` no `.env.<projectId>` até a 9.213.0, e saiu na 9.214.0 de lá sem compatibilidade: mudar
+exigia redeploy das functions, e a decisão é de quem ADMINISTRA a instalação, não de quem a instala. Hoje
+é um campo do mesmo documento da trava de contas novas, que só o `SYSTEM` lê e grava (Gestão de Acessos ›
+Usuários › "Bloquear escritório automático"), e vale na próxima conta criada.
 
 | Valor | Efeito |
 |---|---|
-| vazio, `true` | como sempre: cada conta nova ganha o seu escritório |
+| ausente, `true` | como sempre: cada conta nova ganha o seu escritório |
 | `false` | a conta nova não ganha escritório; `users/{uid}.origin = 'invitation'` diz ao navegador que o provisionamento terminou |
-| qualquer outro | lido como `false`, com erro no log: quem escreveu `off` quis desligar |
 
 Vale para QUALQUER provedor de entrada, e não só senha: numa instalação compartilhada, uma conta Google
 abrindo escritório é o mesmo risco. A PRIMEIRA conta da instalação (a que nasce `SYSTEM`) ganha
@@ -1142,13 +1143,58 @@ a criação na Auditoria do escritório novo.
 A conta sem escritório (desligado o autocadastro, ou removida de todos) não é mais "falha de
 provisionamento": `TenantStore.awaitingOrganization` e a casca explicam e esperam.
 
+### Trava de contas novas — `system/registration.acceptNewAccounts`
+
+O autocadastro de ESCRITÓRIO decide se a conta nova ganha um; a trava decide se ela PODE existir. Fechada,
+só entra quem já tem conta, em todos os escritórios e por qualquer provedor. Mora no mesmo documento,
+com a mesma porta (Gestão de Acessos › Usuários › "Bloquear novas contas") — sem deploy, sem `.env`,
+para que travar e destravar caiba no tempo de uma pessoa se cadastrar. O navegador grava só o campo que
+mudou (`merge`): trocar um não reescreve o outro com o valor que a tela tinha.
+
+| Estado | Efeito |
+|---|---|
+| campo ausente | aberta: a instalação anterior ao recurso continua como estava |
+| `acceptNewAccounts: false` | a conta recém-criada no Firebase Auth é recusada e apagada |
+| `acceptNewAccounts: true` | aberta |
+
+**A recusa acontece depois de a conta existir.** Impedir a criação exige blocking function
+(`beforeUserCreated`), que só existe no Identity Platform — o upgrade irreversível e cobrado já recusado
+para o segundo fator. O `BootstrapUserUseCase` confere a trava ANTES de criar qualquer documento; fechada,
+`IRegistrationRepository.refuse` grava `registrationRefusals/{uid}` (TTL de 1 dia em `expiresAt`) e só
+então apaga a conta — na ordem inversa, a sessão que ainda espera o provisionamento não teria o que ler.
+O navegador ouve os dois documentos no `waitForProvisioning`; a recusa vira `LocalizedError`, o
+`AuthContext` encerra a sessão e entrega a chave a `entryErrorKey`, que a tela de entrada mostra. Quem foi
+recusado não fica cadastrado, e entra normalmente no dia em que a trava abrir.
+O erro da escuta da recusa é ignorado: ela só explica uma recusa, e com as regras ainda sem o bloco dela
+(projeto com deploy atrasado) o `permission-denied` derrubava a espera inteira — o `SYSTEM` entrava como
+`USER` e perdia Gestão de Acessos.
+
+Três exceções, cada uma com o seu porquê:
+
+- **A primeira conta.** Até ela o documento não existe (aberta); a transação que a promove a `SYSTEM`
+  (`createUserIfMissing`) grava `acceptNewAccounts: false` — instalação nova nasce fechada, sem instante
+  em que a primeira conta exista e a trava ainda não.
+- **O convidado do portal.** O escritório o convidou pelo e-mail, ou o servidor abriu a conta pelo
+  provedor do portal: a entrada foi autorizada por quem responde por ela.
+- **A conta já admitida.** O gatilho entregue de novo, depois de a trava fechar, apagaria quem entrou
+  quando ela estava aberta — `IUserRepository.exists` guarda a porta.
+
+Adicionar MEMBRO a um escritório continua exigindo uma conta que já exista (`addTenantMember` recebe o
+`userId`): com a trava fechada, a pessoa nova só entra depois de o `SYSTEM` abrir a trava, ela entrar uma
+vez, e a trava fechar de novo.
+
+Arquivos: `domain/schema/registration.ts` (compartilhado) ·
+`functions/src/data/repositories/FirebaseRegistrationRepository.ts` ·
+`src/data/repositories/FirebaseRegistrationPolicyRepository.ts` · `firestore.rules` ·
+`rules-tests/registration.test.ts`.
+
 ### Arquivos-chave
 
 `domain/schema/memberMfa.ts` · `functions/src/domain/services/totp.ts` ·
 `functions/src/domain/usecases/{MemberMfaUseCases,CreateOrganizationUseCase,BootstrapUserUseCase,MaterializeMemberPermissionsUseCase}.ts` ·
 `functions/src/data/repositories/FirestoreMemberMfaRepositories.ts` ·
 `functions/src/infrastructure/handlers/{memberMfa,createOrganization,shared/requirePermission}.ts` ·
-`functions/src/infrastructure/settings/selfServiceTenants.ts` · `firestore.rules` · `storage.rules` ·
+`domain/schema/registration.ts` · `firestore.rules` · `storage.rules` ·
 `stores/{TenantStore.tsx,useTenant.ts,useSecondFactorFlow.ts}` ·
 `presentation/components/layout/TenantEntryGate/` · `presentation/components/ui/SecondFactorPanel/` ·
 `presentation/pages/TenantSettings/SecurityTab/` · `rules-tests/memberMfa.test.ts`
@@ -15490,7 +15536,7 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara oito `fieldOverrides`:
+Além dos compostos, o arquivo declara doze `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
@@ -15504,6 +15550,7 @@ Além dos compostos, o arquivo declara oito `fieldOverrides`:
 | `downloads` | `expiresAt` | TTL — o arquivo gerado para Downloads vence sozinho; o gatilho `onDownloadDeleted` leva o arquivo do bucket. Sem índice: a lista filtra o vencido no cliente |
 | `portalSignInRequests` | `expiresAt` | TTL — o pedido de entrada no portal por um provedor de identidade que nunca voltou (a pessoa desistiu no provedor). O que volta é apagado ao ser gasto; sem índice, porque só é lido pelo id |
 | `portalViewMarks` | `expiresAt` | TTL — a marca de "esta abertura já foi registrada" vale a janela de repetição (`PORTAL_VIEW_REPEAT_MINUTES`); sem índice, porque só é lida pelo id |
+| `registrationRefusals` | `expiresAt` | TTL — a recusa de conta nova só serve à tentativa em curso (1 dia); sem índice, porque só é lida pelo id |
 
 ---
 

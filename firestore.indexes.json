@@ -326,6 +326,12 @@
       "indexes": []
     },
     {
+      "collectionGroup": "registrationRefusals",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "portalUsers",
       "fieldPath": "userId",
       "indexes": [

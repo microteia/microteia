@@ -3,6 +3,7 @@ import { KernelContext } from '../../stores/useKernel';
 import { resolvePluginService } from './pluginServices';
 import { FirebaseAuthRepository } from '../../data/repositories/FirebaseAuthRepository';
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
+import { FirebaseRegistrationPolicyRepository } from '../../data/repositories/FirebaseRegistrationPolicyRepository';
 import { FirebaseUserProfileRepository } from '../../data/repositories/FirebaseUserProfileRepository';
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
 import { FirebaseSavedFilterRepository } from '../../data/repositories/FirebaseSavedFilterRepository';
@@ -65,6 +66,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       host ? resolvePluginService<T>(host, serviceKey) : undefined,
     authRepository:           new FirebaseAuthRepository(),
     userRepository:           new FirebaseUserRepository(),
+    registrationPolicyRepository: new FirebaseRegistrationPolicyRepository(),
     userProfileRepository:    new FirebaseUserProfileRepository(),
     aiConnectionRepository:   new FirebaseAIConnectionRepository(),
     savedFilterRepository:    new FirebaseSavedFilterRepository(),

@@ -195,6 +195,26 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid;
     }
 
+    // ─── Contas novas da instalação ───────────────────────────────────────────
+    // Se a conta nova pode existir e se ganha escritório próprio. Só o SYSTEM lê e muda (Gestão de
+    // Acessos › Usuários). O ÚNICO documento de `system/` que alguma regra alcança: `system/bootstrap`
+    // continua só do Admin SDK. Campo ausente vale `true`. Ver `domain/schema/registration.ts`.
+    match /system/registration {
+      allow get: if isSystemAdmin();
+      allow create, update: if isSystemAdmin()
+        && request.resource.data.keys().hasOnly(['acceptNewAccounts', 'selfServiceTenants', 'updatedBy', 'updatedAt'])
+        && request.resource.data.get('acceptNewAccounts', true) is bool
+        && request.resource.data.get('selfServiceTenants', true) is bool
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    // A recusa que o gatilho de criação grava antes de apagar a conta: só quem foi recusado a lê, e é
+    // ela que a tela de entrada usa para explicar o motivo. Escrita só pelo servidor; expira por TTL.
+    match /registrationRefusals/{userId} {
+      allow get: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Uma coleção de RAIZ que só o servidor toca não ganha bloco aqui, e é de propósito: o Firestore
     // nega o que nenhuma regra libera, então `allow read, write: if false` não acrescenta nada — só dá a
     // impressão de que a proteção mora aqui. Este arquivo já teve um bloco assim, nomeando uma coleção

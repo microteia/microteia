@@ -6,7 +6,7 @@ export interface CreateUserInput {
   photoURL: string | null;
   /**
    * `portal` quando a conta nasceu de um convite do portal; `invitation` quando a instalação desligou o
-   * autocadastro de escritório (`SELF_SERVICE_TENANTS=false`). Nas duas, a conta não ganha escritório
+   * autocadastro de escritório (`system/registration.selfServiceTenants` falso). Nas duas, a conta não ganha escritório
    * próprio — e o carimbo é o que diz ao navegador que o provisionamento terminou mesmo assim.
    */
   origin?: 'portal' | 'invitation';
@@ -29,9 +29,14 @@ export interface StoredUser {
 export interface IUserRepository {
   getUserInfo(userId: string): Promise<UserInfo>;
   getUserRole(userId: string): Promise<string | null>;
+  /** `users/{uid}` existe — a conta já foi admitida pelo bootstrap. */
+  exists(userId: string): Promise<boolean>;
   /** Quem, entre estas contas, é o administrador global (`role: 'SYSTEM'`) — numa leitura só. */
   getSystemAccounts(userIds: string[]): Promise<Set<string>>;
-  /** Idempotente — não sobrescreve e devolve `null` se o documento já existir. */
+  /**
+   * Idempotente — não sobrescreve e devolve `null` se o documento já existir. A PRIMEIRA conta da
+   * instalação também fecha a trava de contas novas (`system/registration`), na mesma transação.
+   */
   createUserIfMissing(userId: string, data: CreateUserInput): Promise<CreatedUser | null>;
   /**
    * Carimba a origem DEPOIS da criação. Existe para `invitation`: só a transação de criação sabe se a

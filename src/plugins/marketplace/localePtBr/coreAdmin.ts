@@ -68,6 +68,20 @@ export const CORE_ADMIN: Record<string, string> = {
   'access.plan.placeholder': 'Plano...',
   'access.plan.update-failed': 'Erro ao atualizar o plano do escritório.',
   'access.plan.updated': 'Plano do escritório atualizado.',
+  'access.registration.block': 'Bloquear novas contas',
+  'access.registration.block.hint':
+    'Ativado, só as contas que já existem conseguem entrar, em todos os escritórios. Quem entra pela '
+    + 'primeira vez é recusado. Convidados do portal de um escritório continuam podendo entrar.',
+  'access.registration.blocked': 'Novas contas bloqueadas.',
+  'access.registration.opened': 'Novas contas liberadas.',
+  'access.registration.update-failed': 'Não foi possível alterar o que acontece com novas contas.',
+  'access.registration.load-failed': 'Não foi possível ler o que acontece com novas contas.',
+  'access.registration.organizations.block': 'Bloquear escritório automático',
+  'access.registration.organizations.block.hint':
+    'Ativado, uma conta nova não ganha mais um escritório próprio: ela espera ser adicionada a um, e só o '
+    + 'administrador do sistema abre escritórios, na aba Escritórios. A primeira conta do sistema sempre ganha o dela.',
+  'access.registration.organizations.blocked': 'Novas contas não ganham mais escritório próprio.',
+  'access.registration.organizations.opened': 'Cada nova conta agora ganha um escritório próprio.',
   'access.role.placeholder': 'Selecionar perfil',
   'access.role.system': 'Sistema',
   'access.role.user': 'Usuário',

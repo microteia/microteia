@@ -7,6 +7,22 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.lg};
   `,
 
+  PolicyCard: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    padding: ${({ theme }) => theme.spacing.md};
+    background: ${({ theme }) => theme.colors.surface};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+  `,
+
+  PolicyHint: styled.p`
+    margin: 0;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
   Toolbar: styled.div`
     display: flex;
     align-items: center;

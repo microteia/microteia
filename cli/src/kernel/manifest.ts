@@ -264,21 +264,6 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
       + 'changes for anyone.',
     optional: true,
   },
-  {
-    id: 'self-service-tenants',
-    title: 'Stop sign-up from opening an organization, if this installation is shared',
-    detail:
-      'By default every new account gets an organization of its own, with that person as the owner. In an '
-      + 'installation shared by several organizations — each one created on purpose — that lets anyone who '
-      + 'can create an account open one. Write SELF_SERVICE_TENANTS=false in .env.<projectId> and run '
-      + 'microteia deploy --only functions: from then on a new account waits to be added to an organization, and only the '
-      + 'installation administrator (SYSTEM) opens organizations, in Access management > Organizations, '
-      + 'naming an owner who already has an account. The first account of the installation gets one '
-      + 'anyway. Any value other than empty, true or false is read as false. Two-step verification is '
-      + 'required per organization and does not reach the installation administrator: protect SYSTEM '
-      + 'accounts with a sign-in provider that enforces its own second factor.',
-    optional: true,
-  },
 ];
 
 /**

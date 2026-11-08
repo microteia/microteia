@@ -22,6 +22,16 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.42.0] — 2026-11-08
+
+- feat(kernel/manifest)!: the optional prerequisite `self-service-tenants` and the backend parameter
+  `SELF_SERVICE_TENANTS` are gone. Whether a new account gets an organization of its own is now decided
+  by SYSTEM in Access Management › Users (stored in `system/registration`), and takes effect without a
+  deploy. A `SELF_SERVICE_TENANTS` line left in `.env.<projectId>` is ignored: an installation that had it
+  set to `false` must tick "Block automatic organizations" there once, after upgrading the kernel to
+  9.214.0.
+- docs(installation): `MICROTEIA.md` no longer cites `SELF_SERVICE_TENANTS` as a platform setting.
+
 #### [2.41.0] — 2026-11-07
 
 - feat(cli/publish): after the catalog is written, the source repository (the one `gh repo view` names

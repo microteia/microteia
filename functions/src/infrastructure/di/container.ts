@@ -247,7 +247,7 @@ import {
 } from '../../data/repositories/FirestoreMemberMfaRepositories';
 import { makeManageMemberMfaUseCase, makeSecondFactorUseCase } from '../../domain/usecases/MemberMfaUseCases';
 import type { ManageMemberMfaUseCase, SecondFactorUseCase } from '../../domain/usecases/MemberMfaUseCases';
-import { selfServiceTenantsEnabled } from '../settings/selfServiceTenants';
+import { FirebaseRegistrationRepository } from '../../data/repositories/FirebaseRegistrationRepository';
 import { makeCreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
 import type { CreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
 
@@ -377,7 +377,7 @@ class DIContainer {
         this.getTenantRepository(),
         Math.random,
         this.getPortalRepository(),
-        selfServiceTenantsEnabled,
+        new FirebaseRegistrationRepository(getDb(), getAuth()),
       );
     }
     return this.bootstrapUserUC;

@@ -18,7 +18,7 @@ export type CreateOrganizationUseCase = {
 
 /**
  * O escritório aberto pelo administrador GLOBAL em nome de alguém — o caminho que sobra quando a
- * instalação desliga o autocadastro (`SELF_SERVICE_TENANTS=false`). Sem ele, desligar o autocadastro
+ * instalação desliga o autocadastro (`system/registration.selfServiceTenants` falso). Sem ele, desligar o autocadastro
  * congelaria a instalação no número de escritórios que ela tinha.
  *
  * O dono precisa ter conta: é a conta que recebe o curinga, e é ela quem forma o primeiro perfil. O

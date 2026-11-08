@@ -208,7 +208,7 @@ setting:
 
 - **A setting of an extension, or of your own \`functions/\`** — run \`microteia provision\`. It notices the
   change (by a salted digest in \`microteia.yaml\`) and requeues exactly the functions that carry it.
-- **A setting of the platform itself** (\`SELF_SERVICE_TENANTS\`, \`AUDIT_ARCHIVE_BUCKET\`, …) — run
+- **A setting of the platform itself** (\`AUDIT_ARCHIVE_BUCKET\`, …) — run
   \`microteia deploy --only functions\`. \`provision\` does not track them; the deploy compares each
   function's stamp, which includes its environment, and redeploys the ones whose value changed.
 

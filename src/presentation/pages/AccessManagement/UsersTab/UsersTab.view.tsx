@@ -4,6 +4,7 @@ import { RiShieldUserLine } from 'react-icons/ri';
 import { SearchSelect } from '../../../components/ui/SearchSelect';
 import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
 import { Spinner } from '../../../components/ui/Spinner';
+import { Checkbox } from '../../../components/ui/Checkbox';
 import { useUsersTabViewModel } from './UsersTab.viewmodel';
 import { CompositeFilter } from '../../../components/ui/CompositeFilter';
 import { S } from './UsersTab.styles';
@@ -27,6 +28,23 @@ export const UsersTabView: React.FC = () => {
 
   return (
     <S.Body>
+      <S.PolicyCard>
+        <Checkbox
+          checked={vm.blockNewAccounts === true}
+          onChange={vm.setBlockNewAccounts}
+          label={t('access.registration.block')}
+          disabled={vm.blockNewAccounts === null || vm.savingRegistration}
+        />
+        <S.PolicyHint>{t('access.registration.block.hint')}</S.PolicyHint>
+        <Checkbox
+          checked={vm.blockAutomaticOrganizations === true}
+          onChange={vm.setBlockAutomaticOrganizations}
+          label={t('access.registration.organizations.block')}
+          disabled={vm.blockAutomaticOrganizations === null || vm.savingRegistration}
+        />
+        <S.PolicyHint>{t('access.registration.organizations.block.hint')}</S.PolicyHint>
+      </S.PolicyCard>
+
       <S.Toolbar>
         <CompositeFilter
           defs={vm.filterDefs}

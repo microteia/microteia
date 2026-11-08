@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { makeBootstrapUserUseCase } from './BootstrapUserUseCase';
 import type { IUserRepository } from '../repositories/IUserRepository';
+import type { IRegistrationRepository } from '../repositories/IRegistrationRepository';
 import type { CreateTenantInput, ITenantRepository } from '../repositories/ITenantRepository';
 import { isArtifactPrefix } from '../schema/plugin/artifactPrefix';
 
 const setup = (alreadyProvisioned = false, firstUser = false) => {
   const created: CreateTenantInput[] = [];
   const users = {
+    exists: vi.fn(async () => alreadyProvisioned),
     createUserIfMissing: vi.fn(async () => (alreadyProvisioned ? null : { firstUser })),
     createUserProfileIfMissing: vi.fn(async () => undefined),
     setOrigin: vi.fn(async () => undefined),
@@ -72,11 +74,16 @@ describe('BootstrapUserUseCase', () => {
     expect(created).toHaveLength(0);
   });
 
-  describe('autocadastro de escritório desligado (SELF_SERVICE_TENANTS=false)', () => {
+  const policy = (acceptNewAccounts: boolean, selfServiceTenants: boolean) => ({
+    getPolicy: vi.fn(async () => ({ acceptNewAccounts, selfServiceTenants })),
+    refuse: vi.fn(async () => undefined),
+  } satisfies IRegistrationRepository);
+
+  describe('autocadastro de escritório desligado (system/registration.selfServiceTenants falso)', () => {
     it('a conta nova não ganha escritório, e o carimbo diz que o provisionamento terminou', async () => {
       const { users, tenants, created } = setup();
 
-      await makeBootstrapUserUseCase(users, tenants, Math.random, undefined, () => false).execute(input);
+      await makeBootstrapUserUseCase(users, tenants, Math.random, undefined, policy(true, false)).execute(input);
 
       expect(created).toHaveLength(0);
       expect(tenants.addMemberIfWithinLimit).not.toHaveBeenCalled();
@@ -87,7 +94,7 @@ describe('BootstrapUserUseCase', () => {
     it('a PRIMEIRA conta da instalação ganha escritório mesmo assim — sem ela não haveria nenhum', async () => {
       const { users, tenants, created } = setup(false, true);
 
-      await makeBootstrapUserUseCase(users, tenants, Math.random, undefined, () => false).execute(input);
+      await makeBootstrapUserUseCase(users, tenants, Math.random, undefined, policy(true, false)).execute(input);
 
       expect(created).toHaveLength(1);
       expect(users.setOrigin).not.toHaveBeenCalled();
@@ -100,6 +107,49 @@ describe('BootstrapUserUseCase', () => {
 
       expect(created).toHaveLength(1);
       expect(users.setOrigin).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('trava de contas novas', () => {
+    it('fechada, a conta nova é recusada e não ganha documento nem escritório', async () => {
+      const { users, tenants, created } = setup();
+      const registration = policy(false, true);
+
+      await makeBootstrapUserUseCase(users, tenants, Math.random, undefined, registration).execute(input);
+
+      expect(registration.refuse).toHaveBeenCalledWith({ userId: 'u1', email: 'ana@x.com' });
+      expect(users.createUserIfMissing).not.toHaveBeenCalled();
+      expect(created).toHaveLength(0);
+    });
+
+    it('fechada, o convidado do portal entra mesmo assim — o escritório autorizou a entrada dele', async () => {
+      const { users, tenants } = setup();
+      const registration = policy(false, true);
+      const invites = { hasInvite: vi.fn(async () => true) };
+
+      await makeBootstrapUserUseCase(users, tenants, Math.random, invites, registration).execute(input);
+
+      expect(registration.refuse).not.toHaveBeenCalled();
+      expect(users.createUserIfMissing).toHaveBeenCalledWith('u1', expect.objectContaining({ origin: 'portal' }));
+    });
+
+    it('o gatilho entregue de novo, depois de a trava fechar, não apaga a conta já admitida', async () => {
+      const { users, tenants } = setup(true);
+      const registration = policy(false, true);
+
+      await makeBootstrapUserUseCase(users, tenants, Math.random, undefined, registration).execute(input);
+
+      expect(registration.refuse).not.toHaveBeenCalled();
+    });
+
+    it('aberta, nada muda', async () => {
+      const { users, tenants, created } = setup();
+      const registration = policy(true, true);
+
+      await makeBootstrapUserUseCase(users, tenants, Math.random, undefined, registration).execute(input);
+
+      expect(registration.refuse).not.toHaveBeenCalled();
+      expect(created).toHaveLength(1);
     });
   });
 });

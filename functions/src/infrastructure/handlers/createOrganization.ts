@@ -5,7 +5,7 @@ import { domainErrorCode, DomainError } from '../../domain/errors/DomainError';
 
 /**
  * O escritório aberto pelo administrador GLOBAL em nome de alguém (Gestão de Acessos › Escritórios). É o
- * que sobra quando a instalação desliga o autocadastro (`SELF_SERVICE_TENANTS=false`) — e por isso é só
+ * que sobra quando a instalação desliga o autocadastro (`system/registration.selfServiceTenants` falso) — e por isso é só
  * do `SYSTEM`: criar escritório numa instalação compartilhada é decisão de quem a mantém.
  */
 export const createOrganization = onCall({ region: 'southamerica-east1', cors: true }, async (request) => {

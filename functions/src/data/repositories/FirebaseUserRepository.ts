@@ -2,6 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { IUserRepository, CreateUserInput, CreatedUser, StoredUser } from '../../domain/repositories/IUserRepository';
 import type { UserInfo } from '../../domain/entities/UserInfo';
+import { REGISTRATION_POLICY_PATH } from '../../domain/schema/registration';
 
 export class FirebaseUserRepository implements IUserRepository {
   constructor(private readonly db: Firestore) {}
@@ -27,6 +28,10 @@ export class FirebaseUserRepository implements IUserRepository {
     return (snap.data()?.role as string | undefined) ?? null;
   }
 
+  async exists(userId: string): Promise<boolean> {
+    return (await this.db.collection('users').doc(userId).get()).exists;
+  }
+
   async getSystemAccounts(userIds: string[]): Promise<Set<string>> {
     if (userIds.length === 0) return new Set();
     const snaps = await this.db.getAll(...userIds.map((userId) => this.db.collection('users').doc(userId)));
@@ -41,8 +46,8 @@ export class FirebaseUserRepository implements IUserRepository {
    * DENTRO da transação — contar usuários seria uma corrida entre dois primeiros logins simultâneos,
    * e o preço de perdê-la seria dois donos do sistema.
    *
-   * `system/` é coleção de raiz sem regra nenhuma: o Firestore nega o que ninguém libera, então só o
-   * Admin SDK a alcança.
+   * `system/bootstrap` não tem regra nenhuma: o Firestore nega o que ninguém libera, então só o Admin SDK
+   * a alcança. (O único documento de `system/` que a regra libera é `system/registration`, ao `SYSTEM`.)
    *
    * A AUSÊNCIA da marca não basta para provar que a instalação é nova: um banco anterior a ela não a
    * tem, e o primeiro login novo depois do deploy virava `SYSTEM` — com acesso a todos os
@@ -69,6 +74,16 @@ export class FirebaseUserRepository implements IUserRepository {
           claimedBy: isFirstUser ? userId : null,
           claimedAt: FieldValue.serverTimestamp(),
         });
+        // A instalação nova nasce FECHADA para contas novas: quem abre é o `SYSTEM` que está nascendo
+        // aqui, em Gestão de Acessos. Na mesma transação, para não haver instante em que a primeira
+        // conta exista e a trava ainda não.
+        if (isFirstUser) {
+          tx.set(this.db.doc(REGISTRATION_POLICY_PATH), {
+            acceptNewAccounts: false,
+            updatedBy: userId,
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
       }
 
       tx.set(userRef, {
