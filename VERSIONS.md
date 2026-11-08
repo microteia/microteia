@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.213.0] — 2026-11-07
+
+- A página do projeto passou a listar cada versão publicada da Microteia e a indicar onde baixar a mais recente, e cada versão fica marcada exatamente no ponto do código de onde saiu.
+
 #### [9.212.0] — 2026-11-07
 
 - A Microteia agora é software livre, distribuída sob a licença GNU AGPL versão 3 (ou posterior). Qualquer pessoa pode usar, estudar, alterar e redistribuir a plataforma, mas quem a modificar é obrigado a liberar as alterações sob a mesma licença — inclusive quando oferecer a versão modificada como serviço pela internet.

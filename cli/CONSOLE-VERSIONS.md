@@ -22,6 +22,19 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.41.0] — 2026-11-07
+
+- feat(cli/publish): after the catalog is written, the source repository (the one `gh repo view` names
+  for the checkout) gets the same `kernel-<version>` tag on the commit recorded by `pack`, as a release
+  with no assets whose notes point to the artifacts in the releases repository, marked latest only when
+  the version is promoted. A failure to create it only warns.
+- feat(cli/publish): the source commit must be on GitHub BEFORE anything is uploaded — otherwise publish
+  refuses with "push it first", and nothing went out. Checked only at the end, it left the kernel live
+  and the tag to be made by hand, and publishing again could not fix it because the catalog refuses a
+  published version. A package with no usable commit (no `source`, or packed dirty) only warns.
+- feat(cli/pack): records the source commit in the manifest, and warns up front when the tree is dirty
+  or the commit has not been pushed (from the local remote refs, no network).
+
 #### [2.40.1] — 2026-11-07
 
 - chore(cli/pack, cli/pack-console): `LICENSE` (AGPL-3.0-or-later) and `NOTICE` (section 7 terms and the Microteia Extension Exception) now ship with every artifact the Console builds — at the root of the kernel tarball and in the published Console folder (both listed in `files`). The Console's `package.json` declares `AGPL-3.0-or-later` and the repository URL instead of `UNLICENSED`, and its README gains a License section pointing to the source code.

@@ -4904,6 +4904,18 @@ e não recusado: recusar deixaria como única saída apagar o release à mão.
 Versão já publicada é RECUSA. Republicar não tem conserto depois: alguém conferiu um hash contra o
 download de ontem, e a partir dali duas instalações discordam sobre o que `9.8.2` significa.
 
+**Antes de tudo isso, o commit está no GitHub: commit → `git push` → `pack` → `publish`.** O `pack`
+grava no manifesto o commit de que o pacote saiu (`source: { commit, dirty }`, lido antes do gate e dos
+builds), e o `publish` põe a mesma tag `kernel-<versão>` nesse commit do repositório-FONTE, como um
+release sem arquivos que aponta para o `microteia/releases`. Ela responde de que código veio cada kernel
+publicado e preenche a seção Releases do repositório-fonte, que o GitHub só monta com o que é dele.
+
+Commit que não subiu é RECUSA, e antes de qualquer envio: conferido só no fim, deixava o kernel no ar e
+a tag por fazer à mão — e o `publish` seguinte não consertava, porque a versão já publicada é recusa. O
+`pack` avisa já na montagem, pelas referências remotas locais. Pacote sem commit que o represente
+(anterior ao campo, ou montado com árvore suja) só avisa e não ganha tag: recusar travaria a publicação
+por um registro que não tem como existir.
+
 **Instalar é extrair, conferir, e só então trocar.** Isto é uma correção, e o defeito era antigo:
 extrair e trocar eram um passo só, e a troca vinha ANTES de o manifesto ser lido. Um pacote que exige um
 Console mais novo apagava o `install/` da versão que funcionava e só depois recusava — a instalação

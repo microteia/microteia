@@ -3,7 +3,7 @@ import { basename, join, relative } from 'node:path';
 import { flagValue, hasFlag } from '../shared/args.js';
 import type { ParsedArgs } from '../shared/args.js';
 import { repoRoot } from '../shared/paths.js';
-import { run } from '../shared/run.js';
+import { capture, run } from '../shared/run.js';
 import { blank, bullets, heading, info, step, success, warn } from '../shared/ui.js';
 import {
   DEFAULT_FUNCTIONS_REGION,
@@ -18,7 +18,7 @@ import {
   parseKernelVersion,
   parsePreLoginPoints,
 } from '../kernel/manifest.js';
-import type { BackendParameter, KernelManifest, KernelSdk } from '../kernel/manifest.js';
+import type { BackendParameter, KernelManifest, KernelSdk, KernelSource } from '../kernel/manifest.js';
 import { digestOfFile } from '../shared/digest.js';
 import { kernelTarballName } from '../kernel/channel.js';
 import {
@@ -174,6 +174,18 @@ const stageSdk = async (root: string, stageDir: string, version: string): Promis
   return { version, kernelVersion, path: `sdk/${SDK_TARBALL}` };
 };
 
+/**
+ * Lido ANTES do gate e dos builds: eles geram arquivos, e o que importa é o estado da árvore que o
+ * pacote vai refletir, não o que o próprio `pack` deixou nela. Fora de um checkout git não há commit a
+ * registrar, e isso não é motivo para recusar o pacote.
+ */
+const sourceOf = async (root: string): Promise<KernelSource | undefined> => {
+  const head = await capture('git', ['rev-parse', 'HEAD'], { cwd: root }).catch(() => null);
+  if (head === null || head.code !== 0) return undefined;
+  const status = await capture('git', ['status', '--porcelain'], { cwd: root });
+  return { commit: head.stdout.trim(), dirty: status.code !== 0 || status.stdout.trim() !== '' };
+};
+
 export const pack = async (args: ParsedArgs): Promise<void> => {
   await assertInsideRepository('pack');
   const root = repoRoot;
@@ -221,6 +233,23 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   const tarball = join(outputDir, kernelTarballName(version));
 
   heading(`Packaging Microteia kernel ${version} (contract ${kernelVersion})`);
+
+  const source = await sourceOf(root);
+  if (source === undefined) {
+    warn('Not a git checkout: the package will not say which commit it came from, and publishing will not tag one.');
+  } else if (source.dirty) {
+    warn(
+      `Uncommitted changes: the package is not commit ${source.commit.slice(0, 12)}, and publishing will not `
+      + 'tag the source repository. Commit first to have it tagged.',
+    );
+  } else {
+    info(`  from commit ${source.commit.slice(0, 12)}`);
+    // Pelas referências remotas LOCAIS, sem rede: é só um lembrete. Quem cobra é o `publish`, contra o GitHub.
+    const remote = await capture('git', ['branch', '-r', '--contains', source.commit], { cwd: root });
+    if (remote.code === 0 && remote.stdout.trim() === '') {
+      warn(`Commit ${source.commit.slice(0, 12)} has not been pushed: "microteia publish" will refuse until it is.`);
+    }
+  }
 
   const total = 7;
 
@@ -321,6 +350,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
     kernelVersion,
     minimumCliVersion: MINIMUM_CLI_VERSION,
     packagedAt: new Date().toISOString(),
+    source,
     components: KERNEL_COMPONENTS,
     requires: {
       functionsRegion: DEFAULT_FUNCTIONS_REGION,

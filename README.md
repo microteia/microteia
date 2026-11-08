@@ -19,6 +19,8 @@ with the additional terms in [NOTICE](./NOTICE). Extensions you write for it are
 
 📖 **Official documentation: [doc.microteia.com](https://doc.microteia.com)**
 
+📦 **Official Latest Build Release: [microteia/releases](https://github.com/microteia/releases/releases/latest)**
+
 ## Technologies
 
 - **Frontend:** React 19 + TypeScript + Vite

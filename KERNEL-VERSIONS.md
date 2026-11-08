@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.213.0] — 2026-11-07
+
+- feat(cli/pack): the kernel manifest gains an optional `source: { commit, dirty }` — the commit the
+  package was built from, read before the quality gate and the builds, and whether the tree had
+  uncommitted changes. Absent in earlier packages and in packages built outside a git checkout;
+  nothing that installs a package reads it.
+- docs(readme): link to the latest release in `microteia/releases`.
+
 #### [9.212.0] — 2026-11-07
 
 - chore(license): Microteia is now free software under AGPL-3.0-or-later. `LICENSE` holds the unmodified AGPL text; `NOTICE` holds the section 7 additions — attribution (7b: "Based on Microteia" plus the copyright, on the `/license` page and in the README), marking of modified versions (7c), no trademark grant (7e) — and the Microteia Extension Exception, which leaves extensions that use only the published interfaces (package format, `@microteia/sdk`, curated host API, sandbox API, office functions API, MCP/callables) under terms their authors choose, examples included. Both files ship at the root of the kernel tarball and of the SDK package; `package.json`, `functions/package.json` and the SDK manifest declare `AGPL-3.0-or-later` instead of `UNLICENSED`.

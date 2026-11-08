@@ -99,8 +99,12 @@ describe('artefatos primeiro, catálogo depois', () => {
     return index;
   };
 
+  // Recortado no `publishKernel`: o release do repositório-FONTE também é um `release create`, e vem
+  // antes no arquivo — buscar no módulo inteiro tornaria esta conferência verdadeira por acaso.
   it('o release é criado antes de o catálogo ser escrito', () => {
-    expect(at("'release', 'create'")).toBeLessThan(at('await writePublishedIndex('));
+    const kernel = publish.slice(at('const publishKernel ='), at('const publishedConsoleVersion'));
+    expect(kernel.indexOf("'release', 'create'")).toBeGreaterThan(-1);
+    expect(kernel.indexOf("'release', 'create'")).toBeLessThan(kernel.indexOf('await writePublishedIndex('));
   });
 
   /**
@@ -233,6 +237,68 @@ describe('onde os artefatos vão', () => {
   it('e as URLs entram no catálogo como dado, não são montadas por quem lê', () => {
     expect(publish).toContain('const assetUrl =');
     expect(source('console/channel.ts')).not.toContain('releases/download');
+  });
+});
+
+/**
+ * A tag `kernel-<versão>` também vai para o repositório-FONTE, no commit de que o pacote saiu. É
+ * registro — responde de que código veio cada kernel, e preenche a seção Releases dele —, e por isso
+ * nada nela pode recusar nem desfazer uma publicação.
+ */
+describe('o release no repositório-fonte', () => {
+  const kernel = publish.slice(publish.indexOf('const publishKernel ='), publish.indexOf('const publishedConsoleVersion'));
+  const pack = source('vendor/pack.ts');
+
+  it('o pack lê o commit antes do gate e dos builds, que deixam arquivos na árvore', () => {
+    expect(pack.indexOf('await sourceOf(root)')).toBeGreaterThan(-1);
+    expect(pack.indexOf('await sourceOf(root)')).toBeLessThan(pack.indexOf("['run', 'verify']"));
+    expect(pack).toContain("['status', '--porcelain']");
+  });
+
+  it('marca o commit que o pack registrou, e nenhum quando a árvore estava suja', () => {
+    expect(publish).toContain("'--target', target.commit");
+    expect(publish).toContain('manifest.source.dirty');
+  });
+
+  it('é criado depois do catálogo, e a falha só avisa', () => {
+    expect(kernel.indexOf('await writePublishedIndex(')).toBeLessThan(kernel.indexOf('await createSourceRelease('));
+    expect(kernel).toContain('could not be created in');
+  });
+
+  it('o dry-run diz o que marcaria, e não marca', () => {
+    expect(kernel.indexOf('sourceReleaseBlocker(manifest)')).toBeLessThan(kernel.indexOf('if (dryRun)'));
+    expect(kernel.indexOf('if (dryRun)')).toBeLessThan(kernel.indexOf('await createSourceRelease('));
+  });
+
+  /** O repositório é o do checkout de que o `pack` leu o commit — escrever o nome seria uma segunda fonte. */
+  it('o repositório-fonte vem do checkout, não de um nome escrito aqui', () => {
+    expect(publish).toContain("'repo', 'view', '--json', 'nameWithOwner'");
+    expect(publish).not.toContain("'microteia/microteia'");
+  });
+
+  /**
+   * Conferido só no fim, um commit que não subiu deixava o kernel no ar e a tag por fazer à mão — e
+   * rodar o `publish` de novo não consertava, porque o catálogo já recusa a versão publicada. Recusado
+   * antes de qualquer envio, o mesmo comando funciona depois do `git push`.
+   */
+  it('um commit que não subiu recusa ANTES de qualquer envio, mandando dar push', () => {
+    expect(publish).toContain('is not on GitHub yet');
+    expect(publish).toContain('Push it first');
+    expect(kernel.indexOf('await assertSourcePushed(')).toBeGreaterThan(-1);
+    expect(kernel.indexOf('await assertSourcePushed(')).toBeLessThan(kernel.indexOf('if (dryRun)'));
+    expect(kernel.indexOf('await assertSourcePushed(')).toBeLessThan(kernel.indexOf('await seedRepository('));
+    expect(kernel.indexOf('await assertSourcePushed(')).toBeLessThan(kernel.indexOf("'release', 'create'"));
+  });
+
+  /** Só o "GitHub não conhece este commit" manda dar push; rede ou credencial é dita como é. */
+  it('e só manda dar push quando o GitHub diz que não conhece o commit', () => {
+    expect(publish).toContain("detail.includes('HTTP 422')");
+    expect(publish).toContain('Could not check whether commit');
+  });
+
+  it('o pack avisa já na montagem, pelas referências remotas locais', () => {
+    expect(pack).toContain("['branch', '-r', '--contains', source.commit]");
+    expect(pack).toContain('will refuse until it is');
   });
 });
 

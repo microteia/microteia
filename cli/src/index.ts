@@ -99,7 +99,7 @@ const COMMANDS: Command[] = [
   {
     name: 'publish',
     usage: 'microteia publish [--kernel-only|--console-only] [--repo <owner/name>] [--otp <code>] [--dry-run]',
-    summary: 'Release what pack and pack-console built, so an office can download it.',
+    summary: 'Release what pack and pack-console built, so an office can download it. Push first: the kernel is tagged on its commit.',
     audience: 'publisher',
     execute: publish,
   },

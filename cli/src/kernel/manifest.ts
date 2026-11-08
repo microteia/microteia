@@ -68,6 +68,14 @@ export interface KernelManifest {
    */
   sdk?: KernelSdk;
   /**
+   * De que commit do repositório-fonte o pacote saiu. É lido pelo `pack` ANTES de qualquer build, e é
+   * o que o `publish` marca com a tag `kernel-<versão>` no repositório-fonte — sem ele, saber de que
+   * código veio um kernel publicado exigia adivinhar pelo histórico do `package.json`.
+   *
+   * Ausente nos pacotes anteriores a este campo e nos montados fora de um checkout git.
+   */
+  source?: KernelSource;
+  /**
    * O tamanho e a impressão digital do tarball, presentes SÓ na cópia externa do manifesto — a que fica
    * ao lado do `.tgz` e é publicada com ele. A cópia de dentro do tarball não pode carregá-los: ela
    * entra no arquivo cujo hash seria descrito, e nenhum dos dois números existiria ainda.
@@ -77,6 +85,16 @@ export interface KernelManifest {
    * por caminho de arquivo — ali a conferência não tem contra o que ser feita.
    */
   tarball?: KernelTarball;
+}
+
+export interface KernelSource {
+  commit: string;
+  /**
+   * Havia alteração não commitada quando o pacote foi montado. Nesse caso nenhum commit é a fonte do
+   * pacote, e o `publish` não marca nenhum: uma tag que aponta para código diferente do publicado é
+   * pior que tag nenhuma.
+   */
+  dirty: boolean;
 }
 
 export interface KernelTarball {

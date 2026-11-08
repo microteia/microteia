@@ -233,6 +233,90 @@ const releaseExists = async (repo: string, version: string): Promise<boolean> =>
 };
 
 /**
+ * O release no repositório-FONTE: a mesma tag `kernel-<versão>`, posta no commit de que o pacote saiu,
+ * sem arquivo nenhum — eles moram no repositório de releases, e o corpo aponta para lá.
+ *
+ * Existe por duas razões. A tag responde de que código veio cada kernel publicado, que antes só se
+ * descobria procurando no histórico do `package.json`. E o release preenche a seção Releases do
+ * repositório-fonte, que o GitHub só monta com o que é do próprio repositório.
+ *
+ * O repositório é o do checkout (`gh repo view`), e não um nome escrito aqui: é dele que o `pack` leu
+ * o commit.
+ */
+interface SourceRelease {
+  repo: string;
+  commit: string;
+}
+
+/** O que impede marcar o repositório-fonte, já dito em palavras; `null` quando dá para marcar. */
+const sourceReleaseBlocker = (manifest: KernelManifest): string | null => {
+  if (manifest.source === undefined) {
+    return 'its manifest does not say which commit it came from (packed before this was recorded, or outside git)';
+  }
+  if (manifest.source.dirty) {
+    return `it was packed with uncommitted changes, so commit ${manifest.source.commit.slice(0, 12)} is not its source`;
+  }
+  return null;
+};
+
+const sourceRepository = async (root: string): Promise<string> =>
+  (await captureOrThrow('gh', ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'], { cwd: root }))
+    .trim();
+
+const sourceReleaseNotes = (releasesRepo: string, version: string, notes: string): string =>
+  `Packaged from this commit. The installable artifacts are published in `
+  + `[${releasesRepo}](https://github.com/${releasesRepo}/releases/tag/${tagOf(version)}).\n\n${notes}`;
+
+/**
+ * O commit de origem tem de estar no GitHub ANTES de qualquer coisa subir. Conferido só no fim, ele
+ * deixava o kernel publicado e a tag por fazer à mão — e rodar o `publish` de novo não conserta,
+ * porque o catálogo já recusa a versão publicada. Recusado aqui, nada saiu, e o mesmo comando
+ * funciona depois do `git push`.
+ *
+ * Um 422 é o GitHub dizendo que não conhece o commit; qualquer outra falha é dita como é, para não
+ * mandar dar push quem tem um problema de rede ou de credencial.
+ */
+const assertSourcePushed = async (target: SourceRelease, version: string): Promise<void> => {
+  const result = await capture('gh', ['api', `repos/${target.repo}/commits/${target.commit}`]);
+  if (result.code === 0) return;
+
+  const detail = `${result.stderr}${result.stdout}`;
+  if (detail.includes('HTTP 422') || detail.includes('No commit found')) {
+    throw new Error(
+      `Kernel ${version} was packed from commit ${target.commit.slice(0, 12)}, which is not on GitHub yet.\n`
+      + `Push it first ("git push"), then publish again — nothing was published.\n`
+      + `The tag ${tagOf(version)} goes on that commit in ${target.repo}, and GitHub cannot tag a commit it does not have.`,
+    );
+  }
+  throw new Error(
+    `Could not check whether commit ${target.commit.slice(0, 12)} is on GitHub (${target.repo}).\n`
+    + `${result.stderr.trim() || result.stdout.trim()}`,
+  );
+};
+
+const createSourceRelease = async (
+  target: SourceRelease,
+  version: string,
+  notesFile: string,
+  latest: boolean,
+): Promise<void> => {
+  if (await releaseExists(target.repo, version)) {
+    info(`  ${tagOf(version)} already exists in ${target.repo}`);
+    return;
+  }
+
+  await captureOrThrow('gh', [
+    'release', 'create', tagOf(version),
+    '--repo', target.repo,
+    '--target', target.commit,
+    '--title', `Microteia kernel ${version}`,
+    '--notes-file', notesFile,
+    `--latest=${latest}`,
+  ]);
+  success(`${tagOf(version)} marks commit ${target.commit.slice(0, 12)} in ${target.repo}`);
+};
+
+/**
  * O pacote do kernel, conferido antes de qualquer coisa subir.
  *
  * O `sha256` é RECALCULADO do arquivo em vez de aceito do manifesto ao lado dele. Os dois foram escritos
@@ -322,6 +406,28 @@ const publishKernel = async (
       : `  release notes: ${notes.versions.join(', ')} — every entry since ${since ?? 'the first one'}`,
   );
 
+  /**
+   * Pacote sem commit que o represente (antigo, ou montado com árvore suja) só avisa: recusar travaria a
+   * publicação por um registro que não tem como existir. Já o commit que existe e não subiu RECUSA — o
+   * conserto é um `git push`, e ele vem antes de qualquer coisa ir para o ar.
+   */
+  let source: SourceRelease | null = null;
+  const blocker = sourceReleaseBlocker(manifest);
+  if (blocker !== null) {
+    warn(`the source repository will not be tagged: ${blocker}`);
+  } else if (manifest.source !== undefined) {
+    const sourceRepo = await sourceRepository(root).catch(() => null);
+    if (sourceRepo === null) {
+      warn('the source repository will not be tagged: "gh repo view" could not name the repository of this checkout');
+    } else if (sourceRepo === repo) {
+      warn(`the source repository will not be tagged: it is ${repo} itself, which already gets ${tagOf(version)}`);
+    } else {
+      source = { repo: sourceRepo, commit: manifest.source.commit };
+      await assertSourcePushed(source, version);
+      info(`  and ${tagOf(version)} on commit ${source.commit.slice(0, 12)} in ${sourceRepo}, pointing here`);
+    }
+  }
+
   if (dryRun) {
     if (published.empty) info(`  ${repo} has no commits, so it would be seeded with a README first`);
     if (readme !== null) info(`  ${README_PATH} in ${repo} differs from the current text, so it would be rewritten`);
@@ -385,6 +491,17 @@ const publishKernel = async (
         .then(() => success(`${README_PATH} in ${repo} rewritten`))
         .catch((error: unknown) => warn(
           `${README_PATH} in ${repo} could not be rewritten: ${error instanceof Error ? error.message : String(error)}`,
+        ));
+    }
+
+    // Pela mesma razão do README: depois do catálogo, e a falha só avisa.
+    if (source !== null) {
+      const target = source;
+      const sourceNotesFile = join(notesRoot, 'source-notes.md');
+      await writeFile(sourceNotesFile, sourceReleaseNotes(repo, version, notes.body));
+      await createSourceRelease(target, version, sourceNotesFile, promotes)
+        .catch((error: unknown) => warn(
+          `${tagOf(version)} could not be created in ${target.repo}: ${error instanceof Error ? error.message : String(error)}`,
         ));
     }
   } finally {
