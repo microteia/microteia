@@ -99,6 +99,28 @@ export interface RecordKeySpec {
 }
 
 /**
+ * A chave como a GRAVAÇÃO a aplica: a declaração mais o campo que guarda o pai, resolvido a partir da
+ * tela (`resolveRecordKeys`). Não é declaração — por isso não mora em `RecordKeySpec` e não vaza para o
+ * catálogo instalado, que exporta o que foi declarado.
+ *
+ * `planRecordKeys` exige este tipo, e não o declarado, por causa do defeito que ele fecha: o escopo
+ * `parent` era aceito na autoria, validado e documentado, e a gravação o ignorava — o id da reserva saía
+ * só de coleção, nome e valores, e a chave valia no escritório inteiro (o "Despacho" de 07/11 às 14:00
+ * num processo recusava o mesmo despacho em outro). Com o campo obrigatório no tipo, um caminho de
+ * gravação que esqueça de resolver o pai não compila.
+ */
+export interface ScopedRecordKeySpec extends RecordKeySpec {
+  /** O campo do vínculo com o pai no escopo `parent`; `null` no escopo do escritório. */
+  parentFieldKey: string | null;
+}
+
+export const scopeRecordKeys = (
+  keys: readonly RecordKeySpec[],
+  parentFieldKey: string | null,
+): ScopedRecordKeySpec[] =>
+  keys.map((key) => ({ ...key, parentFieldKey: key.scope === 'parent' ? parentFieldKey : null }));
+
+/**
  * A coleção das reservas, sob o tenant. É a generalização de `/nicknames`: o valor vira o ID de um
  * documento, e a unicidade passa a ser a do próprio Firestore.
  */
@@ -129,6 +151,13 @@ const KEY_SEGMENT_SEPARATOR = '|';
  * onde alguém precisa lê-lo.
  */
 export const RECORD_KEY_ID_MAX_LENGTH = 900;
+
+/**
+ * A marca do segmento do pai. Um valor escapado nunca começa por `~r` — todo `~` dele vira `~t` —, e é
+ * isso que impede a chave `parent` de um campo de produzir o mesmo id que a de escritório de dois campos
+ * com o mesmo nome: a chave que troca de escopo convive, até a adoção terminar, com as reservas antigas.
+ */
+const PARENT_SEGMENT_MARK = '~r';
 
 const escapeKeySegment = (value: string): string =>
   value.replace(/~/g, '~t').replace(/\//g, '~s').replace(/\|/g, '~p');
@@ -169,9 +198,21 @@ export const normalizeRecordKeyValue = (
   return next;
 };
 
-/** O id da reserva. Ponto único: front, backend e adoção não podem discordar sobre ele. */
-export const buildRecordKeyId = (collection: string, keyName: string, values: string[]): string => {
-  const joined = values.map(escapeKeySegment).join(KEY_SEGMENT_SEPARATOR);
+/**
+ * O id da reserva. Ponto único: front, backend e adoção não podem discordar sobre ele.
+ *
+ * `parent` é o id do registro-pai no escopo `parent`, e vazio no do escritório. Ele mora no ID e não no
+ * corpo da reserva: o corpo é conferido pela regra (`hasOnly`), e o id é o que já carrega a unicidade.
+ */
+export const buildRecordKeyId = (
+  collection: string,
+  keyName: string,
+  values: string[],
+  parent = '',
+): string => {
+  const segments = values.map(escapeKeySegment);
+  if (parent) segments.unshift(`${PARENT_SEGMENT_MARK}${escapeKeySegment(parent)}`);
+  const joined = segments.join(KEY_SEGMENT_SEPARATOR);
   const prefix = `${escapeKeySegment(collection)}${KEY_SEGMENT_SEPARATOR}${escapeKeySegment(keyName)}`;
   const full = `${prefix}${KEY_SEGMENT_SEPARATOR}${joined}`;
   if (full.length <= RECORD_KEY_ID_MAX_LENGTH) return full;
@@ -226,6 +267,17 @@ const sameValues = (left: readonly string[], right: readonly string[]): boolean 
   left.length === right.length && left.every((value, index) => value === right[index]);
 
 /**
+ * O id do pai que a chave `parent` carrega; `null` no escopo do escritório e vazio quando o registro não
+ * tem pai. Passa sem a normalização da chave: ela é do VALOR — um `caseInsensitive` ou um `digits`
+ * aplicado a um id de documento juntaria pais diferentes.
+ */
+const recordKeyParent = (key: ScopedRecordKeySpec, data: Record<string, unknown>): string | null => {
+  if (key.scope !== 'parent') return null;
+  const raw = key.parentFieldKey ? data[key.parentFieldKey] : undefined;
+  return typeof raw === 'string' ? raw.trim() : '';
+};
+
+/**
  * O que uma gravação precisa reservar, dado o registro COMPLETO (payload já mesclado com o que já
  * estava gravado — uma chave composta cujo update toca um campo só continua sendo a mesma chave).
  *
@@ -239,7 +291,7 @@ const sameValues = (left: readonly string[], right: readonly string[]): boolean 
  * chegarem à mesma lista sem combinarem entre si.
  */
 export const planRecordKeys = (
-  keys: readonly RecordKeySpec[] | undefined,
+  keys: readonly ScopedRecordKeySpec[] | undefined,
   data: Record<string, unknown>,
   collection: string,
   catalog: FieldRulePresetCatalog = CORE_FIELD_RULE_PRESET_CATALOG,
@@ -251,19 +303,26 @@ export const planRecordKeys = (
   for (const key of keys ?? []) {
     if (key.fields.length === 0) continue;
     const values = recordKeyValues(key, data, catalog);
-    if (previous && sameValues(values, recordKeyValues(key, previous, catalog))) {
+    const parent = recordKeyParent(key, data);
+    if (
+      previous
+      && sameValues(values, recordKeyValues(key, previous, catalog))
+      && parent === recordKeyParent(key, previous)
+    ) {
       held.push(key.name);
       continue;
     }
+    // Sem pai, a chave `parent` está tão incompleta quanto sem um dos campos: o pai é parte do valor.
     const missing = key.fields.filter((_, index) => values[index] === '');
-    if (missing.length > 0) {
+    const orphan = parent === '';
+    if (missing.length > 0 || orphan) {
       if (recordKeyIsSparse(key)) continue;
-      gaps.push({ name: key.name, fields: missing });
+      gaps.push({ name: key.name, fields: orphan && key.parentFieldKey ? [key.parentFieldKey, ...missing] : missing });
       continue;
     }
     entries.push({
       name: key.name,
-      keyId: buildRecordKeyId(collection, key.name, values),
+      keyId: buildRecordKeyId(collection, key.name, values, parent ?? ''),
       values,
       kind: key.kind,
       fields: [...key.fields],

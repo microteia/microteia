@@ -10,11 +10,11 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import type { SchemaContext } from './pathResolver';
-import type { RecordKeySpec } from './recordKeys';
+import type { ScopedRecordKeySpec } from './recordKeys';
 import { planRecordKeys } from './recordKeys';
 import { formatAndValidateRecord } from './recordRules';
 import { validateWritablePath } from './mutationSpec';
-import { resolveEntity, resolveEntityKeys } from './screenEntity';
+import { resolveEntity, resolveRecordKeys } from './screenEntity';
 
 /**
  * Os campos de REFERÊNCIA de uma importação: o vínculo com o pai, quando ela é feita na aba dele, e a
@@ -60,10 +60,13 @@ export const importParentFieldIssue = (ctx: SchemaContext, collection: string, f
 
 /**
  * As chaves do alvo por que uma célula acha o registro: as declaradas, `primary` ou `unique`, de UM campo
- * — uma célula é um valor. A chave composta fica de fora: ela pediria várias colunas para um campo só.
+ * — uma célula é um valor. A chave composta fica de fora: ela pediria várias colunas para um campo só. E a
+ * de escopo `parent` também, pela mesma razão: o valor só identifica o registro junto com o pai, que a
+ * célula não traz.
  */
-export const importLookupKeys = (ctx: SchemaContext, targetCollection: string): RecordKeySpec[] =>
-  resolveEntityKeys(ctx, targetCollection).filter((key) => key.fields.length === 1 && !key.fields[0].includes('.'));
+export const importLookupKeys = (ctx: SchemaContext, targetCollection: string): ScopedRecordKeySpec[] =>
+  resolveRecordKeys(ctx, targetCollection).filter((key) =>
+    key.scope !== 'parent' && key.fields.length === 1 && !key.fields[0].includes('.'));
 
 /**
  * O id da reserva que a célula endereça na chave do alvo, ou `null` quando a célula não forma chave. O
@@ -73,7 +76,7 @@ export const importLookupKeys = (ctx: SchemaContext, targetCollection: string): 
 export const importLookupKeyId = (
   ctx: SchemaContext,
   targetCollection: string,
-  key: RecordKeySpec,
+  key: ScopedRecordKeySpec,
   value: unknown,
 ): string | null => {
   const [field] = key.fields;

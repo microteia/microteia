@@ -15,10 +15,10 @@ import { BUILTIN_ENTITY_KEYS, ENTITY_REGISTRY, SCHEMA_VERSION } from './entityRe
 import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
 import type { FieldRulePreset, FieldRulePresetCatalog } from './fieldRulePresets';
 import { buildFieldRulePresetCatalog } from './fieldRulePresets';
-import type { RecordKeySpec } from './recordKeys';
+import type { RecordKeySpec, ScopedRecordKeySpec } from './recordKeys';
 import type { EditWindowSpec } from './editWindow';
 import type { MemberVisibilitySpec } from './memberVisibility';
-import { RECORD_KEYS_COLLECTION } from './recordKeys';
+import { RECORD_KEYS_COLLECTION, scopeRecordKeys } from './recordKeys';
 import { AGENT_GRANTS_COLLECTION } from './agent/agentGrant';
 import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
 import { RECORD_KEY_ADOPTION_COLLECTION } from './recordKeyAdoption';
@@ -513,6 +513,14 @@ export const resolveEntityKeys = (
   }
   return [...byName.values()];
 };
+
+/**
+ * As chaves da coleção como a GRAVAÇÃO as aplica — com o campo do pai resolvido, como em
+ * `resolveRecordSequences`. Todo caminho que reserva, adota ou procura uma reserva passa por aqui;
+ * `resolveEntityKeys` continua sendo a declaração, que é o que o catálogo e a autoria leem.
+ */
+export const resolveRecordKeys = (ctx: SchemaContext, collection: string): ScopedRecordKeySpec[] =>
+  scopeRecordKeys(resolveEntityKeys(ctx, collection), ctx.screens.get(collection)?.parentFieldKey ?? null);
 
 /**
  * Os campos numerados pelo sistema da coleção (`autoValue.sequence`), com o campo do pai já

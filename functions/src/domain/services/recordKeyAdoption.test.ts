@@ -6,7 +6,7 @@ import type { IRecordKeyAdoptionRepository } from '../repositories/IRecordKeyAdo
 import { readRecordKeyAdoptionState, RECORD_KEY_ADOPTION_MAX_LISTED } from '../schema/recordKeyAdoption';
 import type { RecordKeyAdoptionState } from '../schema/recordKeyAdoption';
 import type { RecordKeySpec } from '../schema/recordKeys';
-import { planRecordKeys, storedRecordKeyRefs } from '../schema/recordKeys';
+import { planRecordKeys, scopeRecordKeys, storedRecordKeyRefs } from '../schema/recordKeys';
 import {
   claimRecordKeyAdoptionRound,
   completeRecordKeyAdoptionRound,
@@ -124,7 +124,7 @@ const startAndDrain = async (w: World): Promise<RecordKeyAdoptionState | undefin
 
 describe('decideRecordKeyAdoption', () => {
   const request = (data: Record<string, unknown>, keys: RecordKeySpec[] = [EMAIL]) => ({
-    plan: planRecordKeys(keys, data, 'c'),
+    plan: planRecordKeys(scopeRecordKeys(keys, null), data, 'c'),
     names: keys.map((key) => key.name),
   });
   const decide = (

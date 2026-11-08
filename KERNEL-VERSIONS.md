@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.211.1] — 2026-11-07
+
+- fix(records/keys): a key declared with `scope: 'parent'` was enforced across the whole organization. `planRecordKeys` never read `scope`, so the reservation id was `collection|key|values` for both scopes — one `caseMovements` entry (date, time, type) in case A refused the same entry in case B. The parent id now enters the reservation id as a marked segment (`collection|key|~r<parentId>|values`), un-normalized and absent from the reservation body, so `firestore.rules` is unchanged. A record with no parent leaves a sparse key unreserved and is refused on a non-sparse one, naming the parent field.
+- fix(records/keys): `planRecordKeys` and `declaredRecordKeySignatures` now require `ScopedRecordKeySpec` (the declaration plus the screen's `parentFieldKey`), produced only by `resolveRecordKeys`. Every write path — form, workflow upsert, import lanes, key adoption — moved to it; a new path that forgets the parent no longer type-checks. `resolveEntityKeys` stays the declaration, which is what the installed catalog exports.
+- fix(records/keys): the adoption signature of a parent-scoped key now includes the resolved parent field. Existing parent-scoped keys therefore go pending once after upgrading, and the adoption pass replaces their organization-wide reservations with per-parent ones. Tenant-scoped keys keep their signature and are not rescanned.
+- fix(records/import): a parent-scoped key is no longer offered as an import lookup key — a cell carries the value, not the parent that identifies it.
+
 #### [9.211.0] — 2026-11-07
 
 - feat(extensions): a copy installed or updated AFTER the last `microteia provision` is released when

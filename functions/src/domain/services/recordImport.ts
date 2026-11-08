@@ -1,5 +1,5 @@
 import type { RecordImportRow, RecordImportTotals, RecordImportStatus } from '../schema/recordImport';
-import type { RecordKeySpec } from '../schema/recordKeys';
+import type { ScopedRecordKeySpec } from '../schema/recordKeys';
 import { planRecordKeys } from '../schema/recordKeys';
 import type { FieldRulePresetCatalog } from '../schema/fieldRulePresets';
 import type { CreateAuditLogInput } from '../usecases/CreateAuditLogUseCase';
@@ -22,7 +22,7 @@ export const RECORD_IMPORT_CONCURRENCY = 8;
  */
 export const importLanes = (
   rows: readonly RecordImportRow[],
-  keys: readonly RecordKeySpec[],
+  keys: readonly ScopedRecordKeySpec[],
   collection: string,
   catalog?: FieldRulePresetCatalog,
 ): number[][] => {

@@ -8,7 +8,7 @@ import { describeRuleIssues } from '../../domain/schema/fieldRules';
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/pathResolver';
 import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup, SchemaTagList } from '../../domain/schema/screenEntity';
-import { resolveEntityKeys, resolveRecordSequences } from '../../domain/schema/screenEntity';
+import { resolveEntityKeys, resolveRecordKeys, resolveRecordSequences } from '../../domain/schema/screenEntity';
 import type { RecordSequenceField, RecordSequenceGap } from '../../domain/schema/recordSequence';
 import type { RecordKeyPlan, RecordKeySpec } from '../../domain/schema/recordKeys';
 import { planRecordKeys } from '../../domain/schema/recordKeys';
@@ -254,7 +254,7 @@ export const planRecordKeysFor = (
   data: object,
   baseline?: object,
 ): RecordKeyPlan => {
-  const keys = resolveEntityKeys(schemaContext, table);
+  const keys = resolveRecordKeys(schemaContext, table);
   if (keys.length === 0) return { entries: [], gaps: [], held: [] };
   const previous = baseline as Record<string, unknown> | undefined;
   const merged = { ...previous, ...(data as Record<string, unknown>) };
@@ -267,7 +267,7 @@ export const planRecordKeysFor = (
  * chave `cpf` uma assinatura que o servidor nunca adotaria.
  */
 export const recordKeySignaturesFor = (table: string): Record<string, string> =>
-  declaredRecordKeySignatures(resolveEntityKeys(schemaContext, table), schemaContext.fieldRulePresets);
+  declaredRecordKeySignatures(resolveRecordKeys(schemaContext, table), schemaContext.fieldRulePresets);
 
 /** As chaves declaradas da coleção, como a gravação as vê. */
 export const recordKeysFor = (table: string): RecordKeySpec[] => resolveEntityKeys(schemaContext, table);

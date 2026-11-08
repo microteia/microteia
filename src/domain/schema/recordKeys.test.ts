@@ -9,14 +9,16 @@ import {
   recordKeyIsSparse,
   recordKeyRefs,
   RECORD_KEY_ID_MAX_LENGTH,
+  scopeRecordKeys,
   storedRecordKeyRefs,
-  type RecordKeySpec,
+  type ScopedRecordKeySpec,
 } from './recordKeys';
 
-const key = (over: Partial<RecordKeySpec> = {}): RecordKeySpec => ({
+const key = (over: Partial<ScopedRecordKeySpec> = {}): ScopedRecordKeySpec => ({
   name: 'doc',
   kind: 'unique',
   fields: ['documento'],
+  parentFieldKey: null,
   ...over,
 });
 
@@ -88,6 +90,17 @@ describe('buildRecordKeyId', () => {
   it('a ordem dos campos faz parte da chave', () => {
     expect(buildRecordKeyId('c', 'k', ['a', 'b'])).not.toBe(buildRecordKeyId('c', 'k', ['b', 'a']));
   });
+
+  it('o pai entra marcado, e a chave de um campo dentro do pai nunca vira a de dois campos no escritório', () => {
+    expect(buildRecordKeyId('c', 'k', ['y'], 'x')).toBe('c|k|~rx|y');
+    expect(buildRecordKeyId('c', 'k', ['y'], 'x')).not.toBe(buildRecordKeyId('c', 'k', ['x', 'y']));
+    expect(buildRecordKeyId('c', 'k', ['y'], 'x')).not.toBe(buildRecordKeyId('c', 'k', ['~rx', 'y']));
+  });
+
+  it('o resumo do valor longo inclui o pai', () => {
+    const long = 'x'.repeat(2000);
+    expect(buildRecordKeyId('c', 'k', [long], 'p1')).not.toBe(buildRecordKeyId('c', 'k', [long], 'p2'));
+  });
 });
 
 describe('planRecordKeys', () => {
@@ -156,6 +169,75 @@ describe('planRecordKeys', () => {
 
   it('ignora chave sem campo nenhum em vez de reservar o vazio', () => {
     expect(planRecordKeys([key({ fields: [] })], {}, 'c').entries).toHaveLength(0);
+  });
+});
+
+describe('planRecordKeys — escopo parent', () => {
+  // O caso que chegou à tela: a mesma movimentação, no mesmo dia e hora, em dois processos diferentes.
+  const fato = key({
+    name: 'fato',
+    fields: ['date', 'time', 'movementType'],
+    scope: 'parent',
+    sparse: false,
+    parentFieldKey: 'caseId',
+  });
+  const movimento = (caseId: string) => ({ caseId, date: '2026-11-07', time: '14:00', movementType: 'Despacho' });
+  const keyIdOf = (data: Record<string, unknown>) => planRecordKeys([fato], data, 'caseMovements').entries[0]?.keyId;
+
+  it('a mesma combinação em pais diferentes são duas reservas', () => {
+    expect(keyIdOf(movimento('A'))).not.toBe(keyIdOf(movimento('B')));
+  });
+
+  it('a mesma combinação no mesmo pai é a mesma reserva', () => {
+    expect(keyIdOf(movimento('A'))).toBe(keyIdOf({ ...movimento('A'), notes: 'outra' }));
+  });
+
+  it('não difere da chave de escritório só no pai: o escopo tenant continua sem ele', () => {
+    const tenant = { ...fato, scope: 'tenant' as const, parentFieldKey: null };
+    expect(planRecordKeys([tenant], movimento('A'), 'caseMovements').entries[0]?.keyId)
+      .toBe(planRecordKeys([tenant], movimento('B'), 'caseMovements').entries[0]?.keyId);
+  });
+
+  it('o id do pai não passa pela normalização do valor', () => {
+    const lower = { ...fato, normalize: { caseInsensitive: true } };
+    expect(planRecordKeys([lower], movimento('Ab'), 'c').entries[0]?.keyId)
+      .not.toBe(planRecordKeys([lower], movimento('aB'), 'c').entries[0]?.keyId);
+  });
+
+  it('o valor reservado continua sendo só o dos campos — é o que o conflito mostra', () => {
+    expect(planRecordKeys([fato], movimento('A'), 'c').entries[0]?.values).toEqual(['2026-11-07', '14:00', 'Despacho']);
+  });
+
+  it('sem pai, a chave obrigatória é lacuna que aponta o campo do pai', () => {
+    const plan = planRecordKeys([fato], { ...movimento('A'), caseId: '' }, 'c');
+    expect(plan.entries).toHaveLength(0);
+    expect(plan.gaps).toEqual([{ name: 'fato', fields: ['caseId'] }]);
+  });
+
+  it('sem pai, a chave esparsa não reserva nada', () => {
+    const plan = planRecordKeys([{ ...fato, sparse: true }], { ...movimento('A'), caseId: undefined }, 'c');
+    expect(plan).toEqual({ entries: [], gaps: [], held: [] });
+  });
+
+  it('sem o campo do pai resolvido, nunca cai no escritório inteiro', () => {
+    const plan = planRecordKeys([{ ...fato, parentFieldKey: null }], movimento('A'), 'c');
+    expect(plan.entries).toHaveLength(0);
+    expect(plan.gaps.map((gap) => gap.name)).toEqual(['fato']);
+  });
+
+  it('mudar o registro de pai é mudar a chave — não fica retida', () => {
+    const plan = planRecordKeys([fato], movimento('B'), 'caseMovements', undefined, movimento('A'));
+    expect(plan.held).toEqual([]);
+    expect(plan.entries[0]?.keyId).toBe(keyIdOf(movimento('B')));
+  });
+
+  it('scopeRecordKeys só dá o campo do pai a quem tem escopo parent', () => {
+    const [tenant, parent] = scopeRecordKeys([
+      { name: 't', kind: 'unique', fields: ['a'] },
+      { name: 'p', kind: 'unique', fields: ['a'], scope: 'parent' },
+    ], 'caseId');
+    expect(tenant?.parentFieldKey).toBeNull();
+    expect(parent?.parentFieldKey).toBe('caseId');
   });
 });
 

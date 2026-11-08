@@ -28,7 +28,7 @@ import {
   RECORD_KEY_REFS_FIELD,
   storedRecordKeyRefs,
 } from '../../../domain/schema/recordKeys';
-import { resolveEntity, resolveEntityKeys, resolveRecordSequences } from '../../../domain/schema/screenEntity';
+import { resolveEntity, resolveRecordKeys, resolveRecordSequences } from '../../../domain/schema/screenEntity';
 import type { RecordSequenceEntry } from '../../../domain/schema/recordSequence';
 import { omitSequenceFields, planRecordSequences } from '../../../domain/schema/recordSequence';
 import { DEFAULT_TIME_ZONE } from '../../../domain/schema/i18n/timeZone';
@@ -230,7 +230,7 @@ const findByPrimaryKey = async (
   deps: WorkflowMutationDeps,
   ambient: <T>(run: () => T) => T,
 ): Promise<string | null> => {
-  const primary = resolveEntityKeys(ctx, collection).find((key) => key.kind === 'primary');
+  const primary = resolveRecordKeys(ctx, collection).find((key) => key.kind === 'primary');
   if (!primary) return null;
   const formatted = ambient(() => formatAndValidateRecord(ctx, table, data)).data;
   const [entry] = planRecordKeys([primary], formatted, collection, ctx.fieldRulePresets).entries;
@@ -380,7 +380,7 @@ export async function runWorkflowUpsert(
   // composta cujo upsert toca um campo só continua sendo a mesma chave. Sem isto, o caminho do
   // backend furaria a chave que o front respeita — e uma unicidade que um dos dois caminhos ignora
   // não é unicidade.
-  const declaredKeys = resolveEntityKeys(ctx, collection);
+  const declaredKeys = resolveRecordKeys(ctx, collection);
   let keyMutation: RecordKeyMutation | undefined;
   let keyRefs: Record<string, string> | undefined;
   if (declaredKeys.length > 0) {

@@ -2,11 +2,11 @@ import type { IRecordImportJobRepository, RecordImportJob } from '../repositorie
 import type { IScreenDefinitionProvider } from '../repositories/IScreenDefinitionProvider';
 import type { IWorkflowMutationRepository } from '../repositories/IWorkflowMutationRepository';
 import type { SchemaContext } from '../schema/pathResolver';
-import type { RecordKeySpec } from '../schema/recordKeys';
+import type { ScopedRecordKeySpec } from '../schema/recordKeys';
 import type { CreateAuditLogUseCase } from './CreateAuditLogUseCase';
 import type { UpsertSpec } from '../schema/mutationSpec';
 import { resolveWritableTable } from '../schema/mutationSpec';
-import { resolveEntity, resolveEntityKeys } from '../schema/screenEntity';
+import { resolveEntity, resolveRecordKeys } from '../schema/screenEntity';
 import { collectionPermissionId } from '../schema/access/permission';
 import { grants, grantsAny } from '../schema/access/memberPermissions';
 import { readerSeesRecord, resolveMemberVisibility } from '../schema/memberVisibility';
@@ -169,7 +169,7 @@ interface ImportLookupPlan {
   fieldKey: string;
   label: string;
   target: string;
-  key: RecordKeySpec;
+  key: ScopedRecordKeySpec;
 }
 
 /**
@@ -344,7 +344,7 @@ export const makeRecordImportUseCases = (deps: RecordImportDeps) => {
     const rows = parent
       ? looked.rows.map((row) => ({ ...row, data: { ...row.data, [parent.fieldKey]: parent.recordId } }))
       : looked.rows;
-    const lanes = importLanes(rows, resolveEntityKeys(ctx, collection), collection, ctx.fieldRulePresets);
+    const lanes = importLanes(rows, resolveRecordKeys(ctx, collection), collection, ctx.fieldRulePresets);
 
     const written = await runInLanes(rows, lanes, RECORD_IMPORT_CONCURRENCY, async (row): Promise<RecordImportRowResult> => {
       try {

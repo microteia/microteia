@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.211.1] — 2026-11-07
+
+- Corrigido um problema em que uma regra de "não pode repetir" pensada para valer dentro de cada registro principal valia no sistema inteiro. Por exemplo, um despacho registrado em um processo impedia registrar outro despacho no mesmo dia e horário em um processo diferente. Os registros já existentes são reorganizados automaticamente na primeira vez que um administrador abre a lista afetada.
+
 #### [9.211.0] — 2026-11-07
 
 - Uma extensão com recursos de servidor que já foi ativada em um escritório agora fica disponível imediatamente quando outro escritório da mesma instalação instala ou atualiza a mesma versão. Antes, ela ficava como "Backend pendente" até alguém com acesso ao projeto rodar a ativação de novo, mesmo sem haver nada novo a ativar.

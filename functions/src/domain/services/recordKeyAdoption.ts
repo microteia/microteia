@@ -15,12 +15,12 @@ import type {
   RecordKeyAdoptionPlan,
   RecordKeyAdoptionState,
 } from '../schema/recordKeyAdoption';
-import type { RecordKeyEntry, RecordKeySpec } from '../schema/recordKeys';
+import type { RecordKeyEntry, ScopedRecordKeySpec } from '../schema/recordKeys';
 import { planRecordKeys, storedRecordKeyRefs } from '../schema/recordKeys';
 import { isBookkeepingWrite } from './recordBookkeeping';
 import { resolveWritableTable } from '../schema/mutationSpec';
 import type { SchemaContext } from '../schema/pathResolver';
-import { resolveEntityKeys } from '../schema/screenEntity';
+import { resolveRecordKeys } from '../schema/screenEntity';
 
 /** Registros por rodada. A maioria passa sem transação — só o que ainda não cita a reserva paga uma. */
 export const RECORD_KEY_ADOPTION_PAGE_SIZE = 200;
@@ -329,8 +329,8 @@ const adoptionTargets = (
   ctx: SchemaContext,
   collection: string,
   pending: Record<string, string>,
-): RecordKeySpec[] =>
-  resolveEntityKeys(ctx, collection).filter((key) => pending[key.name] !== undefined && key.fields.length > 0);
+): ScopedRecordKeySpec[] =>
+  resolveRecordKeys(ctx, collection).filter((key) => pending[key.name] !== undefined && key.fields.length > 0);
 
 const isWritableEntity = (ctx: SchemaContext, collection: string): boolean => {
   const outcome = resolveWritableTable(collection, ctx);
@@ -340,7 +340,7 @@ const isWritableEntity = (ctx: SchemaContext, collection: string): boolean => {
 const adoptionRequest = (
   ctx: SchemaContext,
   collection: string,
-  targets: readonly RecordKeySpec[],
+  targets: readonly ScopedRecordKeySpec[],
   data: Record<string, unknown>,
 ): RecordKeyAdoptionRequest => ({
   plan: planRecordKeys(targets, data, collection, ctx.fieldRulePresets),
@@ -388,7 +388,7 @@ const adoptEach = async (
   ctx: SchemaContext,
   tenantId: string,
   collection: string,
-  targets: readonly RecordKeySpec[],
+  targets: readonly ScopedRecordKeySpec[],
   recordIds: readonly string[],
   result: RecordKeyAdoptionRoundResult,
   deps: RecordKeyAdoptionDeps,
@@ -502,7 +502,7 @@ export const runRecordKeyAdoptionRound = async (
 const declaredCollections = (ctx: SchemaContext): Map<string, Record<string, string>> => {
   const declared = new Map<string, Record<string, string>>();
   for (const collection of new Set([...ctx.screens.keys(), ...Object.keys(ctx.registry)])) {
-    const signatures = declaredRecordKeySignatures(resolveEntityKeys(ctx, collection), ctx.fieldRulePresets);
+    const signatures = declaredRecordKeySignatures(resolveRecordKeys(ctx, collection), ctx.fieldRulePresets);
     if (Object.keys(signatures).length > 0) declared.set(collection, signatures);
   }
   return declared;
@@ -547,7 +547,7 @@ const sameJson = (left: unknown, right: unknown): boolean =>
 const isUnadopted = (
   ctx: SchemaContext,
   collection: string,
-  keys: readonly RecordKeySpec[],
+  keys: readonly ScopedRecordKeySpec[],
   data: Record<string, unknown> | null,
 ): boolean => {
   if (!data) return false;
@@ -569,7 +569,7 @@ export const recordWriteMayResolveKeyIssue = (
   before: Record<string, unknown> | null,
   after: Record<string, unknown> | null,
 ): boolean => {
-  const keys = resolveEntityKeys(ctx, collection).filter((key) => key.fields.length > 0);
+  const keys = resolveRecordKeys(ctx, collection).filter((key) => key.fields.length > 0);
   if (keys.length === 0 || isBookkeepingWrite(before, after)) return false;
   if (!sameJson(storedRecordKeyRefs(before), storedRecordKeyRefs(after))) return true;
   return isUnadopted(ctx, collection, keys, before) || isUnadopted(ctx, collection, keys, after);

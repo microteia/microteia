@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildFieldRulePresetCatalog, CORE_FIELD_RULE_PRESET_CATALOG } from './fieldRulePresets';
 import type { RecordKeySpec } from './recordKeys';
+import { scopeRecordKeys } from './recordKeys';
 import {
   declaredRecordKeySignatures,
   pendingRecordKeyNames,
@@ -48,6 +49,21 @@ describe('recordKeySignature', () => {
 
   it('a primária é não esparsa por definição — trocar unique+sparse:false por primary não varre de novo', () => {
     expect(signature({ kind: 'primary' })).toBe(signature({ sparse: false }));
+  });
+
+  it('a chave parent com o pai resolvido muda de assinatura — é o que readota as reservas feitas sem ele', () => {
+    const parent = key({ scope: 'parent' });
+    const [scoped] = scopeRecordKeys([parent], 'caseId');
+    expect(recordKeySignature(scoped, CORE_FIELD_RULE_PRESET_CATALOG))
+      .not.toBe(recordKeySignature(parent, CORE_FIELD_RULE_PRESET_CATALOG));
+    const [other] = scopeRecordKeys([parent], 'orderId');
+    expect(recordKeySignature(scoped, CORE_FIELD_RULE_PRESET_CATALOG))
+      .not.toBe(recordKeySignature(other, CORE_FIELD_RULE_PRESET_CATALOG));
+  });
+
+  it('a chave tenant não muda de assinatura ao ser resolvida — nada é varrido de novo', () => {
+    const [scoped] = scopeRecordKeys([key()], 'caseId');
+    expect(recordKeySignature(scoped, CORE_FIELD_RULE_PRESET_CATALOG)).toBe(signature());
   });
 
   it('a formatação entra pelo CONTEÚDO: a extensão que muda o que ela faz muda as reservas', () => {
@@ -102,7 +118,10 @@ describe('planRecordKeyAdoption', () => {
 
 describe('pendingRecordKeyNames', () => {
   it('pendente é o que não foi adotado com a assinatura de hoje', () => {
-    const declared = declaredRecordKeySignatures([key(), key({ name: 'cpf', fields: ['cpf'] })], CORE_FIELD_RULE_PRESET_CATALOG);
+    const declared = declaredRecordKeySignatures(
+      scopeRecordKeys([key(), key({ name: 'cpf', fields: ['cpf'] })], null),
+      CORE_FIELD_RULE_PRESET_CATALOG,
+    );
     expect(pendingRecordKeyNames(declared, null)).toEqual(['email', 'cpf']);
     expect(pendingRecordKeyNames(declared, state({ adopted: { email: declared.email } }))).toEqual(['cpf']);
   });

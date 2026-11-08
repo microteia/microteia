@@ -10,7 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import type { FieldRulePresetCatalog } from './fieldRulePresets';
-import type { RecordKeySpec } from './recordKeys';
+import type { RecordKeySpec, ScopedRecordKeySpec } from './recordKeys';
 import { recordKeyIsSparse } from './recordKeys';
 
 /**
@@ -103,23 +103,33 @@ const text = (value: unknown): string | null => {
  *
  * A formatação entra pelo CONTEÚDO, e não só pelo nome: uma extensão que muda o que `digits` faz muda
  * todas as reservas feitas com ele, e é a mesma varredura que as refaz.
+ *
+ * O campo do pai entra só no escopo `parent`, e só quando resolvido — a comparação de autoria
+ * (`artifactPlan`) lê a declaração, que não o tem. É ele que reabre a adoção das chaves `parent`
+ * reservadas antes de o escopo valer na gravação: aquelas reservas têm o id do escritório, e só a
+ * varredura as troca pelas de dentro do pai. As chaves `tenant` não mudam de assinatura e não varrem.
  */
-export const recordKeySignature = (key: RecordKeySpec, catalog: FieldRulePresetCatalog): string => {
+export const recordKeySignature = (
+  key: RecordKeySpec & { parentFieldKey?: string | null },
+  catalog: FieldRulePresetCatalog,
+): string => {
   const preset = text(key.normalize?.formatPreset);
+  const scope = key.scope ?? 'tenant';
   return JSON.stringify([
     [...key.fields],
-    key.scope ?? 'tenant',
+    scope,
     key.normalize?.trim !== false,
     key.normalize?.caseInsensitive === true,
     preset,
     preset ? catalog.get(preset)?.format ?? null : null,
     recordKeyIsSparse(key),
+    ...(scope === 'parent' && key.parentFieldKey !== undefined ? [key.parentFieldKey] : []),
   ]);
 };
 
-/** Nome → assinatura de toda chave declarada para a coleção. */
+/** Nome → assinatura de toda chave declarada para a coleção — como a gravação a aplica. */
 export const declaredRecordKeySignatures = (
-  keys: readonly RecordKeySpec[],
+  keys: readonly ScopedRecordKeySpec[],
   catalog: FieldRulePresetCatalog,
 ): Record<string, string> => {
   const declared: Record<string, string> = {};

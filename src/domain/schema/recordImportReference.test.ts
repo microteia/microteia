@@ -46,6 +46,7 @@ const matriculas: SchemaScreen = {
     { key: 'sala', label: 'Sala', type: 'text', required: false, order: 3, origin: 'design' },
     { key: 'orfa', label: 'Órfã', type: 'reference', refEntity: 'nao-existe', required: false, order: 4, origin: 'design' },
   ],
+  keys: [{ name: 'sala-na-turma', kind: 'unique', fields: ['sala'], scope: 'parent' }],
 };
 
 const ctx = createSchemaContext([pessoas, turmas, matriculas]);
@@ -68,6 +69,10 @@ describe('as referências de uma importação', () => {
   it('procura pelas chaves de UM campo do alvo, primary ou unique — a composta fica de fora', () => {
     expect(importLookupKeys(ctx, 'pessoas').map((key) => key.name)).toEqual(['cpf', 'email']);
     expect(importLookupKeys(ctx, 'turmas')).toEqual([]);
+  });
+
+  it('a chave de escopo parent fica de fora: a célula traz o valor, mas não o pai que o identifica', () => {
+    expect(importLookupKeys(ctx, 'matriculas')).toEqual([]);
   });
 
   it('a célula vira o id da reserva como a gravação o faria: regra do campo, depois normalização da chave', () => {

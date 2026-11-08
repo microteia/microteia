@@ -53,7 +53,7 @@ Os metadados de entidades são **compartilhados** entre frontend e Cloud Functio
 | `domain/schema/hydrationPlan.ts` | Planner puro: caminhos → `FkHop[]` deduplicados em níveis BFS (propaga a chave FK do salto seguinte para os fields do hop pai). |
 | `domain/schema/materialize.ts` | Materializer puro: aplica cada `MaterializationMode` (`denormKey` para FKs fixas, `replaceValue` para references de campos customizados) sobre o payload. |
 | `domain/entities/entitySchemas.ts` | Tipos (`FieldDefinition`, `ScreenDefinition`, `CustomFieldType`…) e derivações do registry (`ENTITY_FK_SCHEMA`, `CUSTOM_FIELD_ENABLED_ENTITIES`, `BUILTIN_REF_ENTITIES`, `resolveRefEntityCollection`). |
-| `domain/schema/recordKeys.ts` | Chave primária e chave única de registro: `RecordKeySpec`, a normalização, `buildRecordKeyId` (o id da reserva — ponto único, e as três pontas precisam concordar sobre ele), o planejamento (`planRecordKeys`, `diffRecordKeys`) e a validação de autoria. Ver "Chave primária e chave única". |
+| `domain/schema/recordKeys.ts` | Chave primária e chave única de registro: `RecordKeySpec`, a normalização, `buildRecordKeyId` (o id da reserva — ponto único, e as três pontas precisam concordar sobre ele), o planejamento (`planRecordKeys`, `diffRecordKeys`, sobre a `ScopedRecordKeySpec` — a chave com o campo do pai resolvido) e a validação de autoria. Ver "Chave primária e chave única". |
 | `domain/schema/recordKeyAdoption.ts` | A adoção de chave sobre os registros que já existiam: assinatura da chave, estado do job, plano. Ver "Adoção sobre dados que já existem". |
 | `domain/schema/tenantCollections.ts` | Coleções do escritório: `screenDataCollection`, `presentedScreens`, listas e etiquetas disponíveis (`tenantLookupCollections`, `tenantTagCollections`) e os recursos que elas rendem no catálogo de permissões (`tenantCollectionPermissionResources`). Compartilhado para o catálogo do servidor ser o mesmo do navegador. |
 | `domain/schema/settings.ts` | Contrato de configuração (`SettingsSection`, `SettingsProperty`, `resolveSetting`). Compartilhado porque o backend precisa saber em que idioma falar — ver "Idioma". |
@@ -14259,6 +14259,21 @@ Chave natural é **índice**; `docId` continua sendo o endereço.
 normalizado (`buildRecordKeyId`, ponto único em `domain/schema/recordKeys.ts`). O registro e as reservas
 são gravados no **mesmo lote**, e o registro carrega `keyRefs` (nome da chave → id da reserva).
 
+**O escopo `parent` mora no id.** `coleção|chave|~r<idDoPai>|valores` — o pai entra marcado, sem a
+normalização da chave (um `caseInsensitive` ou `digits` num id de documento juntaria pais diferentes), e o
+corpo da reserva continua sem ele: `values` é o que o conflito mostra, e o corpo é conferido pela regra
+(`hasOnly`). A marca `~r` não aparece num valor escapado (todo `~` vira `~t`), e por isso a chave `parent`
+de um campo nunca produz o id da chave `tenant` de dois campos com o mesmo nome. Sem pai, a chave está
+incompleta como se lhe faltasse um campo: a esparsa não reserva, a obrigatória é lacuna que aponta o campo
+do pai.
+
+O campo do pai vem da TELA (`parentFieldKey`), não da chave — por isso `planRecordKeys` exige
+`ScopedRecordKeySpec`, que só `resolveRecordKeys` (`screenEntity.ts`) produz, e não aceita a
+`RecordKeySpec` declarada. Até a 9.211.1 a gravação recebia a declarada e ignorava o escopo: a chave
+`parent` valia no escritório inteiro, e a mesma movimentação no mesmo dia e hora num processo recusava a
+de outro. O tipo é o que impede um caminho de gravação novo de repetir isso; `resolveEntityKeys` continua
+sendo a declaração, que é o que o catálogo instalado exporta.
+
 **A trava é a regra, e é sutil:** o bloco `recordKeys` do `firestore.rules` libera `create` e **não**
 libera `update`. No Firestore, `create` só dispara quando o documento não existe — então escrever sobre
 uma reserva ocupada é negado, e a negação derruba o lote **inteiro**, atomicamente. Não há janela entre
@@ -14346,8 +14361,11 @@ não cabia: o sandbox da migração tem teto de gravações por execução, e um
 na primeira página. Agora é o kernel que adota, no mesmo molde do recálculo de agregados.
 
 **A identidade é a declaração, por chave.** `recordKeySignature` (`domain/schema/recordKeyAdoption.ts`,
-compartilhado) é o JSON de `fields`, `scope`, a normalização efetiva e `sparse` efetivo — só o que muda
-QUAL reserva um registro recebe, ou se ele recebe uma. A formatação entra pelo **conteúdo** do preset, e
+compartilhado) é o JSON de `fields`, `scope`, a normalização efetiva e `sparse` efetivo — e, no escopo
+`parent`, o campo do pai resolvido — só o que muda QUAL reserva um registro recebe, ou se ele recebe uma.
+O campo do pai foi o que readotou sozinhas, na 9.211.1, as chaves `parent` reservadas com o id do
+escritório: a assinatura mudou, a primeira listagem aberta por um administrador pediu a conferência, e a
+varredura trocou cada reserva pela de dentro do pai. As chaves `tenant` não mudaram de assinatura. A formatação entra pelo **conteúdo** do preset, e
 não só pelo nome: a extensão que muda o que `digits` faz muda todas as reservas feitas com ele, e é a
 mesma varredura que as refaz. Mudar a mensagem, ou trocar `unique` + `sparse: false` por `primary`, não
 varre nada.
