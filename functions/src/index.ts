@@ -70,6 +70,8 @@ export {
 } from './infrastructure/handlers/notifications';
 export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEventCreated';
 export { syncWorkflowClock, runWorkflowClock } from './infrastructure/handlers/workflowClock';
+export { onHttpDispatchWritten } from './infrastructure/handlers/httpDispatch';
+export { testHttpRequest } from './infrastructure/handlers/testHttpRequest';
 export { getWorkflowStepCatalog } from './infrastructure/handlers/getWorkflowStepCatalog';
 export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/publishWorkflowEventOnEntityChange';
 export { publishWorkflowEventOnAuditLog } from './infrastructure/handlers/publishWorkflowEventOnAuditLog';

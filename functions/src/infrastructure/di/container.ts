@@ -252,6 +252,10 @@ import { makeCreateOrganizationUseCase } from '../../domain/usecases/CreateOrgan
 import type { CreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
 import { SafeHttpClient } from '../http/SafeHttpClient';
 import { FirestoreHttpCredentialRepository } from '../../data/repositories/FirestoreHttpCredentialRepository';
+import { FirestoreHttpDispatchRepository } from '../../data/repositories/FirestoreHttpDispatchRepository';
+import type { IHttpDispatchRepository } from '../../domain/repositories/IHttpDispatchRepository';
+import type { HttpDeliveryDeps } from '../../domain/services/httpDelivery';
+import { makeDeliverHttpDispatchUseCase, type DeliverHttpDispatchUseCase } from '../../domain/usecases/DeliverHttpDispatchUseCase';
 import { officeSetting } from '../settings/officeSettings';
 import { asStringList, HTTP_ALLOWED_HOSTS_PROPERTY, HTTP_ALLOWED_PORTS_PROPERTY } from '../../domain/schema/httpRequestSpec';
 
@@ -265,6 +269,9 @@ class DIContainer {
   /** Um por instância: guarda a descoberta e as chaves dos provedores entre as entradas. */
   private oidcClient?: IOidcClient;
   private projectPortalRecordUC?: ProjectPortalRecordUseCase;
+  private httpDeliveryDeps?: HttpDeliveryDeps;
+  private httpDispatchRepository?: IHttpDispatchRepository;
+  private deliverHttpDispatchUC?: DeliverHttpDispatchUseCase;
   private aiConnectionRepo?: IAIConnectionRepository;
   private permissionCatalogCache?: PermissionCatalogCache;
   private materializeMemberPermissionsUC?: MaterializeMemberPermissionsUseCase;
@@ -1254,16 +1261,40 @@ class DIContainer {
       workflowDefinitionRepository: this.getWorkflowDefinitionRepository(),
       aiConnectionRepository: this.getAIConnectionRepository(),
       callAIUseCase: this.getCallAIUseCase(),
-      http: {
+      http: { ...this.getHttpDeliveryDeps(), dispatches: this.getHttpDispatchRepository() },
+    });
+    this.workflowStepsRegistered = true;
+  }
+
+  /** A saída HTTP e a fronteira do escritório — as mesmas para o passo, a fila e o teste do editor. */
+  getHttpDeliveryDeps(): HttpDeliveryDeps {
+    if (!this.httpDeliveryDeps) {
+      this.httpDeliveryDeps = {
         client: new SafeHttpClient(),
         policyOf: async (tenantId) => ({
           allowedHosts: asStringList(await officeSetting(tenantId, HTTP_ALLOWED_HOSTS_PROPERTY)),
           allowedPorts: asStringList(await officeSetting(tenantId, HTTP_ALLOWED_PORTS_PROPERTY)),
         }),
         credentials: new FirestoreHttpCredentialRepository(getDb()),
-      },
-    });
-    this.workflowStepsRegistered = true;
+      };
+    }
+    return this.httpDeliveryDeps;
+  }
+
+  getHttpDispatchRepository(): IHttpDispatchRepository {
+    if (!this.httpDispatchRepository) this.httpDispatchRepository = new FirestoreHttpDispatchRepository(getDb());
+    return this.httpDispatchRepository;
+  }
+
+  getDeliverHttpDispatchUseCase(): DeliverHttpDispatchUseCase {
+    if (!this.deliverHttpDispatchUC) {
+      this.deliverHttpDispatchUC = makeDeliverHttpDispatchUseCase({
+        delivery: this.getHttpDeliveryDeps(),
+        dispatches: this.getHttpDispatchRepository(),
+        now: () => new Date(),
+      });
+    }
+    return this.deliverHttpDispatchUC;
   }
 }
 

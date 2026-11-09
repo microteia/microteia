@@ -27,6 +27,8 @@ import { UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL, type UpsertStepConfig } from '..
 import { QUERY_PAGE_SINCE_KERNEL, type QuerySpec } from '../../schema/querySpec';
 import {
   HTTP_REQUEST_SINCE_KERNEL,
+  HTTP_ASYNC_SINCE_KERNEL,
+  HTTP_CALLBACK_INPUT,
   HTTP_REQUEST_STEP_ID,
   httpRequestSpecWarnings,
   validateHttpRequestSpec,
@@ -504,6 +506,24 @@ const httpRequestIssues = (
         ref,
         message: '@core.marketplace/issue.step.input-kernel',
         messageParams: { step: step.id, input: 'request.connection', minimum: HTTP_CONNECTION_SINCE_KERNEL },
+      });
+    }
+    // O modo assíncrono e o callback chegaram depois: num kernel anterior a especificação seria lida
+    // como síncrona — a automação ESPERARIA a resposta, e o callback nunca seria chamado.
+    const asyncKernel = rangeExcludesBelow(pkg.manifest?.kernel ?? '', HTTP_ASYNC_SINCE_KERNEL);
+    const mode = (config.value as { mode?: unknown } | null)?.mode;
+    if (mode === 'async' && !asyncKernel) {
+      issues.push({
+        ref,
+        message: '@core.marketplace/issue.step.input-kernel',
+        messageParams: { step: step.id, input: 'request.mode', minimum: HTTP_ASYNC_SINCE_KERNEL },
+      });
+    }
+    if (step.configuration?.[HTTP_CALLBACK_INPUT] !== undefined && !asyncKernel) {
+      issues.push({
+        ref,
+        message: '@core.marketplace/issue.step.input-kernel',
+        messageParams: { step: step.id, input: HTTP_CALLBACK_INPUT, minimum: HTTP_ASYNC_SINCE_KERNEL },
       });
     }
     for (const warning of httpRequestSpecWarnings(config.value)) {

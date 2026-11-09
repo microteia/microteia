@@ -1,5 +1,6 @@
 import React from 'react';
-import { RiAddLine, RiDeleteBinLine } from 'react-icons/ri';
+import { RiAddLine, RiDeleteBinLine, RiPlayLine } from 'react-icons/ri';
+import { Button } from '../../../../components/ui/Button';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { Input } from '../../../../components/ui/Input';
 import { Checkbox } from '../../../../components/ui/Checkbox';
@@ -71,6 +72,18 @@ export const HttpRequestBuilderControl: React.FC<HttpRequestBuilderControlProps>
       </S.Section>
 
       <S.Section>
+        <S.SectionTitle>{t('http.mode')}</S.SectionTitle>
+        <SearchSelect options={vm.modeOptions} value={vm.isAsync ? 'async' : 'sync'} onChange={vm.setMode} />
+        <S.HelpText>{vm.modeHint}</S.HelpText>
+        {vm.isAsync && (
+          <>
+            <Input type="number" value={vm.retriesText} onChange={(e) => vm.setRetriesText(e.target.value)} placeholder={t('http.retries')} />
+            <S.HelpText>{vm.retriesHint}</S.HelpText>
+          </>
+        )}
+      </S.Section>
+
+      <S.Section>
         <S.SectionTitle>{t('http.connection')}</S.SectionTitle>
         <SearchSelect options={vm.connectionOptions} value={vm.spec.connection ?? ''} onChange={vm.setConnection} />
         <S.HelpText>{t('http.connection.hint')}</S.HelpText>
@@ -134,22 +147,59 @@ export const HttpRequestBuilderControl: React.FC<HttpRequestBuilderControlProps>
             <S.HelpText>{vm.timeoutHint}</S.HelpText>
           </S.Section>
         </S.OptionsRow>
-        <Checkbox
-          checked={vm.spec.failOnHttpError !== false}
-          onChange={vm.setFailOnHttpError}
-          label={t('http.fail-on-error')}
-        />
-        <S.HelpText>{t('http.fail-on-error.hint')}</S.HelpText>
+        {!vm.isAsync && (
+          <>
+            <Checkbox
+              checked={vm.spec.failOnHttpError !== false}
+              onChange={vm.setFailOnHttpError}
+              label={t('http.fail-on-error')}
+            />
+            <S.HelpText>{t('http.fail-on-error.hint')}</S.HelpText>
+          </>
+        )}
       </S.Section>
 
+      {!vm.isAsync && (
+        <S.Section>
+          <S.SectionTitle>{t('http.sample')}</S.SectionTitle>
+          <S.Sample
+            value={vm.spec.responseSample ?? ''}
+            onChange={(e) => vm.setResponseSample(e.target.value)}
+            spellCheck={false}
+          />
+          <S.HelpText>{t('http.sample.hint')}</S.HelpText>
+        </S.Section>
+      )}
+
       <S.Section>
-        <S.SectionTitle>{t('http.sample')}</S.SectionTitle>
-        <S.Sample
-          value={vm.spec.responseSample ?? ''}
-          onChange={(e) => vm.setResponseSample(e.target.value)}
-          spellCheck={false}
-        />
-        <S.HelpText>{t('http.sample.hint')}</S.HelpText>
+        <S.SectionTitle>{t('http.test')}</S.SectionTitle>
+        <S.HelpText>{t('http.test.hint')}</S.HelpText>
+        {vm.testFields.map((field) => (
+          <S.TestValue key={field.field}>
+            <S.HelpText>{field.label}</S.HelpText>
+            <Input
+              value={field.value}
+              onChange={(e) => vm.setTestValue(field.field, e.target.value)}
+              placeholder={t('http.test.value')}
+            />
+          </S.TestValue>
+        ))}
+        <S.TestActions>
+          <Button size="sm" variant="secondary" onClick={() => void vm.runTest()} disabled={vm.testing} $isLoading={vm.testing}>
+            <RiPlayLine size={14} /> {t('http.test.run')}
+          </Button>
+          {vm.canUseAsSample && (
+            <Button size="sm" variant="ghost" onClick={vm.applyTestAsSample}>
+              {t('http.test.use-as-sample')}
+            </Button>
+          )}
+        </S.TestActions>
+        {vm.testOutcome && (
+          <>
+            <InfoBanner variant={vm.testOutcome.ok ? 'info' : 'warning'} message={vm.testOutcome.summary} />
+            {vm.testOutcome.body && <S.TestBody>{vm.testOutcome.body}</S.TestBody>}
+          </>
+        )}
       </S.Section>
 
       {(vm.issues.length > 0 || vm.warnings.length > 0) && (

@@ -127,7 +127,7 @@ export type DynamicOutputsMetadata =
     }
   | {
       kind: 'from-http-request';
-      /** ID do input do tipo 'HttpRequest'. As saídas fixas valem sempre; `body.<caminho>` sai do `responseSample`. */
+      /** ID do input do tipo 'HttpRequest'. O modo dele decide quais saídas fixas valem (`isHttpOutputOfMode`); `body.<caminho>` sai do `responseSample`. */
       sourceInputId: string;
       description?: string;
     };

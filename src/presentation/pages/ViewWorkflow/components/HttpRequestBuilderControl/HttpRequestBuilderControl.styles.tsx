@@ -121,4 +121,30 @@ export const S = {
     flex-direction: column;
     gap: ${({ theme }) => theme.spacing.xs};
   `,
+
+  TestValue: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  TestActions: styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  TestBody: styled.pre`
+    margin: 0;
+    max-height: 240px;
+    overflow: auto;
+    padding: ${({ theme }) => theme.spacing.sm};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    background: ${({ theme }) => theme.colors.background};
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    white-space: pre-wrap;
+    word-break: break-word;
+  `,
 };

@@ -3,6 +3,7 @@ import { useT, useLabel } from '../../../../shared/i18n/useT';
 import { useTenant } from '../../../../../stores/useTenant';
 import { useDI } from '../../../../../infrastructure/di/useDI';
 import { makeGetHttpConnectionsUseCase } from '../../../../../domain/usecases/httpconnections/GetHttpConnectionsUseCase';
+import { makeTestHttpRequestUseCase } from '../../../../../domain/usecases/httpconnections/TestHttpRequestUseCase';
 import type { HttpConnection } from '../../../../../domain/schema/httpConnection';
 import { useResolvedSetting } from '../../../../shared/settings/useSettingValue';
 import type { InputMapping } from '../../../../../domain/entities/Workflow';
@@ -16,15 +17,24 @@ import {
   HTTP_ALLOWED_HOSTS_PROPERTY,
   HTTP_BODY_KINDS,
   HTTP_METHODS,
+  HTTP_REQUEST_MODES,
   HTTP_RESPONSE_TYPES,
+  HTTP_RETRIES_DEFAULT,
+  HTTP_RETRIES_MAX,
   HTTP_TIMEOUT_DEFAULT_SECONDS,
   HTTP_TIMEOUT_MAX_SECONDS,
   HTTP_TIMEOUT_MIN_SECONDS,
+  httpDynamicValues,
   httpRequestSpecWarnings,
+  httpSampleFromBody,
+  isAsyncHttpSpec,
   isHttpHostAllowed,
   parseHttpUrl,
   validateHttpRequestSpec,
+  withLiteralValues,
   type HttpBodyKind,
+  type HttpRequestMode,
+  type HttpTestResult,
   type HttpRequestBody,
   type HttpRequestSpec,
   type HttpResponseType,
@@ -86,8 +96,39 @@ const literalHost = (url: InputMapping): string | null => {
   return 'url' in parsed ? parsed.url.hostname : null;
 };
 
+/** Um valor dinâmico da especificação, com o exemplo que a pessoa digitou para o teste. */
+export interface HttpTestField {
+  field: string;
+  label: string;
+  value: string;
+}
+
+/** O resultado do teste, já pronto para mostrar. */
+export interface HttpTestOutcome {
+  ok: boolean;
+  /** "200 em 132 ms", ou a recusa/falha traduzida. */
+  summary: string;
+  /** O corpo da resposta como texto — o que "Usar como exemplo" grava. */
+  body: string;
+}
+
 export interface HttpRequestBuilderControlViewModel {
   spec: HttpRequestSpec;
+  isAsync: boolean;
+  modeOptions: SearchSelectOption[];
+  modeHint: string;
+  setMode: (mode: string) => void;
+  retriesText: string;
+  retriesHint: string;
+  setRetriesText: (text: string) => void;
+  testFields: HttpTestField[];
+  setTestValue: (field: string, value: string) => void;
+  testing: boolean;
+  testOutcome: HttpTestOutcome | null;
+  runTest: () => Promise<void>;
+  /** Só no síncrono — o exemplo alimenta as sugestões de `body.` dos passos seguintes. */
+  canUseAsSample: boolean;
+  applyTestAsSample: () => void;
   methodOptions: SearchSelectOption[];
   bodyKindOptions: SearchSelectOption[];
   responseTypeOptions: SearchSelectOption[];
@@ -130,9 +171,14 @@ export const useHttpRequestBuilderControlViewModel = (
   const spec = useMemo(() => value ?? EMPTY_SPEC, [value]);
   const allowedHosts = asStringList(useResolvedSetting(HTTP_ALLOWED_HOSTS_PROPERTY).value);
   const { currentTenant } = useTenant();
-  const { httpConnectionRepository } = useDI();
+  const { httpConnectionRepository, httpRequestTester } = useDI();
   const getConnections = useMemo(() => makeGetHttpConnectionsUseCase(httpConnectionRepository), [httpConnectionRepository]);
   const [connections, setConnections] = useState<HttpConnection[] | null>(null);
+  const testRequest = useMemo(() => makeTestHttpRequestUseCase(httpRequestTester), [httpRequestTester]);
+  const [testValues, setTestValues] = useState<Record<string, string>>({});
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<HttpTestResult | null>(null);
+  const [testFailed, setTestFailed] = useState(false);
 
   // Só a DESCRIÇÃO das credenciais — chave, nome, domínios. O segredo não é legível pelo navegador.
   useEffect(() => {
@@ -228,6 +274,85 @@ export const useHttpRequestBuilderControlViewModel = (
     [emit, spec],
   );
 
+  const isAsync = isAsyncHttpSpec(spec);
+  const modeOptions = useMemo<SearchSelectOption[]>(
+    () => HTTP_REQUEST_MODES.map((mode) => ({ value: mode, label: t(`http.mode.${mode}`) })),
+    [t],
+  );
+
+  const setMode = useCallback((mode: string) => {
+    const next = (mode || 'sync') as HttpRequestMode;
+    // `sync` não é gravado: ausente é síncrono, e a especificação de antes do modo continua idêntica.
+    emit(next === 'async'
+      ? { ...spec, mode: 'async' }
+      : { ...spec, mode: undefined, retries: undefined });
+  }, [emit, spec]);
+
+  const setRetriesText = useCallback((text: string) => {
+    const trimmed = text.trim();
+    emit({ ...spec, retries: trimmed === '' ? undefined : Number(trimmed) });
+  }, [emit, spec]);
+
+  const dynamicValues = useMemo(() => httpDynamicValues(spec), [spec]);
+  const testFields = useMemo<HttpTestField[]>(
+    () => dynamicValues.map(({ field, name }) => ({
+      field,
+      label: name ? t('http.test.value-named', { name }) : t(field === 'url' ? 'http.url' : 'http.body'),
+      value: testValues[field] ?? '',
+    })),
+    [dynamicValues, testValues, t],
+  );
+
+  const setTestValue = useCallback((field: string, value: string) => {
+    setTestValues((current) => ({ ...current, [field]: value }));
+  }, []);
+
+  const runTest = useCallback(async () => {
+    if (!currentTenant) return;
+    // O corpo inteiro vindo de um valor (`json-from`) é um OBJETO: o exemplo digitado é lido como JSON
+    // quando dá. Os demais seguem como texto — é o que um parâmetro ou cabeçalho é na rede.
+    const values: Record<string, unknown> = {};
+    for (const [field, text] of Object.entries(testValues)) {
+      if (field === 'body.value' && spec.body?.kind === 'json-from') {
+        try {
+          values[field] = JSON.parse(text) as unknown;
+          continue;
+        } catch {
+          // Não é JSON: vai como texto, e a API diz o que achou dele.
+        }
+      }
+      values[field] = text;
+    }
+    setTesting(true);
+    setTestFailed(false);
+    setTestResult(null);
+    try {
+      setTestResult(await testRequest.execute(currentTenant.id, withLiteralValues(spec, values)));
+    } catch {
+      setTestFailed(true);
+    } finally {
+      setTesting(false);
+    }
+  }, [currentTenant, spec, testRequest, testValues]);
+
+  const testOutcome = useMemo<HttpTestOutcome | null>(() => {
+    if (testFailed) return { ok: false, summary: t('http.test.failed'), body: '' };
+    if (!testResult) return null;
+    const head = testResult.status > 0
+      ? t('http.test.status', { status: String(testResult.status), ms: String(testResult.durationMs) })
+      : '';
+    const problem = testResult.error ? label(testResult.error, testResult.errorParams) : '';
+    return {
+      ok: testResult.ok,
+      summary: [head, problem].filter(Boolean).join(' — '),
+      body: testResult.body === null || testResult.body === undefined ? '' : httpSampleFromBody(testResult.body),
+    };
+  }, [testFailed, testResult, t, label]);
+
+  const applyTestAsSample = useCallback(() => {
+    if (testOutcome?.body) emit({ ...spec, responseSample: testOutcome.body });
+  }, [emit, spec, testOutcome]);
+
   const issues = useMemo(
     () => validateHttpRequestSpec(spec).map((issue) => label(issue.error, issue.errorParams)),
     [spec, label],
@@ -256,6 +381,20 @@ export const useHttpRequestBuilderControlViewModel = (
   const body = spec.body;
   return {
     spec,
+    isAsync,
+    modeOptions,
+    modeHint: t(isAsync ? 'http.mode.async.hint' : 'http.mode.sync.hint'),
+    setMode,
+    retriesText: spec.retries === undefined ? '' : String(spec.retries),
+    retriesHint: t('http.retries.hint', { max: String(HTTP_RETRIES_MAX), default: String(HTTP_RETRIES_DEFAULT) }),
+    setRetriesText,
+    testFields,
+    setTestValue,
+    testing,
+    testOutcome,
+    runTest,
+    canUseAsSample: !isAsync && !!testOutcome?.ok && testOutcome.body !== '',
+    applyTestAsSample,
     methodOptions,
     bodyKindOptions,
     responseTypeOptions,

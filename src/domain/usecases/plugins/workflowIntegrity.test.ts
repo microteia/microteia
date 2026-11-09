@@ -6,7 +6,7 @@ import { PORTAL_TRACK_VIEWS_SINCE_KERNEL } from '../../schema/portal';
 import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { QUERY_PAGE_SINCE_KERNEL } from '../../schema/querySpec';
 import { CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL } from '../../schema/eventCatalog';
-import { HTTP_REQUEST_SINCE_KERNEL } from '../../schema/httpRequestSpec';
+import { HTTP_ASYNC_SINCE_KERNEL, HTTP_REQUEST_SINCE_KERNEL } from '../../schema/httpRequestSpec';
 import { HTTP_CONNECTION_SINCE_KERNEL } from '../../schema/httpConnection';
 
 /**
@@ -685,6 +685,41 @@ describe('passo http-request no pacote', () => {
       ['@core.marketplace/issue.step.input-kernel', 'request.connection', HTTP_CONNECTION_SINCE_KERNEL],
     ]);
     expect(workflowStepIssues(comKernel([comCredencial], `^${HTTP_CONNECTION_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('o modo assíncrono e o callback exigem o kernel em que existem — num anterior a automação esperaria', () => {
+    const assincrono = chamar({ ...valida, mode: 'async', retries: 2 });
+    const comCallback = passo({
+      id: 'chamar',
+      stepDefinitionId: 'http-request',
+      configuration: {
+        request: { kind: 'Literal', value: { ...valida, mode: 'async' } },
+        targetWorkflowId: { kind: 'Literal', value: 'retorno' },
+        'param.pedido': { kind: 'Event', path: 'id' },
+      },
+    });
+    const kernelIssues = (plugin: MarketplacePlugin) => workflowStepIssues(plugin).map((issue) =>
+      [issue.message, issue.messageParams?.input, issue.messageParams?.minimum]);
+    expect(kernelIssues(comKernel([assincrono], `^${HTTP_CONNECTION_SINCE_KERNEL}`))).toEqual([
+      ['@core.marketplace/issue.step.input-kernel', 'request.mode', HTTP_ASYNC_SINCE_KERNEL],
+    ]);
+    expect(kernelIssues(comKernel([comCallback], `^${HTTP_CONNECTION_SINCE_KERNEL}`))).toEqual([
+      ['@core.marketplace/issue.step.input-kernel', 'request.mode', HTTP_ASYNC_SINCE_KERNEL],
+      ['@core.marketplace/issue.step.input-kernel', 'targetWorkflowId', HTTP_ASYNC_SINCE_KERNEL],
+    ]);
+    // Com o kernel certo, nada: nem o callback, nem os `param.<chave>` dele, que são inputs dinâmicos.
+    expect(workflowStepIssues(comKernel([assincrono], `^${HTTP_ASYNC_SINCE_KERNEL}`))).toEqual([]);
+    expect(workflowStepIssues(comKernel([comCallback], `^${HTTP_ASYNC_SINCE_KERNEL}`))).toEqual([]);
+    // O síncrono de sempre continua cobrando só o kernel do passo.
+    expect(workflowStepIssues(comKernel([chamar({ ...valida, mode: 'sync' })], `^${HTTP_REQUEST_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('modo e tentativas inválidos são recusados', () => {
+    expect(workflowStepIssues(comKernel([chamar({ ...valida, mode: 'later', retries: 9 })], `^${HTTP_ASYNC_SINCE_KERNEL}`))
+      .map((issue) => issue.messageParams?.detail)).toEqual([
+      '@core.automation/step.http.issue.mode',
+      '@core.automation/step.http.issue.retries',
+    ]);
   });
 
   it('a requisição que não é valor fixo é recusada', () => {

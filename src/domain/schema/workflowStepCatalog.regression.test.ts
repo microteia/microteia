@@ -29,7 +29,8 @@ const CONFERIDOS: Record<string, string> = {
   'share-documents': '0d830d57f12e9a',
   'portal-invite': '011a390e0bf30b',
   'portal-revoke': '0e8105faa3e399',
-  'http-request': '1e9289b07c386a',
+  // 9.217.0: o modo assíncrono acrescentou o callback (`targetWorkflowId` + `param.<chave>`) e a saída `dispatchId`.
+  'http-request': '1b0d018be3252c',
 };
 
 /**

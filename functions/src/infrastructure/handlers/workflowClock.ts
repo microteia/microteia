@@ -20,6 +20,9 @@ const MAX_ROUNDS_PER_TICK = 5;
  */
 const TICK_BUDGET_MS = 150_000;
 
+/** Quantos pedidos HTTP vencidos uma volta devolve à fila. O resto fica para a próxima. */
+const HTTP_DISPATCH_SWEEP_LIMIT = 200;
+
 /**
  * Mantém o relógio de cada automação de acordo com a definição dela. A definição é gravada pelo
  * navegador (o editor e a instalação de extensão), e o próximo disparo é calculado AQUI — um número que
@@ -51,6 +54,16 @@ export const syncWorkflowClock = onDocumentWritten(
 export const runWorkflowClock = onSchedule(
   { schedule: `every ${WORKFLOW_CLOCK_TICK_MINUTES} minutes`, region: REGION, timeoutSeconds: 240 },
   async () => {
+    // A fila do passo HTTP assíncrono pega carona neste relógio em vez de ter um agendador próprio: é
+    // uma consulta e algumas gravações, e o escritório que não usa a fila paga só a consulta vazia.
+    // Isolada no try — a fila com defeito não pode atrasar automação de horário nenhuma.
+    try {
+      const requeued = await getDI().getHttpDispatchRepository().requeueDue(new Date(), HTTP_DISPATCH_SWEEP_LIMIT);
+      if (requeued > 0) console.log(`[workflow-clock] ${requeued} pedido(s) HTTP de volta à fila`);
+    } catch (error) {
+      console.error('[workflow-clock] Falha ao devolver pedidos HTTP à fila:', error);
+    }
+
     const deps = getDI().getWorkflowClockDeps();
     const startedAt = Date.now();
     for (let round = 0; round < MAX_ROUNDS_PER_TICK && Date.now() - startedAt < TICK_BUDGET_MS; round += 1) {

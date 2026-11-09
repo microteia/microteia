@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.217.0] — 2026-11-09
+
+- O passo "Chamar API" pode agora enviar em segundo plano: a automação segue sem esperar a resposta, e se o outro sistema estiver fora do ar ou ocupado, o envio é tentado de novo sozinho, com intervalos cada vez maiores.
+- Ao enviar em segundo plano, você escolhe um fluxo para receber o resultado quando ele chegar — com o que o sistema respondeu e os dados que você quiser levar junto, como o registro de origem.
+- Novo botão "Testar chamada" no passo: ele faz uma chamada de verdade, com os mesmos domínios permitidos e a mesma credencial da automação, e mostra a resposta. Com um clique, essa resposta vira o exemplo que alimenta as sugestões dos próximos passos.
+
 #### [9.216.0] — 2026-11-09
 
 - Nova aba "Credenciais de integração" nas configurações do Escritório: cadastre ali o token, a chave de API ou a senha de um sistema externo, e o passo "Chamar API" o envia sem que ele apareça na automação, no histórico ou numa extensão. Depois de gravado, o segredo pode ser trocado, mas não exibido — nem para quem o cadastrou.

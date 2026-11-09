@@ -34,6 +34,17 @@ export type HttpBodyKind = (typeof HTTP_BODY_KINDS)[number];
 export const HTTP_RESPONSE_TYPES = ['auto', 'json', 'text'] as const;
 export type HttpResponseType = (typeof HTTP_RESPONSE_TYPES)[number];
 
+/**
+ * `sync` espera a resposta e a entrega ao passo seguinte; `async` põe o pedido numa fila durável e o
+ * fluxo segue sem esperar — o resultado chega, se o autor quiser, a OUTRA automação (o callback).
+ * Ausente é `sync`: é o que toda especificação gravada antes do modo assíncrono quer dizer.
+ */
+export const HTTP_REQUEST_MODES = ['sync', 'async'] as const;
+export type HttpRequestMode = (typeof HTTP_REQUEST_MODES)[number];
+
+/** O kernel a partir do qual `mode: 'async'` e o callback existem. Ver `HTTP_REQUEST_SINCE_KERNEL`. */
+export const HTTP_ASYNC_SINCE_KERNEL = '2.103.0';
+
 export type HttpRequestBody =
   | { kind: 'none' }
   /** Cada campo vira uma chave do objeto; `cliente.nome` aninha, como os parâmetros de um fluxo. */
@@ -70,7 +81,16 @@ export interface HttpRequestSpec {
    * nem pelo pacote da extensão.
    */
   connection?: string;
+  mode?: HttpRequestMode;
+  /**
+   * Só no modo assíncrono: quantas vezes a fila tenta DE NOVO depois da primeira, quando a falha é
+   * passageira (rede, tempo esgotado, 408, 429, 5xx). Uma resposta 4xx não se repete — ela diria o
+   * mesmo na segunda vez.
+   */
+  retries?: number;
 }
+
+export const isAsyncHttpSpec = (spec: Pick<HttpRequestSpec, 'mode'> | null | undefined): boolean => spec?.mode === 'async';
 
 export const HTTP_CONNECTION_KEY_PATTERN = '^[a-z][a-z0-9-]{1,39}$';
 const CONNECTION_KEY_RE = new RegExp(HTTP_CONNECTION_KEY_PATTERN);
@@ -91,6 +111,42 @@ export const HTTP_TIMEOUT_DEFAULT_SECONDS = 15;
 export const HTTP_TIMEOUT_WITHOUT_BUDGET_SECONDS = 30;
 export const HTTP_RESPONSE_MAX_BYTES = 100 * 1024;
 export const HTTP_MAX_FIELDS = 50;
+
+export const HTTP_RETRIES_MAX = 5;
+export const HTTP_RETRIES_DEFAULT = 3;
+/**
+ * O pedido enfileirado é GRAVADO (o documento da fila), e um documento do Firestore não passa de 1 MiB.
+ * O teto fica bem abaixo disso porque o mesmo documento leva cabeçalhos e os parâmetros do callback.
+ */
+export const HTTP_ASYNC_REQUEST_MAX_BYTES = 256 * 1024;
+/**
+ * Espera antes de cada nova tentativa, em minutos. Quem acorda a fila é o relógio do kernel (a cada
+ * 5 min), então o primeiro intervalo vale, na prática, até a próxima volta dele.
+ */
+export const HTTP_RETRY_DELAYS_MINUTES: readonly number[] = [1, 5, 15, 60, 180];
+/** O teto do `Retry-After` que o servidor pede: além disso, a fila usaria o tempo dele como sumiço. */
+export const HTTP_RETRY_AFTER_MAX_SECONDS = 60 * 60;
+/**
+ * O parâmetro em que o fluxo de callback recebe o resultado da chamada. O nome é fixo — é o contrato
+ * entre a fila e a automação que a escuta —, e por isso um parâmetro do callback com este nome é
+ * sobreposto pelo resultado.
+ */
+export const HTTP_CALLBACK_RESPONSE_PARAM = 'response';
+/** O input do passo que nomeia o fluxo de callback. É o mesmo id que o "Chamar Workflow" usa — ver o catálogo. */
+export const HTTP_CALLBACK_INPUT = 'targetWorkflowId';
+/** A fila do modo assíncrono, em `tenants/{t}/…`. Só o servidor lê e grava. */
+export const HTTP_DISPATCHES_COLLECTION = 'http_dispatches';
+/** Quanto tempo o pedido fica guardado depois de criado (TTL do Firestore em `expiresAt`). */
+export const HTTP_DISPATCH_RETENTION_DAYS = 7;
+/** O pedido em `queued` que ninguém pegou nesse tempo volta para a fila — o gatilho pode ter falhado. */
+export const HTTP_DISPATCH_UNCLAIMED_MINUTES = 10;
+
+/** A única saída do passo no modo assíncrono: o resto só existe quando a resposta chega. */
+export const HTTP_ASYNC_OUTPUT_IDS: readonly string[] = ['dispatchId'];
+
+/** Se uma saída do catálogo existe no modo da especificação. O editor só oferece o que o passo publica. */
+export const isHttpOutputOfMode = (spec: Pick<HttpRequestSpec, 'mode'> | null | undefined, outputId: string): boolean =>
+  isAsyncHttpSpec(spec) === HTTP_ASYNC_OUTPUT_IDS.includes(outputId);
 
 /**
  * Cabeçalhos que o motor controla. `host` e os de enquadramento decidiriam PARA ONDE e COMO a
@@ -275,8 +331,96 @@ export const validateHttpRequestSpec = (value: unknown): HttpRequestSpecIssue[] 
       issues.push({ field: 'responseSample', error: '@core.automation/step.http.issue.sample' });
     }
   }
+  if (spec.mode !== undefined && !(HTTP_REQUEST_MODES as readonly string[]).includes(String(spec.mode))) {
+    issues.push({ field: 'mode', error: '@core.automation/step.http.issue.mode' });
+  }
+  if (spec.retries !== undefined) {
+    const retries = spec.retries;
+    if (typeof retries !== 'number' || !Number.isInteger(retries) || retries < 0 || retries > HTTP_RETRIES_MAX) {
+      issues.push({ field: 'retries', error: '@core.automation/step.http.issue.retries', errorParams: { max: String(HTTP_RETRIES_MAX) } });
+    }
+  }
   return issues;
 };
+
+/** Um valor da especificação que não é fixo, e onde ele está — para o teste pedir um valor de exemplo. */
+export interface HttpDynamicValue {
+  /** `url`, `query[0]`, `body.value`… — o mesmo endereço que as recusas usam. */
+  field: string;
+  /** O nome do parâmetro, cabeçalho ou campo; vazio para a URL e o corpo inteiro. */
+  name: string;
+  mapping: InputMapping;
+}
+
+const LIST_FIELDS = ['pathParams', 'query', 'headers'] as const;
+
+/**
+ * Os valores que só se conhecem quando a automação roda (evento, expressão, saída, variável). O teste
+ * de chamada no editor não tem execução nenhuma: pede um exemplo para cada um destes.
+ */
+export const httpDynamicValues = (spec: HttpRequestSpec): HttpDynamicValue[] => {
+  const found: HttpDynamicValue[] = [];
+  const visit = (field: string, name: string, mapping: InputMapping | undefined) => {
+    if (mapping && mapping.kind !== 'Literal') found.push({ field, name, mapping });
+  };
+  visit('url', '', spec.url);
+  for (const list of LIST_FIELDS) {
+    (spec[list] ?? []).forEach((entry, index) => visit(`${list}[${index}]`, entry.name, entry.value));
+  }
+  const body = spec.body;
+  if (body?.kind === 'json' || body?.kind === 'form') {
+    body.fields.forEach((entry, index) => visit(`body.fields[${index}]`, entry.name, entry.value));
+  } else if (body?.kind === 'json-from' || body?.kind === 'text') {
+    visit('body.value', '', body.value);
+  }
+  return found;
+};
+
+/**
+ * A especificação com cada valor dinâmico trocado pelo exemplo informado (`field` → valor). O que não
+ * tiver exemplo vira texto vazio — o teste chama mesmo assim, e a API diz o que faltou.
+ */
+export const withLiteralValues = (spec: HttpRequestSpec, values: Readonly<Record<string, unknown>>): HttpRequestSpec => {
+  const literal = (field: string, mapping: InputMapping): InputMapping =>
+    mapping.kind === 'Literal' ? mapping : { kind: 'Literal', value: values[field] ?? '' };
+  const fields = (list: string, entries: MapFieldMapping[] | undefined): MapFieldMapping[] | undefined =>
+    entries?.map((entry, index) => ({ ...entry, value: literal(`${list}[${index}]`, entry.value) }));
+  const body = spec.body;
+  return {
+    ...spec,
+    url: literal('url', spec.url),
+    ...(spec.pathParams ? { pathParams: fields('pathParams', spec.pathParams) } : {}),
+    ...(spec.query ? { query: fields('query', spec.query) } : {}),
+    ...(spec.headers ? { headers: fields('headers', spec.headers) } : {}),
+    ...(body?.kind === 'json' || body?.kind === 'form'
+      ? { body: { ...body, fields: fields('body.fields', body.fields) ?? [] } }
+      : body?.kind === 'json-from' || body?.kind === 'text'
+        ? { body: { ...body, value: literal('body.value', body.value) } }
+        : {}),
+  };
+};
+
+/**
+ * O que o "Testar chamada" do editor devolve. A recusa da fronteira também vem por aqui (`error`), e
+ * não como exceção: é a resposta que o teste existe para mostrar.
+ */
+export interface HttpTestResult {
+  ok: boolean;
+  status: number;
+  headers: Record<string, string>;
+  body: unknown;
+  durationMs: number;
+  timedOut: boolean;
+  error: string | null;
+  errorParams?: Record<string, string>;
+}
+
+/** O teste espera no máximo isto, seja qual for o tempo do passo: quem espera é uma pessoa na tela. */
+export const HTTP_TEST_TIMEOUT_SECONDS = 30;
+
+/** O exemplo de resposta a partir do corpo de verdade: o JSON indentado, ou o texto como veio. */
+export const httpSampleFromBody = (body: unknown): string =>
+  typeof body === 'string' ? body : JSON.stringify(body ?? null, null, 2);
 
 /**
  * O que não impede a automação de rodar, mas não deveria estar ali: o segredo com valor fixo. O

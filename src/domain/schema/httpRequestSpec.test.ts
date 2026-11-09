@@ -16,6 +16,11 @@ import {
   urlPlaceholders,
   validateHttpRequestSpec,
   type HttpRequestSpec,
+  httpDynamicValues,
+  httpSampleFromBody,
+  isAsyncHttpSpec,
+  isHttpOutputOfMode,
+  withLiteralValues,
 } from './httpRequestSpec';
 import { validateSettingValue } from './settings';
 
@@ -227,5 +232,67 @@ describe('IntelliSense — a forma do exemplo de resposta', () => {
     expect(httpSampleFields(undefined)).toEqual([]);
     expect(httpSampleFields('{ruim')).toEqual([]);
     expect(httpSampleFields('[1,2]')).toEqual([]);
+  });
+});
+
+describe('modo assíncrono — a especificação', () => {
+  const base = { method: 'GET', url: { kind: 'Literal', value: 'https://api.exemplo.com/x' } };
+
+  it('modo ausente é síncrono; tentativas de 0 a 5', () => {
+    expect(isAsyncHttpSpec(base as HttpRequestSpec)).toBe(false);
+    expect(isAsyncHttpSpec({ mode: 'async' })).toBe(true);
+    expect(validateHttpRequestSpec({ ...base, mode: 'async', retries: 0 })).toEqual([]);
+    expect(validateHttpRequestSpec({ ...base, mode: 'async', retries: 5 })).toEqual([]);
+    expect(validateHttpRequestSpec({ ...base, mode: 'depois' }).map((issue) => issue.error)).toEqual(['@core.automation/step.http.issue.mode']);
+    for (const retries of [-1, 6, 1.5, '2']) {
+      expect(validateHttpRequestSpec({ ...base, retries }).map((issue) => issue.error)).toEqual(['@core.automation/step.http.issue.retries']);
+    }
+  });
+
+  it('cada modo publica as suas saídas: o assíncrono só o id do pedido', () => {
+    expect(isHttpOutputOfMode({ mode: 'async' }, 'dispatchId')).toBe(true);
+    expect(isHttpOutputOfMode({ mode: 'async' }, 'status')).toBe(false);
+    expect(isHttpOutputOfMode({}, 'status')).toBe(true);
+    expect(isHttpOutputOfMode({}, 'dispatchId')).toBe(false);
+    expect(isHttpOutputOfMode(null, 'body')).toBe(true);
+  });
+});
+
+describe('teste de chamada — valores de exemplo', () => {
+  const event = (path: string) => ({ kind: 'Event', path }) as const;
+  const spec: HttpRequestSpec = {
+    method: 'POST',
+    url: { kind: 'Literal', value: 'https://api.exemplo.com/{id}' },
+    pathParams: [{ name: 'id', value: event('id') }],
+    query: [{ name: 'fixo', value: { kind: 'Literal', value: '1' } }, { name: 'q', value: { kind: 'Variable', name: 'busca' } }],
+    headers: [{ name: 'X-Trace', value: { kind: 'Expression', expression: 'now()' } }],
+    body: { kind: 'json', fields: [{ name: 'nome', value: event('cliente') }] },
+  };
+
+  it('lista só o que não é fixo, com o endereço e o nome de cada um', () => {
+    expect(httpDynamicValues(spec).map(({ field, name }) => [field, name])).toEqual([
+      ['pathParams[0]', 'id'],
+      ['query[1]', 'q'],
+      ['headers[0]', 'X-Trace'],
+      ['body.fields[0]', 'nome'],
+    ]);
+    expect(httpDynamicValues({ ...spec, url: event('url'), body: { kind: 'json-from', value: event('obj') } }).map(({ field }) => field))
+      .toEqual(['url', 'pathParams[0]', 'query[1]', 'headers[0]', 'body.value']);
+  });
+
+  it('troca cada valor dinâmico pelo exemplo, sem tocar no que já é fixo; sem exemplo, vazio', () => {
+    const literal = withLiteralValues(spec, { 'pathParams[0]': 'p1', 'body.fields[0]': 'Ana' });
+    expect(httpDynamicValues(literal)).toEqual([]);
+    expect(literal.pathParams?.[0].value).toEqual({ kind: 'Literal', value: 'p1' });
+    expect(literal.query?.[0].value).toEqual({ kind: 'Literal', value: '1' });
+    expect(literal.query?.[1].value).toEqual({ kind: 'Literal', value: '' });
+    expect(literal.body).toEqual({ kind: 'json', fields: [{ name: 'nome', value: { kind: 'Literal', value: 'Ana' } }] });
+    expect(validateHttpRequestSpec(literal)).toEqual([]);
+  });
+
+  it('o exemplo de resposta sai do corpo: objeto indentado, texto como veio', () => {
+    expect(httpSampleFromBody({ a: 1 })).toBe('{\n  "a": 1\n}');
+    expect(httpSampleFromBody('ok')).toBe('ok');
+    expect(httpSampleFromBody(null)).toBe('null');
   });
 });

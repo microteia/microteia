@@ -7534,7 +7534,8 @@ devolvia 100 e o histórico dizia só "100 registros encontrados".
 ### Passo "Chamar API (HTTP)" (`http-request`) — integração REST declarada
 
 O passo `http-request` (`functions/src/infrastructure/workflow/steps/HttpRequestStep.ts`) chama uma API
-REST de fora e espera a resposta, que os passos seguintes leem como qualquer saída. Kernel
+REST de fora e espera a resposta, que os passos seguintes leem como qualquer saída — ou, no modo
+assíncrono, a põe numa fila e segue (ver abaixo). Kernel
 `HTTP_REQUEST_SINCE_KERNEL` = 2.101.0: o portão do pacote reprova o passo num pacote que admite kernel
 anterior (`issue.step.definition-kernel`).
 
@@ -7615,6 +7616,69 @@ qualquer outro domínio liberado.
 `redactSecrets` antes de chegar ao histórico. A API pode ecoar o cabeçalho; o histórico é lido por quem
 nunca pôde ver o segredo. A leitura (`FirestoreHttpCredentialRepository`) não tem cache: trocar ou
 apagar o segredo vale na chamada seguinte.
+
+**Uma fronteira, quatro portas.** `checkHttpBoundary` e `deliverHttp`
+(`functions/src/domain/services/httpDelivery.ts`) são a lista de domínios, as portas, a credencial e o
+envio. O passo síncrono, o enfileiramento, a entrega da fila e o "Testar chamada" do editor passam pelas
+duas — nenhuma porta tem recusa que as outras não tenham.
+
+#### Modo assíncrono — fila durável, retentativa e callback
+
+`HttpRequestSpec.mode: 'async'` (kernel `HTTP_ASYNC_SINCE_KERNEL` = 2.103.0; ausente é síncrono, e por
+isso toda especificação de antes continua idêntica) põe o pedido numa fila e o fluxo segue sem esperar.
+O passo publica só `dispatchId` (`isHttpOutputOfMode`: o editor esconde as saídas do outro modo e não
+sugere `body.<caminho>`).
+
+**Enfileirar confere a fronteira ANTES.** Domínio fora da lista, credencial inexistente ou que não vai
+para o domínio falham o passo na automação que os causou; descobrir isso na fila, minutos depois, seria
+tarde. A entrega confere de novo, porque lista e credencial mudam enquanto o pedido espera. O pedido é
+gravado JÁ MONTADO (valores resolvidos na hora da execução) e **sem o segredo**: a credencial vai pela
+chave e é aplicada a cada tentativa. Teto de `HTTP_ASYNC_REQUEST_MAX_BYTES` (256 KB) para pedido +
+parâmetros do callback — o documento não passa de 1 MiB.
+
+**A fila** é `tenants/{t}/http_dispatches/{id}` (só o servidor lê e grava; reservada nas duas pontas),
+com o molde de `aggregate_backfills`: **a gravação é o gatilho**. `onHttpDispatchWritten` acorda quando o
+pedido fica `queued`, reserva-o em transação (`sending`, tentativa + 1) e entrega UMA tentativa
+(`DeliverHttpDispatchUseCase`). Estados: `queued` → `sending` → `waiting` | `done` | `failed`.
+
+`nextAttemptAt` existe em todo estado NÃO final e diz quando olhar de novo — o fim da espera, o fim da
+reserva (tempo máximo da tentativa + 60 s) ou o prazo para alguém pegar (10 min). O `runWorkflowClock`
+(a cada 5 min) faz `requeueDue`: UMA consulta de grupo por `nextAttemptAt <= agora` devolve a `queued`
+a espera vencida, a entrega que morreu no meio e o pedido que o gatilho perdeu. Sem agendador próprio,
+isolada num `try` — a fila com defeito não atrasa automação de horário.
+
+| Resultado da tentativa | O que acontece |
+|---|---|
+| 2xx | `done` |
+| rede, tempo esgotado, 408, 429, 5xx | `waiting` e nova tentativa: 1, 5, 15, 60, 180 min (`HTTP_RETRY_DELAYS_MINUTES`), ou o `Retry-After` se for maior (teto 1 h) |
+| outro 4xx, resposta grande demais, JSON inválido em `json` | `failed` — repetir daria o mesmo |
+| a fronteira mudou (domínio, porta, credencial) | `failed`, sem chamar |
+| tentativas esgotadas (`1 + retries`, padrão 3, máx. 5) | `failed` com a última resposta |
+| reserva perdida para outra entrega | a tentativa não encerra nem reagenda (`lost`) |
+
+A fila manda `Idempotency-Key: <id do pedido>` quando o autor não pôs um: repetir é o que ela faz, e o
+servidor que entende a chave reconhece a repetição. Sem `retry` na function — a retentativa é da fila.
+TTL de 7 dias em `expiresAt`.
+
+**O callback** é o input `targetWorkflowId` do passo — o MESMO id do "Chamar Workflow", de propósito: é
+por ele que a instalação de uma extensão remapeia o template para o id real e que a referência entre
+artefatos é rastreada (`TARGET_WORKFLOW_ID_INPUT`). Os outros parâmetros do fluxo-alvo aparecem como
+`param.<chave>` (`dynamicInputs: from-target-workflow-parameters`) e são resolvidos AO ENFILEIRAR. Ao
+terminar, `finish` grava o fim e o evento `workflow.called` (alvo + parâmetros + `response`: `ok`,
+`status`, `headers`, `body`, `durationMs`, `error`, `timedOut`, `dispatchId`, `attempts`) NA MESMA
+TRANSAÇÃO — encerrar sem avisar, ou avisar duas vezes, não acontece. O callback herda o teto de
+profundidade do "Chamar Workflow" (`MAX_CALL_DEPTH`), o que impede um laço de chamadas sem fim, e o
+`actor` publicado de quem causou a execução. No modo síncrono o callback é ignorado com aviso.
+
+#### Testar chamada
+
+O editor do passo envia UMA requisição de verdade pela callable `testHttpRequest`
+(`automation.manage`): mesma montagem (`prepareHttpCall`), mesma fronteira, mesma redação, tempo
+limitado a `HTTP_TEST_TIMEOUT_SECONDS`. O navegador nunca chama a API de fora — a lista de domínios e a
+credencial moram no servidor, e o CORS da API barraria o teste. Os valores que vêm da automação
+(`httpDynamicValues`) são pedidos como exemplo e trocados por fixos (`withLiteralValues`); a callable
+recusa mapping que não seja fixo. No síncrono, "Usar como exemplo de resposta" grava o corpo em
+`responseSample`.
 
 ### Orçamento de tempo da execução — `deadlineAt`
 
@@ -15641,7 +15705,7 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara doze `fieldOverrides`:
+Além dos compostos, o arquivo declara catorze `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
@@ -15656,6 +15720,8 @@ Além dos compostos, o arquivo declara doze `fieldOverrides`:
 | `portalSignInRequests` | `expiresAt` | TTL — o pedido de entrada no portal por um provedor de identidade que nunca voltou (a pessoa desistiu no provedor). O que volta é apagado ao ser gasto; sem índice, porque só é lido pelo id |
 | `portalViewMarks` | `expiresAt` | TTL — a marca de "esta abertura já foi registrada" vale a janela de repetição (`PORTAL_VIEW_REPEAT_MINUTES`); sem índice, porque só é lida pelo id |
 | `registrationRefusals` | `expiresAt` | TTL — a recusa de conta nova só serve à tentativa em curso (1 dia); sem índice, porque só é lida pelo id |
+| `http_dispatches` (collectionGroup) | `nextAttemptAt` ASC | `runWorkflowClock` devolve à fila, em todos os escritórios de uma vez, o pedido HTTP assíncrono cuja espera venceu, cuja entrega morreu no meio ou que ninguém pegou |
+| `http_dispatches` | `expiresAt` | TTL — o pedido HTTP assíncrono fica 7 dias depois de criado; o resultado já foi para o callback |
 
 ---
 

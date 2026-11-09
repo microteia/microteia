@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import type { CustomFieldType, FieldDefinition, FieldOrigin } from '../entities/entitySchemas';
+import { HTTP_DISPATCHES_COLLECTION } from './httpRequestSpec';
 import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
 import { BUILTIN_ENTITY_KEYS, ENTITY_REGISTRY, SCHEMA_VERSION } from './entityRegistry';
 import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
@@ -635,6 +636,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'secrets',
   'settings',
   'httpConnections',
+  HTTP_DISPATCHES_COLLECTION,
   AGENT_GRANTS_COLLECTION,
   RECORD_KEYS_COLLECTION,
   NOTIFICATION_INBOX_COLLECTION,

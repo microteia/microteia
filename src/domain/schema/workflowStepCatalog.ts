@@ -192,7 +192,7 @@ export type DynamicOutputsMetadata =
     }
   | {
       kind: 'from-http-request';
-      /** ID do input do tipo 'HttpRequest'. As saídas fixas valem sempre; `body.<caminho>` sai do `responseSample`. */
+      /** ID do input do tipo 'HttpRequest'. O modo dele decide quais saídas fixas valem (`isHttpOutputOfMode`); `body.<caminho>` sai do `responseSample`. */
       sourceInputId: string;
       description?: string;
     };
@@ -1258,8 +1258,24 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         type: 'HttpRequest',
         allowedMappingKinds: ['Literal'],
       },
+      {
+        /**
+         * O fluxo que recebe o resultado de uma chamada ASSÍNCRONA. O id é o MESMO do "Chamar Workflow"
+         * de propósito: é por ele que a instalação de uma extensão remapeia o template para o id real, e
+         * que a referência entre artefatos é rastreada (`TARGET_WORKFLOW_ID_INPUT`). Um nome próprio
+         * aqui deixaria o callback de toda extensão apontando para um template que não existe.
+         */
+        id: 'targetWorkflowId',
+        label: '@core.automation/step.http.label.callback',
+        description: '@core.automation/step.http.callback.description',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'workflow',
+      },
     ],
     outputDefinitions: [
+      { id: 'dispatchId', label: '@core.automation/step.http.output.dispatch-id', type: 'String' },
       { id: 'ok', label: '@core.automation/step.http.output.ok', type: 'Boolean' },
       { id: 'status', label: '@core.automation/step.http.output.status', type: 'Number' },
       { id: 'body', label: '@core.automation/step.http.output.body', type: 'String' },
@@ -1268,6 +1284,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'error', label: '@core.automation/step.http.output.error', type: 'String' },
       { id: 'timedOut', label: '@core.automation/step.http.output.timed-out', type: 'Boolean' },
     ],
+    dynamicInputs: { kind: 'from-target-workflow-parameters', sourceInputId: 'targetWorkflowId' },
     dynamicOutputs: {
       kind: 'from-http-request',
       sourceInputId: 'request',

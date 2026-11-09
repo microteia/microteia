@@ -48,7 +48,13 @@ import type {
 import type { QuerySpec } from '../../../domain/schema/querySpec';
 import type { MapStepConfig } from '../../../domain/schema/mapSpec';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
-import { httpSampleFields, httpSamplePaths } from '../../../domain/schema/httpRequestSpec';
+import {
+  HTTP_CALLBACK_RESPONSE_PARAM,
+  httpSampleFields,
+  httpSamplePaths,
+  isAsyncHttpSpec,
+  isHttpOutputOfMode,
+} from '../../../domain/schema/httpRequestSpec';
 import type { HttpRequestSpec, HttpSampleField } from '../../../domain/schema/httpRequestSpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
@@ -88,11 +94,15 @@ const httpSampleOutputs = (
   t: TranslateFn,
   step: WorkflowStep,
   definition: StepDefinitionSummary,
-): { id: string; label: string }[] =>
-  httpSamplePaths(httpSampleFields(httpSpecOf(step, definition)?.responseSample ?? undefined)).map((path) => ({
+): { id: string; label: string }[] => {
+  const spec = httpSpecOf(step, definition);
+  // No assíncrono a resposta não volta para este fluxo: não há `body` para sugerir.
+  if (isAsyncHttpSpec(spec)) return [];
+  return httpSamplePaths(httpSampleFields(spec?.responseSample ?? undefined)).map((path) => ({
     id: path,
     label: t('step.http.output.body-path', { path: path.slice('body.'.length) }),
   }));
+};
 
 /** O exemplo como forma de schema, para `input.body.` navegar como `event.` navega. */
 const sampleNativeFields = (fields: readonly HttpSampleField[]): NativeFieldSpec[] =>
@@ -493,7 +503,12 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       : dynamicTargetKind === 'document-template'
         ? (targetTemplate?.parameters ?? [])
         : (targetWorkflow?.parameters ?? []);
-    const paramInputs = source.flatMap(
+    // No callback do passo HTTP, `response` é preenchido pela fila com o resultado — e sobreposto se
+    // alguém o preenchesse aqui. Mostrá-lo seria pedir um valor que nunca chega; obrigatório, travaria o Salvar.
+    const fromHttp = selectedDefinition.dynamicOutputs?.kind === 'from-http-request';
+    const paramInputs = source
+      .filter((parameter) => !fromHttp || parameter.key !== HTTP_CALLBACK_RESPONSE_PARAM)
+      .flatMap(
       (parameter) => flattenParameterInputs(label, parameterForDisplay(label, parameter)),
     );
     return [...declared, ...paramInputs];
@@ -923,7 +938,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
       const outputs: { id: string; label: string }[] = [];
 
+      // O passo HTTP publica saídas diferentes em cada modo; oferecer as do outro é sugerir um caminho
+      // que resolve vazio em toda execução.
+      const httpSpec = httpSpecOf(step, definition);
       definition.outputDefinitions.forEach((output) => {
+        if (definition.dynamicOutputs?.kind === 'from-http-request' && !isHttpOutputOfMode(httpSpec, output.id)) return;
         outputs.push({ id: output.id, label: output.label });
       });
 
@@ -1062,7 +1081,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
       const httpSpec = httpSpecOf(step, definition);
       if (httpSpec) {
-        const sample = httpSampleFields(httpSpec.responseSample);
+        const sample = isAsyncHttpSpec(httpSpec) ? [] : httpSampleFields(httpSpec.responseSample);
         if (sample.length > 0) {
           fields.push({ key: 'body', label: 'body', type: 'object', objectFields: sampleNativeFields(sample) });
         }

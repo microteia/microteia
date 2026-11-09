@@ -2,6 +2,7 @@ import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engin
 import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
 import { buildNestedParams } from '../../../domain/engine/nestedParams';
+import { toPublishedActor } from '../../../domain/engine/workflowActor';
 import type { InputMapping } from '../../../domain/entities/Workflow';
 import type { WorkflowContext, WorkflowResult } from '../../../domain/entities/WorkflowContext';
 import type { MapFieldMapping } from '../../../domain/schema/mapSpec';
@@ -9,35 +10,40 @@ import {
   buildHttpUrl,
   describeHttpTarget,
   headerValueOf,
+  HTTP_ASYNC_REQUEST_MAX_BYTES,
   HTTP_REQUEST_STEP_ID,
-  HTTP_RESPONSE_MAX_BYTES,
+  HTTP_RETRIES_DEFAULT,
   HTTP_TIMEOUT_DEFAULT_SECONDS,
   HTTP_TIMEOUT_WITHOUT_BUDGET_SECONDS,
-  isHttpHostAllowed,
-  isHttpPortAllowed,
+  isAsyncHttpSpec,
   queryPairs,
   validateHttpRequestSpec,
   type HttpRequestSpec,
 } from '../../../domain/schema/httpRequestSpec';
-import { HttpClientError, type HttpIncomingResponse, type HttpOutgoingRequest, type IHttpClient } from '../../../domain/repositories/IHttpClient';
+import type { HttpOutgoingRequest } from '../../../domain/repositories/IHttpClient';
+import type { HttpDispatchCallback, IHttpDispatchQueue } from '../../../domain/repositories/IHttpDispatchRepository';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
-import type { IHttpCredentialRepository } from '../../../domain/repositories/IHttpCredentialRepository';
-import { applyHttpCredential, redactSecrets } from '../../../domain/schema/httpConnection';
+import { redactSecrets } from '../../../domain/schema/httpConnection';
+import {
+  checkHttpBoundary,
+  deliverHttp,
+  publicHeaders,
+  type HttpDeliveryDeps,
+  type HttpRefusal,
+} from '../../../domain/services/httpDelivery';
+import { MAX_CALL_DEPTH } from './CallWorkflowStep';
 
-/** O que o escritório liberou nas Configurações. Ver `HTTP_SETTINGS_PROPERTIES`. */
-export interface HttpPolicy {
-  allowedHosts: string[];
-  allowedPorts: string[];
+export type { HttpPolicy } from '../../../domain/services/httpDelivery';
+
+export interface HttpStepDeps extends HttpDeliveryDeps {
+  /**
+   * A fila do modo assíncrono. Opcional porque nem toda porta que monta o motor sabe enfileirar; sem
+   * ela, a chamada assíncrona falha dizendo isso, em vez de virar síncrona sem aviso.
+   */
+  dispatches?: IHttpDispatchQueue;
 }
 
-export interface HttpStepDeps {
-  client: IHttpClient;
-  policyOf(tenantId: string): Promise<HttpPolicy>;
-  credentials: IHttpCredentialRepository;
-}
-
-/** Menos que isto não dá para uma chamada de verdade: melhor dizer que o tempo acabou. */
-const MIN_USEFUL_TIMEOUT_MS = 1000;
+const PARAM_PREFIX = 'param.';
 
 const DEFAULT_ACCEPT = 'application/json, text/plain;q=0.9, */*;q=0.8';
 
@@ -124,31 +130,6 @@ const prepare = (spec: HttpRequestSpec, context: WorkflowContext): HttpOutgoingR
   return { method: spec.method, url: built.url, headers, ...(body ? { body: body.body } : {}) };
 };
 
-const parseBody = (
-  response: HttpIncomingResponse,
-  responseType: HttpRequestSpec['responseType'],
-): { body: unknown } | { invalidJson: true } => {
-  const type = responseType ?? 'auto';
-  const contentType = response.headers['content-type'] ?? '';
-  const wantsJson = type === 'json' || (type === 'auto' && /[/+]json\b/i.test(contentType));
-  if (!wantsJson) return { body: response.bodyText };
-  if (response.bodyText.trim() === '') return { body: null };
-  try {
-    return { body: JSON.parse(response.bodyText) as unknown };
-  } catch {
-    // No `auto`, o servidor que diz JSON e manda outra coisa não derruba o passo: o texto segue como
-    // veio. Quem pediu `json` explicitamente pediu a garantia, e recebe a falha.
-    return type === 'json' ? { invalidJson: true } : { body: response.bodyText };
-  }
-};
-
-/** O que o servidor de fora devolve como cabeçalho é dado; cookie de sessão de terceiro não é. */
-const publicHeaders = (headers: Record<string, string>): Record<string, string> => {
-  const copy = { ...headers };
-  delete copy['set-cookie'];
-  return copy;
-};
-
 const timeoutFor = (spec: HttpRequestSpec, context: WorkflowContext): number => {
   const requested = (spec.timeoutSeconds ?? HTTP_TIMEOUT_DEFAULT_SECONDS) * 1000;
   const deadline = context.services.deadlineAt;
@@ -158,15 +139,10 @@ const timeoutFor = (spec: HttpRequestSpec, context: WorkflowContext): number => 
   return Math.min(requested, available);
 };
 
-const CLIENT_FAILURES: Record<string, string> = {
-  timeout: '@core.automation/step.http.timeout',
-  'too-large': '@core.automation/step.http.too-large',
-  network: '@core.automation/step.http.network',
-};
-
 /**
- * Passo "Chamar API (HTTP)". Síncrono: espera a resposta, até o limite do passo e o que resta do
- * orçamento da execução, e a publica como saída para os passos seguintes.
+ * Passo "Chamar API (HTTP)". Síncrono (padrão): espera a resposta, até o limite do passo e o que resta
+ * do orçamento da execução, e a publica como saída para os passos seguintes. Assíncrono: confere a
+ * fronteira, põe o pedido na fila e segue — ver `enqueue`.
  *
  * Duas famílias de falha, tratadas de jeitos diferentes:
  * - POLÍTICA (domínio fora da lista, porta não liberada, endereço interno, especificação inválida):
@@ -188,98 +164,80 @@ export const makeHttpRequestStepDefinition = (deps: HttpStepDeps): StepDefinitio
   }),
 });
 
+
+const refused = (refusal: HttpRefusal): WorkflowResult => ({
+  success: false,
+  message: refusal.message,
+  ...(refusal.messageParams ? { messageParams: refusal.messageParams } : {}),
+});
+
+/** A especificação validada e o pedido montado — ou a recusa, sem nada ter saído pela rede. */
+export const prepareHttpCall = (
+  value: unknown,
+  context: WorkflowContext,
+): { spec: HttpRequestSpec; outgoing: HttpOutgoingRequest } | { refused: HttpRefusal } => {
+  const issues = validateHttpRequestSpec(value);
+  if (issues.length > 0) {
+    return { refused: { message: issues[0].error, ...(issues[0].errorParams ? { messageParams: issues[0].errorParams } : {}) } };
+  }
+  const spec = value as HttpRequestSpec;
+  try {
+    return { spec, outgoing: prepare(spec, context) };
+  } catch (error) {
+    if (error instanceof StepFailure) return { refused: { message: error.key, ...(error.params ? { messageParams: error.params } : {}) } };
+    throw error;
+  }
+};
+
 const callApi = async (
   deps: HttpStepDeps,
   inputs: Record<string, unknown>,
   context: WorkflowContext,
   secretForms: string[],
 ): Promise<WorkflowResult> => {
-  const issues = validateHttpRequestSpec(inputs.request);
-  if (issues.length > 0) {
-    return { success: false, message: issues[0].error, ...(issues[0].errorParams ? { messageParams: issues[0].errorParams } : {}) };
-  }
-  const spec = inputs.request as HttpRequestSpec;
+  const prepared = prepareHttpCall(inputs.request, context);
+  if ('refused' in prepared) return refused(prepared.refused);
+  const { spec, outgoing } = prepared;
 
-  let outgoing: HttpOutgoingRequest;
-  try {
-    outgoing = prepare(spec, context);
-  } catch (error) {
-    if (error instanceof StepFailure) return { success: false, message: error.key, ...(error.params ? { messageParams: error.params } : {}) };
-    throw error;
+  if (isAsyncHttpSpec(spec)) return enqueue(deps, spec, outgoing, inputs, context);
+  if (typeof inputs.targetWorkflowId === 'string' && inputs.targetWorkflowId.trim()) {
+    // A resposta já está nas saídas deste passo: o callback só existe para quem não esperou.
+    context.logger.warn('@core.automation/step.http.callback-ignored');
   }
 
-  const host = outgoing.url.hostname;
   const target = describeHttpTarget(outgoing.url);
-  const policy = await deps.policyOf(context.execution.tenantId);
-  if (policy.allowedHosts.length === 0) {
-    return { success: false, message: '@core.automation/step.http.no-allowed-hosts' };
-  }
-  if (!isHttpHostAllowed(host, policy.allowedHosts)) {
-    return { success: false, message: '@core.automation/step.http.host-not-allowed', messageParams: { host } };
-  }
-  if (!isHttpPortAllowed(outgoing.url, policy.allowedPorts)) {
-    return { success: false, message: '@core.automation/step.http.port-not-allowed', messageParams: { port: outgoing.url.port } };
-  }
-
-  if (spec.connection) {
-    const found = await deps.credentials.findByKey(context.execution.tenantId, spec.connection);
-    if (!found) {
-      return { success: false, message: '@core.automation/step.http.connection.missing', messageParams: { key: spec.connection } };
-    }
-    if (found.secret === null) {
-      return { success: false, message: '@core.automation/step.http.connection.no-secret', messageParams: { key: spec.connection } };
-    }
-    const applied = applyHttpCredential(found.connection, found.secret, { url: outgoing.url, headers: outgoing.headers });
-    if ('error' in applied) {
-      return { success: false, message: applied.error, ...(applied.errorParams ? { messageParams: applied.errorParams } : {}) };
-    }
-    secretForms.push(...applied.secretForms);
-    outgoing = { ...outgoing, url: applied.target.url, headers: applied.target.headers };
-  }
-
   const timeoutMs = timeoutFor(spec, context);
-  if (timeoutMs < MIN_USEFUL_TIMEOUT_MS) {
-    return { success: false, message: '@core.automation/step.http.no-time-left' };
-  }
+  const outcome = await deliverHttp(
+    deps,
+    context.execution.tenantId,
+    outgoing,
+    { ...(spec.connection ? { connection: spec.connection } : {}), responseType: spec.responseType, timeoutMs },
+    secretForms,
+  );
+  if (outcome.kind === 'refused') return refused(outcome.refusal);
 
   const failOnHttpError = spec.failOnHttpError !== false;
-  const asOutput = (error: string, params: Record<string, string>, extra: Record<string, unknown> = {}): WorkflowResult =>
-    failOnHttpError
-      ? { success: false, message: error, messageParams: params }
-      : {
-          // O passo termina bem — quem decide o que fazer é a Condição seguinte —, mas a linha do
-          // histórico diz o que houve, e não "concluído".
-          success: true,
-          message: error,
-          messageParams: params,
-          outputs: { ok: false, status: 0, headers: {}, body: null, durationMs: 0, timedOut: false, error, ...extra },
-        };
-
-  let response: HttpIncomingResponse;
-  try {
-    response = await deps.client.send(outgoing, { timeoutMs, maxBytes: HTTP_RESPONSE_MAX_BYTES });
-  } catch (error) {
-    if (!(error instanceof HttpClientError)) throw error;
-    if (error.code === 'address-blocked') {
-      return { success: false, message: '@core.automation/step.http.address-blocked', messageParams: { host } };
-    }
-    const key = CLIENT_FAILURES[error.code];
-    const params = {
-      target,
-      seconds: String(Math.round(timeoutMs / 1000)),
-      max: String(Math.round(HTTP_RESPONSE_MAX_BYTES / 1024)),
-      detail: error.message,
+  if (outcome.kind === 'failed') {
+    if (failOnHttpError) return { success: false, message: outcome.message, messageParams: outcome.messageParams };
+    return {
+      // O passo termina bem — quem decide o que fazer é a Condição seguinte —, mas a linha do
+      // histórico diz o que houve, e não "concluído".
+      success: true,
+      message: outcome.message,
+      messageParams: outcome.messageParams,
+      outputs: {
+        ok: false, status: 0, headers: {}, body: null, durationMs: 0,
+        timedOut: outcome.failure === 'timeout', error: outcome.message,
+      },
     };
-    return asOutput(key, params, { timedOut: error.code === 'timeout' });
   }
 
-  const parsed = parseBody(response, spec.responseType);
-  const ok = response.status >= 200 && response.status < 300;
+  const { response } = outcome;
   const outputs = {
-    ok,
+    ok: outcome.ok,
     status: response.status,
     headers: publicHeaders(response.headers),
-    body: 'body' in parsed ? parsed.body : response.bodyText,
+    body: outcome.body,
     durationMs: response.durationMs,
     timedOut: false,
     error: null as string | null,
@@ -287,11 +245,11 @@ const callApi = async (
   const ms = String(response.durationMs);
   const status = String(response.status);
 
-  if ('invalidJson' in parsed) {
+  if (outcome.invalidJson) {
     if (failOnHttpError) return { success: false, message: '@core.automation/step.http.invalid-json', messageParams: { target } };
     outputs.error = '@core.automation/step.http.invalid-json';
   }
-  if (!ok) {
+  if (!outcome.ok) {
     if (failOnHttpError) {
       return { success: false, message: '@core.automation/step.http.status-failed', messageParams: { method: outgoing.method, target, status } };
     }
@@ -302,5 +260,88 @@ const callApi = async (
     message: outputs.ok && outputs.error === null ? '@core.automation/step.http.done' : '@core.automation/step.http.done-not-ok',
     messageParams: { method: outgoing.method, target, status, ms },
     outputs,
+  };
+};
+
+/** Os `param.<chave>` que a automação fixou para o fluxo de callback, resolvidos AGORA. */
+const callbackParams = (context: WorkflowContext): Record<string, unknown> => {
+  const entries: [string, unknown][] = [];
+  for (const [key, mapping] of Object.entries(context.stepConfiguration ?? {})) {
+    if (!key.startsWith(PARAM_PREFIX)) continue;
+    const name = key.slice(PARAM_PREFIX.length);
+    entries.push([name, resolveField({ name, value: mapping }, context)]);
+  }
+  return buildNestedParams(entries);
+};
+
+const byteLength = (value: unknown): number => Buffer.byteLength(JSON.stringify(value), 'utf8');
+
+/**
+ * O modo assíncrono. A FRONTEIRA é conferida aqui, antes de enfileirar: domínio fora da lista,
+ * credencial inexistente ou que não vai para este domínio falham o passo NA automação que os causou —
+ * descobrir isso numa fila, minutos depois, seria descobrir tarde. A entrega confere de novo, porque a
+ * lista e a credencial podem mudar enquanto o pedido espera.
+ *
+ * O pedido é gravado SEM o segredo: a credencial vai pela chave, e é aplicada a cada tentativa.
+ */
+const enqueue = async (
+  deps: HttpStepDeps,
+  spec: HttpRequestSpec,
+  outgoing: HttpOutgoingRequest,
+  inputs: Record<string, unknown>,
+  context: WorkflowContext,
+): Promise<WorkflowResult> => {
+  if (!deps.dispatches) return { success: false, message: '@core.automation/step.http.async.unavailable' };
+  const tenantId = context.execution.tenantId;
+  const target = describeHttpTarget(outgoing.url);
+
+  const checked = await checkHttpBoundary(deps, tenantId, outgoing, spec.connection || undefined);
+  if ('refused' in checked) return refused(checked.refused);
+
+  let callback: HttpDispatchCallback | undefined;
+  const callbackId = typeof inputs.targetWorkflowId === 'string' ? inputs.targetWorkflowId.trim() : '';
+  if (callbackId) {
+    const depth = Number(context.event.payload.__callDepth ?? 0);
+    if (depth >= MAX_CALL_DEPTH) {
+      return { success: false, message: '@core.automation/step.call-workflow.max-depth', messageParams: { max: String(MAX_CALL_DEPTH) } };
+    }
+    try {
+      callback = { workflowId: callbackId, params: callbackParams(context), callDepth: depth + 1 };
+    } catch (error) {
+      if (error instanceof StepFailure) return refused({ message: error.key, ...(error.params ? { messageParams: error.params } : {}) });
+      throw error;
+    }
+  }
+
+  const request = {
+    method: spec.method,
+    url: outgoing.url.toString(),
+    headers: outgoing.headers,
+    ...(outgoing.body !== undefined ? { body: outgoing.body } : {}),
+  };
+  if (byteLength({ request, callback }) > HTTP_ASYNC_REQUEST_MAX_BYTES) {
+    return {
+      success: false,
+      message: '@core.automation/step.http.async.too-large',
+      messageParams: { max: String(Math.round(HTTP_ASYNC_REQUEST_MAX_BYTES / 1024)) },
+    };
+  }
+
+  const dispatchId = await deps.dispatches.enqueue(tenantId, {
+    request,
+    ...(spec.connection ? { connection: spec.connection } : {}),
+    ...(spec.responseType ? { responseType: spec.responseType } : {}),
+    timeoutSeconds: spec.timeoutSeconds ?? HTTP_TIMEOUT_DEFAULT_SECONDS,
+    maxAttempts: 1 + (spec.retries ?? HTTP_RETRIES_DEFAULT),
+    ...(callback ? { callback } : {}),
+    ...(context.actor ? { actor: toPublishedActor(context.actor) } : {}),
+    origin: { workflowId: context.execution.workflowDefinitionId, executionId: context.execution.id },
+  }, context.services.now());
+
+  return {
+    success: true,
+    message: '@core.automation/step.http.queued',
+    messageParams: { method: outgoing.method, target },
+    outputs: { dispatchId },
   };
 };

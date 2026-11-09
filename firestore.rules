@@ -294,6 +294,13 @@ service cloud.firestore {
         }
       }
 
+      // A fila do passo "Chamar API" no modo assíncrono: o pedido já montado, com os valores que a
+      // automação resolveu. Só o servidor lê e grava — nem quem gerencia automações, porque o pedido
+      // carrega dado de registro que a pessoa talvez não veja. O resultado chega pelo callback.
+      match /http_dispatches/{dispatchId} {
+        allow read, write: if false;
+      }
+
       // ─── Perfis de acesso ────────────────────────────────────────────────────
       // TODO membro lê, e isso não é frouxidão: cada navegador resolve as próprias permissões a
       // partir daqui, e sem a leitura ninguém saberia o que pode fazer. O que é secreto não é a
@@ -735,7 +742,7 @@ service cloud.firestore {
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.
         'tagDefinitions', 'plugin_installations',
         'recordKeys', 'record_key_adoptions', 'recordSequences', 'record_imports', 'record_search_jobs',
-        'httpConnections', 'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_clock',
+        'httpConnections', 'http_dispatches', 'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_clock',
         'workflow_definitions', 'workflow_events', 'workflow_executions', 'workflow_trigger_marks'
         ];
       }

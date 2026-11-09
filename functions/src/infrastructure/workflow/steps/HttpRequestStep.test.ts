@@ -16,6 +16,7 @@ import {
 import { makeHttpRequestStepDefinition, type HttpPolicy } from './HttpRequestStep';
 import type { IHttpCredentialRepository } from '../../../domain/repositories/IHttpCredentialRepository';
 import type { HttpConnection } from '../../../domain/schema/httpConnection';
+import type { HttpDispatchInput, IHttpDispatchQueue } from '../../../domain/repositories/IHttpDispatchRepository';
 
 const NOW = new Date('2026-11-09T12:00:00Z');
 
@@ -46,8 +47,9 @@ const makeRegistry = (
   seen: unknown[],
   policy: HttpPolicy = OPEN,
   credentials: IHttpCredentialRepository = NO_CREDENTIALS,
+  dispatches?: IHttpDispatchQueue,
 ): StepRegistry => {
-  const http = makeHttpRequestStepDefinition({ client, policyOf: async () => policy, credentials });
+  const http = makeHttpRequestStepDefinition({ client, policyOf: async () => policy, credentials, ...(dispatches ? { dispatches } : {}) });
   const record: StepDefinition = {
     id: 'record',
     version: 1,
@@ -126,12 +128,18 @@ const run = (
   steps: WorkflowStep[],
   client: IHttpClient,
   seen: unknown[] = [],
-  options: { policy?: HttpPolicy; services?: WorkflowServices; credentials?: IHttpCredentialRepository } = {},
+  options: {
+    policy?: HttpPolicy;
+    services?: WorkflowServices;
+    credentials?: IHttpCredentialRepository;
+    dispatches?: IHttpDispatchQueue;
+    payload?: Record<string, unknown>;
+  } = {},
 ) =>
   runWorkflow({
     definition: definition(steps),
-    event,
-    registry: makeRegistry(client, seen, options.policy, options.credentials),
+    event: options.payload ? { ...event, payload: { ...event.payload, ...options.payload } } : event,
+    registry: makeRegistry(client, seen, options.policy, options.credentials, options.dispatches),
     services: options.services ?? servicesWith(),
   });
 
@@ -461,5 +469,144 @@ describe('passo http-request — credencial de integração', () => {
     const credentials: IHttpCredentialRepository = { findByKey: async () => { looked += 1; return null; } };
     await run([callStep({})], new FakeHttpClient(json({})), [], { credentials });
     expect(looked).toBe(0);
+  });
+});
+
+/** Fila em memória: guarda o que receberia. */
+class FakeQueue implements IHttpDispatchQueue {
+  readonly queued: { tenantId: string; input: HttpDispatchInput; now: Date }[] = [];
+  async enqueue(tenantId: string, input: HttpDispatchInput, now: Date): Promise<string> {
+    this.queued.push({ tenantId, input, now });
+    return `d${this.queued.length}`;
+  }
+}
+
+const asyncStep = (spec: Partial<HttpRequestSpec>, extra: Record<string, InputMapping> = {}): WorkflowStep => {
+  const step = callStep({ mode: 'async', ...spec });
+  return { ...step, configuration: { ...step.configuration, ...extra } };
+};
+
+describe('passo http-request — modo assíncrono', () => {
+  it('põe o pedido montado na fila e segue sem esperar; a saída é o id do pedido', async () => {
+    const client = new FakeHttpClient(json({}));
+    const queue = new FakeQueue();
+    const seen: unknown[] = [];
+    const result = await run([
+      asyncStep({
+        method: 'POST',
+        url: lit('https://api.exemplo.com/v1/pedidos/{id}'),
+        pathParams: [{ name: 'id', value: { kind: 'Event', path: 'id' } }],
+        body: { kind: 'json', fields: [{ name: 'cliente', value: { kind: 'Event', path: 'cliente' } }] },
+        retries: 2,
+        timeoutSeconds: 40,
+      }),
+      recordStep({ kind: 'Output', stepId: 'call', outputId: 'dispatchId' }, 1),
+    ], client, seen, { dispatches: queue });
+
+    expect(result.status).toBe('SUCCESS');
+    expect(client.sent).toHaveLength(0);
+    expect(seen).toEqual(['d1']);
+    expect(messages(result)).toContain('@core.automation/step.http.queued');
+    const { input, tenantId, now } = queue.queued[0];
+    expect(tenantId).toBe('t1');
+    expect(now).toEqual(NOW);
+    expect(input.request).toEqual({
+      method: 'POST',
+      url: 'https://api.exemplo.com/v1/pedidos/p%2F1',
+      headers: { accept: expect.any(String), 'content-type': 'application/json' },
+      body: JSON.stringify({ cliente: 'Ana Souza' }),
+    });
+    expect(input.maxAttempts).toBe(3);
+    expect(input.timeoutSeconds).toBe(40);
+    expect(input.origin).toEqual({ workflowId: 'wf', executionId: expect.any(String) });
+    expect(input.callback).toBeUndefined();
+  });
+
+  it('sem `retries`, tenta 1 + 3 vezes', async () => {
+    const queue = new FakeQueue();
+    await run([asyncStep({})], new FakeHttpClient(json({})), [], { dispatches: queue });
+    expect(queue.queued[0].input.maxAttempts).toBe(4);
+  });
+
+  it('a fronteira é conferida ANTES de enfileirar: domínio fora da lista falha o passo, e nada entra na fila', async () => {
+    const queue = new FakeQueue();
+    const result = await run([asyncStep({ url: lit('https://outro.com/x') })], new FakeHttpClient(json({})), [], { dispatches: queue });
+    expect(result.status).toBe('FAILED');
+    expect(messages(result)).toContain('@core.automation/step.http.host-not-allowed');
+    expect(queue.queued).toHaveLength(0);
+  });
+
+  it('o segredo NUNCA é gravado na fila: a credencial vai pela chave', async () => {
+    const SECRET = 'sk_live_fila';
+    const credentials: IHttpCredentialRepository = {
+      findByKey: async () => ({
+        connection: { id: 'c1', key: 'crm', name: 'CRM', scheme: 'bearer', hosts: ['api.exemplo.com'], hasSecret: true },
+        secret: SECRET,
+      }),
+    };
+    const queue = new FakeQueue();
+    await run([asyncStep({ connection: 'crm' })], new FakeHttpClient(json({})), [], { dispatches: queue, credentials });
+    expect(queue.queued[0].input.connection).toBe('crm');
+    expect(JSON.stringify(queue.queued[0].input)).not.toContain(SECRET);
+  });
+
+  it('credencial inexistente falha já na automação', async () => {
+    const queue = new FakeQueue();
+    const result = await run([asyncStep({ connection: 'erp' })], new FakeHttpClient(json({})), [], { dispatches: queue });
+    expect(messages(result)).toContain('@core.automation/step.http.connection.missing');
+    expect(queue.queued).toHaveLength(0);
+  });
+
+  it('o callback leva o fluxo-alvo e os parâmetros resolvidos AGORA, um nível abaixo na cadeia', async () => {
+    const queue = new FakeQueue();
+    await run([asyncStep({}, {
+      targetWorkflowId: lit('wf-retorno'),
+      'param.pedido': { kind: 'Event', path: 'id' },
+      'param.cliente.nome': { kind: 'Event', path: 'cliente' },
+    })], new FakeHttpClient(json({})), [], { dispatches: queue, payload: { __callDepth: 2 } });
+    expect(queue.queued[0].input.callback).toEqual({
+      workflowId: 'wf-retorno',
+      params: { pedido: 'p/1', cliente: { nome: 'Ana Souza' } },
+      callDepth: 3,
+    });
+  });
+
+  it('no teto da cadeia de chamadas, o callback é recusado — um fluxo que se chama em laço para', async () => {
+    const queue = new FakeQueue();
+    const result = await run([asyncStep({}, { targetWorkflowId: lit('wf-retorno') })], new FakeHttpClient(json({})), [], {
+      dispatches: queue,
+      payload: { __callDepth: 10 },
+    });
+    expect(messages(result)).toContain('@core.automation/step.call-workflow.max-depth');
+    expect(queue.queued).toHaveLength(0);
+  });
+
+  it('pedido grande demais para a fila é recusado', async () => {
+    const queue = new FakeQueue();
+    const result = await run([asyncStep({
+      method: 'POST',
+      body: { kind: 'text', contentType: 'text/plain', value: lit('x'.repeat(300 * 1024)) },
+    })], new FakeHttpClient(json({})), [], { dispatches: queue });
+    expect(messages(result)).toContain('@core.automation/step.http.async.too-large');
+    expect(queue.queued).toHaveLength(0);
+  });
+
+  it('onde não há fila, o assíncrono falha dizendo isso — nunca vira síncrono calado', async () => {
+    const client = new FakeHttpClient(json({}));
+    const result = await run([asyncStep({})], client);
+    expect(messages(result)).toContain('@core.automation/step.http.async.unavailable');
+    expect(client.sent).toHaveLength(0);
+  });
+
+  it('no modo síncrono, o callback é ignorado com aviso, e a chamada segue como sempre', async () => {
+    const client = new FakeHttpClient(json({ ok: true }));
+    const queue = new FakeQueue();
+    const result = await run([{ ...callStep({}), configuration: { ...callStep({}).configuration, targetWorkflowId: lit('wf-retorno') } }], client, [], {
+      dispatches: queue,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(client.sent).toHaveLength(1);
+    expect(queue.queued).toHaveLength(0);
+    expect(messages(result)).toContain('@core.automation/step.http.callback-ignored');
   });
 });

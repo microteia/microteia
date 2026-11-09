@@ -10,7 +10,8 @@ import { publishEvent } from '../publishEvent';
 import { toPublishedActor } from '../../../domain/engine/workflowActor';
 
 import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
-const MAX_CALL_DEPTH = 10;
+/** O teto da cadeia de chamadas entre fluxos — vale também para o callback de uma chamada HTTP. */
+export const MAX_CALL_DEPTH = 10;
 const PARAM_PREFIX = 'param.';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>

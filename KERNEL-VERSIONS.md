@@ -18,6 +18,19 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.217.0] — 2026-11-09
+
+- feat(workflow/http-request): `HttpRequestSpec.mode: 'async'` (kernel 2.103.0, `HTTP_ASYNC_SINCE_KERNEL`; absent means sync, so every stored spec is unchanged). The boundary (allowlist, ports, credential) is checked before enqueueing; the step publishes only `dispatchId`. The request is stored already built and without the secret — the credential travels by key and is applied on each attempt. Request plus callback params are capped at 256 KB.
+- feat(workflow/http-dispatch): durable queue in `tenants/{t}/http_dispatches` (server-only, reserved). `onHttpDispatchWritten` claims a `queued` request in a transaction and delivers one attempt (`DeliverHttpDispatchUseCase`); network, timeout, 408, 429 and 5xx are retried after 1/5/15/60/180 min or a longer `Retry-After` (capped at 1 h), up to `1 + retries` attempts (default 3, max 5); any other 4xx is final. `Idempotency-Key: <dispatchId>` is sent unless the author set one. Every non-final state keeps `nextAttemptAt`, and `runWorkflowClock` requeues what is due (expired wait, dead delivery, unclaimed request) with one collection-group query. TTL of 7 days on `expiresAt`.
+- feat(workflow/http-request): callback through the step input `targetWorkflowId` — the same id `call-workflow` uses, so install-time remapping and cross-artifact references cover it — with the target's parameters as `param.<key>` (`dynamicInputs: from-target-workflow-parameters`), resolved at enqueue time. The final state and the `workflow.called` event (params plus `response`: `ok`, `status`, `headers`, `body`, `durationMs`, `error`, `timedOut`, `dispatchId`, `attempts`) are written in one transaction; the callback inherits `MAX_CALL_DEPTH` and the published actor. Ignored, with a warning, in sync mode.
+- feat(workflow/http-request): `testHttpRequest` callable (`automation.manage`) and "Test call" in the step editor — one real request through the same build (`prepareHttpCall`), boundary and redaction; dynamic values are replaced by typed examples (`httpDynamicValues`, `withLiteralValues`), and the response can become `responseSample`.
+- refactor(workflow/http-request): `checkHttpBoundary` and `deliverHttp` (`domain/services/httpDelivery.ts`) are shared by the sync step, the queue and the test; sync behaviour and messages are unchanged.
+- feat(catalog): `http-request` gains the `targetWorkflowId` input, the `dispatchId` output and `dynamicInputs`; the editor offers only the outputs of the spec's mode (`isHttpOutputOfMode`).
+- feat(marketplace/validate): `request.mode: 'async'` or `targetWorkflowId` in a package that admits a kernel below 2.103.0 is refused (`issue.step.input-kernel`).
+- feat(indexes): `http_dispatches.nextAttemptAt` collection-group index and `expiresAt` TTL. Requires `npm run deploy:indexes`, `npm run deploy:rules` and `npm run deploy:workflow` (new `onHttpDispatchWritten` and `testHttpRequest`).
+- chore(kernel): `KERNEL_VERSION` 2.103.0.
+- chore(locale-pt-br): 1.170.0, with the mode, retry, callback and test-call messages.
+
 #### [9.216.0] — 2026-11-09
 
 - feat(workflow/http-request): `HttpRequestSpec.connection`, the key of an office integration credential (kernel 2.102.0, `HTTP_CONNECTION_SINCE_KERNEL`). The server applies it at call time (`applyHttpCredential`): `bearer`/`basic` in `Authorization`, `header` in a header of its own, `query` in a query parameter. A value the request already sets in the same place is refused (`step.http.connection.conflict`), never overwritten. Each credential carries its own `hosts`, checked on top of the office allowlist, so a token cannot be sent to another allowed domain.
