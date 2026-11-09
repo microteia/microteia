@@ -674,4 +674,6 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'Provides the implementation of a Capability (AI, messaging, payments). Several plugins may provide the same one, and the organization chooses which to use.',
   'point.capability.title': 'Capability provider',
   'author.patch.field-count': '{name} ({count} field(s))',
+  'issue.step.http-invalid': 'step "{step}" calls an API with an invalid request: {detail}',
+  'issue.step.http-literal-secret': 'step "{step}" sends the header "{name}" with a fixed value. It looks like a secret, and in a package it would leave the office inside the extension file — take it from a variable or an earlier step.',
 };

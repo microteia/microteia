@@ -211,3 +211,30 @@ describe('RunCalledWorkflowUseCase', () => {
     expect(result.found).toBe(false);
   });
 });
+
+describe('RunCalledWorkflowUseCase — orçamento de tempo de quem chama', () => {
+  const make = () => {
+    const { created, definitionRepository, executionRepository } = makeDeps(makeTarget());
+    const useCase = makeRunCalledWorkflowUseCase(definitionRepository, executionRepository, registry, services, passthroughHydrator);
+    return { created, useCase };
+  };
+
+  it('o fluxo chamado não ganha orçamento novo: vencido o de quem chama, nenhum passo começa', async () => {
+    const { created, useCase } = make();
+    const result = await useCase.execute({
+      tenantId: 't1', targetWorkflowId: 'wf-b', params: {}, callDepth: 1,
+      deadlineAt: services.now().getTime() - 1,
+    });
+    expect(result.found && result.status).toBe('FAILED');
+    expect(created[0].logs.map((entry) => entry.message)).toContain('@core.automation/run.budget-exceeded');
+  });
+
+  it('com orçamento folgado, roda como sempre', async () => {
+    const { useCase } = make();
+    const result = await useCase.execute({
+      tenantId: 't1', targetWorkflowId: 'wf-b', params: {}, callDepth: 1,
+      deadlineAt: services.now().getTime() + 60_000,
+    });
+    expect(result.found && result.status).toBe('SUCCESS');
+  });
+});

@@ -145,3 +145,41 @@ describe('RunWorkflowsForEventUseCase — gatilho de data na gravação', () => 
     expect(dateChecked).toEqual([]);
   });
 });
+
+describe('RunWorkflowsForEventUseCase — orçamento de tempo da invocação', () => {
+  const oneStep = definition({
+    id: 'wf-step',
+    eventName: 'medico.saved',
+    steps: [{ id: 's1', stepDefinitionId: 'qualquer', type: 'Action', order: 0, configuration: {}, enabled: true }],
+  });
+
+  const capture = () => {
+    const runs: WorkflowExecution[] = [];
+    const useCase = makeRunWorkflowsForEventUseCase(
+      {
+        findEnabledByEvent: async () => [oneStep],
+        findEnabledByEvents: async () => [oneStep],
+        findById: async () => null,
+        findByRef: async () => null,
+      },
+      { create: async (execution: WorkflowExecution) => { runs.push(execution); } } as IWorkflowExecutionRepository,
+      registry,
+      services,
+      passthroughHydrator,
+    );
+    return { useCase, runs };
+  };
+
+  it('o `deadlineAt` da invocação chega ao motor: vencido, nenhum passo começa', async () => {
+    const { useCase, runs } = capture();
+    await useCase.execute(event({ name: 'medico.saved' }), undefined, { deadlineAt: services.now().getTime() - 1 });
+    expect(runs[0].status).toBe('FAILED');
+    expect(runs[0].logs.map((entry) => entry.message)).toContain('@core.automation/run.budget-exceeded');
+  });
+
+  it('sem `deadlineAt`, o comportamento é o de sempre', async () => {
+    const { useCase, runs } = capture();
+    await useCase.execute(event({ name: 'medico.saved' }));
+    expect(runs[0].logs.map((entry) => entry.message)).not.toContain('@core.automation/run.budget-exceeded');
+  });
+});

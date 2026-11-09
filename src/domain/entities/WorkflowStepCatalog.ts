@@ -14,7 +14,8 @@ export type InputType =
   | 'Upsert'
   | 'Remove'
   | 'Map'
-  | 'Validate';
+  | 'Validate'
+  | 'HttpRequest';
 
 export type InputOptionsSource =
   | { kind: 'Static'; options: { value: string; label: string; color?: string }[] }
@@ -121,6 +122,12 @@ export type DynamicOutputsMetadata =
   | {
       kind: 'from-map-config';
       /** ID do input do tipo 'Map' cujo MapStepConfig define a saída `<name>` (objeto tipado por `type`). */
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
+      kind: 'from-http-request';
+      /** ID do input do tipo 'HttpRequest'. As saídas fixas valem sempre; `body.<caminho>` sai do `responseSample`. */
       sourceInputId: string;
       description?: string;
     };

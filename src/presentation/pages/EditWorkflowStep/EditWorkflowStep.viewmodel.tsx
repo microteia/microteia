@@ -48,6 +48,8 @@ import type {
 import type { QuerySpec } from '../../../domain/schema/querySpec';
 import type { MapStepConfig } from '../../../domain/schema/mapSpec';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
+import { httpSampleFields, httpSamplePaths } from '../../../domain/schema/httpRequestSpec';
+import type { HttpRequestSpec, HttpSampleField } from '../../../domain/schema/httpRequestSpec';
 import type { StepOutputField, WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
 
 import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
@@ -70,6 +72,41 @@ const queryProjectionOutputs = (
       label: t('output.first-result', { path }),
     }));
 };
+
+const httpSpecOf = (step: WorkflowStep, definition: StepDefinitionSummary): HttpRequestSpec | null => {
+  if (definition.dynamicOutputs?.kind !== 'from-http-request') return null;
+  const mapping = step.configuration[definition.dynamicOutputs.sourceInputId];
+  if (!mapping || mapping.kind !== 'Literal' || !mapping.value || typeof mapping.value !== 'object') return null;
+  return mapping.value as HttpRequestSpec;
+};
+
+/**
+ * Os caminhos `body.<campo>` que o EXEMPLO de resposta descreve. Sem exemplo, o passo continua expondo
+ * o `body` inteiro (saída fixa) — o exemplo só acrescenta o que dá para sugerir.
+ */
+const httpSampleOutputs = (
+  t: TranslateFn,
+  step: WorkflowStep,
+  definition: StepDefinitionSummary,
+): { id: string; label: string }[] =>
+  httpSamplePaths(httpSampleFields(httpSpecOf(step, definition)?.responseSample ?? undefined)).map((path) => ({
+    id: path,
+    label: t('step.http.output.body-path', { path: path.slice('body.'.length) }),
+  }));
+
+/** O exemplo como forma de schema, para `input.body.` navegar como `event.` navega. */
+const sampleNativeFields = (fields: readonly HttpSampleField[]): NativeFieldSpec[] =>
+  fields.map((field): NativeFieldSpec => {
+    if (field.type === 'list') {
+      return field.fields && field.fields.length > 0
+        ? { key: field.key, label: field.key, type: 'object', list: true, objectFields: sampleNativeFields(field.fields) }
+        : { key: field.key, label: field.key, type: 'stringArray' };
+    }
+    if (field.type === 'object') {
+      return { key: field.key, label: field.key, type: 'object', objectFields: sampleNativeFields(field.fields ?? []) };
+    }
+    return { key: field.key, label: field.key, type: field.type };
+  });
 
 /**
  * As saídas `params.<chave>` de um passo que extrai os parâmetros de um workflow-alvo. O rótulo é o
@@ -906,6 +943,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       queryProjectionOutputs(t, step, definition).forEach((output) => {
         outputs.push({ id: output.id, label: output.label });
       });
+      httpSampleOutputs(t, step, definition).forEach((output) => {
+        outputs.push({ id: output.id, label: output.label });
+      });
       scriptOutputsFor(step, definition).forEach((output) => {
         outputs.push({ id: output.id, label: output.label });
       });
@@ -1017,6 +1057,15 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         (script?.outputParams ?? []).forEach((param) => {
           fields.push(workflowParameterToNativeField(param as WorkflowParameter));
         });
+        return;
+      }
+
+      const httpSpec = httpSpecOf(step, definition);
+      if (httpSpec) {
+        const sample = httpSampleFields(httpSpec.responseSample);
+        if (sample.length > 0) {
+          fields.push({ key: 'body', label: 'body', type: 'object', objectFields: sampleNativeFields(sample) });
+        }
         return;
       }
 

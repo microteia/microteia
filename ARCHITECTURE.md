@@ -7531,6 +7531,84 @@ página; sempre `null` sem `page`). Passos seguintes leem via `output.<stepId>.r
 `step.query.found-partial` (sem página) ou `step.query.found-page` (com página) — antes, um `limit: 300`
 devolvia 100 e o histórico dizia só "100 registros encontrados".
 
+### Passo "Chamar API (HTTP)" (`http-request`) — integração REST declarada
+
+O passo `http-request` (`functions/src/infrastructure/workflow/steps/HttpRequestStep.ts`) chama uma API
+REST de fora e espera a resposta, que os passos seguintes leem como qualquer saída. Kernel
+`HTTP_REQUEST_SINCE_KERNEL` = 2.101.0: o portão do pacote reprova o passo num pacote que admite kernel
+anterior (`issue.step.definition-kernel`).
+
+**A especificação é UM input estruturado** (`type: 'HttpRequest'`, só `Literal`), como `Query` e `Map`:
+`HttpRequestSpec` em `src/domain/schema/httpRequestSpec.ts` (sincronizado). Dentro dela, cada valor — a
+URL, cada parâmetro de caminho (`{id}` na URL, com `encodeURIComponent`), de query, cada cabeçalho e
+cada campo do corpo — é um `InputMapping` comum, resolvido no passo por `resolveMapping`. É isso que
+deixa o valor vir de fixo, evento, expressão, saída de passo ou variável sem capacidade nova no motor.
+As listas reaproveitam `MapFieldMapping` e o editor reaproveita `MappingValueControl`.
+
+| Corpo (`body.kind`) | Montagem |
+|---|---|
+| `none` | sem corpo (GET nunca tem corpo — recusa `issue.body-get`) |
+| `json` | campos → `buildNestedParams` (`cliente.nome` aninha), `application/json` |
+| `json-from` | o objeto inteiro de um mapping (a saída de um "Montar Objeto") |
+| `form` | `application/x-www-form-urlencoded`; lista repete a chave |
+| `text` | o `contentType` declarado e o valor como texto |
+
+**Uma validação, três portas:** `validateHttpRequestSpec` roda no editor (`HttpRequestBuilderControl`),
+no motor (antes de montar a requisição) e no portão do pacote (`workflowIntegrity`, como
+`issue.step.http-invalid`). `httpRequestSpecWarnings` acusa cabeçalho de nome sensível
+(`Authorization`, `*token*`, `*key*`…) com valor FIXO: no editor é aviso; no pacote é recusa
+(`issue.step.http-literal-secret`), porque o segredo sairia do escritório dentro do arquivo da extensão.
+
+**Saídas:** `ok` (2xx), `status`, `headers` (minúsculas, sem `set-cookie`), `body` (JSON pelo
+`content-type` em `responseType: 'auto'`, texto senão), `durationMs`, `error` e `timedOut`.
+`dynamicOutputs: from-http-request` acrescenta `body.<caminho>` a partir do `responseSample` — um JSON
+de exemplo que nunca é enviado: `httpSampleFields` deduz a forma, o editor oferece as folhas no seletor
+de saída e o objeto em `input.body.` do autocomplete. Sem exemplo, o `body` continua acessível inteiro.
+
+**Duas famílias de falha:**
+- **política** — lista de domínios vazia, domínio ou porta fora da lista, endereço interno,
+  especificação inválida: falha SEMPRE;
+- **resposta** — status fora de 2xx, tempo esgotado, rede, resposta acima do teto, JSON inválido com
+  `responseType: 'json'`: falha por padrão; com `failOnHttpError: false` vira saída (`ok: false`) e uma
+  Condição decide pelo `status`.
+
+**A fronteira de rede (SSRF).** `SafeHttpClient` (`functions/src/infrastructure/http/`) usa `node:https`
+com uma resolução de nome PRÓPRIA da conexão (`guardedLookup`): o IP conferido é o IP conectado, o que
+fecha o *DNS rebinding*. Basta um endereço do nome cair em `isBlockedAddress` (privadas, loopback,
+link-local/metadados, CGNAT, multicast, NAT64/6to4, IPv4 mapeado em IPv6) para a chamada inteira ser
+recusada. A URL só aceita `https`, sem usuário/senha e sem IP cru (`parseHttpUrl`; a URL normaliza
+`2130706433` para `127.0.0.1`, que cai na mesma regra). Redirecionamento não é seguido — o 3xx volta como
+resposta. O corpo é lido com teto (`HTTP_RESPONSE_MAX_BYTES` = 100 KB, derrubando a conexão), e a
+compressão é aberta com o MESMO teto (`maxOutputLength`): o motor grava as saídas de cada passo no
+histórico, e um documento do Firestore não passa de 1 MiB. Cabeçalho com CR/LF é recusa (injeção).
+
+**A lista de domínios é OBRIGATÓRIA e é do escritório** — Configurações › Integrações:
+`integrations.http.allowedHosts` (`api.exemplo.com` ou `*.exemplo.com`, que cobre só os subdomínios;
+vazia, nada sai) e `integrations.http.allowedPorts` (a 443 está sempre liberada). Escopo só `tenant`:
+quem decide para onde os dados saem é o escritório, não quem edita a automação. O servidor lê pela
+mesma `SettingsProperty` da tela (`officeSetting`, cache de 60 s por instância — tirar um domínio leva
+até isso para valer).
+
+### Orçamento de tempo da execução — `deadlineAt`
+
+O `timeoutSeconds` de uma Cloud Function é fixado no deploy e vale para o projeto inteiro; o que o
+escritório escolhe (Configurações › Automações) é quanto do teto as automações dele usam:
+
+| Porta | Teto de deploy | Configuração | Padrão |
+|---|---|---|---|
+| `onWorkflowEventCreated` | 540 s | `automation.budget.eventSeconds` | 300 s |
+| `runAction` (alguém espera) | 300 s | `automation.budget.actionSeconds` | 60 s |
+
+`workflowDeadlineAt` (`src/domain/schema/workflowBudget.ts`) transforma a configuração num instante,
+reservando `WORKFLOW_BUDGET_MARGIN_SECONDS` antes do teto para gravar o histórico; valor inválido cai no
+padrão — nunca em "sem limite". O instante viaja em `WorkflowServices.deadlineAt`: o executor não começa
+outro passo depois dele (`run.budget-exceeded`, execução `FAILED` e GRAVADA, em vez de cortada pela
+plataforma sem histórico), e o passo HTTP não espera além do que resta. O `call-workflow` aguardando
+repassa o mesmo `deadlineAt` — o fluxo chamado roda na mesma invocação e não ganha relógio novo.
+
+As portas que ainda não informam orçamento (retomada de espera, portal, agente) rodam como antes; ali o
+passo HTTP limita a própria espera a `HTTP_TIMEOUT_WITHOUT_BUDGET_SECONDS` (30 s).
+
 ### Como Adicionar uma Função de Expressão
 
 As expressões (`ExpressionInputMapping`) são processadas pelo `ExpressionEngine` no backend

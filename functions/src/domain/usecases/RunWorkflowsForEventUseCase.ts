@@ -16,8 +16,14 @@ export type RunWorkflowsForEventUseCase = {
    * não espera —, sem permissões. Ausente nos gatilhos de gravação (`.saved`/`.deleted`): ali a
    * automação é consequência de um documento ter mudado, não o gesto de alguém.
    */
-  execute: (event: WorkflowEvent, actor?: WorkflowActor) => Promise<void>;
+  execute: (event: WorkflowEvent, actor?: WorkflowActor, run?: RunWorkflowsForEventRun) => Promise<void>;
 };
+
+/** O que é desta INVOCAÇÃO, e não do caso de uso: o orçamento de tempo começa quando a function começa. */
+export interface RunWorkflowsForEventRun {
+  /** Ver `WorkflowServices.deadlineAt`. Vale para TODAS as automações do evento, que rodam em sequência. */
+  deadlineAt?: number;
+}
 
 /**
  * As extensões DESATIVADAS do escritório. Desativar mantém os artefatos como documentos do escritório
@@ -84,7 +90,7 @@ export const makeRunWorkflowsForEventUseCase = (
   hydrator: WorkflowContextHydrator,
   { deactivatedPluginIds, onDateReachedSave, clockRepository }: RunWorkflowsForEventOptions = {},
 ): RunWorkflowsForEventUseCase => ({
-  execute: async (event, actor) => {
+  execute: async (event, actor, run) => {
     const found = await findTargeted(definitionRepository, event);
     if (found.length === 0) return;
 
@@ -107,24 +113,25 @@ export const makeRunWorkflowsForEventUseCase = (
     if (definitions.length === 0) return;
 
     const hydrationCache = createHydrationCache();
+    const runServices = run?.deadlineAt === undefined ? services : { ...services, deadlineAt: run.deadlineAt };
     for (const definition of definitions) {
       try {
-        const run = await hydrateAndRunWorkflow(definition, event, {
+        const execution = await hydrateAndRunWorkflow(definition, event, {
           registry,
-          services,
+          services: runServices,
           hydrator,
           cache: hydrationCache,
           ...(actor ? { actor } : {}),
           suspendable: !!clockRepository,
         });
         if (clockRepository) {
-          await recordWorkflowRun(run, { definition, event, ...(actor ? { actor } : {}) }, {
+          await recordWorkflowRun(execution, { definition, event, ...(actor ? { actor } : {}) }, {
             executionRepository,
             clockRepository,
             now: () => services.now(),
           });
         } else {
-          await executionRepository.create(run);
+          await executionRepository.create(execution);
         }
       } catch (error) {
         services.logger.error(

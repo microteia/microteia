@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.215.0] — 2026-11-09
+
+- Novo passo de automação "Chamar API (HTTP)": a automação chama um sistema de fora pela internet — consultar um CEP, avisar um parceiro, buscar a cotação do dia — e usa a resposta nos passos seguintes. Endereço, parâmetros, cabeçalhos e corpo podem vir de um valor fixo, do registro que disparou a automação, de uma expressão ou de um passo anterior.
+- Colando um exemplo da resposta no passo, os campos dela passam a ser sugeridos enquanto você monta os próximos passos.
+- Quando a chamada falha, a automação pode parar ou seguir adiante e decidir o que fazer pelo resultado — por exemplo, tratar de um jeito o "não encontrado" e de outro o erro do servidor.
+- Nova seção "Integrações" em Configurações, só para quem administra o escritório: as automações só alcançam os domínios listados ali. Enquanto a lista estiver vazia, nenhuma chamada sai do escritório.
+- Nova seção "Automações" em Configurações: o escritório define quanto tempo uma automação pode rodar — a iniciada por um evento e a iniciada por um botão. Passado o tempo, a automação para com o motivo registrado no histórico, em vez de ser interrompida sem deixar rastro.
+
 #### [9.214.0] — 2026-11-08
 
 - Nova opção "Bloquear novas contas" na Gestão de Acessos, exclusiva do administrador do sistema: ativada, só quem já tem conta consegue entrar, em todos os escritórios. Ela liga e desliga na hora, sem precisar reinstalar nada.

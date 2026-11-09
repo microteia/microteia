@@ -25,6 +25,7 @@ import type { ActionDefinition, DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
 
 import { LocalizedError } from '../../domain/errors/LocalizedError';
+import { WORKFLOW_ACTION_TIMEOUT_CEILING_SECONDS } from '../../domain/schema/workflowBudget';
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date));
 
 const actionsRef = (tenantId: string) => collection(db, 'tenants', tenantId, 'actions');
@@ -116,7 +117,11 @@ export class FirebaseActionRepository implements IActionRepository {
   }
 
   async runAction(input: RunActionInput): Promise<RunActionResult> {
-    const call = httpsCallable<RunActionInput, RunActionResult>(functions, 'runAction');
+    // O SDK desiste em 70 s por padrão; o escritório pode dar ao botão até o teto da function
+    // (`automation.budget.actionSeconds`). Sem isto, a tela acusaria falha de uma ação que terminou.
+    const call = httpsCallable<RunActionInput, RunActionResult>(functions, 'runAction', {
+      timeout: (WORKFLOW_ACTION_TIMEOUT_CEILING_SECONDS + 10) * 1000,
+    });
     const response = await call(input);
     return response.data;
   }

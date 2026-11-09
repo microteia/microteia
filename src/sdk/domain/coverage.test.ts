@@ -27,6 +27,9 @@ const LACUNAS_CONFERIDAS = [
   'workflow-step\tshare-documents',
   'workflow-step\tportal-invite',
   'workflow-step\tportal-revoke',
+  // Chamar uma API de fora não é regra de negócio que o modelo descreva: é integração, e quem a
+  // declara é o autor, com a lista de domínios do escritório.
+  'workflow-step\thttp-request',
 
   // Os inputs OBRIGATÓRIOS dos passos que o modelo pede e não consegue preencher. `upsert.upsert` é o
   // que mais dói: o efeito diz entidade, campo e valor, e nunca QUAL registro.

@@ -6,6 +6,7 @@ import { PORTAL_TRACK_VIEWS_SINCE_KERNEL } from '../../schema/portal';
 import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { QUERY_PAGE_SINCE_KERNEL } from '../../schema/querySpec';
 import { CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL } from '../../schema/eventCatalog';
+import { HTTP_REQUEST_SINCE_KERNEL } from '../../schema/httpRequestSpec';
 
 /**
  * Cada caso aqui é um defeito que COMPILAVA e passava por toda a validação de pacote, e só falava no
@@ -637,5 +638,47 @@ describe('notify num fluxo chamado, com caminho tipado pelos parâmetros', () =>
 
   it('o notify de fluxo chamado sem caminho tipado não cobra kernel nenhum', () => {
     expect(kernelIssues(fluxo('workflow.called', '^2.0.0', { recipientMembers: { kind: 'Literal', value: ['u1'] } }))).toEqual([]);
+  });
+});
+
+describe('passo http-request no pacote', () => {
+  const comKernel = (steps: WorkflowStep[], kernel: string): MarketplacePlugin => {
+    const base = pacote(steps);
+    return { ...base, manifest: { ...base.manifest, kernel } } as unknown as MarketplacePlugin;
+  };
+  const chamar = (request: unknown) => passo({
+    id: 'chamar',
+    stepDefinitionId: 'http-request',
+    configuration: { request: { kind: 'Literal', value: request } },
+  });
+  const valida = { method: 'GET', url: { kind: 'Literal', value: 'https://api.exemplo.com/x' } };
+  const mensagens = (plugin: MarketplacePlugin) => workflowStepIssues(plugin).map((issue) => issue.message);
+
+  it('exige o kernel em que o passo existe — num anterior ele seria desconhecido', () => {
+    expect(workflowStepIssues(comKernel([chamar(valida)], '^2.0.0')).map((issue) =>
+      [issue.message, issue.messageParams?.definition, issue.messageParams?.minimum])).toEqual([
+      ['@core.marketplace/issue.step.definition-kernel', 'http-request', HTTP_REQUEST_SINCE_KERNEL],
+    ]);
+    expect(workflowStepIssues(comKernel([chamar(valida)], `^${HTTP_REQUEST_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('recusa a requisição inválida pela mesma validação do editor e do motor', () => {
+    const issues = workflowStepIssues(comKernel([chamar({ ...valida, url: { kind: 'Literal', value: 'http://api.exemplo.com' } })], `^${HTTP_REQUEST_SINCE_KERNEL}`));
+    expect(issues.map((issue) => [issue.message, issue.messageParams?.detail])).toEqual([
+      ['@core.marketplace/issue.step.http-invalid', '@core.automation/step.http.issue.url-https'],
+    ]);
+  });
+
+  it('recusa o segredo com valor fixo — no pacote ele sairia do escritório', () => {
+    const comSegredo = { ...valida, headers: [{ name: 'Authorization', value: { kind: 'Literal', value: 'Bearer abc' } }] };
+    expect(mensagens(comKernel([chamar(comSegredo)], `^${HTTP_REQUEST_SINCE_KERNEL}`)))
+      .toEqual(['@core.marketplace/issue.step.http-literal-secret']);
+    const deVariavel = { ...valida, headers: [{ name: 'Authorization', value: { kind: 'Variable', name: 'token' } }] };
+    expect(mensagens(comKernel([chamar(deVariavel)], `^${HTTP_REQUEST_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('a requisição que não é valor fixo é recusada', () => {
+    const passoSemSpec = passo({ id: 'chamar', stepDefinitionId: 'http-request', configuration: { request: { kind: 'Event', path: 'x' } } });
+    expect(mensagens(comKernel([passoSemSpec], `^${HTTP_REQUEST_SINCE_KERNEL}`))).toContain('@core.marketplace/issue.step.http-invalid');
   });
 });

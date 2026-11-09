@@ -12,6 +12,7 @@ import type { ShareRecordDocumentsUseCase } from '../../domain/usecases/ShareRec
 import type { PortalAccessStepServices } from './steps/PortalAccessSteps';
 import type { CallAIUseCase } from '../../domain/usecases/CallAIUseCase';
 import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWorkflowUseCase';
+import type { HttpStepDeps } from './steps/HttpRequestStep';
 
 /**
  * Dependências que o composition root injeta nas fábricas de Step. Vive em arquivo próprio para
@@ -33,6 +34,8 @@ export interface RegisterStepsDeps {
   workflowDefinitionRepository: IWorkflowDefinitionRepository;
   aiConnectionRepository: IAIConnectionRepository;
   callAIUseCase: CallAIUseCase;
+  /** A saída HTTP e a política do escritório (domínios e portas) do passo "Chamar API". */
+  http: HttpStepDeps;
 }
 
 /**

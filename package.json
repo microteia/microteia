@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/microteia/microteia.git"
   },
-  "version": "9.214.0",
+  "version": "9.215.0",
   "type": "module",
   "bin": {
     "microteia": "cli/lib/index.js"

@@ -67,6 +67,7 @@ export const makeCallWorkflowStepDefinition = (runCalledWorkflow: RunCalledWorkf
         params: resolvedParams,
         callDepth: depth + 1,
         ...(context.actor ? { actor: context.actor } : {}),
+        ...(context.services.deadlineAt === undefined ? {} : { deadlineAt: context.services.deadlineAt }),
       });
 
       if (!result.found) {

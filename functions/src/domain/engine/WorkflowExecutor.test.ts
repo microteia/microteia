@@ -687,3 +687,67 @@ describe('runWorkflow — a execução que a porta deixa de fora', () => {
     expect('skipped' in empty).toBe(false);
   });
 });
+
+describe('runWorkflow — orçamento de tempo (deadlineAt)', () => {
+  it('sem orçamento, nada muda: todos os passos rodam', async () => {
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: makeDefinition(withOrder([recordStep('A'), recordStep('B')])),
+      event: makeEvent({}),
+      registry: makeRegistry(order),
+      services,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['A', 'B']);
+  });
+
+  it('passado o orçamento, para ANTES do passo seguinte e grava a execução como falha, dizendo por quê', async () => {
+    const order: string[] = [];
+    let clock = new Date('2026-07-15T00:00:00Z').getTime();
+    const ticking: WorkflowServices = {
+      ...services,
+      now: () => new Date(clock),
+      deadlineAt: clock + 10_000,
+    };
+    const slow: StepRegistry = {
+      ...makeRegistry(order),
+      resolve: (id) => {
+        const step = makeRegistry(order).resolve(id);
+        if (!step) return undefined;
+        return {
+          ...step,
+          createExecutor: () => ({
+            execute: async (inputs, context) => {
+              const result = await step.createExecutor().execute(inputs, context);
+              clock += 11_000;
+              return result;
+            },
+          }),
+        };
+      },
+    };
+    const result = await runWorkflow({
+      definition: makeDefinition(withOrder([recordStep('A'), recordStep('B')])),
+      event: makeEvent({}),
+      registry: slow,
+      services: ticking,
+    });
+    expect(order).toEqual(['A']);
+    expect(result.status).toBe('FAILED');
+    expect(result.logs.some((entry) => entry.message === '@core.automation/run.budget-exceeded')).toBe(true);
+  });
+
+  it('o orçamento vale também dentro de um ramo de condição', async () => {
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: makeDefinition(withOrder([
+        conditionStep(takeIf('yes'), withOrder([recordStep('T1')]), []),
+      ])),
+      event: makeEvent({ branch: 'yes' }),
+      registry: makeRegistry(order),
+      services: { ...services, deadlineAt: services.now().getTime() - 1 },
+    });
+    expect(order).toEqual([]);
+    expect(result.status).toBe('FAILED');
+  });
+});

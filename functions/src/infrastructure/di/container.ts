@@ -250,6 +250,9 @@ import type { ManageMemberMfaUseCase, SecondFactorUseCase } from '../../domain/u
 import { FirebaseRegistrationRepository } from '../../data/repositories/FirebaseRegistrationRepository';
 import { makeCreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
 import type { CreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
+import { SafeHttpClient } from '../http/SafeHttpClient';
+import { officeSetting } from '../settings/officeSettings';
+import { asStringList, HTTP_ALLOWED_HOSTS_PROPERTY, HTTP_ALLOWED_PORTS_PROPERTY } from '../../domain/schema/httpRequestSpec';
 
 class DIContainer {
   private static instance: DIContainer;
@@ -1250,6 +1253,13 @@ class DIContainer {
       workflowDefinitionRepository: this.getWorkflowDefinitionRepository(),
       aiConnectionRepository: this.getAIConnectionRepository(),
       callAIUseCase: this.getCallAIUseCase(),
+      http: {
+        client: new SafeHttpClient(),
+        policyOf: async (tenantId) => ({
+          allowedHosts: asStringList(await officeSetting(tenantId, HTTP_ALLOWED_HOSTS_PROPERTY)),
+          allowedPorts: asStringList(await officeSetting(tenantId, HTTP_ALLOWED_PORTS_PROPERTY)),
+        }),
+      },
     });
     this.workflowStepsRegistered = true;
   }

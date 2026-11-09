@@ -11,6 +11,8 @@ import {
 } from '../../domain/schema/notifications';
 import { coreMessage, CORE_AUTOMATION_MESSAGES } from '../coreMessages';
 import { TENANT_SETTINGS_SURFACE } from '../core.tenant/surface';
+import { WORKFLOW_BUDGET_SETTINGS_PROPERTIES } from '../../domain/schema/workflowBudget';
+import { HTTP_SETTINGS_PROPERTIES } from '../../domain/schema/httpRequestSpec';
 import { WorkflowCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/WorkflowCommandProvider';
 import { NotificationBell } from '../../presentation/components/layout/NotificationBell';
 
@@ -104,6 +106,28 @@ export const coreAutomationPlugin: PluginRecord = {
         icon: 'notification',
         order: 20,
         properties: [...NOTIFICATION_SETTINGS_PROPERTIES],
+      }),
+      // Duas decisões do ESCRITÓRIO sobre as automações — quanto tempo elas rodam e para onde podem
+      // mandar dados —, e por isso só no escopo dele, e visíveis só a quem administra as configurações.
+      // O mesmo `SettingsProperty` é lido pelo servidor (`officeSetting`), então o padrão que a tela
+      // mostra é o que o motor aplica.
+      settingsSection({
+        key: 'automation',
+        title: '@core.automation/settings.automation.title',
+        description: '@core.automation/settings.automation.description',
+        icon: 'timer',
+        order: 21,
+        requiredPermissions: [PERMISSION_SETTINGS_MANAGE],
+        properties: [...WORKFLOW_BUDGET_SETTINGS_PROPERTIES],
+      }),
+      settingsSection({
+        key: 'integrations',
+        title: '@core.automation/settings.integrations.title',
+        description: '@core.automation/settings.integrations.description',
+        icon: 'globe',
+        order: 22,
+        requiredPermissions: [PERMISSION_SETTINGS_MANAGE],
+        properties: [...HTTP_SETTINGS_PROPERTIES],
       }),
       surfaceTab({
         surface: TENANT_SETTINGS_SURFACE,
