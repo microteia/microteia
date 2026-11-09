@@ -26,6 +26,7 @@ import {
 import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
+import { LOOKUP_OPTION_FILTER_PATHS, OPTIONS_FILTER_OPERATORS, OPTIONS_FILTER_SINCE_KERNEL } from '../../../domain/schema/optionsFilter';
 import { RECORD_SEARCH_SINCE_KERNEL, SEARCHABLE_FIELD_TYPES } from '../../../domain/schema/recordSearch';
 import {
   RECORD_CONDITIONS_SINCE_KERNEL,
@@ -2137,6 +2138,7 @@ Beyond \`key\`, \`label\`, \`type\`, \`order\` and \`required\`, the properties 
 | \`hiddenInForm\` | keeps a field out of the form without deleting it |
 | \`contact: 'email' \\| 'phone'\` | the field holds a way to reach someone. It is what lets \`notify\` write to its value (\`recipientAddresses\`, \`recipientPhones\`, §10) — nothing else does. Only on a one-value \`text\` or \`masked\` field. Kernel \`^${CONTACT_NOTIFY_SINCE_KERNEL}\` |
 | \`file: { extensions, maxSizeMb }\` | what a \`file\` field accepts — the size is in megabytes |
+| \`optionsFilter: { where: [{ path, op, value }] }\` | offers only the options that match what the form already holds — the breed by the pet type, the city by the state. On a \`reference\`, \`path\` is a field of the target screen; on a \`select\`, one of ${inlineList([...LOOKUP_OPTION_FILTER_PATHS])} (\`label\` answers in the reader's language, so prefer \`key\`). \`op\` is one of ${inlineList([...OPTIONS_FILTER_OPERATORS])}. \`value\` is \`{ field }\` — a field of this screen, which may cross a reference (\`client.city\`) — or \`{ literal }\`. Conditions are ANDed. While a compared field is empty the list is empty, and changing it clears a choice it no longer offers, down the chain. A FORM rule only: a workflow, an import or the agent can still write any value. \`check\` refuses a path the option does not have and a compared field the screen does not have. Before kernel \`${OPTIONS_FILTER_SINCE_KERNEL}\` every option is offered |
 
 **Fields the organization adds** to your screen are theirs. An update of your extension preserves
 them, and uninstalling removes only yours.

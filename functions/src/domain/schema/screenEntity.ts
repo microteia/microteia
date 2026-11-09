@@ -355,6 +355,7 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
   if (field.unique === true) spec.unique = true;
   const contact = asContactKind(field.contact);
   if (contact) spec.contact = contact;
+  if (field.optionsFilter?.where?.length) spec.optionsFilter = field.optionsFilter;
   return spec;
 };
 
@@ -409,6 +410,7 @@ export const nativeSpecToFieldDefinition = (
   searchable: spec.ui?.search === true,
   unique: spec.unique === true,
   ...(spec.contact ? { contact: spec.contact } : {}),
+  ...(spec.optionsFilter ? { optionsFilter: spec.optionsFilter } : {}),
   hiddenInForm: spec.ui?.form === false,
 });
 

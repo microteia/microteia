@@ -468,6 +468,19 @@ export type {
 export { CUSTOM_FIELD_TYPES } from '../domain/schema/fieldRules';
 export { FIELD_EXPRESSION_FUNCTION_NAMES } from '../domain/schema/fieldExpression';
 
+/**
+ * O filtro das opções de um campo (`FieldDefinition.optionsFilter`) — a raça pelo tipo do animal. Os
+ * operadores saem como array pelo mesmo motivo de `CUSTOM_FIELD_TYPES`: o autor enumera o que existe.
+ */
+export type {
+  OptionsFilterLiteral,
+  OptionsFilterOperator,
+  OptionsFilterPredicate,
+  OptionsFilterSpec,
+  OptionsFilterValue,
+} from '../domain/schema/optionsFilter';
+export { LOOKUP_OPTION_FILTER_PATHS, OPTIONS_FILTER_OPERATORS } from '../domain/schema/optionsFilter';
+
 export type {
   SettingsOptionsSource,
   SettingsOptionsSourceKind,

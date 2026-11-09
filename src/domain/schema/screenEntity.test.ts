@@ -165,6 +165,14 @@ describe('conversão FieldDefinition ⇄ NativeFieldSpec', () => {
     });
   });
 
+  it('o filtro de opções atravessa a resolução — o formulário só lê o campo depois dela', () => {
+    const optionsFilter = { where: [{ path: 'petType', op: 'eq' as const, value: { field: 'petType' } }] };
+    const spec = fieldDefinitionToNativeSpec(field({ key: 'breedId', type: 'reference', refEntity: 'breeds', optionsFilter }));
+    expect(spec.optionsFilter).toEqual(optionsFilter);
+    expect(nativeSpecToFieldDefinition(spec, 'breedId', 0).optionsFilter).toEqual(optionsFilter);
+    expect(fieldDefinitionToNativeSpec(field({ key: 'x', optionsFilter: { where: [] } })).optionsFilter).toBeUndefined();
+  });
+
   it('campo de arquivo sem config volta com `file: null`', () => {
     const spec = fieldDefinitionToNativeSpec(field({ key: 'anexo', type: 'file' }));
     expect(spec.file).toBeUndefined();

@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.219.0] — 2026-11-09
+
+- No Form Design, a edição de tela e de campo foi reorganizada: as abas ficam na lateral, o botão Salvar fica no topo e a janela não muda mais de tamanho ao trocar de aba.
+- A edição de campo foi dividida por assunto (opções, comportamento, numeração, validação, expressões, dados externos e agregação), com cada informação agrupada sob um título.
+- Agora é possível configurar, direto no Form Design, quais opções um campo de seleção mostra de acordo com outro campo do formulário — por exemplo, só as raças do tipo de animal escolhido.
+
 #### [9.218.0] — 2026-11-09
 
 - Um campo de seleção pode agora mostrar só as opções que combinam com outro campo do formulário — por exemplo, apenas as raças do tipo de animal escolhido, ou apenas as cidades do estado selecionado.

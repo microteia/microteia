@@ -142,7 +142,7 @@ describe('ScreenBuilder — a numeração do campo', () => {
     await act(async () => { await result.current.handleSaveField(); });
     expect(saveDefinition).not.toHaveBeenCalled();
     expect(notify).toHaveBeenCalledWith('core.records/field.sequence.error.pattern-year', 'error');
-    expect(result.current.fieldModalTab).toBe('general');
+    expect(result.current.fieldModalTab).toBe('sequence');
   });
 
   it('a numeração já gravada fica travada: o que se mude na seção não chega ao documento', async () => {

@@ -30,13 +30,19 @@ const SIZE_WIDTHS = {
   xlarge: '1040px',
 } as const;
 
-const Container = styled.div<{ $size: keyof typeof SIZE_WIDTHS; $maximized?: boolean }>`
+/**
+ * A altura do editor de várias abas. Fixa — e não `auto` — porque é a troca de aba que a mudaria: o
+ * diálogo crescia e encolhia a cada clique, e a navegação saía de baixo do cursor.
+ */
+const FIXED_HEIGHT = 'min(780px, 90vh)';
+
+const Container = styled.div<{ $size: keyof typeof SIZE_WIDTHS; $maximized?: boolean; $fixedHeight?: boolean }>`
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ $maximized, theme }) => ($maximized ? '0' : theme.borderRadius.lg)};
   width: ${({ $maximized }) => ($maximized ? '100vw' : '100%')};
   max-width: ${({ $maximized, $size }) => ($maximized ? '100vw' : SIZE_WIDTHS[$size])};
-  height: ${({ $maximized }) => ($maximized ? '100vh' : 'auto')};
+  height: ${({ $maximized, $fixedHeight }) => ($maximized ? '100vh' : $fixedHeight ? FIXED_HEIGHT : 'auto')};
   max-height: ${({ $maximized }) => ($maximized ? '100vh' : '90vh')};
   display: flex;
   flex-direction: column;
@@ -86,6 +92,10 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   size?: keyof typeof SIZE_WIDTHS;
+  /** Botões do cabeçalho, antes do fechar — o "Salvar" no topo, no padrão das telas de edição. */
+  actions?: React.ReactNode;
+  /** Altura fixa, para diálogos com abas: trocar de aba não redimensiona o diálogo. */
+  fixedHeight?: boolean;
   maximizable?: boolean;
   maximized?: boolean;
   onToggleMaximize?: () => void;
@@ -96,6 +106,8 @@ export const Modal: React.FC<ModalProps> = ({
   onClose, 
   children, 
   size = 'small',
+  actions,
+  fixedHeight = false,
   maximizable = false,
   maximized = false,
   onToggleMaximize,
@@ -109,10 +121,11 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <Overlay onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <Container $size={size} $maximized={maximized}>
+      <Container $size={size} $maximized={maximized} $fixedHeight={fixedHeight}>
         <Header>
           <Title>{title}</Title>
           <HeaderActions>
+            {actions}
             {maximizable && onToggleMaximize && (
               <CloseButton variant="ghost" onClick={onToggleMaximize} title={t(maximized ? 'modal.restore' : 'modal.maximize')}>
                 {maximized ? <RiFullscreenExitLine size={20} /> : <RiFullscreenLine size={20} />}

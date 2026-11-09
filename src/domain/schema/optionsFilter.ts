@@ -24,6 +24,12 @@ export type OptionsFilterOperator = 'eq' | 'neq' | 'in' | 'contains' | 'startsWi
 
 export const OPTIONS_FILTER_OPERATORS: readonly OptionsFilterOperator[] = ['eq', 'neq', 'in', 'contains', 'startsWith'];
 
+/**
+ * O kernel em que o formulário passou a aplicar o filtro. Não é cobrado do pacote: um kernel anterior
+ * só oferece todas as opções, sem gravar nada que o filtro impediria fora do formulário.
+ */
+export const OPTIONS_FILTER_SINCE_KERNEL = '2.104.0';
+
 export type OptionsFilterLiteral = string | number | boolean | string[];
 
 /**
@@ -222,4 +228,70 @@ export const optionsFilterCascade = (
     }
   }
   return changes;
+};
+
+export type OptionsFilterIssueCode = 'type' | 'shape' | 'lookup-path' | 'reference-path' | 'source' | 'self';
+
+export interface OptionsFilterIssue {
+  code: OptionsFilterIssueCode;
+  path?: string;
+  source?: string;
+}
+
+/** O que se sabe ao conferir: os campos da tela dona e os da tela apontada, quando conhecidos. */
+export interface OptionsFilterContext {
+  /** Ausente quando a tela dona não é conhecida inteira (um patch numa tela de outro). */
+  screenFieldKeys?: ReadonlySet<string>;
+  /** Ausente quando a tela apontada não é conhecida (a de outra extensão, a do escritório). */
+  targetFieldKeys?: ReadonlySet<string>;
+}
+
+const isLiteral = (value: unknown): boolean =>
+  typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+  || (Array.isArray(value) && value.every((item) => typeof item === 'string'));
+
+const isPredicateShape = (predicate: unknown): predicate is OptionsFilterPredicate => {
+  if (typeof predicate !== 'object' || predicate === null) return false;
+  const { path, op, value } = predicate as Record<string, unknown>;
+  if (typeof path !== 'string' || path.trim() === '') return false;
+  if (!OPTIONS_FILTER_OPERATORS.includes(op as OptionsFilterOperator)) return false;
+  if (typeof value !== 'object' || value === null) return false;
+  const source = value as Record<string, unknown>;
+  if ('field' in source) return typeof source.field === 'string' && source.field.trim() !== '';
+  return 'literal' in source && isLiteral(source.literal);
+};
+
+/**
+ * A declaração que o formulário NÃO conseguiria aplicar, dita na autoria. Cada uma falharia calada em
+ * execução: um caminho que não existe na opção não casa com nada e esvazia a lista; uma origem que não
+ * existe no formulário desliga o filtro sem aviso.
+ *
+ * O que não se sabe não é cobrado: a tela apontada de outra extensão, ou a tela dona de um patch, só
+ * são conhecidas no escritório.
+ */
+export const optionsFilterIssues = (
+  field: Pick<FieldDefinition, 'key' | 'type' | 'optionsFilter'>,
+  context: OptionsFilterContext = {},
+): OptionsFilterIssue[] => {
+  const spec = field.optionsFilter as unknown;
+  if (spec === undefined || spec === null) return [];
+  if (field.type !== 'reference' && field.type !== 'select') return [{ code: 'type' }];
+  const where = (spec as { where?: unknown }).where;
+  if (!Array.isArray(where) || where.length === 0 || !where.every(isPredicateShape)) return [{ code: 'shape' }];
+
+  const issues: OptionsFilterIssue[] = [];
+  for (const predicate of where) {
+    if (field.type === 'select' && !(LOOKUP_OPTION_FILTER_PATHS as readonly string[]).includes(predicate.path)) {
+      issues.push({ code: 'lookup-path', path: predicate.path });
+    }
+    if (field.type === 'reference' && context.targetFieldKeys && !context.targetFieldKeys.has(topLevelKey(predicate.path))) {
+      issues.push({ code: 'reference-path', path: predicate.path });
+    }
+    if ('field' in predicate.value) {
+      const source = topLevelKey(predicate.value.field);
+      if (source === field.key) issues.push({ code: 'self', source });
+      else if (context.screenFieldKeys && !context.screenFieldKeys.has(source)) issues.push({ code: 'source', source });
+    }
+  }
+  return issues;
 };

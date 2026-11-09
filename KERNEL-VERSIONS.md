@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.219.0] — 2026-11-09
+
+- fix(schema): `optionsFilter` now survives the canonical round trip (`NativeFieldSpec.optionsFilter`, `fieldDefinitionToNativeSpec` ⇄ `nativeSpecToFieldDefinition`). The record form and the Form Design read fields after resolution, so in 9.218.0 a stored filter was dropped on the way and every option was offered.
+- feat(screen-builder): `optionsFilter` authoring in the field editor — an Options tab section with condition rows (option path, operator, compared form field or fixed value; `in` takes a comma-separated list). A blank row is dropped; a half-filled one is refused on its own tab.
+- feat(screen-builder): the screen and field editors are fixed-height dialogs with vertical navigation (`ui/SideTabs`) and Save in the header. The field editor's single "Advanced" tab is split into Options/File, Behaviour, Numbering, Formatting and validation, Expressions, External data and Aggregation, each shown only when the field type has something for it (`fieldModalTabs`); save refusals open the owning tab.
+- feat(ui/modal): `Modal` gains `actions` (header buttons before close) and `fixedHeight` (`min(780px, 90vh)`).
+- feat(sdk/check): `packageOptionsFilterIssues` in `packageIssues` refuses `optionsFilter` on a type that offers no options, an invalid shape, a path the option lacks (`key`/`label` on a list; target fields when the target screen ships in the package), a compared field the screen lacks and a field compared with itself. No kernel gate: before `OPTIONS_FILTER_SINCE_KERNEL` (2.104.0) every option is offered and nothing is written or exposed.
+- feat(sdk): exports `OptionsFilterSpec`, `OptionsFilterPredicate`, `OptionsFilterValue`, `OptionsFilterOperator`, `OptionsFilterLiteral`, `OPTIONS_FILTER_OPERATORS` and `LOOKUP_OPTION_FILTER_PATHS`; `AUTHORING.md` documents the property with the operator list derived from code. `KERNEL_VERSION` unchanged: authoring only. `com.microteia.locale-pt-br` 1.172.0.
+
 #### [9.218.0] — 2026-11-09
 
 - feat(records/form): `FieldDefinition.optionsFilter` (`domain/schema/optionsFilter.ts`, shared) restricts the options a `reference` or `select` field offers by values already in the form — `{ where: [{ path, op, value: { field } | { literal } }] }`, a conjunction. On a reference, `path` is a field of the target screen; on a list, `key` or `label` (`label` answers in the reader's language, so `key` is the stable path). Operators: `eq`, `neq`, `in`, `contains`, `startsWith`.

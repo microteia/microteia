@@ -360,40 +360,10 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.md};
   `,
 
-  ModalActions: styled.div`
-    grid-column: 1 / -1;
-    display: flex;
-    justify-content: flex-end;
-    gap: ${({ theme }) => theme.spacing.sm};
-    margin-top: ${({ theme }) => theme.spacing.sm};
-  `,
-
-  CheckboxRow: styled.div`
-    grid-column: 1 / -1;
-  `,
-
   /** Checkbox ocupando meia linha, alinhado à base do campo vizinho. */
   CheckboxCell: styled.div`
     align-self: end;
     padding-bottom: ${({ theme }) => theme.spacing.sm};
-  `,
-
-  ModalTabs: styled.div`
-    display: flex;
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-    margin-bottom: ${({ theme }) => theme.spacing.lg};
-  `,
-
-  ModalTabBtn: styled.button<{ $active: boolean }>`
-    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.lg}`};
-    font-size: ${({ theme }) => theme.fontSizes.sm};
-    font-weight: 500;
-    color: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
-    border-bottom: 2px solid ${({ $active, theme }) => ($active ? theme.colors.primary : 'transparent')};
-    transition: all ${({ theme }) => theme.transitions.fast};
-    white-space: nowrap;
-
-    &:hover { color: ${({ theme }) => theme.colors.text}; }
   `,
 
   OptionInputRow: styled.div`
@@ -419,18 +389,6 @@ export const S = {
     color: ${({ theme }) => theme.colors.text};
   `,
 
-  RulesDivider: styled.div`
-    grid-column: 1 / -1;
-    margin-top: ${({ theme }) => theme.spacing.sm};
-    padding-top: ${({ theme }) => theme.spacing.sm};
-    border-top: 1px solid ${({ theme }) => theme.colors.border};
-    font-size: ${({ theme }) => theme.fontSizes.xs};
-    font-weight: 600;
-    color: ${({ theme }) => theme.colors.textMuted};
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  `,
-
   ChipRemove: styled.button`
     display: inline-flex;
     align-items: center;
@@ -440,6 +398,66 @@ export const S = {
 
     &:hover {
       color: ${({ theme }) => theme.colors.danger};
+    }
+  `,
+
+  /** Um grupo de campos com título — a unidade de leitura dos editores de tela e de campo. */
+  FormSection: styled.section`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.md};
+
+    & + & {
+      margin-top: ${({ theme }) => theme.spacing.xl};
+      padding-top: ${({ theme }) => theme.spacing.xl};
+      border-top: 1px solid ${({ theme }) => theme.colors.border};
+    }
+  `,
+
+  SectionHeader: styled.header`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+  `,
+
+  SectionHeading: styled.h3`
+    font-size: ${({ theme }) => theme.fontSizes.md};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  SectionLead: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.textSecondary};
+  `,
+
+  SectionFooter: styled.div`
+    display: flex;
+  `,
+
+  /** Caixas de marcar de um mesmo assunto, uma por linha — e não espalhadas pela grade. */
+  CheckboxStack: styled.div`
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  /** O aviso que vale para o editor inteiro, acima da navegação ou do conteúdo da aba. */
+  EditorBanner: styled.div`
+    margin-bottom: ${({ theme }) => theme.spacing.lg};
+  `,
+
+  /** Uma condição do filtro de opções: o que comparar, como, com o quê — e o botão de remover. */
+  FilterRow: styled.div`
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 1.4fr auto;
+    align-items: end;
+    gap: ${({ theme }) => theme.spacing.sm};
+    padding-bottom: ${({ theme }) => theme.spacing.sm};
+
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
     }
   `,
 };

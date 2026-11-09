@@ -5982,8 +5982,46 @@ gravado em duas chaves, que o relatório, o filtro e a automação leem como coi
   (`optionsFilterRecordQuery` → `watchQuery`), em índice de campo único; o que volta entra nos
   conhecidos do `RecordStore`, de onde o seletor tira as opções. Os demais operadores filtram em memória
   a janela e o que a busca trouxe. Membros (`refEntity: 'members'`) não são filtráveis.
-- **O que ainda não faz:** autoria no Form Design, conferência em `validatePluginPackage` e as opções do
-  formulário do portal (fases 2 e 3).
+- **A forma canônica carrega o filtro.** `NativeFieldSpec.optionsFilter` existe porque o formulário do
+  registro e o Form Design leem os campos DEPOIS da resolução (`deriveFormFields`): sem ele no
+  ida-e-volta `fieldDefinitionToNativeSpec` ⇄ `nativeSpecToFieldDefinition`, a declaração gravada sumia
+  no caminho e o seletor oferecia tudo — a mesma armadilha que já tinha pego `unique`.
+- **Autoria no Form Design:** aba "Opções" do editor de campo, seção "Filtrar opções" — linhas de
+  condição (campo da opção, condição, comparar com campo deste formulário ou valor fixo). No `in`, o valor
+  fixo é digitado separado por vírgula e gravado como lista. A linha em branco é descartada; a pela
+  metade é recusada na própria aba (`field.error.options-filter-incomplete`).
+- **Conferência do pacote:** `optionsFilterIssues` (domínio) e `packageOptionsFilterIssues`, na porta
+  única `packageIssues`. Recusa o tipo que não oferece opções, a forma inválida, o caminho que a opção
+  não tem (na lista, fora de `key`/`label`; na referência, só quando a tela apontada vem no pacote), a
+  origem que não é campo da tela e a que é o próprio campo. A tela dona de um patch não é conhecida no
+  pacote, e por isso a origem ali não é cobrada.
+- **Sem portão de kernel**, de propósito: um kernel anterior a `OPTIONS_FILTER_SINCE_KERNEL` só oferece
+  todas as opções — nada é gravado nem exposto que o filtro impediria, que é o critério dos outros
+  portões. O SDK publica os tipos, `OPTIONS_FILTER_OPERATORS` e `LOOKUP_OPTION_FILTER_PATHS`; o
+  `AUTHORING.md` deriva deles a lista de operadores.
+- **O que ainda não faz:** as opções do formulário do portal (fase 3).
+
+### Os editores de tela e de campo do Form Design
+
+Os dois editores são diálogos de ALTURA FIXA (`Modal.fixedHeight`) com navegação vertical
+(`ui/SideTabs`, a mesma de Configurações) e o Salvar no cabeçalho (`Modal.actions`). Antes eram abas
+horizontais num diálogo de altura automática: cada troca de aba redimensionava o diálogo, e a "Avançado"
+do campo juntava regras, expressões, agregado e busca externa numa parede só.
+
+- **O editor de campo tem uma aba por assunto** (`fieldModalTabs`): Geral, Opções/Arquivo, Comportamento,
+  Numeração, Formatação e validação, Expressões, Dados externos, Agregação — cada uma só aparece quando o
+  tipo e a origem do campo têm o que mostrar nela. Trocar o tipo para um que não tem a aba aberta volta a
+  navegação para Geral.
+- **A recusa abre a aba dona do campo** (`reject(tab, …)` em `handleSaveField`): o erro de expressão abre
+  Expressões, o do agregado abre Agregação. Com o formulário em abas, avisar sem levar até o campo deixava
+  o erro invisível.
+- **Dentro da aba, seções com título** (`Section` na View): Identificação, Exibição do registro, Abas do
+  registro, Disponibilidade na tela; No formulário / Nas listas e na busca no campo. As caixas de marcar de
+  um assunto ficam empilhadas (`CheckboxStack`), e não espalhadas pela grade de duas colunas.
+- **Por que diálogo e não aba do workspace**, como o passo de automação: o estado de edição mora no
+  ViewModel do Form Design, ao lado da lista que ele atualiza ao salvar, e os oito testes do Form Design
+  o exercitam por esse ViewModel. Levar o editor para uma aba exigiria um Store só para o rascunho, e o
+  ganho — Salvar no topo, navegação vertical, tamanho estável — já veio no diálogo.
 
 ### Campos agregados (valor vindo dos registros filhos)
 
