@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.170.0",
+    "version": "1.171.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -2328,6 +2328,7 @@
             "field.issue": "{label}: {reason}",
             "field.issue-more": "{label}: {reason} — e mais {others} campo(s)",
             "field.invalid-value": "Valor inválido",
+            "field.option-not-offered": "Esta opção não está disponível para os valores escolhidos no formulário",
             "business-days.error.unavailable": "Não é possível contar dias úteis: nenhuma extensão instalada fornece calendários de dias úteis.",
             "business-days.error.loading": "Os calendários de dias úteis ainda estão carregando. Tente de novo em instantes.",
             "business-days.error.no-calendar": "Nenhum calendário de dias úteis foi informado para a contagem.",

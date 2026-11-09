@@ -175,6 +175,21 @@ const containsValue = (actual: unknown, expected: unknown): boolean => {
   return looseEquals(actual, expected);
 };
 
+/**
+ * "Começa com", na mesma régua do "contém": entre textos, sem diferenciar maiúscula de minúscula; onde
+ * há lista, item a item. Fora de texto não há prefixo a perguntar, e a resposta é não — ao contrário
+ * do "contém", nenhum registro apontado começa com coisa alguma.
+ *
+ * Mora aqui, e não em quem a usa, para que o filtro de opções de um campo e qualquer leitor futuro
+ * deem a mesma resposta sobre o mesmo prefixo.
+ */
+export const startsWithValue = (actual: unknown, expected: unknown): boolean => {
+  if (Array.isArray(actual)) return actual.some((item) => startsWithValue(item, expected));
+  if (Array.isArray(expected)) return expected.some((one) => startsWithValue(actual, one));
+  return typeof actual === 'string' && typeof expected === 'string'
+    && actual.toLowerCase().startsWith(expected.toLowerCase());
+};
+
 const equals = (actual: unknown, expected: unknown): boolean =>
   Array.isArray(actual) || Array.isArray(expected)
     ? anyMatches(actual, expected)

@@ -448,6 +448,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.issue': '{label}: {reason}',
   'field.issue-more': '{label}: {reason} — e mais {others} campo(s)',
   'field.invalid-value': 'Valor inválido',
+  'field.option-not-offered': 'Esta opção não está disponível para os valores escolhidos no formulário',
   'business-days.error.unavailable': 'Não é possível contar dias úteis: nenhuma extensão instalada fornece calendários de dias úteis.',
   'business-days.error.loading': 'Os calendários de dias úteis ainda estão carregando. Tente de novo em instantes.',
   'business-days.error.no-calendar': 'Nenhum calendário de dias úteis foi informado para a contagem.',

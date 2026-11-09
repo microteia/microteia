@@ -451,6 +451,7 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.issue': '{label}: {reason}',
   'field.issue-more': '{label}: {reason} — and {others} other field(s)',
   'field.invalid-value': 'Invalid value',
+  'field.option-not-offered': 'This option is not available for the values chosen in the form',
   'business-days.error.unavailable': 'Business days cannot be counted: no installed extension provides business-day calendars.',
   'business-days.error.loading': 'The business-day calendars are still loading. Try again in a moment.',
   'business-days.error.no-calendar': 'No business-day calendar was given for the count.',

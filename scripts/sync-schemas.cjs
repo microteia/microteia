@@ -67,6 +67,7 @@ const SHARED_FILES = [
   'domain/schema/recordImport.ts',
   'domain/schema/recordImportReference.ts',
   'domain/schema/predicateMatch.ts',
+  'domain/schema/optionsFilter.ts',
   'domain/schema/recordOrder.ts',
   'domain/schema/parameterRules.ts',
   'domain/schema/validateSpec.ts',

@@ -5944,6 +5944,47 @@ As duas são as **mesmas** do escopo das Actions, com a mesma semântica — a p
 - **Autoria:** o `ScreenBuilder` oferece as duas no autocomplete de **três** dos cinco editores — `fieldUiExpressionVariables`, usado em Ocultar, Desabilitar e Ao alterar. Em Validação e Valor calculado a lista continua sendo `fieldExpressionVariables`: sugerir ali um nome que o backend não resolve é exatamente o defeito que esta seção corrige, com o sinal invertido.
 - **`FIELD_UI_RESERVED_VARIABLES`** é a lista única — o teste confronta nome por nome contra o escopo que `buildFieldUiScope` monta, então a lista não pode virar prosa desatualizada. É onde uma variável de situação nova (`role`, `user`, `surface` — as que a Action já tem) entraria sem precisar de caminho novo.
 
+### Filtro de opções (`optionsFilter`) — a raça pelo tipo do animal
+
+Uma referência oferecia a coleção apontada inteira, e uma lista, todas as opções. Quando a escolha
+depende de outro campo do formulário (raça pelo tipo, cidade pelo estado, tipo de notícia pelo prefixo
+da região), a única forma de declarar isso eram dois campos com um `hiddenWhen` cada — e o mesmo dado
+gravado em duas chaves, que o relatório, o filtro e a automação leem como coisas diferentes.
+
+```ts
+{ key: 'breedId', type: 'reference', refEntity: 'breeds',
+  optionsFilter: { where: [{ path: 'petType', op: 'eq', value: { field: 'petType' } }] } }
+{ key: 'newsType', type: 'select', lookupCollection: 'newsTypes',
+  optionsFilter: { where: [{ path: 'key', op: 'startsWith', value: { field: 'region' } }] } }
+```
+
+- **Uma capacidade para os dois tipos.** Na referência, `path` é campo da tela apontada; na lista, `key`
+  ou `label` (`LOOKUP_OPTION_FILTER_PATHS`). `value` é `{ field }` — campo do registro em edição, que pode
+  atravessar referência (`cliente.cidade`) — ou `{ literal }`. `where` é conjunção.
+- **Operadores:** `eq`, `neq`, `in`, `contains`, `startsWith`. A comparação é a de `predicateMatch.ts`,
+  a mesma do relatório e da automação; `startsWithValue` nasceu lá pela mesma razão. `startsWith` NÃO
+  entrou no `QueryOperator`: relatório e automação continuam recusando-o até alguém decidir abri-los.
+- **`label` responde no idioma de quem lê.** Numa opção fixa (`@ns/chave`), o filtro por rótulo muda de
+  resposta com o idioma; `key`, que é o valor gravado, é o caminho estável.
+- **É regra de FORMULÁRIO, e só dele.** Automação, importação e agente gravam o que quiserem e
+  respondem por isso — por isso a recusa mora em `useRecordFormValidation` (`field.option-not-offered`)
+  e não em `validateRecordRules`, que também julga o que chega por esses caminhos.
+- **Origem vazia = lista vazia**, o mesmo vazio de qualquer seletor sem opções. Sem aviso próprio.
+- **A escolha invalidada sai no GESTO, em cascata.** `setValue` do `CustomFieldsSection` chama
+  `optionsFilterCascade`: trocar o país limpa o estado, que limpa a cidade. Não é efeito — abrir um
+  registro antigo nunca o altera sozinho. Opção DESCONHECIDA (registro ainda não carregado) não é
+  limpa: não há como dizer que ela não passa.
+- **A já escolhida continua na lista** mesmo quando não passa, para que um registro antigo mostre o que
+  tem gravado em vez de "não encontrado"; a gravação é que a recusa.
+- **Filtro cuja origem não está no formulário não é aplicado** (`formOptionsFilter`). É o `FieldInput`,
+  que desenha um campo sozinho: esconder tudo por falta de um valor que ninguém leu seria pior.
+- **Candidatas além da janela.** A igualdade sobre campo de topo desce ao servidor
+  (`optionsFilterRecordQuery` → `watchQuery`), em índice de campo único; o que volta entra nos
+  conhecidos do `RecordStore`, de onde o seletor tira as opções. Os demais operadores filtram em memória
+  a janela e o que a busca trouxe. Membros (`refEntity: 'members'`) não são filtráveis.
+- **O que ainda não faz:** autoria no Form Design, conferência em `validatePluginPackage` e as opções do
+  formulário do portal (fases 2 e 3).
+
 ### Campos agregados (valor vindo dos registros filhos)
 
 `FieldDefinition.aggregation?: FieldAggregation` (`domain/schema/fieldRules.ts`) declara que o valor do campo vem de um agregado sobre os **filhos**: `{ from, via, op, field?, filter?, orderBy? }` — tela dos filhos, campo de referência no filho que aponta para este registro, operação (`sum|count|avg|min|max|latest`), campo medido (ou copiado), filtro opcional e, só em `latest`, a ordenação.

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.218.0] — 2026-11-09
+
+- Um campo de seleção pode agora mostrar só as opções que combinam com outro campo do formulário — por exemplo, apenas as raças do tipo de animal escolhido, ou apenas as cidades do estado selecionado.
+- Ao trocar o campo de que a escolha depende, a opção que deixou de valer é limpa automaticamente, e a limpeza segue a cadeia (país, estado, cidade).
+
 #### [9.217.0] — 2026-11-09
 
 - O passo "Chamar API" pode agora enviar em segundo plano: a automação segue sem esperar a resposta, e se o outro sistema estiver fora do ar ou ocupado, o envio é tentado de novo sozinho, com intervalos cada vez maiores.

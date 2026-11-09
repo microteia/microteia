@@ -16,6 +16,7 @@ import type {
   FieldRules,
 } from '../schema/fieldRules';
 import type { RecordKeySpec } from '../schema/recordKeys';
+import type { OptionsFilterSpec } from '../schema/optionsFilter';
 import type { AutoValueSpec } from '../schema/recordSequence';
 import type { PortalDeclaration } from '../schema/portal';
 import type { EditWindowSpec } from '../schema/editWindow';
@@ -61,6 +62,13 @@ export interface FieldDefinition {
    */
   refDenormKey?: string | null;
   lookupCollection?: string | null;
+  /**
+   * Restringe as opções que o formulário OFERECE pelo que ele já tem — a raça pelo tipo do animal.
+   * Vale para `reference` e `select`. Sem isto, a dependência entre dois campos só se escrevia com
+   * dois campos e um `hiddenWhen` em cada, gravando o mesmo dado em duas chaves. Ver
+   * `domain/schema/optionsFilter.ts`.
+   */
+  optionsFilter?: OptionsFilterSpec | null;
   placeholder?: string | null;
   showInList?: boolean;
   listLabel?: string | null;

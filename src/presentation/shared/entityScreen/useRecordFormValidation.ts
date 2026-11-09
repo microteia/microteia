@@ -5,6 +5,11 @@ import {
   validateRequiredFields,
 } from '../../../domain/services/customFieldValues';
 import { validateRecordRules } from '../../../data/utils/recordRulesGate';
+import { computeFieldValues } from '../../../domain/schema/recordRules';
+import { buildHydratedFieldScope } from '../../../domain/schema/referenceScope';
+import { findOptionsFilterViolations } from '../../../domain/schema/optionsFilter';
+import { useRecordResolver } from '../useRecordResolver';
+import { useOptionsFilterCandidate } from '../useOptionsFilterCandidate';
 import { useLabel, useT } from '../i18n/useT';
 import type { CustomFieldValue, FieldDefinition } from '../../../domain/entities';
 import type { EntityValidationResult } from './useEntityDetail';
@@ -26,6 +31,8 @@ export const useRecordFormValidation = (
 ): ((values: Values) => EntityValidationResult | null) => {
   const t = useT('core.records');
   const label = useLabel();
+  const resolveRecord = useRecordResolver();
+  const candidateOf = useOptionsFilterCandidate();
 
   return useCallback(
     (values) => {
@@ -34,12 +41,24 @@ export const useRecordFormValidation = (
       issues.forEach((issue) => {
         if (!fieldErrors[issue.path]) fieldErrors[issue.path] = label(issue.error, issue.errorParams);
       });
+      // O filtro de opções é regra do FORMULÁRIO: por isso é cobrado aqui, e não em `validateRecordRules`,
+      // que também julga o que chega por automação e importação.
+      const scope = buildHydratedFieldScope(
+        sortedFields,
+        { ...values, ...computeFieldValues(sortedFields, values) },
+        resolveRecord,
+      );
+      const notOffered = findOptionsFilterViolations(sortedFields, values, scope, candidateOf);
+      notOffered.forEach((field) => {
+        if (!fieldErrors[field.key]) fieldErrors[field.key] = t('field.option-not-offered');
+      });
       if (Object.keys(fieldErrors).length === 0) return null;
-      const summary = issues
-        .map((issue) => `${label(issue.label)}: ${label(issue.error, issue.errorParams)}`)
-        .join('; ');
+      const summary = [
+        ...issues.map((issue) => `${label(issue.label)}: ${label(issue.error, issue.errorParams)}`),
+        ...notOffered.map((field) => `${label(field.label)}: ${t('field.option-not-offered')}`),
+      ].join('; ');
       return { message: validateRequiredFields(t, sortedFields, values) ?? summary, fieldErrors };
     },
-    [sortedFields, collection, t, label],
+    [sortedFields, collection, t, label, resolveRecord, candidateOf],
   );
 };

@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.218.0] — 2026-11-09
+
+- feat(records/form): `FieldDefinition.optionsFilter` (`domain/schema/optionsFilter.ts`, shared) restricts the options a `reference` or `select` field offers by values already in the form — `{ where: [{ path, op, value: { field } | { literal } }] }`, a conjunction. On a reference, `path` is a field of the target screen; on a list, `key` or `label` (`label` answers in the reader's language, so `key` is the stable path). Operators: `eq`, `neq`, `in`, `contains`, `startsWith`.
+- feat(records/form): an empty source yields an empty list; a selection invalidated by a change is cleared in the same gesture, cascading through dependent fields (`optionsFilterCascade`), never by effect; an unknown option is kept. A filter whose source field is not in the form is not applied (standalone `FieldInput`).
+- feat(records/form): equality on a top-level path is pushed to the server as a single-field query (`optionsFilterRecordQuery`), so candidates outside the loaded window are still offered; other operators filter in memory.
+- feat(records/validation): saving from the form refuses a value the filter does not offer (`core.records/field.option-not-offered`). Form-only by design: workflows, imports and agents are not checked.
+- feat(predicate): `startsWithValue` in `predicateMatch.ts`, case-insensitive and list-aware. `QueryOperator` is unchanged.
+- chore(kernel): `KERNEL_VERSION` 2.104.0 — additive: an installed package's field may declare `optionsFilter`; an older kernel ignores it and offers every option. `com.microteia.locale-pt-br` 1.171.0.
+
 #### [9.217.0] — 2026-11-09
 
 - feat(workflow/http-request): `HttpRequestSpec.mode: 'async'` (kernel 2.103.0, `HTTP_ASYNC_SINCE_KERNEL`; absent means sync, so every stored spec is unchanged). The boundary (allowlist, ports, credential) is checked before enqueueing; the step publishes only `dispatchId`. The request is stored already built and without the secret — the credential travels by key and is applied on each attempt. Request plus callback params are capped at 256 KB.
