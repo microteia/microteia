@@ -4,6 +4,7 @@ import type { IUserRepository } from '../../domain/repositories/IUserRepository'
 import type { IRegistrationPolicyRepository } from '../../domain/repositories/IRegistrationPolicyRepository';
 import type { IUserProfileRepository } from '../../domain/repositories/IUserProfileRepository';
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
+import type { IHttpConnectionRepository } from '../../domain/repositories/IHttpConnectionRepository';
 import type { ISavedFilterRepository } from '../../domain/repositories/ISavedFilterRepository';
 import type { ISettingsRepository } from '../../domain/repositories/ISettingsRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
@@ -69,6 +70,7 @@ export interface DIContainer {
   registrationPolicyRepository: IRegistrationPolicyRepository;
   userProfileRepository: IUserProfileRepository;
   aiConnectionRepository: IAIConnectionRepository;
+  httpConnectionRepository: IHttpConnectionRepository;
   savedFilterRepository: ISavedFilterRepository;
   settingsRepository: ISettingsRepository;
   tenantRepository: ITenantRepository;

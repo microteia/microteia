@@ -64,7 +64,16 @@ export interface HttpRequestSpec {
    * `body.<caminho>` no autocomplete, que de outro modo só conheceria o `body` inteiro.
    */
   responseSample?: string;
+  /**
+   * A CHAVE de uma credencial de integração do escritório (Configurações › Credenciais de integração).
+   * O segredo é posto pelo servidor, na hora da chamada — nunca passa pela automação, pelo histórico
+   * nem pelo pacote da extensão.
+   */
+  connection?: string;
 }
+
+export const HTTP_CONNECTION_KEY_PATTERN = '^[a-z][a-z0-9-]{1,39}$';
+const CONNECTION_KEY_RE = new RegExp(HTTP_CONNECTION_KEY_PATTERN);
 
 /**
  * Os tetos do passo. O da resposta é baixo de propósito: o motor grava as saídas de cada passo no
@@ -256,6 +265,10 @@ export const validateHttpRequestSpec = (value: unknown): HttpRequestSpecIssue[] 
   }
   if (spec.responseType !== undefined && !(HTTP_RESPONSE_TYPES as readonly string[]).includes(String(spec.responseType))) {
     issues.push({ field: 'responseType', error: '@core.automation/step.http.issue.response-type' });
+  }
+  if (spec.connection !== undefined && spec.connection !== ''
+    && (typeof spec.connection !== 'string' || !CONNECTION_KEY_RE.test(spec.connection))) {
+    issues.push({ field: 'connection', error: '@core.automation/step.http.issue.connection' });
   }
   if (spec.responseSample !== undefined && spec.responseSample !== '') {
     if (typeof spec.responseSample !== 'string' || parseSample(spec.responseSample) === undefined) {

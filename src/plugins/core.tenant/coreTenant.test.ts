@@ -39,7 +39,7 @@ describe('core.tenant — o escritório como plugin', () => {
    */
   it('entrega as abas como contribuição, não como código da tela', () => {
     const tabs = tabsOf(TENANT_SETTINGS_SURFACE);
-    expect(tabs.map((tab) => tab.key).sort()).toEqual(['agent', 'ai', 'email', 'members', 'office', 'portal', 'portal-texts', 'roles', 'security']);
+    expect(tabs.map((tab) => tab.key).sort()).toEqual(['agent', 'ai', 'email', 'integrations', 'members', 'office', 'portal', 'portal-texts', 'roles', 'security']);
   });
 
   it('deixa a aba de dados aberta a todo membro e as de gestão atrás de uma permissão', () => {

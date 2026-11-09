@@ -1,7 +1,7 @@
 import type { PluginRecord } from '../../kernel';
 import { command, lazyView, nav, page, settingsSection, surfaceSlot, surfaceTab } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
-import { PERMISSION_AUTOMATION_MANAGE, PERMISSION_SETTINGS_MANAGE } from '../../domain/schema/access';
+import { PERMISSION_AUTOMATION_MANAGE, PERMISSION_INTEGRATIONS_MANAGE, PERMISSION_SETTINGS_MANAGE } from '../../domain/schema/access';
 import { AUTOMATION_NAV_GROUP, WORKSPACE_SLOT_SURFACES } from '../../domain/schema/ui/uiExtensionPoints';
 import {
   NOTIFICATION_EXTENSION_POINTS,
@@ -32,6 +32,7 @@ export const coreAutomationPlugin: PluginRecord = {
     NotificationBell,
     NotificationsView: lazyView(() => import('../../presentation/pages/Notifications/Notifications.view'), 'NotificationsView'),
     NotificationEmailTabView: lazyView(() => import('../../presentation/pages/TenantSettings/EmailTab/EmailTab.view'), 'EmailTabView'),
+    IntegrationsTabView: lazyView(() => import('../../presentation/pages/TenantSettings/IntegrationsTab/IntegrationsTab.view'), 'IntegrationsTabView'),
   },
   manifest: {
     id: 'core.automation',
@@ -137,6 +138,16 @@ export const coreAutomationPlugin: PluginRecord = {
         order: 32,
         requiredPermissions: [PERMISSION_SETTINGS_MANAGE],
       }, 'NotificationEmailTabView'),
+      // Os segredos das APIs que o passo "Chamar API" chama. Aba própria, com permissão própria: quem
+      // monta a automação nomeia a credencial pela chave, e não precisa — nem deve — ver o segredo.
+      surfaceTab({
+        surface: TENANT_SETTINGS_SURFACE,
+        key: 'integrations',
+        title: '@core.automation/http-connection.tab',
+        icon: 'key',
+        order: 33,
+        requiredPermissions: [PERMISSION_INTEGRATIONS_MANAGE],
+      }, 'IntegrationsTabView'),
       nav({ key: 'workflows', label: '@core.automation/page.workflows', icon: 'flowChart', order: 106, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),
       nav({ key: 'scripts', label: '@core.automation/page.scripts', icon: 'codeBox', order: 107, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),
       nav({ key: 'actions', label: '@core.automation/page.actions', icon: 'cursor', order: 108, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.216.0] — 2026-11-09
+
+- Nova aba "Credenciais de integração" nas configurações do Escritório: cadastre ali o token, a chave de API ou a senha de um sistema externo, e o passo "Chamar API" o envia sem que ele apareça na automação, no histórico ou numa extensão. Depois de gravado, o segredo pode ser trocado, mas não exibido — nem para quem o cadastrou.
+- Cada credencial diz para quais domínios o segredo pode ir: ele nunca é enviado a outro endereço, mesmo que o escritório libere esse endereço para outras chamadas.
+- Se uma API devolver o segredo na resposta, ele é apagado antes de chegar ao histórico de execuções.
+- Nova permissão "Gerenciar credenciais de integração": quem monta automações escolhe a credencial pelo nome, sem precisar conhecer o segredo.
+
 #### [9.215.0] — 2026-11-09
 
 - Novo passo de automação "Chamar API (HTTP)": a automação chama um sistema de fora pela internet — consultar um CEP, avisar um parceiro, buscar a cotação do dia — e usa a resposta nos passos seguintes. Endereço, parâmetros, cabeçalhos e corpo podem vir de um valor fixo, do registro que disparou a automação, de uma expressão ou de um passo anterior.

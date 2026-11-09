@@ -18,6 +18,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.216.0] — 2026-11-09
+
+- feat(workflow/http-request): `HttpRequestSpec.connection`, the key of an office integration credential (kernel 2.102.0, `HTTP_CONNECTION_SINCE_KERNEL`). The server applies it at call time (`applyHttpCredential`): `bearer`/`basic` in `Authorization`, `header` in a header of its own, `query` in a query parameter. A value the request already sets in the same place is refused (`step.http.connection.conflict`), never overwritten. Each credential carries its own `hosts`, checked on top of the office allowlist, so a token cannot be sent to another allowed domain.
+- feat(workflow/http-request): everything the step returns (outputs, message, params) goes through `redactSecrets` with every form the secret took (raw, URL-encoded, Basic base64), so a secret echoed by the API never reaches the run history.
+- feat(integrations): `tenants/{t}/httpConnections/{id}` (description) and `…/secrets/current` (`{ value }`); new kernel permission `integrations.manage`; `IHttpConnectionRepository` (browser, write-only for the secret) and `IHttpCredentialRepository` (server, `findByKey`, no cache); "Integration credentials" tab on the organization settings surface; credential picker in the step editor. `httpConnections` is a reserved collection.
+- feat(rules): description readable with `integrations.manage` or `automation.manage`, writable with `integrations.manage`; secret writable with `integrations.manage` and never readable by clients. Requires `npm run deploy:rules`.
+- feat(marketplace/validate): `request.connection` in a package that admits a kernel below 2.102.0 is refused (`issue.step.input-kernel`).
+- chore(kernel): `KERNEL_VERSION` 2.102.0.
+- chore(locale-pt-br): 1.169.0, with the credential screen, editor and step messages.
+
 #### [9.215.0] — 2026-11-09
 
 - feat(workflow/http-request): new core step `http-request` (category `Integration`, kernel 2.101.0, `HTTP_REQUEST_SINCE_KERNEL`). One structured input `request` (`type: 'HttpRequest'`, `Literal` only) holding an `HttpRequestSpec` (`src/domain/schema/httpRequestSpec.ts`): `method`, `url` with `{name}` placeholders, `pathParams`, `query`, `headers`, `body` (`none` | `json` | `json-from` | `form` | `text`), `timeoutSeconds` (1–120), `failOnHttpError`, `responseType` (`auto` | `json` | `text`) and `responseSample`. Every value inside is a plain `InputMapping`, resolved by `resolveMapping`, so it can come from a literal, the event, an expression, a prior step output or a variable. Outputs: `ok`, `status`, `headers` (lower-case, `set-cookie` dropped), `body`, `durationMs`, `error`, `timedOut`.

@@ -7,6 +7,7 @@ import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { QUERY_PAGE_SINCE_KERNEL } from '../../schema/querySpec';
 import { CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL } from '../../schema/eventCatalog';
 import { HTTP_REQUEST_SINCE_KERNEL } from '../../schema/httpRequestSpec';
+import { HTTP_CONNECTION_SINCE_KERNEL } from '../../schema/httpConnection';
 
 /**
  * Cada caso aqui é um defeito que COMPILAVA e passava por toda a validação de pacote, e só falava no
@@ -675,6 +676,15 @@ describe('passo http-request no pacote', () => {
       .toEqual(['@core.marketplace/issue.step.http-literal-secret']);
     const deVariavel = { ...valida, headers: [{ name: 'Authorization', value: { kind: 'Variable', name: 'token' } }] };
     expect(mensagens(comKernel([chamar(deVariavel)], `^${HTTP_REQUEST_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('a credencial pela chave exige o kernel em que ela existe', () => {
+    const comCredencial = chamar({ ...valida, connection: 'crm' });
+    expect(workflowStepIssues(comKernel([comCredencial], `^${HTTP_REQUEST_SINCE_KERNEL}`)).map((issue) =>
+      [issue.message, issue.messageParams?.input, issue.messageParams?.minimum])).toEqual([
+      ['@core.marketplace/issue.step.input-kernel', 'request.connection', HTTP_CONNECTION_SINCE_KERNEL],
+    ]);
+    expect(workflowStepIssues(comKernel([comCredencial], `^${HTTP_CONNECTION_SINCE_KERNEL}`))).toEqual([]);
   });
 
   it('a requisição que não é valor fixo é recusada', () => {

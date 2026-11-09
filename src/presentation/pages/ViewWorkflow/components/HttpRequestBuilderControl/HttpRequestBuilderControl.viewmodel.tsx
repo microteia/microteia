@@ -1,5 +1,9 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useT, useLabel } from '../../../../shared/i18n/useT';
+import { useTenant } from '../../../../../stores/useTenant';
+import { useDI } from '../../../../../infrastructure/di/useDI';
+import { makeGetHttpConnectionsUseCase } from '../../../../../domain/usecases/httpconnections/GetHttpConnectionsUseCase';
+import type { HttpConnection } from '../../../../../domain/schema/httpConnection';
 import { useResolvedSetting } from '../../../../shared/settings/useSettingValue';
 import type { InputMapping } from '../../../../../domain/entities/Workflow';
 import type { MapFieldMapping } from '../../../../../domain/schema/mapSpec';
@@ -95,6 +99,10 @@ export interface HttpRequestBuilderControlViewModel {
   timeoutHint: string;
   /** O aviso sobre a lista de domínios do escritório, ou `null` quando a chamada está coberta. */
   hostWarning: string | null;
+  connectionOptions: SearchSelectOption[];
+  /** O aviso sobre a credencial escolhida (inexistente, ou que não vai para este domínio). */
+  connectionWarning: string | null;
+  setConnection: (key: string) => void;
   /** As recusas da especificação e os avisos (segredo com valor fixo), já traduzidos. */
   issues: string[];
   warnings: string[];
@@ -121,6 +129,20 @@ export const useHttpRequestBuilderControlViewModel = (
   const label = useLabel();
   const spec = useMemo(() => value ?? EMPTY_SPEC, [value]);
   const allowedHosts = asStringList(useResolvedSetting(HTTP_ALLOWED_HOSTS_PROPERTY).value);
+  const { currentTenant } = useTenant();
+  const { httpConnectionRepository } = useDI();
+  const getConnections = useMemo(() => makeGetHttpConnectionsUseCase(httpConnectionRepository), [httpConnectionRepository]);
+  const [connections, setConnections] = useState<HttpConnection[] | null>(null);
+
+  // Só a DESCRIÇÃO das credenciais — chave, nome, domínios. O segredo não é legível pelo navegador.
+  useEffect(() => {
+    if (!currentTenant) return;
+    let alive = true;
+    getConnections.execute(currentTenant.id)
+      .then((list) => { if (alive) setConnections(list); })
+      .catch(() => { if (alive) setConnections([]); });
+    return () => { alive = false; };
+  }, [currentTenant, getConnections]);
 
   const methodOptions = useMemo<SearchSelectOption[]>(
     () => HTTP_METHODS.map((method) => ({ value: method, label: method })),
@@ -185,6 +207,22 @@ export const useHttpRequestBuilderControlViewModel = (
     [emit, spec],
   );
 
+  const setConnection = useCallback(
+    (key: string) => emit({ ...spec, connection: key === '' ? undefined : key }),
+    [emit, spec],
+  );
+
+  const connectionOptions = useMemo<SearchSelectOption[]>(() => {
+    const options: SearchSelectOption[] = [
+      { value: '', label: t('http.connection.none') },
+      ...(connections ?? []).map((one) => ({ value: one.key, label: t('http.connection.option', { name: one.name, key: one.key }) })),
+    ];
+    const current = spec.connection;
+    return current && connections && !connections.some((one) => one.key === current)
+      ? [...options, { value: current, label: t('http.connection.missing', { key: current }) }]
+      : options;
+  }, [connections, spec.connection, t]);
+
   const setResponseSample = useCallback(
     (sample: string) => emit({ ...spec, responseSample: sample === '' ? undefined : sample }),
     [emit, spec],
@@ -206,6 +244,15 @@ export const useHttpRequestBuilderControlViewModel = (
       ? t('http.host-outside', { host })
       : null;
 
+  const chosen = spec.connection && connections ? connections.find((one) => one.key === spec.connection) : undefined;
+  const connectionWarning = !spec.connection || connections === null
+    ? null
+    : !chosen
+      ? t('http.connection.missing-warning', { key: spec.connection })
+      : host && !isHttpHostAllowed(host, chosen.hosts)
+        ? t('http.connection.host-outside', { key: chosen.key, host })
+        : null;
+
   const body = spec.body;
   return {
     spec,
@@ -219,6 +266,9 @@ export const useHttpRequestBuilderControlViewModel = (
     timeoutText: spec.timeoutSeconds === undefined ? '' : String(spec.timeoutSeconds),
     timeoutHint: t('http.timeout.hint', { min: String(HTTP_TIMEOUT_MIN_SECONDS), max: String(HTTP_TIMEOUT_MAX_SECONDS) }),
     hostWarning,
+    connectionOptions,
+    connectionWarning,
+    setConnection,
     issues,
     warnings,
     fields,

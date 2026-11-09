@@ -21,6 +21,8 @@ import {
 } from '../../../domain/schema/httpRequestSpec';
 import { HttpClientError, type HttpIncomingResponse, type HttpOutgoingRequest, type IHttpClient } from '../../../domain/repositories/IHttpClient';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
+import type { IHttpCredentialRepository } from '../../../domain/repositories/IHttpCredentialRepository';
+import { applyHttpCredential, redactSecrets } from '../../../domain/schema/httpConnection';
 
 /** O que o escritório liberou nas Configurações. Ver `HTTP_SETTINGS_PROPERTIES`. */
 export interface HttpPolicy {
@@ -31,6 +33,7 @@ export interface HttpPolicy {
 export interface HttpStepDeps {
   client: IHttpClient;
   policyOf(tenantId: string): Promise<HttpPolicy>;
+  credentials: IHttpCredentialRepository;
 }
 
 /** Menos que isto não dá para uma chamada de verdade: melhor dizer que o tempo acabou. */
@@ -176,99 +179,128 @@ export const makeHttpRequestStepDefinition = (deps: HttpStepDeps): StepDefinitio
   ...coreStepMetadata(HTTP_REQUEST_STEP_ID),
   createExecutor: (): WorkflowStepExecutor => ({
     execute: async (inputs, context): Promise<WorkflowResult> => {
-      const issues = validateHttpRequestSpec(inputs.request);
-      if (issues.length > 0) {
-        return { success: false, message: issues[0].error, ...(issues[0].errorParams ? { messageParams: issues[0].errorParams } : {}) };
-      }
-      const spec = inputs.request as HttpRequestSpec;
-
-      let outgoing: HttpOutgoingRequest;
-      try {
-        outgoing = prepare(spec, context);
-      } catch (error) {
-        if (error instanceof StepFailure) return { success: false, message: error.key, ...(error.params ? { messageParams: error.params } : {}) };
-        throw error;
-      }
-
-      const host = outgoing.url.hostname;
-      const target = describeHttpTarget(outgoing.url);
-      const policy = await deps.policyOf(context.execution.tenantId);
-      if (policy.allowedHosts.length === 0) {
-        return { success: false, message: '@core.automation/step.http.no-allowed-hosts' };
-      }
-      if (!isHttpHostAllowed(host, policy.allowedHosts)) {
-        return { success: false, message: '@core.automation/step.http.host-not-allowed', messageParams: { host } };
-      }
-      if (!isHttpPortAllowed(outgoing.url, policy.allowedPorts)) {
-        return { success: false, message: '@core.automation/step.http.port-not-allowed', messageParams: { port: outgoing.url.port } };
-      }
-
-      const timeoutMs = timeoutFor(spec, context);
-      if (timeoutMs < MIN_USEFUL_TIMEOUT_MS) {
-        return { success: false, message: '@core.automation/step.http.no-time-left' };
-      }
-
-      const failOnHttpError = spec.failOnHttpError !== false;
-      const asOutput = (error: string, params: Record<string, string>, extra: Record<string, unknown> = {}): WorkflowResult =>
-        failOnHttpError
-          ? { success: false, message: error, messageParams: params }
-          : {
-              // O passo termina bem — quem decide o que fazer é a Condição seguinte —, mas a linha do
-              // histórico diz o que houve, e não "concluído".
-              success: true,
-              message: error,
-              messageParams: params,
-              outputs: { ok: false, status: 0, headers: {}, body: null, durationMs: 0, timedOut: false, error, ...extra },
-            };
-
-      let response: HttpIncomingResponse;
-      try {
-        response = await deps.client.send(outgoing, { timeoutMs, maxBytes: HTTP_RESPONSE_MAX_BYTES });
-      } catch (error) {
-        if (!(error instanceof HttpClientError)) throw error;
-        if (error.code === 'address-blocked') {
-          return { success: false, message: '@core.automation/step.http.address-blocked', messageParams: { host } };
-        }
-        const key = CLIENT_FAILURES[error.code];
-        const params = {
-          target,
-          seconds: String(Math.round(timeoutMs / 1000)),
-          max: String(Math.round(HTTP_RESPONSE_MAX_BYTES / 1024)),
-          detail: error.message,
-        };
-        return asOutput(key, params, { timedOut: error.code === 'timeout' });
-      }
-
-      const parsed = parseBody(response, spec.responseType);
-      const ok = response.status >= 200 && response.status < 300;
-      const outputs = {
-        ok,
-        status: response.status,
-        headers: publicHeaders(response.headers),
-        body: 'body' in parsed ? parsed.body : response.bodyText,
-        durationMs: response.durationMs,
-        timedOut: false,
-        error: null as string | null,
-      };
-      const ms = String(response.durationMs);
-      const status = String(response.status);
-
-      if ('invalidJson' in parsed) {
-        if (failOnHttpError) return { success: false, message: '@core.automation/step.http.invalid-json', messageParams: { target } };
-        outputs.error = '@core.automation/step.http.invalid-json';
-      }
-      if (!ok) {
-        if (failOnHttpError) {
-          return { success: false, message: '@core.automation/step.http.status-failed', messageParams: { method: outgoing.method, target, status } };
-        }
-        outputs.error ??= '@core.automation/step.http.status-failed';
-      }
-      return {
-        success: true,
-        message: outputs.ok && outputs.error === null ? '@core.automation/step.http.done' : '@core.automation/step.http.done-not-ok',
-        messageParams: { method: outgoing.method, target, status, ms },
-        outputs,
-      };
+      // As formas do segredo que esta chamada mandou. Tudo o que o passo devolve passa por aqui antes
+      // de chegar ao histórico — a resposta pode ecoar o cabeçalho, o erro pode repetir a URL.
+      const secretForms: string[] = [];
+      const result = await callApi(deps, inputs, context, secretForms);
+      return secretForms.length === 0 ? result : redactSecrets(result, secretForms);
     },
   }),
 });
+
+const callApi = async (
+  deps: HttpStepDeps,
+  inputs: Record<string, unknown>,
+  context: WorkflowContext,
+  secretForms: string[],
+): Promise<WorkflowResult> => {
+  const issues = validateHttpRequestSpec(inputs.request);
+  if (issues.length > 0) {
+    return { success: false, message: issues[0].error, ...(issues[0].errorParams ? { messageParams: issues[0].errorParams } : {}) };
+  }
+  const spec = inputs.request as HttpRequestSpec;
+
+  let outgoing: HttpOutgoingRequest;
+  try {
+    outgoing = prepare(spec, context);
+  } catch (error) {
+    if (error instanceof StepFailure) return { success: false, message: error.key, ...(error.params ? { messageParams: error.params } : {}) };
+    throw error;
+  }
+
+  const host = outgoing.url.hostname;
+  const target = describeHttpTarget(outgoing.url);
+  const policy = await deps.policyOf(context.execution.tenantId);
+  if (policy.allowedHosts.length === 0) {
+    return { success: false, message: '@core.automation/step.http.no-allowed-hosts' };
+  }
+  if (!isHttpHostAllowed(host, policy.allowedHosts)) {
+    return { success: false, message: '@core.automation/step.http.host-not-allowed', messageParams: { host } };
+  }
+  if (!isHttpPortAllowed(outgoing.url, policy.allowedPorts)) {
+    return { success: false, message: '@core.automation/step.http.port-not-allowed', messageParams: { port: outgoing.url.port } };
+  }
+
+  if (spec.connection) {
+    const found = await deps.credentials.findByKey(context.execution.tenantId, spec.connection);
+    if (!found) {
+      return { success: false, message: '@core.automation/step.http.connection.missing', messageParams: { key: spec.connection } };
+    }
+    if (found.secret === null) {
+      return { success: false, message: '@core.automation/step.http.connection.no-secret', messageParams: { key: spec.connection } };
+    }
+    const applied = applyHttpCredential(found.connection, found.secret, { url: outgoing.url, headers: outgoing.headers });
+    if ('error' in applied) {
+      return { success: false, message: applied.error, ...(applied.errorParams ? { messageParams: applied.errorParams } : {}) };
+    }
+    secretForms.push(...applied.secretForms);
+    outgoing = { ...outgoing, url: applied.target.url, headers: applied.target.headers };
+  }
+
+  const timeoutMs = timeoutFor(spec, context);
+  if (timeoutMs < MIN_USEFUL_TIMEOUT_MS) {
+    return { success: false, message: '@core.automation/step.http.no-time-left' };
+  }
+
+  const failOnHttpError = spec.failOnHttpError !== false;
+  const asOutput = (error: string, params: Record<string, string>, extra: Record<string, unknown> = {}): WorkflowResult =>
+    failOnHttpError
+      ? { success: false, message: error, messageParams: params }
+      : {
+          // O passo termina bem — quem decide o que fazer é a Condição seguinte —, mas a linha do
+          // histórico diz o que houve, e não "concluído".
+          success: true,
+          message: error,
+          messageParams: params,
+          outputs: { ok: false, status: 0, headers: {}, body: null, durationMs: 0, timedOut: false, error, ...extra },
+        };
+
+  let response: HttpIncomingResponse;
+  try {
+    response = await deps.client.send(outgoing, { timeoutMs, maxBytes: HTTP_RESPONSE_MAX_BYTES });
+  } catch (error) {
+    if (!(error instanceof HttpClientError)) throw error;
+    if (error.code === 'address-blocked') {
+      return { success: false, message: '@core.automation/step.http.address-blocked', messageParams: { host } };
+    }
+    const key = CLIENT_FAILURES[error.code];
+    const params = {
+      target,
+      seconds: String(Math.round(timeoutMs / 1000)),
+      max: String(Math.round(HTTP_RESPONSE_MAX_BYTES / 1024)),
+      detail: error.message,
+    };
+    return asOutput(key, params, { timedOut: error.code === 'timeout' });
+  }
+
+  const parsed = parseBody(response, spec.responseType);
+  const ok = response.status >= 200 && response.status < 300;
+  const outputs = {
+    ok,
+    status: response.status,
+    headers: publicHeaders(response.headers),
+    body: 'body' in parsed ? parsed.body : response.bodyText,
+    durationMs: response.durationMs,
+    timedOut: false,
+    error: null as string | null,
+  };
+  const ms = String(response.durationMs);
+  const status = String(response.status);
+
+  if ('invalidJson' in parsed) {
+    if (failOnHttpError) return { success: false, message: '@core.automation/step.http.invalid-json', messageParams: { target } };
+    outputs.error = '@core.automation/step.http.invalid-json';
+  }
+  if (!ok) {
+    if (failOnHttpError) {
+      return { success: false, message: '@core.automation/step.http.status-failed', messageParams: { method: outgoing.method, target, status } };
+    }
+    outputs.error ??= '@core.automation/step.http.status-failed';
+  }
+  return {
+    success: true,
+    message: outputs.ok && outputs.error === null ? '@core.automation/step.http.done' : '@core.automation/step.http.done-not-ok',
+    messageParams: { method: outgoing.method, target, status, ms },
+    outputs,
+  };
+};

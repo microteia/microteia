@@ -7589,6 +7589,33 @@ quem decide para onde os dados saem é o escritório, não quem edita a automaç
 mesma `SettingsProperty` da tela (`officeSetting`, cache de 60 s por instância — tirar um domínio leva
 até isso para valer).
 
+#### Credenciais de integração — o segredo que a automação nomeia e nunca vê
+
+`HttpRequestSpec.connection` (kernel `HTTP_CONNECTION_SINCE_KERNEL` = 2.102.0) é a CHAVE de uma
+credencial do escritório (`src/domain/schema/httpConnection.ts`, sincronizado). Duas metades em dois
+lugares, no molde de `aiConnections`: a descrição em `tenants/{t}/httpConnections/{id}` (`key`, `name`,
+`scheme`, `username`, `paramName`, `hosts`, `hasSecret`) e o segredo em `…/{id}/secrets/current`
+(`{ value }`). As regras deixam ler a descrição quem tem `integrations.manage` OU `automation.manage` (o
+editor lista as chaves), gravar só `integrations.manage`, e o segredo **nunca** é lido pelo navegador. A
+tela é a aba "Credenciais de integração" das Configurações do escritório (`IntegrationsTab`, contribuída
+por `core.automation`). `httpConnections` é coleção reservada nas duas pontas.
+
+**Por chave, e não por id:** a automação que viaja numa extensão diz "uso `crm`", e o escritório que a
+instala cadastra a credencial com essa chave. O portão do pacote cobra o kernel mínimo
+(`issue.step.input-kernel`, `request.connection`).
+
+**Aplicação no servidor** (`applyHttpCredential`): `bearer` e `basic` vão em `Authorization`, `header` num
+cabeçalho próprio, `query` num parâmetro. O que o autor já pôs no mesmo lugar é RECUSA
+(`step.http.connection.conflict`), não sobrescrita. A credencial carrega a PRÓPRIA lista de domínios
+(`hosts`), conferida além da lista do escritório: sem ela, quem edita automações mandaria o token do CRM a
+qualquer outro domínio liberado.
+
+**Redação:** `applyHttpCredential` devolve as formas em que o segredo saiu (o texto, o URL-encoded, o
+`Basic` em base64), e o passo passa TUDO o que devolve — saídas, mensagem, parâmetros — por
+`redactSecrets` antes de chegar ao histórico. A API pode ecoar o cabeçalho; o histórico é lido por quem
+nunca pôde ver o segredo. A leitura (`FirestoreHttpCredentialRepository`) não tem cache: trocar ou
+apagar o segredo vale na chamada seguinte.
+
 ### Orçamento de tempo da execução — `deadlineAt`
 
 O `timeoutSeconds` de uma Cloud Function é fixado no deploy e vale para o projeto inteiro; o que o

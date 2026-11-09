@@ -31,6 +31,7 @@ import {
   httpRequestSpecWarnings,
   validateHttpRequestSpec,
 } from '../../schema/httpRequestSpec';
+import { HTTP_CONNECTION_SINCE_KERNEL } from '../../schema/httpConnection';
 
 /** As entradas que fazem do convite um convite por identidade — qualquer uma delas exige o kernel novo. */
 const PORTAL_IDENTITY_CLAIM_INPUTS = ['requiredClaimName', 'requiredClaimValue', 'requiredClaimNormalize'] as const;
@@ -493,6 +494,16 @@ const httpRequestIssues = (
         ref,
         message: '@core.marketplace/issue.step.http-invalid',
         messageParams: { step: step.id, ...(issue.errorParams ?? {}), detail: issue.error },
+      });
+    }
+    // A credencial pela chave chegou depois do passo: num kernel anterior ela seria ignorada, e a
+    // chamada sairia sem o segredo — falhando na API, não no portão.
+    const connection = (config.value as { connection?: unknown } | null)?.connection;
+    if (connection !== undefined && connection !== '' && !rangeExcludesBelow(pkg.manifest?.kernel ?? '', HTTP_CONNECTION_SINCE_KERNEL)) {
+      issues.push({
+        ref,
+        message: '@core.marketplace/issue.step.input-kernel',
+        messageParams: { step: step.id, input: 'request.connection', minimum: HTTP_CONNECTION_SINCE_KERNEL },
       });
     }
     for (const warning of httpRequestSpecWarnings(config.value)) {

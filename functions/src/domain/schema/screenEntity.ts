@@ -640,6 +640,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'tagDefinitions',
   'secrets',
   'settings',
+  'httpConnections',
   AGENT_GRANTS_COLLECTION,
   RECORD_KEYS_COLLECTION,
   NOTIFICATION_INBOX_COLLECTION,

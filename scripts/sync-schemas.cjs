@@ -72,6 +72,7 @@ const SHARED_FILES = [
   'domain/schema/validateSpec.ts',
   'domain/schema/mapSpec.ts',
   'domain/schema/httpRequestSpec.ts',
+  'domain/schema/httpConnection.ts',
   'domain/schema/workflowBudget.ts',
   'domain/schema/workflowStepCatalog.ts',
   'domain/schema/workflowClock.ts',

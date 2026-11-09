@@ -14,6 +14,8 @@ import {
   type IHttpClient,
 } from '../../../domain/repositories/IHttpClient';
 import { makeHttpRequestStepDefinition, type HttpPolicy } from './HttpRequestStep';
+import type { IHttpCredentialRepository } from '../../../domain/repositories/IHttpCredentialRepository';
+import type { HttpConnection } from '../../../domain/schema/httpConnection';
 
 const NOW = new Date('2026-11-09T12:00:00Z');
 
@@ -37,8 +39,15 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
 
 const OPEN: HttpPolicy = { allowedHosts: ['api.exemplo.com'], allowedPorts: [] };
 
-const makeRegistry = (client: IHttpClient, seen: unknown[], policy: HttpPolicy = OPEN): StepRegistry => {
-  const http = makeHttpRequestStepDefinition({ client, policyOf: async () => policy });
+const NO_CREDENTIALS: IHttpCredentialRepository = { findByKey: async () => null };
+
+const makeRegistry = (
+  client: IHttpClient,
+  seen: unknown[],
+  policy: HttpPolicy = OPEN,
+  credentials: IHttpCredentialRepository = NO_CREDENTIALS,
+): StepRegistry => {
+  const http = makeHttpRequestStepDefinition({ client, policyOf: async () => policy, credentials });
   const record: StepDefinition = {
     id: 'record',
     version: 1,
@@ -113,11 +122,16 @@ const servicesWith = (over: Partial<WorkflowServices> = {}): WorkflowServices =>
   ...over,
 });
 
-const run = (steps: WorkflowStep[], client: IHttpClient, seen: unknown[] = [], options: { policy?: HttpPolicy; services?: WorkflowServices } = {}) =>
+const run = (
+  steps: WorkflowStep[],
+  client: IHttpClient,
+  seen: unknown[] = [],
+  options: { policy?: HttpPolicy; services?: WorkflowServices; credentials?: IHttpCredentialRepository } = {},
+) =>
   runWorkflow({
     definition: definition(steps),
     event,
-    registry: makeRegistry(client, seen, options.policy),
+    registry: makeRegistry(client, seen, options.policy, options.credentials),
     services: options.services ?? servicesWith(),
   });
 
@@ -359,5 +373,93 @@ describe('passo http-request — o tempo de espera', () => {
     expect(result.status).toBe('FAILED');
     expect(messages(result)).toContain('@core.automation/step.http.no-time-left');
     expect(client.sent).toHaveLength(0);
+  });
+});
+
+describe('passo http-request — credencial de integração', () => {
+  const SECRET = 'sk_live_9f8e7d6c';
+  const credential = (over: Partial<HttpConnection> = {}, secret: string | null = SECRET): IHttpCredentialRepository => ({
+    findByKey: async (_tenantId, key) => (key === 'crm'
+      ? { connection: { id: 'c1', key: 'crm', name: 'CRM', scheme: 'bearer', hosts: ['api.exemplo.com'], hasSecret: secret !== null, ...over }, secret }
+      : null),
+  });
+
+  it('o servidor põe o segredo no pedido; a automação só nomeia a chave', async () => {
+    const client = new FakeHttpClient(json({ ok: true }));
+    const result = await run([callStep({ connection: 'crm' })], client, [], { credentials: credential() });
+    expect(result.status).toBe('SUCCESS');
+    expect(client.sent[0].request.headers.authorization).toBe(`Bearer ${SECRET}`);
+    expect(JSON.stringify(result.logs)).not.toContain(SECRET);
+  });
+
+  it('basic, cabeçalho próprio e query', async () => {
+    const basic = new FakeHttpClient(json({}));
+    await run([callStep({ connection: 'crm' })], basic, [], { credentials: credential({ scheme: 'basic', username: 'ana' }) });
+    expect(basic.sent[0].request.headers.authorization).toBe(`Basic ${Buffer.from(`ana:${SECRET}`).toString('base64')}`);
+
+    const header = new FakeHttpClient(json({}));
+    await run([callStep({ connection: 'crm' })], header, [], { credentials: credential({ scheme: 'header', paramName: 'X-Api-Key' }) });
+    expect(header.sent[0].request.headers['x-api-key']).toBe(SECRET);
+
+    const query = new FakeHttpClient(json({}));
+    await run([callStep({ connection: 'crm' })], query, [], { credentials: credential({ scheme: 'query', paramName: 'apikey' }) });
+    expect(query.sent[0].request.url.searchParams.get('apikey')).toBe(SECRET);
+  });
+
+  it('o segredo que a API devolve é apagado do histórico e da saída — em todas as formas', async () => {
+    const basicToken = Buffer.from(`ana:${SECRET}`).toString('base64');
+    const client = new FakeHttpClient(json({ eco: `Basic ${basicToken}`, chave: SECRET, [SECRET]: 1 }));
+    const seen: unknown[] = [];
+    const result = await run(
+      [callStep({ connection: 'crm' }, 0), recordStep({ kind: 'Output', stepId: 'call', outputId: 'body' }, 1)],
+      client, seen, { credentials: credential({ scheme: 'basic', username: 'ana' }) },
+    );
+    const everything = JSON.stringify({ logs: result.logs, outputs: result.outputs, seen });
+    expect(everything).not.toContain(SECRET);
+    expect(everything).not.toContain(basicToken);
+    expect(seen[0]).toEqual({ eco: 'Basic [redacted]', chave: '[redacted]', '[redacted]': 1 });
+  });
+
+  it('o segredo só vai para os domínios DA credencial, mesmo que o escritório libere outro', async () => {
+    const client = new FakeHttpClient(json({}));
+    const result = await run([callStep({ connection: 'crm', url: lit('https://outra.exemplo.com/x') })], client, [], {
+      policy: { allowedHosts: ['*.exemplo.com', 'api.exemplo.com'], allowedPorts: [] },
+      credentials: credential(),
+    });
+    expect(result.status).toBe('FAILED');
+    expect(messages(result)).toContain('@core.automation/step.http.connection.host');
+    expect(client.sent).toHaveLength(0);
+  });
+
+  it('a lista do escritório continua valendo por cima da credencial', async () => {
+    const client = new FakeHttpClient(json({}));
+    const result = await run([callStep({ connection: 'crm' })], client, [], {
+      policy: { allowedHosts: ['outro.com'], allowedPorts: [] },
+      credentials: credential(),
+    });
+    expect(messages(result)).toContain('@core.automation/step.http.host-not-allowed');
+    expect(client.sent).toHaveLength(0);
+  });
+
+  it('credencial inexistente, sem segredo, ou em conflito com um cabeçalho do autor: recusa sem chamar', async () => {
+    const client = new FakeHttpClient(json({}));
+    const missing = await run([callStep({ connection: 'erp' })], client, [], { credentials: credential() });
+    expect(messages(missing)).toContain('@core.automation/step.http.connection.missing');
+
+    const empty = await run([callStep({ connection: 'crm' })], client, [], { credentials: credential({}, null) });
+    expect(messages(empty)).toContain('@core.automation/step.http.connection.no-secret');
+
+    const conflict = await run([callStep({ connection: 'crm', headers: [{ name: 'Authorization', value: lit('x') }] })], client, [], {
+      credentials: credential(),
+    });
+    expect(messages(conflict)).toContain('@core.automation/step.http.connection.conflict');
+    expect(client.sent).toHaveLength(0);
+  });
+
+  it('sem `connection`, a credencial nem é procurada', async () => {
+    let looked = 0;
+    const credentials: IHttpCredentialRepository = { findByKey: async () => { looked += 1; return null; } };
+    await run([callStep({})], new FakeHttpClient(json({})), [], { credentials });
+    expect(looked).toBe(0);
   });
 });

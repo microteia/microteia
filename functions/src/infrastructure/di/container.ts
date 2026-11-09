@@ -251,6 +251,7 @@ import { FirebaseRegistrationRepository } from '../../data/repositories/Firebase
 import { makeCreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
 import type { CreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
 import { SafeHttpClient } from '../http/SafeHttpClient';
+import { FirestoreHttpCredentialRepository } from '../../data/repositories/FirestoreHttpCredentialRepository';
 import { officeSetting } from '../settings/officeSettings';
 import { asStringList, HTTP_ALLOWED_HOSTS_PROPERTY, HTTP_ALLOWED_PORTS_PROPERTY } from '../../domain/schema/httpRequestSpec';
 
@@ -1259,6 +1260,7 @@ class DIContainer {
           allowedHosts: asStringList(await officeSetting(tenantId, HTTP_ALLOWED_HOSTS_PROPERTY)),
           allowedPorts: asStringList(await officeSetting(tenantId, HTTP_ALLOWED_PORTS_PROPERTY)),
         }),
+        credentials: new FirestoreHttpCredentialRepository(getDb()),
       },
     });
     this.workflowStepsRegistered = true;

@@ -71,6 +71,13 @@ export const HttpRequestBuilderControl: React.FC<HttpRequestBuilderControlProps>
       </S.Section>
 
       <S.Section>
+        <S.SectionTitle>{t('http.connection')}</S.SectionTitle>
+        <SearchSelect options={vm.connectionOptions} value={vm.spec.connection ?? ''} onChange={vm.setConnection} />
+        <S.HelpText>{t('http.connection.hint')}</S.HelpText>
+        {vm.connectionWarning && <InfoBanner variant="warning" message={vm.connectionWarning} />}
+      </S.Section>
+
+      <S.Section>
         <S.SectionTitle>{t('http.path-params')}</S.SectionTitle>
         {fieldList('pathParams')}
       </S.Section>
