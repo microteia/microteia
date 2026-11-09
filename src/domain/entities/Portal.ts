@@ -1,3 +1,4 @@
+import type { OptionsFilterSpec } from '../schema/optionsFilter';
 import type { QualifiedContribution } from '../schema/plugin/contribution';
 import type { PortalFieldInput } from '../schema/portalFieldInput';
 import type { PortalFieldReference } from '../schema/portal';
@@ -67,6 +68,11 @@ export interface PortalFieldInfo extends PortalFieldInput {
   options?: Array<{ key: string; label: string; color?: string }>;
   /** A referência que o convidado escolhe entre os registros que vê desta tela — não digita o id. */
   reference?: PortalFieldReference;
+  /**
+   * O filtro das opções, só quando o formulário do portal consegue respondê-lo: o servidor não manda o
+   * que compara com campo de fora do formulário, nem o que lê da opção um campo que o convidado não vê.
+   */
+  optionsFilter?: OptionsFilterSpec;
 }
 
 /**
@@ -93,6 +99,8 @@ export interface PortalActionOutcome {
 export interface PortalLinkOption {
   recordId: string;
   label: string;
+  /** O que a projeção expõe do registro — é por onde o filtro de opções o compara. */
+  data?: Record<string, unknown>;
 }
 
 /** Uma tela de EXTENSÃO para o portal, entregue pelo servidor só se o escritório confia no código. */

@@ -7,6 +7,7 @@ import {
   matchesOptionsFilter,
   optionsFilterCascade,
   optionsFilterSourceKeys,
+  portalOptionsFilter,
   resolveOptionsFilter,
 } from './optionsFilter';
 import type { OptionsFilterCandidateOf } from './optionsFilter';
@@ -174,5 +175,36 @@ describe('optionsFilter — no formulário', () => {
   it('a alteração que mantém a escolha válida não limpa nada', () => {
     expect(optionsFilterCascade([petType, breed], 'petType', { petType: 'dog', breedId: 'poodle' }, identityScope, records)).toEqual([]);
     expect(optionsFilterCascade([petType, breed], 'breedId', { petType: 'cat', breedId: 'poodle' }, identityScope, records)).toEqual([]);
+  });
+});
+
+describe('portalOptionsFilter — só o que o formulário do convidado consegue responder', () => {
+  const form = new Set(['petType', 'breedId', 'region', 'newsType']);
+  const byRegion = { where: [{ path: 'key', op: 'startsWith' as const, value: { field: 'region' } }] };
+
+  it('a lista filtrada por um campo do mesmo formulário segue', () => {
+    expect(portalOptionsFilter({ key: 'newsType', type: 'select', optionsFilter: byRegion }, { formKeys: form }))
+      .toEqual(byRegion);
+  });
+
+  it('o campo comparado fora do formulário, ou atravessando referência, não segue', () => {
+    expect(portalOptionsFilter({ key: 'newsType', type: 'select', optionsFilter: byRegion }, { formKeys: new Set(['newsType']) }))
+      .toBeUndefined();
+    const crossing = { where: [{ path: 'key', op: 'eq' as const, value: { field: 'client.city' } }] };
+    expect(portalOptionsFilter({ key: 'newsType', type: 'select', optionsFilter: crossing }, { formKeys: new Set(['newsType', 'client']) }))
+      .toBeUndefined();
+  });
+
+  it('a referência só segue quando o caminho é campo EXPOSTO da tela apontada', () => {
+    const field = { key: 'breedId', type: 'reference', optionsFilter: breed.optionsFilter };
+    expect(portalOptionsFilter(field, { formKeys: form, targetExposedKeys: new Set(['name', 'petType']) }))
+      .toEqual(breed.optionsFilter);
+    expect(portalOptionsFilter(field, { formKeys: form, targetExposedKeys: new Set(['name']) })).toBeUndefined();
+    expect(portalOptionsFilter(field, { formKeys: form })).toBeUndefined();
+  });
+
+  it('a declaração estragada no documento não segue, e não derruba nada', () => {
+    expect(portalOptionsFilter({ key: 'newsType', type: 'select', optionsFilter: { where: 'x' } }, { formKeys: form })).toBeUndefined();
+    expect(portalOptionsFilter({ key: 'note', type: 'text', optionsFilter: byRegion }, { formKeys: form })).toBeUndefined();
   });
 });

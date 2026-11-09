@@ -103,6 +103,7 @@ const toScreen = (id: string, data: DocumentData): PortalScreen => ({
       ...(field.optionsColored === true ? { optionsColored: true } : {}),
       ...(asString(field.mask) ? { mask: asString(field.mask) } : {}),
       ...lookupBindingOf(field.logic),
+      ...(field.optionsFilter !== undefined && field.optionsFilter !== null ? { optionsFilter: field.optionsFilter } : {}),
     })),
 });
 

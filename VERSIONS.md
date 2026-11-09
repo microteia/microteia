@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.220.0] — 2026-11-09
+
+- No portal, os formulários preenchidos pelos convidados também passam a mostrar só as opções que combinam com o que já foi escolhido — e a limpar sozinhos a escolha que deixou de valer.
+
 #### [9.219.0] — 2026-11-09
 
 - No Form Design, a edição de tela e de campo foi reorganizada: as abas ficam na lateral, o botão Salvar fica no topo e a janela não muda mais de tamanho ao trocar de aba.

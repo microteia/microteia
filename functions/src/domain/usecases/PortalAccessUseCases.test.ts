@@ -1215,6 +1215,30 @@ describe('a segunda referência do formulário do portal (EV-37)', () => {
     });
     expect(requests.edit!.fields.find((field) => field.key === 'invoiceId')?.reference).toEqual({ collection: 'invoices', multi: false });
   });
+
+  it('o filtro de opções só vai ao formulário que consegue respondê-lo', async () => {
+    const byRelated = { where: [{ path: 'number', op: 'eq', value: { field: 'relatedIds' } }] };
+    const hidden = { where: [{ path: 'auditNote', op: 'eq', value: { field: 'subject' } }] };
+    const screen: PortalScreen = {
+      ...REQUESTS,
+      fields: REQUESTS.fields.map((field) => (field.key === 'invoiceId'
+        ? { ...field, optionsFilter: byRelated }
+        : field.key === 'relatedIds' ? { ...field, optionsFilter: hidden } : field)),
+    };
+    const fake = makeFakePortalRepository([...CITY_SCREENS, screen]);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    const context = await makeGetPortalContextUseCase(fake.repo).execute({
+      tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
+    });
+    const requests = context.screens.find((one) => one.id === 'requests')!;
+    const filterOf = (fields: Array<{ key: string; optionsFilter?: unknown }>, key: string) =>
+      fields.find((field) => field.key === key)?.optionsFilter;
+    // Na criação o campo comparado está no formulário; na edição, não.
+    expect(filterOf(requests.create!.fields, 'invoiceId')).toEqual(byRelated);
+    expect(filterOf(requests.edit!.fields, 'invoiceId')).toBeUndefined();
+    // Ler da nota um campo que o convidado não vê seria vazá-lo: o filtro não vai.
+    expect(filterOf(requests.create!.fields, 'relatedIds')).toBeUndefined();
+  });
 });
 
 describe('o convidado anexa um documento', () => {

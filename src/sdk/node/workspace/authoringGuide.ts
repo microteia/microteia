@@ -893,6 +893,12 @@ portal: { subject: { field: 'company' }, fields: ['text', 'notice'], create: { f
 - \`multi: true\` is a multiple choice; every id is checked.
 - \`usePortalScreen(collection)\` tells your own form which fields these are (\`reference: { collection,
   multi }\` on the field): offer the records of \`usePortalRecords(reference.collection)\`.
+- A field's \`optionsFilter\` reaches the portal form only when the portal can answer it: every compared
+  field is a top-level field of that same form (create and edit are separate forms) and, on a reference,
+  every \`path\` is a field the target screen exposes. The standard form applies it to the options and clears
+  a choice it no longer offers; your own form reads it as \`optionsFilter\` on the field and compares with
+  the record's \`data\`. Otherwise it is not sent and every option is offered — a filter the guest cannot
+  answer would empty the list, and answering it from a field the guest does not see would leak it.
 - A \`reference\` to a screen that is NOT in the portal stays what it always was — a text box whose value is
   written as typed. The guest sees no record of that screen, so there is nothing to choose from: keep
   such fields out of \`create.fields\` and fill them in the organization, or by a workflow.

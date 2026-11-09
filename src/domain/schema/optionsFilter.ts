@@ -127,12 +127,22 @@ export const matchesOptionsFilter = (
 };
 
 /**
+ * O mínimo que estas funções leem de um campo — o do escritório (`FieldDefinition`) e o do formulário do
+ * portal, cujo `type` chega como texto.
+ */
+export interface OptionsFilterField {
+  key: string;
+  type?: string;
+  optionsFilter?: OptionsFilterSpec | null;
+}
+
+/**
  * O filtro que vale para um campo NESTE formulário. Um filtro que depende de campo ausente do
  * formulário não é aplicado: é o caso do átomo `FieldInput`, que desenha um campo sozinho — esconder
  * todas as opções porque o formulário não tem a origem seria responder por um valor que ninguém leu.
  */
 export const formOptionsFilter = (
-  field: FieldDefinition,
+  field: OptionsFilterField,
   formKeys: ReadonlySet<string>,
   scope: Record<string, unknown>,
 ): ResolvedOptionsFilter | null => {
@@ -147,7 +157,8 @@ export const formOptionsFilter = (
  * Lê a opção que um valor gravado designa: o registro apontado, ou `{ key, label }` da lista. `null`
  * quando ela não é conhecida aqui — o registro ainda não carregou, a opção saiu da lista.
  */
-export type OptionsFilterCandidateOf = (field: FieldDefinition, value: string) => Record<string, unknown> | null;
+export type OptionsFilterCandidateOf<F extends OptionsFilterField = FieldDefinition> =
+  (field: F, value: string) => Record<string, unknown> | null;
 
 /**
  * O valor do campo depois de descartadas as escolhas que o filtro não oferece mais.
@@ -155,11 +166,11 @@ export type OptionsFilterCandidateOf = (field: FieldDefinition, value: string) =
  * Opção DESCONHECIDA fica: não há como dizer que ela não passa, e apagar o que não se leu é perder dado
  * em silêncio. A origem vazia é a exceção — ali nenhuma opção passa, conhecida ou não.
  */
-export const keepOptionsFilterValue = (
-  field: FieldDefinition,
+export const keepOptionsFilterValue = <F extends OptionsFilterField>(
+  field: F,
   value: CustomFieldValue | undefined,
   filter: ResolvedOptionsFilter,
-  candidateOf: OptionsFilterCandidateOf,
+  candidateOf: OptionsFilterCandidateOf<F>,
 ): CustomFieldValue | undefined => {
   const passes = (item: string): boolean => {
     if (filter.blocked) return false;
@@ -175,12 +186,12 @@ export const keepOptionsFilterValue = (
 };
 
 /** Os campos cujo valor o filtro não oferece — a validação do formulário antes de gravar. */
-export const findOptionsFilterViolations = (
-  fields: readonly FieldDefinition[],
+export const findOptionsFilterViolations = <F extends OptionsFilterField>(
+  fields: readonly F[],
   values: Record<string, unknown>,
   scope: Record<string, unknown>,
-  candidateOf: OptionsFilterCandidateOf,
-): FieldDefinition[] => {
+  candidateOf: OptionsFilterCandidateOf<F>,
+): F[] => {
   const formKeys = new Set(fields.map((field) => field.key));
   return fields.filter((field) => {
     const filter = formOptionsFilter(field, formKeys, scope);
@@ -195,12 +206,12 @@ export const findOptionsFilterViolations = (
  * invalidar o bairro. Devolve só o que mudou, na ordem em que mudou, para o formulário aplicar como
  * se a pessoa tivesse limpado cada campo.
  */
-export const optionsFilterCascade = (
-  fields: readonly FieldDefinition[],
+export const optionsFilterCascade = <F extends OptionsFilterField>(
+  fields: readonly F[],
   changedKey: string,
   values: Record<string, unknown>,
   scopeOf: (values: Record<string, unknown>) => Record<string, unknown>,
-  candidateOf: OptionsFilterCandidateOf,
+  candidateOf: OptionsFilterCandidateOf<F>,
 ): { key: string; value: CustomFieldValue }[] => {
   const formKeys = new Set(fields.map((field) => field.key));
   const dependents = fields.filter((field) => optionsFilterSourceKeys(field.optionsFilter).length > 0);
@@ -294,4 +305,32 @@ export const optionsFilterIssues = (
     }
   }
   return issues;
+};
+
+/**
+ * O filtro que o PORTAL pode aplicar a um campo do formulário do convidado — ou nada.
+ *
+ * O formulário do portal não navega referência (não tem o registro apontado, só a projeção), e o
+ * convidado só lê da opção o que a tela apontada expõe. Por isso o filtro só segue quando cada origem é
+ * um campo de topo DESTE formulário e, numa referência, cada caminho é um campo exposto da tela apontada.
+ * Fora disso ele não vai, e o convidado vê a lista inteira, como antes: mandar um filtro que o portal não
+ * consegue responder esvaziaria a escolha, e responder lendo o que não está exposto seria vazar.
+ */
+export const portalOptionsFilter = (
+  field: { key: string; type?: string; optionsFilter?: unknown },
+  context: { formKeys: ReadonlySet<string>; targetExposedKeys?: ReadonlySet<string> },
+): OptionsFilterSpec | undefined => {
+  if (field.type !== 'reference' && field.type !== 'select') return undefined;
+  const candidate = { key: field.key, type: field.type, optionsFilter: field.optionsFilter } as Pick<FieldDefinition, 'key' | 'type' | 'optionsFilter'>;
+  if (candidate.optionsFilter === undefined || candidate.optionsFilter === null) return undefined;
+  if (field.type === 'reference' && !context.targetExposedKeys) return undefined;
+  if (optionsFilterIssues(candidate, { targetFieldKeys: context.targetExposedKeys }).length > 0) return undefined;
+  const spec = candidate.optionsFilter as OptionsFilterSpec;
+  const answerable = spec.where.every((predicate) => {
+    if (field.type === 'reference' && /[.[]/.test(predicate.path)) return false;
+    if (!('field' in predicate.value)) return true;
+    const source = predicate.value.field;
+    return !/[.[]/.test(source) && context.formKeys.has(source);
+  });
+  return answerable ? { where: spec.where.map((predicate) => ({ ...predicate, value: { ...predicate.value } })) } : undefined;
 };

@@ -5999,7 +5999,19 @@ gravado em duas chaves, que o relatório, o filtro e a automação leem como coi
   todas as opções — nada é gravado nem exposto que o filtro impediria, que é o critério dos outros
   portões. O SDK publica os tipos, `OPTIONS_FILTER_OPERATORS` e `LOOKUP_OPTION_FILTER_PATHS`; o
   `AUTHORING.md` deriva deles a lista de operadores.
-- **O que ainda não faz:** as opções do formulário do portal (fase 3).
+- **No portal, só o filtro que o formulário do convidado consegue responder** (`portalOptionsFilter`,
+  em `getPortalContext`). O formulário do portal não navega referência e o convidado só lê da opção o que
+  a tela apontada expõe; por isso o filtro só vai quando cada campo comparado é de topo e está no MESMO
+  formulário (criação e edição são dois) e, numa referência, cada `path` é campo exposto da tela apontada
+  (`guestFieldKeys`). Fora disso, não vai, e o convidado vê a lista inteira, como antes. Mandar o que não
+  se responde esvaziaria a escolha; responder lendo campo não exposto seria vazar.
+- **A candidata do portal é a projeção.** `listLinkOptions` passou a devolver o `data` da projeção (o que
+  o convidado já lê), e o `PortalCreateForm` compara com ele; a lista compara `{ key, label }`. A cascata e
+  a recusa do envio são as mesmas funções do formulário do escritório (`optionsFilterCascade`,
+  `findOptionsFilterViolations`), agora genéricas sobre o campo (`OptionsFilterField`). Continua regra de
+  formulário: o servidor confere só o que já conferia — que o convidado vê o id escolhido.
+- **Sem `KERNEL_VERSION` novo**, pela régua da EV-37: `optionsFilter` é membro OPCIONAL do campo em
+  `@microteia/portal`; num kernel anterior ele não vem, e a view de extensão oferece tudo.
 
 ### Os editores de tela e de campo do Form Design
 

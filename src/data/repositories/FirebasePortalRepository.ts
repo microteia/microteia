@@ -266,7 +266,7 @@ export class FirebasePortalRepository implements IPortalRepository {
     ));
     return snapshot.docs.map((one) => {
       const record = mapPortalRecord(one.id, one.data());
-      return { recordId: record.recordId, label: record.title || record.recordId };
+      return { recordId: record.recordId, label: record.title || record.recordId, data: record.data };
     });
   }
 

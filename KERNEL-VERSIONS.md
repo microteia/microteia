@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.220.0] — 2026-11-09
+
+- feat(portal/form): `getPortalContext` sends a fillable field's `optionsFilter` (`PortalContextFillableField.optionsFilter`) only when the guest's form can answer it (`portalOptionsFilter`): every compared field is top-level and in the same form (create and edit are evaluated separately), and on a reference every `path` is a field the target screen exposes (`guestFieldKeys`). Anything else is withheld and every option is offered, as before; nothing unexposed is read.
+- feat(portal/form): `PortalCreateForm` filters select options by `{ key, label }` and reference options by the projection `data`, clears an invalidated choice in cascade on change, and refuses to submit a choice the filter does not offer. `listLinkOptions` now returns the projection `data`. Form-only, like the office form: the server still checks only that the guest sees the chosen id.
+- refactor(options-filter): `keepOptionsFilterValue`, `findOptionsFilterViolations`, `optionsFilterCascade` and `formOptionsFilter` are generic over `OptionsFilterField` (`key`, `type`, `optionsFilter`), so the portal form reuses them.
+- feat(portal/repository): the backend screen mapper keeps the stored `optionsFilter` (unchecked; `portalOptionsFilter` decides).
+- docs(sdk): `@microteia/portal` field type gains the optional `optionsFilter`; AUTHORING ("Your own screens in the portal") says when it is sent. `KERNEL_VERSION` unchanged (EV-37 rule: optional member, absent on older kernels).
+
 #### [9.219.0] — 2026-11-09
 
 - fix(schema): `optionsFilter` now survives the canonical round trip (`NativeFieldSpec.optionsFilter`, `fieldDefinitionToNativeSpec` ⇄ `nativeSpecToFieldDefinition`). The record form and the Form Design read fields after resolution, so in 9.218.0 a stored filter was dropped on the way and every option was offered.

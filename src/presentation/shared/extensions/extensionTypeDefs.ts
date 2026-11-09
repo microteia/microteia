@@ -1633,6 +1633,21 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
        * server refuses an id the guest does not see. Absent on any other field, and on older kernels.
        */
       reference?: { collection: string; multi: boolean };
+      /**
+       * On a \`select\` or a \`reference\` the guest fills: which options to offer, by values already in THIS
+       * form — the screen's \`optionsFilter\`. Sent only when the portal can answer it: every compared field is
+       * a top-level field of the same form and, on a reference, every \`path\` is a field the target screen
+       * exposes (read it from the record's \`data\`). \`op\` is \`eq\`, \`neq\`, \`in\`, \`contains\` or
+       * \`startsWith\`; conditions are ANDed, and an empty compared field offers nothing. Absent otherwise, and
+       * on older kernels.
+       */
+      optionsFilter?: {
+        where: Array<{
+          path: string;
+          op: 'eq' | 'neq' | 'in' | 'contains' | 'startsWith';
+          value: { field: string } | { literal: string | number | boolean | string[] };
+        }>;
+      };
     }>;
     /**
      * What a guest fills in to create, and what the new record belongs to. \`conditional\` is \`true\` when the

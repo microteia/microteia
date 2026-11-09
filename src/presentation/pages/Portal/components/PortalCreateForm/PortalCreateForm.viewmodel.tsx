@@ -8,6 +8,13 @@ import { applyMaskTemplate, maskPlaceholder } from '../../../../../domain/schema
 import { makeDeclarativeLookupService } from '../../../../../data/services/DeclarativeLookupService';
 import { useExternalLookupRunner } from '../../../../shared/useExternalLookupRunner';
 import { useT } from '../../../../shared/i18n/useT';
+import {
+  findOptionsFilterViolations,
+  formOptionsFilter,
+  matchesOptionsFilter,
+  optionsFilterCascade,
+} from '../../../../../domain/schema/optionsFilter';
+import type { OptionsFilterCandidateOf } from '../../../../../domain/schema/optionsFilter';
 
 export interface PortalCreateFormProps {
   screen: PortalScreenInfo;
@@ -63,6 +70,7 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
   const { listLinkOptions, listCreateTargets, submit: submitRecord, update: updateRecord } = usePortal();
   const theme = useTheme();
   const t = useT('core.tenant');
+  const tRecords = useT('core.records');
   const create = screen.create;
   const isEditing = !!editing;
   const noLinkNeeded = isEditing || !!fixedLinkRecordId;
@@ -120,6 +128,30 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
   }, [referenceCollections, listLinkOptions]);
   const referencesLoading = loadedReferences !== referenceCollections;
 
+  /**
+   * A opção que um valor designa, na forma que o filtro de opções lê: a projeção que o convidado vê,
+   * numa referência; `{ key, label }`, numa lista. O servidor só manda o filtro que se responde com isso.
+   */
+  const candidateOf = useCallback<OptionsFilterCandidateOf<PortalFieldInfo>>((field, value) => {
+    if (field.reference) {
+      const found = (referenceLists[field.reference.collection] ?? []).find((option) => option.recordId === value);
+      return found ? { id: found.recordId, ...(found.data ?? {}) } : null;
+    }
+    const option = (field.options ?? []).find((one) => one.key === value);
+    return option ? { key: option.key, label: option.label } : null;
+  }, [referenceLists]);
+  const formKeys = useMemo(() => new Set(fields.map((field) => field.key)), [fields]);
+
+  // A já escolhida continua oferecida mesmo quando não passa: na edição, é o que o registro tem gravado.
+  const isOffered = useCallback((field: PortalFieldInfo, optionValue: string): boolean => {
+    const filter = formOptionsFilter(field, formKeys, values);
+    if (!filter) return true;
+    const current = values[field.key];
+    if (current === optionValue || (Array.isArray(current) && current.includes(optionValue))) return true;
+    const candidate = candidateOf(field, optionValue);
+    return candidate !== null && matchesOptionsFilter(candidate, filter);
+  }, [formKeys, values, candidateOf]);
+
   // O registro já apontado que o convidado não vê continua na escolha, com o nome da projeção: salvar
   // outro campo não o tira, e o servidor não confere o que já estava gravado.
   const editingLabels = editing?.labels;
@@ -130,8 +162,8 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
     const listedIds = new Set(listed.map((option) => option.value));
     const current = idsOf(values[field.key]).filter((id) => !listedIds.has(id));
     const label = current.length === 1 && editingLabels?.[field.key] ? editingLabels[field.key] : untitled;
-    return [...listed, ...current.map((id) => ({ value: id, label }))];
-  }, [referenceLists, values, editingLabels, untitled]);
+    return [...listed.filter((option) => isOffered(field, option.value)), ...current.map((id) => ({ value: id, label }))];
+  }, [referenceLists, values, editingLabels, untitled, isOffered]);
   const referenceValues = useCallback((field: PortalFieldInfo) => idsOf(values[field.key]), [values]);
   const missingRequired = fields.some((field) => field.required && isEmpty(values[field.key]));
 
@@ -146,13 +178,20 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
   const lookupServices = useMemo(() => new Map(fields.flatMap((field) =>
     (field.lookup ? [[field.key, makeDeclarativeLookupService(field.lookup.provider)] as const] : []))), [fields]);
 
+  // A escolha que o filtro deixou de oferecer sai junto, em cascata — no gesto, para que abrir um
+  // registro na edição nunca o altere sozinho.
   const setValue = useCallback((key: string, value: unknown) => {
     const field = fields.find((candidate) => candidate.key === key);
     const next = field?.mask && typeof value === 'string' ? applyMaskTemplate(value, field.mask.templates) : value;
-    setValues((prev) => ({ ...prev, [key]: next }));
+    const invalidated = optionsFilterCascade(fields, key, { ...values, [key]: next }, (scope) => scope, candidateOf);
+    setValues((prev) => ({
+      ...prev,
+      [key]: next,
+      ...Object.fromEntries(invalidated.map((change) => [change.key, change.value])),
+    }));
     const service = lookupServices.get(key);
     if (field?.lookup && service) scheduleLookup({ fieldKey: key, value: next, service, binding: field.lookup.binding });
-  }, [fields, lookupServices, scheduleLookup]);
+  }, [fields, values, candidateOf, lookupServices, scheduleLookup]);
 
   const maskedInput = useCallback((field: PortalFieldInfo) => {
     const text = textOf(values[field.key]);
@@ -165,14 +204,19 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
   }, [values]);
 
   const selectOptions = useCallback((field: PortalFieldInfo): SearchSelectOption[] =>
-    (field.options ?? []).map((option) => ({
+    (field.options ?? []).filter((option) => isOffered(field, option.key)).map((option) => ({
       value: option.key,
       label: option.label,
       color: resolveColor(option.color, theme, false),
-    })), [theme]);
+    })), [theme, isOffered]);
 
   const submit = useCallback(async () => {
     if ((!editing && !linkRecordId) || missingRequired) return;
+    const [notOffered] = findOptionsFilterViolations(fields, values, values, candidateOf);
+    if (notOffered) {
+      setError(`${notOffered.label}: ${tRecords('field.option-not-offered')}`);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -191,7 +235,7 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
     } finally {
       setSubmitting(false);
     }
-  }, [editing, linkRecordId, missingRequired, values, fields, updateRecord, submitRecord, screen.collection, onSubmitted]);
+  }, [editing, linkRecordId, missingRequired, values, fields, candidateOf, tRecords, updateRecord, submitRecord, screen.collection, onSubmitted]);
 
   return {
     isEditing,
