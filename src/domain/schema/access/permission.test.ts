@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
+  EXTENSION_PERMISSION_GUARD_SINCE_KERNEL,
   collectionPermissionId,
   isValidAccessPermissionId,
   parseAccessPermission,
   validateAccessPermission,
 } from './permission';
+import { KERNEL_VERSION } from '../plugin/kernelVersion';
+import { satisfiesRange } from '../plugin/semver';
 
 describe('parseAccessPermission', () => {
   it('separa recurso e ação', () => {
@@ -76,5 +79,12 @@ describe('validateAccessPermission', () => {
   it('carimba o plugin de origem no diagnóstico', () => {
     const [diagnostic] = validateAccessPermission({ ...valid, id: 'x' }, { pluginId: 'com.acme.x' });
     expect(diagnostic.pluginId).toBe('com.acme.x');
+  });
+});
+
+/** O guia manda declarar esta faixa; um número à frente do kernel recusaria toda extensão que obedecesse. */
+describe('a permissão cobrada pelo portão da callable', () => {
+  it('existe no kernel que este repositório publica', () => {
+    expect(satisfiesRange(KERNEL_VERSION, `^${EXTENSION_PERMISSION_GUARD_SINCE_KERNEL}`)).toBe(true);
   });
 });

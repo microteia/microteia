@@ -227,3 +227,13 @@ export const validateAccessRequirement = (
 
   return diagnostics;
 };
+
+/**
+ * Desde quando a Cloud Function de uma extensão pode cobrar uma permissão pelo portão da callable
+ * (`requireInstalledExtension(..., { permission })`, em `functions/src/office`).
+ *
+ * O número mora aqui, e não escrito no guia, porque um kernel anterior IGNORA o quarto argumento em
+ * execução — a callable passaria a cobrar só o pertencimento, em silêncio. O que fecha esse caminho é a
+ * faixa `kernel` do manifest, e por isso o guia tem de dizer o número certo.
+ */
+export const EXTENSION_PERMISSION_GUARD_SINCE_KERNEL = '2.105.0';

@@ -6,6 +6,7 @@ import type {
   InstallationGate,
   InstallationReader,
   OfficeReader,
+  PermissionReader,
 } from './installationGate';
 
 const event = (params: Record<string, string>): { params: Record<string, string> } => ({ params });
@@ -16,14 +17,15 @@ const event = (params: Record<string, string>): { params: Record<string, string>
  */
 const gateWith = (
   installed: InstallationReader,
-  extra: { offices?: OfficeReader; caller?: CallerReader } & GateOptions = {},
+  extra: { offices?: OfficeReader; caller?: CallerReader; permission?: PermissionReader } & GateOptions = {},
 ): InstallationGate => {
-  const { offices, caller, ...options } = extra;
+  const { offices, caller, permission, ...options } = extra;
   return createInstallationGate({
     installed,
     offices: offices ?? (async () => []),
     // Membro por omissão: quase todo caso aqui é sobre a instalação, e não sobre quem chamou.
     caller: caller ?? (async () => true),
+    permission: permission ?? (async () => []),
   }, options);
 };
 
@@ -322,5 +324,93 @@ describe('as recusas de uma callable de extensão', () => {
     await gate.requireInstalledExtension('com.acme.crm', 'a', request('u1'));
 
     expect(read).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * A quarta recusa: a permissão que a callable cobra. Quem responde é `requirePermission` (injetado aqui);
+ * o que se prova neste nível é ONDE ela entra no portão. A regra em si é provada em `index.test.ts`,
+ * contra a implementação de verdade.
+ */
+describe('a permissão cobrada por uma callable de extensão', () => {
+  const request = { auth: { uid: 'u1', token: { mfaAt: 1 } } };
+  const refuse: PermissionReader = async () => {
+    throw new Error('@core.access/permission.denied');
+  };
+
+  it('pergunta a permissão com quem chamou, a sessão e o escritório', async () => {
+    const permission = vi.fn(async () => []);
+    const uid = await gateWith(async () => true, { permission })
+      .requireInstalledExtension('com.acme.crm', 'escritorio-a', request, { permission: 'invoices.approve' });
+
+    expect(uid).toBe('u1');
+    expect(permission).toHaveBeenCalledWith(
+      'escritorio-a',
+      { uid: 'u1', token: { mfaAt: 1 } },
+      'invoices.approve',
+    );
+  });
+
+  it('propaga a recusa de permissão, sem trocá-la por outra', async () => {
+    const call = gateWith(async () => true, { permission: refuse })
+      .requireInstalledExtension('com.acme.crm', 'a', request, { permission: 'invoices.approve' });
+
+    await expect(call).rejects.toThrow(/permission\.denied/);
+  });
+
+  /** A permissão é a mais estrita das duas perguntas: perguntar as duas leria o membro duas vezes. */
+  it('com permissão, não faz a pergunta de membro', async () => {
+    const caller = vi.fn(async () => true);
+    await gateWith(async () => true, { caller })
+      .requireInstalledExtension('com.acme.crm', 'a', request, { permission: 'invoices.approve' });
+
+    expect(caller).not.toHaveBeenCalled();
+  });
+
+  it('sem permissão pedida, não pergunta permissão nenhuma', async () => {
+    const permission = vi.fn(async () => []);
+    await gateWith(async () => true, { permission }).requireInstalledExtension('com.acme.crm', 'a', request);
+
+    expect(permission).not.toHaveBeenCalled();
+  });
+
+  it('a recusa de permissão vem ANTES da pergunta sobre a instalação', async () => {
+    const read = vi.fn(async () => true);
+    const call = gateWith(read, { permission: refuse })
+      .requireInstalledExtension('com.acme.crm', 'a', request, { permission: 'invoices.approve' });
+
+    await expect(call).rejects.toThrow(/permission\.denied/);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it('com a permissão concedida, ainda recusa o escritório sem a extensão', async () => {
+    const call = gateWith(async () => false)
+      .requireInstalledExtension('com.acme.crm', 'a', request, { permission: 'invoices.approve' });
+
+    await expect(call).rejects.toThrow(/extension\.not-installed/);
+  });
+
+  it('a chamada sem autenticação é recusada antes de perguntar a permissão', async () => {
+    const permission = vi.fn(async () => []);
+    const call = gateWith(async () => true, { permission })
+      .requireInstalledExtension('com.acme.crm', 'a', {}, { permission: 'invoices.approve' });
+
+    await expect(call).rejects.toThrow(/office\.unauthenticated/);
+    expect(permission).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Vazia, ela deixaria passar só o dono e o `SYSTEM` — que passam por qualquer pergunta — e recusaria
+   * todo o resto. É erro de quem escreveu a function, e aparece antes de qualquer leitura.
+   */
+  it.each(['', '   ', undefined, 42])('recusa a permissão inválida (%j) sem ler nada', async (value) => {
+    const permission = vi.fn(async () => []);
+    const read = vi.fn(async () => true);
+    const call = gateWith(read, { permission })
+      .requireInstalledExtension('com.acme.crm', 'a', request, { permission: value as string });
+
+    await expect(call).rejects.toThrow(/com\.acme\.crm.*requireInstalledExtension/);
+    expect(permission).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
   });
 });

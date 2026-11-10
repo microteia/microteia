@@ -26,6 +26,7 @@ import {
 import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
+import { EXTENSION_PERMISSION_GUARD_SINCE_KERNEL } from '../../../domain/schema/access/permission';
 import { LOOKUP_OPTION_FILTER_PATHS, OPTIONS_FILTER_OPERATORS, OPTIONS_FILTER_SINCE_KERNEL } from '../../../domain/schema/optionsFilter';
 import { RECORD_SEARCH_SINCE_KERNEL, SEARCHABLE_FIELD_TYPES } from '../../../domain/schema/recordSearch';
 import {
@@ -4185,6 +4186,9 @@ What it means for what you declare:
 - **Pass the callable's whole \`request\` along.** \`requireInstalledExtension(pluginId, tenantId, request)\`
   reads the session's claims from \`request.auth.token\`. A hand-built \`{ auth: { uid } }\` has none, and
   is refused for every member the rule reaches.
+- **Let the platform ask for your permission.** A callable that requires \`notices.issue\` passes it to
+  \`requireInstalledExtension(..., { permission: 'notices.issue' })\` (§14), which checks the second step
+  with it. Reading the member document yourself checks neither.
 
 ## 14. When your extension needs the server
 
@@ -4304,6 +4308,28 @@ It throws rather than returning a boolean, deliberately: a \`false\` invites bei
 missing \`if\` leaves no symptom at all. The errors are \`HttpsError\`, so they reach your view as errors
 and not as a broken response. The check reads the whole file, so the guard may sit in a handler you
 extracted — which is what §"Write the handler thin" asks you to do.
+
+**When only some members may do it, ask for the permission in the same call:**
+
+\`\`\`ts
+const uid = await requireInstalledExtension('com.acme.crm', tenantId, request, {
+  permission: 'invoices.approve',
+});
+\`\`\`
+
+That is the fourth refusal, \`permission-denied\` naming the permission, and it is the platform's own
+rule — the one its screens, its rules and its own functions obey: the member's granted permissions, the
+organization's owner, and the platform administrator, who holds every permission in every organization
+**without being a member of it**. The second factor the organization requires is checked on the way.
+
+Do not read \`tenants/{tenantId}/members/{uid}\` to decide this yourself. A copy of the rule has no way to
+know the administrator — there is no member document for them — so it refuses them with a 403 in every
+organization but their own; and it skips the second factor, so it lets through the session the
+organization meant to stop. Both look like correct code until somebody hits them.
+
+The option needs kernel ${EXTENSION_PERMISSION_GUARD_SINCE_KERNEL}: declare \`kernel: '^${EXTENSION_PERMISSION_GUARD_SINCE_KERNEL}'\` or later in your
+manifest. An older kernel ignores a fourth argument at run time, and the callable would quietly go back to
+asking for membership only.
 
 ### A schedule of yours loops over the organizations instead
 

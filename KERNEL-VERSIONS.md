@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.221.0] — 2026-11-09
+
+- feat(functions/office): `requireInstalledExtension(pluginId, tenantId, request, { permission })` — an optional fourth refusal for an extension's callable that only some members may use. It is answered by the kernel's own `requirePermission` (materialized member set, then `SYSTEM`, then owner, plus `assertMemberSession`), injected into the gate as the `permission` reader, never re-implemented. An extension that needed this used to read `tenants/{t}/members/{uid}.permissions` itself; that copy could not see the platform administrator, who has no member document in another owner's organization, so it answered 403 there, and it skipped the second-factor session check the organization requires.
+- feat(functions/office): with a permission, the permission question REPLACES the membership one instead of following it — everything it admits, membership admits, and asking both read the member document twice. It still runs before the installation check, so a stranger learns nothing about what is installed. Refusal: `permission-denied`, `@core.access/permission.denied`, `details.permission`. Returns the uid only: handing out the raw set (`['*']` for owner and `SYSTEM`) would invite the `includes()` check this replaces. An empty or non-string permission throws a plain `Error` before any read (`grants` lets the wildcard through `''`).
+- feat(functions/office): a fourth argument rather than a new export on purpose: the Console refuses an extension callable that does not call `requireInstalledExtension('<id>'`, so a new name would be refused by every Console released so far. No Console change.
+- feat(schema/access): `EXTENSION_PERMISSION_GUARD_SINCE_KERNEL` (2.105.0); AUTHORING §13 and §14 tell authors to declare `kernel: '^2.105.0'`, because an older kernel ignores the fourth argument at run time. The `custom/` predeploy `tsc` also refuses the four-argument call against an older `microteia-office.d.ts`.
+- chore(kernel): `KERNEL_VERSION` 2.105.0 — additive.
+
 #### [9.220.0] — 2026-11-09
 
 - feat(portal/form): `getPortalContext` sends a fillable field's `optionsFilter` (`PortalContextFillableField.optionsFilter`) only when the guest's form can answer it (`portalOptionsFilter`): every compared field is top-level and in the same form (create and edit are evaluated separately), and on a reference every `path` is a field the target screen exposes (`guestFieldKeys`). Anything else is withheld and every option is offered, as before; nothing unexposed is read.

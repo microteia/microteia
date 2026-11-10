@@ -3470,6 +3470,7 @@ de uma extensão apontando para o escritório B.
 | não entrou | `unauthenticated` | a de sempre |
 | entrou e não é do escritório apontado | `permission-denied` | **é esta que fecha o buraco**: o token vale para o projeto, e o escritório vem no payload |
 | escritório sem a extensão instalada e ativa | `failed-precondition` | é a metade da retirada que age no instante do clique, do lado da callable |
+| **(opcional)** quem chama não tem a `permission` pedida em `{ permission }` | `permission-denied` (`@core.access/permission.denied`) | a extensão que cobrava permissão relia `members/{uid}.permissions` por conta própria — e a cópia não conhecia o `SYSTEM` (que não tem documento de membro) nem a sessão de segundo fator |
 
 | Decisão | Por quê |
 |---|---|
@@ -3479,6 +3480,12 @@ de uma extensão apontando para o escritório B.
 | devolve o `uid` | quem acabou de autorizar quase sempre precisa dele em seguida |
 | o alcance da recusa do Console é o ARQUIVO | a guarda roda dentro do handler, e o guia manda manter o handler fino com a decisão num arquivo ao lado. Exigi-la nos parênteses recusaria o código que o guia pede |
 | a callable COMUM fica de fora | `requireInstalledExtension` pede UM id, e a comum serve vários. É lacuna conhecida e registrada: a guarda "alguma das que eu sirvo" existe para gatilho (`forAnyInstalledExtension`), não para callable |
+| a permissão é um 4º argumento de `requireInstalledExtension`, e não uma função nova | o Console recusa a callable de extensão que não chama `requireInstalledExtension('<id>'` (`functionGate.ts`). Uma `requireExtensionPermission` exigiria ensinar o nome novo ao Console — e todo Console anterior recusaria a callable que só a chamasse. Com o argumento, nenhum Console muda |
+| a permissão é respondida por `requirePermission`, injetado no portão | é a regra inteira — materializado, `SYSTEM`, dono, `assertMemberSession`. Reescrevê-la no portão seria a quarta cópia, que é o defeito que a opção existe para tirar das extensões |
+| com permissão, ela SUBSTITUI a pergunta de membro | tudo o que ela deixa passar a de membro deixaria; perguntar as duas leria o mesmo documento duas vezes. E continua ANTES da instalação: o estranho recebe `permission-denied` sem saber se a extensão está ali |
+| devolve só o `uid`, e não o conjunto concedido | o conjunto do dono e do `SYSTEM` é `['*']`, e entregá-lo cru convidaria o `permissions.includes('x')` que recusa justamente os dois — a divergência que a opção corrige. Precisa de outra permissão? Pede de novo |
+| permissão vazia é `Error` antes de qualquer leitura | `grants` deixa o curinga passar por `''`: só o dono e o `SYSTEM` entrariam, e o defeito pareceria "só o dono consegue" |
+| `EXTENSION_PERMISSION_GUARD_SINCE_KERNEL` (`domain/schema/access/permission.ts`), citado pelo guia | um kernel anterior IGNORA o 4º argumento em execução — a callable voltaria a cobrar só pertencimento, em silêncio. Duas travas fecham isso: a faixa `kernel` do manifest, que o guia manda declarar com este número, e o `tsc` do `predeploy` de `custom/`, que recusa 4 argumentos contra o `.d.ts` antigo |
 
 ##### O evento sem escritório: o portão não serve, e agora existe resposta
 
