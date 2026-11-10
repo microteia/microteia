@@ -169,6 +169,14 @@ import type { AggregateBackfillDeps } from '../../domain/services/aggregateBackf
 import { FirebaseAggregateBackfillRepository } from '../../data/repositories/FirebaseAggregateBackfillRepository';
 import { FirebaseRecordSearchRepository } from '../../data/repositories/FirebaseRecordSearchRepository';
 import type { RecordSearchDeps } from '../../domain/services/recordSearchEngine';
+import type { ScreenSeedDeps } from '../../domain/services/screenSeeds';
+import { FirebaseScreenSeedRepository } from '../../data/repositories/FirebaseScreenSeedRepository';
+import { makeScreenSeedWriter } from '../screenSeeds/screenSeedWriter';
+import { RECORD_SEED_AUTHOR, EXTENSION_SEEDS_COLLECTION } from '../../domain/schema/screenSeed';
+import { catalogWithFallback, translate } from '../../domain/schema/i18n/messages';
+import type { MessageCatalog } from '../../domain/schema/i18n/messages';
+import { packageMessageCatalog } from '../../domain/schema/i18n/extensionPoints';
+import type { Contribution } from '../../domain/schema/plugin/contribution';
 import { agentCatalog } from '../agent/agentMessages';
 import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
 import type { SchemaContext } from '../../domain/schema/pathResolver';
@@ -310,6 +318,7 @@ class DIContainer {
   private aggregateRecomputeDeps?: AggregateRecomputeDeps;
   private aggregateBackfillDeps?: AggregateBackfillDeps;
   private recordSearchDeps?: RecordSearchDeps;
+  private screenSeedDeps?: ScreenSeedDeps;
   private recordKeyAdoptionDeps?: RecordKeyAdoptionDeps;
   private workflowClockDeps?: WorkflowClockDeps;
   private workflowContextHydrator?: WorkflowContextHydrator;
@@ -943,18 +952,75 @@ class DIContainer {
         freshSchemaContext: (tenantId: string) => this.getFreshSchemaContext(tenantId),
         // O rótulo de uma lista declarada por extensão é referência de mensagem: o termo é a palavra
         // que o escritório LÊ, no idioma dele, e não a chave do catálogo.
-        catalog: async (tenantId: string) => {
-          const [bundles, office] = await Promise.all([
-            this.getInstalledExtensionCache().messageBundles(tenantId),
-            getDb().collection('tenants').doc(tenantId).collection('settings').doc('tenant').get(),
-          ]);
-          return agentCatalog(bundles, configuredLocale({}, settingsValuesOf(office.data())) ?? DEFAULT_LOCALE);
-        },
+        catalog: (tenantId: string) => this.officeMessageCatalog(tenantId),
         now: () => Date.now(),
         logger: { warn: (message: string) => console.warn(`[record-search] ${message}`) },
       };
     }
     return this.recordSearchDeps;
+  }
+
+  /** O catálogo do ESCRITÓRIO: o idioma que ele escolheu, com as traduções das extensões instaladas. */
+  private async officeMessageCatalog(tenantId: string): Promise<MessageCatalog> {
+    const [bundles, office] = await Promise.all([
+      this.getInstalledExtensionCache().messageBundles(tenantId),
+      getDb().collection('tenants').doc(tenantId).collection('settings').doc('tenant').get(),
+    ]);
+    return agentCatalog(bundles, configuredLocale({}, settingsValuesOf(office.data())) ?? DEFAULT_LOCALE);
+  }
+
+  getScreenSeedDeps(): ScreenSeedDeps {
+    if (!this.screenSeedDeps) {
+      this.screenSeedDeps = {
+        repository: new FirebaseScreenSeedRepository(getDb()),
+        writeSeed: makeScreenSeedWriter({
+          mutationRepository: new FirestoreWorkflowMutationRepository(getDb()),
+          screenProvider: this.getScreenDefinitionCache(),
+        }),
+        prepare: async (tenantId) => {
+          await this.getFreshSchemaContext(tenantId);
+        },
+        // O catálogo do escritório vem do cache das extensões, que pode ainda não ter a que acabou de
+        // ser instalada. O do PACOTE fica por baixo: é ele que garante a tradução que a própria extensão
+        // traz, e o escritório (um pacote de idioma por cima) continua mandando no que já tem.
+        resolverFor: async (tenantId, pkg) => {
+          const office = await this.officeMessageCatalog(tenantId);
+          const manifest = (pkg as { manifest?: { contributes?: Contribution[] } } | null)?.manifest;
+          const catalog = catalogWithFallback(office, packageMessageCatalog(manifest?.contributes, office.locale));
+          return (ref) => translate(catalog, ref);
+        },
+        recordPass: async (tenantId, summary) => {
+          try {
+            await this.getCreateAuditLogUseCase().execute({
+              tenantId,
+              title: '@core.admin/audit.extension-seed.title',
+              titleParams: { extension: summary.pluginId },
+              userId: 'system',
+              userName: RECORD_SEED_AUTHOR,
+              photoURL: '',
+              action: 'SYSTEM',
+              severity: summary.failed > 0 ? 'HIGH' : 'LOW',
+              type: 'AUDIT',
+              entity: EXTENSION_SEEDS_COLLECTION,
+              entityId: summary.pluginId,
+              text: '@core.admin/audit.extension-seed.text',
+              textParams: {
+                extension: summary.pluginId,
+                screens: String(summary.screens),
+                created: String(summary.created),
+                matched: String(summary.matched),
+                failed: String(summary.failed),
+              },
+            });
+          } catch (error) {
+            console.error(`[extension-seed] Falha ao registrar a auditoria de ${tenantId}/${summary.pluginId}:`, error);
+          }
+        },
+        now: () => Date.now(),
+        logger: { warn: (message: string) => console.warn(`[extension-seed] ${message}`) },
+      };
+    }
+    return this.screenSeedDeps;
   }
 
   getAggregateBackfillDeps(): AggregateBackfillDeps {

@@ -1101,3 +1101,35 @@ describe('valor de partida na criação — seedDefaults (portal)', () => {
     expect(seeded.ok).toBe(true);
   });
 });
+
+describe('semente de extensão — seed', () => {
+  const withActor = (): WorkflowContext => ({
+    ...context(),
+    actor: { userId: 'u-ana', name: 'Ana Souza', photoURL: 'https://foto/ana', via: 'ui', permissions: [] },
+  });
+
+  it('cria com a extensão como autora e a marca que tira o registro do `.saved` e da auditoria', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await runWorkflowUpsert({ table: 'persons', data: { name: 'Bia' } }, withActor(), deps(repo), { seed: true });
+    expect(outcome.ok).toBe(true);
+    const created = repo.createCalls[0].data ?? {};
+    expect(created).toMatchObject({ createdBy: 'extension-seed', createdVia: 'extension-seed', updatedVia: 'extension-seed' });
+    expect(created).not.toHaveProperty('createdByName');
+  });
+
+  it('nunca altera: com id, ou com o registro já lá, recusa', async () => {
+    const repo = new FakeMutationRepository();
+    repo.seed('persons', 'p1', { name: 'Antigo' });
+    const outcome = await runWorkflowUpsert({ table: 'persons', id: 'p1', data: { name: 'Novo' } }, context(), deps(repo), { seed: true });
+    expect(outcome).toMatchObject({ ok: false, error: '@core.automation/mutation.upsert.seed-create-only' });
+    expect(repo.updateCalls).toHaveLength(0);
+  });
+
+  it('as regras de sempre valem: o obrigatório ausente é recusado', async () => {
+    const repo = new FakeMutationRepository();
+    const outcome = await runWorkflowUpsert(
+      { table: 'persons', data: { apelido: 'B' } }, context(), deps(repo), { seed: true, enforceRequired: true },
+    );
+    expect(outcome).toMatchObject({ ok: false, error: '@core.automation/mutation.upsert.required' });
+  });
+});

@@ -1162,6 +1162,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'mutation.upsert.invalid': 'Gravação inválida: {detail}',
   'mutation.upsert.not-found': 'O registro a alterar não existe mais.',
   'mutation.upsert.outside-parent': 'O registro encontrado está vinculado a outro registro, e esta gravação não o move.',
+  'mutation.upsert.seed-create-only': 'A semente de uma extensão só cria registros; nunca altera um que já existe.',
   'mutation.upsert.edit-window-closed': 'Este registro não pode mais ser alterado: a tela dele só permite alterações até {minutes} minutos depois da criação.',
   'mutation.remove.edit-window-closed': 'Este registro não pode mais ser excluído: a tela dele só permite excluí-lo até {minutes} minutos depois da criação.',
   'mutation.upsert.key-conflict':

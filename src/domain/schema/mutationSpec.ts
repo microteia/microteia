@@ -85,11 +85,12 @@ export const LOOKUP_WRITABLE_FIELDS: readonly string[] = ['key', 'label', 'color
 
 /**
  * POR ONDE a gravação entrou: o app (`ui`), um agente de IA pelo MCP (`agent`), uma automação sem
- * pessoa por trás (`automation`), um convidado de FORA do escritório, pelo portal (`portal`), ou a
- * importação em massa (`import`). Mora num campo À PARTE do autor — `createdBy` continua sendo o uid de
- * quem responde pela gravação, porque é o único valor que a auditoria resolve em nome.
+ * pessoa por trás (`automation`), um convidado de FORA do escritório, pelo portal (`portal`), a
+ * importação em massa (`import`) ou a semente de uma extensão (`extension-seed`, só na criação — ver
+ * `screenSeed.ts`). Mora num campo À PARTE do autor — `createdBy` continua sendo o uid de quem responde
+ * pela gravação, porque é o único valor que a auditoria resolve em nome.
  */
-export type RecordWriteVia = 'ui' | 'agent' | 'automation' | 'portal' | 'import';
+export type RecordWriteVia = 'ui' | 'agent' | 'automation' | 'portal' | 'import' | 'extension-seed';
 
 export const RECORD_CREATED_VIA_FIELD = 'createdVia';
 export const RECORD_UPDATED_VIA_FIELD = 'updatedVia';

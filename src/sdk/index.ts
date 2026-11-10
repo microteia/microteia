@@ -24,6 +24,9 @@ export type {
   ViewModuleTemplate,
   WorkflowModuleTemplate,
 } from '../domain/entities/MarketplacePlugin';
+// A semente de uma tela (`ScreenModuleTemplate.seed`): exportada para que o catálogo possa morar num
+// arquivo à parte, tipado, em vez de inline no `plugin.ts`.
+export type { ScreenSeed, ScreenSeedRecord } from '../domain/schema/screenSeed';
 
 // ─── Manifest, contribuições e pontos de extensão ─────────────────────────────
 

@@ -491,6 +491,16 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // O que cada extensão já SEMEOU nas telas dela (`screens[].seed`): as chaves entregues, a decisão
+      // do `when-empty` e as sementes recusadas. Lê quem instala — o documento diz o que a instalação
+      // fez, e é a tela de Extensões que o mostra. Ninguém grava do cliente: um cliente que gravasse
+      // `delivered` impediria a semente de chegar, e o que a apaga reentregaria o que o escritório
+      // apagou. Sobrevive à desinstalação, como `extension_migrations`: os registros semeados ficam.
+      match /extension_seeds/{extensionId} {
+        allow read: if can(tenantId, 'extensions.manage');
+        allow write: if false;
+      }
+
       // O recálculo dos agregados sobre os registros que já existiam (um documento por tela pai).
       // Todo membro lê: é daqui que a listagem tira o aviso de uma passada bloqueada ou com falhas, e o
       // que o documento expõe — nomes de campo, contagens, ids — quem lê a tela já vê. Ninguém grava
@@ -734,7 +744,7 @@ service cloud.firestore {
       function isReservedCollection(name) {
         return name in [
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
-        'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extensions',
+        'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extension_seeds', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox', 'notification_dispatches', 'notification_contacts',
         'portalIdentityInvites', 'portalRecords', 'portalTexts', 'portalUsers', 'portal_reprojections', 'reports', 'roles',
         // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de

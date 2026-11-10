@@ -15,6 +15,7 @@ import {
 import type { RecordWriteVia, RemoveSpec, ResolvedWritableTable, UpsertSpec } from '../../../domain/schema/mutationSpec';
 import { RECORD_CREATED_VIA_FIELD, RECORD_UPDATED_VIA_FIELD } from '../../../domain/schema/mutationSpec';
 import { RECORD_PORTAL_VERIFIED_FIELD, type PortalVerifiedIdentity } from '../../../domain/schema/portalIdentity';
+import { RECORD_SEED_AUTHOR, RECORD_SEED_VIA } from '../../../domain/schema/screenSeed';
 import { ruleIssueParams } from '../../../domain/schema/fieldRules';
 import type { DescribableIssue } from '../../../domain/schema/fieldRules';
 import { collectDerivedFieldKeys, formatAndValidateRecord, seedFieldDefaults, tableMentionsBusinessDays } from '../../../domain/schema/recordRules';
@@ -158,6 +159,14 @@ export interface UpsertOptions {
    * registro de outro pai para este. Quem pede é a importação feita na aba do pai.
    */
   lockedTo?: { fieldKey: string; recordId: string };
+  /**
+   * A gravação é a SEMENTE de uma extensão (`screens[].seed`): só cria, nunca altera, e carimba
+   * `createdVia: 'extension-seed'` com a extensão como autora — o que a tira do `.saved` e da linha de
+   * auditoria por registro (`isRecordSeedWrite`). É uma opção, e não o contexto, porque a semente não
+   * tem pessoa nem automação por trás: quem responde por ela é o pacote. As regras, as chaves e a
+   * sequência valem como em qualquer criação.
+   */
+  seed?: boolean;
 }
 
 const pointsTo = (value: unknown, recordId: string): boolean =>
@@ -259,7 +268,9 @@ export async function runWorkflowUpsert(
 ): Promise<WorkflowMutationOutcome<UpsertResult>> {
   const tenantId = context.execution.tenantId;
   const ctx = await deps.screenProvider.getSchemaContext(tenantId);
-  const author = authorOf(context);
+  const author: WriteAuthor = options.seed
+    ? { by: RECORD_SEED_AUTHOR, name: null, photoURL: null, via: RECORD_SEED_VIA }
+    : authorOf(context);
 
   let effectiveSpec: UpsertSpec = options.lockedTo
     ? { ...spec, data: { ...spec.data, [options.lockedTo.fieldKey]: options.lockedTo.recordId } }
@@ -315,6 +326,10 @@ export async function runWorkflowUpsert(
   }
   if (options.updateOnly && !existing) {
     return { ok: false, error: '@core.automation/mutation.upsert.not-found' };
+  }
+  // A semente nunca altera: o registro que já está lá é do escritório, mesmo que tenha nascido dela.
+  if (options.seed && (id || existing)) {
+    return { ok: false, error: '@core.automation/mutation.upsert.seed-create-only' };
   }
   // A pessoa por quem se grava (o agente) não altera o registro que não vê (`memberVisibility`) — como
   // na regra do Firestore. A recusa é a de quem não existe; criar continua livre, e pode nomear outra

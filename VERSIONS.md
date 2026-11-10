@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.222.0] — 2026-11-10
+
+- Extensões podem trazer cadastros prontos — como uma lista de raças com a espécie de cada uma, ou de produtos com o preço. Eles chegam no idioma do escritório, uma única vez: o que o escritório apagar ou renomear não volta, e uma versão nova da extensão traz apenas o que acrescentou ao catálogo.
+- A chegada desses cadastros fica registrada na Auditoria numa única linha, sem disparar as automações de cada registro.
+
 #### [9.221.1] — 2026-11-10
 
 - Nos cartões das listas, o nome curto de um campo passa a aparecer traduzido no idioma do escritório, em vez de um código técnico.

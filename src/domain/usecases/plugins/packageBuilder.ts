@@ -161,6 +161,8 @@ const templateSourceOf = (template: ScreenModuleTemplate): string => template.so
  *
  * `key` e `sourceId` continuam sendo os do TEMPLATE (a identidade do pacote não muda porque a
  * instalação local desambiguou a chave), e campos de OUTRA extensão não viajam: não são do autor.
+ * O `seed` também é do template: a tela viva não o guarda — ele só existe no pacote, como as
+ * migrações —, e reexportar sem ele faria a versão seguinte chegar sem o catálogo.
  */
 const refreshedFromInstalled = (
   template: ScreenModuleTemplate,
@@ -174,6 +176,7 @@ const refreshedFromInstalled = (
   }),
   key: template.key,
   sourceId: templateSourceOf(template),
+  ...(template.seed ? { seed: template.seed } : {}),
 });
 
 /**

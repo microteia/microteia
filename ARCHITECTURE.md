@@ -2882,7 +2882,7 @@ verdade — `scripts/deployLists.test.ts` cobra que toda function exportada este
 | **tenant** | Gestão de membros | Raras alterações |
 | **portal** | Convidados externos: convite, projeção e acesso a documentos | Quando o portal muda |
 | **agent** | MCP de execução e as concessões do agente | Quando o agente muda |
-| **marketplace** | Catálogo público de extensões | Quando o catálogo muda |
+| **marketplace** | Catálogo público de extensões e a semeadura dos registros de uma extensão instalada (`seedExtensionRecords`) | Quando o catálogo ou a semeadura mudam |
 | **util** | Utilitários gerais | Proxy AI, logs de erro, cascata |
 | **notifications** | Notificações | Quando as notificações mudam |
 
@@ -6328,6 +6328,7 @@ declaração de pacote, e é o que permite a entidade mudar de dono sem mudar na
 | Capacidade | Declaração | Sem ela |
 |---|---|---|
 | Opções de partida das listas | `lookups[].options` + `seed` — `when-empty` só em lista vazia; `required` acrescenta o que falta, uma vez por extensão | um escritório novo instalaria a extensão e não teria nenhuma Área, Fase ou Status |
+| Registros de partida das telas | `screens[].seed` — o catálogo com atributos (raça com espécie, produto com preço), semeado pelo servidor depois da instalação. Ver "Registros semente de extensão" | o catálogo viraria lista de opções sem atributo, ou uma migração `runOnInstall` escrita à mão por extensão |
 | Nome dos eventos | `ScreenDefinition.eventPrefix` (`case` → `case.saved`) | a coleção passaria a emitir `cases.saved` e toda automação que escuta `case.*` pararia |
 | Quem pode gravar | a permissão derivada da coleção (`<coleção>.create\|update\|delete`), dada aos perfis do escritório e conferida pelo curinga das rules (`canOnCollection`). Até a autorização por permissão era `ScreenDefinition.writeRoles`, uma lista de papéis — removida | a entidade perderia a restrição que a regra nomeada dava, e qualquer membro com escrita passaria a editar |
 | Quem pode EXCLUIR | `ScreenDefinition.authorCanDelete`, lido pelo mesmo curinga | exclusão seria sempre de admin, e o autor de um comentário precisaria de um admin para apagar o que escreveu |
@@ -12441,6 +12442,157 @@ clicando "Atualizar" ao mesmo tempo se encontram. A reserva **expira** (`MIGRATI
 | `domain/usecases/plugins/extensionMigrationState.ts` | pendente/erro por cópia instalada |
 | `data/repositories/FirebaseExtensionMigrationRepository.ts` | o histórico, com a reserva transacional |
 | `stores/InstalledExtensionStore.tsx` | a sequência: `before` → artefatos → `after`, sob a trava |
+
+---
+
+## Registros semente de extensão — `screens[].seed`
+
+O filtro de opções (`optionsFilter`) tornou prático que um catálogo com atributos próprios seja uma
+ENTIDADE e não uma lista: a raça com a espécie, o produto com o preço, o tipo de serviço com a duração.
+A troca custava o que a lista tinha de graça — o conteúdo de partida. Uma lista declara opções semente
+(`lookups[].options` + `seed`); uma tela não declarava nada. A extensão escolhia entre achatar o catálogo
+numa lista ou escrever à mão uma migração `runOnInstall`, que paga quatro custos repetidos em cada
+extensão: o teto de 25 gravações por rodada (laço com `remaining`), um campo escondido de "código da
+semente" para reconhecer o registro depois, a mesma lógica de "criar o que falta, nunca ressuscitar o
+apagado", e os nomes num idioma fixo — a migração não enxerga o idioma do escritório. E a plataforma não
+tinha como saber que isso estava acontecendo.
+
+A declaração tem a forma da semente de lista, de propósito — o autor já conhece as regras:
+
+```ts
+screens: [{
+  key: 'petshopBreeds',
+  // ...
+  seed: {
+    mode: 'required',                      // 'when-empty' (padrão) | 'required', como em lookups
+    records: [
+      { key: 'labrador-retriever', data: { name: 'Labrador Retriever', species: 'dog' } },
+      { key: 'persian', data: { name: '@com.acme.petshop/breed.persian', species: 'cat' } },
+    ],
+  },
+}]
+```
+
+### A decisão que organiza o resto: a porta é a CÓPIA INSTALADA, e quem grava é o servidor
+
+A semente de lista roda no navegador, dentro de `applyPackageArtifacts`. A de tela não pode: ela grava
+REGISTROS sem `.saved` e sem auditoria por registro, e esse privilégio não pode ser pedido por um cliente
+— senão vira um canal de gravação sem trilha. Por isso:
+
+- **O gatilho é `tenants/{id}/installed_extensions/{pluginId}`** (`seedExtensionRecords`, grupo
+  `deploy:marketplace`). O pacote lido é o que o escritório TEM gravado — escrito só por quem tem
+  `extensions.manage` —, nunca o que um cliente afirmasse ter. É a mesma lição do recálculo de agregados
+  ("a porta é a declaração, não a instalação"): o catálogo embutido, o registro público, o arquivo avulso
+  e a volta a uma versão do histórico gravam todos este documento, e nenhum precisa lembrar de semear.
+- **A gravação é `runWorkflowUpsert` com a opção `seed`**, o mesmo ponto da importação, do agente e do
+  portal. Regras de campo, chaves declaradas (com reserva), sequência, valor de partida (`seedDefaults`) e
+  obrigatoriedade (`enforceRequired`) valem sem uma linha da semeadura. `seed` só CRIA (com `id` ou com o
+  registro já lá, recusa `mutation.upsert.seed-create-only`) e carimba `createdBy`/`createdVia:
+  'extension-seed'`.
+- **A marca não é forjável**: `declaresOnlyUiOnCreate` só deixa o cliente criar com `createdVia: 'ui'`, e
+  `keepsWriteViaOnUpdate` proíbe alterar `createdVia`. Nenhuma regra nova foi necessária.
+- **`isRecordSeedWrite` só reconhece a CRIAÇÃO marcada.** `publishWorkflowEventOnEntityChange` não publica
+  `.saved` e `auditFlatEntityChange` não grava linha para ela; a passada deixa UMA linha (`SYSTEM`,
+  `@core.admin/audit.extension-seed.*`, entidade `extension_seeds`, id = extensão) com criados, já
+  existentes e recusados — `HIGH` quando há recusa. A alteração posterior do registro, por qualquer porta,
+  publica e audita como sempre. A derivação da busca e o motor de agregados continuam rodando sobre o
+  registro semeado: são gatilhos próprios, não o `.saved`.
+
+### Identidade, sem campo escondido
+
+A `key` da semente nunca vai para o registro. O que esta extensão já entregou mora em
+`tenants/{id}/extension_seeds/{pluginId}`, por tela (pelo `sourceId` universal, não pela chave instalada):
+
+| Campo | O quê |
+|---|---|
+| `screens.<sourceId>.planned` | a decisão do `when-empty`, tomada uma vez: as chaves que a coleção vazia ia receber, ou `[]`. `null` no `required` |
+| `screens.<sourceId>.delivered` | as chaves entregues — gravadas UMA A UMA (`arrayUnion`) logo depois de cada registro |
+| `failures.<sourceId>` | as sementes recusadas na última passada, com a referência e os parâmetros do motivo |
+| `leaseUntil` | a reserva da passada em curso (6 min) |
+
+| `mode` | O que entra |
+|---|---|
+| `when-empty` | tudo, se a coleção está vazia na PRIMEIRA vez que a extensão a semeia; senão nada, nunca. Uma passada interrompida termina o que decidiu, mesmo com a coleção já não vazia — foi ela que a encheu |
+| `required` | toda semente que esta extensão ainda não entregou, vazia ou não a coleção. Uma versão nova que acrescenta entradas entrega só as chaves novas |
+
+**A chave entregue não volta.** O registro que o escritório apagou ou renomeou é dele. Aqui a semente de
+tela diverge da de lista num ponto, e é decisão: o `required` de lista entrega TUDO de novo numa lista
+vazia; o de tela não, porque uma coleção que o escritório esvaziou é uma decisão sobre dado de negócio, e
+devolver quinhentos registros que ele apagou seria desfazê-la.
+
+**A semente que esbarra numa chave declarada conta como entregue** — o escritório já tem aquele registro;
+é a regra da lista, que não duplica a opção que ele já tem pelo rótulo. A recusada por outro motivo (o
+escritório tornou um campo obrigatório, uma regra recusa o valor) fica fora de `delivered`, com o motivo
+em `failures`, e é tentada de novo na próxima passada.
+
+**O histórico sobrevive à desinstalação**, como `extension_migrations`, e pelo mesmo motivo: os registros
+semeados sobrevivem, e reinstalar sem o histórico duplicaria o catálogo inteiro (sem chave declarada, nada
+o reconheceria). A regra só deixa LER, a quem tem `extensions.manage`; ninguém grava do cliente — gravar
+`delivered` impediria a semente de chegar, e apagá-lo reentregaria o que o escritório apagou. A coleção é
+reservada (`RESERVED_COLLECTIONS` e `isReservedCollection`).
+
+### Idioma
+
+Uma referência de mensagem num campo de TEXTO (`text`, `textarea`, `markdown`) é resolvida no idioma do
+ESCRITÓRIO (`i18n.locale` do tenant, senão o padrão) no momento em que o registro é gravado. Dali em diante
+é dado: o escritório o edita, e trocar o idioma depois não o retraduz. O catálogo é o do escritório
+(`agentCatalog` sobre as extensões instaladas, o mesmo da busca) com o catálogo do PRÓPRIO PACOTE por baixo
+(`catalogWithFallback`): o cache das extensões pode ainda não ter a que acabou de ser instalada, e um pacote
+de idioma por cima continua mandando no que traduz. Em campo que não é texto, `@ns/chave` seria um valor —
+e o `check` o recusa.
+
+### A passada
+
+`runScreenSeedPass` (`functions/src/domain/services/screenSeeds.ts`):
+
+1. Lê a cópia instalada; desligada ou sem semente, sai. **Sem reserva**, confere se há trabalho
+   (`hasWork`): quase toda gravação da cópia — revisão de código, carimbo do backend — custa uma leitura.
+2. Reserva em transação. Outra passada com a reserva viva: sai sem fazer nada.
+3. Relê a declaração das telas (`getFreshSchemaContext`) e acha cada tela pelo `sourceId`. Tela ainda não
+   instalada é adiada, sem marcar nada.
+4. Por tela: só a primeira decisão do `when-empty` lê a coleção (`limit(1)`); grava a decisão ANTES da
+   primeira semente; grava as sementes em quatro raias; marca cada entregue logo depois do registro.
+5. Relê a cópia instalada: se o pacote mudou durante a passada (uma atualização cuja entrega encontrou a
+   reserva e saiu), recomeça na mesma reserva — até três vezes.
+6. Solta a reserva e grava a linha de Auditoria, se alguma semente foi criada ou recusada.
+
+Sem rodadas nem cursor: o teto (`SCREEN_SEED_MAX_RECORDS`, 500 por tela) é o que permite uma invocação só
+(`timeoutSeconds: 300`, `retry: true`, entrega com mais de 15 min ignorada — o corte do recálculo).
+
+### O `check`
+
+`packageScreenSeedIssues` confere cada semente contra os campos da PRÓPRIA tela: forma e modo, a `key`
+(padrão de slug, sem repetir), campo desconhecido, tipo do valor, opção que o campo não oferece (as do campo
+ou as que o pacote semeia na lista dele; lista da plataforma ou de outra extensão passa), obrigatório vazio
+sem `defaultValue`, referência de mensagem fora de campo de texto ou ausente dos `i18n.messages` do pacote,
+duas sementes com o mesmo valor numa chave declarada (calculada por `planRecordKeys`, com a normalização
+declarada), e o teto. Exige `kernel: "^2.106.0"` (`SCREEN_SEED_SINCE_KERNEL`): um kernel anterior ignora
+`seed` em silêncio.
+
+### O limite, dito com todas as letras
+
+- **Referência e arquivo não são semeáveis.** A referência guarda o id do registro apontado, que só existe
+  no escritório — uma semente apontando para outra semente precisaria de um endereço que o pacote não tem.
+  O caso "raça pela espécie" se escreve com a espécie como seleção (o filtro de opções compara os dois).
+  Nem o que ninguém grava: agregado, derivado, calculado, sequencial.
+- **A janela entre o registro e a marca.** Uma passada que cai exatamente entre criar um registro e marcar
+  a chave entregue o recria na retomada. A marca por semente (e não por tela) reduz isso a uma gravação.
+- **A semente recusada só é retentada quando a cópia instalada é gravada de novo** (atualizar, religar).
+  Não há agendador, e um botão "semear de novo" daria a entender que a plataforma às vezes erra.
+- **A extensão desligada não semeia**; religá-la grava a cópia e dispara a passada.
+- **Semear não é atualizar.** A semente nunca altera um registro, nem o que ela mesma criou: uma versão que
+  corrige o preço de um produto já entregue precisa de uma migração.
+
+### Arquivos-chave
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/screenSeed.ts` | o contrato, o plano puro, a leitura tolerante do pacote e do histórico, a marca (compartilhado) |
+| `domain/usecases/plugins/pluginScreenSeeds.ts` | o `check` |
+| `functions/src/domain/services/screenSeeds.ts` | a passada |
+| `functions/src/data/repositories/FirebaseScreenSeedRepository.ts` | histórico, reserva, telas instaladas |
+| `functions/src/infrastructure/screenSeeds/screenSeedWriter.ts` | a gravação por `runWorkflowUpsert` |
+| `functions/src/infrastructure/handlers/screenSeeds.ts` | `seedExtensionRecords` |
 
 ---
 

@@ -395,6 +395,16 @@ describe('buildPackage — reexportar uma extensão em edição', () => {
     expect(pkg.screenPatches).toBeUndefined();
   });
 
+  it('a semente da tela sobrevive ao reexport — a tela viva não a guarda, só o pacote', () => {
+    const seed = { mode: 'required' as const, records: [{ key: 'caneta', data: { nome: 'Caneta' } }] };
+    const pkg = buildPackage({
+      manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],
+      carried: { screens: [{ ...carriedTemplate, seed }] },
+      installedScreens: [installedProdutos()],
+    });
+    expect(pkg.screens?.[0].seed).toEqual(seed);
+  });
+
   it('a chave e o sourceId continuam sendo os do template, mesmo se a instalação desambiguou', () => {
     const pkg = buildPackage({
       manifest, summary: 's', screens: [], actions: [], workflows: [], scripts: [],

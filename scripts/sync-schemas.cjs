@@ -63,6 +63,8 @@ const SHARED_FILES = [
   'domain/schema/plugin/codeTrust.ts',
   'domain/schema/aggregationSpec.ts',
   'domain/schema/aggregateBackfill.ts',
+  'domain/schema/lookupSeed.ts',
+  'domain/schema/screenSeed.ts',
   'domain/schema/recordKeyAdoption.ts',
   'domain/schema/recordImport.ts',
   'domain/schema/recordImportReference.ts',

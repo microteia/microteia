@@ -27,6 +27,7 @@ import type { AutoValueSpec, RecordSequenceField } from './recordSequence';
 import { RECORD_SEQUENCES_COLLECTION, recordSequenceFields } from './recordSequence';
 import { RECORD_IMPORTS_COLLECTION } from './recordImport';
 import { RECORD_SEARCH_JOBS_COLLECTION } from './recordSearch';
+import { EXTENSION_SEEDS_COLLECTION } from './screenSeed';
 import { WORKFLOW_CLOCK_COLLECTION, WORKFLOW_TRIGGER_MARKS_COLLECTION } from './workflowClock';
 import { NOTIFICATION_DISPATCHES_COLLECTION, NOTIFICATION_INBOX_COLLECTION } from './notifications';
 import { asContactKind, NOTIFICATION_CONTACTS_COLLECTION } from './notificationContacts';
@@ -628,6 +629,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'installed_extensions',
   'extension_migrations',
   'extension_history',
+  EXTENSION_SEEDS_COLLECTION,
   AGGREGATE_BACKFILL_COLLECTION,
   RECORD_KEY_ADOPTION_COLLECTION,
   RECORD_SEQUENCES_COLLECTION,

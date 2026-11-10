@@ -169,6 +169,9 @@ export const CORE_ADMIN: Record<string, string> = {
   'audit.aggregate-backfill.title': 'Campos calculados preenchidos',
   'audit.aggregate-backfill.text':
     'Os campos calculados de **{screen}** foram preenchidos nos registros que já existiam: {processed} conferidos, {written} atualizados, {failed} não puderam ser atualizados, {truncated} acima do limite de itens relacionados.',
+  'audit.extension-seed.title': 'Registros entregues por {extension}',
+  'audit.extension-seed.text':
+    'A extensão **{extension}** acrescentou os registros de partida dela a {screens} tela(s): {created} criados, {matched} já existiam no escritório, {failed} não puderam ser criados.',
   'audit.record-key-adoption.title': 'Chaves únicas conferidas',
   'audit.record-key-adoption.active.text':
     'As chaves **{keys}** de **{screen}** passaram a valer em todos os registros: {processed} conferidos, {reserved} reservados.',

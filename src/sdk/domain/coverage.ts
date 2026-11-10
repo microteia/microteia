@@ -355,6 +355,7 @@ const SCREEN_REACH: Record<keyof ScreenModuleTemplate, string | null> = {
   viewActionIds: 'the actions the screen plan places in the detail header',
   cardActionIds: 'the actions the screen plan places on the list card',
   cardTemplate: null,
+  seed: null,
 };
 
 const SCREEN_NOTES: Record<string, string> = {
@@ -385,6 +386,8 @@ const SCREEN_NOTES: Record<string, string> = {
     + 'machine-written',
   cardTemplate: 'HUMAN: how the list card is drawn, and whether the list is a grid or one card per line. A '
     + 'presentation decision, and the model says what a record is, never how it looks',
+  seed: 'HUMAN: the records the extension delivers ready to use — a catalog. Content the author chooses, not something a '
+    + 'rule implies',
 };
 
 const ACTION_REACH: Record<keyof ActionModuleTemplate, string | null> = {

@@ -6,6 +6,7 @@ import { publishEvent } from '../workflow/publishEvent';
 import { resolveEventPrefix } from '../workflow/resolveEventPrefix';
 import { isAggregateBackfillWriteFresh } from '../../domain/services/aggregateBackfill';
 import { isBookkeepingWrite } from '../../domain/services/recordBookkeeping';
+import { isRecordSeedWrite } from '../../domain/schema/screenSeed';
 
 /**
  * Publica eventos de entidades com o payload cru do documento:
@@ -45,6 +46,10 @@ export const publishWorkflowEventOnEntityChange = onDocumentWritten(
       const isCreate = !beforeExists && afterExists;
       const beforeData = (beforeExists && before) ? (before.data() as Record<string, unknown>) : null;
       const afterData = (afterExists && after) ? (after.data() as Record<string, unknown>) : null;
+
+      // A semente de uma extensão é o catálogo chegando com ela, não um fato de negócio: uma automação
+      // de `.saved` rodaria uma vez por raça, produto ou tipo de serviço do pacote.
+      if (isCreate && isRecordSeedWrite(beforeData, afterData)) return;
 
       if (!isDelete && !isCreate && beforeExists && afterExists) {
         const hasChanges = JSON.stringify(beforeData) !== JSON.stringify(afterData);

@@ -81,6 +81,7 @@ export {
   runAggregateBackfill,
   reconcileAggregates,
 } from './infrastructure/handlers/aggregateBackfill';
+export { seedExtensionRecords } from './infrastructure/handlers/screenSeeds';
 export {
   deriveRecordSearchOnEntityChange,
   runRecordSearchJob,

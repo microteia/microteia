@@ -169,6 +169,9 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'audit.aggregate-backfill.title': 'Calculated fields filled in',
   'audit.aggregate-backfill.text':
     'The calculated fields of **{screen}** were filled in for the records that already existed: {processed} checked, {written} updated, {failed} could not be updated, {truncated} over the limit of related items.',
+  'audit.extension-seed.title': 'Records delivered by {extension}',
+  'audit.extension-seed.text':
+    'The extension **{extension}** added its starting records to {screens} screen(s): {created} created, {matched} already in the organization, {failed} could not be created.',
   'audit.record-key-adoption.title': 'Unique keys checked',
   'audit.record-key-adoption.active.text':
     'The keys **{keys}** of **{screen}** are now enforced on every record: {processed} checked, {reserved} reserved.',

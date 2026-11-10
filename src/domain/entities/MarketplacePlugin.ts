@@ -1,5 +1,6 @@
 import type { AuditAction } from './AuditLog';
 import type { LookupSeedMode } from '../schema/lookupSeed';
+import type { ScreenSeed } from '../schema/screenSeed';
 import type { PluginManifest } from '../schema/plugin/pluginManifest';
 import type { PluginMigration } from '../schema/plugin/migration';
 import type { PackagedBackendSource } from '../schema/plugin/backendSource';
@@ -105,6 +106,12 @@ export interface ScreenModuleTemplate {
   cardActionIds?: string[];
   /** O desenho do cartão da listagem. Ver `ScreenDefinition.cardTemplate`. */
   cardTemplate?: CardTemplate | null;
+  /**
+   * Registros que a extensão entrega prontos — o catálogo com atributos que uma lista de opções não
+   * comporta. Não é declaração da tela: viaja só no pacote, e quem o aplica é o servidor, depois da
+   * instalação. Ver `schema/screenSeed.ts`.
+   */
+  seed?: ScreenSeed | null;
 }
 
 /**

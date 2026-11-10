@@ -24,6 +24,7 @@ import {
   READ_ALL_ACTION,
 } from '../../../domain/schema/memberVisibility';
 import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
+import { SCREEN_SEED_MAX_RECORDS, SCREEN_SEED_SINCE_KERNEL } from '../../../domain/schema/screenSeed';
 import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
 import { EXTENSION_PERMISSION_GUARD_SINCE_KERNEL } from '../../../domain/schema/access/permission';
@@ -2438,6 +2439,7 @@ every member who reads the collection would read every record, so \`check\` refu
 | \`memberVisibility\` | which members read EACH record: the ones it names in a member reference (\`userFields\`), plus whoever has \`bypassPermission\` — or the derived \`<collection>.${READ_ALL_ACTION}\`. Enforced by the security rules and every server path that hands a record to a person; see "Record visibility" above |
 | \`portal\` | what an outside guest sees: \`subject\` (\`'self'\` for the screen whose records receive guests, \`{ field }\` for a reference that leads to it, \`'parent'\` to inherit from the parent, \`'public'\` for records every guest of the organization reads, read-only — section 4; requires \`kernel: "^${PORTAL_PUBLIC_SUBJECT_SINCE_KERNEL}"\`), the \`fields\` that leave the organization — nothing else does — and \`documents\` to expose the documents someone marked as shared. \`visibleWhen\` is a field expression on the WHOLE record that decides which records leave (\`type == "revenue"\`) — false or invalid, the record is not in the portal, and neither is anything that reaches the guest through it; requires \`kernel: "^${PORTAL_VISIBLE_WHEN_SINCE_KERNEL}"\`. \`create: { fields, when? }\` lets the guest create records, filling only those fields — the link to the subject is set by the server from what the guest already sees, never from what they send; it is refused on the \`'self'\` screen. \`when\` is a field expression on the record the new one belongs to plus \`actor\` (\`"partner" in actor.portalRoles\`) — only guests for whom it holds create (section 4); requires \`kernel: "^${PORTAL_ROLES_SINCE_KERNEL}"\`. A \`reference\` there (or in \`edit.fields\`) whose target screen is in the portal is chosen among the records the guest sees, and the server refuses any other id (section 4). A field the guest does not send starts with its \`defaultValue\`, as in the organization's form — which is why a required field with a default may stay out of \`create.fields\`. A derived field (\`logic.derive\`) is computed when read and never stored, so it cannot be in \`fields\` nor in \`create.fields\`: the guest would always see it empty, and the package is refused. \`uploads: { types }\` lets the guest ATTACH documents — choosing one of those types (none listed = any the organization has), never creating one, and never deleting; it requires \`documents\`. \`edit: { fields, when?, onlyOwn? }\` lets the guest CHANGE records: only those fields, and only fields that are also in \`fields\` (a guest never overwrites what they cannot see); never the link to the subject; \`when\` is a field expression on the WHOLE record (\`status == "draft"\`) checked by the server on every change — invalid means closed —, and \`onlyOwn\` limits it to records the guest created in the portal. \`invites: { automation: true }\`, on the \`'self'\` screen only, lets workflows invite guests to its records with \`portal-invite\` (section 10). \`documentLinks: { expiresInMinutes }\` hands guests short-lived signed document links instead of the permanent one (section 4); requires \`kernel: "^${PORTAL_DOCUMENT_LINKS_SINCE_KERNEL}"\`. \`trackViews: true\` has the server record every time a guest opens a record or gets a document link — an Audit trail entry and \`<collection>.portalViewed\` (sections 4 and 10); requires \`kernel: "^${PORTAL_TRACK_VIEWS_SINCE_KERNEL}"\`. \`actions: [key]\` offers the record's own actions (\`viewActionIds\`, by \`key\`) as buttons on the guest's open record — conditions checked by the server on the whole record with \`surface == "portal"\`, the workflow run as the guest, only its \`status\` returned (section 4); requires \`kernel: "^${PORTAL_ACTIONS_SINCE_KERNEL}"\`. \`referenceTitles: [field]\` lets an exposed \`reference\` carry the title of the record it points to even when that record's screen is not in the portal — only the title leaves, and it follows the target (section 4); requires \`kernel: "^${PORTAL_REFERENCE_TITLES_SINCE_KERNEL}"\`. \`template: { card?, detail? }\` draws the portal's list card and open record from nodes — emphasis, sections, fixed text — using only exposed fields; it arranges, never exposes (section 4) |
 | \`auditActions\` | which actions are audited. Absent = all. Declare it when a machine writes the collection, or the audit log drowns in one entry per ingested document |
+| \`seed\` | records the extension delivers ready to use — a catalog with attributes of its own. See "Preloaded records" below |
 
 ### Option lists
 
@@ -2471,6 +2473,59 @@ lookups: [{ collection: 'documentTypes', label: label('lookup.document-types'), 
 \`seed: 'required'\` and seeding a platform list require kernel \`^${LOOKUP_SEED_SINCE_KERNEL}\`. Keep the
 option \`key\` stable — it is what every record already stores. \`tagLists\` declares tag collections the same
 way, without seeds.
+
+### Preloaded records
+
+When a catalog has attributes of its own — a breed with a species, a product with a price, a service
+type with a duration — it is a screen, not an option list, and the screen can ship its starting records
+with \`seed\`. The rules are the ones of option lists:
+
+\`\`\`ts
+screens: [{
+  key: 'petshopBreeds',
+  // ...
+  seed: {
+    mode: 'required',
+    records: [
+      { key: 'labrador-retriever', data: { name: 'Labrador Retriever', species: 'dog' } },
+      { key: 'persian', data: { name: '@com.acme.petshop/breed.persian', species: 'cat' } },
+    ],
+  },
+}]
+\`\`\`
+
+| \`mode\` | What is delivered |
+|---|---|
+| \`'when-empty'\` (default) | all of them, if the collection is empty the first time your extension seeds it; otherwise nothing, ever |
+| \`'required'\` | every seed THIS extension has not delivered before, whether the collection is empty or not |
+
+- **\`key\` is the identity of the seed**, and it never goes into the record: the platform remembers, per
+  organization, which keys your extension has already delivered. You do not need a hidden "seed code"
+  field. Keep the keys stable — a renamed key is a new seed.
+- **A delivered seed belongs to the organization.** It renames it, edits it, deletes it; no later version
+  of your extension brings it back or overwrites it. With \`'required'\`, a version that adds entries to
+  the catalog delivers only the new keys to organizations that already have the extension.
+- **Seeds are written by the server, after installing**, through the same path as an import: field rules,
+  declared keys, default values and required fields all apply. A seed that collides with a declared key
+  counts as delivered — the organization already has that record. A seed that is refused (the
+  organization made a field required, a rule rejects the value) is retried on the next update of the
+  extension.
+- **Seeding is one Audit trail entry**, not one per record, and it does not fire
+  \`<collection>.saved\`: a workflow listening to that event does not run once per breed. Records the
+  organization changes afterwards publish and audit like any other.
+- **A message reference in a text field (\`text\`, \`textarea\`, \`markdown\`) is resolved into the
+  organization's language at the moment the record is written.** After that it is plain data: the
+  organization edits it, and switching languages later does not translate it again. The reference must
+  exist in your own \`i18n.messages\`.
+- **What a seed cannot fill:** \`reference\` and \`file\` fields (the id of a record and the content of a file
+  only exist in the organization), and fields no one writes — aggregated, derived, computed, sequential.
+- At most ${SCREEN_SEED_MAX_RECORDS} seeds per screen. A larger load is an import, not a starting catalog.
+- \`check\` validates every seed against the screen's fields: types, option keys, required fields, the
+  declared keys (two seeds with the same value are refused), and duplicate seed keys.
+- Uninstalling leaves the seeded records — they are the organization's data — and the record of what was
+  delivered, so reinstalling does not duplicate the catalog.
+
+Screen seeds require kernel \`^${SCREEN_SEED_SINCE_KERNEL}\`. An older kernel installs the screen without them.
 
 ### Adding to somebody else's screen
 

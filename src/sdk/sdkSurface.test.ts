@@ -187,7 +187,7 @@ const PUBLISHED_TYPES = [
   'PluginLifecycle', 'PluginLifecycleHook', 'PluginManifest', 'PluginMigration', 'PluginPublisher', 'PortalViewMetadata', 'PortalViewSurface',
   'QueryOperator', 'QueryOrderBy', 'QueryPredicate', 'QuerySpec', 'RecordKeyKind', 'RecordTabProps', 'RecordKeyNormalization',
   'RecordKeyScope', 'RecordKeySpec', 'RecordKeyStatus', 'RefKind', 'ScreenListAction',
-  'ScreenModuleTemplate', 'ScreenPatchTemplate', 'Script', 'ScriptModuleTemplate', 'ScriptOutputParam',
+  'ScreenModuleTemplate', 'ScreenPatchTemplate', 'ScreenSeed', 'ScreenSeedRecord', 'Script', 'ScriptModuleTemplate', 'ScriptOutputParam',
   'SdkIssue', 'SemVer', 'SettingsOptionsSource', 'SettingsOptionsSourceKind', 'SettingsProperty', 'SettingsPropertyOption', 'SettingsPropertyType',
   'SettingsScope', 'SettingsSection', 'StepType', 'TemplateField', 'ThemeBase', 'ThemeSpec',
   'CatalogStepType', 'DynamicInputsMetadata', 'DynamicOutputsMetadata', 'InputDefinition',

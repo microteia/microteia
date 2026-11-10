@@ -6,6 +6,7 @@ import { logAuditError } from './shared/logAuditError';
 import type { AuditAction } from '../../domain/entities/AuditLog';
 import { isAggregateBackfillWriteFresh } from '../../domain/services/aggregateBackfill';
 import { isBookkeepingWrite } from '../../domain/services/recordBookkeeping';
+import { isRecordSeedWrite } from '../../domain/schema/screenSeed';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -41,6 +42,10 @@ export const auditFlatEntityChange = onDocumentWritten(
       const beforeData = (before?.data() as Record<string, unknown>) ?? {};
       const afterData = (after?.data() as Record<string, unknown>) ?? {};
       const referenceData = action === 'DELETE' ? beforeData : afterData;
+
+      // A semente entra na Auditoria pela linha ÚNICA da passada (`recordSeedPass`), como o recálculo de
+      // agregados: um catálogo de quinhentas raças não vira quinhentas linhas.
+      if (action === 'CREATE' && isRecordSeedWrite(null, afterData)) return;
 
       if (action === 'UPDATE') {
         // A adoção de chave e o recálculo são registrados no job de cada um, não em uma linha de

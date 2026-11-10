@@ -116,6 +116,7 @@ const ALL_FUNCTIONS = [
   'materializePermissionsOnExtensionChange',
   'countExtensionInstalls',
   'aggregateExtensionRatings',
+  'seedExtensionRecords',
   'syncTenantPermissions',
 ];
 
