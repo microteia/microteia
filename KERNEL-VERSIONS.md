@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.221.1] — 2026-11-10
+
+- fix(records/list): a field's `listLabel` is now resolved like its `label`. `useResolvedFields` resolved `label`, `placeholder`, `section` and option labels but not `listLabel`, so a declared reference (`listLabel: '@ns/key'`) reached the list card raw, as `@ns/key: value`, while `check` rightly accepted it. Resolving it at the single resolution point covers the list, the detail view and the card template alike; text the office typed passes through unchanged.
+- docs(sdk): AUTHORING §5 lists `section` and `listLabel` among the field properties that take a reference.
+- `KERNEL_VERSION` unchanged: no contract change, the declaration already allowed a reference.
+
 #### [9.221.0] — 2026-11-09
 
 - feat(functions/office): `requireInstalledExtension(pluginId, tenantId, request, { permission })` — an optional fourth refusal for an extension's callable that only some members may use. It is answered by the kernel's own `requirePermission` (materialized member set, then `SYSTEM`, then owner, plus `assertMemberSession`), injected into the gate as the `permission` reader, never re-implemented. An extension that needed this used to read `tenants/{t}/members/{uid}.permissions` itself; that copy could not see the platform administrator, who has no member document in another owner's organization, so it answered 403 there, and it skipped the second-factor session check the organization requires.

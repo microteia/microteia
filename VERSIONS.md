@@ -6,14 +6,18 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 <!-- Nova entrada vai aqui, acima das anteriores, no formato:
 
-#### [9.221.0] — 2026-11-09
-
-- Extensões que exigem uma permissão específica passam a seguir a mesma regra do restante do sistema: o administrador da plataforma consegue usá-las em qualquer escritório, e a verificação em duas etapas exigida pelo escritório também vale para elas.
-
 #### [0.0.9] — AAAA-MM-DD
 
 - Descrição elegante da mudança, em linguagem simples.
 -->
+
+#### [9.221.1] — 2026-11-10
+
+- Nos cartões das listas, o nome curto de um campo passa a aparecer traduzido no idioma do escritório, em vez de um código técnico.
+
+#### [9.221.0] — 2026-11-09
+
+- Extensões que exigem uma permissão específica passam a seguir a mesma regra do restante do sistema: o administrador da plataforma consegue usá-las em qualquer escritório, e a verificação em duas etapas exigida pelo escritório também vale para elas.
 
 #### [9.220.0] — 2026-11-09
 

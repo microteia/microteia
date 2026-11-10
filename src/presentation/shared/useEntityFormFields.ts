@@ -57,6 +57,7 @@ export const useResolvedFields = (fields: FieldDefinition[]): FieldDefinition[] 
       label: label(field.label),
       placeholder: field.placeholder ? label(field.placeholder) : field.placeholder,
       section: field.section ? label(field.section) : field.section,
+      listLabel: field.listLabel ? label(field.listLabel) : field.listLabel,
       options: field.options?.map((option) => ({ ...option, label: label(option.label) })),
     })),
     [fields, label],

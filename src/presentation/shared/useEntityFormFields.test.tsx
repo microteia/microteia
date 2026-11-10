@@ -157,12 +157,13 @@ describe('useEntityFormFields', () => {
  * é o ponto único, e estes casos são o que impede o ramo cru de voltar.
  */
 describe('useResolvedFields', () => {
-  it('resolve rótulo, placeholder, seção e opções de uma lista já montada', () => {
+  it('resolve rótulo, placeholder, seção, rótulo de lista e opções de uma lista já montada', () => {
     const fields = [field({
       key: 'title',
       label: '@com.acme.docs/field.title',
       placeholder: '@com.acme.docs/field.title.placeholder',
       section: '@com.acme.docs/section.content',
+      listLabel: '@com.acme.docs/field.title.short',
       options: [{ key: 'a', label: '@com.acme.docs/option.a' }],
     })];
 
@@ -173,6 +174,8 @@ describe('useResolvedFields', () => {
     expect(resolved.label).toBe('com.acme.docs/field.title');
     expect(resolved.placeholder).toBe('com.acme.docs/field.title.placeholder');
     expect(resolved.section).toBe('com.acme.docs/section.content');
+    // O `listLabel` é o rótulo do campo no CARD. Fora daqui, o card mostrava a referência crua.
+    expect(resolved.listLabel).toBe('com.acme.docs/field.title.short');
     expect(resolved.options?.[0].label).toBe('com.acme.docs/option.a');
   });
 

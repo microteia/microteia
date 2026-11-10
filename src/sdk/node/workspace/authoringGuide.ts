@@ -1484,9 +1484,10 @@ exactly as written, and the bundle entry is dropped. \`check\` refuses both side
 What the organization *typed* — a screen they named, a list option they added — is their data. It
 passes through untranslated, always.
 
-Everything declarative takes a reference: a field's \`label\` and \`placeholder\`, a lookup's \`label\`, a
-screen's \`titleSingular\` and \`titlePlural\`, a nav entry's \`label\`, an action's \`title\` and
-\`confirmMessage\`, a migration's \`name\`, \`summary\`, and every string in an \`overview\`. Inside a *view*
+Everything declarative takes a reference: a field's \`label\`, \`placeholder\`, \`section\` and
+\`listLabel\`, a lookup's \`label\`, a screen's \`titleSingular\` and \`titlePlural\`, a nav entry's
+\`label\`, an action's \`title\` and \`confirmMessage\`, a migration's \`name\`, \`summary\`, and every
+string in an \`overview\`. Inside a *view*
 the equivalent is \`useT\` from \`@microteia/i18n\`, reading the same bundles.
 
 ## 6. Widget DSL — interface with no code
