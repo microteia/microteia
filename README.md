@@ -154,7 +154,7 @@ npx microteia --help         # or: node cli/lib/index.js --help
 | `microteia deploy [--only rules,indexes,functions,hosting] [--delay <s>] [--prune] [--all]` | office | publishes the package that is in place |
 | `microteia provision [--prune] [--delay <s>] [--all]` | office | gives installed extensions the functions and indexes they require |
 | `microteia export-catalog --tenant <tenantId> [--output <path>]` | office | writes what an office has — screens, lists, extensions — for the authoring tools to read |
-| `microteia plugin-init --namespace <com.acme> [--dir <path>] [--force]` | office | prepares `extensions/`, for writing extensions in TypeScript, under the office's namespace |
+| `microteia plugin-init --namespace <com.acme> [--publisher <name>] [--prefix <acme>] [--dir <path>] [--force]` | office | prepares `extensions/`, for writing extensions in TypeScript, under the office's namespace, publisher and prefix (asked, with a suggestion, when not given) |
 
 On the installer's machine it comes from npm, not from here:
 
@@ -422,7 +422,7 @@ SDK, and with it the office writes the extension in TypeScript, in VSCode, with 
 autocomplete — without needing the kernel's source code (what travels is compiled code plus `.d.ts`).
 
 ```bash
-microteia plugin-init --namespace com.acme   # creates "extensions/" next to microteia.yaml
+microteia plugin-init --namespace com.acme   # creates "extensions/" next to microteia.yaml; asks publisher and prefix
 cd extensions
 npx microteia-plugin create hello             # becomes com.acme.hello
 npx tsc --noEmit                              # types

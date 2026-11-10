@@ -4453,7 +4453,7 @@ que é permanente.
 
 | Quem | O que faz com ele |
 |---|---|
-| `microteia plugin-init` | exige `--namespace` (ou pergunta, com terminal) e o grava na semente; com `--force`, reaproveita o gravado |
+| `microteia plugin-init` | exige `--namespace` (ou pergunta, com terminal) e o grava na semente; com terminal, pergunta também `publisher` (sugere o nome do escritório) e `prefix` (sugere o do namespace, pela mesma regra do `create`), explicando cada um; `--publisher`/`--prefix` respondem sem terminal; com `--force`, reaproveita os três gravados |
 | `microteia-plugin create` | parte dele: `billing` vira `com.acme.billing`; recusa id fora dele; num diretório anterior, pergunta uma vez e grava |
 | `check` / `build` / `validate_plugin` | **recusam** um id fora dele, a menos que esteja em `microteia.keepIds` — e aí avisam: uma extensão já publicada não pode ser renomeada, e a exceção é declarada |
 | `sync` | preserva a chave ao carimbar o `kernelVersion`; avisa quando falta ou está fora do formato, sem inventar um |
@@ -4463,7 +4463,14 @@ Mora no `package.json`, e não num arquivo próprio, porque a chave `microteia` 
 conciliado (nenhum `sync` o apaga) e é o primeiro que alguém abre. O `name` do npm ficou de fora: é a
 identidade do pacote npm, e o `sync` deduz dele o nome do escritório. O formato é o de
 `isValidPluginId`; o Console o repete (não importa o kernel) para recusar antes de escrever a semente, e
-`pluginWorkspaceTemplates.test.ts` prende as duas cópias. Código: `src/sdk/node/workspace/namespace.ts`.
+`pluginWorkspaceTemplates.test.ts` prende as duas cópias — e, pela mesma razão, prende o formato do
+prefixo a `isArtifactPrefix` e a sugestão do Console à `suggestedPrefix` do SDK.
+
+`publisher` e `prefix` moram ao lado, em `microteia.publisher` e `microteia.prefix`, e valem para toda
+extensão do diretório. O `plugin-init` os pergunta com terminal, explicando o que cada um é; sem
+terminal e sem flag ficam de fora, e o primeiro `create` os pergunta — o mesmo caminho de um diretório
+anterior a eles. Perguntar no `create` deixava o prefixo, que nunca muda, ser escolhido por quem
+estivesse rodando a primeira extensão, muitas vezes um agente. Código: `src/sdk/node/workspace/namespace.ts`.
 
 O `unpack` chama isso sozinho quando `extensions/` existe, e **antes** do retorno de instalação não
 conectada: escrever extensão não depende de haver projeto Firebase. A falha ali **avisa e não derruba**

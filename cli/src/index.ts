@@ -77,7 +77,7 @@ const COMMANDS: Command[] = [
   },
   {
     name: 'plugin-init',
-    usage: 'microteia plugin-init --namespace <com.acme> [--dir <path>] [--force]',
+    usage: 'microteia plugin-init --namespace <com.acme> [--publisher <name>] [--prefix <acme>] [--dir <path>] [--force]',
     summary: 'Prepare "extensions/", to author extensions in TypeScript in your editor.',
     audience: 'office',
     execute: pluginInit,

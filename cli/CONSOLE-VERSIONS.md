@@ -22,6 +22,18 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.43.0] — 2026-11-10
+
+- feat(plugin-init): with a terminal, asks the publisher and the prefix right after the namespace, each
+  with a short explanation, and records them in the seed `package.json` under `microteia.publisher` and
+  `microteia.prefix` — the keys `microteia-plugin create` reads. The publisher suggests the office name
+  (`project.name` in `microteia.yaml`); the prefix suggests the one `create` would (the namespace's last
+  segment when it fits, `com.acme` → `acme`); Enter accepts either. Until now both were asked by the first
+  `create`, so a value that never changes was chosen by whoever ran the first extension — often an agent.
+- feat(plugin-init): `--publisher <name>` and `--prefix <acme>` answer without a terminal; an invalid
+  prefix is refused before anything is written. Without a terminal and without the flags, both are left
+  out and `create` asks for them once, as before. `--force` reuses the three values already recorded.
+
 #### [2.42.0] — 2026-11-08
 
 - feat(kernel/manifest)!: the optional prerequisite `self-service-tenants` and the backend parameter

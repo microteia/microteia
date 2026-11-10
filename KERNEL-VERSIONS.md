@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.223.0] — 2026-11-10
+
+- docs(readme): `microteia plugin-init` takes `--publisher` and `--prefix`, and asks for both with a
+  suggestion when there is a terminal. The command itself is the Console's (2.43.0, see
+  `CONSOLE-VERSIONS.md`); nothing in the platform package changed, and `KERNEL_VERSION` is unchanged.
+
 #### [9.222.0] — 2026-11-10
 
 - feat(extensions/seed): `ScreenModuleTemplate.seed: { mode?: 'when-empty' | 'required', records: [{ key, data }] }` — an extension ships the starting records of its own screens, the way `lookups[].options` ships the options of a list. A catalog with attributes (a breed with its species, a product with its price) no longer has to be flattened into an option list or seeded by a hand-written `runOnInstall` migration (25 writes per round, a hidden seed-code field, the "create what is missing, never bring back what was deleted" logic rewritten per extension, names in one fixed language).

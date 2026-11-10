@@ -1,13 +1,21 @@
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
+import type { Interface } from 'node:readline/promises';
 import { flagValue, hasFlag } from '../shared/args.js';
 import type { ParsedArgs } from '../shared/args.js';
 import { blank, bullets, heading, info, success, warn } from '../shared/ui.js';
 import { run } from '../shared/run.js';
 import { ENVIRONMENT_FILE, readEnvironment } from './environment.js';
 import { WORKSPACE_DIR } from './workspace.js';
-import { SDK_TARBALL, isValidNamespace, workspacePackageJson } from '../vendor/pluginWorkspaceTemplates.js';
+import {
+  SDK_TARBALL,
+  isValidNamespace,
+  isValidPrefix,
+  suggestPrefix,
+  workspacePackageJson,
+} from '../vendor/pluginWorkspaceTemplates.js';
+import type { WorkspaceIdentity } from '../vendor/pluginWorkspaceTemplates.js';
 
 /**
  * `microteia plugin-init` — prepara `extensions/`, onde o escritório escreve extensão em TypeScript.
@@ -138,47 +146,113 @@ export const refreshAuthoringWorkspace = async (root: string, officeName: string
   }
 };
 
-/** O que um `--force` anterior deixou gravado: reescrever a semente não é motivo para perguntar de novo. */
-const existingNamespace = async (directory: string): Promise<string | null> => {
+/**
+ * O que um `--force` anterior deixou gravado: reescrever a semente não é motivo para perguntar de novo —
+ * e o prefixo, uma vez usado, não pode mudar.
+ */
+const existingIdentity = async (directory: string): Promise<Partial<WorkspaceIdentity>> => {
   try {
     const pkg = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8')) as {
-      microteia?: { namespace?: unknown };
+      microteia?: { namespace?: unknown; publisher?: unknown; prefix?: unknown };
     };
-    const value = pkg.microteia?.namespace;
-    return typeof value === 'string' && isValidNamespace(value) ? value : null;
+    const { namespace, publisher, prefix } = pkg.microteia ?? {};
+    return {
+      ...(typeof namespace === 'string' && isValidNamespace(namespace) ? { namespace } : {}),
+      ...(typeof publisher === 'string' && publisher.trim() !== '' ? { publisher: publisher.trim() } : {}),
+      ...(typeof prefix === 'string' && isValidPrefix(prefix) ? { prefix } : {}),
+    };
   } catch {
-    return null;
+    return {};
   }
+};
+
+const invalidNamespace = (namespace: string): Error => new Error(
+  `"${namespace}" is not a valid namespace. Use reverse-DNS, lowercase, from a domain your organization`
+  + ' controls — for example: --namespace com.acme',
+);
+
+const invalidPrefix = (prefix: string): Error => new Error(
+  `"${prefix}" is not a valid prefix. Use 2 to 8 lowercase letters or digits, starting with a letter`
+  + ' — for example: --prefix acme',
+);
+
+type Ask = (label: string, suggestion?: string) => Promise<string>;
+
+/** Com sugestão, Enter a aceita — é o que torna a sugestão uma resposta, e não só um exemplo. */
+const asker = (rl: Interface): Ask => async (label, suggestion) => {
+  const answer = (await rl.question(suggestion === undefined ? `${label}: ` : `${label} [${suggestion}]: `)).trim();
+  return answer === '' && suggestion !== undefined ? suggestion : answer;
 };
 
 /**
- * O namespace é OBRIGATÓRIO, e não tem padrão: qualquer padrão seria um prefixo que não é do escritório,
- * e o id que nasce dele é permanente. Sem terminal, só a flag responde.
+ * Namespace, publisher e prefix — os três valem para TODA extensão do diretório, e por isso são
+ * perguntados aqui, uma vez, e não no primeiro `create`: quem chegava a ele de um agente via o prefixo
+ * ser escolhido por quem não podia escolhê-lo.
+ *
+ * O namespace é OBRIGATÓRIO e não tem padrão: qualquer padrão seria um prefixo que não é do escritório,
+ * e o id que nasce dele é permanente. Sem terminal, só a flag o responde. Publisher e prefix, sem
+ * terminal e sem flag, ficam para o `create` — que já sabe perguntá-los.
  */
-const resolveNamespace = async (args: ParsedArgs, directory: string): Promise<string> => {
-  const given = flagValue(args, 'namespace') ?? await existingNamespace(directory) ?? await askNamespace();
-  const namespace = given.trim();
-  if (!isValidNamespace(namespace)) {
-    throw new Error(
-      `"${namespace}" is not a valid namespace. Use reverse-DNS, lowercase, from a domain your organization`
-      + ' controls — for example: --namespace com.acme',
-    );
-  }
-  return namespace;
-};
+const resolveIdentity = async (args: ParsedArgs, directory: string, officeName: string): Promise<WorkspaceIdentity> => {
+  const stored = await existingIdentity(directory);
+  const given = {
+    namespace: flagValue(args, 'namespace')?.trim() ?? stored.namespace,
+    publisher: flagValue(args, 'publisher')?.trim() ?? stored.publisher,
+    prefix: flagValue(args, 'prefix')?.trim() ?? stored.prefix,
+  };
+  if (given.namespace !== undefined && !isValidNamespace(given.namespace)) throw invalidNamespace(given.namespace);
+  if (given.prefix !== undefined && !isValidPrefix(given.prefix)) throw invalidPrefix(given.prefix);
+  if (given.publisher === '') throw new Error('The publisher cannot be empty — for example: --publisher "Acme Legal"');
 
-const askNamespace = async (): Promise<string> => {
   if (!process.stdin.isTTY) {
-    throw new Error(
-      'A namespace is required: every extension written in this directory is named below it, and its ids\n'
-      + 'are permanent. Pass it with --namespace, for example: microteia plugin-init --namespace com.acme',
-    );
+    if (given.namespace === undefined) {
+      throw new Error(
+        'A namespace is required: every extension written in this directory is named below it, and its ids\n'
+        + 'are permanent. Pass it with --namespace, for example: microteia plugin-init --namespace com.acme',
+      );
+    }
+    return { namespace: given.namespace, publisher: given.publisher, prefix: given.prefix };
   }
-  info('Every extension written here is named below a namespace — the reverse-DNS of a domain your');
-  info('organization controls, like com.acme. Its ids are permanent, so choose one that is yours.');
+
+  if (given.namespace !== undefined && given.publisher !== undefined && given.prefix !== undefined) {
+    return { namespace: given.namespace, publisher: given.publisher, prefix: given.prefix };
+  }
+
   const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const ask = asker(rl);
   try {
-    return (await rl.question('namespace: ')).trim();
+    let namespace = given.namespace;
+    if (namespace === undefined) {
+      blank();
+      info('NAMESPACE — every extension written here is named below it: "billing" becomes com.acme.billing.');
+      info('Use the reverse-DNS of a domain your organization controls. The ids are permanent, so choose one');
+      info('that is yours.');
+      namespace = await ask('namespace');
+      if (!isValidNamespace(namespace)) throw invalidNamespace(namespace);
+    }
+
+    let publisher = given.publisher;
+    if (publisher === undefined) {
+      blank();
+      info('PUBLISHER — who answers for these extensions. It is shown as the author of each one on the');
+      info('Extensions screen of every office that installs it. A name, not an id.');
+      publisher = await ask('publisher', officeName);
+      if (publisher === '') throw new Error('The publisher cannot be empty.');
+    }
+
+    let prefix = given.prefix;
+    if (prefix === undefined) {
+      blank();
+      info('PREFIX — starts every name your extensions create: acme_clients for a collection, acme-notify for');
+      info('an automation. It keeps two publishers who both pick "clients" from colliding in the same office.');
+      info('2 to 8 lowercase letters or digits. It never changes: a new prefix would rename the collections');
+      info('and leave their records behind. The suggestion comes from the namespace.');
+      prefix = await ask('prefix', suggestPrefix(namespace));
+      if (!isValidPrefix(prefix)) throw invalidPrefix(prefix);
+    }
+
+    blank();
+    return { namespace, publisher, prefix };
   } finally {
     rl.close();
   }
@@ -202,9 +276,10 @@ export const pluginInit = async (args: ParsedArgs): Promise<void> => {
 
   const sdk = await locateSdk(root);
   const installDir = join(root, WORKSPACE_DIR, 'install');
-  const namespace = await resolveNamespace(args, directory);
-
   heading(`Extension authoring for "${environment.project.name}"`);
+
+  const identity = await resolveIdentity(args, directory, environment.project.name);
+  const { namespace } = identity;
 
   await mkdir(directory, { recursive: true });
 
@@ -212,9 +287,14 @@ export const pluginInit = async (args: ParsedArgs): Promise<void> => {
   // movida — o que acontece assim que alguém a versiona num repositório do escritório.
   await writeFile(
     join(directory, 'package.json'),
-    workspacePackageJson(environment.environment.id, relative(directory, sdk.path), namespace),
+    workspacePackageJson(environment.environment.id, relative(directory, sdk.path), identity),
   );
-  success(`wrote the seed package.json (namespace ${namespace})`);
+  success(`wrote the seed package.json (namespace ${namespace}`
+    + `${identity.publisher === undefined ? '' : `, publisher "${identity.publisher}"`}`
+    + `${identity.prefix === undefined ? '' : `, prefix ${identity.prefix}`})`);
+  if (identity.publisher === undefined || identity.prefix === undefined) {
+    info('  publisher and prefix not given — "npm run create" asks for them once, and records them there.');
+  }
 
   blank();
   info('Installing @microteia/sdk and writing the guides...');
@@ -222,7 +302,7 @@ export const pluginInit = async (args: ParsedArgs): Promise<void> => {
 
   blank();
   info(`Extension authoring ready in ${relative(root, directory)}/ (kernel contract ${sdk.kernelVersion}).`);
-  info(`Every extension created there is ${namespace}.<name> — recorded in package.json, under microteia.namespace.`);
+  info(`Every extension created there is ${namespace}.<name> — recorded in package.json, under microteia.`);
   bullets([
     `cd ${relative(process.cwd(), directory) || '.'}`,
     'npm run create',

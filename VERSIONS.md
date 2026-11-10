@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.223.0] — 2026-11-10
+
+- Ao preparar a pasta de extensões, o Console agora pergunta também quem publica as extensões e o prefixo dos nomes que elas criam, explicando cada um e já sugerindo uma resposta — o prefixo é tirado do namespace, e basta confirmar.
+
 #### [9.222.0] — 2026-11-10
 
 - Extensões podem trazer cadastros prontos — como uma lista de raças com a espécie de cada uma, ou de produtos com o preço. Eles chegam no idioma do escritório, uma única vez: o que o escritório apagar ou renomear não volta, e uma versão nova da extensão traz apenas o que acrescentou ao catálogo.

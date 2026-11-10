@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { repoRoot } from '../shared/paths.js';
 import { isValidPluginId } from '../../../src/domain/schema/plugin/artifactRef';
-import { SDK_TARBALL, isValidNamespace, workspacePackageJson } from './pluginWorkspaceTemplates.js';
+import { isArtifactPrefix } from '../../../src/domain/schema/plugin/artifactPrefix';
+import { suggestedPrefix } from '../../../src/sdk/node/workspace/namespace';
+import { SDK_TARBALL, isValidNamespace, isValidPrefix, suggestPrefix, workspacePackageJson } from './pluginWorkspaceTemplates.js';
 
 /**
  * O que sobrou do Console em `extensions/` é a SEMENTE, e só ela. A documentação, os scripts e o
@@ -16,7 +18,7 @@ import { SDK_TARBALL, isValidNamespace, workspacePackageJson } from './pluginWor
  */
 describe('a semente do workspace de autoria', () => {
   const parsed = (): Record<string, unknown> =>
-    JSON.parse(workspacePackageJson('acme', `../.microteia/install/sdk/${SDK_TARBALL}`, 'com.acme')) as Record<string, unknown>;
+    JSON.parse(workspacePackageJson('acme', `../.microteia/install/sdk/${SDK_TARBALL}`, { namespace: 'com.acme' })) as Record<string, unknown>;
 
   it('aponta o SDK por caminho SEM versão — o upgrade não pode exigir edição à mão', () => {
     const dependencies = parsed().dependencies as Record<string, string>;
@@ -51,6 +53,37 @@ describe('a semente do workspace de autoria', () => {
     expect(parsed().microteia).toEqual({ namespace: 'com.acme' });
   });
 
+  /**
+   * Publisher e prefix valem para TODA extensão do diretório, como o namespace — perguntados no
+   * `plugin-init`, e não no primeiro `create`, onde um agente acabava escolhendo o prefixo por alguém.
+   */
+  it('grava publisher e prefix quando informados, sob a mesma chave que o create do SDK lê', () => {
+    const pkg = JSON.parse(workspacePackageJson('acme', `../${SDK_TARBALL}`, {
+      namespace: 'com.acme', publisher: 'Acme Legal', prefix: 'acme',
+    })) as { microteia: unknown };
+    expect(pkg.microteia).toEqual({ namespace: 'com.acme', publisher: 'Acme Legal', prefix: 'acme' });
+  });
+
+  /** Chave vazia seria pior que ausente: o `create` só pergunta o que não acha. */
+  it('omite publisher e prefix não informados, para o create perguntá-los', () => {
+    expect(Object.keys(parsed().microteia as Record<string, unknown>)).toEqual(['namespace']);
+  });
+
+  it('confere o prefixo com o MESMO formato do prefixo de artefato do domínio', () => {
+    for (const value of ['acme', 'ab', 'abcdefgh', 'abcdefghi', 'a', 'Acme', '1acme', 'ac_me', 'ac-me', 'a1', '']) {
+      expect(isValidPrefix(value), value).toBe(isArtifactPrefix(value));
+    }
+  });
+
+  /** O `plugin-init` sugere o que o `create` sugeriria — duas sugestões diferentes seriam duas perguntas. */
+  it('sugere o MESMO prefixo que o create do SDK', () => {
+    const fixed = (): number => 0.5;
+    for (const namespace of ['com.acme', 'br.com.minha-empresa', 'com.x', 'com.acme-legal', 'io.9lives', 'org.a1b2c3d4e5']) {
+      expect(suggestPrefix(namespace, fixed), namespace).toBe(suggestedPrefix(namespace, fixed));
+    }
+    expect(suggestPrefix('com.acme')).toBe('acme');
+  });
+
   it('confere o namespace com o MESMO formato do id de extensão do domínio', () => {
     for (const value of ['com.acme', 'br.com.acme', 'com.acme-legal', 'acme', 'Com.Acme', 'com.', '.com', 'com.acme/x', '1com.acme', 'com.1acme']) {
       expect(isValidNamespace(value), value).toBe(isValidPluginId(value));
@@ -69,12 +102,12 @@ describe('a fronteira entre o Console e o SDK', () => {
   it('nenhum documento de autoria é escrito pelo Console', async () => {
     // A saída, não o texto do módulo: o cabeçalho dele NOMEIA os documentos, justamente para dizer
     // que saíram daqui. O que não pode voltar é um template que os produza.
-    const written = workspacePackageJson('acme', `../${SDK_TARBALL}`, 'com.acme');
+    const written = workspacePackageJson('acme', `../${SDK_TARBALL}`, { namespace: 'com.acme', publisher: 'Acme', prefix: 'acme' });
     for (const document of ['AGENTS.md', 'AUTHORING.md', 'CLAUDE.md', '.mcp.json', 'tsconfig.json']) {
       expect(written, document).not.toContain(document);
     }
     const exported = Object.keys(await import('./pluginWorkspaceTemplates.js')).sort();
-    expect(exported).toEqual(['SDK_TARBALL', 'isValidNamespace', 'workspacePackageJson']);
+    expect(exported).toEqual(['SDK_TARBALL', 'isValidNamespace', 'isValidPrefix', 'suggestPrefix', 'workspacePackageJson']);
   });
 
   it('o guia de autoria não mora mais no Console', () => {
