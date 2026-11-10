@@ -1,7 +1,7 @@
 import type { PluginRecord } from '../../kernel';
 import { command, lazyView, nav, page, settingsSection, surfaceSlot, surfaceTab } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
-import { PERMISSION_AUTOMATION_MANAGE, PERMISSION_SETTINGS_MANAGE } from '../../domain/schema/access';
+import { PERMISSION_AUTOMATION_MANAGE, PERMISSION_INTEGRATIONS_MANAGE, PERMISSION_SETTINGS_MANAGE } from '../../domain/schema/access';
 import { AUTOMATION_NAV_GROUP, WORKSPACE_SLOT_SURFACES } from '../../domain/schema/ui/uiExtensionPoints';
 import {
   NOTIFICATION_EXTENSION_POINTS,
@@ -11,6 +11,8 @@ import {
 } from '../../domain/schema/notifications';
 import { coreMessage, CORE_AUTOMATION_MESSAGES } from '../coreMessages';
 import { TENANT_SETTINGS_SURFACE } from '../core.tenant/surface';
+import { WORKFLOW_BUDGET_SETTINGS_PROPERTIES } from '../../domain/schema/workflowBudget';
+import { HTTP_SETTINGS_PROPERTIES } from '../../domain/schema/httpRequestSpec';
 import { WorkflowCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/WorkflowCommandProvider';
 import { NotificationBell } from '../../presentation/components/layout/NotificationBell';
 
@@ -30,6 +32,7 @@ export const coreAutomationPlugin: PluginRecord = {
     NotificationBell,
     NotificationsView: lazyView(() => import('../../presentation/pages/Notifications/Notifications.view'), 'NotificationsView'),
     NotificationEmailTabView: lazyView(() => import('../../presentation/pages/TenantSettings/EmailTab/EmailTab.view'), 'EmailTabView'),
+    IntegrationsTabView: lazyView(() => import('../../presentation/pages/TenantSettings/IntegrationsTab/IntegrationsTab.view'), 'IntegrationsTabView'),
   },
   manifest: {
     id: 'core.automation',
@@ -105,6 +108,28 @@ export const coreAutomationPlugin: PluginRecord = {
         order: 20,
         properties: [...NOTIFICATION_SETTINGS_PROPERTIES],
       }),
+      // Duas decisões do ESCRITÓRIO sobre as automações — quanto tempo elas rodam e para onde podem
+      // mandar dados —, e por isso só no escopo dele, e visíveis só a quem administra as configurações.
+      // O mesmo `SettingsProperty` é lido pelo servidor (`officeSetting`), então o padrão que a tela
+      // mostra é o que o motor aplica.
+      settingsSection({
+        key: 'automation',
+        title: '@core.automation/settings.automation.title',
+        description: '@core.automation/settings.automation.description',
+        icon: 'timer',
+        order: 21,
+        requiredPermissions: [PERMISSION_SETTINGS_MANAGE],
+        properties: [...WORKFLOW_BUDGET_SETTINGS_PROPERTIES],
+      }),
+      settingsSection({
+        key: 'integrations',
+        title: '@core.automation/settings.integrations.title',
+        description: '@core.automation/settings.integrations.description',
+        icon: 'globe',
+        order: 22,
+        requiredPermissions: [PERMISSION_SETTINGS_MANAGE],
+        properties: [...HTTP_SETTINGS_PROPERTIES],
+      }),
       surfaceTab({
         surface: TENANT_SETTINGS_SURFACE,
         key: 'email',
@@ -113,6 +138,16 @@ export const coreAutomationPlugin: PluginRecord = {
         order: 32,
         requiredPermissions: [PERMISSION_SETTINGS_MANAGE],
       }, 'NotificationEmailTabView'),
+      // Os segredos das APIs que o passo "Chamar API" chama. Aba própria, com permissão própria: quem
+      // monta a automação nomeia a credencial pela chave, e não precisa — nem deve — ver o segredo.
+      surfaceTab({
+        surface: TENANT_SETTINGS_SURFACE,
+        key: 'integrations',
+        title: '@core.automation/http-connection.tab',
+        icon: 'key',
+        order: 33,
+        requiredPermissions: [PERMISSION_INTEGRATIONS_MANAGE],
+      }, 'IntegrationsTabView'),
       nav({ key: 'workflows', label: '@core.automation/page.workflows', icon: 'flowChart', order: 106, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),
       nav({ key: 'scripts', label: '@core.automation/page.scripts', icon: 'codeBox', order: 107, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),
       nav({ key: 'actions', label: '@core.automation/page.actions', icon: 'cursor', order: 108, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),

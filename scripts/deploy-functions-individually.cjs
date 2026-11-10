@@ -81,6 +81,8 @@ const ALL_FUNCTIONS = [
   'onWorkflowEventCreated',
   'syncWorkflowClock',
   'runWorkflowClock',
+  'onHttpDispatchWritten',
+  'testHttpRequest',
   'getWorkflowStepCatalog',
   'publishWorkflowEventOnEntityChange',
   'publishWorkflowEventOnAuditLog',

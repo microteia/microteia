@@ -6,6 +6,8 @@ import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepo
 import { FirebaseRegistrationPolicyRepository } from '../../data/repositories/FirebaseRegistrationPolicyRepository';
 import { FirebaseUserProfileRepository } from '../../data/repositories/FirebaseUserProfileRepository';
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
+import { FirebaseHttpConnectionRepository } from '../../data/repositories/FirebaseHttpConnectionRepository';
+import { FirebaseHttpRequestTester } from '../../data/repositories/FirebaseHttpRequestTester';
 import { FirebaseSavedFilterRepository } from '../../data/repositories/FirebaseSavedFilterRepository';
 import { FirebaseTenantRepository } from '../../data/repositories/FirebaseTenantRepository';
 import { FirebaseTextAnnotationRepository } from '../../data/repositories/FirebaseTextAnnotationRepository';
@@ -69,6 +71,8 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     registrationPolicyRepository: new FirebaseRegistrationPolicyRepository(),
     userProfileRepository:    new FirebaseUserProfileRepository(),
     aiConnectionRepository:   new FirebaseAIConnectionRepository(),
+    httpConnectionRepository: new FirebaseHttpConnectionRepository(),
+    httpRequestTester:        new FirebaseHttpRequestTester(),
     savedFilterRepository:    new FirebaseSavedFilterRepository(),
     settingsRepository:       new FirebaseSettingsRepository(),
     tenantRepository:         new FirebaseTenantRepository(),

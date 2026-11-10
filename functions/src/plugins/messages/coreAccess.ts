@@ -186,6 +186,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.agent.manage': 'Manage AI agent access',
   'permission.agent.manage.description':
     'See and revoke the AI agent access of every member. Issuing an access for oneself does not need this.',
+  'permission.integrations.manage': 'Manage integration credentials',
+  'permission.integrations.manage.description':
+    'Register, replace and remove the secrets automations send to external APIs. Nobody reads a secret back — not even who registered it.',
   'permission.ai.manage': 'Manage AI connections',
   'permission.ai.manage.description':
     'Register, edit and remove the artificial intelligence connections of the organization.',
@@ -274,6 +277,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'point.requirement.title': 'Added permission dependency',
   'point.resource.title': 'Permission resource',
   'resource.agent': 'AI agents',
+  'resource.integrations': 'Integrations',
   'resource.ai': 'Artificial intelligence',
   'resource.audit': 'Audit trail',
   'resource.automation': 'Automations',

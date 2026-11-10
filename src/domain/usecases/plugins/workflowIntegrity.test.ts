@@ -6,6 +6,8 @@ import { PORTAL_TRACK_VIEWS_SINCE_KERNEL } from '../../schema/portal';
 import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { QUERY_PAGE_SINCE_KERNEL } from '../../schema/querySpec';
 import { CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL } from '../../schema/eventCatalog';
+import { HTTP_ASYNC_SINCE_KERNEL, HTTP_REQUEST_SINCE_KERNEL } from '../../schema/httpRequestSpec';
+import { HTTP_CONNECTION_SINCE_KERNEL } from '../../schema/httpConnection';
 
 /**
  * Cada caso aqui é um defeito que COMPILAVA e passava por toda a validação de pacote, e só falava no
@@ -637,5 +639,91 @@ describe('notify num fluxo chamado, com caminho tipado pelos parâmetros', () =>
 
   it('o notify de fluxo chamado sem caminho tipado não cobra kernel nenhum', () => {
     expect(kernelIssues(fluxo('workflow.called', '^2.0.0', { recipientMembers: { kind: 'Literal', value: ['u1'] } }))).toEqual([]);
+  });
+});
+
+describe('passo http-request no pacote', () => {
+  const comKernel = (steps: WorkflowStep[], kernel: string): MarketplacePlugin => {
+    const base = pacote(steps);
+    return { ...base, manifest: { ...base.manifest, kernel } } as unknown as MarketplacePlugin;
+  };
+  const chamar = (request: unknown) => passo({
+    id: 'chamar',
+    stepDefinitionId: 'http-request',
+    configuration: { request: { kind: 'Literal', value: request } },
+  });
+  const valida = { method: 'GET', url: { kind: 'Literal', value: 'https://api.exemplo.com/x' } };
+  const mensagens = (plugin: MarketplacePlugin) => workflowStepIssues(plugin).map((issue) => issue.message);
+
+  it('exige o kernel em que o passo existe — num anterior ele seria desconhecido', () => {
+    expect(workflowStepIssues(comKernel([chamar(valida)], '^2.0.0')).map((issue) =>
+      [issue.message, issue.messageParams?.definition, issue.messageParams?.minimum])).toEqual([
+      ['@core.marketplace/issue.step.definition-kernel', 'http-request', HTTP_REQUEST_SINCE_KERNEL],
+    ]);
+    expect(workflowStepIssues(comKernel([chamar(valida)], `^${HTTP_REQUEST_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('recusa a requisição inválida pela mesma validação do editor e do motor', () => {
+    const issues = workflowStepIssues(comKernel([chamar({ ...valida, url: { kind: 'Literal', value: 'http://api.exemplo.com' } })], `^${HTTP_REQUEST_SINCE_KERNEL}`));
+    expect(issues.map((issue) => [issue.message, issue.messageParams?.detail])).toEqual([
+      ['@core.marketplace/issue.step.http-invalid', '@core.automation/step.http.issue.url-https'],
+    ]);
+  });
+
+  it('recusa o segredo com valor fixo — no pacote ele sairia do escritório', () => {
+    const comSegredo = { ...valida, headers: [{ name: 'Authorization', value: { kind: 'Literal', value: 'Bearer abc' } }] };
+    expect(mensagens(comKernel([chamar(comSegredo)], `^${HTTP_REQUEST_SINCE_KERNEL}`)))
+      .toEqual(['@core.marketplace/issue.step.http-literal-secret']);
+    const deVariavel = { ...valida, headers: [{ name: 'Authorization', value: { kind: 'Variable', name: 'token' } }] };
+    expect(mensagens(comKernel([chamar(deVariavel)], `^${HTTP_REQUEST_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('a credencial pela chave exige o kernel em que ela existe', () => {
+    const comCredencial = chamar({ ...valida, connection: 'crm' });
+    expect(workflowStepIssues(comKernel([comCredencial], `^${HTTP_REQUEST_SINCE_KERNEL}`)).map((issue) =>
+      [issue.message, issue.messageParams?.input, issue.messageParams?.minimum])).toEqual([
+      ['@core.marketplace/issue.step.input-kernel', 'request.connection', HTTP_CONNECTION_SINCE_KERNEL],
+    ]);
+    expect(workflowStepIssues(comKernel([comCredencial], `^${HTTP_CONNECTION_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('o modo assíncrono e o callback exigem o kernel em que existem — num anterior a automação esperaria', () => {
+    const assincrono = chamar({ ...valida, mode: 'async', retries: 2 });
+    const comCallback = passo({
+      id: 'chamar',
+      stepDefinitionId: 'http-request',
+      configuration: {
+        request: { kind: 'Literal', value: { ...valida, mode: 'async' } },
+        targetWorkflowId: { kind: 'Literal', value: 'retorno' },
+        'param.pedido': { kind: 'Event', path: 'id' },
+      },
+    });
+    const kernelIssues = (plugin: MarketplacePlugin) => workflowStepIssues(plugin).map((issue) =>
+      [issue.message, issue.messageParams?.input, issue.messageParams?.minimum]);
+    expect(kernelIssues(comKernel([assincrono], `^${HTTP_CONNECTION_SINCE_KERNEL}`))).toEqual([
+      ['@core.marketplace/issue.step.input-kernel', 'request.mode', HTTP_ASYNC_SINCE_KERNEL],
+    ]);
+    expect(kernelIssues(comKernel([comCallback], `^${HTTP_CONNECTION_SINCE_KERNEL}`))).toEqual([
+      ['@core.marketplace/issue.step.input-kernel', 'request.mode', HTTP_ASYNC_SINCE_KERNEL],
+      ['@core.marketplace/issue.step.input-kernel', 'targetWorkflowId', HTTP_ASYNC_SINCE_KERNEL],
+    ]);
+    // Com o kernel certo, nada: nem o callback, nem os `param.<chave>` dele, que são inputs dinâmicos.
+    expect(workflowStepIssues(comKernel([assincrono], `^${HTTP_ASYNC_SINCE_KERNEL}`))).toEqual([]);
+    expect(workflowStepIssues(comKernel([comCallback], `^${HTTP_ASYNC_SINCE_KERNEL}`))).toEqual([]);
+    // O síncrono de sempre continua cobrando só o kernel do passo.
+    expect(workflowStepIssues(comKernel([chamar({ ...valida, mode: 'sync' })], `^${HTTP_REQUEST_SINCE_KERNEL}`))).toEqual([]);
+  });
+
+  it('modo e tentativas inválidos são recusados', () => {
+    expect(workflowStepIssues(comKernel([chamar({ ...valida, mode: 'later', retries: 9 })], `^${HTTP_ASYNC_SINCE_KERNEL}`))
+      .map((issue) => issue.messageParams?.detail)).toEqual([
+      '@core.automation/step.http.issue.mode',
+      '@core.automation/step.http.issue.retries',
+    ]);
+  });
+
+  it('a requisição que não é valor fixo é recusada', () => {
+    const passoSemSpec = passo({ id: 'chamar', stepDefinitionId: 'http-request', configuration: { request: { kind: 'Event', path: 'x' } } });
+    expect(mensagens(comKernel([passoSemSpec], `^${HTTP_REQUEST_SINCE_KERNEL}`))).toContain('@core.marketplace/issue.step.http-invalid');
   });
 });

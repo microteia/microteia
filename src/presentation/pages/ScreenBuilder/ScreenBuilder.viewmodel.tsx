@@ -89,6 +89,8 @@ import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useLookups } from '../../../stores/useLookups';
 import { useTags } from '../../../stores/useTags';
 import { deriveFormFields } from '../../shared/deriveEntitySchema';
+import { OPTIONS_FILTER_OPERATORS } from '../../../domain/schema/optionsFilter';
+import type { OptionsFilterOperator, OptionsFilterSpec } from '../../../domain/schema/optionsFilter';
 import { withArtifactPrefix } from '../../../domain/schema/plugin/artifactPrefix';
 import { useArtifactPrefix } from '../../shared/settings/useArtifactPrefix';
 import { RESERVED_COLLECTIONS, builtinScreenBaseline, derivedLookupCollection, derivedTagCollection, lookupIdIssue, screenIdIssue, tagListIdIssue } from '../../../domain/schema/screenEntity';
@@ -323,6 +325,7 @@ export interface FieldFormState {
   fileMaxSizeMb: string;
   /** A numeração do campo (`autoValue.sequence`). */
   sequence: FieldSequenceFormState;
+  optionsFilter: OptionsFilterFormRow[];
 }
 
 /**
@@ -363,7 +366,72 @@ const MEMBER_VISIBILITY_ISSUE_KEYS: Record<MemberVisibilityFormIssue, string> = 
 };
 
 export type ScreenModalTab = 'general' | 'actions' | 'card' | 'children' | 'portal' | 'editWindow' | 'memberVisibility';
-export type FieldModalTab = 'general' | 'advanced';
+export type FieldModalTab = 'general' | 'options' | 'behaviour' | 'sequence' | 'rules' | 'logic' | 'provider' | 'aggregation';
+
+/** Uma aba do editor, com o ícone que a navegação vertical mostra (do conjunto curado de telas). */
+export interface EditorTab<K extends string> {
+  key: K;
+  label: string;
+  icon: string;
+}
+
+/** Uma condição do filtro de opções, como o formulário a edita: a origem é texto até gravar. */
+export interface OptionsFilterFormRow {
+  path: string;
+  op: OptionsFilterOperator;
+  sourceKind: 'field' | 'literal';
+  source: string;
+}
+
+const OPTIONS_FILTER_OP_KEYS: Record<OptionsFilterOperator, string> = {
+  eq: 'field.options-filter.op.eq',
+  neq: 'field.options-filter.op.neq',
+  in: 'field.options-filter.op.in',
+  contains: 'field.options-filter.op.contains',
+  startsWith: 'field.options-filter.op.startsWith',
+};
+
+const isBlankOptionsFilterRow = (row: OptionsFilterFormRow): boolean => !row.path.trim() && !row.source.trim();
+
+const isIncompleteOptionsFilterRow = (row: OptionsFilterFormRow): boolean =>
+  !isBlankOptionsFilterRow(row) && (!row.path.trim() || !row.source.trim());
+
+const optionsFilterToForm = (spec: OptionsFilterSpec | null | undefined): OptionsFilterFormRow[] =>
+  (spec?.where ?? []).map((predicate) => {
+    if ('field' in predicate.value) {
+      return { path: predicate.path, op: predicate.op, sourceKind: 'field', source: predicate.value.field };
+    }
+    const literal = predicate.value.literal;
+    return {
+      path: predicate.path,
+      op: predicate.op,
+      sourceKind: 'literal',
+      source: Array.isArray(literal) ? literal.join(', ') : String(literal),
+    };
+  });
+
+/**
+ * O filtro como a declaração o guarda. No `in` o valor fixo é uma LISTA, digitada separada por
+ * vírgula; nos demais, o texto como está. Zerado fora dos dois tipos que oferecem opções: o campo pode
+ * ter mudado de tipo depois de filtrado.
+ */
+const buildOptionsFilter = (form: FieldFormState): OptionsFilterSpec | null => {
+  if (form.type !== 'reference' && form.type !== 'select') return null;
+  const where = form.optionsFilter
+    .filter((row) => !isBlankOptionsFilterRow(row))
+    .map((row) => ({
+      path: row.path.trim(),
+      op: row.op,
+      value: row.sourceKind === 'field'
+        ? { field: row.source.trim() }
+        : {
+          literal: row.op === 'in'
+            ? row.source.split(',').map((item) => item.trim()).filter((item) => item !== '')
+            : row.source.trim(),
+        },
+    }));
+  return where.length > 0 ? { where } : null;
+};
 
 export interface ScreenBuilderViewModel {
   isAdmin: boolean;
@@ -392,7 +460,7 @@ export interface ScreenBuilderViewModel {
   /** Modal aberto para uma tela do sistema: só configura os registros filhos. */
   screenModalIsBuiltin: boolean;
   screenModalTitle: string;
-  screenModalTabs: { key: ScreenModalTab; label: string }[];
+  screenModalTabs: EditorTab<ScreenModalTab>[];
   screenModalTab: ScreenModalTab;
   setScreenModalTab: (tab: ScreenModalTab) => void;
   gestureRows: GestureRow[];
@@ -483,7 +551,17 @@ export interface ScreenBuilderViewModel {
   deletingScreen: boolean;
   fieldModalOpen: boolean;
   fieldModalTab: FieldModalTab;
+  /** As abas do editor de campo: só as que o tipo e a origem do campo têm o que mostrar. */
+  fieldModalTabs: EditorTab<FieldModalTab>[];
   setFieldModalTab: (tab: FieldModalTab) => void;
+  fieldSupportsOptionsFilter: boolean;
+  optionsFilterPathOptions: SearchSelectOption[];
+  optionsFilterOpOptions: SearchSelectOption[];
+  optionsFilterSourceKindOptions: SearchSelectOption[];
+  optionsFilterSourceOptions: SearchSelectOption[];
+  addOptionsFilterRow: () => void;
+  updateOptionsFilterRow: (index: number, patch: Partial<OptionsFilterFormRow>) => void;
+  removeOptionsFilterRow: (index: number) => void;
   fieldModalIsEdit: boolean;
   fieldModalIsTitleField: boolean;
   /** Modal aberto para um campo do sistema: só apresentação e expressões de front. */
@@ -671,6 +749,7 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   fileExtensions: '',
   fileMaxSizeMb: '',
   sequence: EMPTY_FIELD_SEQUENCE_FORM,
+  optionsFilter: [],
 };
 
 export const RULES_SUPPORTED_FIELD_TYPES: CustomFieldType[] = [
@@ -1483,31 +1562,31 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   // Nas telas do sistema não há "Geral" (título, ícone e abas são fixos), e "Registros filhos"
   // só existe quando alguma tela aponta para esta.
-  const screenModalTabs = useMemo<{ key: ScreenModalTab; label: string }[]>(() => [
-    ...(screenModalIsBuiltin ? [] : [{ key: 'general' as const, label: t('screen.tab.general') }]),
-    { key: 'actions' as const, label: t('screen.tab.actions') },
+  const screenModalTabs = useMemo<EditorTab<ScreenModalTab>[]>(() => [
+    ...(screenModalIsBuiltin ? [] : [{ key: 'general' as const, label: t('screen.tab.general'), icon: 'settings' }]),
+    { key: 'actions' as const, label: t('screen.tab.actions'), icon: 'cursor' },
     // O cartão nomeia campos e mostra um registro na pré-visualização: só em tela que já existe.
     ...(!screenModalIsBuiltin && !!screenModal?.screenKey
-      ? [{ key: 'card' as const, label: t('screen.tab.card') }]
+      ? [{ key: 'card' as const, label: t('screen.tab.card'), icon: 'layoutGrid' }]
       : []),
     ...(!!screenModal?.screenKey && childCandidates.length > 0
-      ? [{ key: 'children' as const, label: t('screen.tab.children') }]
+      ? [{ key: 'children' as const, label: t('screen.tab.children'), icon: 'folders' }]
       : []),
     // O portal é decisão de EXPOSIÇÃO, e a regra a cobra de quem tem `portal.manage`; a aba segue a
     // regra. Só em tela que já existe: numa tela nova não há ainda campo a escolher.
     ...(!screenModalIsBuiltin && !!screenModal?.screenKey && canManagePortal
-      ? [{ key: 'portal' as const, label: t('portal.tab') }]
+      ? [{ key: 'portal' as const, label: t('portal.tab'), icon: 'globe' }]
       : []),
     // A janela é garantia de prova, e a regra a cobra de quem tem `screens.edit-window`; a aba segue a
     // regra. Vale também na criação: o primeiro registro já nasce sob o prazo.
     ...(!screenModalIsBuiltin && canManageEditWindow
-      ? [{ key: 'editWindow' as const, label: t('screen.tab.edit-window') }]
+      ? [{ key: 'editWindow' as const, label: t('screen.tab.edit-window'), icon: 'time' }]
       : []),
     // Restringir quem lê é decisão de SIGILO, e a regra a cobra de quem tem
     // `screens.member-visibility`; a aba segue a regra. Só em tela que já existe: é preciso um campo de
     // referência a membro para escolher.
     ...(!screenModalIsBuiltin && !!screenModal?.screenKey && canManageMemberVisibility
-      ? [{ key: 'memberVisibility' as const, label: t('screen.tab.member-visibility') }]
+      ? [{ key: 'memberVisibility' as const, label: t('screen.tab.member-visibility'), icon: 'shieldUser' }]
       : []),
   ], [screenModalIsBuiltin, screenModal, childCandidates, canManagePortal, canManageEditWindow, canManageMemberVisibility, t]);
 
@@ -2083,6 +2162,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       ...fieldAggregationToForm(field.aggregation),
       ...fieldFileToForm(field.file),
       sequence: toFieldSequenceForm(field.autoValue),
+      optionsFilter: optionsFilterToForm(field.optionsFilter),
     });
     setFieldModal({ screenKey, fieldKey });
   }, [defaultTagColor, resolvedField]);
@@ -2538,7 +2618,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       && fieldForm.staticOptions.length === 0
       && !fieldForm.optionsAllowUserAdd
     ) {
-      reject('general', t('field.error.options-required'));
+      reject('options', t('field.error.options-required'));
       return;
     }
     // Só um nome NOVO passa pela validação. Uma lista que já existe é escolha legítima — inclusive
@@ -2547,7 +2627,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     if (isNewLookup) {
       const issue = lookupIdIssue(lookupCollection as string, schemaContext);
       if (issue) {
-        reject('general', label(issue.message, issue.messageParams));
+        reject('options', label(issue.message, issue.messageParams));
         return;
       }
     }
@@ -2556,24 +2636,32 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       return;
     }
     if (fieldForm.type === 'reference' && !fieldForm.refEntity) {
-      reject('general', t('field.error.linked-screen-required'));
+      reject('options', t('field.error.linked-screen-required'));
       return;
     }
     if (fieldForm.type === 'file') {
       const extensions = fieldForm.fileExtensions.trim();
       if (extensions && !/^[A-Za-z0-9]+(\s*,\s*[A-Za-z0-9]+)*$/.test(extensions)) {
-        reject('general', t('field.error.file-extensions'));
+        reject('options', t('field.error.file-extensions'));
         return;
       }
       const size = fieldForm.fileMaxSizeMb.trim();
       const parsed = Number(size);
       if (size && (!Number.isFinite(parsed) || parsed <= 0 || parsed > DEFAULT_FILE_MAX_SIZE_MB)) {
-        reject('general', t('field.error.file-max-size', { max: String(DEFAULT_FILE_MAX_SIZE_MB) }));
+        reject('options', t('field.error.file-max-size', { max: String(DEFAULT_FILE_MAX_SIZE_MB) }));
         return;
       }
     }
+    if (
+      (fieldForm.type === 'reference' || fieldForm.type === 'select')
+      && fieldForm.optionsFilter.some(isIncompleteOptionsFilterRow)
+    ) {
+      reject('options', t('field.error.options-filter-incomplete'));
+      return;
+    }
+    const optionsFilter = buildOptionsFilter(fieldForm);
     if (isInvalidRegex(fieldForm.ruleValidatePattern)) {
-      reject('advanced', t('field.error.validate-regex'));
+      reject('rules', t('field.error.validate-regex'));
       return;
     }
     const minLength = parseLengthLimit(fieldForm.ruleValidateMinLength);
@@ -2583,22 +2671,22 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       || isInvalidLengthLimit(fieldForm.ruleValidateMaxLength)
       || (minLength !== undefined && maxLength !== undefined && minLength > maxLength)
     ) {
-      reject('advanced', t('field.error.length-limit'));
+      reject('rules', t('field.error.length-limit'));
       return;
     }
     if (isInvalidRegex(fieldForm.ruleFormatPattern)) {
-      reject('advanced', t('field.error.format-regex'));
+      reject('rules', t('field.error.format-regex'));
       return;
     }
     const editedKey = fieldModal.fieldKey ?? (fieldForm.fieldKey.trim() || slugifyFieldKey(fieldLabel));
     const screenFields = getDefinitionByKey(fieldModal.screenKey)?.fields ?? [];
     if (fieldForm.logicCompute.trim() && fieldForm.logicDerive.trim()) {
-      reject('advanced', t('field.error.derive-and-compute'));
+      reject('logic', t('field.error.derive-and-compute'));
       return;
     }
     if (fieldForm.logicCompute.trim()) {
       if (findExpressionCycle(screenFields, editedKey, fieldForm.logicCompute.trim(), 'compute')) {
-        reject('advanced', t('field.error.compute-cycle'));
+        reject('logic', t('field.error.compute-cycle'));
         return;
       }
       const derivedDependency = derivedKeyIn(
@@ -2606,7 +2694,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         extractFieldExpressionDependencies(fieldForm.logicCompute.trim()),
       );
       if (derivedDependency) {
-        reject('advanced', t('field.error.compute-needs-stored', { field: derivedDependency }));
+        reject('logic', t('field.error.compute-needs-stored', { field: derivedDependency }));
         return;
       }
     }
@@ -2614,29 +2702,29 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       fieldForm.logicDerive.trim() &&
       findExpressionCycle(screenFields, editedKey, fieldForm.logicDerive.trim(), 'derive')
     ) {
-      reject('advanced', t('field.error.derive-cycle'));
+      reject('logic', t('field.error.derive-cycle'));
       return;
     }
     const aggregation = buildFieldAggregation(fieldForm);
     if (aggregation) {
       if (aggregation.op !== 'count' && !aggregation.field) {
-        reject('advanced', t('field.error.aggregation-field'));
+        reject('aggregation', t('field.error.aggregation-field'));
         return;
       }
       if (aggregationCreatesCycle(schemaContext, aggregationParentCollection ?? fieldModal.screenKey, aggregation.from)) {
-        reject('advanced', t('field.error.aggregation-cycle'));
+        reject('aggregation', t('field.error.aggregation-cycle'));
         return;
       }
       const childFields = (aggregationChildScreen ?? getDefinitionByKey(aggregation.from))?.fields ?? [];
       const orderKeys = (aggregation.orderBy ?? []).map((order) => order.path);
       const derivedKey = derivedKeyIn(childFields, [aggregation.field ?? '', ...orderKeys].filter(Boolean));
       if (derivedKey) {
-        reject('advanced', t('field.error.aggregation-needs-stored', { field: derivedKey }));
+        reject('aggregation', t('field.error.aggregation-needs-stored', { field: derivedKey }));
         return;
       }
       const [shapeIssue] = fieldAggregationIssues(aggregation, formAggregationShape(fieldForm), childFields);
       if (shapeIssue) {
-        reject('advanced', label(shapeIssue.message, shapeIssue.messageParams));
+        reject('aggregation', label(shapeIssue.message, shapeIssue.messageParams));
         return;
       }
     }
@@ -2661,7 +2749,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     if (!sequenceLocked && fieldSupportsSequence && fieldForm.sequence.enabled) {
       const issue = fieldSequenceFormIssue(fieldForm.sequence, fieldForm.type, sequenceHasParent);
       if (issue) {
-        reject('general', t(SEQUENCE_ISSUE_KEYS[issue]));
+        reject('sequence', t(SEQUENCE_ISSUE_KEYS[issue]));
         return;
       }
       sequenceChange = { autoValue: fromFieldSequenceForm(fieldForm.sequence, fieldForm.type) };
@@ -2708,6 +2796,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             logic,
             aggregation,
             file,
+            optionsFilter,
             ...sequenceChange,
           };
         });
@@ -2749,6 +2838,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           aggregation,
           logic,
           file,
+          optionsFilter,
           ...sequenceChange,
         }];
       }
@@ -2892,6 +2982,103 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     }
   }, [deleteFieldTarget, getDefinitionByKey, saveDefinition, notify, t]);
 
+
+  const fieldSupportsOptionsFilter = fieldForm.type === 'reference' || fieldForm.type === 'select';
+
+  /**
+   * O que se lê da OPÇÃO: os campos da tela apontada numa referência; numa lista, a chave e o rótulo,
+   * que é tudo o que uma opção tem.
+   */
+  const optionsFilterPathOptions = useMemo<SearchSelectOption[]>(() => {
+    if (fieldForm.type === 'select') {
+      return [
+        { value: 'key', label: t('field.options-filter.path.key') },
+        { value: 'label', label: t('field.options-filter.path.label') },
+      ];
+    }
+    if (fieldForm.type !== 'reference' || !fieldForm.refEntity) return [];
+    return deriveFormFields(schemaContext, fieldForm.refEntity as EntityKey)
+      .map((field) => ({ value: field.key, label: label(field.label) }));
+  }, [fieldForm.type, fieldForm.refEntity, schemaContext, t, label]);
+
+  const optionsFilterOpOptions = useMemo<SearchSelectOption[]>(
+    () => OPTIONS_FILTER_OPERATORS.map((op) => ({ value: op, label: t(OPTIONS_FILTER_OP_KEYS[op]) })),
+    [t],
+  );
+
+  const optionsFilterSourceKindOptions = useMemo<SearchSelectOption[]>(
+    () => [
+      { value: 'field', label: t('field.options-filter.source.field') },
+      { value: 'literal', label: t('field.options-filter.source.literal') },
+    ],
+    [t],
+  );
+
+  /** A origem é um campo DESTE formulário — e nunca o próprio, que dependeria de si mesmo. */
+  const optionsFilterSourceOptions = useMemo<SearchSelectOption[]>(() => {
+    const fields = fieldModal ? resolvedFieldsByScreen[fieldModal.screenKey] ?? [] : [];
+    const selfKey = fieldModal?.fieldKey ?? fieldForm.fieldKey.trim();
+    return fields
+      .filter((field) => field.key !== selfKey)
+      .map((field) => ({ value: field.key, label: label(field.label) }));
+  }, [fieldModal, resolvedFieldsByScreen, fieldForm.fieldKey, label]);
+
+  const addOptionsFilterRow = useCallback(() => {
+    setFieldForm((prev) => ({
+      ...prev,
+      optionsFilter: [...prev.optionsFilter, { path: '', op: 'eq', sourceKind: 'field', source: '' }],
+    }));
+  }, []);
+
+  const updateOptionsFilterRow = useCallback((index: number, patch: Partial<OptionsFilterFormRow>) => {
+    setFieldForm((prev) => ({
+      ...prev,
+      optionsFilter: prev.optionsFilter.map((row, position) => {
+        if (position !== index) return row;
+        // Trocar a origem de campo para valor fixo (ou o contrário) apaga o que valia para a outra.
+        const resetSource = patch.sourceKind !== undefined && patch.sourceKind !== row.sourceKind;
+        return { ...row, ...patch, ...(resetSource ? { source: '' } : {}) };
+      }),
+    }));
+  }, []);
+
+  const removeOptionsFilterRow = useCallback((index: number) => {
+    setFieldForm((prev) => ({
+      ...prev,
+      optionsFilter: prev.optionsFilter.filter((_, position) => position !== index),
+    }));
+  }, []);
+
+  /**
+   * As abas do editor de campo. Cada uma só aparece quando o tipo e a origem do campo têm o que
+   * mostrar nela: uma aba vazia é o que fazia o editor crescer e encolher a cada troca.
+   */
+  const fieldModalTabs = useMemo<EditorTab<FieldModalTab>[]>(() => {
+    const isFile = fieldForm.type === 'file';
+    const hasOptionsTab = fieldSupportsOptionsFilter || (isFile && !fieldModalIsNative);
+    return [
+      { key: 'general', label: t('screen.tab.general'), icon: 'pencil' },
+      ...(hasOptionsTab
+        ? [{
+          key: 'options' as const,
+          label: t(isFile ? 'field.tab.file' : 'field.tab.options'),
+          icon: isFile ? 'file' : 'fileList',
+        }]
+        : []),
+      { key: 'behaviour', label: t('field.tab.behaviour'), icon: 'toggle' },
+      ...(fieldSupportsSequence ? [{ key: 'sequence' as const, label: t('field.sequence.title'), icon: 'barcode' }] : []),
+      ...(fieldSupportsRules ? [{ key: 'rules' as const, label: t('field.rules'), icon: 'shieldCheck' }] : []),
+      { key: 'logic', label: t('field.tab.logic'), icon: 'codeBox' },
+      { key: 'provider', label: t('field.tab.provider'), icon: 'search' },
+      ...(aggregationFromOptions.length > 1
+        ? [{ key: 'aggregation' as const, label: t('field.tab.aggregation'), icon: 'calculator' }]
+        : []),
+    ];
+  }, [fieldForm.type, fieldSupportsOptionsFilter, fieldModalIsNative, fieldSupportsSequence, fieldSupportsRules, aggregationFromOptions, t]);
+
+  // Trocar o tipo pode tirar a aba aberta da lista: a navegação volta para "Geral" em vez de sumir.
+  const activeFieldModalTab = fieldModalTabs.some((tab) => tab.key === fieldModalTab) ? fieldModalTab : 'general';
+
   return {
     isAdmin,
     isLoading,
@@ -2986,8 +3173,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     confirmDeleteScreen,
     deletingScreen,
     fieldModalOpen: fieldModal !== null,
-    fieldModalTab,
+    fieldModalTab: activeFieldModalTab,
+    fieldModalTabs,
     setFieldModalTab,
+    fieldSupportsOptionsFilter,
+    optionsFilterPathOptions,
+    optionsFilterOpOptions,
+    optionsFilterSourceKindOptions,
+    optionsFilterSourceOptions,
+    addOptionsFilterRow,
+    updateOptionsFilterRow,
+    removeOptionsFilterRow,
     fieldModalIsEdit: !!fieldModal?.fieldKey,
     fieldModalIsTitleField,
     fieldModalIsNative,

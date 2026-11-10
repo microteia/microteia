@@ -40,6 +40,7 @@ const PUBLISHED = [
   // antigo a aceitaria e nunca a desenharia.
   'RECORD_SURFACE_PREFIX', 'recordSurface', 'recordSurfaceSourceId',
   'CUSTOM_FIELD_TYPES', 'FIELD_EXPRESSION_FUNCTION_NAMES', 'STEP_TYPES',
+  'LOOKUP_OPTION_FILTER_PATHS', 'OPTIONS_FILTER_OPERATORS',
   'CONTROL_STEP_TYPES', 'CORE_STEP_CATALOG', 'CORE_STEP_DEFINITION_IDS',
   'UNIMPLEMENTED_STEP_TYPES', 'coreStepMetadata', 'isCoreStepDefinitionId',
   // A REFERÊNCIA a um artefato de OUTRA extensão, e os dois identificadores de que ela é feita. Sai
@@ -178,7 +179,9 @@ const PUBLISHED_TYPES = [
   'InputMapping',
   'LiteralInputMapping', 'LocaleCode', 'LookupModuleTemplate', 'LookupProviderFailure',
   'LookupProviderRequest', 'LookupProviderSpec', 'MarketplacePlugin', 'MessageBundle', 'MessageParams',
-  'MigrationPhase', 'NotificationCategoryMetadata', 'NumericAggregationOp', 'OutputInputMapping', 'PackageRef', 'PackageValidationIssue', 'ParsePackageResult',
+  'MigrationPhase', 'NotificationCategoryMetadata', 'NumericAggregationOp',
+  'OptionsFilterLiteral', 'OptionsFilterOperator', 'OptionsFilterPredicate', 'OptionsFilterSpec', 'OptionsFilterValue',
+  'OutputInputMapping', 'PackageRef', 'PackageValidationIssue', 'ParsePackageResult',
   'ParsedPermission', 'PermissionDomain', 'PluginBackendRequirement', 'PluginDiagnostic',
   'PluginDependency',
   'PluginLifecycle', 'PluginLifecycleHook', 'PluginManifest', 'PluginMigration', 'PluginPublisher', 'PortalViewMetadata', 'PortalViewSurface',

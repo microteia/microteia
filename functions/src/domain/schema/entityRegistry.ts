@@ -18,6 +18,7 @@ import type {
 import type { RecordKeySpec } from './recordKeys';
 import type { AutoValueSpec } from './recordSequence';
 import type { ContactKind } from './notificationContacts';
+import type { OptionsFilterSpec } from './optionsFilter';
 
 export const SCHEMA_VERSION = 1;
 
@@ -94,6 +95,12 @@ export interface NativeFieldSpec {
   unique?: boolean;
   /** O campo guarda um contato. Ver `FieldDefinition.contact`. */
   contact?: ContactKind;
+  /**
+   * O filtro das opções que o formulário oferece. Ver `FieldDefinition.optionsFilter`. Na forma
+   * canônica pelo mesmo motivo de `unique`: o formulário do registro e o Form Design leem os campos
+   * DEPOIS da resolução, e fora daqui a declaração sumia no caminho sem nada acusar.
+   */
+  optionsFilter?: OptionsFilterSpec;
   /** Ausente nos campos deste registro, onde é sempre `builtin` por definição. */
   origin?: FieldOrigin;
   ui?: FieldUiSpec;

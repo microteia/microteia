@@ -10,9 +10,12 @@ import { readValueByPath, sortFieldsByOrder } from '../../../../domain/services/
 import { evaluateFieldBoolean, evaluateFieldValidation } from '../../../../domain/schema/fieldExpression';
 import { computeFieldValues, deriveFieldValues } from '../../../../domain/schema/recordRules';
 import { buildHydratedFieldScope } from '../../../../domain/schema/referenceScope';
+import { formOptionsFilter, matchesOptionsFilter, optionsFilterCascade } from '../../../../domain/schema/optionsFilter';
 import { buildFieldUiScope } from '../../../../domain/schema/fieldUiScope';
 import { isSequenceField } from '../../../../domain/schema/recordSequence';
 import { useRecordResolver } from '../../../shared/useRecordResolver';
+import { useOptionsFilterCandidate } from '../../../shared/useOptionsFilterCandidate';
+import { useOptionsFilterQueries } from '../../../shared/useOptionsFilterQueries';
 import { useReferenceOpener } from '../../../shared/useReferenceOpener';
 import { useLabel } from '../../../shared/i18n/useT';
 import { useFieldChangeEffects } from './useFieldChangeEffects';
@@ -22,6 +25,7 @@ import type { DynamicSelectOption } from '../DynamicSelect';
 import type { ReferenceOption } from '../../../hooks/useReferenceOptions';
 import type { ReferenceOpener } from '../../../shared/useReferenceOpener';
 import type { FieldFileUpload } from '../../../shared/entityScreen/types';
+import type { ResolvedOptionsFilter } from '../../../../domain/schema/optionsFilter';
 
 export interface LookupOptionSet {
   staticOptions: DynamicSelectOption[];
@@ -171,6 +175,43 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     } as Record<string, CustomFieldValue>;
   }, [fields, rawValues, derivationInstant]);
 
+  // Escopo com os campos de referência trocados pelo registro apontado, para que `produto.preco`
+  // funcione. Vale SÓ nos slots front-only: `validate` e `compute` também rodam no backend, onde só
+  // existe o id, e precisam continuar avaliando sobre ele.
+  const hydratedScope = useMemo(
+    () => buildHydratedFieldScope(fields, values, resolveRecord),
+    [fields, values, resolveRecord],
+  );
+
+  const candidateOf = useOptionsFilterCandidate();
+  const formKeys = useMemo(() => new Set(fields.map((field) => field.key)), [fields]);
+  const optionFilters = useMemo(
+    () => new Map(fields.map((field) => [field.key, formOptionsFilter(field, formKeys, hydratedScope)])),
+    [fields, formKeys, hydratedScope],
+  );
+  const optionFilterOf = useCallback(
+    (field: FieldDefinition): ResolvedOptionsFilter | null => optionFilters.get(field.key) ?? null,
+    [optionFilters],
+  );
+  useOptionsFilterQueries(fields, optionFilterOf);
+
+  /**
+   * A opção que o filtro deixa o formulário oferecer. A já ESCOLHIDA continua na lista mesmo quando
+   * não passa — um registro antigo mostra o que tem gravado, em vez de um "não encontrado" que
+   * mentiria sobre o dado; a gravação é que a recusa.
+   */
+  const isOffered = useCallback(
+    (field: FieldDefinition, optionValue: string): boolean => {
+      const filter = optionFilterOf(field);
+      if (!filter) return true;
+      const current = readByPath(values, field.key);
+      if (current === optionValue || (Array.isArray(current) && current.includes(optionValue))) return true;
+      const candidate = candidateOf(field, optionValue);
+      return candidate !== null && matchesOptionsFilter(candidate, filter);
+    },
+    [optionFilterOf, values, candidateOf],
+  );
+
   const groups = useMemo<FieldGroup[]>(() => {
     const ordered = sortFieldsByOrder(fields);
     const result: FieldGroup[] = [];
@@ -206,10 +247,26 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     return typeof value === 'number' ? value : null;
   }, [values]);
 
+  /**
+   * A escolha que o filtro deixou de oferecer sai junto com a alteração que a invalidou — trocar o
+   * tipo do animal limpa a raça, e a limpeza segue a cadeia. É feito no GESTO, e não por efeito, para
+   * que abrir um registro antigo nunca o altere sozinho.
+   */
   const setValue = useCallback((fieldKey: string, value: CustomFieldValue) => {
     onChange(fieldKey, value);
     runFieldChangeEffects(fieldKey, value);
-  }, [onChange, runFieldChangeEffects]);
+    const invalidated = optionsFilterCascade(
+      fields,
+      fieldKey,
+      { ...values, [fieldKey]: value },
+      (next) => buildHydratedFieldScope(fields, next, resolveRecord),
+      candidateOf,
+    );
+    invalidated.forEach((change) => {
+      onChange(change.key, change.value);
+      runFieldChangeEffects(change.key, change.value);
+    });
+  }, [onChange, runFieldChangeEffects, fields, values, resolveRecord, candidateOf]);
 
   /**
    * As opções que o usuário NÃO pode excluir: as declaradas no próprio campo (lista fechada) e as
@@ -218,13 +275,15 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
    */
   const staticSelectOptions = useCallback(
     (field: FieldDefinition): DynamicSelectOption[] => {
-      const declared = (field.options ?? []).map((option) => ({
-        value: option.key,
-        label: option.label,
-        color: resolveFieldOptionColor(option.color, field.optionsColored, theme),
-      }));
+      const declared = (field.options ?? [])
+        .filter((option) => isOffered(field, option.key))
+        .map((option) => ({
+          value: option.key,
+          label: option.label,
+          color: resolveFieldOptionColor(option.color, field.optionsColored, theme),
+        }));
       const fromKernel = getOptions(field.lookupCollection ?? '')
-        .filter((option) => option.isStatic)
+        .filter((option) => option.isStatic && isOffered(field, option.key))
         .map((option) => ({
           value: option.key,
           label: option.label,
@@ -232,7 +291,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
         }));
       return [...declared, ...fromKernel];
     },
-    [getOptions, theme],
+    [getOptions, theme, isOffered],
   );
 
   /**
@@ -247,13 +306,13 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   const dynamicSelectOptions = useCallback(
     (field: FieldDefinition): DynamicSelectOption[] =>
       getOptions(field.lookupCollection ?? '')
-        .filter((option) => !option.isStatic)
+        .filter((option) => !option.isStatic && isOffered(field, option.key))
         .map((option) => ({
           value: option.key,
           label: option.label,
           color: resolveColor(option.color, theme, false),
         })),
-    [getOptions, theme],
+    [getOptions, theme, isOffered],
   );
 
   const handleAddOption = useCallback(
@@ -289,9 +348,11 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   );
 
   const referenceOptions = useCallback(
-    (field: FieldDefinition): ReferenceOption[] =>
-      referenceOptionsByEntity[field.refEntity ?? ''] ?? [],
-    [referenceOptionsByEntity],
+    (field: FieldDefinition): ReferenceOption[] => {
+      const options = referenceOptionsByEntity[field.refEntity ?? ''] ?? [];
+      return optionFilterOf(field) ? options.filter((option) => isOffered(field, option.value)) : options;
+    },
+    [referenceOptionsByEntity, optionFilterOf, isOffered],
   );
 
   const referenceSearch = useReferenceSearch();
@@ -307,14 +368,6 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   const referenceOpener = useCallback(
     (field: FieldDefinition): ReferenceOpener | null => resolveReferenceOpener(field.refEntity),
     [resolveReferenceOpener],
-  );
-
-  // Escopo com os campos de referência trocados pelo registro apontado, para que `produto.preco`
-  // funcione. Vale SÓ nos slots front-only: `validate` e `compute` também rodam no backend, onde só
-  // existe o id, e precisam continuar avaliando sobre ele.
-  const hydratedScope = useMemo(
-    () => buildHydratedFieldScope(fields, values, resolveRecord),
-    [fields, values, resolveRecord],
   );
 
   // A SITUAÇÃO em que o formulário está aberto, ao lado do registro: é o que permite a um campo

@@ -49,6 +49,12 @@ export const PERMISSION_AUDIT_MANAGE = 'audit.manage';
  */
 export const PERMISSION_MFA_MANAGE = 'mfa.manage';
 export const PERMISSION_AI_MANAGE = 'ai.manage';
+/**
+ * As CREDENCIAIS de integração (o token de uma API de fora). Separada de `automation.manage` porque
+ * quem monta a automação não precisa — e não deve — conhecer o segredo: ela nomeia a credencial pela
+ * chave, e quem a cadastra é outra pessoa.
+ */
+export const PERMISSION_INTEGRATIONS_MANAGE = 'integrations.manage';
 export const PERMISSION_AGENT_MANAGE = 'agent.manage';
 export const PERMISSION_TRANSLATIONS_MANAGE = 'translations.manage';
 export const PERMISSION_DATA_PROCESSOR_USE = 'data-processor.use';
@@ -174,6 +180,11 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     description: '@core.access/permission.ai.manage.description',
   },
   {
+    id: PERMISSION_INTEGRATIONS_MANAGE,
+    name: '@core.access/permission.integrations.manage',
+    description: '@core.access/permission.integrations.manage.description',
+  },
+  {
     id: PERMISSION_AGENT_MANAGE,
     name: '@core.access/permission.agent.manage',
     description: '@core.access/permission.agent.manage.description',
@@ -258,6 +269,7 @@ export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
   { id: 'mfa', name: '@core.access/resource.mfa' },
   { id: 'agent', name: '@core.access/resource.agent' },
   { id: 'ai', name: '@core.access/resource.ai' },
+  { id: 'integrations', name: '@core.access/resource.integrations' },
   { id: 'translations', name: '@core.access/resource.translations' },
   { id: 'data-processor', name: '@core.access/resource.data-processor' },
   { id: 'document-types', name: '@core.access/resource.document-types' },

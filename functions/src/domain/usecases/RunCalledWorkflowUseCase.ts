@@ -16,6 +16,11 @@ export interface RunCalledWorkflowParams {
   callDepth: number;
   /** Quem apertou o botão. Ausente na automação que nasce de um gatilho. */
   actor?: WorkflowContext['actor'];
+  /**
+   * O orçamento de tempo de quem chama (ver `WorkflowServices.deadlineAt`). O fluxo chamado roda DENTRO
+   * da mesma invocação, então gasta do mesmo relógio — não ganha um orçamento novo.
+   */
+  deadlineAt?: number;
 }
 
 /**
@@ -54,7 +59,7 @@ export const makeRunCalledWorkflowUseCase = (
   services: WorkflowServices,
   hydrator: WorkflowContextHydrator,
 ): RunCalledWorkflowUseCase => ({
-  execute: async ({ tenantId, targetWorkflowId, params, callDepth, actor }) => {
+  execute: async ({ tenantId, targetWorkflowId, params, callDepth, actor, deadlineAt }) => {
     const target = await definitionRepository.findByRef(tenantId, targetWorkflowId);
     if (!target || !target.enabled || target.eventName !== WORKFLOW_CALLED_EVENT) {
       return { found: false };
@@ -68,7 +73,13 @@ export const makeRunCalledWorkflowUseCase = (
       timestamp: services.now(),
     };
 
-    const execution = await hydrateAndRunWorkflow(target, event, { registry, services, hydrator, ...(actor ? { actor } : {}) });
+    const runServices = deadlineAt === undefined ? services : { ...services, deadlineAt };
+    const execution = await hydrateAndRunWorkflow(target, event, {
+      registry,
+      services: runServices,
+      hydrator,
+      ...(actor ? { actor } : {}),
+    });
     await executionRepository.create(execution);
 
     const failures = execution.logs

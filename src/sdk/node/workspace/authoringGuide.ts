@@ -26,6 +26,8 @@ import {
 import { LOOKUP_SEED_SINCE_KERNEL } from '../../../domain/schema/lookupSeed';
 import { LOOKUP_TARGET_MAP_SINCE_KERNEL } from '../../../domain/schema/fieldChangeSpec';
 import { RECORD_SEQUENCE_SINCE_KERNEL } from '../../../domain/schema/recordSequence';
+import { EXTENSION_PERMISSION_GUARD_SINCE_KERNEL } from '../../../domain/schema/access/permission';
+import { LOOKUP_OPTION_FILTER_PATHS, OPTIONS_FILTER_OPERATORS, OPTIONS_FILTER_SINCE_KERNEL } from '../../../domain/schema/optionsFilter';
 import { RECORD_SEARCH_SINCE_KERNEL, SEARCHABLE_FIELD_TYPES } from '../../../domain/schema/recordSearch';
 import {
   RECORD_CONDITIONS_SINCE_KERNEL,
@@ -378,6 +380,7 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   'share-documents': 'Shares the documents a record already has with the portal guests who can see that record (`shared: true`, the default), or stops sharing them (`false`). `collection` and `recordId` name the record; `documentId` narrows it to one document — one not attached to that record fails the step — and `documentType` to one type. Idempotent. Publishes `matched`, `changed` and `shared`.',
   'portal-invite': 'Invites `email` to the portal, to the record `subjectRecordId` of `subjectCollection` — the same invitation as Settings › Portal. Only on a screen declaring `portal: { subject: \'self\', invites: { automation: true } }`. Idempotent per e-mail and record; `sendEmail` (on by default) sends the welcome e-mail only to whoever was just invited. Publishes `guestId`, `created`, `granted` and `emailed` (see "Inviting to the portal" in section 10).',
   'portal-revoke': 'Removes the access of `email` to the record `subjectRecordId` of `subjectCollection` in the portal, at once — with `allSubjects`, the whole invitation, if they have that record. Someone without access changes nothing. Publishes `guestId` and `revoked`.',
+  'http-request': 'Calls a REST API and waits for the answer (kernel 2.101.0+). `request` is a literal `HttpRequestSpec`: `method`, `url` (with `{name}` placeholders filled by `pathParams`), `query`, `headers`, `body` (`none`, `json`, `json-from`, `form`, `text`), `timeoutSeconds` (1–120), `failOnHttpError`, `responseType` and `responseSample`; every value inside is an ordinary mapping. Only `https` to a domain the office allows in Settings › Integrations — the package cannot allow one. Secrets never go in the package: name an office credential by key in `connection` (kernel 2.102.0+), which the office creates with that key; a secret-looking header with a literal value is refused. Publishes `ok`, `status`, `headers`, `body`, `durationMs`, `error`, `timedOut`, plus `body.<path>` from `responseSample`. With `mode: \'async\'` (kernel 2.103.0+) the request goes to a durable queue and the flow does not wait: the step publishes only `dispatchId`, temporary failures (network, timeout, 408, 429, 5xx) are retried up to `retries` times (0–5, default 3), and the workflow named in `targetWorkflowId` — a `workflow.called` flow of this package, with its other parameters as `param.<key>` — receives the result in a parameter named `response` (`ok`, `status`, `headers`, `body`, `error`, `attempts`, `dispatchId`).',
 };
 
 const excludedStepList = (steps: readonly WorkflowStepMetadata[], eventName: string): string => steps
@@ -891,6 +894,12 @@ portal: { subject: { field: 'company' }, fields: ['text', 'notice'], create: { f
 - \`multi: true\` is a multiple choice; every id is checked.
 - \`usePortalScreen(collection)\` tells your own form which fields these are (\`reference: { collection,
   multi }\` on the field): offer the records of \`usePortalRecords(reference.collection)\`.
+- A field's \`optionsFilter\` reaches the portal form only when the portal can answer it: every compared
+  field is a top-level field of that same form (create and edit are separate forms) and, on a reference,
+  every \`path\` is a field the target screen exposes. The standard form applies it to the options and clears
+  a choice it no longer offers; your own form reads it as \`optionsFilter\` on the field and compares with
+  the record's \`data\`. Otherwise it is not sent and every option is offered — a filter the guest cannot
+  answer would empty the list, and answering it from a field the guest does not see would leak it.
 - A \`reference\` to a screen that is NOT in the portal stays what it always was — a text box whose value is
   written as typed. The guest sees no record of that screen, so there is nothing to choose from: keep
   such fields out of \`create.fields\` and fill them in the organization, or by a workflow.
@@ -2136,6 +2145,7 @@ Beyond \`key\`, \`label\`, \`type\`, \`order\` and \`required\`, the properties 
 | \`hiddenInForm\` | keeps a field out of the form without deleting it |
 | \`contact: 'email' \\| 'phone'\` | the field holds a way to reach someone. It is what lets \`notify\` write to its value (\`recipientAddresses\`, \`recipientPhones\`, §10) — nothing else does. Only on a one-value \`text\` or \`masked\` field. Kernel \`^${CONTACT_NOTIFY_SINCE_KERNEL}\` |
 | \`file: { extensions, maxSizeMb }\` | what a \`file\` field accepts — the size is in megabytes |
+| \`optionsFilter: { where: [{ path, op, value }] }\` | offers only the options that match what the form already holds — the breed by the pet type, the city by the state. On a \`reference\`, \`path\` is a field of the target screen; on a \`select\`, one of ${inlineList([...LOOKUP_OPTION_FILTER_PATHS])} (\`label\` answers in the reader's language, so prefer \`key\`). \`op\` is one of ${inlineList([...OPTIONS_FILTER_OPERATORS])}. \`value\` is \`{ field }\` — a field of this screen, which may cross a reference (\`client.city\`) — or \`{ literal }\`. Conditions are ANDed. While a compared field is empty the list is empty, and changing it clears a choice it no longer offers, down the chain. A FORM rule only: a workflow, an import or the agent can still write any value. \`check\` refuses a path the option does not have and a compared field the screen does not have. Before kernel \`${OPTIONS_FILTER_SINCE_KERNEL}\` every option is offered |
 
 **Fields the organization adds** to your screen are theirs. An update of your extension preserves
 them, and uninstalling removes only yours.
@@ -4176,6 +4186,9 @@ What it means for what you declare:
 - **Pass the callable's whole \`request\` along.** \`requireInstalledExtension(pluginId, tenantId, request)\`
   reads the session's claims from \`request.auth.token\`. A hand-built \`{ auth: { uid } }\` has none, and
   is refused for every member the rule reaches.
+- **Let the platform ask for your permission.** A callable that requires \`notices.issue\` passes it to
+  \`requireInstalledExtension(..., { permission: 'notices.issue' })\` (§14), which checks the second step
+  with it. Reading the member document yourself checks neither.
 
 ## 14. When your extension needs the server
 
@@ -4295,6 +4308,28 @@ It throws rather than returning a boolean, deliberately: a \`false\` invites bei
 missing \`if\` leaves no symptom at all. The errors are \`HttpsError\`, so they reach your view as errors
 and not as a broken response. The check reads the whole file, so the guard may sit in a handler you
 extracted — which is what §"Write the handler thin" asks you to do.
+
+**When only some members may do it, ask for the permission in the same call:**
+
+\`\`\`ts
+const uid = await requireInstalledExtension('com.acme.crm', tenantId, request, {
+  permission: 'invoices.approve',
+});
+\`\`\`
+
+That is the fourth refusal, \`permission-denied\` naming the permission, and it is the platform's own
+rule — the one its screens, its rules and its own functions obey: the member's granted permissions, the
+organization's owner, and the platform administrator, who holds every permission in every organization
+**without being a member of it**. The second factor the organization requires is checked on the way.
+
+Do not read \`tenants/{tenantId}/members/{uid}\` to decide this yourself. A copy of the rule has no way to
+know the administrator — there is no member document for them — so it refuses them with a 403 in every
+organization but their own; and it skips the second factor, so it lets through the session the
+organization meant to stop. Both look like correct code until somebody hits them.
+
+The option needs kernel ${EXTENSION_PERMISSION_GUARD_SINCE_KERNEL}: declare \`kernel: '^${EXTENSION_PERMISSION_GUARD_SINCE_KERNEL}'\` or later in your
+manifest. An older kernel ignores a fourth argument at run time, and the callable would quietly go back to
+asking for membership only.
 
 ### A schedule of yours loops over the organizations instead
 

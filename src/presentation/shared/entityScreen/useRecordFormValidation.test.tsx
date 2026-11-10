@@ -10,6 +10,12 @@ const CATALOG: Record<string, string> = {
   'core.automation/parameter.required': 'Obrigatório',
   'core.records/field.invalid-value': 'Valor inválido',
   'core.records/field.invalid-format': 'O campo "{label}" está em um formato inválido',
+  'core.records/field.option-not-offered': 'Opção não disponível',
+};
+
+const BREEDS: Record<string, Record<string, unknown>> = {
+  poodle: { id: 'poodle', petType: 'dog' },
+  siamese: { id: 'siamese', petType: 'cat' },
 };
 
 const resolve = (key: string, params?: Record<string, unknown>) =>
@@ -23,6 +29,13 @@ vi.mock('../i18n/useT', () => ({
 }));
 vi.mock('../../../data/utils/recordRulesGate', () => ({
   validateRecordRules: () => state.issues,
+}));
+
+vi.mock('../useRecordResolver', () => ({
+  useRecordResolver: () => () => null,
+}));
+vi.mock('../useOptionsFilterCandidate', () => ({
+  useOptionsFilterCandidate: () => (_field: unknown, value: string) => BREEDS[value] ?? null,
 }));
 
 const { useRecordFormValidation } = await import('./useRecordFormValidation');
@@ -82,5 +95,24 @@ describe('useRecordFormValidation', () => {
   it('sem campo vazio e sem regra recusada, não há o que dizer', () => {
     state.issues = [];
     expect(validar([field({})], { protocol: 'SIN-1' })).toBeNull();
+  });
+
+  it('a escolha que o filtro de opções não oferece é recusada no formulário', () => {
+    state.issues = [];
+    const fields = [
+      field({ key: 'petType', label: 'Tipo' }),
+      field({
+        key: 'breedId',
+        label: 'Raça',
+        type: 'reference',
+        refEntity: 'breeds',
+        optionsFilter: { where: [{ path: 'petType', op: 'eq', value: { field: 'petType' } }] },
+      }),
+    ];
+
+    const refused = validar(fields, { petType: 'cat', breedId: 'poodle' });
+    expect(refused?.fieldErrors.breedId).toBe('Opção não disponível');
+    expect(refused?.message).toBe('Raça: Opção não disponível');
+    expect(validar(fields, { petType: 'cat', breedId: 'siamese' })).toBeNull();
   });
 });

@@ -6,6 +6,12 @@ import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access';
 import { getDb } from '../firebase/initFirebase';
 import { actionRunResponse } from './actionRunResponse';
 import type { RunActionResponse } from './actionRunResponse';
+import { officeSetting } from '../settings/officeSettings';
+import {
+  WORKFLOW_ACTION_TIMEOUT_CEILING_SECONDS,
+  workflowBudgetProperty,
+  workflowDeadlineAt,
+} from '../../domain/schema/workflowBudget';
 
 interface RunActionRequest {
   tenantId: string;
@@ -24,8 +30,10 @@ const failure = (message: string): RunActionResponse => ({
 });
 
 export const runAction = onCall(
-  { region: 'southamerica-east1', cors: true },
+  // O TETO; quanto dele o escritório usa é `automation.budget.actionSeconds`. Ver `workflowBudget.ts`.
+  { region: 'southamerica-east1', cors: true, timeoutSeconds: WORKFLOW_ACTION_TIMEOUT_CEILING_SECONDS },
   async (request): Promise<RunActionResponse> => {
+    const startedAt = Date.now();
     if (!request.auth) {
       throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
@@ -65,6 +73,7 @@ export const runAction = onCall(
       },
       actor: await identifyActor(request.auth.uid, 'ui', actorPermissions),
       callDepth: 1,
+      deadlineAt: workflowDeadlineAt('action', startedAt, await officeSetting(tenantId, workflowBudgetProperty('action'))),
     });
 
     return actionRunResponse(result, String(action.title ?? action.key ?? ''));

@@ -39,6 +39,13 @@ export interface WorkflowServices {
   businessCalendars?: BusinessCalendarSet | null;
   /** Carrega os calendários de um escritório. Mesmo papel de `timeZoneOf` para os serviços compartilhados. */
   businessCalendarsOf?(tenantId: string): Promise<BusinessCalendarSet | null>;
+  /**
+   * O ORÇAMENTO DE TEMPO desta execução (epoch ms): depois dele o motor não começa outro passo, e o
+   * passo que espera algo de fora (HTTP) não espera além dele. Quem o fixa é a PORTA — ela sabe o
+   * `timeoutSeconds` da function em que roda (ver `workflowBudget.ts`). Ausente: sem orçamento, como
+   * sempre foi.
+   */
+  deadlineAt?: number;
 }
 
 /**

@@ -6,10 +6,50 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 
 <!-- Nova entrada vai aqui, acima das anteriores, no formato:
 
+#### [9.221.0] — 2026-11-09
+
+- Extensões que exigem uma permissão específica passam a seguir a mesma regra do restante do sistema: o administrador da plataforma consegue usá-las em qualquer escritório, e a verificação em duas etapas exigida pelo escritório também vale para elas.
+
 #### [0.0.9] — AAAA-MM-DD
 
 - Descrição elegante da mudança, em linguagem simples.
 -->
+
+#### [9.220.0] — 2026-11-09
+
+- No portal, os formulários preenchidos pelos convidados também passam a mostrar só as opções que combinam com o que já foi escolhido — e a limpar sozinhos a escolha que deixou de valer.
+
+#### [9.219.0] — 2026-11-09
+
+- No Form Design, a edição de tela e de campo foi reorganizada: as abas ficam na lateral, o botão Salvar fica no topo e a janela não muda mais de tamanho ao trocar de aba.
+- A edição de campo foi dividida por assunto (opções, comportamento, numeração, validação, expressões, dados externos e agregação), com cada informação agrupada sob um título.
+- Agora é possível configurar, direto no Form Design, quais opções um campo de seleção mostra de acordo com outro campo do formulário — por exemplo, só as raças do tipo de animal escolhido.
+
+#### [9.218.0] — 2026-11-09
+
+- Um campo de seleção pode agora mostrar só as opções que combinam com outro campo do formulário — por exemplo, apenas as raças do tipo de animal escolhido, ou apenas as cidades do estado selecionado.
+- Ao trocar o campo de que a escolha depende, a opção que deixou de valer é limpa automaticamente, e a limpeza segue a cadeia (país, estado, cidade).
+
+#### [9.217.0] — 2026-11-09
+
+- O passo "Chamar API" pode agora enviar em segundo plano: a automação segue sem esperar a resposta, e se o outro sistema estiver fora do ar ou ocupado, o envio é tentado de novo sozinho, com intervalos cada vez maiores.
+- Ao enviar em segundo plano, você escolhe um fluxo para receber o resultado quando ele chegar — com o que o sistema respondeu e os dados que você quiser levar junto, como o registro de origem.
+- Novo botão "Testar chamada" no passo: ele faz uma chamada de verdade, com os mesmos domínios permitidos e a mesma credencial da automação, e mostra a resposta. Com um clique, essa resposta vira o exemplo que alimenta as sugestões dos próximos passos.
+
+#### [9.216.0] — 2026-11-09
+
+- Nova aba "Credenciais de integração" nas configurações do Escritório: cadastre ali o token, a chave de API ou a senha de um sistema externo, e o passo "Chamar API" o envia sem que ele apareça na automação, no histórico ou numa extensão. Depois de gravado, o segredo pode ser trocado, mas não exibido — nem para quem o cadastrou.
+- Cada credencial diz para quais domínios o segredo pode ir: ele nunca é enviado a outro endereço, mesmo que o escritório libere esse endereço para outras chamadas.
+- Se uma API devolver o segredo na resposta, ele é apagado antes de chegar ao histórico de execuções.
+- Nova permissão "Gerenciar credenciais de integração": quem monta automações escolhe a credencial pelo nome, sem precisar conhecer o segredo.
+
+#### [9.215.0] — 2026-11-09
+
+- Novo passo de automação "Chamar API (HTTP)": a automação chama um sistema de fora pela internet — consultar um CEP, avisar um parceiro, buscar a cotação do dia — e usa a resposta nos passos seguintes. Endereço, parâmetros, cabeçalhos e corpo podem vir de um valor fixo, do registro que disparou a automação, de uma expressão ou de um passo anterior.
+- Colando um exemplo da resposta no passo, os campos dela passam a ser sugeridos enquanto você monta os próximos passos.
+- Quando a chamada falha, a automação pode parar ou seguir adiante e decidir o que fazer pelo resultado — por exemplo, tratar de um jeito o "não encontrado" e de outro o erro do servidor.
+- Nova seção "Integrações" em Configurações, só para quem administra o escritório: as automações só alcançam os domínios listados ali. Enquanto a lista estiver vazia, nenhuma chamada sai do escritório.
+- Nova seção "Automações" em Configurações: o escritório define quanto tempo uma automação pode rodar — a iniciada por um evento e a iniciada por um botão. Passado o tempo, a automação para com o motivo registrado no histórico, em vez de ser interrompida sem deixar rastro.
 
 #### [9.214.0] — 2026-11-08
 

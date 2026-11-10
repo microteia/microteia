@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import type { CustomFieldType, FieldDefinition, FieldOrigin } from '../entities/entitySchemas';
+import { HTTP_DISPATCHES_COLLECTION } from './httpRequestSpec';
 import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
 import { BUILTIN_ENTITY_KEYS, ENTITY_REGISTRY, SCHEMA_VERSION } from './entityRegistry';
 import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
@@ -348,6 +349,7 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
   if (field.unique === true) spec.unique = true;
   const contact = asContactKind(field.contact);
   if (contact) spec.contact = contact;
+  if (field.optionsFilter?.where?.length) spec.optionsFilter = field.optionsFilter;
   return spec;
 };
 
@@ -402,6 +404,7 @@ export const nativeSpecToFieldDefinition = (
   searchable: spec.ui?.search === true,
   unique: spec.unique === true,
   ...(spec.contact ? { contact: spec.contact } : {}),
+  ...(spec.optionsFilter ? { optionsFilter: spec.optionsFilter } : {}),
   hiddenInForm: spec.ui?.form === false,
 });
 
@@ -634,6 +637,8 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'tagDefinitions',
   'secrets',
   'settings',
+  'httpConnections',
+  HTTP_DISPATCHES_COLLECTION,
   AGENT_GRANTS_COLLECTION,
   RECORD_KEYS_COLLECTION,
   NOTIFICATION_INBOX_COLLECTION,

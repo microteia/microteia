@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { WORKFLOW_AUDIT_EVENT } from './workflowAuditTrigger';
+import { HTTP_REQUEST_STEP_ID } from './httpRequestSpec';
 import type { FieldRules } from './fieldRules';
 
 /**
@@ -35,7 +36,8 @@ export type InputType =
   | 'Upsert'
   | 'Remove'
   | 'Map'
-  | 'Validate';
+  | 'Validate'
+  | 'HttpRequest';
 
 /**
  * Os cinco `kind` de `InputMapping` — a forma como um valor chega a um input de passo. É a mesma
@@ -185,6 +187,12 @@ export type DynamicOutputsMetadata =
       kind: 'from-map-config';
       /** ID do input do tipo 'Map'. Com `name`, a saída é o objeto nomeado `<name>` (tipado por `type`);
        *  sem `name`, cada campo do MapStepConfig vira uma saída direta na raiz do step. */
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
+      kind: 'from-http-request';
+      /** ID do input do tipo 'HttpRequest'. O modo dele decide quais saídas fixas valem (`isHttpOutputOfMode`); `body.<caminho>` sai do `responseSample`. */
       sourceInputId: string;
       description?: string;
     };
@@ -1226,6 +1234,62 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'guestId', label: '@core.automation/step.portal-access.output.guest-id', type: 'String' },
       { id: 'revoked', label: '@core.automation/step.portal-revoke.output.revoked', type: 'Boolean' },
     ],
+  },
+  {
+    /**
+     * Chamar uma API REST de fora. A especificação inteira é UM input estruturado — como a consulta e o
+     * objeto montado —, e cada valor dentro dela (URL, parâmetro, cabeçalho, campo do corpo) é um
+     * mapping comum. Para onde a chamada pode ir não é decisão de quem edita a automação: é a lista de
+     * domínios das Configurações do escritório. Ver "Passo Chamar API (HTTP)" no ARCHITECTURE.md.
+     */
+    id: HTTP_REQUEST_STEP_ID,
+    version: 1,
+    name: '@core.automation/step.http.name',
+    description: '@core.automation/step.http.description',
+    icon: 'RiGlobalLine',
+    category: 'Integration',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'request',
+        label: '@core.automation/step.http.label.request',
+        required: true,
+        type: 'HttpRequest',
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        /**
+         * O fluxo que recebe o resultado de uma chamada ASSÍNCRONA. O id é o MESMO do "Chamar Workflow"
+         * de propósito: é por ele que a instalação de uma extensão remapeia o template para o id real, e
+         * que a referência entre artefatos é rastreada (`TARGET_WORKFLOW_ID_INPUT`). Um nome próprio
+         * aqui deixaria o callback de toda extensão apontando para um template que não existe.
+         */
+        id: 'targetWorkflowId',
+        label: '@core.automation/step.http.label.callback',
+        description: '@core.automation/step.http.callback.description',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'workflow',
+      },
+    ],
+    outputDefinitions: [
+      { id: 'dispatchId', label: '@core.automation/step.http.output.dispatch-id', type: 'String' },
+      { id: 'ok', label: '@core.automation/step.http.output.ok', type: 'Boolean' },
+      { id: 'status', label: '@core.automation/step.http.output.status', type: 'Number' },
+      { id: 'body', label: '@core.automation/step.http.output.body', type: 'String' },
+      { id: 'headers', label: '@core.automation/step.http.output.headers', type: 'String' },
+      { id: 'durationMs', label: '@core.automation/step.http.output.duration', type: 'Number' },
+      { id: 'error', label: '@core.automation/step.http.output.error', type: 'String' },
+      { id: 'timedOut', label: '@core.automation/step.http.output.timed-out', type: 'Boolean' },
+    ],
+    dynamicInputs: { kind: 'from-target-workflow-parameters', sourceInputId: 'targetWorkflowId' },
+    dynamicOutputs: {
+      kind: 'from-http-request',
+      sourceInputId: 'request',
+      description: '@core.automation/step.http.description',
+    },
   },
 ];
 

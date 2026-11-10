@@ -30,6 +30,11 @@ export interface PortalScreen extends PortalScreenLike {
     mask?: string;
     /** O `logic.onChangeLookup` do campo: a busca externa que o formulário do portal também roda. */
     onChangeLookup?: FieldLookupBinding;
+    /**
+     * O `optionsFilter` como está no documento — não conferido: quem o leva ao convidado é
+     * `portalOptionsFilter`, que só o deixa passar quando o portal consegue respondê-lo.
+     */
+    optionsFilter?: unknown;
   }>;
 }
 

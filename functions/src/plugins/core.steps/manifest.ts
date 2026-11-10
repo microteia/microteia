@@ -17,6 +17,7 @@ import { makeSetVariableStepDefinition } from '../../infrastructure/workflow/ste
 import { makeRenderDocumentStepDefinition } from '../../infrastructure/workflow/steps/RenderDocumentStep';
 import { makeShareDocumentsStepDefinition } from '../../infrastructure/workflow/steps/ShareDocumentsStep';
 import { makePortalInviteStepDefinition, makePortalRevokeStepDefinition } from '../../infrastructure/workflow/steps/PortalAccessSteps';
+import { makeHttpRequestStepDefinition } from '../../infrastructure/workflow/steps/HttpRequestStep';
 
 const factories: Record<string, StepFactory> = {
   Notify: (deps) => makeNotifyStepDefinition(deps.dispatchNotificationUseCase, deps.screenDefinitionProvider),
@@ -41,6 +42,7 @@ const factories: Record<string, StepFactory> = {
   ShareDocuments: (deps) => makeShareDocumentsStepDefinition(deps.shareRecordDocumentsUseCase),
   PortalInvite: (deps) => makePortalInviteStepDefinition(deps.portalAccess),
   PortalRevoke: (deps) => makePortalRevokeStepDefinition(deps.portalAccess),
+  HttpRequest: (deps) => makeHttpRequestStepDefinition(deps.http),
 };
 
 export const coreStepsPlugin: PluginRecord = {
@@ -69,6 +71,7 @@ export const coreStepsPlugin: PluginRecord = {
       workflowStep({ stepDefinitionId: 'share-documents', name: '@core.automation/step.share-documents.name', category: 'Data' }, 'ShareDocuments'),
       workflowStep({ stepDefinitionId: 'portal-invite', name: '@core.automation/step.portal-invite.name', category: 'Data' }, 'PortalInvite'),
       workflowStep({ stepDefinitionId: 'portal-revoke', name: '@core.automation/step.portal-revoke.name', category: 'Data' }, 'PortalRevoke'),
+      workflowStep({ stepDefinitionId: 'http-request', name: '@core.automation/step.http.name', category: 'Integration' }, 'HttpRequest'),
     ],
   },
 };

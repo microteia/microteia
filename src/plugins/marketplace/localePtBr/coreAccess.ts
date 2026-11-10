@@ -180,6 +180,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.agent.manage': 'Gerenciar acessos de agente de IA',
   'permission.agent.manage.description':
     'Ver e revogar os acessos de agente de IA de todos os membros. Emitir um acesso para si mesmo não exige esta permissão.',
+  'permission.integrations.manage': 'Gerenciar credenciais de integração',
+  'permission.integrations.manage.description':
+    'Cadastrar, trocar e remover os segredos que as automações enviam a APIs externas. Ninguém lê um segredo de volta — nem quem o cadastrou.',
   'permission.ai.manage': 'Gerenciar conexões de IA',
   'permission.ai.manage.description':
     'Cadastrar, editar e remover as conexões de inteligência artificial do escritório.',
@@ -263,6 +266,7 @@ export const CORE_ACCESS: Record<string, string> = {
   'point.requirement.title': 'Dependência acrescentada de permissão',
   'point.resource.title': 'Recurso de permissão',
   'resource.agent': 'Agentes de IA',
+  'resource.integrations': 'Integrações',
   'resource.ai': 'Inteligência artificial',
   'resource.audit': 'Auditoria',
   'resource.automation': 'Automações',

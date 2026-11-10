@@ -3,6 +3,12 @@ import { getDI } from '../di/container';
 import type { WorkflowEvent } from '../../domain/entities/Workflow';
 import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
 import { actorFromPublished } from '../../domain/engine/workflowActor';
+import { officeSetting } from '../settings/officeSettings';
+import {
+  WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS,
+  workflowBudgetProperty,
+  workflowDeadlineAt,
+} from '../../domain/schema/workflowBudget';
 
 /**
  * Escuta a criação de documentos em `tenants/{tenantId}/workflow_events/{eventId}` — o Event
@@ -12,8 +18,15 @@ import { actorFromPublished } from '../../domain/engine/workflowActor';
  * da trigger, cada workflow tem seu próprio isolamento de falha.
  */
 export const onWorkflowEventCreated = onDocumentCreated(
-  { document: 'tenants/{tenantId}/workflow_events/{eventId}', region: 'southamerica-east1' },
+  {
+    document: 'tenants/{tenantId}/workflow_events/{eventId}',
+    region: 'southamerica-east1',
+    // O TETO, igual para todo escritório; quanto dele cada um usa é a configuração
+    // `automation.budget.eventSeconds`. Ver `workflowBudget.ts`.
+    timeoutSeconds: WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS,
+  },
   async (rawEvent) => {
+    const startedAt = Date.now();
     const { tenantId, eventId } = rawEvent.params;
     const snapshot = rawEvent.data;
     if (!snapshot) return;
@@ -30,7 +43,10 @@ export const onWorkflowEventCreated = onDocumentCreated(
       };
 
       await getDI().ensureWorkflowStepsRegistered();
-      await getDI().getRunWorkflowsForEventUseCase().execute(workflowEvent, actorFromPublished(data.actor));
+      const budget = await officeSetting(tenantId, workflowBudgetProperty('event'));
+      await getDI().getRunWorkflowsForEventUseCase().execute(workflowEvent, actorFromPublished(data.actor), {
+        deadlineAt: workflowDeadlineAt('event', startedAt, budget),
+      });
     } catch (error) {
       console.error(`[workflow] Falha ao processar evento ${tenantId}/${eventId}:`, error);
     }

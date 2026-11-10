@@ -25,6 +25,15 @@ import { PORTAL_IDENTITY_CLAIM_SINCE_KERNEL } from '../../schema/portalIdentity'
 import { PORTAL_ROLES_SINCE_KERNEL } from '../../schema/portalRole';
 import { UPSERT_MATCH_PRIMARY_KEY_SINCE_KERNEL, type UpsertStepConfig } from '../../schema/mutationSpec';
 import { QUERY_PAGE_SINCE_KERNEL, type QuerySpec } from '../../schema/querySpec';
+import {
+  HTTP_REQUEST_SINCE_KERNEL,
+  HTTP_ASYNC_SINCE_KERNEL,
+  HTTP_CALLBACK_INPUT,
+  HTTP_REQUEST_STEP_ID,
+  httpRequestSpecWarnings,
+  validateHttpRequestSpec,
+} from '../../schema/httpRequestSpec';
+import { HTTP_CONNECTION_SINCE_KERNEL } from '../../schema/httpConnection';
 
 /** As entradas que fazem do convite um convite por identidade — qualquer uma delas exige o kernel novo. */
 const PORTAL_IDENTITY_CLAIM_INPUTS = ['requiredClaimName', 'requiredClaimValue', 'requiredClaimNormalize'] as const;
@@ -308,6 +317,7 @@ const workflowIssues = (
     ...portalAccessIssues(steps, ref, pkg),
     ...upsertMatchKernelIssues(steps, ref, pkg),
     ...queryPageKernelIssues(steps, ref, pkg),
+    ...httpRequestIssues(steps, ref, pkg),
     ...calledPathTypeKernelIssues(workflow, steps, ref, pkg),
     ...excludedStepIssues(workflow, steps, ref),
     ...delayIssues(workflow, steps, ref, pkg),
@@ -454,6 +464,76 @@ const queryPageKernelIssues = (
       message: '@core.marketplace/issue.step.input-kernel',
       messageParams: { step: step.id, input: 'query.page', minimum: QUERY_PAGE_SINCE_KERNEL },
     }];
+  });
+};
+
+/**
+ * O passo "Chamar API". Três recusas:
+ * - kernel anterior ao passo: lá ele reprovaria em toda execução, por ser desconhecido;
+ * - especificação inválida: a mesma `validateHttpRequestSpec` do editor e do motor;
+ * - cabeçalho sensível com valor FIXO. No escritório isso é aviso; no pacote é recusa, porque o
+ *   segredo deixaria o escritório dentro do arquivo da extensão.
+ */
+const httpRequestIssues = (
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  const kernelCovered = rangeExcludesBelow(pkg.manifest?.kernel ?? '', HTTP_REQUEST_SINCE_KERNEL);
+  return steps.flatMap((step): PackageValidationIssue[] => {
+    if (step.stepDefinitionId !== HTTP_REQUEST_STEP_ID) return [];
+    const issues: PackageValidationIssue[] = kernelCovered ? [] : [{
+      ref,
+      message: '@core.marketplace/issue.step.definition-kernel',
+      messageParams: { step: step.id, definition: HTTP_REQUEST_STEP_ID, minimum: HTTP_REQUEST_SINCE_KERNEL },
+    }];
+    const config = step.configuration?.request;
+    if (config?.kind !== 'Literal') {
+      return [...issues, { ref, message: '@core.marketplace/issue.step.http-invalid', messageParams: { step: step.id, detail: '@core.automation/step.http.not-configured' } }];
+    }
+    for (const issue of validateHttpRequestSpec(config.value)) {
+      issues.push({
+        ref,
+        message: '@core.marketplace/issue.step.http-invalid',
+        messageParams: { step: step.id, ...(issue.errorParams ?? {}), detail: issue.error },
+      });
+    }
+    // A credencial pela chave chegou depois do passo: num kernel anterior ela seria ignorada, e a
+    // chamada sairia sem o segredo — falhando na API, não no portão.
+    const connection = (config.value as { connection?: unknown } | null)?.connection;
+    if (connection !== undefined && connection !== '' && !rangeExcludesBelow(pkg.manifest?.kernel ?? '', HTTP_CONNECTION_SINCE_KERNEL)) {
+      issues.push({
+        ref,
+        message: '@core.marketplace/issue.step.input-kernel',
+        messageParams: { step: step.id, input: 'request.connection', minimum: HTTP_CONNECTION_SINCE_KERNEL },
+      });
+    }
+    // O modo assíncrono e o callback chegaram depois: num kernel anterior a especificação seria lida
+    // como síncrona — a automação ESPERARIA a resposta, e o callback nunca seria chamado.
+    const asyncKernel = rangeExcludesBelow(pkg.manifest?.kernel ?? '', HTTP_ASYNC_SINCE_KERNEL);
+    const mode = (config.value as { mode?: unknown } | null)?.mode;
+    if (mode === 'async' && !asyncKernel) {
+      issues.push({
+        ref,
+        message: '@core.marketplace/issue.step.input-kernel',
+        messageParams: { step: step.id, input: 'request.mode', minimum: HTTP_ASYNC_SINCE_KERNEL },
+      });
+    }
+    if (step.configuration?.[HTTP_CALLBACK_INPUT] !== undefined && !asyncKernel) {
+      issues.push({
+        ref,
+        message: '@core.marketplace/issue.step.input-kernel',
+        messageParams: { step: step.id, input: HTTP_CALLBACK_INPUT, minimum: HTTP_ASYNC_SINCE_KERNEL },
+      });
+    }
+    for (const warning of httpRequestSpecWarnings(config.value)) {
+      issues.push({
+        ref,
+        message: '@core.marketplace/issue.step.http-literal-secret',
+        messageParams: { step: step.id, name: warning.errorParams?.name ?? '' },
+      });
+    }
+    return issues;
   });
 };
 

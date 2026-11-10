@@ -3470,6 +3470,7 @@ de uma extensão apontando para o escritório B.
 | não entrou | `unauthenticated` | a de sempre |
 | entrou e não é do escritório apontado | `permission-denied` | **é esta que fecha o buraco**: o token vale para o projeto, e o escritório vem no payload |
 | escritório sem a extensão instalada e ativa | `failed-precondition` | é a metade da retirada que age no instante do clique, do lado da callable |
+| **(opcional)** quem chama não tem a `permission` pedida em `{ permission }` | `permission-denied` (`@core.access/permission.denied`) | a extensão que cobrava permissão relia `members/{uid}.permissions` por conta própria — e a cópia não conhecia o `SYSTEM` (que não tem documento de membro) nem a sessão de segundo fator |
 
 | Decisão | Por quê |
 |---|---|
@@ -3479,6 +3480,12 @@ de uma extensão apontando para o escritório B.
 | devolve o `uid` | quem acabou de autorizar quase sempre precisa dele em seguida |
 | o alcance da recusa do Console é o ARQUIVO | a guarda roda dentro do handler, e o guia manda manter o handler fino com a decisão num arquivo ao lado. Exigi-la nos parênteses recusaria o código que o guia pede |
 | a callable COMUM fica de fora | `requireInstalledExtension` pede UM id, e a comum serve vários. É lacuna conhecida e registrada: a guarda "alguma das que eu sirvo" existe para gatilho (`forAnyInstalledExtension`), não para callable |
+| a permissão é um 4º argumento de `requireInstalledExtension`, e não uma função nova | o Console recusa a callable de extensão que não chama `requireInstalledExtension('<id>'` (`functionGate.ts`). Uma `requireExtensionPermission` exigiria ensinar o nome novo ao Console — e todo Console anterior recusaria a callable que só a chamasse. Com o argumento, nenhum Console muda |
+| a permissão é respondida por `requirePermission`, injetado no portão | é a regra inteira — materializado, `SYSTEM`, dono, `assertMemberSession`. Reescrevê-la no portão seria a quarta cópia, que é o defeito que a opção existe para tirar das extensões |
+| com permissão, ela SUBSTITUI a pergunta de membro | tudo o que ela deixa passar a de membro deixaria; perguntar as duas leria o mesmo documento duas vezes. E continua ANTES da instalação: o estranho recebe `permission-denied` sem saber se a extensão está ali |
+| devolve só o `uid`, e não o conjunto concedido | o conjunto do dono e do `SYSTEM` é `['*']`, e entregá-lo cru convidaria o `permissions.includes('x')` que recusa justamente os dois — a divergência que a opção corrige. Precisa de outra permissão? Pede de novo |
+| permissão vazia é `Error` antes de qualquer leitura | `grants` deixa o curinga passar por `''`: só o dono e o `SYSTEM` entrariam, e o defeito pareceria "só o dono consegue" |
+| `EXTENSION_PERMISSION_GUARD_SINCE_KERNEL` (`domain/schema/access/permission.ts`), citado pelo guia | um kernel anterior IGNORA o 4º argumento em execução — a callable voltaria a cobrar só pertencimento, em silêncio. Duas travas fecham isso: a faixa `kernel` do manifest, que o guia manda declarar com este número, e o `tsc` do `predeploy` de `custom/`, que recusa 4 argumentos contra o `.d.ts` antigo |
 
 ##### O evento sem escritório: o portão não serve, e agora existe resposta
 
@@ -5944,6 +5951,97 @@ As duas são as **mesmas** do escopo das Actions, com a mesma semântica — a p
 - **Autoria:** o `ScreenBuilder` oferece as duas no autocomplete de **três** dos cinco editores — `fieldUiExpressionVariables`, usado em Ocultar, Desabilitar e Ao alterar. Em Validação e Valor calculado a lista continua sendo `fieldExpressionVariables`: sugerir ali um nome que o backend não resolve é exatamente o defeito que esta seção corrige, com o sinal invertido.
 - **`FIELD_UI_RESERVED_VARIABLES`** é a lista única — o teste confronta nome por nome contra o escopo que `buildFieldUiScope` monta, então a lista não pode virar prosa desatualizada. É onde uma variável de situação nova (`role`, `user`, `surface` — as que a Action já tem) entraria sem precisar de caminho novo.
 
+### Filtro de opções (`optionsFilter`) — a raça pelo tipo do animal
+
+Uma referência oferecia a coleção apontada inteira, e uma lista, todas as opções. Quando a escolha
+depende de outro campo do formulário (raça pelo tipo, cidade pelo estado, tipo de notícia pelo prefixo
+da região), a única forma de declarar isso eram dois campos com um `hiddenWhen` cada — e o mesmo dado
+gravado em duas chaves, que o relatório, o filtro e a automação leem como coisas diferentes.
+
+```ts
+{ key: 'breedId', type: 'reference', refEntity: 'breeds',
+  optionsFilter: { where: [{ path: 'petType', op: 'eq', value: { field: 'petType' } }] } }
+{ key: 'newsType', type: 'select', lookupCollection: 'newsTypes',
+  optionsFilter: { where: [{ path: 'key', op: 'startsWith', value: { field: 'region' } }] } }
+```
+
+- **Uma capacidade para os dois tipos.** Na referência, `path` é campo da tela apontada; na lista, `key`
+  ou `label` (`LOOKUP_OPTION_FILTER_PATHS`). `value` é `{ field }` — campo do registro em edição, que pode
+  atravessar referência (`cliente.cidade`) — ou `{ literal }`. `where` é conjunção.
+- **Operadores:** `eq`, `neq`, `in`, `contains`, `startsWith`. A comparação é a de `predicateMatch.ts`,
+  a mesma do relatório e da automação; `startsWithValue` nasceu lá pela mesma razão. `startsWith` NÃO
+  entrou no `QueryOperator`: relatório e automação continuam recusando-o até alguém decidir abri-los.
+- **`label` responde no idioma de quem lê.** Numa opção fixa (`@ns/chave`), o filtro por rótulo muda de
+  resposta com o idioma; `key`, que é o valor gravado, é o caminho estável.
+- **É regra de FORMULÁRIO, e só dele.** Automação, importação e agente gravam o que quiserem e
+  respondem por isso — por isso a recusa mora em `useRecordFormValidation` (`field.option-not-offered`)
+  e não em `validateRecordRules`, que também julga o que chega por esses caminhos.
+- **Origem vazia = lista vazia**, o mesmo vazio de qualquer seletor sem opções. Sem aviso próprio.
+- **A escolha invalidada sai no GESTO, em cascata.** `setValue` do `CustomFieldsSection` chama
+  `optionsFilterCascade`: trocar o país limpa o estado, que limpa a cidade. Não é efeito — abrir um
+  registro antigo nunca o altera sozinho. Opção DESCONHECIDA (registro ainda não carregado) não é
+  limpa: não há como dizer que ela não passa.
+- **A já escolhida continua na lista** mesmo quando não passa, para que um registro antigo mostre o que
+  tem gravado em vez de "não encontrado"; a gravação é que a recusa.
+- **Filtro cuja origem não está no formulário não é aplicado** (`formOptionsFilter`). É o `FieldInput`,
+  que desenha um campo sozinho: esconder tudo por falta de um valor que ninguém leu seria pior.
+- **Candidatas além da janela.** A igualdade sobre campo de topo desce ao servidor
+  (`optionsFilterRecordQuery` → `watchQuery`), em índice de campo único; o que volta entra nos
+  conhecidos do `RecordStore`, de onde o seletor tira as opções. Os demais operadores filtram em memória
+  a janela e o que a busca trouxe. Membros (`refEntity: 'members'`) não são filtráveis.
+- **A forma canônica carrega o filtro.** `NativeFieldSpec.optionsFilter` existe porque o formulário do
+  registro e o Form Design leem os campos DEPOIS da resolução (`deriveFormFields`): sem ele no
+  ida-e-volta `fieldDefinitionToNativeSpec` ⇄ `nativeSpecToFieldDefinition`, a declaração gravada sumia
+  no caminho e o seletor oferecia tudo — a mesma armadilha que já tinha pego `unique`.
+- **Autoria no Form Design:** aba "Opções" do editor de campo, seção "Filtrar opções" — linhas de
+  condição (campo da opção, condição, comparar com campo deste formulário ou valor fixo). No `in`, o valor
+  fixo é digitado separado por vírgula e gravado como lista. A linha em branco é descartada; a pela
+  metade é recusada na própria aba (`field.error.options-filter-incomplete`).
+- **Conferência do pacote:** `optionsFilterIssues` (domínio) e `packageOptionsFilterIssues`, na porta
+  única `packageIssues`. Recusa o tipo que não oferece opções, a forma inválida, o caminho que a opção
+  não tem (na lista, fora de `key`/`label`; na referência, só quando a tela apontada vem no pacote), a
+  origem que não é campo da tela e a que é o próprio campo. A tela dona de um patch não é conhecida no
+  pacote, e por isso a origem ali não é cobrada.
+- **Sem portão de kernel**, de propósito: um kernel anterior a `OPTIONS_FILTER_SINCE_KERNEL` só oferece
+  todas as opções — nada é gravado nem exposto que o filtro impediria, que é o critério dos outros
+  portões. O SDK publica os tipos, `OPTIONS_FILTER_OPERATORS` e `LOOKUP_OPTION_FILTER_PATHS`; o
+  `AUTHORING.md` deriva deles a lista de operadores.
+- **No portal, só o filtro que o formulário do convidado consegue responder** (`portalOptionsFilter`,
+  em `getPortalContext`). O formulário do portal não navega referência e o convidado só lê da opção o que
+  a tela apontada expõe; por isso o filtro só vai quando cada campo comparado é de topo e está no MESMO
+  formulário (criação e edição são dois) e, numa referência, cada `path` é campo exposto da tela apontada
+  (`guestFieldKeys`). Fora disso, não vai, e o convidado vê a lista inteira, como antes. Mandar o que não
+  se responde esvaziaria a escolha; responder lendo campo não exposto seria vazar.
+- **A candidata do portal é a projeção.** `listLinkOptions` passou a devolver o `data` da projeção (o que
+  o convidado já lê), e o `PortalCreateForm` compara com ele; a lista compara `{ key, label }`. A cascata e
+  a recusa do envio são as mesmas funções do formulário do escritório (`optionsFilterCascade`,
+  `findOptionsFilterViolations`), agora genéricas sobre o campo (`OptionsFilterField`). Continua regra de
+  formulário: o servidor confere só o que já conferia — que o convidado vê o id escolhido.
+- **Sem `KERNEL_VERSION` novo**, pela régua da EV-37: `optionsFilter` é membro OPCIONAL do campo em
+  `@microteia/portal`; num kernel anterior ele não vem, e a view de extensão oferece tudo.
+
+### Os editores de tela e de campo do Form Design
+
+Os dois editores são diálogos de ALTURA FIXA (`Modal.fixedHeight`) com navegação vertical
+(`ui/SideTabs`, a mesma de Configurações) e o Salvar no cabeçalho (`Modal.actions`). Antes eram abas
+horizontais num diálogo de altura automática: cada troca de aba redimensionava o diálogo, e a "Avançado"
+do campo juntava regras, expressões, agregado e busca externa numa parede só.
+
+- **O editor de campo tem uma aba por assunto** (`fieldModalTabs`): Geral, Opções/Arquivo, Comportamento,
+  Numeração, Formatação e validação, Expressões, Dados externos, Agregação — cada uma só aparece quando o
+  tipo e a origem do campo têm o que mostrar nela. Trocar o tipo para um que não tem a aba aberta volta a
+  navegação para Geral.
+- **A recusa abre a aba dona do campo** (`reject(tab, …)` em `handleSaveField`): o erro de expressão abre
+  Expressões, o do agregado abre Agregação. Com o formulário em abas, avisar sem levar até o campo deixava
+  o erro invisível.
+- **Dentro da aba, seções com título** (`Section` na View): Identificação, Exibição do registro, Abas do
+  registro, Disponibilidade na tela; No formulário / Nas listas e na busca no campo. As caixas de marcar de
+  um assunto ficam empilhadas (`CheckboxStack`), e não espalhadas pela grade de duas colunas.
+- **Por que diálogo e não aba do workspace**, como o passo de automação: o estado de edição mora no
+  ViewModel do Form Design, ao lado da lista que ele atualiza ao salvar, e os oito testes do Form Design
+  o exercitam por esse ViewModel. Levar o editor para uma aba exigiria um Store só para o rascunho, e o
+  ganho — Salvar no topo, navegação vertical, tamanho estável — já veio no diálogo.
+
 ### Campos agregados (valor vindo dos registros filhos)
 
 `FieldDefinition.aggregation?: FieldAggregation` (`domain/schema/fieldRules.ts`) declara que o valor do campo vem de um agregado sobre os **filhos**: `{ from, via, op, field?, filter?, orderBy? }` — tela dos filhos, campo de referência no filho que aponta para este registro, operação (`sum|count|avg|min|max|latest`), campo medido (ou copiado), filtro opcional e, só em `latest`, a ordenação.
@@ -7530,6 +7628,175 @@ página; sempre `null` sem `page`). Passos seguintes leem via `output.<stepId>.r
 `.first.client.name` etc. (`dynamicOutputs: runtime-only`). Com `hasMore`, a linha do histórico é
 `step.query.found-partial` (sem página) ou `step.query.found-page` (com página) — antes, um `limit: 300`
 devolvia 100 e o histórico dizia só "100 registros encontrados".
+
+### Passo "Chamar API (HTTP)" (`http-request`) — integração REST declarada
+
+O passo `http-request` (`functions/src/infrastructure/workflow/steps/HttpRequestStep.ts`) chama uma API
+REST de fora e espera a resposta, que os passos seguintes leem como qualquer saída — ou, no modo
+assíncrono, a põe numa fila e segue (ver abaixo). Kernel
+`HTTP_REQUEST_SINCE_KERNEL` = 2.101.0: o portão do pacote reprova o passo num pacote que admite kernel
+anterior (`issue.step.definition-kernel`).
+
+**A especificação é UM input estruturado** (`type: 'HttpRequest'`, só `Literal`), como `Query` e `Map`:
+`HttpRequestSpec` em `src/domain/schema/httpRequestSpec.ts` (sincronizado). Dentro dela, cada valor — a
+URL, cada parâmetro de caminho (`{id}` na URL, com `encodeURIComponent`), de query, cada cabeçalho e
+cada campo do corpo — é um `InputMapping` comum, resolvido no passo por `resolveMapping`. É isso que
+deixa o valor vir de fixo, evento, expressão, saída de passo ou variável sem capacidade nova no motor.
+As listas reaproveitam `MapFieldMapping` e o editor reaproveita `MappingValueControl`.
+
+| Corpo (`body.kind`) | Montagem |
+|---|---|
+| `none` | sem corpo (GET nunca tem corpo — recusa `issue.body-get`) |
+| `json` | campos → `buildNestedParams` (`cliente.nome` aninha), `application/json` |
+| `json-from` | o objeto inteiro de um mapping (a saída de um "Montar Objeto") |
+| `form` | `application/x-www-form-urlencoded`; lista repete a chave |
+| `text` | o `contentType` declarado e o valor como texto |
+
+**Uma validação, três portas:** `validateHttpRequestSpec` roda no editor (`HttpRequestBuilderControl`),
+no motor (antes de montar a requisição) e no portão do pacote (`workflowIntegrity`, como
+`issue.step.http-invalid`). `httpRequestSpecWarnings` acusa cabeçalho de nome sensível
+(`Authorization`, `*token*`, `*key*`…) com valor FIXO: no editor é aviso; no pacote é recusa
+(`issue.step.http-literal-secret`), porque o segredo sairia do escritório dentro do arquivo da extensão.
+
+**Saídas:** `ok` (2xx), `status`, `headers` (minúsculas, sem `set-cookie`), `body` (JSON pelo
+`content-type` em `responseType: 'auto'`, texto senão), `durationMs`, `error` e `timedOut`.
+`dynamicOutputs: from-http-request` acrescenta `body.<caminho>` a partir do `responseSample` — um JSON
+de exemplo que nunca é enviado: `httpSampleFields` deduz a forma, o editor oferece as folhas no seletor
+de saída e o objeto em `input.body.` do autocomplete. Sem exemplo, o `body` continua acessível inteiro.
+
+**Duas famílias de falha:**
+- **política** — lista de domínios vazia, domínio ou porta fora da lista, endereço interno,
+  especificação inválida: falha SEMPRE;
+- **resposta** — status fora de 2xx, tempo esgotado, rede, resposta acima do teto, JSON inválido com
+  `responseType: 'json'`: falha por padrão; com `failOnHttpError: false` vira saída (`ok: false`) e uma
+  Condição decide pelo `status`.
+
+**A fronteira de rede (SSRF).** `SafeHttpClient` (`functions/src/infrastructure/http/`) usa `node:https`
+com uma resolução de nome PRÓPRIA da conexão (`guardedLookup`): o IP conferido é o IP conectado, o que
+fecha o *DNS rebinding*. Basta um endereço do nome cair em `isBlockedAddress` (privadas, loopback,
+link-local/metadados, CGNAT, multicast, NAT64/6to4, IPv4 mapeado em IPv6) para a chamada inteira ser
+recusada. A URL só aceita `https`, sem usuário/senha e sem IP cru (`parseHttpUrl`; a URL normaliza
+`2130706433` para `127.0.0.1`, que cai na mesma regra). Redirecionamento não é seguido — o 3xx volta como
+resposta. O corpo é lido com teto (`HTTP_RESPONSE_MAX_BYTES` = 100 KB, derrubando a conexão), e a
+compressão é aberta com o MESMO teto (`maxOutputLength`): o motor grava as saídas de cada passo no
+histórico, e um documento do Firestore não passa de 1 MiB. Cabeçalho com CR/LF é recusa (injeção).
+
+**A lista de domínios é OBRIGATÓRIA e é do escritório** — Configurações › Integrações:
+`integrations.http.allowedHosts` (`api.exemplo.com` ou `*.exemplo.com`, que cobre só os subdomínios;
+vazia, nada sai) e `integrations.http.allowedPorts` (a 443 está sempre liberada). Escopo só `tenant`:
+quem decide para onde os dados saem é o escritório, não quem edita a automação. O servidor lê pela
+mesma `SettingsProperty` da tela (`officeSetting`, cache de 60 s por instância — tirar um domínio leva
+até isso para valer).
+
+#### Credenciais de integração — o segredo que a automação nomeia e nunca vê
+
+`HttpRequestSpec.connection` (kernel `HTTP_CONNECTION_SINCE_KERNEL` = 2.102.0) é a CHAVE de uma
+credencial do escritório (`src/domain/schema/httpConnection.ts`, sincronizado). Duas metades em dois
+lugares, no molde de `aiConnections`: a descrição em `tenants/{t}/httpConnections/{id}` (`key`, `name`,
+`scheme`, `username`, `paramName`, `hosts`, `hasSecret`) e o segredo em `…/{id}/secrets/current`
+(`{ value }`). As regras deixam ler a descrição quem tem `integrations.manage` OU `automation.manage` (o
+editor lista as chaves), gravar só `integrations.manage`, e o segredo **nunca** é lido pelo navegador. A
+tela é a aba "Credenciais de integração" das Configurações do escritório (`IntegrationsTab`, contribuída
+por `core.automation`). `httpConnections` é coleção reservada nas duas pontas.
+
+**Por chave, e não por id:** a automação que viaja numa extensão diz "uso `crm`", e o escritório que a
+instala cadastra a credencial com essa chave. O portão do pacote cobra o kernel mínimo
+(`issue.step.input-kernel`, `request.connection`).
+
+**Aplicação no servidor** (`applyHttpCredential`): `bearer` e `basic` vão em `Authorization`, `header` num
+cabeçalho próprio, `query` num parâmetro. O que o autor já pôs no mesmo lugar é RECUSA
+(`step.http.connection.conflict`), não sobrescrita. A credencial carrega a PRÓPRIA lista de domínios
+(`hosts`), conferida além da lista do escritório: sem ela, quem edita automações mandaria o token do CRM a
+qualquer outro domínio liberado.
+
+**Redação:** `applyHttpCredential` devolve as formas em que o segredo saiu (o texto, o URL-encoded, o
+`Basic` em base64), e o passo passa TUDO o que devolve — saídas, mensagem, parâmetros — por
+`redactSecrets` antes de chegar ao histórico. A API pode ecoar o cabeçalho; o histórico é lido por quem
+nunca pôde ver o segredo. A leitura (`FirestoreHttpCredentialRepository`) não tem cache: trocar ou
+apagar o segredo vale na chamada seguinte.
+
+**Uma fronteira, quatro portas.** `checkHttpBoundary` e `deliverHttp`
+(`functions/src/domain/services/httpDelivery.ts`) são a lista de domínios, as portas, a credencial e o
+envio. O passo síncrono, o enfileiramento, a entrega da fila e o "Testar chamada" do editor passam pelas
+duas — nenhuma porta tem recusa que as outras não tenham.
+
+#### Modo assíncrono — fila durável, retentativa e callback
+
+`HttpRequestSpec.mode: 'async'` (kernel `HTTP_ASYNC_SINCE_KERNEL` = 2.103.0; ausente é síncrono, e por
+isso toda especificação de antes continua idêntica) põe o pedido numa fila e o fluxo segue sem esperar.
+O passo publica só `dispatchId` (`isHttpOutputOfMode`: o editor esconde as saídas do outro modo e não
+sugere `body.<caminho>`).
+
+**Enfileirar confere a fronteira ANTES.** Domínio fora da lista, credencial inexistente ou que não vai
+para o domínio falham o passo na automação que os causou; descobrir isso na fila, minutos depois, seria
+tarde. A entrega confere de novo, porque lista e credencial mudam enquanto o pedido espera. O pedido é
+gravado JÁ MONTADO (valores resolvidos na hora da execução) e **sem o segredo**: a credencial vai pela
+chave e é aplicada a cada tentativa. Teto de `HTTP_ASYNC_REQUEST_MAX_BYTES` (256 KB) para pedido +
+parâmetros do callback — o documento não passa de 1 MiB.
+
+**A fila** é `tenants/{t}/http_dispatches/{id}` (só o servidor lê e grava; reservada nas duas pontas),
+com o molde de `aggregate_backfills`: **a gravação é o gatilho**. `onHttpDispatchWritten` acorda quando o
+pedido fica `queued`, reserva-o em transação (`sending`, tentativa + 1) e entrega UMA tentativa
+(`DeliverHttpDispatchUseCase`). Estados: `queued` → `sending` → `waiting` | `done` | `failed`.
+
+`nextAttemptAt` existe em todo estado NÃO final e diz quando olhar de novo — o fim da espera, o fim da
+reserva (tempo máximo da tentativa + 60 s) ou o prazo para alguém pegar (10 min). O `runWorkflowClock`
+(a cada 5 min) faz `requeueDue`: UMA consulta de grupo por `nextAttemptAt <= agora` devolve a `queued`
+a espera vencida, a entrega que morreu no meio e o pedido que o gatilho perdeu. Sem agendador próprio,
+isolada num `try` — a fila com defeito não atrasa automação de horário.
+
+| Resultado da tentativa | O que acontece |
+|---|---|
+| 2xx | `done` |
+| rede, tempo esgotado, 408, 429, 5xx | `waiting` e nova tentativa: 1, 5, 15, 60, 180 min (`HTTP_RETRY_DELAYS_MINUTES`), ou o `Retry-After` se for maior (teto 1 h) |
+| outro 4xx, resposta grande demais, JSON inválido em `json` | `failed` — repetir daria o mesmo |
+| a fronteira mudou (domínio, porta, credencial) | `failed`, sem chamar |
+| tentativas esgotadas (`1 + retries`, padrão 3, máx. 5) | `failed` com a última resposta |
+| reserva perdida para outra entrega | a tentativa não encerra nem reagenda (`lost`) |
+
+A fila manda `Idempotency-Key: <id do pedido>` quando o autor não pôs um: repetir é o que ela faz, e o
+servidor que entende a chave reconhece a repetição. Sem `retry` na function — a retentativa é da fila.
+TTL de 7 dias em `expiresAt`.
+
+**O callback** é o input `targetWorkflowId` do passo — o MESMO id do "Chamar Workflow", de propósito: é
+por ele que a instalação de uma extensão remapeia o template para o id real e que a referência entre
+artefatos é rastreada (`TARGET_WORKFLOW_ID_INPUT`). Os outros parâmetros do fluxo-alvo aparecem como
+`param.<chave>` (`dynamicInputs: from-target-workflow-parameters`) e são resolvidos AO ENFILEIRAR. Ao
+terminar, `finish` grava o fim e o evento `workflow.called` (alvo + parâmetros + `response`: `ok`,
+`status`, `headers`, `body`, `durationMs`, `error`, `timedOut`, `dispatchId`, `attempts`) NA MESMA
+TRANSAÇÃO — encerrar sem avisar, ou avisar duas vezes, não acontece. O callback herda o teto de
+profundidade do "Chamar Workflow" (`MAX_CALL_DEPTH`), o que impede um laço de chamadas sem fim, e o
+`actor` publicado de quem causou a execução. No modo síncrono o callback é ignorado com aviso.
+
+#### Testar chamada
+
+O editor do passo envia UMA requisição de verdade pela callable `testHttpRequest`
+(`automation.manage`): mesma montagem (`prepareHttpCall`), mesma fronteira, mesma redação, tempo
+limitado a `HTTP_TEST_TIMEOUT_SECONDS`. O navegador nunca chama a API de fora — a lista de domínios e a
+credencial moram no servidor, e o CORS da API barraria o teste. Os valores que vêm da automação
+(`httpDynamicValues`) são pedidos como exemplo e trocados por fixos (`withLiteralValues`); a callable
+recusa mapping que não seja fixo. No síncrono, "Usar como exemplo de resposta" grava o corpo em
+`responseSample`.
+
+### Orçamento de tempo da execução — `deadlineAt`
+
+O `timeoutSeconds` de uma Cloud Function é fixado no deploy e vale para o projeto inteiro; o que o
+escritório escolhe (Configurações › Automações) é quanto do teto as automações dele usam:
+
+| Porta | Teto de deploy | Configuração | Padrão |
+|---|---|---|---|
+| `onWorkflowEventCreated` | 540 s | `automation.budget.eventSeconds` | 300 s |
+| `runAction` (alguém espera) | 300 s | `automation.budget.actionSeconds` | 60 s |
+
+`workflowDeadlineAt` (`src/domain/schema/workflowBudget.ts`) transforma a configuração num instante,
+reservando `WORKFLOW_BUDGET_MARGIN_SECONDS` antes do teto para gravar o histórico; valor inválido cai no
+padrão — nunca em "sem limite". O instante viaja em `WorkflowServices.deadlineAt`: o executor não começa
+outro passo depois dele (`run.budget-exceeded`, execução `FAILED` e GRAVADA, em vez de cortada pela
+plataforma sem histórico), e o passo HTTP não espera além do que resta. O `call-workflow` aguardando
+repassa o mesmo `deadlineAt` — o fluxo chamado roda na mesma invocação e não ganha relógio novo.
+
+As portas que ainda não informam orçamento (retomada de espera, portal, agente) rodam como antes; ali o
+passo HTTP limita a própria espera a `HTTP_TIMEOUT_WITHOUT_BUDGET_SECONDS` (30 s).
 
 ### Como Adicionar uma Função de Expressão
 
@@ -15536,7 +15803,7 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara doze `fieldOverrides`:
+Além dos compostos, o arquivo declara catorze `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
@@ -15551,6 +15818,8 @@ Além dos compostos, o arquivo declara doze `fieldOverrides`:
 | `portalSignInRequests` | `expiresAt` | TTL — o pedido de entrada no portal por um provedor de identidade que nunca voltou (a pessoa desistiu no provedor). O que volta é apagado ao ser gasto; sem índice, porque só é lido pelo id |
 | `portalViewMarks` | `expiresAt` | TTL — a marca de "esta abertura já foi registrada" vale a janela de repetição (`PORTAL_VIEW_REPEAT_MINUTES`); sem índice, porque só é lida pelo id |
 | `registrationRefusals` | `expiresAt` | TTL — a recusa de conta nova só serve à tentativa em curso (1 dia); sem índice, porque só é lida pelo id |
+| `http_dispatches` (collectionGroup) | `nextAttemptAt` ASC | `runWorkflowClock` devolve à fila, em todos os escritórios de uma vez, o pedido HTTP assíncrono cuja espera venceu, cuja entrega morreu no meio ou que ninguém pegou |
+| `http_dispatches` | `expiresAt` | TTL — o pedido HTTP assíncrono fica 7 dias depois de criado; o resultado já foi para o callback |
 
 ---
 

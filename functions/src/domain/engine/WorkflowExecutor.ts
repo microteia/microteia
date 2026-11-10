@@ -251,6 +251,13 @@ export const runWorkflow = async ({
       currentLogStepId = undefined;
       currentLogStepDefinitionId = undefined;
 
+      // Passado o orçamento, a execução termina AQUI, gravada e explicada — e não cortada pela
+      // plataforma no meio de um passo, sem histórico. Sem orçamento, nada muda.
+      if (services.deadlineAt !== undefined && services.now().getTime() >= services.deadlineAt) {
+        log('ERROR', '@core.automation/run.budget-exceeded', step.id, step.stepDefinitionId, context.input);
+        return { ok: false };
+      }
+
       if (step.type === 'Condition') {
         let branchResult: boolean;
         try {

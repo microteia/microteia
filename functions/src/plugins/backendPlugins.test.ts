@@ -30,7 +30,7 @@ const STEPS_ANTES_DA_MIGRACAO = [
 
 /** Os passos de `core.steps` hoje: os de antes da migração e os que nasceram como contribuição desde então. */
 const PASSOS_DO_NUCLEO = [
-  ...STEPS_ANTES_DA_MIGRACAO, 'delay', 'render-document', 'share-documents', 'portal-invite', 'portal-revoke',
+  ...STEPS_ANTES_DA_MIGRACAO, 'delay', 'render-document', 'share-documents', 'portal-invite', 'portal-revoke', 'http-request',
 ].sort();
 
 /**

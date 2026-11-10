@@ -15,6 +15,7 @@ import { QueryBuilderControl } from '../ViewWorkflow/components/QueryBuilderCont
 import { UpsertBuilderControl } from '../ViewWorkflow/components/UpsertBuilderControl';
 import { RemoveBuilderControl } from '../ViewWorkflow/components/RemoveBuilderControl';
 import { MapBuilderControl } from '../ViewWorkflow/components/MapBuilderControl';
+import { HttpRequestBuilderControl } from '../ViewWorkflow/components/HttpRequestBuilderControl';
 import { ValidateBuilderControl } from '../ViewWorkflow/components/ValidateBuilderControl';
 import { S } from './EditWorkflowStep.styles';
 import { useEditWorkflowStepViewModel } from './EditWorkflowStep.viewmodel';
@@ -23,6 +24,7 @@ import type { InputMapping } from '../../../domain/entities/Workflow';
 import type { QuerySpec } from '../../../domain/schema/querySpec';
 import type { RemoveStepConfig, UpsertStepConfig } from '../../../domain/schema/mutationSpec';
 import type { MapStepConfig } from '../../../domain/schema/mapSpec';
+import type { HttpRequestSpec } from '../../../domain/schema/httpRequestSpec';
 import type { ValidateStepConfig } from '../../../domain/schema/validateSpec';
 import { applyFormat, checkValue, toEffectiveRules } from '../../../domain/schema/fieldRules';
 import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
@@ -199,6 +201,27 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
     return (
       <MapBuilderControl
         value={config}
+        onChange={(next) => vm.setMapping(input.id, { kind: 'Literal', value: next })}
+        eventFields={vm.eventFields}
+        pathRoot={vm.pathRoot}
+        inputRoot={vm.inputRoot}
+        stepOutputFields={vm.stepOutputFields}
+        workflowVariables={vm.workflowVariables}
+        priorStepOptions={vm.priorStepOptions}
+        getStepOutputs={vm.getStepOutputs}
+      />
+    );
+  };
+
+  const renderHttpRequestControl = (input: InputDefinition) => {
+    const mapping = vm.configuration[input.id];
+    const spec =
+      mapping?.kind === 'Literal' && mapping.value && typeof mapping.value === 'object'
+        ? (mapping.value as HttpRequestSpec)
+        : undefined;
+    return (
+      <HttpRequestBuilderControl
+        value={spec}
         onChange={(next) => vm.setMapping(input.id, { kind: 'Literal', value: next })}
         eventFields={vm.eventFields}
         pathRoot={vm.pathRoot}
@@ -565,6 +588,8 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                   renderMapControl(input)
                 ) : input.type === 'Validate' ? (
                   renderValidateControl(input)
+                ) : input.type === 'HttpRequest' ? (
+                  renderHttpRequestControl(input)
                 ) : (
                   <S.MappingRow>
                     <SearchSelect

@@ -9,7 +9,7 @@
  * código: agir apenas no escritório que a instalou.
  */
 import { getDb } from '../infrastructure/firebase/initFirebase';
-import { isOfficeMember } from '../infrastructure/handlers/shared/requirePermission';
+import { isOfficeMember, requirePermission } from '../infrastructure/handlers/shared/requirePermission';
 import { createInstallationGate } from './installationGate';
 
 /**
@@ -27,6 +27,18 @@ export interface TenantScopedEvent {
  */
 export interface CallerRequest {
   auth?: { uid: string; token?: Record<string, unknown> };
+}
+
+/**
+ * What a callable asks of its caller beyond belonging to the organization.
+ */
+export interface RequireOptions {
+  /**
+   * A permission the caller must hold in that organization — usually one your extension declares in
+   * `access.permission`, such as `'invoices.approve'`. The organization's owner and the platform
+   * administrator hold every permission. Must not be empty.
+   */
+  permission: string;
 }
 
 const gate = createInstallationGate({
@@ -56,6 +68,14 @@ const gate = createInstallationGate({
    * entra num escritório.
    */
   caller: isOfficeMember,
+
+  /**
+   * A regra INTEIRA de `requirePermission` — conjunto materializado do membro, depois `SYSTEM`, depois
+   * dono, e a sessão de segundo fator —, e não uma releitura de `members/{uid}.permissions`. Era essa
+   * releitura que cada extensão fazia por conta própria, e a cópia já tinha divergido: não conhecia o
+   * `SYSTEM`, que não tem documento de membro, nem conferia a sessão.
+   */
+  permission: requirePermission,
 });
 
 /**
@@ -144,7 +164,8 @@ export const forAnyInstalledExtension: <E extends TenantScopedEvent>(
 ) => (event: E) => Promise<void> = gate.forAnyInstalledExtension;
 
 /**
- * The three refusals a callable of yours owes before it looks at the payload. Returns the caller's uid.
+ * The three refusals a callable of yours owes before it looks at the payload — and a fourth, when the
+ * callable does something only some members may do. Returns the caller's uid.
  *
  *     export const acmeQuote = onCall({ region, cors: true }, async (request) => {
  *       const { tenantId, ...input } = request.data;
@@ -163,6 +184,23 @@ export const forAnyInstalledExtension: <E extends TenantScopedEvent>(
  * from any organization, whether or not they have your extension. And the organization arrives in the
  * payload, because `useCallable` sends only what your screen passed.
  *
+ * Pass `{ permission }` when the callable must also be refused to members who lack a permission:
+ *
+ *     const uid = await requireInstalledExtension('com.acme.crm', tenantId, request, {
+ *       permission: 'invoices.approve',
+ *     });
+ *
+ * That is the platform's own rule, the one its screens and its own functions obey: the member's granted
+ * permissions, the organization's owner, and the platform administrator — who holds every permission in
+ * every organization without being a member of it — plus the second factor the organization requires of
+ * that session. Do not read `members/{uid}` to decide it yourself: a copy of the rule cannot see the
+ * administrator, nor the second factor, and refuses them both. A caller without the permission gets
+ * `permission-denied`, naming the permission.
+ *
+ * The option is newer than the function. An older kernel ignores a fourth argument at run time, and the
+ * callable would then ask for membership only — so declare in `manifest.kernel` at least the version
+ * AUTHORING.md gives for it.
+ *
  * It throws rather than returning a boolean, deliberately: a `false` invites being ignored, and the
  * missing `if` leaves no symptom at all. The errors are `HttpsError`, so they reach your view as errors
  * and not as a broken response.
@@ -171,4 +209,5 @@ export const requireInstalledExtension: (
   pluginId: string,
   tenantId: string,
   request: CallerRequest,
+  options?: RequireOptions,
 ) => Promise<string> = gate.requireInstalledExtension;

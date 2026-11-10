@@ -1,3 +1,5 @@
+import { portalOptionsFilter } from '../schema/optionsFilter';
+import type { OptionsFilterSpec } from '../schema/optionsFilter';
 import type {
   IPortalAccountService,
   IPortalInviteQuota,
@@ -625,6 +627,8 @@ export interface PortalContextFillableField extends PortalFieldInput {
   options?: PortalFieldOption[];
   /** A referência escolhida entre os registros que o convidado vê desta tela do portal (EV-37). */
   reference?: PortalFieldReference;
+  /** O filtro das opções, só quando o formulário do portal consegue respondê-lo (`portalOptionsFilter`). */
+  optionsFilter?: OptionsFilterSpec;
 }
 
 export interface PortalContextScreen {
@@ -963,17 +967,25 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         const editable = new Set(portalEditFieldKeys(screen));
         const linkTarget = parentOf(screen);
         const template = guestPortalTemplate(screen.portal?.template, exposed, resolve);
-        const pickable = new Map(portalPickableReferences(screen, screens, [...fillable, ...editable])
+        const picks = portalPickableReferences(screen, screens, [...fillable, ...editable]);
+        const pickable = new Map(picks
           .map((pick) => [pick.fieldKey, { collection: pick.target.collection, multi: pick.multi }]));
-        const describe = (field: PortalField): PortalContextFillableField => ({
-          key: field.key,
-          label: resolve(field.label),
-          type: field.type,
-          required: field.required === true,
-          ...optionsOf(field),
-          ...portalFieldInput(field, inputCatalogs, resolve),
-          ...(pickable.has(field.key) ? { reference: pickable.get(field.key) } : {}),
-        });
+        const targetExposed = new Map(picks.map((pick) => [pick.fieldKey, guestFieldKeys(pick.target)]));
+        // O formulário de criação e o de edição têm campos diferentes, e o filtro só vale quando o campo
+        // comparado está no MESMO formulário.
+        const describe = (formKeys: ReadonlySet<string>) => (field: PortalField): PortalContextFillableField => {
+          const optionsFilter = portalOptionsFilter(field, { formKeys, targetExposedKeys: targetExposed.get(field.key) });
+          return {
+            key: field.key,
+            label: resolve(field.label),
+            type: field.type,
+            required: field.required === true,
+            ...optionsOf(field),
+            ...portalFieldInput(field, inputCatalogs, resolve),
+            ...(pickable.has(field.key) ? { reference: pickable.get(field.key) } : {}),
+            ...(optionsFilter ? { optionsFilter } : {}),
+          };
+        };
         return {
           id: screen.id,
           ...(isPortalPublicScreen(screen) ? { public: true as const } : {}),
@@ -998,14 +1010,14 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
             })),
           create: fillable.size > 0 && linkTarget
             ? {
-              fields: screen.fields.filter((field) => fillable.has(field.key)).map(describe),
+              fields: screen.fields.filter((field) => fillable.has(field.key)).map(describe(fillable)),
               link: { collection: linkTarget.collection, label: resolve(linkTarget.titleSingular) },
               ...(hasPortalCreateCondition(screen) ? { conditional: true as const } : {}),
             }
             : null,
           edit: editable.size > 0
             ? {
-              fields: screen.fields.filter((field) => editable.has(field.key)).map(describe),
+              fields: screen.fields.filter((field) => editable.has(field.key)).map(describe(editable)),
               onlyOwn: screen.portal?.edit?.onlyOwn === true,
             }
             : null,

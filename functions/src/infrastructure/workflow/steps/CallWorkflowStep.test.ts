@@ -170,3 +170,24 @@ describe('Step "Chamar Workflow" — a pessoa que causou a execução chega ao f
     expect(published[0][4]).toBeUndefined();
   });
 });
+
+describe('call-workflow — o fluxo chamado gasta do mesmo orçamento de tempo', () => {
+  const silent: WorkflowLogger = { info: () => undefined, warn: () => undefined, error: () => undefined };
+  const found: RunCalledWorkflowResult = { found: true, status: 'SUCCESS', outputs: {}, executionId: 'x2', failures: [] };
+
+  it('aguardando, repassa o `deadlineAt` de quem chama', async () => {
+    const calls: unknown[] = [];
+    const definition = makeCallWorkflowStepDefinition({ execute: async (params) => { calls.push(params); return found; } });
+    const context = makeContext(silent);
+    context.services = { ...context.services, deadlineAt: 1_234 };
+    await definition.createExecutor().execute({ targetWorkflowId: 'wf-b', waitForResult: true }, context);
+    expect(calls[0]).toMatchObject({ deadlineAt: 1_234 });
+  });
+
+  it('sem orçamento, não inventa um', async () => {
+    const calls: Record<string, unknown>[] = [];
+    const definition = makeCallWorkflowStepDefinition({ execute: async (params) => { calls.push({ ...params }); return found; } });
+    await definition.createExecutor().execute({ targetWorkflowId: 'wf-b', waitForResult: true }, makeContext(silent));
+    expect('deadlineAt' in calls[0]).toBe(false);
+  });
+});
