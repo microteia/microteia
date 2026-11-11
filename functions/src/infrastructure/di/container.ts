@@ -146,6 +146,7 @@ import { FirebaseWorkflowClockRepository } from '../../data/repositories/Firebas
 import type { WorkflowClockDeps } from '../../domain/services/workflowClock';
 import { dateReachedOnSave } from '../../domain/services/workflowClock';
 import { resumeWorkflowExecution } from '../../domain/services/workflowSuspension';
+import { FirestoreWorkflowTaskRepository } from '../../data/repositories/FirestoreWorkflowTaskRepository';
 import { entityDateFieldKeys, eventEntity } from '../../domain/schema/eventCatalog';
 import { dateReachedEventName } from '../../domain/schema/workflowClock';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
@@ -912,6 +913,14 @@ class DIContainer {
     return cache.getSchemaContext(tenantId);
   }
 
+  private workflowTaskRepository: FirestoreWorkflowTaskRepository | null = null;
+
+  /** A caixa de tarefas das aprovações — a do passo, a da retomada e a da decisão são a mesma. */
+  getWorkflowTaskRepository(): FirestoreWorkflowTaskRepository {
+    if (!this.workflowTaskRepository) this.workflowTaskRepository = new FirestoreWorkflowTaskRepository(getDb());
+    return this.workflowTaskRepository;
+  }
+
   getWorkflowClockDeps(): WorkflowClockDeps {
     if (!this.workflowClockDeps) {
       const repository = new FirebaseWorkflowClockRepository(getDb());
@@ -936,6 +945,7 @@ class DIContainer {
             services: this.getWorkflowServices(),
             hydrator: this.getWorkflowContextHydrator(),
             deactivatedPluginIds: (tenantId) => this.getInstalledExtensionCache().deactivatedPluginIds(tenantId),
+            expireTask: (tenantId, taskId, at) => this.getWorkflowTaskRepository().expire(tenantId, taskId, at),
             now: () => new Date(),
           });
         },
@@ -1328,6 +1338,13 @@ class DIContainer {
       aiConnectionRepository: this.getAIConnectionRepository(),
       callAIUseCase: this.getCallAIUseCase(),
       http: { ...this.getHttpDeliveryDeps(), dispatches: this.getHttpDispatchRepository() },
+      approval: {
+        tasks: this.getWorkflowTaskRepository(),
+        memberIdsGranting: (tenantId, permission, limit) =>
+          new FirestoreNotificationDirectory(getDb()).memberIdsGranting(tenantId, permission, limit),
+        dispatch: this.getDispatchNotificationUseCase(),
+        screens: this.getScreenDefinitionCache(),
+      },
     });
     this.workflowStepsRegistered = true;
   }

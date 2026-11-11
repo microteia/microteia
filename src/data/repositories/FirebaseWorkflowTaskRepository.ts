@@ -1,0 +1,71 @@
+import { collection, limit, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore';
+import type { DocumentData } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../infrastructure/firebase/config';
+import type { IWorkflowTaskRepository } from '../../domain/repositories/IWorkflowTaskRepository';
+import { WORKFLOW_TASKS_COLLECTION } from '../../domain/schema/workflowTask';
+import type { WorkflowTask, WorkflowTaskOutcome } from '../../domain/schema/workflowTask';
+
+/** A caixa mostra as abertas; cem é mais do que uma pessoa decide de uma vez, e a lista não cresce sem fim. */
+const MY_TASKS_LIMIT = 100;
+
+const toDate = (value: unknown): Date | null => (value instanceof Timestamp ? value.toDate() : null);
+
+const strings = (value: unknown): string[] =>
+  (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []);
+
+const outcomesOf = (value: unknown): WorkflowTaskOutcome[] =>
+  (Array.isArray(value) ? value : [])
+    .filter((item): item is WorkflowTaskOutcome =>
+      !!item && typeof item === 'object' && typeof item.key === 'string' && typeof item.label === 'string');
+
+const mapTask = (tenantId: string, id: string, data: DocumentData): WorkflowTask => ({
+  id,
+  tenantId,
+  workflowDefinitionId: String(data.workflowDefinitionId ?? ''),
+  executionId: String(data.executionId ?? ''),
+  stepId: String(data.stepId ?? ''),
+  title: String(data.title ?? ''),
+  message: String(data.message ?? ''),
+  assigneeIds: strings(data.assigneeIds),
+  outcomes: outcomesOf(data.outcomes),
+  status: data.status === 'decided' || data.status === 'expired' ? data.status : 'open',
+  createdAt: toDate(data.createdAt) ?? new Date(0),
+  dueAt: toDate(data.dueAt),
+  target: data.target && typeof data.target.collection === 'string' && typeof data.target.recordId === 'string'
+    ? { collection: data.target.collection, recordId: data.target.recordId }
+    : null,
+});
+
+export class FirebaseWorkflowTaskRepository implements IWorkflowTaskRepository {
+  subscribeToMyOpenTasks(
+    tenantId: string,
+    userId: string,
+    onUpdate: (tasks: WorkflowTask[]) => void,
+    onError?: (error: Error) => void,
+  ): () => void {
+    const q = query(
+      collection(db, 'tenants', tenantId, WORKFLOW_TASKS_COLLECTION),
+      where('assigneeIds', 'array-contains', userId),
+      where('status', '==', 'open'),
+      orderBy('createdAt', 'desc'),
+      limit(MY_TASKS_LIMIT),
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => onUpdate(snapshot.docs.map((doc) => mapTask(tenantId, doc.id, doc.data()))),
+      (error) => {
+        console.error('[WorkflowTaskRepository] subscribeToMyOpenTasks:', error.message);
+        onError?.(error);
+      },
+    );
+  }
+
+  async completeTask(tenantId: string, taskId: string, outcome: string, comment: string): Promise<void> {
+    const call = httpsCallable<
+      { tenantId: string; taskId: string; outcome: string; comment: string },
+      { status: string }
+    >(functions, 'completeWorkflowTask');
+    await call({ tenantId, taskId, outcome, comment });
+  }
+}

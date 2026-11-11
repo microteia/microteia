@@ -21,6 +21,9 @@ const LACUNAS_CONFERIDAS = [
   // de outros registros continua RECUSADO em vez de traduzido.
   'workflow-step\tregister-audit',
   'workflow-step\tset-variable',
+  // Quem APROVA uma transição ainda não está no vocabulário do modelo: uma regra "o gerente aprova
+  // antes de fechar" vira hoje duas transições e nenhuma tarefa. É a próxima lacuna a fechar.
+  'workflow-step\tapproval',
   'workflow-step\tscript',
   'workflow-step\tai-detect-workflow',
   'workflow-step\tai-extract-parameters',

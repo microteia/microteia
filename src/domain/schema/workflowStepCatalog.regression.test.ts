@@ -31,6 +31,8 @@ const CONFERIDOS: Record<string, string> = {
   'portal-revoke': '0e8105faa3e399',
   // 9.217.0: o modo assíncrono acrescentou o callback (`targetWorkflowId` + `param.<chave>`) e a saída `dispatchId`.
   'http-request': '1b0d018be3252c',
+  // 9.227.0: a tarefa humana — o passo que para a execução até uma pessoa decidir.
+  approval: '0096488f2a08d9',
 };
 
 /**

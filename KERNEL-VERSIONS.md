@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.227.0] — 2026-11-11
+
+- feat(workflow): `approval` step — resolves assignees (members, a path, everyone with a permission), creates a `workflow_tasks` document with a deterministic id, notifies them (category `core.automation/task`) and suspends with `suspend: { resumeAt: <deadline>, taskId }`. It checks `context.canSuspend` before creating anything. `WorkflowResult.suspend.taskId`, `ResumeClockEntry.taskId/decided`, `WorkflowContext.stepId/canSuspend`.
+- feat(functions): `completeWorkflowTask` callable — checks the resume entry still exists, records the decision in a transaction (open, assignee, valid outcome), writes the outcome into the entry with the new transactional `annotateResume` (never recreating an entry the clock already claimed) and resumes through the clock's own `resume`. A deadline reached without a decision expires the task (`expireTask`). Added to `deploy:workflow`.
+- feat(ui): "My tasks" page (`workflow-tasks`) for every member; `firestore.rules` lets the assignee and `automation.manage` read `workflow_tasks`, nobody write it; composite index `assigneeIds` CONTAINS + `status` + `createdAt` DESC; `workflow_tasks` is a reserved collection.
+- feat(workflow/package): `approval` is a pausing step (same top-level / not-in-action rules as `delay`), gated on `WORKFLOW_APPROVAL_SINCE_KERNEL`. `KERNEL_VERSION` 2.110.0.
+
 #### [9.226.0] — 2026-11-11
 
 - feat(reports): drill-down — `runReport` accepts `drill: { keys, column? }` and returns the records behind a group or pivot cell through the same pipeline (filters, prompts, per-record visibility), computed by the pure `drillReportRows` with the aggregator's own tree, order and limit, so a Top N "Others" drills into exactly what it gathered. `presentation.drillDown` is now executed and on by default; `enabled: false` makes the server refuse the drill (`@core.reports/drill.disabled`). `KERNEL_VERSION` 2.109.0.

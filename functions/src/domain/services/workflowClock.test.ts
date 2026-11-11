@@ -59,6 +59,15 @@ const makeDeps = (now: string, officeTimeZone = 'America/Sao_Paulo') => {
       entries.delete(key(entry.tenantId, id));
       return 'fired';
     },
+    annotateResume: async (entry, outputs) => {
+      const id = `resume_${entry.executionId}`;
+      const stored = entries.get(key(entry.tenantId, id));
+      if (!stored || stored.kind !== 'resume' || stored.nextRunAt.getTime() !== entry.nextRunAt.getTime() || stored.decided) {
+        return 'stale';
+      }
+      entries.set(key(entry.tenantId, id), { ...stored, outputs, decided: true });
+      return 'fired';
+    },
     advance: async (entry, patch) => {
       const stored = entries.get(key(entry.tenantId, entry.definitionId));
       if (!stored || stored.nextRunAt.getTime() !== entry.nextRunAt.getTime()) return 'stale';

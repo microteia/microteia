@@ -56,6 +56,7 @@ import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { MAX_STEP_RETRIES, STEP_TYPES } from '../../../domain/entities/Workflow';
 import { WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../../domain/schema/workflowChangeFilter';
 import { REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
+import { WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../../domain/schema/workflowTask';
 import { REPORT_HIGHLIGHT_TONES } from '../../../domain/schema/report/reportSpec';
 import {
   ACTION_COMMAND_ORDER,
@@ -374,6 +375,7 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   'validate-object': 'Checks an object against a screen\'s rules before anything is written.',
   exit: 'Ends the flow here, successfully. Takes nothing.',
   delay: 'Pauses the run and continues it later, in the same run — `duration` (`30m`, `4h`, `2d`) or `until`. Top level only, and only in a run started by an event.',
+  approval: 'Stops the run and asks people to decide (`assigneeMembers`, `assigneesFrom`, `assigneePermission`); the first decision resumes it with `outcome` as the output, and the deadline (`dueInDays`) resumes it with `onTimeout`. Top level only, and only in a run started by an event.',
   'call-workflow': 'Runs another workflow of this package. `waitForResult` decides whether this flow waits. The target may be a `Literal` id or come from an earlier output; `params` carries the parameters in bulk.',
   script: 'Runs one of your `scripts` in the server sandbox.',
   'ai-detect-workflow': 'Asks a model which callable workflow fits a free text, reading their descriptions. No match is a success with `found` false.',
@@ -3445,6 +3447,36 @@ continues, and the steps after it run then, with the outputs and variables from 
 - Precision is the clock's: it continues within ${WORKFLOW_CLOCK_TICK_MINUTES} minutes of the time.
 
 The \`delay\` step needs kernel ${WORKFLOW_DELAY_SINCE_KERNEL} or later, and \`validate_plugin\` refuses a package that admits an older one.
+
+### Asking a person — the \`approval\` step
+
+\`\`\`ts
+{ id: 'approve', stepDefinitionId: 'approval', type: 'Action', order: 2, enabled: true,
+  configuration: {
+    title: { kind: 'Literal', value: label('approval.discount') },
+    assigneePermission: { kind: 'Literal', value: 'orders.approve' },   // or assigneeMembers / assigneesFrom
+    outcomes: { kind: 'Literal', value: ['Approve', 'Reject'] },
+    dueInDays: { kind: 'Literal', value: 2 },
+  } }
+// then a Condition or a Switch on output.approve.outcome — 'approve', 'reject' or 'expired'
+\`\`\`
+
+It stops the run and asks people to decide. The task appears in their **My tasks** list and they are
+notified; the first decision resumes the SAME run at once, and the chosen outcome is the step's output
+(\`outcome\`, \`decidedBy\`, \`decidedByName\`, \`decidedAt\`, \`comment\`, \`taskId\`).
+
+- **Who decides**: \`assigneeMembers\`, \`assigneesFrom\` (a path or expression giving user ids — the person
+  responsible for the record) and \`assigneePermission\` (everyone holding it), together. No one to decide
+  fails the step. Only an assignee decides — a manager cannot decide on someone's behalf.
+- **Outcomes** are the organization's words, one button each. The key the workflow compares is the text in
+  lower case, without accents and with hyphens (\`'Approve with changes'\` → \`'approve-with-changes'\`).
+  Absent: \`approved\` / \`rejected\`, labelled in the reader's language.
+- **Deadline**: \`dueInDays\` (up to a year; absent, a year). When it passes with no decision the run resumes
+  with \`onTimeout\` as the outcome (\`'expired'\` when absent) and the task leaves the list.
+- It pauses like \`delay\` — so the same rules: **only at the top level**, **only in a run started by an
+  event**; the step refuses BEFORE creating the task or notifying anyone where the run cannot wait.
+
+The \`approval\` step needs kernel ${WORKFLOW_APPROVAL_SINCE_KERNEL} or later, and \`validate_plugin\` refuses a package that admits an older one.
 
 ### A workflow that only exists to be called
 

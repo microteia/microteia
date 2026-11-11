@@ -64,6 +64,7 @@ export const recordWorkflowRun = async (
     outputs: suspension.outputs,
     variables: suspension.variables,
     actor: origin.actor ? toPublishedActor(origin.actor) : null,
+    ...(suspension.taskId ? { taskId: suspension.taskId } : {}),
     nextRunAt: suspension.resumeAt,
     timeZone: 'UTC',
     declaredTimeZone: null,
@@ -92,6 +93,8 @@ export interface ResumeWorkflowDeps extends WorkflowSuspensionDeps {
   services: WorkflowServices;
   hydrator: WorkflowContextHydrator;
   deactivatedPluginIds?(tenantId: string): Promise<ReadonlySet<string>>;
+  /** Fecha como expirada a tarefa de uma aprovação cujo prazo venceu sem decisão. */
+  expireTask?(tenantId: string, taskId: string, at: Date): Promise<void>;
 }
 
 const isSwitchedOff = async (definition: WorkflowDefinition, deps: ResumeWorkflowDeps): Promise<boolean> => {
@@ -116,6 +119,16 @@ export const resumeWorkflowExecution = async (
   deps: ResumeWorkflowDeps,
 ): Promise<'fired' | 'stale'> => {
   if ((await deps.clockRepository.claim(entry)) === 'stale') return 'stale';
+
+  // A aprovação que chega aqui SEM decisão chegou pelo prazo: a tarefa sai da caixa de quem decidia,
+  // e a execução segue com o desfecho de expiração que o passo deixou nas saídas.
+  if (entry.taskId && !entry.decided) {
+    await deps.expireTask?.(entry.tenantId, entry.taskId, deps.now()).catch((error: unknown) => {
+      deps.services.logger.warn(
+        `Falha ao expirar a tarefa "${entry.taskId}": ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
+  }
 
   const previous = await deps.executionRepository.findById(entry.tenantId, entry.executionId);
   const startedAt = previous?.startedAt ?? entry.nextRunAt;

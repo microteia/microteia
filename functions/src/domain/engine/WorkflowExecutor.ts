@@ -23,6 +23,8 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 /** Onde a execução parou num passo `delay`, e o que ela precisa para continuar dali. */
 export interface WorkflowSuspension {
   resumeAt: Date;
+  /** A tarefa humana que a pausa espera, quando é uma aprovação. */
+  taskId?: string;
   afterStepId: string;
   lastStepId: string | null;
   outputs: Record<string, Record<string, unknown>>;
@@ -30,7 +32,7 @@ export interface WorkflowSuspension {
 }
 
 /** A continuação de uma execução que esperou: a mesma identidade, o histórico até ali e o estado. */
-export interface WorkflowResume extends Omit<WorkflowSuspension, 'resumeAt'> {
+export interface WorkflowResume extends Omit<WorkflowSuspension, 'resumeAt' | 'taskId'> {
   executionId: string;
   startedAt: Date;
   logs: WorkflowExecutionLogEntry[];
@@ -240,7 +242,12 @@ export const runWorkflow = async ({
   };
 
   type StepsRunResult =
-    | { ok: true; lastStepId: string | null; halted?: boolean; suspended?: { resumeAt: Date; afterStepId: string } }
+    | {
+      ok: true;
+      lastStepId: string | null;
+      halted?: boolean;
+      suspended?: { resumeAt: Date; afterStepId: string; taskId?: string };
+    }
     | { ok: false };
 
   // Executa uma sequência de Steps (um nível/ramo). Recursiva: um StepCondition avalia sua
@@ -457,6 +464,8 @@ export const runWorkflow = async ({
       }
 
       context.stepConfiguration = step.configuration;
+      context.stepId = step.id;
+      context.canSuspend = suspendable === true && depth === 0;
 
       // Usa resolveInputsSafe para garantir que inputs parciais sejam sempre registrados
       const resolveResult = resolveInputsSafe(stepDefinition.inputs, step.configuration, context);
@@ -575,7 +584,15 @@ export const runWorkflow = async ({
             log('ERROR', '@core.automation/run.delay.nested', step.id, step.stepDefinitionId, context.input);
             return { ok: false };
           }
-          return { ok: true, lastStepId: step.id, suspended: { resumeAt: result.suspend.resumeAt, afterStepId: step.id } };
+          return {
+            ok: true,
+            lastStepId: step.id,
+            suspended: {
+              resumeAt: result.suspend.resumeAt,
+              afterStepId: step.id,
+              ...(result.suspend.taskId ? { taskId: result.suspend.taskId } : {}),
+            },
+          };
         }
 
         if (result.halt) {
@@ -615,12 +632,19 @@ export const runWorkflow = async ({
   }
 
   if (run.suspended) {
-    const { resumeAt, afterStepId } = run.suspended;
+    const { resumeAt, afterStepId, taskId } = run.suspended;
     return {
       ...finish('WAITING', {}),
       finishedAt: undefined,
       resumeAt,
-      suspension: { resumeAt, afterStepId, lastStepId: run.lastStepId, outputs: context.outputs, variables: context.variables },
+      suspension: {
+        resumeAt,
+        afterStepId,
+        ...(taskId ? { taskId } : {}),
+        lastStepId: run.lastStepId,
+        outputs: context.outputs,
+        variables: context.variables,
+      },
     };
   }
 

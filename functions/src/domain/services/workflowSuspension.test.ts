@@ -194,3 +194,33 @@ describe('resumeWorkflowExecution', () => {
     }
   });
 });
+
+describe('resumeWorkflowExecution — a espera de uma aprovação', () => {
+  const prepareApproval = async (decided: boolean) => {
+    const context = setup(definition());
+    const expired: string[] = [];
+    context.deps.expireTask = async (_tenantId, taskId) => { expired.push(taskId); };
+    const run = waitingRun();
+    run.suspension = { ...(run.suspension as NonNullable<WorkflowRun['suspension']>), taskId: 'exec-1_wait' };
+    await recordWorkflowRun(run, { definition: definition(), event }, context.deps);
+    const entry = context.entries.get('exec-1') as ResumeClockEntry;
+    return { ...context, expired, entry: decided ? { ...entry, decided: true } : entry };
+  };
+
+  it('a continuação guarda a tarefa que a pausa espera', async () => {
+    const { entry } = await prepareApproval(false);
+    expect(entry.taskId).toBe('exec-1_wait');
+  });
+
+  it('retomada pelo PRAZO, sem decisão, fecha a tarefa como expirada', async () => {
+    const { deps, entry, expired } = await prepareApproval(false);
+    expect(await resumeWorkflowExecution(entry, deps)).toBe('fired');
+    expect(expired).toEqual(['exec-1_wait']);
+  });
+
+  it('retomada pela DECISÃO não expira nada', async () => {
+    const { deps, entry, expired } = await prepareApproval(true);
+    expect(await resumeWorkflowExecution(entry, deps)).toBe('fired');
+    expect(expired).toEqual([]);
+  });
+});

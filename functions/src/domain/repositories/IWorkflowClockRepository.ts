@@ -63,6 +63,13 @@ export interface ResumeClockEntry extends WorkflowClockEntryBase {
   variables: Record<string, unknown>;
   /** Quem disparou — a IDENTIDADE atravessa a espera; as permissões não (ver `actorFromPublished`). */
   actor: PublishedActor | null;
+  /** A tarefa humana que a pausa espera (passo `approval`). Ausente numa espera de `delay`. */
+  taskId?: string;
+  /**
+   * A tarefa foi DECIDIDA: a retomada vem da decisão, e as saídas já trazem o desfecho. Sem isto, a
+   * retomada é o prazo vencido, e a tarefa é fechada como expirada.
+   */
+  decided?: boolean;
 }
 
 export type WorkflowClockEntry = ScheduleClockEntry | DateReachedClockEntry | ResumeClockEntry;
@@ -112,6 +119,16 @@ export interface IWorkflowClockRepository {
    * passada já a tomou — é o que faz uma execução continuar uma vez só.
    */
   claim(entry: ResumeClockEntry): Promise<WorkflowClockFireResult>;
+  /**
+   * Grava a DECISÃO de uma tarefa na continuação — as saídas do passo e `decided` — numa transação que
+   * só atualiza a continuação que ainda está ali, com o mesmo `nextRunAt`. `stale` quando o relógio já
+   * a tomou (o prazo venceu antes): gravar por cima recriaria a continuação, e a execução seguiria
+   * duas vezes.
+   */
+  annotateResume(
+    entry: ResumeClockEntry,
+    outputs: Record<string, Record<string, unknown>>,
+  ): Promise<WorkflowClockFireResult>;
   /** Move a entrada sem publicar nada. `stale` quando outra passada já a moveu. */
   advance(entry: WorkflowClockEntry, patch: ClockAdvance): Promise<WorkflowClockFireResult>;
   /**

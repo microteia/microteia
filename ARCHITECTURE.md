@@ -124,6 +124,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `WorkflowDefinition` | `tenants/{tenantId}/workflow_definitions/{id}` (steps embutidos como array) | Sim |
 | `WorkflowEvent` | `tenants/{tenantId}/workflow_events/{id}` (append-only, sem leitura pelo cliente) | Sim |
 | `WorkflowExecution` | `tenants/{tenantId}/workflow_executions/{id}` (somente leitura pelo cliente) | Sim |
+| `WorkflowTask` | `tenants/{tenantId}/workflow_tasks/{executionId_stepId}` (lê o designado e quem tem `automation.manage`; ninguém grava pelo cliente) | Sim |
 | `StepDefinition` (catálogo, espelho somente-leitura) | `workflow_step_catalog/{id}` | Não |
 | `Script` (código reutilizável do Step "Script") | `tenants/{tenantId}/scripts/{id}` | Sim |
 | `BackendResidue` (o que o provisionamento deixou no projeto) | `backend_state/current` | Não |
@@ -8264,6 +8265,52 @@ pela porta de sempre (orçamento, condição, filtros de hoje) e aparece na aba 
 - O ator da execução nova é quem pediu, não quem causou a original.
 - Está no grupo `deploy:workflow`.
 
+### Aprovação — a tarefa humana no fluxo (`approval`)
+
+O passo `approval` PARA a execução e pede uma decisão a pessoas. É o que transforma automação em
+processo — aprovar um desconto, liberar um crédito, revisar um texto —, e o kernel não sabe o que está
+sendo aprovado: sabe que alguém precisa escolher entre desfechos declarados.
+
+**O passo** (`ApprovalStep.ts`) resolve os designados (membros escolhidos, um caminho do evento e
+todos com uma permissão, via `memberIdsGranting`), cria a tarefa em `workflow_tasks` com id
+determinístico (`workflowTaskId(executionId, stepId)` — a nova tentativa acha a mesma), avisa os
+designados pelo `DispatchNotificationUseCase` (categoria `core.automation/task`, `dedupKey` = a tarefa,
+link para a caixa) e pede a pausa com `suspend: { resumeAt, taskId }`. `resumeAt` é o PRAZO (ou o teto de
+um ano); as saídas já levam o desfecho de expiração (`onTimeout`, padrão `expired`).
+
+**Confere antes se pode esperar** (`context.canSuspend`, que o executor põe só no nível principal de uma
+execução do barramento): sem isso, uma aprovação num botão criaria a tarefa e avisaria as pessoas para
+o executor recusar a pausa em seguida. Como passo que pausa (`PAUSING_STEP_DEFINITION_IDS`), ele herda as
+regras do `delay` no editor e no portão do pacote; o kernel cobrado é `WORKFLOW_APPROVAL_SINCE_KERNEL`.
+
+**A decisão** (`completeWorkflowTask`, callable) segue uma ordem que é a garantia:
+
+1. a continuação (`workflow_clock/resume_<execução>`) tem de existir — senão o prazo venceu, e a tarefa
+   é fechada como expirada;
+2. a decisão é gravada na tarefa NUMA transação (aberta, quem decide está entre os designados, desfecho
+   válido): duas pessoas ao mesmo tempo, uma vence;
+3. o desfecho entra nas saídas da continuação por `annotateResume`, que só atualiza a continuação que
+   ainda está lá com o mesmo `nextRunAt` — um `save` por cima de uma que o relógio acabou de tomar a
+   RECRIARIA, e a execução seguiria duas vezes;
+4. a retomada passa pela porta do relógio (`getWorkflowClockDeps().resume`, `claim` incluso), na hora.
+
+Quem decide é quem está na tarefa, não quem tem uma permissão: um administrador decidindo pela pessoa
+apagaria justamente o que a aprovação registra.
+
+**O prazo**: o relógio retoma a continuação em `resumeAt`; sem `decided`, `resumeWorkflowExecution`
+fecha a tarefa como expirada (`expireTask`) e a execução segue com o desfecho que o passo deixou.
+
+**A caixa** (`WorkflowTasks`, página `workflow-tasks` do `core.automation`, no menu de todo membro):
+as abertas em que a pessoa é designada (`array-contains` no uid, índice composto), um botão por desfecho
+e um comentário. Ninguém grava `workflow_tasks` pelo cliente; leem o designado e quem tem
+`automation.manage` (`rules-tests/workflowTasks.test.ts`). A coleção é reservada (`RESERVED_COLLECTIONS`).
+
+**Desfechos** declarados são texto do escritório (`approvalOutcomesOf`): a chave sai do texto, sem acento
+e com hífen, e é ela que a automação compara; sem nenhum, `approved`/`rejected` com rótulo traduzido.
+
+**Ainda não**: decisão pelo portal ou pelo MCP, quórum ("todos precisam aprovar"), lembrete periódico e
+delegação. A forma da tarefa já comporta os três primeiros sem mudar o contrato.
+
 ### Compatibilidade de pacote
 
 Um kernel anterior a `WORKFLOW_FLOW_CONTROL_SINCE_KERNEL` (2.108.0) não RECUSA `changeType`, `Switch` nem
@@ -16146,6 +16193,7 @@ daquela instalação. Ver "Artefatos de backend por extensão".
 | `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | kernel | `countUnreadCritical` — badge de falhas CRITICAL não lidas |
 | `tenants/{id}/workflow_definitions` | `eventName` ASC, `enabled` ASC | kernel | `findEnabledByEvent` — o gatilho do motor localiza workflows por evento |
 | `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | kernel | Aba "Execuções" de um workflow, mais recente primeiro |
+| `tenants/{id}/workflow_tasks` | `assigneeIds` CONTAINS, `status` ASC, `createdAt` DESC | kernel | Caixa "Minhas tarefas": as abertas em que a pessoa é designada, mais recentes primeiro — e a consulta que a regra exige para provar a leitura sem abrir documento |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `createdAt` DESC | kernel | O sino — as notificações de quem está conectado, mais recente primeiro |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `read` ASC, `createdAt` DESC | kernel | A contagem de não lidas do sino e o "marcar todas como lidas" |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `category` ASC, `createdAt` DESC | kernel | A página de Notificações filtrada por tipo |

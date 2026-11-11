@@ -129,6 +129,14 @@ export interface WorkflowContext {
   // Configuração bruta do step em execução. Permite que um step com inputs dinâmicos (ex:
   // 'Chamar Workflow') resolva chaves de configuração que resolveInputsSafe não conhece.
   stepConfiguration?: Record<string, InputMapping>;
+  /** O id do passo que está rodando — é por ele que um passo nomeia o que cria (a tarefa de uma aprovação). */
+  stepId?: string;
+  /**
+   * O passo que está rodando PODE pausar a execução: ela nasceu do barramento e o passo está no nível
+   * principal. Quem pausa e cria algo antes de pausar (a tarefa de uma aprovação) pergunta ANTES — sem
+   * isto, criaria a tarefa e avisaria as pessoas para o executor recusar a pausa logo depois.
+   */
+  canSuspend?: boolean;
 }
 
 export interface WorkflowResult {
@@ -145,5 +153,13 @@ export interface WorkflowResult {
    * passo pede, o executor obedece. Só vale no nível principal do fluxo e numa execução que pode
    * esperar (a que nasce do barramento de eventos); nas outras, o executor recusa.
    */
-  suspend?: { resumeAt: Date };
+  suspend?: {
+    resumeAt: Date;
+    /**
+     * A tarefa humana que a pausa espera (passo `approval`). Com ela, a retomada pode vir ANTES de
+     * `resumeAt` — pela decisão —, e `resumeAt` passa a ser o prazo: chegar a ele sem decisão expira a
+     * tarefa.
+     */
+    taskId?: string;
+  };
 }

@@ -42,6 +42,7 @@ const ALL_FUNCTIONS = [
   'detectWorkflows',
   'runWorkflow',
   'rerunWorkflowExecution',
+  'completeWorkflowTask',
   'getUserInfo',
   'checkNicknameAvailability',
   'claimNickname',

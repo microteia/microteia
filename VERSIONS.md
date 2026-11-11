@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.227.0] — 2026-11-11
+
+- Aprovações nas automações: o novo passo "Aprovação" para a automação e pede a uma ou mais pessoas que decidam — aprovar um desconto, liberar um pedido, revisar um texto. Quem decide é avisado, escolhe a resposta (com um comentário, se quiser) e a automação continua na hora pelo caminho escolhido.
+- A nova página "Minhas tarefas" reúne tudo o que as automações estão esperando de você, com prazo e um botão para cada resposta.
+- Uma aprovação pode ter prazo: se ninguém decidir a tempo, a automação segue pelo caminho definido para esse caso.
+
 #### [9.226.0] — 2026-11-11
 
 - Nos relatórios, clique num grupo ou numa célula para ver os registros por trás do número — e abra qualquer um deles direto dali. O grupo "Outros" de um Top N mostra exatamente o que ele juntou.

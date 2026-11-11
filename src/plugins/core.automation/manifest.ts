@@ -15,6 +15,7 @@ import { WORKFLOW_BUDGET_SETTINGS_PROPERTIES } from '../../domain/schema/workflo
 import { HTTP_SETTINGS_PROPERTIES } from '../../domain/schema/httpRequestSpec';
 import { WorkflowCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/WorkflowCommandProvider';
 import { NotificationBell } from '../../presentation/components/layout/NotificationBell';
+import { WORKFLOW_TASKS_PAGE_KEY } from '../../domain/schema/workflowTask';
 
 export const coreAutomationPlugin: PluginRecord = {
   trusted: true,
@@ -30,6 +31,7 @@ export const coreAutomationPlugin: PluginRecord = {
     DataFunctionReferenceView: lazyView(() => import('../../presentation/pages/DataFunctionReference/DataFunctionReference.view'), 'DataFunctionReferenceView'),
     WorkflowCommandProvider,
     NotificationBell,
+    WorkflowTasksView: lazyView(() => import('../../presentation/pages/WorkflowTasks/WorkflowTasks.view'), 'WorkflowTasksView'),
     NotificationsView: lazyView(() => import('../../presentation/pages/Notifications/Notifications.view'), 'NotificationsView'),
     NotificationEmailTabView: lazyView(() => import('../../presentation/pages/TenantSettings/EmailTab/EmailTab.view'), 'EmailTabView'),
     IntegrationsTabView: lazyView(() => import('../../presentation/pages/TenantSettings/IntegrationsTab/IntegrationsTab.view'), 'IntegrationsTabView'),
@@ -98,6 +100,17 @@ export const coreAutomationPlugin: PluginRecord = {
         description: '@core.admin/audit.archive.category.description',
         icon: 'history',
         variables: ['day', 'attempts', 'error'],
+      }),
+      // A caixa de tarefas é de TODO membro: qualquer um pode ser designado numa aprovação, e quem não é
+      // designado em nada vê a caixa vazia — não há permissão a pedir para ver o que é seu.
+      page({ key: WORKFLOW_TASKS_PAGE_KEY, title: '@core.automation/page.workflow-tasks', icon: 'checkboxCircle' }, 'WorkflowTasksView'),
+      nav({ key: WORKFLOW_TASKS_PAGE_KEY, label: '@core.automation/page.workflow-tasks', icon: 'checkboxCircle', order: 5 }),
+      notificationCategoryContribution({
+        key: 'task',
+        title: '@core.automation/task.category',
+        description: '@core.automation/task.category.description',
+        icon: 'checkboxCircle',
+        variables: [],
       }),
       page({ key: NOTIFICATIONS_PAGE_KEY, title: '@core.automation/page.notifications', icon: 'notification' }, 'NotificationsView'),
       settingsSection({

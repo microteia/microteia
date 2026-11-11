@@ -58,6 +58,7 @@ import {
 } from '../../schema/workflowClock';
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { hasChangeFilter, WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../schema/workflowChangeFilter';
+import { APPROVAL_STEP_ID, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../schema/workflowTask';
 import { screenEventPrefix } from './screenModule';
 import { RENDER_DOCUMENT_STEP_ID, declaredDocumentTemplates, renderDocumentStepIssues, renderDocumentTemplateKey } from './documentStepIntegrity';
 
@@ -680,7 +681,7 @@ const flowControlKernelIssues = (
 };
 
 /**
- * Onde o passo `delay` não pode pausar — e falharia com o fluxo rodando:
+ * Onde um passo que PAUSA (`delay`, `approval`) não pode pausar — e falharia com o fluxo rodando:
  *
  * - dentro de um ramo de condição ou do corpo de uma repetição: só o nível principal retoma;
  * - num fluxo que uma AÇÃO do pacote dispara: o botão espera a resposta, e ninguém espera dias;
@@ -705,9 +706,22 @@ const delayIssues = (
     ? [{ ref, message: '@core.marketplace/issue.step.delay-in-action', messageParams: { step: delays[0].id, action: action.key } }]
     : [];
 
-  const kernel = rangeExcludesBelow(pkg.manifest?.kernel ?? '', WORKFLOW_DELAY_SINCE_KERNEL)
-    ? []
-    : [{ ref, message: '@core.marketplace/issue.step.delay-kernel', messageParams: { step: delays[0].id, minimum: WORKFLOW_DELAY_SINCE_KERNEL } }];
+  const declared = pkg.manifest?.kernel ?? '';
+  const waits = delays.filter((step) => step.stepDefinitionId !== APPROVAL_STEP_ID);
+  const approvals = delays.filter((step) => step.stepDefinitionId === APPROVAL_STEP_ID);
+  const kernel = [
+    ...(waits.length > 0 && !rangeExcludesBelow(declared, WORKFLOW_DELAY_SINCE_KERNEL)
+      ? [{ ref, message: '@core.marketplace/issue.step.delay-kernel', messageParams: { step: waits[0].id, minimum: WORKFLOW_DELAY_SINCE_KERNEL } }]
+      : []),
+    // A aprovação pausa pelo mesmo mecanismo da espera, mas a caixa de tarefas e a decisão chegaram depois.
+    ...(approvals.length > 0 && !rangeExcludesBelow(declared, WORKFLOW_APPROVAL_SINCE_KERNEL)
+      ? [{
+          ref,
+          message: '@core.marketplace/issue.step.definition-kernel',
+          messageParams: { step: approvals[0].id, definition: APPROVAL_STEP_ID, minimum: WORKFLOW_APPROVAL_SINCE_KERNEL },
+        }]
+      : []),
+  ];
 
   return [...nested, ...fromAction, ...kernel];
 };

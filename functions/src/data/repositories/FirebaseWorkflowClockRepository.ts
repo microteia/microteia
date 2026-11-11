@@ -93,6 +93,8 @@ const mapEntry = (tenantId: string, definitionId: string, data: DocumentData): W
       outputs: normalizeFirestoreValue((data.outputs ?? {}) as Record<string, Record<string, unknown>>),
       variables: normalizeFirestoreValue((data.variables ?? {}) as Record<string, unknown>),
       actor: data.actor && typeof data.actor === 'object' ? (data.actor as ResumeClockEntry['actor']) : null,
+      ...(typeof data.taskId === 'string' ? { taskId: data.taskId } : {}),
+      ...(data.decided === true ? { decided: true } : {}),
     };
   }
   if (data.kind === 'dateReached') {
@@ -147,6 +149,8 @@ const entryDocument = (entry: WorkflowClockEntry): DocumentData => {
       outputs: entry.outputs,
       variables: entry.variables,
       actor: entry.actor,
+      ...(entry.taskId ? { taskId: entry.taskId } : {}),
+      ...(entry.decided ? { decided: true } : {}),
     };
   }
   return {
@@ -239,6 +243,20 @@ export class FirebaseWorkflowClockRepository implements IWorkflowClockRepository
       const stored = current.exists ? toDate(current.get('nextRunAt')) : null;
       if (!stored || stored.getTime() !== entry.nextRunAt.getTime()) return 'stale';
       tx.delete(entryRef);
+      return 'fired';
+    });
+  }
+
+  async annotateResume(
+    entry: ResumeClockEntry,
+    outputs: Record<string, Record<string, unknown>>,
+  ): Promise<WorkflowClockFireResult> {
+    const entryRef = this.refOf(entry);
+    return this.db.runTransaction(async (tx) => {
+      const current = await tx.get(entryRef);
+      const stored = current.exists ? toDate(current.get('nextRunAt')) : null;
+      if (!stored || stored.getTime() !== entry.nextRunAt.getTime() || current.get('decided') === true) return 'stale';
+      tx.update(entryRef, { outputs, decided: true, updatedAt: Timestamp.now() });
       return 'fired';
     });
   }

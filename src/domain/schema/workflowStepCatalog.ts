@@ -633,6 +633,82 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
     ],
   },
   {
+    /**
+     * A TAREFA HUMANA: a automação para, a tarefa aparece na caixa de quem decide, e a decisão retoma a
+     * mesma execução com o desfecho como saída. Pausa como o `delay` — só no nível principal, e só numa
+     * execução que pode esperar. Ver "Aprovação" no ARCHITECTURE.md.
+     */
+    id: 'approval',
+    version: 1,
+    name: '@core.automation/step.approval.name',
+    description: '@core.automation/step.approval.description',
+    icon: 'RiUserFollowLine',
+    category: 'Action',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      { id: 'title', label: '@core.automation/step.approval.label.title', required: true, type: 'String' },
+      { id: 'message', label: '@core.automation/step.approval.label.message', required: false, type: 'String' },
+      {
+        id: 'assigneeMembers',
+        label: '@core.automation/step.approval.label.assignee-members',
+        required: false,
+        type: 'EntityReference',
+        entityType: 'members',
+        list: true,
+      },
+      {
+        id: 'assigneesFrom',
+        label: '@core.automation/step.approval.label.assignees-from',
+        description: '@core.automation/step.approval.help.assignees-from',
+        required: false,
+        type: 'Expression',
+        allowedMappingKinds: ['Event', 'Expression', 'Output', 'Variable'],
+      },
+      {
+        id: 'assigneePermission',
+        label: '@core.automation/step.approval.label.assignee-permission',
+        description: '@core.automation/step.approval.help.assignee-permission',
+        required: false,
+        type: 'String',
+        picker: 'permission',
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'outcomes',
+        label: '@core.automation/step.approval.label.outcomes',
+        description: '@core.automation/step.approval.help.outcomes',
+        required: false,
+        type: 'String',
+        list: true,
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'dueInDays',
+        label: '@core.automation/step.approval.label.due-in-days',
+        description: '@core.automation/step.approval.help.due-in-days',
+        required: false,
+        type: 'Number',
+      },
+      {
+        id: 'onTimeout',
+        label: '@core.automation/step.approval.label.on-timeout',
+        description: '@core.automation/step.approval.help.on-timeout',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+      },
+    ],
+    outputDefinitions: [
+      { id: 'outcome', label: '@core.automation/step.approval.output.outcome', type: 'String' },
+      { id: 'decidedBy', label: '@core.automation/step.approval.output.decided-by', type: 'String' },
+      { id: 'decidedByName', label: '@core.automation/step.approval.output.decided-by-name', type: 'String' },
+      { id: 'decidedAt', label: '@core.automation/step.approval.output.decided-at', type: 'Date' },
+      { id: 'comment', label: '@core.automation/step.approval.output.comment', type: 'String' },
+      { id: 'taskId', label: '@core.automation/step.approval.output.task-id', type: 'String' },
+    ],
+  },
+  {
     id: 'call-workflow',
     version: 2,
     name: '@core.automation/step.call-workflow.name',
@@ -1337,7 +1413,7 @@ export const UNIMPLEMENTED_STEP_TYPES: readonly string[] = ['Delay'];
  * condição ou do corpo de uma repetição a pausa falharia com o fluxo rodando. Uma regra só para quem a
  * cobra: o editor (que não oferece nem deixa arrastar), a validação de pacote e o modelo de domínio.
  */
-export const PAUSING_STEP_DEFINITION_IDS: readonly string[] = ['delay'];
+export const PAUSING_STEP_DEFINITION_IDS: readonly string[] = ['delay', 'approval'];
 
 export const isPausingStepDefinition = (stepDefinitionId: string | undefined): boolean =>
   !!stepDefinitionId && PAUSING_STEP_DEFINITION_IDS.includes(stepDefinitionId);

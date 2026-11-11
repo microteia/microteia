@@ -51,7 +51,7 @@ const isConfigured = (mapping: InputMapping | undefined): boolean => {
  * é `<prefixo>.<o que houve>` com o registro inteiro no payload; o prefixo diz a tela, e a tela diz
  * a coleção. Evento que não é de registro (manual, agendado) não tem alvo, e o aviso só não abre nada.
  */
-const eventRecordOf = async (
+export const eventRecordOf = async (
   screens: IScreenDefinitionProvider,
   tenantId: string,
   event: WorkflowEvent,
