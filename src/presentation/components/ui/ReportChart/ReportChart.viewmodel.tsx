@@ -15,6 +15,14 @@ export type ReportChartMark = 'bar' | 'column' | 'line' | 'area' | 'pie' | 'donu
 export interface ReportChartViewModel {
   /** A marca já reduzida ao que o kernel sabe desenhar. `null` = nada a desenhar. */
   mark: 'bar' | 'line' | 'donut' | null;
+  /**
+   * A VARIANTE da primitiva: barras deitadas (`bar`) ou em pé (`column`), área preenchida (`area`),
+   * pizza cheia (`pie`). Antes cada par era desenhado igual, e escolher "Área" dava uma linha sem
+   * nada na tela dizendo que a escolha não valeu.
+   */
+  horizontal: boolean;
+  filled: boolean;
+  solid: boolean;
   data: Array<Record<string, string | number>>;
   series: ChartSeries[];
   slices: DonutSlice[];
@@ -23,7 +31,7 @@ export interface ReportChartViewModel {
 }
 
 const NOTHING: ReportChartViewModel = {
-  mark: null, data: [], series: [], slices: [], stacked: false, height: 240,
+  mark: null, horizontal: false, filled: false, solid: false, data: [], series: [], slices: [], stacked: false, height: 240,
 };
 
 /** A marca declarada, reduzida às três primitivas. Desconhecida não desenha — a tabela já mostra. */
@@ -255,6 +263,9 @@ export const useReportChartViewModel = (
 
     return {
       mark,
+      horizontal: chart.kind === 'bar',
+      filled: chart.kind === 'area',
+      solid: chart.kind === 'pie',
       data,
       series,
       slices,

@@ -1,4 +1,6 @@
 import styled from 'styled-components';
+import type { ReportHighlightTone } from '../../../../domain/schema/report/reportSpec';
+import { reportToneBackground } from '../../../shared/report/reportTone';
 
 export const S = {
   Scroll: styled.div`
@@ -36,23 +38,25 @@ export const S = {
       background: ${({ theme }) => theme.colors.surfaceHover};
     }
   `,
-  Td: styled.td<{ $numeric?: boolean; $level?: number; $strong?: boolean }>`
+  Td: styled.td<{ $numeric?: boolean; $level?: number; $strong?: boolean; $tone?: ReportHighlightTone }>`
     text-align: ${({ $numeric }) => ($numeric ? 'right' : 'left')};
     padding: 9px 14px;
     padding-left: ${({ $level, $numeric }) => ($numeric ? 14 : 14 + (($level ?? 0) * 18))}px;
     border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     font-weight: ${({ $strong }) => ($strong ? 600 : 400)};
     font-variant-numeric: tabular-nums;
+    background: ${({ theme, $tone }) => reportToneBackground(theme, $tone)};
   `,
   TotalRow: styled.tr`
     background: ${({ theme }) => theme.colors.inputBackground};
   `,
-  TotalTd: styled.td<{ $numeric?: boolean }>`
+  TotalTd: styled.td<{ $numeric?: boolean; $tone?: ReportHighlightTone }>`
     text-align: ${({ $numeric }) => ($numeric ? 'right' : 'left')};
     padding: 11px 14px;
     border-top: 2px solid ${({ theme }) => theme.colors.border};
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+    background: ${({ theme, $tone }) => reportToneBackground(theme, $tone)};
   `,
   Empty: styled.p`
     margin: 0;

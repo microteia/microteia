@@ -47,6 +47,7 @@ export const ReportTable: React.FC<ReportTableProps> = ({ spec, result }) => {
                       $numeric={vm.valueColumns[index].numeric}
                       $strong={row.subtotal}
                       $level={index === 0 ? row.level : undefined}
+                      $tone={row.tones[index] ?? undefined}
                     >
                       {value}
                     </S.Td>
@@ -63,7 +64,13 @@ export const ReportTable: React.FC<ReportTableProps> = ({ spec, result }) => {
                 <>
                   <S.TotalTd>{vm.totals.label}</S.TotalTd>
                   {vm.totals.values.map((value, index) => (
-                    <S.TotalTd key={vm.totalsColumns[index].key} $numeric>{value}</S.TotalTd>
+                    <S.TotalTd
+                      key={vm.totalsColumns[index].key}
+                      $numeric
+                      $tone={vm.totals?.tones[index] ?? undefined}
+                    >
+                      {value}
+                    </S.TotalTd>
                   ))}
                 </>
               ) : (

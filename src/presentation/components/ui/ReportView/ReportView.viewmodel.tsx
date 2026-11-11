@@ -9,6 +9,7 @@ import { useReportPathOptions } from '../../../shared/report/useReportPathOption
 import { filterLiteralOf, filterTextOf, filterValueOf } from '../../../shared/report/reportFilterFields';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities/entitySchemas';
 import type { ReportSpecIssue } from '../../../../domain/schema/report/validateReportSpec';
+import { REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL } from '../../../../domain/schema/report/reportPeriod';
 import { useReportCsv } from '../../../shared/report/useReportCsv';
 
 /** Um filtro que o LEITOR preenche, já com o que a tela precisa para desenhá-lo. */
@@ -22,6 +23,13 @@ export interface ReportPromptField {
   field: FieldDefinition | undefined;
   /** O valor no FORMATO DO CAMPO, como o controle o entende. */
   value: CustomFieldValue;
+  /**
+   * O filtro pede um PERÍODO relativo, e não um valor: a tela oferece a lista de períodos em vez do
+   * controle do campo. `periodValue` é a chave escolhida, vazia = qualquer período.
+   */
+  isPeriod: boolean;
+  periodValue: string;
+  required: boolean;
 }
 
 export interface ReportViewViewModel {
@@ -42,6 +50,10 @@ export interface ReportViewViewModel {
 
   prompts: ReportPromptField[];
   setPromptValue: (key: string, value: CustomFieldValue) => void;
+  setPromptPeriod: (key: string, period: string) => void;
+  periodOptions: { value: string; label: string }[];
+  /** Falta resposta a um filtro obrigatório — o servidor recusaria, então a tela nem pergunta. */
+  canRun: boolean;
   runLabel: string;
   clearLabel: string;
   clearPrompts: () => void;
@@ -80,6 +92,12 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
   const [issues, setIssues] = useState<ReportSpecIssue[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  /**
+   * O que o LEITOR mexeu, por chave. Ausente = ainda não tocou, e vale o padrão do autor.
+   *
+   * A diferença entre "não tocou" e "apagou" é o que decide se o padrão volta: a chave tocada vai ao
+   * servidor como resposta — vazia quer dizer "sem restrição" —, e a não tocada vai com o padrão.
+   */
   const [promptValues, setPromptValues] = useState<Record<string, string>>({});
 
   // Memoizado, e não derivado solto: um `?? []` cria um array novo a cada render, e o `useMemo`
@@ -104,18 +122,44 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
    * relatório sobre dez mil registros era refeito no servidor letra por letra, e a resposta que
    * chegava por último nem sempre era a da última pergunta.
    */
+  /**
+   * O texto inicial de um filtro: o padrão LITERAL do autor. Um padrão por expressão (`today()`) não
+   * tem texto a mostrar — ele é resolvido no servidor, e o filtro aparece vazio até o leitor mexer.
+   */
+  const literalDefault = useCallback((prompt: ReportPrompt): string => {
+    if (prompt.default?.kind !== 'Literal') return '';
+    const value = prompt.default.value;
+    return prompt.control === REPORT_PROMPT_PERIOD_CONTROL
+      ? (typeof value === 'string' ? value : '')
+      : filterTextOf(value as CustomFieldValue);
+  }, []);
+
+  const effectiveText = useCallback(
+    (prompt: ReportPrompt, values: Record<string, string>): string =>
+      (Object.prototype.hasOwnProperty.call(values, prompt.key) ? values[prompt.key] : literalDefault(prompt)),
+    [literalDefault],
+  );
+
   const runWith = useCallback(async (values: Record<string, string>) => {
     if (!report) return;
     setIsLoading(true);
     setError(null);
     try {
-      // Só o que foi preenchido vai, e vai NO TIPO DO CAMPO. Um filtro em branco não restringe nada
-      // — mandá-lo vazio faria o servidor comparar com string vazia, que é outra pergunta; e mandar
-      // "true" onde o documento guarda um booleano não encontra nada, sem uma palavra na tela.
+      // Vai NO TIPO DO CAMPO o que tem resposta. O filtro que o leitor tocou e deixou vazio vai como
+      // `null` — "sem restrição", e o padrão não volta por cima dele —; o que ninguém tocou e tem
+      // padrão por expressão nem vai, para o servidor resolver o padrão.
       const filled: Record<string, unknown> = {};
       for (const prompt of declaredPrompts) {
-        const text = (values[prompt.key] ?? '').trim();
-        if (text !== '') filled[prompt.key] = filterLiteralOf(fieldByPath(prompt.path), text);
+        const touched = Object.prototype.hasOwnProperty.call(values, prompt.key);
+        if (!touched && prompt.default && prompt.default.kind !== 'Literal') continue;
+        const text = effectiveText(prompt, values).trim();
+        if (text === '') {
+          if (touched) filled[prompt.key] = null;
+          continue;
+        }
+        filled[prompt.key] = prompt.control === REPORT_PROMPT_PERIOD_CONTROL
+          ? text
+          : filterLiteralOf(fieldByPath(prompt.path), text);
       }
       const outcome = await runReport({ reportId: report.id, prompts: filled });
       setResult(outcome.result);
@@ -127,20 +171,44 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
     } finally {
       setIsLoading(false);
     }
-  }, [report, declaredPrompts, fieldByPath, runReport, label]);
+  }, [report, declaredPrompts, fieldByPath, runReport, label, effectiveText]);
 
   const run = useCallback(() => runWith(promptValues), [runWith, promptValues]);
 
   const reportTitle = report ? label(report.title) : '';
 
   const prompts = useMemo<ReportPromptField[]>(
-    () => declaredPrompts.map((prompt) => ({
-      key: prompt.key,
-      label: prompt.label ? label(prompt.label) : prompt.path,
-      field: fieldByPath(prompt.path),
-      value: filterValueOf(fieldByPath(prompt.path), promptValues[prompt.key] ?? ''),
-    })),
-    [declaredPrompts, fieldByPath, promptValues, label],
+    () => declaredPrompts.map((prompt) => {
+      const name = prompt.label ? label(prompt.label) : prompt.path;
+      const isPeriod = prompt.control === REPORT_PROMPT_PERIOD_CONTROL;
+      const text = effectiveText(prompt, promptValues);
+      return {
+        key: prompt.key,
+        label: prompt.required === true ? t('prompts.required', { label: name }) : name,
+        field: isPeriod ? undefined : fieldByPath(prompt.path),
+        value: isPeriod ? '' : filterValueOf(fieldByPath(prompt.path), text),
+        isPeriod,
+        periodValue: isPeriod ? text : '',
+        required: prompt.required === true,
+      };
+    }),
+    [declaredPrompts, fieldByPath, promptValues, label, effectiveText, t],
+  );
+
+  const missingRequired = useMemo(
+    () => declaredPrompts.some((prompt) => prompt.required === true
+      && !(prompt.default && prompt.default.kind !== 'Literal'
+        && !Object.prototype.hasOwnProperty.call(promptValues, prompt.key))
+      && effectiveText(prompt, promptValues).trim() === ''),
+    [declaredPrompts, promptValues, effectiveText],
+  );
+
+  const periodOptions = useMemo(
+    () => [
+      { value: '', label: t('period.any') },
+      ...REPORT_PERIODS.map((period) => ({ value: period, label: t(`period.${period}`) })),
+    ],
+    [t],
   );
 
   /**
@@ -154,10 +222,15 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
    * O `setState` síncrono é o `setIsLoading(true)` de dentro de `runWith` — ele PRECISA acontecer
    * antes do await, senão a tela fica parada sem dizer que está buscando.
    */
+  /*
+   * O relatório cujos filtros TODOS têm padrão também abre executado: o autor já escolheu o recorte
+   * de abertura ("este mês"), e esperar o gesto seria pedir ao leitor que confirmasse o óbvio.
+   */
+  const opensAnswered = declaredPrompts.every((prompt) => prompt.default !== undefined);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- estado de carga antes da chamada
-    if (declaredPrompts.length === 0) void runWith({});
-  }, [declaredPrompts, runWith]);
+    if (opensAnswered) void runWith({});
+  }, [opensAnswered, runWith]);
 
   // A aba passa a se chamar como o RELATÓRIO. É por esse nome que a pessoa reconhece a aba aberta —
   // "Relatório" é o nome do tipo, e três abas com o mesmo nome não se distinguem.
@@ -198,10 +271,16 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
     prompts,
     setPromptValue: (key, value) =>
       setPromptValues((current) => ({ ...current, [key]: filterTextOf(value) })),
+    setPromptPeriod: (key, period) =>
+      setPromptValues((current) => ({ ...current, [key]: period })),
+    periodOptions,
+    canRun: !missingRequired,
     runLabel: t('prompts.run'),
     clearLabel: t('prompts.clear'),
-    clearPrompts: () => setPromptValues({}),
-    hasPromptValues: Object.values(promptValues).some((value) => value.trim() !== ''),
+    // Limpar é RESPONDER "sem restrição" a cada filtro — e não voltar aos padrões: quem limpa quer ver
+    // tudo, e o padrão que reaparecesse desfaria o gesto.
+    clearPrompts: () => setPromptValues(Object.fromEntries(declaredPrompts.map((prompt) => [prompt.key, '']))),
+    hasPromptValues: declaredPrompts.some((prompt) => effectiveText(prompt, promptValues).trim() !== ''),
     exportLabel: t('toolbar.export'),
     printLabel: t('toolbar.print'),
     canExport: result !== null,

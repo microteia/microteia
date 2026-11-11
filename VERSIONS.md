@@ -11,6 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.224.0] — 2026-11-11
+
+- Relatórios com "Top N": ordene os grupos por um número (os maiores primeiro), mostre só os primeiros e junte o restante em "Outros", sem perder o total.
+- Destaque nos relatórios: um número pode ganhar cor quando passa de um valor — vermelho para saldo negativo, verde para meta atingida.
+- Filtros de relatório mais completos: perguntar um período ("Este mês", "Últimos 30 dias", "Do início do ano até hoje"…), marcar um filtro como obrigatório e definir o valor com que o relatório abre.
+- A tela de criação de relatórios agora oferece números calculados, contagem de valores distintos, formato dos números, total geral, o que mostrar onde não houve nada, limite de registros e a permissão necessária para abrir o relatório.
+- Salvar um relatório na tela de criação não apaga mais as configurações que a tela não exibe.
+- Os gráficos de relatório passam a desenhar cada tipo de verdade: área preenchida, pizza cheia e barras deitadas (o tipo "Colunas" continua com as barras em pé). Relatórios que usavam "Barras" passam a aparecer com as barras na horizontal.
+
 #### [9.223.1] — 2026-11-11
 
 - Corrigido um problema que impedia os membros do escritório — inclusive o dono — de anexar documentos aos registros. Agora o envio volta a funcionar para todos que têm permissão de alterar o registro.

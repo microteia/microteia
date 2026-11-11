@@ -25,12 +25,26 @@ export const ReportChart: React.FC<ReportChartProps> = ({ spec, result }) => {
   return (
     <S.Frame>
       {vm.mark === 'bar' && (
-        <BarChart data={vm.data} xKey="name" series={vm.series} stacked={vm.stacked} height={vm.height} />
+        <BarChart
+          data={vm.data}
+          xKey="name"
+          series={vm.series}
+          stacked={vm.stacked}
+          horizontal={vm.horizontal}
+          height={vm.height}
+        />
       )}
       {vm.mark === 'line' && (
-        <TimeSeriesChart data={vm.data} xKey="name" series={vm.series} height={vm.height} />
+        <TimeSeriesChart
+          data={vm.data}
+          xKey="name"
+          series={vm.series}
+          filled={vm.filled}
+          stacked={vm.stacked}
+          height={vm.height}
+        />
       )}
-      {vm.mark === 'donut' && <DonutChart data={vm.slices} height={vm.height} />}
+      {vm.mark === 'donut' && <DonutChart data={vm.slices} solid={vm.solid} height={vm.height} />}
     </S.Frame>
   );
 };

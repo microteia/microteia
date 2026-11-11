@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { aggregateReportRows, reportCellKey } from './aggregateRows';
 import type { ReportDimension, ReportSpec } from './reportSpec';
-import { REPORT_SPEC_VERSION } from './reportSpec';
+import { REPORT_OTHERS_KEY, REPORT_SPEC_VERSION } from './reportSpec';
 
 /**
  * As linhas chegam ao agregador já varridas, hidratadas e materializadas — é por isso que
@@ -645,5 +645,67 @@ describe('aggregateReportRows — lista agrupada', () => {
 
     expect(result.rows).toEqual([]);
     expect(result.records).toHaveLength(5);
+  });
+});
+
+describe('aggregateReportRows — Top N e "Outros"', () => {
+  const topSpec = (dimension: Partial<ReportDimension>): ReportSpec => ({
+    v: REPORT_SPEC_VERSION,
+    dataset: {
+      ...dataset,
+      dimensions: dataset.dimensions.map((one) => (one.key === 'cliente' ? { ...one, ...dimension } : one)),
+    },
+    shape: { kind: 'summary', groupBy: [{ dimension: 'cliente' }], values: ['total', 'quantidade'] },
+  });
+
+  it('ordena os membros pelo valor de uma MEDIDA, do maior para o menor', () => {
+    const result = aggregateReportRows({ spec: topSpec({ sort: { by: 'quantidade', dir: 'desc' } }), rows });
+
+    expect(result.rows.map((row) => row.keys[0].key)).toEqual(['Ana', 'Bruno']);
+  });
+
+  it('com `others`, o que o limite deixou de fora vira UM grupo — e o resultado fecha com o total', () => {
+    const result = aggregateReportRows({
+      spec: topSpec({ sort: { by: 'total', dir: 'desc' }, limit: 1, others: true }),
+      rows,
+    });
+
+    expect(result.rows.map((row) => row.keys[0].key)).toEqual(['Bruno', REPORT_OTHERS_KEY]);
+    expect(result.rows[1].count).toBe(3);
+    expect(result.rows.reduce((sum, row) => sum + row.count, 0)).toBe(result.totals?.count);
+    expect(result.completeGroups).toBe(true);
+  });
+
+  it('sem `others`, o corte continua marcando o resultado como parcial', () => {
+    const result = aggregateReportRows({
+      spec: topSpec({ sort: { by: 'total', dir: 'desc' }, limit: 1 }),
+      rows,
+    });
+
+    expect(result.rows.map((row) => row.keys[0].key)).toEqual(['Bruno']);
+    expect(result.completeGroups).toBe(false);
+  });
+
+  it('a coluna "Outros" do pivô soma o que não é nenhuma das colunas mostradas', () => {
+    const spec: ReportSpec = {
+      v: REPORT_SPEC_VERSION,
+      dataset: {
+        ...dataset,
+        dimensions: dataset.dimensions.map((one) => (one.key === 'cliente'
+          ? { ...one, sort: { by: 'quantidade', dir: 'desc' as const }, limit: 1, others: true }
+          : one)),
+      },
+      shape: { kind: 'matrix', rows: [{ dimension: 'status' }], columns: [{ dimension: 'cliente' }], values: ['quantidade'] },
+    };
+
+    const result = aggregateReportRows({ spec, rows });
+    const othersKey = reportCellKey([{ dimension: 'cliente', key: REPORT_OTHERS_KEY }]);
+    const anaKey = reportCellKey([{ dimension: 'cliente', key: 'Ana' }]);
+    const pago = result.rows.find((row) => row.keys[0].key === 'pago');
+
+    expect(result.columns.map((column) => column[0].key)).toEqual(['Ana', REPORT_OTHERS_KEY]);
+    expect(pago?.cells?.[anaKey]?.quantidade).toBe(1);
+    expect(pago?.cells?.[othersKey]?.quantidade).toBe(1);
+    expect(result.columnTotals?.[othersKey]?.quantidade).toBe(2);
   });
 });

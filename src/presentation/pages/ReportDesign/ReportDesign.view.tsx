@@ -10,7 +10,11 @@ import {
 } from 'react-icons/ri';
 import { S } from './ReportDesign.styles';
 import { useReportDesignViewModel } from './ReportDesign.viewmodel';
-import type { ReportGranularity } from '../../../domain/schema/report/reportSpec';
+import type {
+  ReportGranularity,
+  ReportHighlightOp,
+  ReportHighlightTone,
+} from '../../../domain/schema/report/reportSpec';
 import { Button } from '../../components/ui/Button';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../components/ui/InfoBanner';
@@ -137,6 +141,37 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       )}
                     />
                   )}
+                  {/* Ordem, limite e "Outros" só valem para um campo que AGRUPA: num campo que é só
+                      coluna da lista, não haveria membros a ordenar nem a cortar. */}
+                  {dimension.isGroup && (
+                    <S.Row>
+                      <S.Grow>
+                        <SearchSelect
+                          label={vm.labels.sort}
+                          options={vm.sortOptions}
+                          value={dimension.sortValue}
+                          onChange={(value) => vm.setDimensionSort(dimension.key, value)}
+                        />
+                      </S.Grow>
+                      <S.Grow>
+                        <S.Legend as="label" htmlFor={`limit-${dimension.key}`}>{vm.labels.limit}</S.Legend>
+                        <Input
+                          id={`limit-${dimension.key}`}
+                          inputMode="numeric"
+                          value={dimension.limit}
+                          placeholder={vm.labels.limitPlaceholder}
+                          onChange={(event) => vm.setDimensionLimit(dimension.key, event.target.value)}
+                        />
+                      </S.Grow>
+                    </S.Row>
+                  )}
+                  {dimension.isGroup && dimension.limit !== '' && (
+                    <Checkbox
+                      checked={dimension.others}
+                      onChange={(checked) => vm.setDimensionOthers(dimension.key, checked)}
+                      label={vm.labels.others}
+                    />
+                  )}
                 </div>
                 <S.ItemActions>
                   <S.MoveBtn
@@ -174,7 +209,31 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             <S.Hint>{vm.labels.measuresHint}</S.Hint>
             {vm.measures.map((measure) => (
               <S.Item key={measure.key}>
-                <S.ItemLabel>{measure.label ?? measure.key}</S.ItemLabel>
+                <div>
+                  <S.ItemLabel>{measure.label}</S.ItemLabel>
+                  {measure.detail !== '' && <S.ItemMeta>{measure.detail}</S.ItemMeta>}
+                  <S.Row>
+                    <S.Grow>
+                      <SearchSelect
+                        label={vm.labels.format}
+                        options={vm.formatOptions}
+                        value={measure.formatKind}
+                        onChange={(value) => vm.setMeasureFormat(measure.key, value)}
+                      />
+                    </S.Grow>
+                    {measure.formatKind !== 'integer' && measure.formatKind !== 'currency' && (
+                      <S.Grow>
+                        <S.Legend as="label" htmlFor={`decimals-${measure.key}`}>{vm.labels.decimals}</S.Legend>
+                        <Input
+                          id={`decimals-${measure.key}`}
+                          inputMode="numeric"
+                          value={measure.decimals}
+                          onChange={(event) => vm.setMeasureDecimals(measure.key, event.target.value)}
+                        />
+                      </S.Grow>
+                    )}
+                  </S.Row>
+                </div>
                 <Button variant="ghost" size="sm" onClick={() => vm.removeMeasure(measure.key)}>
                   {vm.labels.remove}
                 </Button>
@@ -189,13 +248,22 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   onChange={(value) => vm.setMeasureOp(value as typeof vm.measureOp)}
                 />
               </S.Grow>
-              {vm.measureOp !== 'count' && (
+              {vm.measureOp !== 'count' ? (
                 <S.Grow>
                   <SearchSelect
                     label={vm.labels.measureField}
                     options={vm.pathOptions
                       .filter((option) => option.isNumeric)
                       .map((option) => ({ value: option.value, label: option.label }))}
+                    value={vm.measurePath}
+                    onChange={vm.setMeasurePath}
+                  />
+                </S.Grow>
+              ) : (
+                <S.Grow>
+                  <SearchSelect
+                    label={vm.labels.distinctField}
+                    options={vm.distinctOptions}
                     value={vm.measurePath}
                     onChange={vm.setMeasurePath}
                   />
@@ -207,6 +275,82 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onClick={vm.addMeasure}
                 disabled={!vm.canAddMeasure}
               >
+                {vm.labels.add}
+              </Button>
+            </S.Row>
+          </S.Group>
+
+          {/* O número CALCULADO lê os outros números, nunca o registro: uma razão de totais, e não a
+              média das razões de cada linha. */}
+          <S.Group>
+            <S.GroupHeader>
+              <S.Legend>{vm.labels.computed}</S.Legend>
+            </S.GroupHeader>
+            <S.Hint>{vm.labels.computedHint}</S.Hint>
+            <S.Legend as="label" htmlFor="computed-name">{vm.labels.computedName}</S.Legend>
+            <Input
+              id="computed-name"
+              value={vm.computedName}
+              onChange={(event) => vm.setComputedName(event.target.value)}
+            />
+            <ExpressionEditor
+              value={vm.computedExpression}
+              onChange={vm.setComputedExpression}
+              workflowVariables={vm.measureVariables}
+              placeholder={vm.labels.computedPlaceholder}
+            />
+            <S.Row>
+              <Button variant="secondary" size="sm" onClick={vm.addComputed} disabled={!vm.canAddComputed}>
+                {vm.labels.add}
+              </Button>
+            </S.Row>
+          </S.Group>
+
+          <S.Group>
+            <S.GroupHeader>
+              <S.Legend>{vm.labels.highlight}</S.Legend>
+            </S.GroupHeader>
+            <S.Hint>{vm.labels.highlightHint}</S.Hint>
+            {vm.highlights.map((rule, index) => (
+              <S.Item key={`${rule.label}:${index}`}>
+                <S.ItemLabel>{rule.label}</S.ItemLabel>
+                <Button variant="ghost" size="sm" onClick={() => vm.removeHighlight(index)}>
+                  {vm.labels.remove}
+                </Button>
+              </S.Item>
+            ))}
+            <S.Row>
+              <S.Grow>
+                <SearchSelect
+                  options={vm.measures.map((measure) => ({ value: measure.key, label: measure.label }))}
+                  value={vm.highlightMeasure}
+                  onChange={vm.setHighlightMeasure}
+                  placeholder={vm.labels.add}
+                />
+              </S.Grow>
+              <S.Grow>
+                <SearchSelect
+                  options={vm.labels.opHighlightOptions}
+                  value={vm.highlightOp}
+                  onChange={(value) => vm.setHighlightOp(value as ReportHighlightOp)}
+                />
+              </S.Grow>
+              <S.Grow>
+                <Input
+                  inputMode="decimal"
+                  value={vm.highlightValue}
+                  placeholder={vm.labels.highlightValue}
+                  onChange={(event) => vm.setHighlightValue(event.target.value)}
+                />
+              </S.Grow>
+              <S.Grow>
+                <SearchSelect
+                  options={vm.labels.toneOptions}
+                  value={vm.highlightTone}
+                  onChange={(value) => vm.setHighlightTone(value as ReportHighlightTone)}
+                />
+              </S.Grow>
+              <Button variant="secondary" size="sm" onClick={vm.addHighlight} disabled={!vm.canAddHighlight}>
                 {vm.labels.add}
               </Button>
             </S.Row>
@@ -246,6 +390,17 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               placeholder={vm.labels.noGroup}
             />
             <S.Hint>{vm.labels.groupHint}</S.Hint>
+            {vm.shapeKind !== 'tabular' && (
+              <Checkbox checked={vm.grandTotal} onChange={vm.setGrandTotal} label={vm.labels.grandTotal} />
+            )}
+            {vm.shapeKind === 'matrix' && (
+              <SearchSelect
+                label={vm.labels.emptyCell}
+                options={vm.emptyCellOptions}
+                value={vm.emptyCell}
+                onChange={vm.setEmptyCell}
+              />
+            )}
           </S.Group>
 
 
@@ -373,6 +528,19 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 <div>
                   <S.ItemLabel>{prompt.label}</S.ItemLabel>
                   <S.ItemMeta>{prompt.op}</S.ItemMeta>
+                  <Checkbox
+                    checked={prompt.required}
+                    onChange={(checked) => vm.setPromptRequired(prompt.key, checked)}
+                    label={vm.labels.promptRequired}
+                  />
+                  {prompt.isPeriod && (
+                    <SearchSelect
+                      label={vm.labels.promptDefault}
+                      options={vm.periodOptions}
+                      value={prompt.periodDefault}
+                      onChange={(value) => vm.setPromptPeriodDefault(prompt.key, value)}
+                    />
+                  )}
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => vm.removePrompt(prompt.key)}>
                   {vm.labels.remove}
@@ -390,7 +558,7 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               </S.Grow>
               <S.Grow>
                 <SearchSelect
-                  options={vm.labels.operatorOptions}
+                  options={vm.promptOpOptions}
                   value={vm.promptOp}
                   onChange={(value) => vm.setPromptOp(value as typeof vm.promptOp)}
                 />
@@ -404,6 +572,24 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 {vm.labels.add}
               </Button>
             </S.Row>
+          </S.Group>
+
+          <S.Group>
+            <S.Legend as="label" htmlFor="report-scan-limit">{vm.labels.scanLimit}</S.Legend>
+            <Input
+              id="report-scan-limit"
+              inputMode="numeric"
+              value={vm.scanLimit}
+              placeholder={vm.labels.scanLimitPlaceholder}
+              onChange={(event) => vm.setScanLimit(event.target.value)}
+            />
+            <SearchSelect
+              label={vm.labels.permission}
+              options={vm.permissionOptions}
+              value={vm.permission}
+              onChange={vm.setPermission}
+            />
+            <S.Hint>{vm.labels.permissionHint}</S.Hint>
           </S.Group>
 
           {vm.errors.map((error) => <InfoBanner key={error} message={error} variant="warning" />)}

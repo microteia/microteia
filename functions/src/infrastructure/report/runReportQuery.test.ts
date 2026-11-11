@@ -742,3 +742,98 @@ describe('runReportQuery — a visibilidade por registro', () => {
     expect(totalOf(automacao)).toBe(350);
   });
 });
+
+describe('runReportQuery — o filtro obrigatório, o padrão e o período', () => {
+  const contasScreen: SchemaScreen = {
+    id: 'contas',
+    titleSingular: 'Conta',
+    titleFieldKey: 'titulo',
+    fields: [
+      { key: 'titulo', label: 'Título', type: 'text', required: false, order: 0, origin: 'design' },
+      { key: 'situacao', label: 'Situação', type: 'text', required: false, order: 1, origin: 'design' },
+      { key: 'valor', label: 'Valor', type: 'currency', required: false, order: 2, origin: 'design' },
+      { key: 'vencimento', label: 'Vencimento', type: 'date', required: false, order: 3, origin: 'design' },
+    ],
+  };
+
+  // `context()` fixa hoje em 2026-05-05: maio é "este mês", abril é "o mês passado".
+  const contas: WorkflowQueryRow[] = [
+    { id: 'a', data: { situacao: 'pago', valor: 10, vencimento: new Date('2026-04-30T12:00:00.000Z') } },
+    { id: 'b', data: { situacao: 'pago', valor: 20, vencimento: new Date('2026-05-01T12:00:00.000Z') } },
+    { id: 'c', data: { situacao: 'aberto', valor: 40, vencimento: new Date('2026-05-31T12:00:00.000Z') } },
+    { id: 'd', data: { situacao: 'aberto', valor: 80, vencimento: new Date('2026-06-01T12:00:00.000Z') } },
+  ];
+
+  const contasDeps = () => ({
+    queryRepository: new FakeQueryRepository(contas),
+    fetcher: new FakeFetcher(),
+    screenProvider: fakeScreenProvider([contasScreen]),
+  });
+
+  const porPeriodo = (prompt: Partial<NonNullable<NonNullable<ReportSpec['presentation']>['prompts']>[number]>): ReportSpec => ({
+    v: 1,
+    dataset: {
+      table: 'contas',
+      dimensions: [{ key: 'situacao', path: 'situacao' }],
+      measures: [{ key: 'total', op: 'sum', path: 'valor' }],
+    },
+    shape: { kind: 'summary', groupBy: [{ dimension: 'situacao' }], values: ['total'] },
+    presentation: { prompts: [{ key: 'mes', path: 'vencimento', op: 'gte', control: 'period', ...prompt }] },
+  });
+
+  const totalOf = (outcome: Awaited<ReturnType<typeof runReportQuery>>): number | null | undefined =>
+    (outcome.ok ? outcome.value.totals?.values.total : undefined);
+
+  it('o período vira o intervalo de dias no fuso do escritório', async () => {
+    const outcome = await runReportQuery({
+      spec: porPeriodo({}), context: context(), deps: contasDeps(), prompts: { mes: 'this-month' },
+    });
+
+    expect(totalOf(outcome)).toBe(60);
+  });
+
+  it('sem a chave, vale o PADRÃO do autor', async () => {
+    const outcome = await runReportQuery({
+      spec: porPeriodo({ default: { kind: 'Literal', value: 'last-month' } }),
+      context: context(),
+      deps: contasDeps(),
+      prompts: {},
+    });
+
+    expect(totalOf(outcome)).toBe(10);
+  });
+
+  it('a chave enviada VAZIA é "sem restrição" — o padrão não volta por cima do leitor', async () => {
+    const outcome = await runReportQuery({
+      spec: porPeriodo({ default: { kind: 'Literal', value: 'last-month' } }),
+      context: context(),
+      deps: contasDeps(),
+      prompts: { mes: null },
+    });
+
+    expect(totalOf(outcome)).toBe(150);
+  });
+
+  it('o obrigatório sem resposta RECUSA, nomeando o filtro', async () => {
+    const outcome = await runReportQuery({
+      spec: porPeriodo({ required: true }), context: context(), deps: contasDeps(), prompts: {},
+    });
+
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) {
+      expect(outcome.error).toBe('@core.reports/prompt.required.missing');
+      expect(outcome.errorParams).toEqual({ keys: 'mes' });
+    }
+  });
+
+  it('o obrigatório com padrão roda — o padrão É a resposta', async () => {
+    const outcome = await runReportQuery({
+      spec: porPeriodo({ required: true, default: { kind: 'Literal', value: 'this-month' } }),
+      context: context(),
+      deps: contasDeps(),
+      prompts: {},
+    });
+
+    expect(totalOf(outcome)).toBe(60);
+  });
+});

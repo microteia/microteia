@@ -7421,10 +7421,12 @@ motor com Admin SDK. Nenhum módulo importa ou conhece o motor.
    `DispatchNotificationUseCase` (ver "Passo Notificar");
    `SetVariableStep` → nenhuma dependência externa. Nenhum Step conhece mais uma entidade de
    escritório: `CreateDeadlineStep`, o último que conhecia, saiu com a entidade Prazo.
-3. **Composition root** (`functions/src/infrastructure/workflow/registerSteps.ts`) — único
-   arquivo que conhece o `StepRegistry` **e** os plugins concretos, ligando os dois no cold
-   start (`ensureWorkflowStepsRegistered` no DI container). Adicionar um Step novo nunca exige
-   alterar o núcleo.
+3. **Composition root** (`functions/src/plugins/index.ts`, com a carga em
+   `functions/src/infrastructure/workflow/loadWorkflowPlugins.ts`) — os passos são contribuições
+   `workflow.step` dos plugins de `BACKEND_PLUGINS` (`core.steps`, `core.ai.steps`), e
+   `registerStepsFromPlugins` os liga ao `StepRegistry` no cold start
+   (`ensureWorkflowStepsRegistered` no DI container). Adicionar um Step novo nunca exige alterar o
+   núcleo. Ver "O motor de automações como contribuição".
 
 Localização de Step é **sempre** via `stepRegistry.resolve(stepDefinitionId)` — nunca
 `switch`/`if` sobre o tipo.
@@ -7479,7 +7481,7 @@ EXEMPLOS junto, que era o que faltava — pela porta única.
 `src/` não pode importar os executores de `functions/`. Por isso o composition root também
 espelha cada `StepDefinition` (todos os campos exceto `createExecutor`) em
 `workflow_step_catalog/{id}` — coleção global, não por tenant, já que o catálogo de Steps
-disponíveis é o mesmo para todos os escritórios. O builder (`StepEditorModal`) renderiza a UI
+disponíveis é o mesmo para todos os escritórios. O editor de passo (a página `EditWorkflowStep`) renderiza a UI
 de configuração **exclusivamente** a partir de `InputDefinition[]` lido dali — nunca conhece um
 Step por nome (ex: `"CreateDeadline"`).
 
@@ -7500,7 +7502,7 @@ Um input de Step com `type: 'EntityReference'` declara também `entityType?: str
 `FieldDefinition.refEntity` nos Custom Fields do ScreenBuilder: a **COLEÇÃO** apontada (`'cases'`,
 `'persons'`, `'contracts'`, `'financials'`, `'deadlines'`, `'members'` — usuários do tenant, não é uma
 coleção de domínio — ou a coleção de uma tela do Form Design/extensão). Quando o
-usuário escolhe mapping "Valor fixo" para esse campo, o `StepEditorModal`
+usuário escolhe mapping "Valor fixo" para esse campo, a página `EditWorkflowStep`
 (`renderLiteralControl`) renderiza `EntityReferenceControl`, que resolve as opções via
 `useReferenceOptions()` (mesmo hook do `useCustomFieldListing`) filtrado por `entityType` — sem
 duplicar a lógica de carregar cada store de entidade. Sem `entityType` declarado, cai no
@@ -7859,9 +7861,9 @@ dentro de `call()` lançando `Error` com mensagem descritiva em PT-BR — será 
    o padrão acima. Se for de uma categoria existente (Data, Texto), adicione-a ao arquivo
    correspondente (`dateFns.ts`, `stringFns.ts`); senão, crie um novo arquivo (ex: `mathFns.ts`).
 
-2. **Registrar no motor** em `functions/src/domain/engine/expression/ExpressionEngine.ts`:
-   - Importe a função no topo: `import { nomeDaFn } from './builtins/seuArquivo';`
-   - Adicione-a ao array de registro: `[todayFn, nowFn, ..., nomeDaFn].forEach(...)`
+2. **Contribuir a função** em `functions/src/plugins/core.expressions/manifest.ts`: importe-a e
+   acrescente-a a `BUILTIN_FUNCTIONS`. Ela vira uma contribuição `expression.function` e é registrada
+   no `FunctionRegistry` na carga dos plugins — o `ExpressionEngine` não importa função nenhuma.
 
 3. **Pronto!** A função estará disponível automaticamente:
    - **No backend:** `ExpressionEngine` já a resolve via `FunctionRegistry`.
@@ -7896,25 +7898,22 @@ gate antes do commit.
 
 **Não é necessário:**
 - ❌ Atualizar arrays hardcoded no frontend (removidos desde v0.46.7)
-- ❌ Modificar o `ExpressionEngine.ts` além do import e registro
+- ❌ Modificar o `ExpressionEngine.ts`
 - ❌ Tocar no `FunctionRegistry.ts` (exceto se precisar adicionar uma nova categoria)
 
 **Deploy:** a Cloud Function `getExpressionFunctions` faz parte do grupo `deploy:workflow`
 (`package.json`). Rode `npm run deploy:workflow` (só as functions de automação) ou
 `npm run deploy:functions` (todas).
 
-#### Categorias Predefinidas
+#### Categorias
 
-- **Data:** funções que retornam ou manipulam datas (`today`, `now`, operadores `+`/`-` com
-  números de dias)
-- **Texto:** transformação e concatenação de strings (`concat`, `lower`, `upper`, `length`)
-- **Condicional:** controle de fluxo (`if`)
-- **Variável:** acesso ao contexto do workflow (`getVar`)
-- **Operador:** operadores matemáticos ou lógicos (`+`, `-` — esses não ficam no `FunctionRegistry`,
-  são tratados como tokens especiais pelo `ExpressionEngine`)
+A categoria é uma REFERÊNCIA de mensagem (`@core.automation/expr.category.*`), e a lista fechada mora
+em `FunctionRegistry.ts`: data, texto, matemática, condicional, variável e as demais declaradas ali.
+Operadores (`+`, `-`, `and`, `or`) não ficam no `FunctionRegistry` — o `expr-eval` os trata como
+tokens, e o `operatorRegistry` os documenta.
 
-Adicionar uma categoria nova: editar o tipo union em `FunctionRegistry.ts` e incluir a string
-literal. A UI do frontend (`FunctionReference`, `FunctionReferenceModal`) renderiza badges de
+Adicionar uma categoria nova: acrescentar a referência à lista em `FunctionRegistry.ts`, com a chave
+`en` no catálogo e o par pt-BR. A UI do frontend (`FunctionReference`, `FunctionReferenceModal`) renderiza badges de
 categoria automaticamente a partir dos dados retornados pela API.
 
 ### Fluxo de execução
@@ -8073,7 +8072,7 @@ prefixo `values.`/`customValues.` e sem lista dinâmica à parte.
 
 **Implementado:** `ActionStep` com Steps reais (`NotifyStep`, `RegisterAuditStep`,
 `SetVariableStep`, e depois `MapStep`, `UpsertStep`, `RemoveStep`, `QueryStep`, `ScriptStep`…), execução sequencial fail-fast, publicação automática de
-eventos `saved`/`deleted` para as 8 entidades da tabela acima, e o sistema completo de condições:
+eventos `saved`/`deleted` para toda coleção de tela (ver "Publicação automática de eventos"), e o sistema completo de condições:
 `AlwaysTrue`, `FieldComparison` (com `valueType` literal/expression/eventField), `Expression`
 (expressão pura avaliada pelo `ExpressionEngine` e convertida para booleano), `LogicalAnd`,
 `LogicalOr` e `Not`, todos aninháveis (`functions/src/domain/engine/ConditionEvaluator.ts`).
@@ -8190,11 +8189,11 @@ Excluir um nó Condição remove seus ramos em cascata. `EditWorkflowStep` edita
 - `functions/src/infrastructure/handlers/publishWorkflowEventOnEntityChange.ts` — publica os eventos `saved`/`deleted` com payload cru
 - `functions/src/infrastructure/handlers/syncWorkflowStepCatalog.ts` — `onCall` que sincroniza `workflow_step_catalog` sob demanda (chamado pelo builder ao abrir uma automação, já que o catálogo não pode depender de um evento real ter ocorrido)
 - `functions/src/infrastructure/handlers/getExpressionFunctions.ts` — `onCall` que retorna todas as funções de expressão disponíveis para o frontend
-- `functions/src/infrastructure/workflow/registerSteps.ts` — composition root
+- `functions/src/plugins/index.ts` + `functions/src/infrastructure/workflow/loadWorkflowPlugins.ts` — composition root (passos e funções como contribuição)
 - `src/domain/schema/` — registry, resolvedor de caminhos, catálogo de eventos, planner e materializer compartilhados (fonte única; ver "Schema Compartilhado Gerado")
 - `src/stores/ExpressionFunctionStore.tsx` — store que carrega as funções de expressão do backend
 - `src/domain/services/workflowEventCatalog.ts` — adapter fino do catálogo derivado (`domain/schema/eventCatalog.ts`)
-- `src/presentation/pages/ViewWorkflow/components/StepEditorModal/` — UI genérica dirigida por `InputDefinition[]`
+- `src/presentation/pages/EditWorkflowStep/` — editor de passo, UI genérica dirigida por `InputDefinition[]`
 - `src/presentation/components/ui/ExpressionEditor/` — editor de expressões com autocomplete segmento-a-segmento (`pathRoot` + `suggestNextSegments`) e validação semântica de caminhos
 - `src/presentation/shared/useSchemaContext.ts` / `useLookupValues.ts` — pontes dos stores para o resolvedor (screens dinâmicas e valores de lookup)
 
@@ -8525,7 +8524,7 @@ O Step `script` executa **código JavaScript do usuário** dentro de um sandbox 
 
 **Ponte de consulta `query(spec)` (assíncrona).** O global `query` aceita um `QuerySpec` (`{ table, where:[{path,op,value}], orderBy?, limit, projections }`, mesmo formato do Step "Buscar Registros") e devolve `{ count, results, first, scanned, complete, hasMore, cursor }` (com `page: { after }`, lê em páginas — ver "Leitura em páginas"). Reúsa **integralmente** o pipeline do QueryStep, extraído para `functions/src/infrastructure/workflow/query/runWorkflowQuery.ts` (validação, `queryByEquality` enraizado em `tenants/{tenantId}/…`, hidratação de projeções, predicados em memória, ordenação e `limit`); a ponte apenas envolve cada `where[].value` como `InputMapping` `Literal`. **Busca pelo id do documento:** predicado `eq`/`in` sobre o `id` da raiz não desce como filtro de campo (o documento não guarda o próprio id — `id == X` voltava sempre vazio); vira leitura direta por `fetchByIds` (`getAll`), sem varredura nem índice, e os demais predicados do `where` passam a ser avaliados em memória sobre os registros lidos. Vários predicados de id se intersectam; `neq`/`exists` sobre `id` ficam em memória. Vale para todo chamador de `runRecordQuery` — passo, script, relatório, agente e documento. Segurança: escopo por `context.execution.tenantId` (nunca vindo do script), teto de `MAX_QUERIES` consultas por execução, e o deadline total acima. Implementação com `vm.newPromise()` + um loop de bombeamento que intercala `executePendingJobs()` com o `await` das consultas em voo.
 
-O script do usuário retorna um objeto (ex.: `main()` no final) que vira os `outputs` do Step. Deps novas: `quickjs-emscripten` (functions) e `sucrase` (frontend). Registro do Step em `registerSteps.ts` + `container.ts` (recebe `IScriptRepository` e os repositórios de query já existentes).
+O script do usuário retorna um objeto (ex.: `main()` no final) que vira os `outputs` do Step. Deps novas: `quickjs-emscripten` (functions) e `sucrase` (frontend). Registro do Step como contribuição de `core.steps` + `container.ts` (recebe `IScriptRepository` e os repositórios de query já existentes).
 
 ---
 
@@ -9299,8 +9298,9 @@ com os chunks passando de 96 para 180.
 | `workflow.step` | `stepDefinitionId`, `name`, `category` | `code` → `StepFactory` |
 | `expression.function` | `name`, `category`, `minArgs`, `maxArgs` | `code` → `ExpressionFunction` |
 
-Três plugins: `core.workflow` (declara os pontos), `core.steps` (12 passos) e `core.expressions`
-(53 funções). Composition root em `functions/src/plugins/index.ts`.
+Plugins: `core.workflow` (declara os pontos), `core.steps` (os passos do catálogo), `core.ai.steps`
+(os dois de IA) e `core.expressions` (as funções). As contagens não ficam escritas aqui de propósito:
+quem as quer lê `CORE_STEP_CATALOG` e `BUILTIN_FUNCTIONS`, que não envelhecem. Composition root em `functions/src/plugins/index.ts`.
 
 **Step é fábrica, não objeto pronto.** `StepFactory = (deps: RegisterStepsDeps) => StepDefinition`:
 quem contribui declara a fábrica, e `registerStepsFromPlugins` injeta os repositórios na carga. As
@@ -10644,9 +10644,17 @@ todos os níveis e não precisa.
 
 ### O que o contrato prevê e a v1 não executa
 
-`schedule` já é tipado (com aviso `@core.reports/schedule.not-implemented`); join já tem
-discriminante em `dataset.kind`. Cada um entra de forma aditiva — e reservar o nome agora é o que
-impede um kernel velho de podar em silêncio o que uma ferramenta nova escreveu.
+`schedule` já é tipado — e AVISA (`@core.reports/schedule.not-implemented`), não recusa: o token não
+está sob `dataset.`/`measure.`, e o relatório continua certo; só não roda sozinho. Join já tem
+discriminante em `dataset.kind`, e este RECUSA. Cada um entra de forma aditiva — e reservar o nome agora
+é o que impede um kernel velho de podar em silêncio o que uma ferramenta nova escreveu.
+
+Ainda previstos e não executados, com aviso: `shape.limit`, `presentation.fields`, `presentation.drillDown`,
+`presentation.export.fileName`, um `prompts[].control` diferente de `'period'` e `sort.by: 'label'` — o
+rótulo de um grupo é resolvido na tela, no idioma de quem lê, e o servidor que corta o nível não o vê.
+
+**`emptyCell` ausente mostra o valor calculado** (0 numa contagem, travessão numa média de nada); só
+`'blank'` deixa a célula vazia. O guia de autoria dizia o contrário, e foi corrigido para o código.
 
 ### Medida calculada (`measures[].kind: 'computed'`)
 
@@ -10667,6 +10675,59 @@ anterior continua recusando o relatório pelo nome dele.
   agregador ainda devolve `null` num ciclo que escape, em vez de recursar.
 - **`format: { kind: 'percent' }` não multiplica por 100** — imprime o número seguido de `%`. A razão
   multiplica na expressão (`openTotal / total * 100`, no exemplo de relatórios).
+
+### Top N e "Outros" (`dimension.sort.by` + `limit` + `others`)
+
+`sort.by` com a CHAVE de uma medida ordena os membros do nível pelo valor dela no grupo
+(`sortedChildren`, em `aggregateRows.ts`); grupo sem valor vai para o fim nos dois sentidos. Com
+`limit`, ficam os N primeiros. `others: true` junta o excedente num grupo residual de chave
+`REPORT_OTHERS_KEY` (caractere de controle + `others`, impossível de digitar), com a subárvore dos níveis
+de baixo reconstruída a partir só das linhas dele — e o resultado deixa de ser parcial, porque as linhas
+voltam a fechar com o total. No pivô, a coluna "Outros" é definida contra os membros MOSTRADOS
+(`belongsTo`). O nome "Outros" é da tela (`useReportGroupLabels`), no idioma de quem lê.
+
+Tokens: `dimension.sort.measure` (executado) separado de `dimension.sort.by` (o rótulo, ainda não), e
+`dimension.others`. Os dois sob `dimension.`, que degrada com aviso num kernel anterior.
+
+### Filtros do leitor — obrigatório, padrão e período
+
+Executados no SERVIDOR (`runReportQuery.ts`), não só na tela — o widget e o agente passam por lá.
+
+- **`required`** sem resposta (nem do leitor, nem do padrão) recusa com
+  `@core.reports/prompt.required.missing`. A tela desabilita o Executar antes.
+- **`default`** vale quando a chave do filtro NÃO é enviada. Enviada vazia (`null`) é resposta — "sem
+  restrição" —, e é o que deixa o leitor limpar o padrão. A tela mostra o padrão `Literal` preenchido e
+  manda `null` no que o leitor limpou; padrão por expressão ela não envia, e o servidor o resolve. Um
+  relatório cujos filtros todos têm padrão abre executado.
+- **`control: 'period'`** sobre caminho de data pede um período relativo (`REPORT_PERIODS`, em
+  `reportPeriod.ts`, sincronizado). O servidor o converte em dois predicados sobre DIAS — `gte` o
+  primeiro e `lt` o dia seguinte ao último —, contados a partir de hoje no fuso do escritório
+  (`dayInTimeZone`); a semana começa na segunda, a mesma régua ISO do balde `week`. Dias e não
+  instantes porque é como `predicateMatch` compara uma data sem hora: o dia inteiro. Os identificadores
+  são `kebab-case` (`this-month`) porque são também chave de mensagem (`period.this-month`).
+
+### Destaque condicional (`presentation.highlight`)
+
+`[{ measure, op, value, tone }]`, com `tone` em `positive | warning | negative`. A primeira regra que
+casa vence (`reportHighlightTone`, `reportHighlight.ts`); célula sem valor nunca ganha tom. O fundo vem
+do TEMA (`reportToneBackground`: `revenueLight`, `warningLight`, `dangerLight`), nunca de cor do
+relatório. Mora em `presentation` — removê-la deixa os mesmos números.
+
+### A autoria preserva o que não edita
+
+A tela `report-design` passou a montar o `spec` sobre o que já estava gravado: `presentation.fields`,
+`drillDown`, `export`, `access.requires`, `schedule`, `dataset.kind` e o `orderBy`/`limit` da lista
+sobrevivem ao Salvar. Antes o `spec` era reconstruído só do rascunho, e um relatório escrito pelo
+agente ou por uma extensão perdia, no primeiro Salvar, o que a tela não mostrava. Ela também passou a
+expor o que o executor já rodava: medida calculada, contagem distinta, formato, ordem/Top N/"Outros",
+total geral, célula vazia, teto de varredura, permissão própria, destaque e os três atributos de filtro.
+
+### Gráficos — cada tipo desenha o seu
+
+`bar` são barras DEITADAS e `column` em pé (a convenção das planilhas); `area` preenche sob a linha;
+`pie` é cheia e `donut` tem o furo. Antes cada par era desenhado igual, sem aviso. As primitivas
+(`BarChart.horizontal`, `TimeSeriesChart.filled`/`stacked`, `DonutChart.solid`) são da API curada e
+estão em `extensionTypeDefs.ts`.
 
 **Relatório do pacote NÃO se mescla com edição do escritório** — o oposto do que vale para telas. Uma
 tela mescla porque o campo é unidade independente com dono próprio; um `ReportSpec` é uma afirmação

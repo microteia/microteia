@@ -18,6 +18,17 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.224.0] — 2026-11-11
+
+- feat(reports): Top N — `dimension.sort.by: <measure key>` orders a level by that measure, and `dimension.others` gathers what `limit` dropped into one `REPORT_OTHERS_KEY` group, keeping the result complete (also on matrix columns). New capability tokens `dimension.sort.measure` and `dimension.others`; `sort.by: 'label'` stays reserved.
+- feat(reports): prompts — `required` is enforced by the server (`@core.reports/prompt.required.missing`), `default` applies when the prompt key is not sent, and `control: 'period'` turns a relative period (`REPORT_PERIODS`) into a day range in the organization's time zone. Tokens `presentation.prompt.required`, `.default` and `.period` are now executed.
+- feat(reports): `presentation.highlight` — conditional tone per measure (`positive | warning | negative`), drawn from theme tokens.
+- feat(reports/design): the designer exposes computed measures, distinct count, number format, sort/Top N/Others, grand total, empty cell, scan limit, own permission, highlight and prompt attributes, and now preserves the spec properties it does not edit (`presentation.fields/drillDown/export`, `access.requires`, `schedule`, `dataset.kind`, tabular `orderBy`/`limit`) instead of dropping them on save.
+- feat(reports/kernel): `KERNEL_VERSION` 2.107.0 — the report spec gained properties an installed package can declare (`dimension.others`, `sort.by: <measure>`, `presentation.highlight`, `prompts[].control: 'period'`).
+- feat(ui/chart): `BarChart.horizontal`, `TimeSeriesChart.filled`/`stacked` and `DonutChart.solid` in the curated host API; report charts draw `bar` horizontal, `column` vertical, `area` filled and `pie` solid instead of aliasing each pair.
+- fix(sdk/guide): the authoring guide said `schedule` refuses a report (it warns) and that `emptyCell` defaults to blank (it shows the computed value); both now match the code.
+- docs(architecture): removed references to `registerSteps.ts` and `StepEditorModal`, which no longer exist, and the hard-coded step and entity counts.
+
 #### [9.223.1] — 2026-11-11
 
 - fix(storage.rules): record attachments failed with `storage/unauthorized` for every account except `SYSTEM`, owners included. Cloud Storage rules may read at most two distinct Firestore documents per evaluation, and the owner check had grown to three (`users`, `tenants/{id}`, `members/{uid}`). The emulator does not enforce the cap, so the rules suite passed. Rules now answer from the member document first (its `permissions` carry the owner's `*`), read `users/{uid}` only when the member does not answer, and ask once for each document that may be missing, because repeated lookups of a missing document are not cached. `tenants/{id}.ownerId` is no longer read by the Storage rules.

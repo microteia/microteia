@@ -54,6 +54,8 @@ import { PERMISSION_RECORD_IMPORT_RUN } from '../../../domain/schema/access/kern
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { STEP_TYPES } from '../../../domain/entities/Workflow';
+import { REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
+import { REPORT_HIGHLIGHT_TONES } from '../../../domain/schema/report/reportSpec';
 import {
   ACTION_COMMAND_ORDER,
   ACTION_RECORD_PARAMETER,
@@ -3742,11 +3744,15 @@ mean, and treat a refusal as the platform telling you it cannot answer for them.
 - \`dimensions[].granularity\`: ${inlineList(REPORT_GRANULARITIES)}. Only meaningful over a date. **Set \`timeZone\`**: without it the bucket is cut in UTC, and a sale at nine at night
   on the 31st lands in the wrong month — with nothing on screen saying so.
 - \`dimensions[].path\` may cross a reference (\`client.city\`), same grammar as a query projection.
-- \`dimensions[].sort\`: \`{ dir: 'asc' | 'desc' }\` orders that level's members. \`limit\` keeps the
-  first N of them, and what it drops does not reappear anywhere — while the grand total still counts
-  every row scanned. So a limited level marks the result **partial**, and the platform says so on
-  screen, in the CSV and on the printed page, because rows that do not add up to their own total are
-  the one thing a reader cannot catch.
+- \`dimensions[].sort\`: \`{ dir: 'asc' | 'desc' }\` orders that level's members by their value;
+  \`{ by: '<measure key>', dir: 'desc' }\` orders them by that measure in each group — the TOP N, with
+  \`limit\`. A group with no value in that measure goes last either way. \`limit\` keeps the first N, and
+  without \`others\` what it drops does not reappear anywhere — while the grand total still counts every
+  row scanned. So a limited level marks the result **partial**, and the platform says so on screen, in
+  the CSV and on the printed page, because rows that do not add up to their own total are the one thing
+  a reader cannot catch. **\`others: true\`** gathers what the limit dropped into ONE group, shown as
+  "Others" in the reader's language: the rows add up to the total again, and the result is not partial.
+  In a \`matrix\` the same works on the column grouping.
 - \`shape.kind\`: ${inlineList(REPORT_SHAPE_KINDS)}. **Grouping and showing are two different
   questions, and the fold decides how the second one is answered — never whether the first one was
   asked.** Every fold groups by \`{ dimension, subtotal? }\` levels, outermost first; what changes is
@@ -3772,8 +3778,10 @@ mean, and treat a refusal as the platform telling you it cannot answer for them.
     full collection.
   - \`matrix\`: \`rows\` and \`columns\` are those same level objects and BOTH are required. This
     version reads one level of \`columns\`; more than one is flattened, with a warning.
-    \`emptyCell: 'zero'\` writes a zero where nothing happened — the default leaves it blank, because
-    "there was none" and "there was, and it came to zero" are different statements.
+    \`emptyCell\` decides what a cell where nothing happened shows: \`'blank'\` leaves it empty,
+    \`'zero'\` writes a zero. Absent, it shows the value the aggregate computed — 0 for a count, a dash
+    for an average of nothing. "There was none" and "there was, and it came to zero" are different
+    statements; choose \`'blank'\` when your readers need to tell them apart.
   - \`grandTotal: false\` drops the total row, on \`summary\` and \`matrix\`.
   - **Declare only the dimensions the fold uses.** One that is neither a level nor a column is shown
     nowhere, and the platform warns whoever opens the report, naming it. It is a warning and not a
@@ -3801,6 +3809,11 @@ mean, and treat a refusal as the platform telling you it cannot answer for them.
   If you want the chart, group the list — you keep the records either way.
 - \`dataset.scanLimit\` asks for a smaller scan than the ceiling. Asking for a bigger one is clamped,
   never refused.
+- \`presentation.highlight\`: \`[{ measure, op, value, tone }]\` paints a measure's cell when its value
+  compares true — \`op\` is \`lt\`, \`lte\`, \`gt\`, \`gte\`, \`eq\` or \`neq\`, \`tone\` is
+  ${inlineList(REPORT_HIGHLIGHT_TONES)}. A tone, never a colour: the theme draws it, light or dark. The first
+  rule that matches wins, a cell with no value is never painted, and removing the rule leaves the same
+  numbers — it lives in \`presentation\` for that reason.
 
 ### The question the report asks the reader
 
@@ -3820,9 +3833,21 @@ picker, a reference asks with the record chooser of the collection it points to,
 with its options. You do not choose that, and you should not try to: it is the same control the
 organization already knows from the screen the data came from.
 
-**A prompt left empty simply does not filter.** \`required\` and \`default\` are in the contract and
-this version acts on neither, so a report that would be wrong unrestricted needs its restriction in
-\`dataset.where\`, where nobody can skip it.
+**A prompt left empty simply does not filter** — unless the report says otherwise:
+
+- **\`required: true\`** refuses to run until the prompt is answered (by the reader or by its \`default\`).
+  The server refuses it, not just the screen, so a widget or an agent cannot skip it either.
+- **\`default\`** is an \`InputMapping\` used when the prompt is NOT SENT — the key absent. A prompt sent
+  empty is an answer ("no restriction"), so the reader can clear the default. A \`Literal\` default is
+  shown filled in; an \`Expression\` one (\`today()\`) is resolved by the server. A report whose prompts
+  all have a default opens already run.
+- **\`control: 'period'\`** on a DATE path asks for a relative period instead of a value:
+  ${inlineList(REPORT_PERIODS)}. The server turns it into a range of days counted from today in the
+  organization's time zone, weeks starting on Monday like the \`week\` bucket; \`op\` is not read.
+  \`default: { kind: 'Literal', value: 'this-month' }\` opens the report on the current month.
+
+A report that would be wrong unrestricted still needs its restriction in \`dataset.where\`, where
+nobody can skip it.
 
 ### The question asked of each row
 
@@ -3940,14 +3965,15 @@ is \`impl: { kind: 'code' }\`, so it waits for an administrator to read and trus
 
 ### What the contract names but this version does not run
 
-\`schedule\` (running on a timer) and \`dataset.kind: 'join'\`. Declaring one is not silently ignored: the platform refuses the report by
-the name of what it lacks.
+\`dataset.kind: 'join'\` is refused by name: the platform does not run a report over one side of a join
+and label it with the title of the whole.
 
 These are read and not acted on, and each says so as a warning rather than doing nothing:
-\`shape.limit\`, \`presentation.fields\`, \`presentation.drillDown\`, \`presentation.export.fileName\`
-(the file is always offered, and its name comes from the title), \`prompts[].control\`,
-\`prompts[].required\`, \`prompts[].default\`, and \`dimensions[].sort.by\` — of \`sort\`, only
-\`dir\` is read, and members are ordered by their key.
+\`schedule\` (the report still runs whenever it is opened — to deliver one on a timer, write a scheduled
+workflow), \`shape.limit\`, \`presentation.fields\`, \`presentation.drillDown\`,
+\`presentation.export.fileName\` (the file is always offered, and its name comes from the title), a
+\`prompts[].control\` other than \`'period'\`, and \`dimensions[].sort.by: 'label'\` — a label is
+resolved on screen, in the reader's language, and the server that cuts the level never sees it.
 
 Reading any of this here is how you know it is coming, not permission to use it yet.
 

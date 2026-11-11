@@ -9,6 +9,7 @@
 // é GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import { REPORT_PROMPT_PERIOD_CONTROL } from './reportPeriod';
 import { DEFAULT_REPORT_DATASET_KIND, isAggregateMeasure } from './reportSpec';
 import type { ReportGroupLevel, ReportSpec } from './reportSpec';
 
@@ -24,6 +25,8 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'dataset.collection',
   'dataset.includeWhen',
   'dimension.granularity',
+  'dimension.others',
+  'dimension.sort.measure',
   'export.csv',
   'export.pdf',
   'measure.aggregate',
@@ -32,7 +35,11 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'measure.filter',
   'presentation.chart',
   'presentation.chart.split',
+  'presentation.highlight',
   'presentation.prompt',
+  'presentation.prompt.default',
+  'presentation.prompt.period',
+  'presentation.prompt.required',
   'shape.matrix',
   'shape.subtotal',
   'shape.summary',
@@ -52,8 +59,8 @@ const anySubtotal = (levels: ReportGroupLevel[]): boolean =>
  * lhe falta, em vez de somar sem ele e devolver um número diferente com o mesmo rótulo.
  *
  * O mesmo vale para a propriedade que o contrato PREVÊ e este kernel ainda não lê — `shape.limit`,
- * `presentation.fields`, o alvo do detalhamento, o
- * controle/obrigatoriedade/semente de um filtro e a ordenação por rótulo. Antes disso elas eram
+ * `presentation.fields`, o alvo do detalhamento, um controle de filtro que não seja o de período e a
+ * ordenação por rótulo. Antes disso elas eram
  * no-ops silenciosos: o autor declarava e nada acontecia, sem uma palavra em lugar nenhum. Emitir o
  * token põe cada uma no MESMO caminho de aviso que já existia, e o dia em que uma delas for
  * executada é o dia em que ela entra em `REPORT_CAPABILITIES` e o aviso some sozinho.
@@ -66,11 +73,17 @@ export const deriveReportRequires = (spec: ReportSpec): string[] => {
   // execute somaria justamente as linhas que ele exclui, com o mesmo rótulo no total.
   if ((spec.dataset.includeWhen ?? '').trim() !== '') required.add('dataset.includeWhen');
 
+  // Ordenar pelo valor de uma MEDIDA é o Top N, e é executado; ordenar pelo rótulo continua só
+  // previsto. São dois tokens porque são duas respostas — um só faria o kernel que sabe a primeira
+  // anunciar também a segunda.
+  const measureKeys = new Set((spec.dataset.measures ?? []).map((measure) => measure.key));
   for (const dimension of spec.dataset.dimensions ?? []) {
     if (dimension.granularity !== undefined) required.add('dimension.granularity');
-    if (dimension.sort?.by !== undefined && dimension.sort.by !== 'key') {
-      required.add('dimension.sort.by');
+    const by = dimension.sort?.by;
+    if (by !== undefined && by !== 'key') {
+      required.add(measureKeys.has(by) ? 'dimension.sort.measure' : 'dimension.sort.by');
     }
+    if (dimension.others === true) required.add('dimension.others');
   }
 
   for (const measure of spec.dataset.measures ?? []) {
@@ -104,11 +117,13 @@ export const deriveReportRequires = (spec: ReportSpec): string[] => {
   if ((spec.presentation?.prompts ?? []).length > 0) required.add('presentation.prompt');
 
   for (const prompt of spec.presentation?.prompts ?? []) {
-    if (prompt.control !== undefined) required.add('presentation.prompt.control');
+    if (prompt.control === REPORT_PROMPT_PERIOD_CONTROL) required.add('presentation.prompt.period');
+    else if (prompt.control !== undefined) required.add('presentation.prompt.control');
     if (prompt.required === true) required.add('presentation.prompt.required');
     if (prompt.default !== undefined) required.add('presentation.prompt.default');
   }
 
+  if ((spec.presentation?.highlight ?? []).length > 0) required.add('presentation.highlight');
   if (Object.keys(spec.presentation?.fields ?? {}).length > 0) required.add('presentation.fields');
   if (spec.presentation?.drillDown?.enabled === true) required.add('presentation.drilldown');
   if (spec.presentation?.export?.csv) required.add('export.csv');

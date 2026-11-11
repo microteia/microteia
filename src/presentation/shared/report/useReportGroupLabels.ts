@@ -5,6 +5,7 @@ import { fieldAtPath } from './reportFilterFields';
 import { useT } from '../i18n/useT';
 import type { FieldDefinition } from '../../../domain/entities/entitySchemas';
 import type { ReportGroupKey } from '../../../domain/schema/report/reportResult';
+import { REPORT_OTHERS_KEY } from '../../../domain/schema/report/reportSpec';
 import type { ReportSpec } from '../../../domain/schema/report/reportSpec';
 
 /**
@@ -22,6 +23,7 @@ export const useReportGroupLabels = (spec: ReportSpec): ((entry: ReportGroupKey 
   const ctx = useSchemaContext();
   const t = useT('core.reports');
   const emptyLabel = t('group.empty');
+  const othersLabel = t('group.others');
 
   const fieldByDimension = useMemo(() => {
     const byDimension = new Map<string, FieldDefinition>();
@@ -39,11 +41,14 @@ export const useReportGroupLabels = (spec: ReportSpec): ((entry: ReportGroupKey 
     if (!entry) return '';
     if (entry.label) return entry.label;
     if (entry.key === '') return emptyLabel;
+    // O grupo residual de um Top N tem chave reservada, e é a tela que diz o nome dele no idioma de
+    // quem lê — o servidor que o montou não fala idioma nenhum.
+    if (entry.key === REPORT_OTHERS_KEY) return othersLabel;
 
     const field = fieldByDimension.get(entry.dimension);
     if (!field) return entry.key;
 
     const shown = listing.displayValue({ [field.key]: entry.key }, field);
     return shown.trim() === '' ? entry.key : shown;
-  }, [fieldByDimension, listing, emptyLabel]);
+  }, [fieldByDimension, listing, emptyLabel, othersLabel]);
 };

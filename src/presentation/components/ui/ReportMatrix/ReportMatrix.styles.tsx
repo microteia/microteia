@@ -1,4 +1,6 @@
 import styled from 'styled-components';
+import type { ReportHighlightTone } from '../../../../domain/schema/report/reportSpec';
+import { reportToneBackground } from '../../../shared/report/reportTone';
 
 export const S = {
   Scroll: styled.div`
@@ -66,12 +68,13 @@ export const S = {
     left: 0;
     background: inherit;
   `,
-  Td: styled.td<{ $strong?: boolean }>`
+  Td: styled.td<{ $strong?: boolean; $tone?: ReportHighlightTone }>`
     text-align: right;
     padding: 9px 14px;
     border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     font-weight: ${({ $strong }) => ($strong ? 600 : 400)};
     font-variant-numeric: tabular-nums;
+    background: ${({ theme, $tone }) => reportToneBackground(theme, $tone)};
   `,
   TotalRow: styled.tr`
     background: ${({ theme }) => theme.colors.inputBackground};
@@ -87,12 +90,13 @@ export const S = {
     left: 0;
     background: ${({ theme }) => theme.colors.inputBackground};
   `,
-  TotalTd: styled.td`
+  TotalTd: styled.td<{ $tone?: ReportHighlightTone }>`
     text-align: right;
     padding: 11px 14px;
     border-top: 2px solid ${({ theme }) => theme.colors.border};
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+    background: ${({ theme, $tone }) => reportToneBackground(theme, $tone)};
   `,
   Empty: styled.p`
     margin: 0;

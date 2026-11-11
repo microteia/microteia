@@ -9,6 +9,7 @@ import { Input } from '../Input';
 import { ReportChart } from '../ReportChart';
 import { ReportMatrix } from '../ReportMatrix';
 import { ReportTable } from '../ReportTable';
+import { SearchSelect } from '../SearchSelect';
 
 export interface ReportViewProps {
   /** A CHAVE do relatório no catálogo do escritório. */
@@ -58,7 +59,13 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey }) => 
               {/* O valor é pedido no FORMATO DO CAMPO — o mesmo controle do formulário do registro.
                   Um texto livre aqui pedia a quem lê o relatório o id do registro que ele queria
                   ver, e o formato exato da data. */}
-              {prompt.field ? (
+              {prompt.isPeriod ? (
+                <SearchSelect
+                  options={vm.periodOptions}
+                  value={prompt.periodValue}
+                  onChange={(value) => vm.setPromptPeriod(prompt.key, value)}
+                />
+              ) : prompt.field ? (
                 <FieldFilterInput
                   field={prompt.field}
                   value={prompt.value}
@@ -73,7 +80,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey }) => 
             </S.PromptField>
           ))}
           <S.PromptActions>
-            <S.PromptBtn type="submit" title={vm.runLabel} disabled={vm.isLoading}>
+            <S.PromptBtn type="submit" title={vm.runLabel} disabled={vm.isLoading || !vm.canRun}>
               <RiPlayLine size={15} />
             </S.PromptBtn>
             {vm.hasPromptValues && (

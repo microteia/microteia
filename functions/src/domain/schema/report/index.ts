@@ -14,6 +14,9 @@ export {
   REPORT_CHART_KINDS,
   REPORT_DATASET_KINDS,
   REPORT_GRANULARITIES,
+  REPORT_HIGHLIGHT_OPS,
+  REPORT_HIGHLIGHT_TONES,
+  REPORT_OTHERS_KEY,
   REPORT_SHAPE_KINDS,
   REPORT_SPEC_VERSION,
   buildReportQuery,
@@ -35,6 +38,9 @@ export type {
   ReportFieldPresentation,
   ReportGranularity,
   ReportGroupLevel,
+  ReportHighlight,
+  ReportHighlightOp,
+  ReportHighlightTone,
   ReportMatrixShape,
   ReportMeasure,
   ReportPresentation,
@@ -51,6 +57,16 @@ export type {
 export { REPORT_CAPABILITIES, deriveReportRequires, unsupportedReportCapabilities } from './reportCapabilities';
 
 export { bucketDateValue } from './reportBuckets';
+
+export {
+  REPORT_PERIODS,
+  REPORT_PROMPT_PERIOD_CONTROL,
+  isReportPeriod,
+  reportPeriodRange,
+} from './reportPeriod';
+export type { ReportDayRange, ReportPeriod } from './reportPeriod';
+
+export { reportHighlightTone } from './reportHighlight';
 
 export {
   computedMeasureCycles,

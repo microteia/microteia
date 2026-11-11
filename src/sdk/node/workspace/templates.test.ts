@@ -1081,8 +1081,16 @@ describe('a seção de relatórios', () => {
     for (const inert of ['shape.limit', 'presentation.fields', 'presentation.drillDown']) {
       expect(guide, `"${inert}" não está dito no guia`).toContain(inert);
     }
-    for (const inert of ['required', 'default', 'control']) {
-      expect(guide).toContain(`prompts[].${inert}`);
+    expect(guide).toContain("`prompts[].control` other than `'period'`");
+  });
+
+  // `required`, `default` e o período deixaram de ser "lidos e não executados": o guia tem de ensiná-los
+  // como o que são, e não mais listá-los entre os inertes.
+  it('ensina o filtro obrigatório, o padrão e o período como executados', () => {
+    const guide = authoringGuide(AGENTS);
+
+    for (const executed of ['**`required: true`**', '**`default`**', "**`control: 'period'`**"]) {
+      expect(guide).toContain(executed);
     }
   });
 

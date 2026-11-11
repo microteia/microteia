@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { useLabel, useLocaleFormat, useT } from '../../../shared/i18n/useT';
 import { reportCellKey } from '../../../../domain/schema/report/aggregateRows';
 import type { ReportResult } from '../../../../domain/schema/report/reportResult';
-import type { ReportSpec } from '../../../../domain/schema/report/reportSpec';
+import type { ReportHighlightTone, ReportSpec } from '../../../../domain/schema/report/reportSpec';
+import { reportHighlightTone } from '../../../../domain/schema/report/reportHighlight';
 import {
   columnLabel,
   formatMeasureValue,
@@ -17,8 +18,8 @@ export interface ReportMatrixViewModel {
   /** Uma entrada por coluna do pivô, cada uma com uma célula por medida. */
   columns: { key: string; label: string }[];
   measures: { key: string; label: string }[];
-  rows: { id: string; level: number; subtotal: boolean; group: string; cells: string[] }[];
-  totals: { label: string; cells: string[] } | null;
+  rows: { id: string; level: number; subtotal: boolean; group: string; cells: string[]; tones: (ReportHighlightTone | null)[] }[];
+  totals: { label: string; cells: string[]; tones: (ReportHighlightTone | null)[] } | null;
   isEmpty: boolean;
   emptyMessage: string;
 }
@@ -56,18 +57,25 @@ export const useReportMatrixViewModel = (
       return formatMeasureValue(value, measure.format, formatters);
     }));
 
+    // O tom acompanha a célula, na mesma ordem: coluna por coluna, medida por medida.
+    const tonesOf = (
+      byColumn: Record<string, Record<string, number | null>> | undefined,
+    ): (ReportHighlightTone | null)[] => columns.flatMap((column) => measures.map((measure) =>
+      reportHighlightTone(spec, measure.key, byColumn?.[column.key]?.[measure.key])));
+
     const rows = (result?.rows ?? []).map((row, index) => ({
       id: `${index}:${row.keys.map((entry) => entry.key).join('/')}`,
       level: row.level,
       subtotal: row.subtotal === true,
       group: groupLabel(row.keys[row.keys.length - 1]),
       cells: cellsOf(row.cells),
+      tones: tonesOf(row.cells),
     }));
 
     // O total de cada coluna vem do SERVIDOR. Somar as células exibidas daria o número errado em
     // toda medida que não é soma — média de médias não é média.
     const totals = result?.columnTotals
-      ? { label: totalLabel, cells: cellsOf(result.columnTotals) }
+      ? { label: totalLabel, cells: cellsOf(result.columnTotals), tones: tonesOf(result.columnTotals) }
       : null;
 
     return {

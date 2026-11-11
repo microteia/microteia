@@ -16,10 +16,13 @@ import {
   unsupportedReportCapabilities,
 } from './reportCapabilities';
 import { isSingleSeriesChartKind, reportChartSplit } from './reportChartSplit';
+import { isReportPeriod, REPORT_PROMPT_PERIOD_CONTROL } from './reportPeriod';
 import {
   DEFAULT_REPORT_DATASET_KIND,
   isAggregateMeasure,
   REPORT_DATASET_KINDS,
+  REPORT_HIGHLIGHT_OPS,
+  REPORT_HIGHLIGHT_TONES,
   REPORT_SHAPE_KINDS,
   REPORT_SPEC_VERSION,
   reportGranularityOf,
@@ -147,6 +150,16 @@ export const validateReportSpecShape = (
         field: `dataset.dimensions[${index}].granularity`,
         error: '@core.reports/dimension.granularity.unsupported',
         errorParams: { key: dimension.key, granularity: String(dimension.granularity) },
+        severity: 'warning',
+      });
+    }
+    // "Outros" junta o que o limite deixou de fora. Sem limite não há o que juntar, e o autor que o
+    // pediu esperava ver o grupo — calar seria deixá-lo procurar uma linha que nunca vem.
+    if (dimension.others === true && !((dimension.limit ?? 0) > 0)) {
+      issues.push({
+        field: `dataset.dimensions[${index}].others`,
+        error: '@core.reports/dimension.others.no-limit',
+        errorParams: { key: dimension.key },
         severity: 'warning',
       });
     }
@@ -389,6 +402,42 @@ export const validateReportSpecShape = (
         errorParams: { op: String(prompt.op) },
       });
     }
+
+    // O padrão de um filtro de PERÍODO é um dos períodos. Qualquer outro valor seria convertido em
+    // nada no servidor, e o relatório abriria sem o recorte que o autor achou ter pedido.
+    if (prompt.control === REPORT_PROMPT_PERIOD_CONTROL
+      && prompt.default?.kind === 'Literal'
+      && !isReportPeriod(prompt.default.value)) {
+      issues.push({
+        field: `presentation.prompts[${index}].default`,
+        error: '@core.reports/prompt.period.default-invalid',
+        errorParams: { key: prompt.key, value: String(prompt.default.value) },
+      });
+    }
+  });
+
+  // O realce é APARÊNCIA: o que ele não consegue aplicar vira aviso, nunca recusa — o número da
+  // célula é o mesmo com ou sem a cor.
+  (spec.presentation?.highlight ?? []).forEach((rule, index) => {
+    if (!measureKeys.has(rule.measure)) {
+      issues.push({
+        field: `presentation.highlight[${index}].measure`,
+        error: '@core.reports/highlight.measure.unknown',
+        errorParams: { key: String(rule.measure) },
+        severity: 'warning',
+      });
+      return;
+    }
+    const validOp = (REPORT_HIGHLIGHT_OPS as readonly string[]).includes(rule.op);
+    const validTone = (REPORT_HIGHLIGHT_TONES as readonly string[]).includes(rule.tone);
+    if (!validOp || !validTone || typeof rule.value !== 'number' || !Number.isFinite(rule.value)) {
+      issues.push({
+        field: `presentation.highlight[${index}]`,
+        error: '@core.reports/highlight.invalid',
+        errorParams: { key: rule.measure },
+        severity: 'warning',
+      });
+    }
   });
 
   const permission = spec.access?.permission;
@@ -497,8 +546,21 @@ export const validateReportSpec = (
       check(order.path, `shape.orderBy[${index}].path`));
   }
 
-  (spec.presentation?.prompts ?? []).forEach((prompt, index) =>
-    check(prompt.path, `presentation.prompts[${index}].path`));
+  (spec.presentation?.prompts ?? []).forEach((prompt, index) => {
+    check(prompt.path, `presentation.prompts[${index}].path`);
+
+    // Um período só significa algo sobre DATA. Sobre outro campo o servidor compararia um texto com
+    // um dia, e o filtro não acharia nada — o relatório sairia vazio, que se lê como "não houve".
+    if (prompt.control !== REPORT_PROMPT_PERIOD_CONTROL) return;
+    const resolution = resolvePath(ctx.schema, root, parsePath(prompt.path));
+    if (resolution.valid && resolution.node.kind === 'scalar' && resolution.node.type !== 'date') {
+      issues.push({
+        field: `presentation.prompts[${index}].control`,
+        error: '@core.reports/prompt.period.not-date',
+        errorParams: { key: prompt.key },
+      });
+    }
+  });
 
   // Pedido acima do teto GRAMPEIA e avisa, nunca recusa: quem pede dez mil linhas deve receber o
   // teto com o aviso de que é parcial, e não um relatório que não abre.

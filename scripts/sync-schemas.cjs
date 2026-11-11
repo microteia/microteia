@@ -144,6 +144,8 @@ const SHARED_FILES = [
   'domain/schema/report/validateReportSpec.ts',
   'domain/schema/report/reportExtensionPoints.ts',
   'domain/schema/report/reportCsv.ts',
+  'domain/schema/report/reportPeriod.ts',
+  'domain/schema/report/reportHighlight.ts',
   'domain/schema/report/index.ts',
   'domain/schema/document/templateGrammar.ts',
   'domain/schema/document/documentTemplate.ts',

@@ -162,10 +162,58 @@ describe('deriveReportRequires', () => {
       'presentation.drilldown',
       'presentation.fields',
       'presentation.prompt.control',
-      'presentation.prompt.default',
-      'presentation.prompt.required',
       'shape.limit',
     ]);
+  });
+
+  it('o filtro obrigatório, o padrão e o período são executados — e um kernel anterior AVISA', () => {
+    const perguntado: ReportSpec = {
+      ...base,
+      presentation: {
+        prompts: [{
+          key: 'mes',
+          path: 'vencimento',
+          op: 'gte',
+          control: 'period',
+          required: true,
+          default: { kind: 'Literal', value: 'this-month' },
+        }],
+      },
+    };
+
+    expect(deriveReportRequires(perguntado)).toEqual(expect.arrayContaining([
+      'presentation.prompt.default',
+      'presentation.prompt.period',
+      'presentation.prompt.required',
+    ]));
+    expect(unsupportedReportCapabilities(perguntado)).toEqual([]);
+    expect(reportCapabilitySeverity('presentation.prompt.period')).toBe('warning');
+  });
+
+  it('ordenar por MEDIDA é o Top N, e não é a ordem por rótulo', () => {
+    // Dois tokens porque são duas respostas: o kernel que sabe a primeira não pode anunciar a segunda.
+    const topN: ReportSpec = {
+      ...base,
+      dataset: {
+        ...base.dataset,
+        dimensions: [{ key: 'situacao', path: 'situacao', sort: { by: 'total', dir: 'desc' }, limit: 5, others: true }],
+      },
+    };
+
+    expect(deriveReportRequires(topN)).toEqual(expect.arrayContaining(['dimension.others', 'dimension.sort.measure']));
+    expect(deriveReportRequires(topN)).not.toContain('dimension.sort.by');
+    expect(unsupportedReportCapabilities(topN)).toEqual([]);
+  });
+
+  it('o destaque é aparência: executado aqui, aviso num kernel que não o conhece', () => {
+    const realcado: ReportSpec = {
+      ...base,
+      presentation: { highlight: [{ measure: 'total', op: 'lt', value: 0, tone: 'negative' }] },
+    };
+
+    expect(deriveReportRequires(realcado)).toContain('presentation.highlight');
+    expect(unsupportedReportCapabilities(realcado)).toEqual([]);
+    expect(reportCapabilitySeverity('presentation.highlight')).toBe('warning');
   });
 
   it('ordenar por chave é o que este kernel faz, e não pede capacidade nenhuma', () => {

@@ -85,16 +85,36 @@ export interface ReportDimension {
    * conforme quem abre o relatório — e ninguém descobre.
    */
   timeZone?: string;
+  /**
+   * A ordem dos membros deste nível. `by` ausente ou `'key'` ordena pelo valor do grupo; a CHAVE de
+   * uma medida ordena pelo valor dela naquele grupo — é o "Top N" (`dir: 'desc'` + `limit`). `'label'`
+   * continua previsto e não executado: o rótulo de um grupo é resolvido na tela, no idioma de quem lê,
+   * e o servidor que corta o nível não o conhece.
+   */
   sort?: { by?: 'key' | 'label' | string; dir?: 'asc' | 'desc' };
   /**
    * Teto de membros distintos DESTE nível: ficam os primeiros, na ordem de `sort`.
    *
-   * O excedente não vira um agrupamento residual — ele sai da tabela, e o total geral continua
-   * somando as linhas todas. Por isso o corte marca o resultado como PARCIAL: as linhas visíveis não
-   * fecham com o próprio total, e isso precisa estar dito na tela, no CSV e na impressão.
+   * Sem `others`, o excedente sai da tabela e o total geral continua somando as linhas todas. Por isso
+   * o corte marca o resultado como PARCIAL: as linhas visíveis não fecham com o próprio total, e isso
+   * precisa estar dito na tela, no CSV e na impressão.
    */
   limit?: number;
+  /**
+   * Com `limit`, o excedente vira UM grupo residual — "Outros" — em vez de sair da tabela.
+   *
+   * É o que faz um Top 10 fechar com o próprio total: as dez linhas mais a residual somam o mesmo que
+   * o total geral, e o resultado deixa de ser parcial. O grupo residual tem a chave reservada
+   * `REPORT_OTHERS_KEY`, e é ela que a tela traduz.
+   */
+  others?: boolean;
 }
+
+/**
+ * A chave do grupo residual de um nível com `others`. Começa por um caractere de controle para nunca
+ * colidir com um valor que alguém digitou — o mesmo cuidado do separador das chaves compostas.
+ */
+export const REPORT_OTHERS_KEY = '\u001eothers';
 
 interface ReportMeasureBase {
   key: string;
@@ -278,10 +298,42 @@ export interface ReportPrompt {
   label?: string;
   path: string;
   op: QueryOperator;
-  /** Como ele escolhe. Ausente = herda o controle do campo apontado. */
+  /**
+   * Como ele escolhe. Ausente = herda o controle do campo apontado. `'period'` pede um PERÍODO
+   * relativo (`REPORT_PERIODS`) sobre um caminho de data, e o servidor o converte num intervalo no
+   * fuso do escritório — `op` é ignorado, porque o período já é a comparação.
+   */
   control?: string;
+  /** Sem resposta, o relatório não roda: o servidor recusa, e a tela não deixa executar. */
   required?: boolean;
+  /**
+   * O valor usado quando o filtro NÃO é enviado (a chave ausente). Um filtro enviado vazio é uma
+   * resposta — "sem restrição" — e não é substituído: é o que deixa o leitor limpar o padrão.
+   */
   default?: InputMapping;
+}
+
+/** O tom de um realce. Tom, nunca cor: quem desenha é o tema, e o tema escuro tem o seu verde. */
+export const REPORT_HIGHLIGHT_TONES = ['positive', 'warning', 'negative'] as const;
+
+export type ReportHighlightTone = typeof REPORT_HIGHLIGHT_TONES[number];
+
+export const REPORT_HIGHLIGHT_OPS = ['lt', 'lte', 'gt', 'gte', 'eq', 'neq'] as const;
+
+export type ReportHighlightOp = typeof REPORT_HIGHLIGHT_OPS[number];
+
+/**
+ * A formatação CONDICIONAL de uma medida: a célula ganha um tom quando o valor atende à comparação.
+ *
+ * Mora em `presentation` porque removê-la deixa o relatório correto — o número é o mesmo, só deixa de
+ * chamar a atenção. A primeira regra que casa vence, na ordem declarada.
+ */
+export interface ReportHighlight {
+  /** Chave de uma medida. */
+  measure: string;
+  op: ReportHighlightOp;
+  value: number;
+  tone: ReportHighlightTone;
 }
 
 /**
@@ -296,6 +348,8 @@ export interface ReportPresentation {
   /** Aparência por chave de dimensão OU de medida — o espaço de nomes é um só. */
   fields?: Record<string, ReportFieldPresentation>;
   prompts?: ReportPrompt[];
+  /** A formatação condicional, por medida. Ver `ReportHighlight`. */
+  highlight?: ReportHighlight[];
   /**
    * Objeto desde já, e não booleano: booleano que vira objeto é a quebra clássica, e um alvo de
    * detalhamento é a primeira coisa que este campo vai querer.

@@ -43,7 +43,7 @@ export const ReportMatrix: React.FC<ReportMatrixProps> = ({ spec, result }) => {
             <S.Row key={row.id} $subtotal={row.subtotal}>
               <S.RowTh scope="row" $level={row.level} $strong={row.subtotal}>{row.group}</S.RowTh>
               {row.cells.map((cell, index) => (
-                <S.Td key={index} $strong={row.subtotal}>{cell}</S.Td>
+                <S.Td key={index} $strong={row.subtotal} $tone={row.tones[index] ?? undefined}>{cell}</S.Td>
               ))}
             </S.Row>
           ))}
@@ -53,7 +53,7 @@ export const ReportMatrix: React.FC<ReportMatrixProps> = ({ spec, result }) => {
             <S.TotalRow>
               <S.TotalTh scope="row">{vm.totals.label}</S.TotalTh>
               {vm.totals.cells.map((cell, index) => (
-                <S.TotalTd key={index}>{cell}</S.TotalTd>
+                <S.TotalTd key={index} $tone={vm.totals?.tones[index] ?? undefined}>{cell}</S.TotalTd>
               ))}
             </S.TotalRow>
           </tfoot>

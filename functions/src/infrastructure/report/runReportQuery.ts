@@ -12,7 +12,13 @@ import { aggregateReportRows } from '../../domain/schema/report/aggregateRows';
 import { filterReportRows } from '../../domain/schema/report/reportRowFilter';
 import type { ReportResult } from '../../domain/schema/report/reportResult';
 import { buildReportQuery, isAggregateMeasure, reportRequiredPermissions } from '../../domain/schema/report/reportSpec';
-import type { ReportSpec } from '../../domain/schema/report/reportSpec';
+import type { ReportPrompt, ReportSpec } from '../../domain/schema/report/reportSpec';
+import {
+  isReportPeriod,
+  REPORT_PROMPT_PERIOD_CONTROL,
+  reportPeriodRange,
+} from '../../domain/schema/report/reportPeriod';
+import { dayInTimeZone } from '../../domain/schema/i18n/timeZone';
 import { hasBlockingReportIssue, validateReportSpec } from '../../domain/schema/report/validateReportSpec';
 import type { ReportSpecIssue } from '../../domain/schema/report/validateReportSpec';
 import { runWorkflowQuery } from '../workflow/query/runWorkflowQuery';
@@ -81,19 +87,70 @@ const answered = (value: unknown): boolean => {
 };
 
 /**
+ * A resposta EFETIVA de um filtro: a que o leitor deu, ou o `default` quando ele não mandou a chave.
+ *
+ * Chave ausente e chave vazia são perguntas diferentes, e é essa diferença que deixa o leitor limpar
+ * o padrão: quem apagou "este mês" mandou o filtro vazio — sem restrição —, e o padrão não volta por
+ * cima dele. Quem não mandou nada (o MCP, um widget, a primeira abertura) recebe o recorte que o
+ * autor escolheu.
+ */
+const promptAnswer = (
+  prompt: ReportPrompt,
+  values: Record<string, unknown>,
+  context: WorkflowContext,
+): unknown => {
+  if (Object.prototype.hasOwnProperty.call(values, prompt.key)) return values[prompt.key];
+  return prompt.default ? resolveMapping(prompt.default, context) : undefined;
+};
+
+/**
  * Os predicados que o LEITOR preencheu, na forma que o resto do caminho já entende.
  *
  * Entram como `Literal` de propósito: assim eles passam pelo MESMO `resolveMapping` do filtro fixo,
  * e não existe um segundo jeito de um valor chegar a uma consulta.
+ *
+ * O filtro de PERÍODO vira dois predicados sobre DIAS (`gte` o primeiro, `lt` o dia seguinte ao
+ * último), contados a partir de hoje no fuso do escritório. Dias, e não instantes, porque é como o
+ * comparador entende uma data sem hora: o dia inteiro, e não a meia-noite dele.
  */
-const promptPredicates = (spec: ReportSpec, values: Record<string, unknown>): QueryPredicate[] =>
+const promptPredicates = (
+  spec: ReportSpec,
+  values: Record<string, unknown>,
+  context: WorkflowContext,
+): QueryPredicate[] => {
+  const today = dayInTimeZone(context.services.now(), context.services.timeZone ?? '');
+  return (spec.presentation?.prompts ?? []).flatMap((prompt): QueryPredicate[] => {
+    const value = promptAnswer(prompt, values, context);
+    if (!answered(value)) return [];
+
+    if (prompt.control === REPORT_PROMPT_PERIOD_CONTROL) {
+      const range = isReportPeriod(value) ? reportPeriodRange(value, today) : null;
+      if (!range) return [];
+      return [
+        { path: prompt.path, op: 'gte', value: { kind: 'Literal', value: range.from } },
+        { path: prompt.path, op: 'lt', value: { kind: 'Literal', value: range.until } },
+      ];
+    }
+
+    return [{ path: prompt.path, op: prompt.op, value: { kind: 'Literal', value } }];
+  });
+};
+
+/**
+ * Os filtros OBRIGATÓRIOS que ficaram sem resposta — nem a do leitor, nem o padrão.
+ *
+ * É recusa, e não aviso, porque é a razão de o autor ter marcado o filtro: o relatório sem ele é
+ * outra pergunta (o ano todo em vez do mês, todos os clientes em vez de um), e respondê-la com o
+ * título da primeira é um número plausível e errado.
+ */
+const missingRequiredPrompts = (
+  spec: ReportSpec,
+  values: Record<string, unknown>,
+  context: WorkflowContext,
+): string[] =>
   (spec.presentation?.prompts ?? [])
-    .filter((prompt) => answered(values[prompt.key]))
-    .map((prompt) => ({
-      path: prompt.path,
-      op: prompt.op,
-      value: { kind: 'Literal' as const, value: values[prompt.key] },
-    }));
+    .filter((prompt) => prompt.required === true && !answered(promptAnswer(prompt, values, context)))
+    .map((prompt) => prompt.key);
 
 export interface RunReportInput {
   spec: ReportSpec;
@@ -128,10 +185,20 @@ export const runReportQuery = async ({
     };
   }
 
+  const missing = missingRequiredPrompts(spec, prompts ?? {}, context);
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      error: '@core.reports/prompt.required.missing',
+      errorParams: { keys: missing.join(', ') },
+      issues,
+    };
+  }
+
   const base = buildReportQuery(spec, REPORT_MAX_SCAN);
   const query: QuerySpec = {
     ...base,
-    where: [...base.where, ...promptPredicates(spec, prompts ?? {})],
+    where: [...base.where, ...promptPredicates(spec, prompts ?? {}, context)],
   };
 
   // Os dois tetos são o MESMO número: quem corta o resultado é a agregação, não a consulta. Cortar

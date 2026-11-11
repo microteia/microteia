@@ -485,6 +485,9 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     data: Array<Record<string, string | number>>;
     xKey: string;
     series: ChartSeries[];
+    /** Fill the area under each line - an area chart. With stacked, the areas pile up. */
+    filled?: boolean;
+    stacked?: boolean;
     height?: number;
   }
   export function TimeSeriesChart(props: TimeSeriesChartProps): JSX.Element;
@@ -497,6 +500,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
   }
   export interface DonutChartProps {
     data: DonutSlice[];
+    /** A full pie, without the donut's hole. */
+    solid?: boolean;
     height?: number;
   }
   export function DonutChart(props: DonutChartProps): JSX.Element;
@@ -511,6 +516,8 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     xKey: string;
     series: ChartSeries[];
     stacked?: boolean;
+    /** Lay the bars down: the categories on the vertical axis, which keeps long labels readable. */
+    horizontal?: boolean;
     height?: number;
   }
   export function BarChart(props: BarChartProps): JSX.Element;

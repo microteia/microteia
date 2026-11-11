@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useLabel, useLocaleFormat, useT } from '../../../shared/i18n/useT';
 import type { ReportResult, ReportRow } from '../../../../domain/schema/report/reportResult';
-import type { ReportSpec } from '../../../../domain/schema/report/reportSpec';
+import type { ReportHighlightTone, ReportSpec } from '../../../../domain/schema/report/reportSpec';
+import { reportHighlightTone } from '../../../../domain/schema/report/reportHighlight';
 import {
   columnLabel,
   formatMeasureValue,
@@ -24,6 +25,8 @@ export interface ReportTableRow {
   /** O rótulo do grupo do nível MAIS FUNDO desta linha — o recuo diz de qual nível ele é. */
   group: string;
   values: string[];
+  /** O tom de cada valor (`presentation.highlight`), paralelo a `values`. `null` = sem realce. */
+  tones: (ReportHighlightTone | null)[];
   /**
    * A FAIXA: um texto só, atravessando as colunas todas. `null` = a linha tem uma célula por coluna.
    *
@@ -38,7 +41,7 @@ export interface ReportTableRow {
 export interface ReportTableViewModel {
   columns: ReportTableColumn[];
   rows: ReportTableRow[];
-  totals: { label: string; values: string[] } | null;
+  totals: { label: string; values: string[]; tones: (ReportHighlightTone | null)[] } | null;
   /** As colunas do rodapé, alinhadas ao corpo. Só na dobra AGRUPADA. */
   totalsColumns: ReportTableColumn[];
   /** As colunas que o CORPO preenche — todas menos a de grupo, quando ela existe. */
@@ -104,6 +107,7 @@ export const useReportTableViewModel = (
         subtotal: false,
         group: '',
         values: dimensions.map((dimension) => cellText(record, dimension)),
+        tones: [],
         span: null,
       });
 
@@ -136,6 +140,7 @@ export const useReportTableViewModel = (
               subtotal: true,
               group: '',
               values: [],
+              tones: [],
               span: [totalLabel, done.label, ...measureText(done.row.values)].join(' — '),
             });
           }
@@ -151,6 +156,7 @@ export const useReportTableViewModel = (
             subtotal: false,
             group: '',
             values: [],
+            tones: [],
             span: name,
           });
           open.push({ row, label: name });
@@ -205,6 +211,7 @@ export const useReportTableViewModel = (
       subtotal: row.subtotal === true,
       group: groupLabel(row.keys[row.keys.length - 1]),
       values: measures.map((measure) => formatMeasureValue(row.values[measure.key], measure.format, formatters)),
+      tones: measures.map((measure) => reportHighlightTone(spec, measure.key, row.values[measure.key])),
       span: null,
     }));
 
@@ -213,6 +220,8 @@ export const useReportTableViewModel = (
           label: totalLabel,
           values: measures.map((measure) =>
             formatMeasureValue(result.totals?.values[measure.key], measure.format, formatters)),
+          tones: measures.map((measure) =>
+            reportHighlightTone(spec, measure.key, result.totals?.values[measure.key])),
         }
       : null;
 

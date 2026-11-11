@@ -89,8 +89,9 @@ describe('validateReportSpec — a fronteira entre as camadas', () => {
   });
 
   it('a propriedade de aparência que este kernel não lê AVISA, em vez de não fazer nada', () => {
-    // Era o pior dos dois mundos: o autor declarava `fields`, `drillDown`, `shape.limit` ou um
-    // filtro obrigatório, nada acontecia, e nada em lugar nenhum dizia por quê.
+    // Era o pior dos dois mundos: o autor declarava `fields`, `drillDown` ou `shape.limit`, nada
+    // acontecia, e nada em lugar nenhum dizia por quê. O filtro obrigatório saiu desta lista no dia
+    // em que passou a ser cobrado — e é por isso que ele está aqui: para provar que não avisa mais.
     const issues = validateReportSpec({
       ...valid,
       presentation: {
@@ -103,7 +104,6 @@ describe('validateReportSpec — a fronteira entre as camadas', () => {
     expect(issues.map((issue) => issue.errorParams?.capability).filter(Boolean).sort()).toEqual([
       'presentation.drilldown',
       'presentation.fields',
-      'presentation.prompt.required',
     ]);
     expect(issues.every((issue) => issue.severity === 'warning')).toBe(true);
   });

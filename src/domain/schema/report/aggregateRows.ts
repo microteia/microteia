@@ -10,7 +10,7 @@ import type { ResolvedPredicate } from '../predicateMatch';
 import { bucketDateValue } from './reportBuckets';
 import { computedMeasureReferences, evaluateComputedMeasure, isComputedMeasure } from './reportComputedMeasure';
 import type { ReportGroupKey, ReportResult, ReportRow, ReportTotals } from './reportResult';
-import { isAggregateMeasure, reportGranularityOf } from './reportSpec';
+import { isAggregateMeasure, REPORT_OTHERS_KEY, reportGranularityOf } from './reportSpec';
 import type { ReportDimension, ReportGroupLevel, ReportMeasure, ReportSpec } from './reportSpec';
 
 export interface ReportAggregateLimits {
@@ -147,13 +147,19 @@ interface GroupNode {
 
 const emptyNode = (keys: ReportGroupKey[]): GroupNode => ({ keys, rows: [], children: new Map() });
 
-/** Constrói a árvore de grupos, um nível por `ReportGroupLevel`, na ordem declarada. */
+/**
+ * Constrói a árvore de grupos, um nível por `ReportGroupLevel`, na ordem declarada.
+ *
+ * `prefix` são as chaves de quem já está acima: é o que deixa o grupo residual ("Outros") ganhar a
+ * sua própria subárvore, com as chaves certas, a partir só das linhas que juntou.
+ */
 const buildTree = (
   rows: Record<string, unknown>[],
   levels: ReportGroupLevel[],
   dimensions: Map<string, ReportDimension>,
+  prefix: ReportGroupKey[] = [],
 ): GroupNode => {
-  const root = emptyNode([]);
+  const root = emptyNode(prefix);
 
   for (const row of rows) {
     let node = root;
@@ -175,32 +181,93 @@ const buildTree = (
   return root;
 };
 
+/** O que ordenar e cortar um nível precisa saber além dele mesmo. */
+interface LevelContext {
+  dimensions: Map<string, ReportDimension>;
+  measures: ReportMeasure[];
+  filters: Record<string, ResolvedPredicate[]>;
+  /** Os níveis da árvore inteira — o grupo residual precisa dos que vêm abaixo dele. */
+  levels: ReportGroupLevel[];
+}
+
+const lastKey = (node: GroupNode): string => node.keys[node.keys.length - 1]?.key ?? '';
+
 /**
  * Os membros de UM nível, ordenados e cortados pelo `limit` da dimensão.
  *
- * Devolve também o que ficou de FORA, e não é detalhe: o total geral é somado sobre todas as linhas
+ * Devolve também se algo ficou de FORA, e não é detalhe: o total geral é somado sobre todas as linhas
  * varridas, então um nível cortado mostra linhas que não fecham com o próprio total. Sem este sinal o
  * relatório dizia isso em silêncio — com ele, o corte entra no MESMO aviso de resultado parcial que a
  * varredura já usa, e quem lê sabe que está vendo os primeiros.
+ *
+ * Com `others`, o que ficou de fora vira UM grupo residual e nada se perde: as linhas visíveis fecham
+ * com o total, e o resultado não é parcial.
+ *
+ * A ordem por MEDIDA é o Top N. O grupo sem valor naquela medida vai para o fim nos dois sentidos —
+ * "maiores primeiro" que abrisse com quem não tem número seria uma lista de vazios.
  */
 const sortedChildren = (
   node: GroupNode,
-  level: ReportGroupLevel | undefined,
-  dimensions: Map<string, ReportDimension>,
+  depth: number,
+  ctx: LevelContext,
 ): { shown: GroupNode[]; dropped: boolean } => {
   const children = [...node.children.values()];
-  const dimension = level ? dimensions.get(level.dimension) : undefined;
+  const level = ctx.levels[depth];
+  const dimension = level ? ctx.dimensions.get(level.dimension) : undefined;
   const direction = dimension?.sort?.dir === 'desc' ? -1 : 1;
+  const by = dimension?.sort?.by;
+  const byMeasure = by !== undefined && ctx.measures.some((measure) => measure.key === by)
+    ? by
+    : undefined;
 
-  children.sort((left, right) => {
-    const a = left.keys[left.keys.length - 1]?.key ?? '';
-    const b = right.keys[right.keys.length - 1]?.key ?? '';
-    return a.localeCompare(b) * direction;
-  });
+  if (byMeasure) {
+    const score = new Map(children.map((child) => [
+      child,
+      valuesOf(ctx.measures, [byMeasure], child.rows, ctx.filters)[byMeasure] ?? null,
+    ] as const));
+    children.sort((left, right) => {
+      const a = score.get(left) ?? null;
+      const b = score.get(right) ?? null;
+      if (a === null && b === null) return lastKey(left).localeCompare(lastKey(right));
+      if (a === null) return 1;
+      if (b === null) return -1;
+      return (a - b) * direction || lastKey(left).localeCompare(lastKey(right));
+    });
+  } else {
+    children.sort((left, right) => lastKey(left).localeCompare(lastKey(right)) * direction);
+  }
 
   const limit = dimension?.limit;
-  if (!Number.isFinite(limit) || (limit ?? 0) <= 0) return { shown: children, dropped: false };
-  return { shown: children.slice(0, limit), dropped: children.length > (limit as number) };
+  if (!dimension || !Number.isFinite(limit) || (limit ?? 0) <= 0 || children.length <= (limit as number)) {
+    return { shown: children, dropped: false };
+  }
+
+  const shown = children.slice(0, limit);
+  if (dimension.others !== true) return { shown, dropped: true };
+
+  const rest = children.slice(limit);
+  const residualKeys = [...node.keys, { dimension: dimension.key, key: REPORT_OTHERS_KEY }];
+  const residualRows = rest.flatMap((child) => child.rows);
+  const residual = buildTree(residualRows, ctx.levels.slice(depth + 1), ctx.dimensions, residualKeys);
+  residual.rows = residualRows;
+  return { shown: [...shown, residual], dropped: false };
+};
+
+/**
+ * A linha pertence ao membro? O residual não tem valor próprio: pertence a ele quem NÃO é nenhum dos
+ * membros mostrados daquele nível — é a única forma de a célula "Outros" de um pivô somar alguma coisa.
+ */
+const belongsTo = (
+  row: Record<string, unknown>,
+  entry: ReportGroupKey,
+  dimensions: Map<string, ReportDimension>,
+  shownKeys: Map<string, Set<string>>,
+): boolean => {
+  const dimension = dimensions.get(entry.dimension);
+  if (!dimension) return false;
+  const key = dimensionKeyOf(row, dimension).key;
+  if (entry.key === REPORT_OTHERS_KEY) return !(shownKeys.get(entry.dimension)?.has(key) ?? false);
+  return key === entry.key;
 };
 
 /**
@@ -266,6 +333,7 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
   const filters = input.measureFilters ?? {};
   const measures = spec.dataset.measures ?? [];
   const dimensions = new Map((spec.dataset.dimensions ?? []).map((one) => [one.key, one]));
+  const contextOf = (levels: ReportGroupLevel[]): LevelContext => ({ dimensions, measures, filters, levels });
 
   const base = {
     shape: spec.shape.kind,
@@ -303,9 +371,10 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
     const emitted: ReportRow[] = [];
     let truncated = false;
     let taken = 0;
+    const ctx = contextOf(levels);
 
     const walk = (node: GroupNode, depth: number): void => {
-      const level = sortedChildren(node, levels[depth], dimensions);
+      const level = sortedChildren(node, depth, ctx);
       truncated = truncated || level.dropped;
 
       for (const child of level.shown) {
@@ -353,9 +422,10 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
     const tree = buildTree(rows, levels, dimensions);
     const emitted: ReportRow[] = [];
     let truncated = false;
+    const ctx = contextOf(levels);
 
     const walk = (node: GroupNode, depth: number): void => {
-      const level = sortedChildren(node, levels[depth], dimensions);
+      const level = sortedChildren(node, depth, ctx);
       truncated = truncated || level.dropped;
 
       for (const child of level.shown) {
@@ -395,11 +465,20 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
   const columnTree = buildTree(rows, columnLevels, dimensions);
   const columnPaths: ReportGroupKey[][] = [];
   let columnsDropped = false;
+  const columnCtx = contextOf(columnLevels);
+  // Os membros MOSTRADOS de cada dimensão de coluna — é contra eles que a coluna "Outros" se define.
+  const shownColumnKeys = new Map<string, Set<string>>();
   const collectColumns = (node: GroupNode, depth: number): void => {
-    const level = sortedChildren(node, columnLevels[depth], dimensions);
+    const level = sortedChildren(node, depth, columnCtx);
     columnsDropped = columnsDropped || level.dropped;
 
     for (const child of level.shown) {
+      const entry = child.keys[child.keys.length - 1];
+      if (entry && entry.key !== REPORT_OTHERS_KEY) {
+        const known = shownColumnKeys.get(entry.dimension) ?? new Set<string>();
+        known.add(entry.key);
+        shownColumnKeys.set(entry.dimension, known);
+      }
       if (depth === columnLevels.length - 1) columnPaths.push(child.keys);
       else collectColumns(child, depth + 1);
     }
@@ -412,9 +491,10 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
   const rowTree = buildTree(rows, rowLevels, dimensions);
   const emitted: ReportRow[] = [];
   let rowsTruncated = false;
+  const rowCtx = contextOf(rowLevels);
 
   const walkRows = (node: GroupNode, depth: number): void => {
-    const level = sortedChildren(node, rowLevels[depth], dimensions);
+    const level = sortedChildren(node, depth, rowCtx);
     rowsTruncated = rowsTruncated || level.dropped;
 
     for (const child of level.shown) {
@@ -427,10 +507,8 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
       if (leaf || rowLevels[depth]?.subtotal === true) {
         const cells: Record<string, Record<string, number | null>> = {};
         for (const column of columns) {
-          const inCell = child.rows.filter((row) => column.every((entry) => {
-            const dimension = dimensions.get(entry.dimension);
-            return dimension !== undefined && dimensionKeyOf(row, dimension).key === entry.key;
-          }));
+          const inCell = child.rows.filter((row) => column.every((entry) =>
+            belongsTo(row, entry, dimensions, shownColumnKeys)));
           cells[reportCellKey(column)] = valuesOf(measures, values, inCell, filters);
         }
 
@@ -451,10 +529,8 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
 
   const columnTotals: Record<string, Record<string, number | null>> = {};
   for (const column of columns) {
-    const inColumn = rows.filter((row) => column.every((entry) => {
-      const dimension = dimensions.get(entry.dimension);
-      return dimension !== undefined && dimensionKeyOf(row, dimension).key === entry.key;
-    }));
+    const inColumn = rows.filter((row) => column.every((entry) =>
+      belongsTo(row, entry, dimensions, shownColumnKeys)));
     columnTotals[reportCellKey(column)] = valuesOf(measures, values, inColumn, filters);
   }
 

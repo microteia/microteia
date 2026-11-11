@@ -18,19 +18,27 @@ import {
 } from '../../shared/report/reportFilterFields';
 import { screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { parseReportDesignTabKey } from '../../../shared/constants/reportKeys';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL } from '../../../domain/schema/report/reportPeriod';
 
 /** A lista, para onde a autoria volta depois de excluir. */
 const REPORT_DESIGN_RETURN_TAB = 'reports';
 import {
   REPORT_CHART_KINDS,
   REPORT_GRANULARITIES,
+  REPORT_HIGHLIGHT_OPS,
+  REPORT_HIGHLIGHT_TONES,
   REPORT_SPEC_VERSION,
+  isAggregateMeasure,
 } from '../../../domain/schema/report/reportSpec';
 import { QUERY_OPERATORS } from '../../../domain/schema/querySpec';
 import type { QueryOperator, QueryPredicate } from '../../../domain/schema/querySpec';
 import type {
   ReportDimension,
   ReportGranularity,
+  ReportHighlight,
+  ReportHighlightOp,
+  ReportHighlightTone,
   ReportMeasure,
   ReportPresentation,
   ReportPrompt,
@@ -66,7 +74,78 @@ export interface ReportDesignDimension {
   isDate: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  /**
+   * O campo agrupa (é nível ou coluna do pivô). Só aí ordem, limite e "Outros" significam algo: num
+   * campo que só aparece como coluna da lista, eles não teriam o que ordenar.
+   */
+  isGroup: boolean;
+  /** A ordem escolhida, codificada para o seletor (`sortValueOf`). */
+  sortValue: string;
+  limit: string;
+  others: boolean;
 }
+
+/** Uma medida como a TELA a mostra: o que ela é e como é exibida. */
+export interface ReportDesignMeasure {
+  key: string;
+  label: string;
+  /** O que a medida calcula, numa linha — a expressão de uma calculada, nada numa agregada. */
+  detail: string;
+  formatKind: string;
+  decimals: string;
+}
+
+/** Um filtro do leitor como a TELA o mostra. */
+export interface ReportDesignPrompt {
+  key: string;
+  label: string;
+  op: string;
+  required: boolean;
+  isPeriod: boolean;
+  /** O período inicial de um filtro de período; vazio = nenhum. */
+  periodDefault: string;
+}
+
+/** O operador do filtro do leitor, ou o controle de PERÍODO — que é escolhido no mesmo seletor. */
+export type ReportPromptChoice = QueryOperator | typeof REPORT_PROMPT_PERIOD_CONTROL;
+
+/** Os formatos que a autoria oferece — os que a tela sabe desenhar. */
+const DESIGN_FORMAT_KINDS = ['number', 'integer', 'currency', 'percent'] as const;
+
+/**
+ * A ordem de um nível, codificada para UM seletor: `key:asc`, `key:desc`, `m:<medida>:desc`…
+ *
+ * Um seletor só, e não dois (critério e direção), porque a pergunta que a pessoa faz é uma —
+ * "maiores primeiro" — e dois seletores a obrigariam a montá-la de peças.
+ */
+export const sortValueOf = (dimension: ReportDimension): string => {
+  const dir = dimension.sort?.dir === 'desc' ? 'desc' : 'asc';
+  const by = dimension.sort?.by;
+  return by && by !== 'key' ? `m:${by}:${dir}` : `key:${dir}`;
+};
+
+/** O inverso de `sortValueOf`: a dimensão com a ordem escolhida — e sem `sort` no padrão. */
+export const withSortValue = (dimension: ReportDimension, value: string): ReportDimension => {
+  const next: ReportDimension = { ...dimension };
+  delete next.sort;
+  if (value === 'key:asc' || value === '') return next;
+  if (value === 'key:desc') return { ...next, sort: { dir: 'desc' } };
+  const match = /^m:(.+):(asc|desc)$/.exec(value);
+  return match ? { ...next, sort: { by: match[1], dir: match[2] as 'asc' | 'desc' } } : next;
+};
+
+/**
+ * O limite e o "Outros" de uma dimensão, sem chave vazia: o `spec` é gravado verbatim, e `limit: 0`
+ * ou `others: false` seriam capacidades declaradas que o relatório não usa.
+ */
+export const withLimit = (dimension: ReportDimension, limit: string, others: boolean): ReportDimension => {
+  const next: ReportDimension = { ...dimension };
+  delete next.limit;
+  delete next.others;
+  const parsed = Number.parseInt(limit, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return next;
+  return { ...next, limit: parsed, ...(others ? { others: true } : {}) };
+};
 
 /**
  * O RASCUNHO — tudo o que a tela edita, num objeto só.
@@ -106,6 +185,15 @@ interface ReportDraft {
   chartStacked: boolean;
   /** Os filtros que o LEITOR preenche ao abrir. */
   prompts: ReportPrompt[];
+  highlights: ReportHighlight[];
+  /** O total geral do resumo e do pivô. Ligado é o padrão do contrato. */
+  grandTotal: boolean;
+  /** Vazio = o padrão (o valor calculado). */
+  emptyCell: '' | 'blank' | 'zero';
+  /** Texto, porque é o que o campo edita; vazio = o teto da instalação. */
+  scanLimit: string;
+  /** A permissão PRÓPRIA (`access.permission`); vazio = nenhuma. */
+  permission: string;
 }
 
 export interface ReportDesignViewModel {
@@ -146,7 +234,46 @@ export interface ReportDesignViewModel {
   endDragDimension: () => void;
   dropDimension: (targetKey: string) => void;
 
-  measures: ReportMeasure[];
+  measures: ReportDesignMeasure[];
+  setMeasureFormat: (key: string, kind: string) => void;
+  setMeasureDecimals: (key: string, decimals: string) => void;
+  formatOptions: { value: string; label: string }[];
+  /** Os campos que uma contagem DISTINTA pode contar — qualquer um, não só os numéricos. */
+  distinctOptions: { value: string; label: string }[];
+  computedName: string;
+  setComputedName: (value: string) => void;
+  computedExpression: string;
+  setComputedExpression: (value: string) => void;
+  /** As medidas que a expressão de uma calculada pode citar, pela chave. */
+  measureVariables: WorkflowVariable[];
+  addComputed: () => void;
+  canAddComputed: boolean;
+  setDimensionSort: (key: string, value: string) => void;
+  setDimensionLimit: (key: string, limit: string) => void;
+  setDimensionOthers: (key: string, others: boolean) => void;
+  sortOptions: { value: string; label: string }[];
+  grandTotal: boolean;
+  setGrandTotal: (value: boolean) => void;
+  emptyCell: string;
+  setEmptyCell: (value: string) => void;
+  emptyCellOptions: { value: string; label: string }[];
+  scanLimit: string;
+  setScanLimit: (value: string) => void;
+  permission: string;
+  setPermission: (value: string) => void;
+  permissionOptions: { value: string; label: string }[];
+  highlights: { label: string }[];
+  highlightMeasure: string;
+  setHighlightMeasure: (key: string) => void;
+  highlightOp: ReportHighlightOp;
+  setHighlightOp: (op: ReportHighlightOp) => void;
+  highlightValue: string;
+  setHighlightValue: (value: string) => void;
+  highlightTone: ReportHighlightTone;
+  setHighlightTone: (tone: ReportHighlightTone) => void;
+  addHighlight: () => void;
+  canAddHighlight: boolean;
+  removeHighlight: (index: number) => void;
   measureOp: NumericAggregationOp;
   setMeasureOp: (op: NumericAggregationOp) => void;
   measurePath: string;
@@ -204,11 +331,16 @@ export interface ReportDesignViewModel {
   chartStacked: boolean;
   setChartStacked: (stacked: boolean) => void;
 
-  prompts: { key: string; label: string; op: string }[];
+  prompts: ReportDesignPrompt[];
   promptPath: string;
   setPromptPath: (path: string) => void;
-  promptOp: QueryOperator;
-  setPromptOp: (op: QueryOperator) => void;
+  promptOp: ReportPromptChoice;
+  setPromptOp: (op: ReportPromptChoice) => void;
+  /** Os operadores do filtro do leitor — e "perguntar um período" quando o campo é data. */
+  promptOpOptions: { value: ReportPromptChoice; label: string }[];
+  setPromptRequired: (key: string, required: boolean) => void;
+  setPromptPeriodDefault: (key: string, period: string) => void;
+  periodOptions: { value: string; label: string }[];
   addPrompt: () => void;
   canAddPrompt: boolean;
   removePrompt: (key: string) => void;
@@ -269,6 +401,30 @@ export interface ReportDesignViewModel {
     noChart: string;
     prompts: string;
     promptsHint: string;
+    computed: string;
+    computedHint: string;
+    computedName: string;
+    computedPlaceholder: string;
+    format: string;
+    decimals: string;
+    distinctField: string;
+    sort: string;
+    limit: string;
+    limitPlaceholder: string;
+    others: string;
+    grandTotal: string;
+    emptyCell: string;
+    scanLimit: string;
+    scanLimitPlaceholder: string;
+    permission: string;
+    permissionHint: string;
+    highlight: string;
+    highlightHint: string;
+    highlightValue: string;
+    promptRequired: string;
+    promptDefault: string;
+    opHighlightOptions: { value: ReportHighlightOp; label: string }[];
+    toneOptions: { value: ReportHighlightTone; label: string }[];
     chartOptions: { value: string; label: string }[];
     operatorOptions: { value: QueryOperator; label: string }[];
     deleteAction: string;
@@ -459,6 +615,11 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         chartSplitBy: editing.spec.presentation?.chart?.splitBy ?? '',
         chartStacked: editing.spec.presentation?.chart?.stacked === true,
         prompts: editing.spec.presentation?.prompts ?? [],
+        highlights: editing.spec.presentation?.highlight ?? [],
+        grandTotal: !('grandTotal' in editing.spec.shape) || editing.spec.shape.grandTotal !== false,
+        emptyCell: editing.spec.shape.kind === 'matrix' ? (editing.spec.shape.emptyCell ?? '') : '',
+        scanLimit: editing.spec.dataset.scanLimit !== undefined ? String(editing.spec.dataset.scanLimit) : '',
+        permission: editing.spec.access?.permission ?? '',
       }
     : {
         table: tableOptions[0]?.value ?? '',
@@ -479,6 +640,11 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         chartSplitBy: '',
         chartStacked: false,
         prompts: [],
+        highlights: [],
+        grandTotal: true,
+        emptyCell: '',
+        scanLimit: '',
+        permission: '',
       }), [editing, label, tableOptions]);
 
   const [touched, setTouched] = useState<ReportDraft | null>(null);
@@ -490,7 +656,13 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const [filterOp, setFilterOp] = useState<QueryOperator>('eq');
   const [filterText, setFilterText] = useState('');
   const [promptPath, setPromptPath] = useState('');
-  const [promptOp, setPromptOp] = useState<QueryOperator>('eq');
+  const [promptOp, setPromptOp] = useState<ReportPromptChoice>('eq');
+  const [computedName, setComputedName] = useState('');
+  const [computedExpression, setComputedExpression] = useState('');
+  const [highlightMeasure, setHighlightMeasure] = useState('');
+  const [highlightOp, setHighlightOp] = useState<ReportHighlightOp>('lt');
+  const [highlightValue, setHighlightValue] = useState('');
+  const [highlightTone, setHighlightTone] = useState<ReportHighlightTone>('negative');
   const [draggedDimension, setDraggedDimension] = useState<string | null>(null);
   const [dragOverDimension, setDragOverDimension] = useState<string | null>(null);
   const [preview, setPreview] = useState<ReportResult | null>(null);
@@ -548,6 +720,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       chartSeries: [],
       chartSplitBy: '',
       prompts: [],
+      highlights: [],
     });
     setFilterPath('');
     setFilterText('');
@@ -569,6 +742,26 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       }],
     });
   }, [draft, pathOptions, change]);
+
+  const patchDimension = useCallback((key: string, patch: (one: ReportDimension) => ReportDimension) => {
+    change({ dimensions: draft.dimensions.map((one) => (one.key === key ? patch(one) : one)) });
+  }, [draft, change]);
+
+  const setDimensionSort = useCallback(
+    (key: string, value: string) => patchDimension(key, (one) => withSortValue(one, value)),
+    [patchDimension],
+  );
+
+  const setDimensionLimit = useCallback(
+    (key: string, limit: string) => patchDimension(key, (one) => withLimit(one, limit, one.others === true)),
+    [patchDimension],
+  );
+
+  const setDimensionOthers = useCallback(
+    (key: string, others: boolean) =>
+      patchDimension(key, (one) => withLimit(one, one.limit !== undefined ? String(one.limit) : '', others)),
+    [patchDimension],
+  );
 
   const removeDimension = useCallback((key: string) => {
     change({
@@ -618,25 +811,88 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     const option = pathOptions.find((one) => one.value === measurePath);
     // A chave é IDENTIFICADOR, e identificador é em inglês — ela não se traduz, e é ela que aparece
     // no `.json` de um relatório exportado e nas referências da dobra. O que traduz é o `label`.
+    // A contagem com campo é a DISTINTA: "quantos clientes", e não "quantos lançamentos". Sem campo,
+    // é a contagem de registros de sempre.
+    const distinct = measureOp === 'count' && measurePath !== '';
     const key = measureOp === 'count'
-      ? keyFromPath(MEASURE_COUNT_KEY, taken)
+      ? keyFromPath(distinct ? `${measurePath}_distinct` : MEASURE_COUNT_KEY, taken)
       : keyFromPath(measurePath, taken, `_${measureOp}`);
 
     change({
       measures: [...draft.measures, {
         key,
         op: measureOp,
-        label: measureOp === 'count'
+        label: measureOp === 'count' && !distinct
           ? t('op.count')
           : `${t(`op.${measureOp}`)} — ${option?.label ?? measurePath}`,
-        ...(measureOp === 'count' ? {} : { path: measurePath }),
+        ...(measurePath !== '' ? { path: measurePath } : {}),
+        ...(distinct ? { distinct: true } : {}),
       }],
     });
     setMeasurePath('');
   }, [measureOp, measurePath, draft, pathOptions, change, t]);
 
   const removeMeasure = useCallback((key: string) => {
-    change({ measures: draft.measures.filter((one) => one.key !== key) });
+    change({
+      measures: draft.measures.filter((one) => one.key !== key),
+      // O destaque e a ordem que citavam a medida saem junto: ficariam apontando para o que não existe,
+      // e o aviso que isso gera falaria de um gesto que a pessoa já desfez.
+      highlights: draft.highlights.filter((one) => one.measure !== key),
+      dimensions: draft.dimensions.map((one) => (one.sort?.by === key ? withSortValue(one, '') : one)),
+    });
+  }, [draft, change]);
+
+  const patchMeasure = useCallback((key: string, patch: (one: ReportMeasure) => ReportMeasure) => {
+    change({ measures: draft.measures.map((one) => (one.key === key ? patch(one) : one)) });
+  }, [draft, change]);
+
+  const setMeasureFormat = useCallback((key: string, kind: string) => patchMeasure(key, (one) => {
+    const next = { ...one };
+    delete next.format;
+    const decimals = one.format?.decimals;
+    return kind === ''
+      ? next
+      : { ...next, format: { kind, ...(decimals !== undefined ? { decimals } : {}) } };
+  }), [patchMeasure]);
+
+  const setMeasureDecimals = useCallback((key: string, text: string) => patchMeasure(key, (one) => {
+    const parsed = Number.parseInt(text, 10);
+    const format = { ...(one.format ?? {}) };
+    delete format.decimals;
+    const nextFormat = Number.isFinite(parsed) && parsed >= 0 ? { ...format, decimals: Math.min(parsed, 6) } : format;
+    const next = { ...one };
+    delete next.format;
+    return Object.keys(nextFormat).length > 0 ? { ...next, format: nextFormat } : next;
+  }), [patchMeasure]);
+
+  const addComputed = useCallback(() => {
+    const name = computedName.trim();
+    const expression = computedExpression.trim();
+    if (name === '' || expression === '') return;
+    const taken = new Set([...draft.dimensions, ...draft.measures].map((one) => one.key));
+    change({
+      measures: [...draft.measures, {
+        key: keyFromPath(slug(name.toLowerCase()) || 'calc', taken),
+        kind: 'computed',
+        label: name,
+        expression,
+      }],
+    });
+    setComputedName('');
+    setComputedExpression('');
+  }, [computedName, computedExpression, draft, change]);
+
+  const addHighlight = useCallback(() => {
+    const value = Number(highlightValue.replace(',', '.'));
+    if (!highlightMeasure || highlightValue.trim() === '' || !Number.isFinite(value)) return;
+    change({
+      highlights: [...draft.highlights, { measure: highlightMeasure, op: highlightOp, value, tone: highlightTone }],
+    });
+    setHighlightValue('');
+  }, [highlightMeasure, highlightOp, highlightValue, highlightTone, draft, change]);
+
+  const removeHighlight = useCallback((index: number) => {
+    change({ highlights: draft.highlights.filter((_, at) => at !== index) });
   }, [draft, change]);
 
   const addFilter = useCallback(() => {
@@ -666,15 +922,35 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     if (!promptPath) return;
     const option = pathOptions.find((one) => one.value === promptPath);
     const taken = new Set(draft.prompts.map((one) => one.key));
+    const isPeriod = promptOp === REPORT_PROMPT_PERIOD_CONTROL;
     change({
       prompts: [...draft.prompts, {
         key: keyFromPath(promptPath, taken, `_${promptOp}`),
         path: promptPath,
-        op: promptOp,
+        // O período já É a comparação; `op` fica com o valor que um kernel que não conhece o controle
+        // entenderia — "a partir de" —, o mais próximo do que o autor pediu.
+        op: isPeriod ? 'gte' : promptOp,
         label: option?.label,
+        ...(isPeriod ? { control: REPORT_PROMPT_PERIOD_CONTROL } : {}),
       }],
     });
   }, [promptPath, promptOp, pathOptions, draft, change]);
+
+  const patchPrompt = useCallback((key: string, patch: (one: ReportPrompt) => ReportPrompt) => {
+    change({ prompts: draft.prompts.map((one) => (one.key === key ? patch(one) : one)) });
+  }, [draft, change]);
+
+  const setPromptRequired = useCallback((key: string, required: boolean) => patchPrompt(key, (one) => {
+    const next = { ...one };
+    delete next.required;
+    return required ? { ...next, required: true } : next;
+  }), [patchPrompt]);
+
+  const setPromptPeriodDefault = useCallback((key: string, period: string) => patchPrompt(key, (one) => {
+    const next = { ...one };
+    delete next.default;
+    return period ? { ...next, default: { kind: 'Literal', value: period } } : next;
+  }), [patchPrompt]);
 
   const removePrompt = useCallback((key: string) => {
     change({ prompts: draft.prompts.filter((one) => one.key !== key) });
@@ -699,8 +975,87 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       isDate: pathOptions.find((one) => one.value === dimension.path)?.isDate === true,
       canMoveUp: index > 0,
       canMoveDown: index < draft.dimensions.length - 1,
+      isGroup: draft.groupDimensions.includes(dimension.key)
+        || (draft.shapeKind === 'matrix' && draft.columnDimension === dimension.key),
+      sortValue: sortValueOf(dimension),
+      limit: dimension.limit !== undefined ? String(dimension.limit) : '',
+      others: dimension.others === true,
     })),
     [draft, pathOptions],
+  );
+
+  const designMeasures = useMemo<ReportDesignMeasure[]>(
+    () => draft.measures.map((measure) => ({
+      key: measure.key,
+      label: measure.label ? label(measure.label) : measure.key,
+      detail: isAggregateMeasure(measure) ? '' : measure.expression,
+      formatKind: measure.format?.kind ?? '',
+      decimals: measure.format?.decimals !== undefined ? String(measure.format.decimals) : '',
+    })),
+    [draft, label],
+  );
+
+  const measureName = useCallback(
+    (key: string): string => designMeasures.find((one) => one.key === key)?.label ?? key,
+    [designMeasures],
+  );
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'key:asc', label: t('design.sort.key-asc') },
+      { value: 'key:desc', label: t('design.sort.key-desc') },
+      ...designMeasures.flatMap((measure) => [
+        { value: `m:${measure.key}:desc`, label: t('design.sort.measure-desc', { measure: measure.label }) },
+        { value: `m:${measure.key}:asc`, label: t('design.sort.measure-asc', { measure: measure.label }) },
+      ]),
+    ],
+    [designMeasures, t],
+  );
+
+  const measureVariables = useMemo<WorkflowVariable[]>(
+    () => designMeasures.map((measure) => ({ name: measure.key, definedBy: measure.label })),
+    [designMeasures],
+  );
+
+  const { catalog: permissionCatalog } = useAuthorization();
+
+  /** As permissões do escritório, com o nome QUALIFICADO — a ação sozinha não diz do quê. */
+  const permissionOptions = useMemo(() => {
+    const options = permissionCatalog.list.map((permission) => {
+      const resource = permissionCatalog.resourceLabels.get(permission.resource);
+      return {
+        value: permission.id,
+        label: label('@core.access/role.qualified-name', {
+          action: label(permission.name),
+          resource: resource ? label(resource.name, resource.nameParams) : permission.resource,
+        }),
+      };
+    });
+    // A permissão gravada que o catálogo não conhece mais continua visível — sumir com ela do seletor
+    // seria removê-la na próxima gravação sem ninguém ter pedido.
+    const stored = draft.permission;
+    return [
+      { value: '', label: t('design.permission.none') },
+      ...options,
+      ...(stored && !options.some((option) => option.value === stored) ? [{ value: stored, label: stored }] : []),
+    ];
+  }, [permissionCatalog, label, draft.permission, t]);
+
+  const promptIsDate = pathOptions.find((one) => one.value === promptPath)?.isDate === true;
+  const promptOpOptions = useMemo<{ value: ReportPromptChoice; label: string }[]>(
+    () => [
+      ...(promptIsDate ? [{ value: REPORT_PROMPT_PERIOD_CONTROL as ReportPromptChoice, label: t('design.prompt.period') }] : []),
+      ...QUERY_OPERATORS.map((op) => ({ value: op as ReportPromptChoice, label: t(`operator.${op}`) })),
+    ],
+    [promptIsDate, t],
+  );
+
+  const periodOptions = useMemo(
+    () => [
+      { value: '', label: t('period.any') },
+      ...REPORT_PERIODS.map((period) => ({ value: period, label: t(`period.${period}`) })),
+    ],
+    [t],
   );
 
   const chartSplitOptions = useMemo(
@@ -728,14 +1083,27 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       .filter((key) => draft.dimensions.some((one) => one.key === key))
       .filter((key) => !columnKeys.includes(key));
 
+    // O total geral é LIGADO por padrão no contrato; só a escolha de desligá-lo vai para o `spec`.
+    const totalChoice = draft.grandTotal ? {} : { grandTotal: false };
+    const original = editing?.spec;
+
     const shape: ReportShape = draft.shapeKind === 'tabular'
-      ? tabularShapeOf(draft.dimensions.map((one) => one.key), rowKeys)
+      ? {
+          // O que a autoria não edita na lista — a ordem da consulta e o teto da dobra — sobrevive à
+          // gravação: um relatório escrito por uma extensão ou pelo agente e aberto aqui perderia
+          // esses recortes no primeiro Salvar.
+          ...(original?.shape.kind === 'tabular' && original.shape.orderBy ? { orderBy: original.shape.orderBy } : {}),
+          ...(original?.shape.kind === 'tabular' && original.shape.limit !== undefined ? { limit: original.shape.limit } : {}),
+          ...tabularShapeOf(draft.dimensions.map((one) => one.key), rowKeys),
+        }
       : (draft.shapeKind === 'matrix'
         ? {
             kind: 'matrix',
             rows: rowKeys.map((dimension) => ({ dimension })),
             columns: columnKeys.map((dimension) => ({ dimension })),
             values: valueKeys,
+            ...totalChoice,
+            ...(draft.emptyCell ? { emptyCell: draft.emptyCell } : {}),
           }
         : {
             kind: 'summary',
@@ -746,6 +1114,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
               subtotal: index < rowKeys.length - 1,
             })),
             values: valueKeys,
+            ...totalChoice,
           });
 
     // `presentation` só existe quando há o que dizer nela. Um objeto vazio no spec seria ruído no
@@ -760,13 +1129,36 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         }
       : undefined;
 
-    const presentation: ReportPresentation | undefined = chart || draft.prompts.length > 0
-      ? { ...(chart ? { chart } : {}), ...(draft.prompts.length > 0 ? { prompts: draft.prompts } : {}) }
-      : undefined;
+    /*
+     * O que a autoria ainda NÃO edita na apresentação — `fields`, o detalhamento, a exportação — é
+     * levado como estava. Reconstruir o `spec` só a partir do rascunho apagava, no primeiro Salvar, o
+     * que o relatório dizia e a tela não mostrava.
+     */
+    const kept: ReportPresentation = { ...(original?.presentation ?? {}) };
+    delete kept.chart;
+    delete kept.prompts;
+    delete kept.highlight;
+    const presentation: ReportPresentation = {
+      ...kept,
+      ...(chart ? { chart } : {}),
+      ...(draft.prompts.length > 0 ? { prompts: draft.prompts } : {}),
+      ...(draft.highlights.length > 0 ? { highlight: draft.highlights } : {}),
+    };
+
+    const scan = Number.parseInt(draft.scanLimit, 10);
+    const keptAccess = { ...(original?.access ?? {}) };
+    delete keptAccess.permission;
+    const access = {
+      ...keptAccess,
+      ...(draft.permission ? { permission: draft.permission } : {}),
+    };
 
     return {
       v: REPORT_SPEC_VERSION,
       dataset: {
+        // `kind` é o discriminante de onde as linhas vêm: um relatório que não seja de coleção não é
+        // editado aqui, mas perder o discriminante o transformaria em outro relatório.
+        ...(original?.dataset.kind ? { kind: original.dataset.kind } : {}),
         table: draft.table,
         ...(draft.filters.length > 0 ? { where: draft.filters } : {}),
         // Chave AUSENTE quando não há expressão, nunca vazia: o `spec` é gravado verbatim, e uma
@@ -776,11 +1168,14 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
           : {}),
         dimensions: draft.dimensions,
         measures: draft.measures,
+        ...(Number.isFinite(scan) && scan > 0 ? { scanLimit: scan } : {}),
       },
       shape,
-      ...(presentation ? { presentation } : {}),
+      ...(Object.keys(presentation).length > 0 ? { presentation } : {}),
+      ...(Object.keys(access).length > 0 ? { access } : {}),
+      ...(original?.schedule ? { schedule: original.schedule } : {}),
     };
-  }, [draft]);
+  }, [draft, editing]);
 
   const issues = useMemo(() => validateReportSpec(spec, { schema }), [spec, schema]);
 
@@ -896,7 +1291,59 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     dragOverDimensionAt,
     endDragDimension,
     dropDimension,
-    measures: draft.measures,
+    measures: designMeasures,
+    setMeasureFormat,
+    setMeasureDecimals,
+    formatOptions: [
+      { value: '', label: t('format.number') },
+      ...DESIGN_FORMAT_KINDS.filter((kind) => kind !== 'number').map((kind) => ({ value: kind, label: t(`format.${kind}`) })),
+    ],
+    distinctOptions: pathOptions.map((option) => ({ value: option.value, label: option.label })),
+    computedName,
+    setComputedName,
+    computedExpression,
+    setComputedExpression,
+    measureVariables,
+    addComputed,
+    canAddComputed: computedName.trim() !== '' && computedExpression.trim() !== '',
+    setDimensionSort,
+    setDimensionLimit,
+    setDimensionOthers,
+    sortOptions,
+    grandTotal: draft.grandTotal,
+    setGrandTotal: (grandTotal) => change({ grandTotal }),
+    emptyCell: draft.emptyCell,
+    setEmptyCell: (value) => change({ emptyCell: value === 'blank' || value === 'zero' ? value : '' }),
+    emptyCellOptions: [
+      { value: '', label: t('design.empty-cell.default') },
+      { value: 'zero', label: t('design.empty-cell.zero') },
+      { value: 'blank', label: t('design.empty-cell.blank') },
+    ],
+    scanLimit: draft.scanLimit,
+    setScanLimit: (scanLimit) => change({ scanLimit: scanLimit.replace(/\D+/g, '') }),
+    permission: draft.permission,
+    setPermission: (permission) => change({ permission }),
+    permissionOptions,
+    highlights: draft.highlights.map((rule) => ({
+      label: t('design.highlight.summary', {
+        measure: measureName(rule.measure),
+        op: t(`operator.${rule.op}`),
+        value: String(rule.value),
+        tone: t(`tone.${rule.tone}`),
+      }),
+    })),
+    highlightMeasure,
+    setHighlightMeasure,
+    highlightOp,
+    setHighlightOp,
+    highlightValue,
+    setHighlightValue,
+    highlightTone,
+    setHighlightTone,
+    addHighlight,
+    canAddHighlight: highlightMeasure !== '' && highlightValue.trim() !== ''
+      && Number.isFinite(Number(highlightValue.replace(',', '.'))),
+    removeHighlight,
     measureOp,
     setMeasureOp,
     measurePath,
@@ -946,15 +1393,29 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     chartStacked: draft.chartStacked,
     setChartStacked: (chartStacked) => change({ chartStacked }),
 
-    prompts: draft.prompts.map((prompt) => ({
-      key: prompt.key,
-      label: prompt.label ?? prompt.path,
-      op: t(`operator.${prompt.op}`),
-    })),
+    prompts: draft.prompts.map((prompt) => {
+      const isPeriod = prompt.control === REPORT_PROMPT_PERIOD_CONTROL;
+      return {
+        key: prompt.key,
+        label: prompt.label ? label(prompt.label) : prompt.path,
+        op: isPeriod ? t('design.prompt.period') : t(`operator.${prompt.op}`),
+        required: prompt.required === true,
+        isPeriod,
+        periodDefault: isPeriod && prompt.default?.kind === 'Literal' && typeof prompt.default.value === 'string'
+          ? prompt.default.value
+          : '',
+      };
+    }),
     promptPath,
-    setPromptPath,
+    // Trocar o campo devolve o operador ao padrão: o período só existe para data, e ficar escolhido
+    // sobre um campo de texto pediria ao servidor um período de um nome.
+    setPromptPath: (path) => { setPromptPath(path); setPromptOp('eq'); },
     promptOp,
     setPromptOp,
+    promptOpOptions,
+    setPromptRequired,
+    setPromptPeriodDefault,
+    periodOptions,
     addPrompt,
     canAddPrompt: promptPath !== '',
     removePrompt,
@@ -1010,6 +1471,30 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       noChart: t('design.no-chart'),
       prompts: t('design.prompts'),
       promptsHint: t('design.prompts.hint'),
+      computed: t('design.computed'),
+      computedHint: t('design.computed.hint'),
+      computedName: t('design.computed.name'),
+      computedPlaceholder: t('design.computed.placeholder'),
+      format: t('design.format'),
+      decimals: t('design.decimals'),
+      distinctField: t('design.distinct-field'),
+      sort: t('design.sort'),
+      limit: t('design.limit'),
+      limitPlaceholder: t('design.limit.placeholder'),
+      others: t('design.others'),
+      grandTotal: t('design.grand-total'),
+      emptyCell: t('design.empty-cell'),
+      scanLimit: t('design.scan-limit'),
+      scanLimitPlaceholder: t('design.scan-limit.placeholder'),
+      permission: t('design.permission'),
+      permissionHint: t('design.permission.hint'),
+      highlight: t('design.highlight'),
+      highlightHint: t('design.highlight.hint'),
+      highlightValue: t('design.highlight.value'),
+      promptRequired: t('design.prompt.required'),
+      promptDefault: t('design.prompt.default'),
+      opHighlightOptions: REPORT_HIGHLIGHT_OPS.map((op) => ({ value: op, label: t(`operator.${op}`) })),
+      toneOptions: REPORT_HIGHLIGHT_TONES.map((tone) => ({ value: tone, label: t(`tone.${tone}`) })),
       chartOptions: REPORT_CHART_KINDS.map((kind) => ({ value: kind, label: t(`chart.${kind}`) })),
       operatorOptions: QUERY_OPERATORS.map((op) => ({ value: op, label: t(`operator.${op}`) })),
       deleteAction: t('design.delete'),
