@@ -357,6 +357,10 @@ export interface ReportPresentation {
   /** A formatação condicional, por medida. Ver `ReportHighlight`. */
   highlight?: ReportHighlight[];
   /**
+   * O DETALHAMENTO: clicar num grupo ou numa célula abre os registros daquele recorte. Ligado por
+   * padrão — ver o número sem poder ver de onde ele vem é a pergunta que todo leitor faz em seguida —,
+   * e `enabled: false` o desliga para quem quer o relatório só como resumo.
+   *
    * Objeto desde já, e não booleano: booleano que vira objeto é a quebra clássica, e um alvo de
    * detalhamento é a primeira coisa que este campo vai querer.
    */
@@ -506,3 +510,7 @@ export const reportRequiredPermissions = (spec: ReportSpec, ctx: SchemaContext):
     ...reportSourceCollections(spec, ctx).map((collection) => collectionPermissionId(collection, 'read')),
   ];
 };
+
+/** O detalhamento vale para este relatório? Ligado salvo quando o spec o desliga explicitamente. */
+export const reportDrillEnabled = (spec: ReportSpec): boolean =>
+  spec.presentation?.drillDown?.enabled !== false;

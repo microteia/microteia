@@ -3,10 +3,13 @@ import { S } from './ReportTable.styles';
 import { useReportTableViewModel } from './ReportTable.viewmodel';
 import type { ReportResult } from '../../../../domain/schema/report/reportResult';
 import type { ReportSpec } from '../../../../domain/schema/report/reportSpec';
+import type { ReportDrillTarget } from '../../../../domain/schema/report/aggregateRows';
 
 export interface ReportTableProps {
   spec: ReportSpec;
   result: ReportResult | null;
+  /** O detalhamento: ausente, as linhas não são clicáveis. */
+  onDrill?: (target: ReportDrillTarget) => void;
 }
 
 /**
@@ -16,7 +19,7 @@ export interface ReportTableProps {
  * aparecem pelo recuo, e o subtotal é uma linha como as outras, só marcada. A FAIXA — o grupo que
  * abre e o total que o fecha — é a linha cujo texto atravessa as colunas.
  */
-export const ReportTable: React.FC<ReportTableProps> = ({ spec, result }) => {
+export const ReportTable: React.FC<ReportTableProps> = ({ spec, result, onDrill }) => {
   const vm = useReportTableViewModel(spec, result);
 
   return (
@@ -39,7 +42,14 @@ export const ReportTable: React.FC<ReportTableProps> = ({ spec, result }) => {
               ) : (
                 <>
                   {vm.grouped && (
-                    <S.Td $level={row.level} $strong={row.subtotal}>{row.group}</S.Td>
+                    <S.Td
+                      $level={row.level}
+                      $strong={row.subtotal}
+                      $clickable={!!onDrill && !!row.drill}
+                      onClick={onDrill && row.drill ? () => onDrill({ keys: row.drill ?? [] }) : undefined}
+                    >
+                      {row.group}
+                    </S.Td>
                   )}
                   {row.values.map((value, index) => (
                     <S.Td

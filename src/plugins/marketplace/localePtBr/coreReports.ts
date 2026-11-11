@@ -223,4 +223,8 @@ export const CORE_REPORTS: Record<string, string> = {
   'tone.negative': 'Ruim',
   'tone.positive': 'Bom',
   'tone.warning': 'Atenção',
+  'drill.disabled': 'Este relatório não mostra os registros por trás dos números.',
+  'drill.empty': 'Nenhum registro nesta parte do relatório.',
+  'drill.loading': 'Buscando os registros…',
+  'drill.truncated': 'Mostrando {shown} de {total} registros.',
 };

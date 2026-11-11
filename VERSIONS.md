@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.226.0] — 2026-11-11
+
+- Nos relatórios, clique num grupo ou numa célula para ver os registros por trás do número — e abra qualquer um deles direto dali. O grupo "Outros" de um Top N mostra exatamente o que ele juntou.
+
 #### [9.225.0] — 2026-11-11
 
 - Automações com vários caminhos: o novo bloco "Caminhos" escolhe entre várias saídas — por situação, por faixa de valor — e segue pela primeira que se aplica, com um "Senão" para o resto.

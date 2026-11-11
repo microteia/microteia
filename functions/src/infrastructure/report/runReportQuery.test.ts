@@ -837,3 +837,27 @@ describe('runReportQuery — o filtro obrigatório, o padrão e o período', () 
     expect(totalOf(outcome)).toBe(60);
   });
 });
+
+describe('runReportQuery — o detalhamento', () => {
+  it('devolve os registros do recorte clicado, pelo mesmo caminho do número', async () => {
+    const outcome = await runReportQuery({
+      spec, context: context(), deps: deps(rows), drill: { keys: [{ dimension: 'situacao', key: 'pago' }] },
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (outcome.ok) {
+      expect(outcome.drill?.matched).toBe(2);
+      expect(outcome.drill?.records.map((record) => record.id).sort()).toEqual(['1', '2']);
+    }
+  });
+
+  it('o relatório que desligou o detalhamento recusa o pedido feito à mão', async () => {
+    const fechado: ReportSpec = { ...spec, presentation: { drillDown: { enabled: false } } };
+    const outcome = await runReportQuery({
+      spec: fechado, context: context(), deps: deps(rows), drill: { keys: [] },
+    });
+
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.error).toBe('@core.reports/drill.disabled');
+  });
+});

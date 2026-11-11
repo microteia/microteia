@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.176.0",
+    "version": "1.177.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -2810,7 +2810,11 @@
             "prompts.required": "{label} (obrigatório)",
             "tone.negative": "Ruim",
             "tone.positive": "Bom",
-            "tone.warning": "Atenção"
+            "tone.warning": "Atenção",
+            "drill.disabled": "Este relatório não mostra os registros por trás dos números.",
+            "drill.empty": "Nenhum registro nesta parte do relatório.",
+            "drill.loading": "Buscando os registros…",
+            "drill.truncated": "Mostrando {shown} de {total} registros."
           }
         }
       },

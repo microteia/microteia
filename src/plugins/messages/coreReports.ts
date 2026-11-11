@@ -231,4 +231,8 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'tone.negative': 'Bad',
   'tone.positive': 'Good',
   'tone.warning': 'Attention',
+  'drill.disabled': 'This report does not show the records behind its figures.',
+  'drill.empty': 'No record in this part of the report.',
+  'drill.loading': 'Looking for the records…',
+  'drill.truncated': 'Showing {shown} of {total} records.',
 };

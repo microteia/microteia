@@ -10,6 +10,7 @@ import type { WorkflowQueryDeps } from '../workflow/query/runWorkflowQuery';
 import type { WorkflowContext, WorkflowLogger } from '../../domain/entities/WorkflowContext';
 import type { ReportSpec } from '../../domain/schema/report/reportSpec';
 import type { ReportResult } from '../../domain/schema/report/reportResult';
+import type { ReportDrillResult, ReportDrillTarget } from '../../domain/schema/report/aggregateRows';
 import type { ReportSpecIssue } from '../../domain/schema/report/validateReportSpec';
 import { requireReportAccess, runReportQuery } from '../report/runReportQuery';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
@@ -23,6 +24,8 @@ interface RunReportRequest {
   spec?: ReportSpec;
   /** Os valores que o leitor preencheu nos filtros declarados. */
   prompts?: Record<string, unknown>;
+  /** O recorte clicado: devolve, além do agregado, os registros dele. */
+  drill?: ReportDrillTarget;
 }
 
 interface RunReportResponse {
@@ -32,6 +35,11 @@ interface RunReportResponse {
   /** REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
   error: string | null;
   errorParams?: Record<string, string>;
+  /**
+   * Só com `drill` no pedido: os registros do recorte clicado. É a única exceção ao "nunca as linhas",
+   * e ela é limitada ao que o leitor pediu para ver e ao teto de registros do relatório.
+   */
+  drill?: ReportDrillResult;
 }
 
 /**
@@ -52,7 +60,7 @@ export const runReport = onCall(
       throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
-    const { tenantId, reportId, spec: rawSpec, prompts } = request.data as RunReportRequest;
+    const { tenantId, reportId, spec: rawSpec, prompts, drill } = request.data as RunReportRequest;
     if (!tenantId) {
       throw new HttpsError('invalid-argument', '@core.automation/handler.tenant.missing');
     }
@@ -121,10 +129,10 @@ export const runReport = onCall(
       input: prompts ?? {},
     };
 
-    const outcome = await runReportQuery({ spec, context, deps, prompts });
+    const outcome = await runReportQuery({ spec, context, deps, prompts, drill });
 
     return outcome.ok
-      ? { result: outcome.value, issues: outcome.issues, error: null }
+      ? { result: outcome.value, issues: outcome.issues, error: null, ...(outcome.drill ? { drill: outcome.drill } : {}) }
       : { result: null, issues: outcome.issues ?? [], error: outcome.error, errorParams: outcome.errorParams };
   },
 );

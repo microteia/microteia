@@ -543,3 +543,85 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
     completeGroups: !rowsTruncated && !columnsTruncated,
   };
 };
+
+/** O recorte que o leitor clicou: o caminho de grupos das LINHAS e, num pivô, o da COLUNA. */
+export interface ReportDrillTarget {
+  keys: ReportGroupKey[];
+  column?: ReportGroupKey[];
+}
+
+export interface ReportDrillInput {
+  spec: ReportSpec;
+  /** As linhas já varridas, filtradas e hidratadas — as MESMAS que a agregação recebe. */
+  rows: Record<string, unknown>[];
+  target: ReportDrillTarget;
+  measureFilters?: Record<string, ResolvedPredicate[]>;
+  maxRecords?: number;
+}
+
+export interface ReportDrillResult {
+  /** Os registros do recorte, no formato que atravessa a rede. */
+  records: Record<string, unknown>[];
+  /** Quantos registros o recorte tem — pode ser mais que `records`, quando o teto cortou. */
+  matched: number;
+}
+
+/**
+ * Desce um CAMINHO de grupos, nível a nível, com a MESMA árvore, ordem e corte da agregação.
+ *
+ * É o que faz o "Outros" de um Top N detalhar exatamente o que ele juntou: a chave residual não tem
+ * valor próprio, e só a ordem e o limite do nível — recalculados aqui pela mesma `sortedChildren` —
+ * dizem quem ficou de fora. Uma segunda regra de "quem é Outros" divergiria da primeira na próxima
+ * mudança de ordenação, e o detalhe deixaria de bater com o número clicado.
+ */
+const descend = (
+  spec: ReportSpec,
+  rows: Record<string, unknown>[],
+  path: ReportGroupKey[],
+  filters: Record<string, ResolvedPredicate[]>,
+): Record<string, unknown>[] => {
+  const dimensions = new Map((spec.dataset.dimensions ?? []).map((one) => [one.key, one]));
+  const measures = spec.dataset.measures ?? [];
+  let current = rows;
+  const prefix: ReportGroupKey[] = [];
+
+  for (const entry of path) {
+    const level: ReportGroupLevel = { dimension: entry.dimension };
+    const node = buildTree(current, [level], dimensions, prefix);
+    const { shown } = sortedChildren(node, 0, { dimensions, measures, filters, levels: [level] });
+    const match = shown.find((child) => lastKey(child) === entry.key);
+    current = match ? match.rows : [];
+    prefix.push(entry);
+    if (current.length === 0) break;
+  }
+  return current;
+};
+
+/**
+ * Os REGISTROS de um grupo ou de uma célula — o detalhamento do número que o leitor clicou.
+ *
+ * Função pura, ao lado da agregação, pela mesma razão dela: o recorte tem de ser o MESMO que produziu
+ * o número, com o balde de data no fuso da dimensão e o "Outros" do Top N, e uma reimplementação na
+ * tela ou na callable erraria sozinha no dia em que o agregador mudasse.
+ *
+ * O pivô desce as duas trilhas sobre TODAS as linhas — as colunas do agregador são calculadas sobre o
+ * relatório inteiro, não por linha — e fica com a interseção.
+ */
+export const drillReportRows = (input: ReportDrillInput): ReportDrillResult => {
+  const filters = input.measureFilters ?? {};
+  const maxRecords = input.maxRecords ?? DEFAULT_REPORT_AGGREGATE_LIMITS.maxRecords;
+  const byRows = descend(input.spec, input.rows, input.target.keys, filters);
+  const column = input.target.column ?? [];
+  const selected = column.length === 0
+    ? byRows
+    : (() => {
+        const inColumn = new Set(descend(input.spec, input.rows, column, filters));
+        return byRows.filter((row) => inColumn.has(row));
+      })();
+
+  return {
+    records: selected.slice(0, maxRecords).map((row) => wireValue(row) as Record<string, unknown>),
+    matched: selected.length,
+  };
+};
+

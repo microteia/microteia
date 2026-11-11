@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aggregateReportRows, reportCellKey } from './aggregateRows';
+import { aggregateReportRows, drillReportRows, reportCellKey } from './aggregateRows';
 import type { ReportDimension, ReportSpec } from './reportSpec';
 import { REPORT_OTHERS_KEY, REPORT_SPEC_VERSION } from './reportSpec';
 
@@ -707,5 +707,65 @@ describe('aggregateReportRows — Top N e "Outros"', () => {
     expect(pago?.cells?.[anaKey]?.quantidade).toBe(1);
     expect(pago?.cells?.[othersKey]?.quantidade).toBe(1);
     expect(result.columnTotals?.[othersKey]?.quantidade).toBe(2);
+  });
+});
+
+describe('drillReportRows — os registros por trás do número', () => {
+  const ids = (records: Record<string, unknown>[]): string[] => records.map((record) => String(record.id)).sort();
+
+  it('devolve os registros do grupo clicado, e quantos são', () => {
+    const drilled = drillReportRows({
+      spec: summarySpec(),
+      rows,
+      target: { keys: [{ dimension: 'status', key: 'pago' }] },
+    });
+
+    expect(ids(drilled.records)).toEqual(['1', '2']);
+    expect(drilled.matched).toBe(2);
+  });
+
+  it('o grupo "sem valor" também se detalha', () => {
+    const drilled = drillReportRows({ spec: summarySpec(), rows, target: { keys: [{ dimension: 'status', key: '' }] } });
+    expect(ids(drilled.records)).toEqual(['5']);
+  });
+
+  it('o "Outros" de um Top N detalha exatamente o que ele juntou', () => {
+    const spec: ReportSpec = {
+      ...summarySpec(),
+      dataset: {
+        ...dataset,
+        dimensions: dataset.dimensions.map((one) => (one.key === 'cliente'
+          ? { ...one, sort: { by: 'total', dir: 'desc' as const }, limit: 1, others: true }
+          : one)),
+      },
+      shape: { kind: 'summary', groupBy: [{ dimension: 'cliente' }], values: ['total'] },
+    };
+
+    const others = drillReportRows({ spec, rows, target: { keys: [{ dimension: 'cliente', key: REPORT_OTHERS_KEY }] } });
+    expect(ids(others.records)).toEqual(['1', '3', '4']);
+  });
+
+  it('a célula do pivô é a interseção da linha com a coluna', () => {
+    const spec: ReportSpec = {
+      v: REPORT_SPEC_VERSION,
+      dataset,
+      shape: { kind: 'matrix', rows: [{ dimension: 'status' }], columns: [{ dimension: 'cliente' }], values: ['quantidade'] },
+    };
+
+    const cell = drillReportRows({
+      spec,
+      rows,
+      target: { keys: [{ dimension: 'status', key: 'aberto' }], column: [{ dimension: 'cliente', key: 'Ana' }] },
+    });
+    expect(ids(cell.records)).toEqual(['3', '4']);
+
+    const columnTotal = drillReportRows({ spec, rows, target: { keys: [], column: [{ dimension: 'cliente', key: 'Bruno' }] } });
+    expect(ids(columnTotal.records)).toEqual(['2', '5']);
+  });
+
+  it('respeita o teto de registros, mas diz quantos o recorte tem', () => {
+    const drilled = drillReportRows({ spec: summarySpec(), rows, target: { keys: [] }, maxRecords: 2 });
+    expect(drilled.records).toHaveLength(2);
+    expect(drilled.matched).toBe(5);
   });
 });

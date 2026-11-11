@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useLabel, useLocaleFormat, useT } from '../../../shared/i18n/useT';
-import type { ReportResult, ReportRow } from '../../../../domain/schema/report/reportResult';
+import type { ReportGroupKey, ReportResult, ReportRow } from '../../../../domain/schema/report/reportResult';
 import type { ReportHighlightTone, ReportSpec } from '../../../../domain/schema/report/reportSpec';
 import { reportHighlightTone } from '../../../../domain/schema/report/reportHighlight';
 import {
@@ -25,6 +25,8 @@ export interface ReportTableRow {
   /** O rótulo do grupo do nível MAIS FUNDO desta linha — o recuo diz de qual nível ele é. */
   group: string;
   values: string[];
+  /** O caminho do grupo, para o detalhamento. `null` nas linhas que não são grupo (registro, faixa). */
+  drill: ReportGroupKey[] | null;
   /** O tom de cada valor (`presentation.highlight`), paralelo a `values`. `null` = sem realce. */
   tones: (ReportHighlightTone | null)[];
   /**
@@ -107,6 +109,7 @@ export const useReportTableViewModel = (
         subtotal: false,
         group: '',
         values: dimensions.map((dimension) => cellText(record, dimension)),
+        drill: null,
         tones: [],
         span: null,
       });
@@ -140,6 +143,7 @@ export const useReportTableViewModel = (
               subtotal: true,
               group: '',
               values: [],
+              drill: null,
               tones: [],
               span: [totalLabel, done.label, ...measureText(done.row.values)].join(' — '),
             });
@@ -156,6 +160,7 @@ export const useReportTableViewModel = (
             subtotal: false,
             group: '',
             values: [],
+            drill: null,
             tones: [],
             span: name,
           });
@@ -211,6 +216,7 @@ export const useReportTableViewModel = (
       subtotal: row.subtotal === true,
       group: groupLabel(row.keys[row.keys.length - 1]),
       values: measures.map((measure) => formatMeasureValue(row.values[measure.key], measure.format, formatters)),
+      drill: row.keys,
       tones: measures.map((measure) => reportHighlightTone(spec, measure.key, row.values[measure.key])),
       span: null,
     }));

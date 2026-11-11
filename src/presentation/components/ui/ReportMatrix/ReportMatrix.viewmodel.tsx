@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useLabel, useLocaleFormat, useT } from '../../../shared/i18n/useT';
 import { reportCellKey } from '../../../../domain/schema/report/aggregateRows';
-import type { ReportResult } from '../../../../domain/schema/report/reportResult';
+import type { ReportGroupKey, ReportResult } from '../../../../domain/schema/report/reportResult';
 import type { ReportHighlightTone, ReportSpec } from '../../../../domain/schema/report/reportSpec';
 import { reportHighlightTone } from '../../../../domain/schema/report/reportHighlight';
 import {
@@ -16,9 +16,18 @@ export interface ReportMatrixViewModel {
   /** O canto superior esquerdo: os nomes das dimensões das linhas. */
   corner: string;
   /** Uma entrada por coluna do pivô, cada uma com uma célula por medida. */
-  columns: { key: string; label: string }[];
+  columns: { key: string; label: string; path: ReportGroupKey[] }[];
   measures: { key: string; label: string }[];
-  rows: { id: string; level: number; subtotal: boolean; group: string; cells: string[]; tones: (ReportHighlightTone | null)[] }[];
+  rows: {
+    id: string;
+    level: number;
+    subtotal: boolean;
+    group: string;
+    /** O caminho do grupo da linha, para o detalhamento. */
+    keys: ReportGroupKey[];
+    cells: string[];
+    tones: (ReportHighlightTone | null)[];
+  }[];
   totals: { label: string; cells: string[]; tones: (ReportHighlightTone | null)[] } | null;
   isEmpty: boolean;
   emptyMessage: string;
@@ -47,6 +56,7 @@ export const useReportMatrixViewModel = (
     const columns = (result?.columns ?? []).map((path) => ({
       key: reportCellKey(path),
       label: path.map((entry) => groupLabel(entry)).join(' / '),
+      path,
     }));
 
     const cellsOf = (
@@ -68,6 +78,7 @@ export const useReportMatrixViewModel = (
       level: row.level,
       subtotal: row.subtotal === true,
       group: groupLabel(row.keys[row.keys.length - 1]),
+      keys: row.keys,
       cells: cellsOf(row.cells),
       tones: tonesOf(row.cells),
     }));

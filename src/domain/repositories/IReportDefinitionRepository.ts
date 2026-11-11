@@ -2,6 +2,7 @@ import type { ReportDefinition } from '../entities/Report';
 import type { ReportResult } from '../schema/report/reportResult';
 import type { ReportSpec } from '../schema/report/reportSpec';
 import type { ReportSpecIssue } from '../schema/report/validateReportSpec';
+import type { ReportDrillResult, ReportDrillTarget } from '../schema/report/aggregateRows';
 
 export type ReportDefinitionInput = Omit<
   ReportDefinition,
@@ -16,6 +17,8 @@ export interface RunReportInput {
   spec?: ReportSpec;
   /** Os valores que o leitor preencheu nos filtros declarados. */
   prompts?: Record<string, unknown>;
+  /** O recorte clicado — devolve também os registros dele (`RunReportResult.drill`). */
+  drill?: ReportDrillTarget;
 }
 
 export interface RunReportResult {
@@ -25,6 +28,8 @@ export interface RunReportResult {
   /** REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
   error: string | null;
   errorParams?: Record<string, string>;
+  /** Os registros do recorte, quando o pedido trouxe `drill`. */
+  drill?: ReportDrillResult;
 }
 
 export interface IReportDefinitionRepository {

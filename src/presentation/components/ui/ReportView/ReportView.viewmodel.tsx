@@ -10,6 +10,10 @@ import { filterLiteralOf, filterTextOf, filterValueOf } from '../../../shared/re
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities/entitySchemas';
 import type { ReportSpecIssue } from '../../../../domain/schema/report/validateReportSpec';
 import { REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL } from '../../../../domain/schema/report/reportPeriod';
+import { reportDrillEnabled } from '../../../../domain/schema/report/reportSpec';
+import type { ReportDrillTarget } from '../../../../domain/schema/report/aggregateRows';
+import { useOpenRecord } from '../../../shared/useOpenRecord';
+import { useReportGroupLabels } from '../../../shared/report/useReportGroupLabels';
 import { useReportCsv } from '../../../shared/report/useReportCsv';
 
 /** Um filtro que o LEITOR preenche, já com o que a tela precisa para desenhá-lo. */
@@ -63,6 +67,15 @@ export interface ReportViewViewModel {
   canExport: boolean;
   exportCsv: () => void;
   print: () => void;
+  /** O detalhamento, quando o relatório o permite. Ausente, tabela e pivô não são clicáveis. */
+  drill: ((target: ReportDrillTarget) => void) | undefined;
+  drillOpen: boolean;
+  drillTitle: string;
+  drillRecords: Record<string, unknown>[];
+  drillMatched: number;
+  drillLoading: boolean;
+  closeDrill: () => void;
+  openDrillRecord: (recordId: string) => void;
 }
 
 /**
@@ -99,6 +112,13 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
    * servidor como resposta — vazia quer dizer "sem restrição" —, e a não tocada vai com o padrão.
    */
   const [promptValues, setPromptValues] = useState<Record<string, string>>({});
+  const [drillState, setDrillState] = useState<{
+    title: string;
+    records: Record<string, unknown>[];
+    matched: number;
+    loading: boolean;
+  } | null>(null);
+  const openRecord = useOpenRecord();
 
   // Memoizado, e não derivado solto: um `?? []` cria um array novo a cada render, e o `useMemo`
   // abaixo passaria a recalcular sempre — refazendo a lista a cada tecla digitada num filtro.
@@ -140,27 +160,37 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
     [literalDefault],
   );
 
+  /**
+   * Os filtros como vão ao servidor. Vai NO TIPO DO CAMPO o que tem resposta. O filtro que o leitor
+   * tocou e deixou vazio vai como `null` — "sem restrição", e o padrão não volta por cima dele —; o que
+   * ninguém tocou e tem padrão por expressão nem vai, para o servidor resolver o padrão.
+   *
+   * Uma função só para a execução e para o detalhamento: o recorte detalhado TEM de ser o do número
+   * clicado, com os mesmos filtros.
+   */
+  const promptPayload = useCallback((values: Record<string, string>): Record<string, unknown> => {
+    const filled: Record<string, unknown> = {};
+    for (const prompt of declaredPrompts) {
+      const touched = Object.prototype.hasOwnProperty.call(values, prompt.key);
+      if (!touched && prompt.default && prompt.default.kind !== 'Literal') continue;
+      const text = effectiveText(prompt, values).trim();
+      if (text === '') {
+        if (touched) filled[prompt.key] = null;
+        continue;
+      }
+      filled[prompt.key] = prompt.control === REPORT_PROMPT_PERIOD_CONTROL
+        ? text
+        : filterLiteralOf(fieldByPath(prompt.path), text);
+    }
+    return filled;
+  }, [declaredPrompts, effectiveText, fieldByPath]);
+
   const runWith = useCallback(async (values: Record<string, string>) => {
     if (!report) return;
     setIsLoading(true);
     setError(null);
     try {
-      // Vai NO TIPO DO CAMPO o que tem resposta. O filtro que o leitor tocou e deixou vazio vai como
-      // `null` — "sem restrição", e o padrão não volta por cima dele —; o que ninguém tocou e tem
-      // padrão por expressão nem vai, para o servidor resolver o padrão.
-      const filled: Record<string, unknown> = {};
-      for (const prompt of declaredPrompts) {
-        const touched = Object.prototype.hasOwnProperty.call(values, prompt.key);
-        if (!touched && prompt.default && prompt.default.kind !== 'Literal') continue;
-        const text = effectiveText(prompt, values).trim();
-        if (text === '') {
-          if (touched) filled[prompt.key] = null;
-          continue;
-        }
-        filled[prompt.key] = prompt.control === REPORT_PROMPT_PERIOD_CONTROL
-          ? text
-          : filterLiteralOf(fieldByPath(prompt.path), text);
-      }
+      const filled = promptPayload(values);
       const outcome = await runReport({ reportId: report.id, prompts: filled });
       setResult(outcome.result);
       setIssues(outcome.issues ?? []);
@@ -171,7 +201,7 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
     } finally {
       setIsLoading(false);
     }
-  }, [report, declaredPrompts, fieldByPath, runReport, label, effectiveText]);
+  }, [report, promptPayload, runReport, label]);
 
   const run = useCallback(() => runWith(promptValues), [runWith, promptValues]);
 
@@ -251,6 +281,34 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
     ? t('result.partial', { scanned: formatters.formatNumber(result.scanned, { maximumFractionDigits: 0 }) })
     : (result && !result.completeGroups ? t('result.partial-groups') : null);
 
+  const groupLabel = useReportGroupLabels(spec ?? EMPTY_SPEC);
+
+  const drill = useCallback(async (target: ReportDrillTarget) => {
+    if (!report) return;
+    const path = [...target.keys, ...(target.column ?? [])];
+    const title = path.length > 0
+      ? path.map((entry) => groupLabel(entry)).join(' / ')
+      : t('table.total');
+    setDrillState({ title, records: [], matched: 0, loading: true });
+    try {
+      const outcome = await runReport({ reportId: report.id, prompts: promptPayload(promptValues), drill: target });
+      if (outcome.error) {
+        setDrillState(null);
+        setError(label(outcome.error, outcome.errorParams));
+        return;
+      }
+      setDrillState({
+        title,
+        records: outcome.drill?.records ?? [],
+        matched: outcome.drill?.matched ?? 0,
+        loading: false,
+      });
+    } catch (caught) {
+      setDrillState(null);
+      setError(caught instanceof Error ? label(caught.message) : String(caught));
+    }
+  }, [report, groupLabel, t, runReport, promptPayload, promptValues, label]);
+
   const exportCsv = useReportCsv(spec ?? EMPTY_SPEC, result, report ? label(report.title) : '');
 
   return {
@@ -288,5 +346,15 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
     // O navegador compõe a página e oferece "Salvar como PDF". A folha de impressão está no
     // `GlobalStyles`, e é ela que decide o que aparece no papel.
     print: () => window.print(),
+    drill: spec && reportDrillEnabled(spec) ? (target) => { void drill(target); } : undefined,
+    drillOpen: drillState !== null,
+    drillTitle: drillState?.title ?? '',
+    drillRecords: drillState?.records ?? [],
+    drillMatched: drillState?.matched ?? 0,
+    drillLoading: drillState?.loading === true,
+    closeDrill: () => setDrillState(null),
+    openDrillRecord: (recordId) => {
+      if (spec) openRecord(spec.dataset.table, recordId);
+    },
   };
 };

@@ -56,7 +56,7 @@ export const S = {
       background: ${({ theme }) => theme.colors.surfaceHover};
     }
   `,
-  RowTh: styled.th<{ $level?: number; $strong?: boolean }>`
+  RowTh: styled.th<{ $level?: number; $strong?: boolean; $clickable?: boolean }>`
     text-align: left;
     font-weight: ${({ $strong }) => ($strong ? 600 : 400)};
     padding: 9px 14px;
@@ -67,15 +67,17 @@ export const S = {
     position: sticky;
     left: 0;
     background: inherit;
-  `,
-  Td: styled.td<{ $strong?: boolean; $tone?: ReportHighlightTone }>`
+      cursor: ${({ $clickable }) => ($clickable ? 'pointer' : 'default')};
+`,
+  Td: styled.td<{ $strong?: boolean; $tone?: ReportHighlightTone; $clickable?: boolean }>`
     text-align: right;
     padding: 9px 14px;
     border-bottom: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     font-weight: ${({ $strong }) => ($strong ? 600 : 400)};
     font-variant-numeric: tabular-nums;
     background: ${({ theme, $tone }) => reportToneBackground(theme, $tone)};
-  `,
+      cursor: ${({ $clickable }) => ($clickable ? 'pointer' : 'default')};
+`,
   TotalRow: styled.tr`
     background: ${({ theme }) => theme.colors.inputBackground};
   `,

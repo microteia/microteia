@@ -102,7 +102,6 @@ describe('validateReportSpec — a fronteira entre as camadas', () => {
     }, ctx);
 
     expect(issues.map((issue) => issue.errorParams?.capability).filter(Boolean).sort()).toEqual([
-      'presentation.drilldown',
       'presentation.fields',
     ]);
     expect(issues.every((issue) => issue.severity === 'warning')).toBe(true);

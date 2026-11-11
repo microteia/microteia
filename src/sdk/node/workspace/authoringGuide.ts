@@ -3856,6 +3856,11 @@ mean, and treat a refusal as the platform telling you it cannot answer for them.
   If you want the chart, group the list — you keep the records either way.
 - \`dataset.scanLimit\` asks for a smaller scan than the ceiling. Asking for a bigger one is clamped,
   never refused.
+- \`presentation.drillDown\`: clicking a group of a summary, a row group or a cell of a pivot opens the
+  records behind that number — same scan, same filters, same per-record visibility, so the detail never
+  shows a record the total did not count. It is on by default; \`{ enabled: false }\` turns it off, and
+  the server then refuses a drill asked for by hand. The "Others" group of a Top N drills into exactly
+  what it gathered. The columns of the detail are the report's dimensions.
 - \`presentation.highlight\`: \`[{ measure, op, value, tone }]\` paints a measure's cell when its value
   compares true — \`op\` is \`lt\`, \`lte\`, \`gt\`, \`gte\`, \`eq\` or \`neq\`, \`tone\` is
   ${inlineList(REPORT_HIGHLIGHT_TONES)}. A tone, never a colour: the theme draws it, light or dark. The first
@@ -4017,7 +4022,7 @@ and label it with the title of the whole.
 
 These are read and not acted on, and each says so as a warning rather than doing nothing:
 \`schedule\` (the report still runs whenever it is opened — to deliver one on a timer, write a scheduled
-workflow), \`shape.limit\`, \`presentation.fields\`, \`presentation.drillDown\`,
+workflow), \`shape.limit\`, \`presentation.fields\`,
 \`presentation.export.fileName\` (the file is always offered, and its name comes from the title), a
 \`prompts[].control\` other than \`'period'\`, and \`dimensions[].sort.by: 'label'\` — a label is
 resolved on screen, in the reader's language, and the server that cuts the level never sees it.

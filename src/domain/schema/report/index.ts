@@ -15,6 +15,7 @@ export {
   REPORT_SPEC_VERSION,
   buildReportQuery,
   isAggregateMeasure,
+  reportDrillEnabled,
   reportGranularityOf,
   reportPaths,
   reportRequiredPermissions,
@@ -80,9 +81,16 @@ export type { ReportGroupKey, ReportResult, ReportRow, ReportTotals } from './re
 export {
   DEFAULT_REPORT_AGGREGATE_LIMITS,
   aggregateReportRows,
+  drillReportRows,
   reportCellKey,
 } from './aggregateRows';
-export type { AggregateReportInput, ReportAggregateLimits } from './aggregateRows';
+export type {
+  AggregateReportInput,
+  ReportAggregateLimits,
+  ReportDrillInput,
+  ReportDrillResult,
+  ReportDrillTarget,
+} from './aggregateRows';
 
 export { filterReportRows, reportRowScope } from './reportRowFilter';
 export type { ReportRowFilterInput, ReportRowFilterOutcome } from './reportRowFilter';

@@ -35,6 +35,7 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'measure.filter',
   'presentation.chart',
   'presentation.chart.split',
+  'presentation.drilldown',
   'presentation.highlight',
   'presentation.prompt',
   'presentation.prompt.default',

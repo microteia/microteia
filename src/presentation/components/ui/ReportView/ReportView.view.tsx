@@ -10,6 +10,7 @@ import { ReportChart } from '../ReportChart';
 import { ReportMatrix } from '../ReportMatrix';
 import { ReportTable } from '../ReportTable';
 import { SearchSelect } from '../SearchSelect';
+import { ReportDrill } from '../ReportDrill';
 
 export interface ReportViewProps {
   /** A CHAVE do relatório no catálogo do escritório. */
@@ -103,8 +104,20 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey }) => 
       {vm.result && <ReportChart spec={vm.spec} result={vm.result} />}
 
       {vm.result && (vm.spec.shape.kind === 'matrix'
-        ? <ReportMatrix spec={vm.spec} result={vm.result} />
-        : <ReportTable spec={vm.spec} result={vm.result} />)}
+        ? <ReportMatrix spec={vm.spec} result={vm.result} onDrill={vm.drill} />
+        : <ReportTable spec={vm.spec} result={vm.result} onDrill={vm.drill} />)}
+
+      {vm.drillOpen && (
+        <ReportDrill
+          spec={vm.spec}
+          title={vm.drillTitle}
+          records={vm.drillRecords}
+          matched={vm.drillMatched}
+          isLoading={vm.drillLoading}
+          onOpenRecord={vm.openDrillRecord}
+          onClose={vm.closeDrill}
+        />
+      )}
     </S.Wrapper>
   );
 };

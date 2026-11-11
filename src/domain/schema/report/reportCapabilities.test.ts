@@ -159,7 +159,6 @@ describe('deriveReportRequires', () => {
     expect(unsupportedReportCapabilities(declarativo).sort()).toEqual([
       'dimension.sort.by',
       'export.filename',
-      'presentation.drilldown',
       'presentation.fields',
       'presentation.prompt.control',
       'shape.limit',

@@ -8,10 +8,16 @@ import type { SchemaContext } from '../../domain/schema/pathResolver';
 import { resolveQueryTable } from '../../domain/schema/querySpec';
 import type { QueryPredicate, QuerySpec } from '../../domain/schema/querySpec';
 import type { ResolvedPredicate } from '../../domain/schema/predicateMatch';
-import { aggregateReportRows } from '../../domain/schema/report/aggregateRows';
+import { aggregateReportRows, drillReportRows } from '../../domain/schema/report/aggregateRows';
+import type { ReportDrillResult, ReportDrillTarget } from '../../domain/schema/report/aggregateRows';
 import { filterReportRows } from '../../domain/schema/report/reportRowFilter';
 import type { ReportResult } from '../../domain/schema/report/reportResult';
-import { buildReportQuery, isAggregateMeasure, reportRequiredPermissions } from '../../domain/schema/report/reportSpec';
+import {
+  buildReportQuery,
+  isAggregateMeasure,
+  reportDrillEnabled,
+  reportRequiredPermissions,
+} from '../../domain/schema/report/reportSpec';
 import type { ReportPrompt, ReportSpec } from '../../domain/schema/report/reportSpec';
 import {
   isReportPeriod,
@@ -31,7 +37,7 @@ import {
 } from './reportLimits';
 
 export type ReportOutcome =
-  | { ok: true; value: ReportResult; issues: ReportSpecIssue[] }
+  | { ok: true; value: ReportResult; issues: ReportSpecIssue[]; drill?: ReportDrillResult }
   /** `error` é uma REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
   | { ok: false; error: string; errorParams?: Record<string, string>; issues?: ReportSpecIssue[] };
 
@@ -157,6 +163,12 @@ export interface RunReportInput {
   context: WorkflowContext;
   deps: WorkflowQueryDeps;
   prompts?: Record<string, unknown>;
+  /**
+   * O recorte que o leitor clicou. Passa pelo MESMO caminho do número — mesma varredura, mesmos
+   * filtros, mesma visibilidade por registro —, e é por isso que o detalhe nunca mostra um registro que
+   * o total não contou.
+   */
+  drill?: ReportDrillTarget;
 }
 
 /**
@@ -171,6 +183,7 @@ export const runReportQuery = async ({
   context,
   deps,
   prompts,
+  drill,
 }: RunReportInput): Promise<ReportOutcome> => {
   const tenantId = context.execution.tenantId;
   const schema = await deps.screenProvider.getSchemaContext(tenantId);
@@ -242,9 +255,26 @@ export const runReportQuery = async ({
     }
   }
 
+  // O relatório que desligou o detalhamento não o serve por outra porta: a tela esconde o gesto, e a
+  // callable recusa o pedido feito à mão.
+  if (drill && !reportDrillEnabled(spec)) {
+    return { ok: false, error: '@core.reports/drill.disabled', issues };
+  }
+
   return {
     ok: true,
     issues,
+    ...(drill
+      ? {
+          drill: drillReportRows({
+            spec,
+            rows: filtered.rows,
+            target: drill,
+            measureFilters,
+            maxRecords: REPORT_MAX_RECORDS,
+          }),
+        }
+      : {}),
     value: aggregateReportRows({
       spec,
       rows: filtered.rows,

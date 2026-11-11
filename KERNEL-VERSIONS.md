@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.226.0] — 2026-11-11
+
+- feat(reports): drill-down — `runReport` accepts `drill: { keys, column? }` and returns the records behind a group or pivot cell through the same pipeline (filters, prompts, per-record visibility), computed by the pure `drillReportRows` with the aggregator's own tree, order and limit, so a Top N "Others" drills into exactly what it gathered. `presentation.drillDown` is now executed and on by default; `enabled: false` makes the server refuse the drill (`@core.reports/drill.disabled`). `KERNEL_VERSION` 2.109.0.
+- feat(ui/reports): `ReportDrill` panel; `ReportTable` and `ReportMatrix` take an optional `onDrill`, wired by `ReportView`.
+
 #### [9.225.0] — 2026-11-11
 
 - feat(workflow): `Switch` control node (`switch: { cases, otherwise }`) — the first case whose condition holds runs, `otherwise` when none does; traversed by `stepTree`, `workflowReturn`, `actionReturn`, the agent summary and the package integrity check, and part of `CONTROL_STEP_TYPES`.

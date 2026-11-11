@@ -38,7 +38,7 @@ export const S = {
       background: ${({ theme }) => theme.colors.surfaceHover};
     }
   `,
-  Td: styled.td<{ $numeric?: boolean; $level?: number; $strong?: boolean; $tone?: ReportHighlightTone }>`
+  Td: styled.td<{ $numeric?: boolean; $level?: number; $strong?: boolean; $tone?: ReportHighlightTone; $clickable?: boolean }>`
     text-align: ${({ $numeric }) => ($numeric ? 'right' : 'left')};
     padding: 9px 14px;
     padding-left: ${({ $level, $numeric }) => ($numeric ? 14 : 14 + (($level ?? 0) * 18))}px;
@@ -46,7 +46,9 @@ export const S = {
     font-weight: ${({ $strong }) => ($strong ? 600 : 400)};
     font-variant-numeric: tabular-nums;
     background: ${({ theme, $tone }) => reportToneBackground(theme, $tone)};
-  `,
+      cursor: ${({ $clickable }) => ($clickable ? 'pointer' : 'default')};
+    text-decoration: ${({ $clickable }) => ($clickable ? 'underline dotted' : 'none')};
+`,
   TotalRow: styled.tr`
     background: ${({ theme }) => theme.colors.inputBackground};
   `,

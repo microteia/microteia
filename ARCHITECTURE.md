@@ -10724,7 +10724,7 @@ está sob `dataset.`/`measure.`, e o relatório continua certo; só não roda so
 discriminante em `dataset.kind`, e este RECUSA. Cada um entra de forma aditiva — e reservar o nome agora
 é o que impede um kernel velho de podar em silêncio o que uma ferramenta nova escreveu.
 
-Ainda previstos e não executados, com aviso: `shape.limit`, `presentation.fields`, `presentation.drillDown`,
+Ainda previstos e não executados, com aviso: `shape.limit`, `presentation.fields`,
 `presentation.export.fileName`, um `prompts[].control` diferente de `'period'` e `sort.by: 'label'` — o
 rótulo de um grupo é resolvido na tela, no idioma de quem lê, e o servidor que corta o nível não o vê.
 
@@ -10780,6 +10780,27 @@ Executados no SERVIDOR (`runReportQuery.ts`), não só na tela — o widget e o 
   (`dayInTimeZone`); a semana começa na segunda, a mesma régua ISO do balde `week`. Dias e não
   instantes porque é como `predicateMatch` compara uma data sem hora: o dia inteiro. Os identificadores
   são `kebab-case` (`this-month`) porque são também chave de mensagem (`period.this-month`).
+
+### Detalhamento (`presentation.drillDown`)
+
+Clicar num grupo do resumo, num grupo de linha ou numa célula do pivô abre os REGISTROS daquele recorte
+(`ReportDrill`). Ligado por padrão (`reportDrillEnabled`); `enabled: false` desliga, e a callable então
+recusa o pedido feito à mão (`@core.reports/drill.disabled`).
+
+- **O recorte é o do número.** `runReport` aceita `drill: { keys, column? }` e passa pelo MESMO
+  pipeline — varredura, filtros do leitor, `includeWhen`, visibilidade por registro —; os registros saem
+  de `drillReportRows`, função pura ao lado do agregador. Ela desce o caminho nível a nível com a mesma
+  `buildTree` e a mesma `sortedChildren`, e é isso que faz o "Outros" de um Top N detalhar exatamente o
+  que juntou: a chave residual não tem valor próprio, só a ordem e o limite dizem quem ficou de fora.
+- **No pivô**, a trilha da linha e a da coluna são descidas sobre TODAS as linhas (as colunas do
+  agregador são do relatório inteiro, não de cada linha), e o detalhe é a interseção.
+- **É a única exceção ao "nunca as linhas"** da callable, limitada ao recorte pedido e a
+  `REPORT_MAX_RECORDS`; `matched` diz quantos o recorte tem quando o teto cortou.
+- As colunas do detalhe são as DIMENSÕES do relatório — o que a varredura já trouxe hidratado. Pedir
+  outros campos obrigaria uma segunda leitura, com outra permissão, para mostrar o que o relatório não
+  afirmou. Clicar no registro abre o registro (`useOpenRecord`, pela coleção).
+- `ReportTable`/`ReportMatrix` aceitam `onDrill`, mas a API curada não o oferece às extensões ainda: o
+  `useReport` delas não tem a contraparte. O `ReportView` curado já detalha sozinho.
 
 ### Destaque condicional (`presentation.highlight`)
 

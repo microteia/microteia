@@ -3,10 +3,13 @@ import { S } from './ReportMatrix.styles';
 import { useReportMatrixViewModel } from './ReportMatrix.viewmodel';
 import type { ReportResult } from '../../../../domain/schema/report/reportResult';
 import type { ReportSpec } from '../../../../domain/schema/report/reportSpec';
+import type { ReportDrillTarget } from '../../../../domain/schema/report/aggregateRows';
 
 export interface ReportMatrixProps {
   spec: ReportSpec;
   result: ReportResult | null;
+  /** O detalhamento: ausente, as células não são clicáveis. */
+  onDrill?: (target: ReportDrillTarget) => void;
 }
 
 /**
@@ -16,7 +19,7 @@ export interface ReportMatrixProps {
  * medidas dentro dela. A coluna de grupos fica fixa à esquerda porque um pivô largo rola na
  * horizontal, e um rótulo que sai de vista transforma a tabela em números sem assunto.
  */
-export const ReportMatrix: React.FC<ReportMatrixProps> = ({ spec, result }) => {
+export const ReportMatrix: React.FC<ReportMatrixProps> = ({ spec, result, onDrill }) => {
   const vm = useReportMatrixViewModel(spec, result);
   const manyMeasures = vm.measures.length > 1;
 
@@ -41,9 +44,30 @@ export const ReportMatrix: React.FC<ReportMatrixProps> = ({ spec, result }) => {
         <tbody>
           {vm.rows.map((row) => (
             <S.Row key={row.id} $subtotal={row.subtotal}>
-              <S.RowTh scope="row" $level={row.level} $strong={row.subtotal}>{row.group}</S.RowTh>
+              <S.RowTh
+                scope="row"
+                $level={row.level}
+                $strong={row.subtotal}
+                $clickable={!!onDrill}
+                onClick={onDrill ? () => onDrill({ keys: row.keys }) : undefined}
+              >
+                {row.group}
+              </S.RowTh>
               {row.cells.map((cell, index) => (
-                <S.Td key={index} $strong={row.subtotal} $tone={row.tones[index] ?? undefined}>{cell}</S.Td>
+                <S.Td
+                  key={index}
+                  $strong={row.subtotal}
+                  $tone={row.tones[index] ?? undefined}
+                  $clickable={!!onDrill}
+                  onClick={onDrill
+                    ? () => onDrill({
+                        keys: row.keys,
+                        column: vm.columns[Math.floor(index / Math.max(1, vm.measures.length))]?.path,
+                      })
+                    : undefined}
+                >
+                  {cell}
+                </S.Td>
               ))}
             </S.Row>
           ))}
