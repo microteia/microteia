@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.225.0] — 2026-11-11
+
+- feat(workflow): `Switch` control node (`switch: { cases, otherwise }`) — the first case whose condition holds runs, `otherwise` when none does; traversed by `stepTree`, `workflowReturn`, `actionReturn`, the agent summary and the package integrity check, and part of `CONTROL_STEP_TYPES`.
+- feat(workflow): per-step `onError: { retries, action }` — in-run retries with 1s/2s/3s backoff bounded by `deadlineAt`, and `continue` publishing `{ failed, error }` as the step output. A thrown executor error and a returned failure are now the same outcome (`@core.automation/run.step.threw`).
+- feat(workflow): `changeType` / `changedFields` on a `.saved` trigger, evaluated by `matchesChangeFilter` at admission; a filtered-out run is `SUCCESS` with `skipped: 'change'`.
+- feat(functions): `rerunWorkflowExecution` callable (`automation.manage`) republishes a finished execution's event with the workflow as its only target. Added to `deploy:workflow`.
+- feat(workflow/package): `flowControlKernelIssues` refuses a package using `changeType`, `Switch` or `onError` whose `kernel` range starts below 2.108.0 — an older kernel ignores them instead of refusing. `KERNEL_VERSION` 2.108.0.
+
 #### [9.224.0] — 2026-11-11
 
 - feat(reports): Top N — `dimension.sort.by: <measure key>` orders a level by that measure, and `dimension.others` gathers what `limit` dropped into one `REPORT_OTHERS_KEY` group, keeping the result complete (also on matrix columns). New capability tokens `dimension.sort.measure` and `dimension.others`; `sort.by: 'label'` stays reserved.

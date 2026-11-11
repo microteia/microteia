@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.225.0] — 2026-11-11
+
+- Automações com vários caminhos: o novo bloco "Caminhos" escolhe entre várias saídas — por situação, por faixa de valor — e segue pela primeira que se aplica, com um "Senão" para o resto.
+- Cada passo de uma automação pode tentar de novo quando falhar (útil quando um serviço externo fica fora do ar por um instante) ou seguir em frente, deixando a falha registrada para um passo seguinte decidir o que fazer.
+- Uma automação de "registro salvo" pode rodar só na criação, só na alteração, ou só quando campos escolhidos mudarem — sem precisar escrever condição.
+- Na aba Execuções, quem administra a automação pode executar de novo uma execução que já terminou, com o mesmo evento que a iniciou.
+
 #### [9.224.0] — 2026-11-11
 
 - Relatórios com "Top N": ordene os grupos por um número (os maiores primeiro), mostre só os primeiros e junte o restante em "Outros", sem perder o total.

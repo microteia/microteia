@@ -17,6 +17,10 @@ export const flattenSteps = (steps: WorkflowStep[]): WorkflowStep[] => {
     if (step.type === "Loop" && step.loop) {
       out.push(...flattenSteps(step.loop.body));
     }
+    if (step.type === "Switch" && step.switch) {
+      for (const one of step.switch.cases) out.push(...flattenSteps(one.steps));
+      out.push(...flattenSteps(step.switch.otherwise));
+    }
   }
   return out;
 };
@@ -45,6 +49,15 @@ export const mapStepTree = (
       return {
         ...mapped,
         loop: { ...mapped.loop, body: mapStepTree(mapped.loop.body, fn) },
+      };
+    }
+    if (mapped.type === "Switch" && mapped.switch) {
+      return {
+        ...mapped,
+        switch: {
+          cases: mapped.switch.cases.map((one) => ({ ...one, steps: mapStepTree(one.steps, fn) })),
+          otherwise: mapStepTree(mapped.switch.otherwise, fn),
+        },
       };
     }
     return mapped;

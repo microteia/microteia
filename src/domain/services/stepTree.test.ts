@@ -47,3 +47,28 @@ describe('travessia da árvore de passos', () => {
     expect(original[1].loop?.body[0].signature).toBeUndefined();
   });
 });
+
+describe('travessia — Switch', () => {
+  const caminhos = (): WorkflowStep[] => [
+    step('S', {
+      stepDefinitionId: '', type: 'Switch',
+      switch: {
+        cases: [
+          { id: 'c1', condition: { kind: 'AlwaysTrue' }, steps: [step('a')] },
+          { id: 'c2', condition: { kind: 'AlwaysTrue' }, steps: [loop('L', [step('b')])] },
+        ],
+        otherwise: [step('senao')],
+      },
+    }),
+  ];
+
+  it('desce em cada caminho, na ordem, e no "senão"', () => {
+    expect(flattenSteps(caminhos()).map((s) => s.id)).toEqual(['S', 'a', 'L', 'b', 'senao']);
+  });
+
+  it('mapSteps reescreve os passos dentro dos caminhos, preservando a forma', () => {
+    const mapped = mapSteps(caminhos(), (s) => ({ ...s, enabled: false }));
+    expect(flattenSteps(mapped).every((s) => s.enabled === false)).toBe(true);
+    expect(mapped[0].switch?.cases.map((one) => one.id)).toEqual(['c1', 'c2']);
+  });
+});

@@ -30,6 +30,9 @@ const LACUNAS_CONFERIDAS = [
   // Chamar uma API de fora não é regra de negócio que o modelo descreva: é integração, e quem a
   // declara é o autor, com a lista de domínios do escritório.
   'workflow-step\thttp-request',
+  // Os caminhos são como o autor ORGANIZA a decisão; o modelo de comportamento descreve transições, e
+  // cada uma já é o seu próprio guard. Ele nunca precisa de um nó com N saídas.
+  'workflow-step\tSwitch',
 
   // Os inputs OBRIGATÓRIOS dos passos que o modelo pede e não consegue preencher. `upsert.upsert` é o
   // que mais dói: o efeito diz entidade, campo e valor, e nunca QUAL registro.
@@ -135,6 +138,10 @@ const LACUNAS_CONFERIDAS = [
 
   'workflow-property\tversion',
   'workflow-property\tlookupCollection',
+  // O filtro de mudança do gatilho: o guard da transição já compara o campo de estado, que É o campo
+  // que mudou — o modelo não tem o que pedir aqui.
+  'workflow-property\tchangeType',
+  'workflow-property\tchangedFields',
   'workflow-property\townerPluginIds',
   'workflow-property\tsourceId',
   'workflow-property\tsourceRev',

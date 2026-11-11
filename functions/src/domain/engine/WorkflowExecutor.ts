@@ -5,7 +5,7 @@ import type {
   WorkflowExecutionLogEntry,
   WorkflowStep,
 } from '../entities/Workflow';
-import type { WorkflowContext, WorkflowLogger, WorkflowServices } from '../entities/WorkflowContext';
+import type { WorkflowContext, WorkflowLogger, WorkflowResult, WorkflowServices } from '../entities/WorkflowContext';
 import type { StepRegistry } from './StepRegistry';
 import { evaluateCondition } from './ConditionEvaluator';
 import { resolveInputsSafe, resolveMapping } from './InputMapping';
@@ -14,6 +14,8 @@ import { collectRequiredIssues, formatAndValidateParameters } from '../schema/pa
 import { toStored } from '../schema/storedReference';
 import { flattenSteps } from '../services/stepTree';
 import { isStepExcludedFromTrigger } from '../schema/workflowStepCatalog';
+import { matchesChangeFilter } from '../schema/workflowChangeFilter';
+import { MAX_STEP_RETRIES } from '../entities/Workflow';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -39,7 +41,16 @@ export interface WorkflowResume extends Omit<WorkflowSuspension, 'resumeAt'> {
  * de tela ou de lista. O status continua `SUCCESS` — para um gatilho, "não era comigo" não é erro —, e
  * é esta marca que deixa o chamador distinguir "não rodou" de "rodou e não devolveu nada".
  */
-export type WorkflowSkip = 'condition' | 'screen' | 'lookup';
+export type WorkflowSkip = 'condition' | 'screen' | 'lookup' | 'change';
+
+/**
+ * A espera entre duas tentativas de um passo: 1s, 2s, 3s. Curta de propósito — a tentativa roda
+ * DENTRO da execução, e o que pede espera longa (um serviço fora do ar por minutos) é o HTTP
+ * assíncrono, que tem fila e retentativas próprias.
+ */
+const RETRY_BACKOFF_MS = 1000;
+
+const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms); });
 
 export type WorkflowRun = WorkflowExecution & { suspension?: WorkflowSuspension; skipped?: WorkflowSkip };
 
@@ -178,6 +189,11 @@ export const runWorkflow = async ({
       return { refused: 'SUCCESS', skipped: 'lookup' };
     }
 
+    if (!matchesChangeFilter(definition, event.payload)) {
+      log('INFO', '@core.automation/run.skipped.change-mismatch');
+      return { refused: 'SUCCESS', skipped: 'change' };
+    }
+
     const requiredIssues = collectRequiredIssues(definition.parameters, event.payload);
     if (requiredIssues.length > 0) {
       log(
@@ -300,6 +316,52 @@ export const runWorkflow = async ({
         continue;
       }
 
+      if (step.type === 'Switch') {
+        if (!step.switch) {
+          log('ERROR', '@core.automation/run.switch.missing-config', step.id, undefined, context.input);
+          return { ok: false };
+        }
+
+        // O PRIMEIRO caminho cuja condição vale é o único que roda — a ordem declarada é a prioridade,
+        // como num `switch` com `break`. Uma condição que estoura não cai no "senão": o "senão" é uma
+        // decisão de negócio, e tomá-la por causa de um erro seria agir sobre o que ninguém escolheu.
+        let chosen: number;
+        try {
+          chosen = step.switch.cases.findIndex((one) => evaluateCondition(one.condition, context));
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          log(
+            'ERROR',
+            '@core.automation/run.switch.failed',
+            step.id, undefined, context.input, undefined, undefined,
+            { detail: errorMessage },
+          );
+          return { ok: false };
+        }
+
+        const picked = chosen >= 0 ? step.switch.cases[chosen] : undefined;
+        log(
+          'INFO',
+          picked ? '@core.automation/run.switch.case' : '@core.automation/run.switch.otherwise',
+          step.id,
+          undefined,
+          context.input,
+          undefined,
+          { case: picked ? picked.id : null },
+          picked ? { case: picked.label || picked.id } : undefined,
+        );
+
+        const recur = await executeSteps(picked ? picked.steps : step.switch.otherwise, lastStepId, depth + 1);
+        if (!recur.ok) {
+          return { ok: false };
+        }
+        lastStepId = recur.lastStepId;
+        if (recur.halted) {
+          return { ok: true, lastStepId, halted: true };
+        }
+        continue;
+      }
+
       if (step.type === 'Loop') {
         if (!step.loop) {
           log('ERROR', '@core.automation/run.loop.missing-config', step.id, undefined, context.input);
@@ -399,6 +461,27 @@ export const runWorkflow = async ({
       // Usa resolveInputsSafe para garantir que inputs parciais sejam sempre registrados
       const resolveResult = resolveInputsSafe(stepDefinition.inputs, step.configuration, context);
 
+      const continueOnError = step.onError?.action === 'continue';
+      const retries = Math.max(0, Math.min(MAX_STEP_RETRIES, Math.trunc(step.onError?.retries ?? 0)));
+
+      /*
+       * O passo FALHOU, e a política dele decide o resto: `continue` publica a falha como saída e
+       * segue; o padrão encerra a execução. A falha é registrada do mesmo jeito nos dois casos — quem
+       * lê o histórico precisa vê-la, e um "continuou" sem o erro ao lado seria um defeito escondido.
+       */
+      const failStep = (message: string): boolean => {
+        if (!continueOnError) return false;
+        context.outputs[step.id] = { failed: true, error: message };
+        log(
+          'WARN',
+          '@core.automation/run.step.continued',
+          step.id, step.stepDefinitionId, context.input, undefined, context.outputs[step.id],
+          { step: stepDefinition.name },
+        );
+        lastStepId = step.id;
+        return true;
+      };
+
       if (!resolveResult.success) {
         // Log com inputs parcialmente resolvidos e mensagem de erro enriquecida
         log(
@@ -407,6 +490,8 @@ export const runWorkflow = async ({
           step.id, step.stepDefinitionId, context.input, resolveResult.inputs, undefined,
           { ...resolveResult.errorParams, step: stepDefinition.name, detail: resolveResult.error ?? '' },
         );
+        // Entrada que não resolve não melhora tentando de novo: é a configuração, não o mundo.
+        if (failStep(resolveResult.error ?? '@core.automation/run.step.input-failed')) continue;
         return { ok: false };
       }
 
@@ -415,16 +500,61 @@ export const runWorkflow = async ({
       currentLogStepId = step.id;
       currentLogStepDefinitionId = step.stepDefinitionId;
 
+      /*
+       * Uma TENTATIVA: a falha devolvida e a exceção lançada são a mesma notícia para a política do
+       * passo. Sem unificá-las, um serviço que caiu lançando não seria tentado de novo, e o que caiu
+       * respondendo seria — a mesma queda, duas respostas.
+       */
+      const runOnce = async (): Promise<WorkflowResult> => {
+        try {
+          return await stepDefinition.createExecutor().execute(inputs, context);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return {
+            success: false,
+            message: '@core.automation/run.step.threw',
+            messageParams: { step: stepDefinition.name, detail: errorMessage },
+          };
+        }
+      };
+
       try {
-        const result = await stepDefinition.createExecutor().execute(inputs, context);
+        let result = await runOnce();
+
+        /*
+         * As NOVAS TENTATIVAS declaradas. Cada uma espera um pouco mais que a anterior, e nenhuma
+         * começa se a espera atravessaria o orçamento da execução: estourá-lo no meio de uma tentativa
+         * seria trocar uma falha registrada por uma execução cortada sem histórico.
+         */
+        for (let attempt = 1; !result.success && attempt <= retries; attempt += 1) {
+          const wait = RETRY_BACKOFF_MS * attempt;
+          if (services.deadlineAt !== undefined && services.now().getTime() + wait >= services.deadlineAt) break;
+          log(
+            'WARN',
+            '@core.automation/run.step.retrying',
+            step.id, step.stepDefinitionId, context.input, inputs, undefined,
+            {
+              step: stepDefinition.name,
+              attempt: String(attempt),
+              of: String(retries),
+              detail: result.message ?? '',
+            },
+          );
+          await (services.sleep ?? defaultSleep)(wait);
+          result = await runOnce();
+        }
 
         if (!result.success) {
+          const message = result.message ?? '@core.automation/run.step.failed-no-message';
           log(
             'ERROR',
-            result.message ?? '@core.automation/run.step.failed-no-message',
+            message,
             step.id, step.stepDefinitionId, context.input, inputs, undefined,
             result.messageParams,
           );
+          // A saída `error` leva o DETALHE quando há um — é o que um passo seguinte compara —, e a
+          // referência da mensagem quando o passo não disse mais que isso.
+          if (failStep(result.messageParams?.detail ?? message)) continue;
           return { ok: false };
         }
 
@@ -459,6 +589,7 @@ export const runWorkflow = async ({
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId, context.input, inputs, undefined);
+        if (failStep(errorMessage)) continue;
         return { ok: false };
       }
     }

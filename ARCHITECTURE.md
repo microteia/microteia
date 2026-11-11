@@ -7923,8 +7923,9 @@ Escrita em `workflow_events` → `onWorkflowEventCreated` dispara → carrega
 uma: **hidrata o payload** (resolução lazy de FKs, ver abaixo) → avalia a `Condition` → roda os `steps` em ordem (`order`
 crescente), resolvendo os inputs de cada um via `InputMapping` e despachando o executor via
 `StepRegistry` → grava um `WorkflowExecution` com `logs[]` em
-`tenants/{tenantId}/workflow_executions`. Falha de um step para o restante daquele workflow
-(fail-fast, sem retry na v1) mas nunca derruba os demais workflows nem a Cloud Function.
+`tenants/{tenantId}/workflow_executions`. Falha de um step para o restante daquele workflow —
+salvo quando o passo declara `onError` (ver "Política de falha do passo") — mas nunca derruba os
+demais workflows nem a Cloud Function.
 
 ### Resolução lazy de FKs — WorkflowContextHydrator
 
@@ -8087,8 +8088,9 @@ quanto o valor de `valueType: 'eventField'` usam caminho absoluto no contexto
 ("event.payload.status") e são resolvidos por `getValueByPath(context, ...)`.
 **Gatilhos por horário e por data, e o passo de espera** (`schedule`, `<coleção>.dateReached`, `delay`) —
 ver "Gatilhos temporais — o relógio do kernel".
+**Novas tentativas e "seguir em frente" por passo** — ver "Política de falha do passo".
 **Preparado só como shape, nunca registrado no `StepRegistry`** (adicionar não exige tocar no
-motor): retry/compensação/rollback, execução síncrona. (`ScriptStep` e
+motor): compensação/rollback, execução síncrona. (`ScriptStep` e
 `SubWorkflowStep` já são reais; a ramificação de fluxo — `StepCondition` — é nativa do motor,
 ver abaixo.)
 
@@ -8196,6 +8198,79 @@ Excluir um nó Condição remove seus ramos em cascata. `EditWorkflowStep` edita
 - `src/presentation/pages/EditWorkflowStep/` — editor de passo, UI genérica dirigida por `InputDefinition[]`
 - `src/presentation/components/ui/ExpressionEditor/` — editor de expressões com autocomplete segmento-a-segmento (`pathRoot` + `suggestNextSegments`) e validação semântica de caminhos
 - `src/presentation/shared/useSchemaContext.ts` / `useLookupValues.ts` — pontes dos stores para o resolvedor (screens dinâmicas e valores de lookup)
+
+### Switch — caminhos (nó de controle nativo)
+
+`type: 'Switch'` com `switch: { cases: [{ id, label?, condition, steps }], otherwise }`. O executor
+avalia os casos NA ORDEM e roda só o primeiro cuja condição vale; nenhum valendo, roda `otherwise`. O
+fluxo converge depois do nó, como na `Condition`, e o nó não produz saída própria — o retorno é o do
+último passo do caminho que rodou (`workflowReturn.ts`, `actionReturn.ts`).
+
+Existe ao lado da `Condition` porque a decisão de negócio raramente é binária ("por situação", "por
+faixa de valor"), e escrevê-la como condições aninhadas era uma escada que ninguém relia.
+
+- Uma condição que estoura **falha a execução** — não cai no "senão": o "senão" é decisão de negócio, e
+  tomá-la por causa de um erro seria agir sobre o que ninguém escolheu.
+- O `id` de um caso é curto (`c1`, `c2`) e sem `:` porque vai no endereço da aba
+  (`edit-workflow-step:{wf}:addcase:{switchId}:{caseKey}`) e na chave de arrastar
+  (`{switchId}:path.{caseKey}`); `otherwise` é reservado.
+- A travessia está em `stepTree.ts` (as duas cópias), `workflowHelpers.ts` (construtor),
+  `workflowReturn.ts`, `actionReturn.ts`, `agentWorkflow.ts` (o resumo do MCP traz `cases`/`otherwise`) e
+  `workflowIntegrity.ts` (`control-incomplete` sem `switch`). `CONTROL_STEP_TYPES` o inclui.
+- Como um ramo de condição, um caminho não aceita passo que pausa (`canPlaceStep`).
+- No editor, um caminho com passos não é removido pela tela de caminhos: os passos iriam junto sem
+  confirmação, e quem os quer apagar o faz nos passos.
+
+### Política de falha do passo — `onError`
+
+`WorkflowStep.onError?: { action?: 'fail' | 'continue'; retries?: number }`, só em passo do catálogo.
+
+- **`retries`** (0 a `MAX_STEP_RETRIES` = 3) tenta de novo DENTRO da execução, esperando 1s, 2s, 3s
+  (`services.sleep`, injetável no teste). Nenhuma tentativa começa se a espera atravessaria
+  `deadlineAt` — estourar o orçamento no meio de uma tentativa trocaria uma falha registrada por uma
+  execução cortada sem histórico. A exceção lançada e a falha devolvida são a mesma notícia
+  (`runOnce` converte a exceção em `@core.automation/run.step.threw`).
+- **`continue`** registra a falha e segue, publicando `{ failed: true, error }` como saída do passo
+  (`error` é o detalhe, quando houver). Entrada que não resolve não é tentada de novo — é configuração,
+  não o mundo —, mas segue se o passo pedir.
+- Sem `onError`, nada muda: a falha encerra a execução.
+- **Não há tentativa automática.** Um passo que gravou algo antes de falhar gravaria de novo; decidir
+  que isso é seguro é de quem declara. A espera longa (serviço fora do ar por minutos) é do HTTP
+  assíncrono, que tem fila própria.
+
+### Filtro de mudança do gatilho — `changeType` e `changedFields`
+
+`WorkflowDefinition` estende `WorkflowChangeFilter` (`domain/schema/workflowChangeFilter.ts`,
+sincronizado): `changeType?: 'created' | 'updated'` e `changedFields?: string[]`. A porta da execução
+(`admit`) consulta `matchesChangeFilter` depois dos filtros de tela e de lista; a execução recusada é
+`SUCCESS` com `skipped: 'change'`.
+
+- Vale só para evento com `changeType` no payload (`<prefixo>.saved`); em outro gatilho não se aplica.
+- "Mudou" é comparação por VALOR com `old`, com as chaves dos mapas em ordem canônica — um endereço
+  salvo com as chaves noutra ordem não mudou. Na criação, mudou = nasceu preenchido.
+- O editor só mostra o filtro em gatilho `.saved`, e trocar o gatilho o apaga (`null`/`[]`): ficar
+  gravado reativaria, na volta, um filtro que ninguém via.
+
+### Reexecutar uma execução — `rerunWorkflowExecution`
+
+Callable que republica o evento de uma execução encerrada com `target` = a automação dela — o mesmo
+mecanismo do relógio, por isso é do servidor (o cliente não escreve `target`). A execução nova passa
+pela porta de sempre (orçamento, condição, filtros de hoje) e aparece na aba Execuções.
+
+- Exige `automation.manage`: refazer o passado repete efeitos, e decidir que podem se repetir é de
+  quem administra a automação.
+- Recusa execução `RUNNING`/`WAITING` (`@core.automation/rerun.still-running`) e evento que não existe
+  mais (`rerun.event-missing`).
+- O ator da execução nova é quem pediu, não quem causou a original.
+- Está no grupo `deploy:workflow`.
+
+### Compatibilidade de pacote
+
+Um kernel anterior a `WORKFLOW_FLOW_CONTROL_SINCE_KERNEL` (2.108.0) não RECUSA `changeType`, `Switch` nem
+`onError` — ignora o filtro (a automação passa a rodar a cada salvamento) e a política (a falha
+encerra). Por isso `flowControlKernelIssues` (`workflowIntegrity.ts`) reprova o pacote que os usa com
+`kernel` abaixo dessa versão (`@core.marketplace/issue.workflow.feature-kernel`). Um `Switch` num
+kernel velho, além disso, cai em `step.no-definition` na instalação — falha fechada.
 
 ### Step "Encerrar Workflow" (`exit`) — saída antecipada
 

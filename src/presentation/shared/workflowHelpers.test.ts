@@ -19,6 +19,8 @@ import {
   EXIT_STEP_DEFINITION_ID,
   canPlaceStep,
   containsPausingStep,
+  SWITCH_OTHERWISE,
+  switchPathKeyOf,
 } from './workflowHelpers';
 
 /** O tradutor de teste devolve a própria chave — aqui o que importa é a decisão, não a frase. */
@@ -400,5 +402,51 @@ describe('o passo que pausa só cabe no nível principal', () => {
   it('arrastar um ramo que contém a espera para dentro de outro também é recusado', () => {
     const steps = [cond('c', 0, [wait('w', 0)], []), loop('l', 1, [])];
     expect(moveStepToLocation(steps, 'c', { kind: 'loop', loopId: 'l' }, 0)).toBe(steps);
+  });
+});
+
+describe('Switch no construtor', () => {
+  const switchNode = (): WorkflowStep => ({
+    id: 'sw',
+    stepDefinitionId: '',
+    type: 'Switch',
+    order: 1,
+    configuration: {},
+    enabled: true,
+    switch: {
+      cases: [{ id: 'c1', condition: { kind: 'AlwaysTrue' }, steps: [action('dentro', 0)] }],
+      otherwise: [],
+    },
+  });
+  const raiz = (): WorkflowStep[] => [action('antes', 0), switchNode()];
+
+  it('a chave de arrastar de um caminho volta ao alvo do caminho', () => {
+    expect(parseParentKey(switchPathKeyOf('sw', 'c1'))).toEqual({ kind: 'case', switchId: 'sw', caseKey: 'c1' });
+    expect(parseParentKey(switchPathKeyOf('sw', SWITCH_OTHERWISE)))
+      .toEqual({ kind: 'case', switchId: 'sw', caseKey: SWITCH_OTHERWISE });
+  });
+
+  it('insere no caminho e no "senão", e acha o passo inserido', () => {
+    const noCaso = insertStepInto(raiz(), { kind: 'case', switchId: 'sw', caseKey: 'c1' }, action('novo', 0));
+    expect(ids(noCaso[1].switch?.cases[0].steps ?? [])).toEqual(['dentro', 'novo']);
+
+    const noSenao = insertStepAtIndex(raiz(), { kind: 'case', switchId: 'sw', caseKey: SWITCH_OTHERWISE }, action('s', 0), 0);
+    expect(ids(noSenao[1].switch?.otherwise ?? [])).toEqual(['s']);
+    expect(ids(flattenSteps(noSenao))).toContain('s');
+  });
+
+  it('os passos anteriores de um caminho são os de antes do nó mais os do caminho — nunca o próprio nó', () => {
+    const prior = collectPriorStepsForInsert(raiz(), { kind: 'case', switchId: 'sw', caseKey: 'c1' });
+    expect(ids(prior)).toEqual(['antes', 'dentro']);
+  });
+
+  it('não move o nó para dentro do próprio caminho', () => {
+    const steps = raiz();
+    expect(moveStepToLocation(steps, 'sw', { kind: 'case', switchId: 'sw', caseKey: 'c1' }, 0)).toBe(steps);
+  });
+
+  it('um passo que pausa não cabe num caminho', () => {
+    const delay: WorkflowStep = { ...action('espera', 0), stepDefinitionId: 'delay' };
+    expect(canPlaceStep(delay, { kind: 'case', switchId: 'sw', caseKey: 'c1' })).toBe(false);
   });
 });

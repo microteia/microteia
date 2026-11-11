@@ -1,11 +1,12 @@
 import type { FieldRules } from '../schema/fieldRules';
 import type { WorkflowDateReached, WorkflowSchedule } from '../schema/workflowClock';
+import type { WorkflowChangeFilter } from '../schema/workflowChangeFilter';
 
 /**
  * Os tipos de passo, como ARRAY — a união sai dele, pela mesma razão de `CUSTOM_FIELD_TYPES`: a
  * tabela de passos do `AUTHORING.md` é derivada daqui, e um passo novo entra nela sozinho.
  */
-export const STEP_TYPES = ['Action', 'Condition', 'Delay', 'Loop', 'Script', 'SubWorkflow'] as const;
+export const STEP_TYPES = ['Action', 'Condition', 'Delay', 'Loop', 'Script', 'SubWorkflow', 'Switch'] as const;
 
 export type StepType = typeof STEP_TYPES[number];
 
@@ -62,6 +63,50 @@ export interface WorkflowLoopConfig {
   body: WorkflowStep[];
 }
 
+/**
+ * Um caminho de um nó `Switch`: os passos que rodam quando a condição dele é a PRIMEIRA a valer.
+ *
+ * `id` identifica o caminho dentro do nó — é por ele que o construtor arrasta um passo para dentro
+ * dele —, e não se confunde com o id de passo: um caminho não produz saída.
+ */
+export interface WorkflowSwitchCase {
+  id: string;
+  /** O nome que o construtor mostra. Texto do escritório: passa intacto por `useLabel`. */
+  label?: string;
+  condition: Condition;
+  steps: WorkflowStep[];
+}
+
+/**
+ * Configuração de um nó de controle `Switch`: N caminhos avaliados em ordem, e o primeiro cuja
+ * condição vale é o único que roda; nenhum valendo, roda `otherwise`. Como a `Condition`, o fluxo
+ * converge depois do nó.
+ *
+ * Existe ao lado da `Condition` porque a decisão de negócio raramente é binária — "por situação",
+ * "por faixa de valor" —, e escrevê-la como condições aninhadas era uma escada que ninguém relia.
+ */
+export interface WorkflowSwitchConfig {
+  cases: WorkflowSwitchCase[];
+  otherwise: WorkflowStep[];
+}
+
+/**
+ * O que o motor faz quando ESTE passo falha.
+ *
+ * `retries` tenta de novo, na mesma execução, antes de desistir — para a falha passageira (um
+ * serviço fora do ar por um instante). `continue` segue para o próximo passo, publicando
+ * `failed: true` e `error` como saída deste, para que um passo seguinte decida o que fazer. O padrão
+ * é o de sempre: a falha encerra a execução.
+ *
+ * Tentar de novo é decisão de quem DECLARA: um passo que já gravou algo antes de falhar gravaria de
+ * novo. Por isso não há tentativa automática — só a declarada.
+ */
+export interface WorkflowStepErrorPolicy {
+  action?: 'fail' | 'continue';
+  /** 0 a `MAX_STEP_RETRIES`. */
+  retries?: number;
+}
+
 export interface WorkflowStep {
   id: string;
   stepDefinitionId: string;
@@ -77,7 +122,14 @@ export interface WorkflowStep {
   branches?: WorkflowStepBranches;
   // Somente quando type === 'Loop' (nó de controle nativo). Ver WorkflowLoopConfig.
   loop?: WorkflowLoopConfig;
+  /** Somente quando type === 'Switch' (nó de controle nativo). Ver WorkflowSwitchConfig. */
+  switch?: WorkflowSwitchConfig;
+  /** Só em passos do catálogo (`type: 'Action'`). Ausente = a falha encerra a execução. */
+  onError?: WorkflowStepErrorPolicy;
 }
+
+/** O teto de novas tentativas de um passo: mais que isso é laço, e o orçamento da execução acaba antes. */
+export const MAX_STEP_RETRIES = 3;
 
 // Condições para filtrar quando o workflow deve executar (avaliadas ANTES de qualquer Step)
 
@@ -148,7 +200,11 @@ export interface WorkflowParameter {
   rules?: FieldRules;
 }
 
-export interface WorkflowDefinition {
+/**
+ * O filtro de mudança (`changeType`, `changedFields`) vale só para os gatilhos de registro SALVO.
+ * Ver `workflowChangeFilter.ts`.
+ */
+export interface WorkflowDefinition extends WorkflowChangeFilter {
   id: string;
   tenantId: string;
   name: string;

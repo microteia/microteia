@@ -1,5 +1,13 @@
 import React from 'react';
-import { RiSaveLine, RiDeleteBinLine, RiEditLine, RiNodeTree } from 'react-icons/ri';
+import {
+  RiSaveLine,
+  RiDeleteBinLine,
+  RiEditLine,
+  RiNodeTree,
+  RiArrowUpLine,
+  RiArrowDownLine,
+  RiAddLine,
+} from 'react-icons/ri';
 import { InputGroup, Label, Input } from '../../components/ui/Input';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { Checkbox } from '../../components/ui/Checkbox';
@@ -354,7 +362,9 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
             {t(
               vm.isConditionStep
                 ? 'step.edit.condition'
-                : vm.isLoopStep
+                : vm.isSwitchStep
+                  ? 'step.edit.switch'
+                  : vm.isLoopStep
                   ? 'step.edit.loop'
                   : vm.isDefinitionLocked
                     ? 'step.edit'
@@ -436,6 +446,83 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                 onRequestEdit={vm.handleRequestConditionEdit}
               />
             )}
+          </S.Form>
+        </S.Content>
+      ) : vm.isSwitchStep ? (
+        <S.Content>
+          <S.Form>
+            <InputGroup>
+              <Label>{t('core.ui/field.identifier')}</Label>
+              <Input value={vm.stepIdentifier} readOnly disabled />
+              <S.HelpText>{vm.stepIdentifierHint}</S.HelpText>
+            </InputGroup>
+            <InputGroup>
+              <Label>{t('step.label')}</Label>
+              <Input
+                value={vm.stepLabel}
+                onChange={(e) => vm.setStepLabel(e.target.value)}
+                placeholder={t('step.label.placeholder')}
+              />
+              <S.HelpText>{t('step.label.hint')}</S.HelpText>
+            </InputGroup>
+            <S.HelpText>{t('switch.hint')}</S.HelpText>
+            {/* A ORDEM é a regra: o primeiro caminho cuja condição vale é o único que roda. Por isso
+                cada caminho se move, e o "senão" não aparece aqui — ele é sempre o último. */}
+            {vm.switchCases.map((one, index) => (
+              <React.Fragment key={one.id}>
+                <S.StepsDivider />
+                <InputGroup>
+                  <Label>{t('switch.case.title', { index: String(index + 1) })}</Label>
+                  <Input
+                    value={one.label ?? ''}
+                    onChange={(e) => vm.setSwitchCaseLabel(one.id, e.target.value)}
+                    placeholder={t('switch.case.label.placeholder')}
+                  />
+                </InputGroup>
+                <ConditionBuilder
+                  value={one.condition}
+                  onChange={(condition) => vm.setSwitchCaseCondition(one.id, condition)}
+                  eventName={vm.conditionEventName}
+                  parameters={vm.conditionParameters}
+                  stepOutputFields={vm.stepOutputFields}
+                  workflowVariables={vm.workflowVariables}
+                  inputRoot={vm.inputRoot}
+                />
+                <S.MappingRow>
+                  <S.IconBtn
+                    type="button"
+                    title={t('core.records/action.move-up')}
+                    disabled={!one.canMoveUp}
+                    onClick={() => vm.moveSwitchCase(one.id, -1)}
+                  >
+                    <RiArrowUpLine size={14} />
+                  </S.IconBtn>
+                  <S.IconBtn
+                    type="button"
+                    title={t('core.records/action.move-down')}
+                    disabled={!one.canMoveDown}
+                    onClick={() => vm.moveSwitchCase(one.id, 1)}
+                  >
+                    <RiArrowDownLine size={14} />
+                  </S.IconBtn>
+                  <S.IconBtn
+                    type="button"
+                    title={one.canRemove ? t('switch.case.remove') : t('switch.case.remove.has-steps')}
+                    disabled={!one.canRemove}
+                    onClick={() => vm.removeSwitchCase(one.id)}
+                  >
+                    <RiDeleteBinLine size={14} />
+                  </S.IconBtn>
+                </S.MappingRow>
+              </React.Fragment>
+            ))}
+            <S.StepsDivider />
+            <S.MappingRow>
+              <S.IconBtn type="button" title={t('switch.case.add')} onClick={vm.addSwitchCase}>
+                <RiAddLine size={14} />
+              </S.IconBtn>
+              <S.HelpText>{t('switch.case.add')}</S.HelpText>
+            </S.MappingRow>
           </S.Form>
         </S.Content>
       ) : vm.isLoopStep ? (
@@ -608,6 +695,30 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
 
           {vm.selectedDefinition && vm.priorSteps.length === 0 && (
             <InfoBanner variant="info" message={t('step.no-prior-steps')} />
+          )}
+
+          {/* O que fazer quando ESTE passo falha. O padrão encerra a execução, como sempre; tentar
+              de novo e seguir em frente são escolhas de quem sabe o que o passo faz. */}
+          {vm.selectedDefinition && (
+            <>
+              <S.StepsDivider />
+              <InputGroup>
+                <Label>{t('step.on-error')}</Label>
+                <S.MappingRow>
+                  <SearchSelect
+                    options={vm.errorRetryOptions}
+                    value={String(vm.errorRetries)}
+                    onChange={(value) => vm.setErrorRetries(Number(value) || 0)}
+                  />
+                  <SearchSelect
+                    options={vm.errorActionOptions}
+                    value={vm.errorAction}
+                    onChange={(value) => vm.setErrorAction(value === 'continue' ? 'continue' : 'fail')}
+                  />
+                </S.MappingRow>
+                <S.HelpText>{t('step.on-error.hint', { step: vm.stepIdentifier || '…' })}</S.HelpText>
+              </InputGroup>
+            </>
           )}
         </S.Form>
       </S.Content>

@@ -53,7 +53,8 @@ import { RECORD_IMPORT_BATCH_SIZE, RECORD_IMPORT_MAX_ROWS } from '../../../domai
 import { PERMISSION_RECORD_IMPORT_RUN } from '../../../domain/schema/access/kernelPermissions';
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
-import { STEP_TYPES } from '../../../domain/entities/Workflow';
+import { MAX_STEP_RETRIES, STEP_TYPES } from '../../../domain/entities/Workflow';
+import { WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../../domain/schema/workflowChangeFilter';
 import { REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
 import { REPORT_HIGHLIGHT_TONES } from '../../../domain/schema/report/reportSpec';
 import {
@@ -308,6 +309,7 @@ const STEP_KINDS: Record<StepType, string> = {
   Loop: 'A control node: `loop: { source, itemName, outputName, body }` runs `body` once per item and publishes the collected outputs under `outputName`. `stepDefinitionId` is empty.',
   Script: 'Runs a script, named by `configuration.scriptId` as a `Literal` — a `templateId` of your own package, or `<extension-id>/<source-id>` for a script another extension exports (§3).',
   SubWorkflow: 'Calls another workflow, named by `configuration.targetWorkflowId` as a `Literal` — again a `templateId`, or a qualified reference.',
+  Switch: 'A control node: `switch: { cases: [{ id, label?, condition, steps }], otherwise }` takes the FIRST case whose condition holds — only that one — or `otherwise` when none does, and the flow converges after. `stepDefinitionId` is empty.',
 };
 
 const describedTable = (header: string, entries: readonly string[], described: Record<string, string>): string => [
@@ -2921,6 +2923,51 @@ one that reacts to an entry of the organization's Audit trail (\`event.severity\
 or an automation writes to the trail never does, which is what keeps the trigger from feeding itself.
 Steps that would write back to the trail (${excludedStepList(input.steps, WORKFLOW_AUDIT_EVENT)}) are refused in that workflow —
 each step's catalog entry lists the triggers it refuses in \`excludedTriggers\`.
+
+### Narrowing a save — \`changeType\` and \`changedFields\`
+
+A \`<collection>.saved\` fires on every save, creation and change alike. Two properties narrow it without
+writing a condition:
+
+\`\`\`ts
+workflows: [{
+  templateId: 'wf-paid',
+  eventName: 'invoices.saved',
+  changeType: 'updated',            // 'created' | 'updated'; absent = both
+  changedFields: ['status'],        // runs only when one of these fields changed
+  /* … */
+}]
+\`\`\`
+
+- A field **changed** when its value differs from \`old\` — compared by value, so a map saved with its keys in
+  another order did not change. On CREATION a field counts as changed when it arrives filled in: a record
+  created already "paid" is the same news as one that became "paid".
+- The run that a filter leaves out is recorded as skipped, like one whose \`condition\` was false.
+- It applies to \`.saved\` only; on any other trigger it is not read.
+
+### Paths, failures and retries
+
+A **\`Switch\`** node (table below) is the decision that is not yes/no — "by status", "by amount range". Its
+cases are evaluated in order and only the first that holds runs; write the most specific first.
+
+Any catalog step (\`type: 'Action'\`) may declare what happens when IT fails:
+
+\`\`\`ts
+{ id: 'charge', stepDefinitionId: 'http-request', type: 'Action', /* … */
+  onError: { retries: 2, action: 'continue' } }
+\`\`\`
+
+- **\`retries\`** (0 to ${MAX_STEP_RETRIES}) tries again inside the same run, waiting a little longer each time (1s, 2s, 3s). A
+  retry never starts if the wait would cross the run's time budget. A step that already wrote something
+  before failing writes it again — retry only what is safe to repeat.
+- **\`action: 'continue'\`** moves on to the next step instead of ending the run, and publishes the failure as
+  the step's output: \`failed: true\` and \`error\`. Read it in a later \`Condition\` or \`Switch\`
+  (\`output.charge.failed\`) to decide what to do.
+- Absent, a failure ends the run, as it always has.
+
+\`changeType\`, \`changedFields\`, \`Switch\` and \`onError\` need kernel ${WORKFLOW_FLOW_CONTROL_SINCE_KERNEL} or later. An earlier kernel does
+not refuse them — it ignores them, and the workflow runs differently from what you wrote —, so
+\`validate_plugin\` refuses a package that uses one with a \`kernel\` range starting below that version.
 
 ### A workflow that runs on a schedule
 

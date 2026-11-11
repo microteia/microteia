@@ -57,6 +57,7 @@ import {
   scheduleIssues,
 } from '../../schema/workflowClock';
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
+import { hasChangeFilter, WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../schema/workflowChangeFilter';
 import { screenEventPrefix } from './screenModule';
 import { RENDER_DOCUMENT_STEP_ID, declaredDocumentTemplates, renderDocumentStepIssues, renderDocumentTemplateKey } from './documentStepIntegrity';
 
@@ -264,6 +265,13 @@ const stepIssues = (
         messageParams: { step: step.id, type: step.type, missing: 'condition' },
       }];
     }
+    if (step.type === 'Switch' && step.switch === undefined) {
+      return [{
+        ref,
+        message: '@core.marketplace/issue.step.control-incomplete',
+        messageParams: { step: step.id, type: step.type, missing: 'switch' },
+      }];
+    }
     if (step.type === 'Loop' && step.loop === undefined) {
       return [{
         ref,
@@ -321,6 +329,7 @@ const workflowIssues = (
     ...calledPathTypeKernelIssues(workflow, steps, ref, pkg),
     ...excludedStepIssues(workflow, steps, ref),
     ...delayIssues(workflow, steps, ref, pkg),
+    ...flowControlKernelIssues(workflow, steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
     ...outputRefIssues(steps, ref),
     ...documentStepIssues(steps, ref, pkg),
@@ -643,6 +652,32 @@ const auditTriggerIssues = (
         message: '@core.marketplace/issue.workflow.trigger-kernel',
         messageParams: { event: workflow.eventName, minimum: WORKFLOW_AUDIT_SINCE_KERNEL },
       }];
+
+/**
+ * O filtro de mudança, o `Switch` e a política de falha num pacote que admite um kernel anterior a eles.
+ *
+ * Nenhum dos três falha num kernel velho — e esse é o problema: o filtro é ignorado e a automação roda a
+ * cada salvamento; a política é ignorada e a falha encerra a execução. Um pacote que os declara precisa
+ * dizer o kernel de que depende, para que o velho recuse em vez de rodar outra coisa.
+ */
+const flowControlKernelIssues = (
+  workflow: WorkflowModuleTemplate,
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  if (rangeExcludesBelow(pkg.manifest?.kernel ?? '', WORKFLOW_FLOW_CONTROL_SINCE_KERNEL)) return [];
+  const features = [
+    ...(hasChangeFilter(workflow) ? ['changeType/changedFields'] : []),
+    ...(steps.some((step) => step.type === 'Switch') ? ['Switch'] : []),
+    ...(steps.some((step) => step.onError !== undefined) ? ['onError'] : []),
+  ];
+  return features.map((feature) => ({
+    ref,
+    message: '@core.marketplace/issue.workflow.feature-kernel',
+    messageParams: { feature, minimum: WORKFLOW_FLOW_CONTROL_SINCE_KERNEL },
+  }));
+};
 
 /**
  * Onde o passo `delay` não pode pausar — e falharia com o fluxo rodando:

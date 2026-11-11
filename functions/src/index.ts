@@ -10,6 +10,7 @@ export { getAgentAuthRequest, consentAgentAuthRequest } from './infrastructure/h
 export { callAIProxy } from './infrastructure/handlers/callAIProxy';
 export { detectWorkflows } from './infrastructure/handlers/detectWorkflows';
 export { runWorkflow } from './infrastructure/handlers/runWorkflow';
+export { rerunWorkflowExecution } from './infrastructure/handlers/rerunWorkflowExecution';
 export { runScript } from './infrastructure/handlers/runScript';
 export { runAction } from './infrastructure/handlers/runAction';
 export { runReport } from './infrastructure/handlers/runReport';

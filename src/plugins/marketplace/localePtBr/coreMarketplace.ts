@@ -697,4 +697,6 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'author.patch.field-count': '{name} ({count} campo(s))',
   'issue.step.http-invalid': 'o passo "{step}" chama uma API com uma requisição inválida: {detail}',
   'issue.step.http-literal-secret': 'o passo "{step}" envia o cabeçalho "{name}" com valor fixo. Ele parece um segredo, e num pacote sairia do escritório dentro do arquivo da extensão — tire-o de uma variável ou de um passo anterior.',
+  'issue.workflow.feature-kernel':
+    'usa {feature}, que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo não o recusa: ele o ignora, e a automação roda diferente do que você escreveu.',
 };

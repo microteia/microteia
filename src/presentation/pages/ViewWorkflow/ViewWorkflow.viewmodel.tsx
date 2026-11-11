@@ -21,7 +21,11 @@ import { siblingParameterErrors, hasParameterErrorsDeep, sanitizeWorkflowParamet
 import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/workflowEventIcons';
 import { getScreenIconType } from '../../shared/screenIcons';
 import { getStepIcon as getStepIconType } from '../../shared/stepIcons';
-import { RiGitBranchLine, RiLoopLeftLine } from 'react-icons/ri';
+import { RiGitBranchLine, RiLoopLeftLine, RiSignpostLine } from 'react-icons/ri';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_AUTOMATION_MANAGE } from '../../../domain/schema/access';
+import { WORKFLOW_CHANGE_TYPES } from '../../../domain/schema/workflowChangeFilter';
+import type { WorkflowChangeType } from '../../../domain/schema/workflowChangeFilter';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
 import {
   getStepDisplayName,
@@ -38,6 +42,7 @@ import {
   canPlaceStep,
   findStepInTree,
   suggestStepIdentifier,
+  nextSwitchCaseId,
 } from '../../shared/workflowHelpers';
 import type { InsertTarget } from '../../shared/workflowHelpers';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowStep, Condition, WorkflowParameter } from '../../../domain/entities/Workflow';
@@ -147,6 +152,9 @@ export interface WorkflowFormData {
   /** Dias em relação à data, como o campo numérico os guarda: `-3`, `0`, `1`. */
   dateOffsetDays: string;
   dateAt: string;
+  /** Vazio = criação e alteração. Só nos gatilhos de registro salvo. */
+  changeType: WorkflowChangeType | '';
+  changedFields: string[];
 }
 
 const sanitizeParameters = sanitizeWorkflowParameters;
@@ -163,7 +171,12 @@ const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   dateField: w?.dateReached?.field ?? '',
   dateOffsetDays: String(parseOffsetDays(w?.dateReached?.offset) ?? 0),
   dateAt: w?.dateReached?.at ?? DEFAULT_DATE_REACHED_AT,
+  changeType: w?.changeType ?? '',
+  changedFields: w?.changedFields ?? [],
 });
+
+/** O gatilho de registro SALVO — o único que carrega `changeType` e `old`, e onde o filtro de mudança vale. */
+const isSavedEventName = (eventName: string): boolean => eventName.endsWith('.saved');
 
 /** `-3` → `-3d`, `0` → `0d`, `1` → `+1d`. O que não é inteiro sai como veio, para a validação recusar. */
 const offsetOf = (days: string): string => {
@@ -324,6 +337,18 @@ export interface ViewWorkflowViewModel {
   handleSaveCondition: () => Promise<void>;
   canRunWorkflow: boolean;
   runWorkflowDisabledReason: string | null;
+  /** O gatilho escolhido é de registro salvo: só nele o filtro de mudança aparece. */
+  isSavedEvent: boolean;
+  changeTypeOptions: { value: string; label: string }[];
+  changedFieldOptions: { value: string; label: string }[];
+  /** Quem administra a automação pode refazer uma execução encerrada. */
+  canRerun: boolean;
+  /** A execução pode ser refeita: terminou (não está correndo nem esperando). */
+  isRerunnable: (execution: WorkflowExecution) => boolean;
+  rerunExecution: (execution: WorkflowExecution) => Promise<void>;
+  rerunningId: string | null;
+  openAddSwitch: (target?: InsertTarget, index?: number) => Promise<void>;
+  getSwitchSummary: (step: WorkflowStep) => string;
   runModalOpen: boolean;
   runModalParameters: WorkflowParameter[];
   openRunModal: () => void;
@@ -414,6 +439,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [conditionFocusPath, setConditionFocusPath] = useState<number[] | null>(null);
   const [dragging, setDragging] = useState<{ id: string; parentKey: string } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ parentKey: string; index: number } | null>(null);
+  const [rerunningId, setRerunningId] = useState<string | null>(null);
+  const { can } = useAuthorization();
 
   // Carrega o catálogo de steps uma vez (idempotente)
   useEffect(() => {
@@ -493,6 +520,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     (step: WorkflowStep): IconType => {
       if (step.type === 'Condition') return RiGitBranchLine;
       if (step.type === 'Loop') return RiLoopLeftLine;
+      if (step.type === 'Switch') return RiSignpostLine;
       return getStepIcon(step.stepDefinitionId);
     },
     [getStepIcon],
@@ -738,6 +766,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       const parameters = isCalledEvent ? sanitizeParameters(formData.parameters) : undefined;
       const schedule = isScheduleEvent ? scheduleOf(formData) : undefined;
       const dateReached = isDateReachedEvent ? dateReachedOf(formData) : undefined;
+      // O filtro de mudança só vale para registro salvo; trocado o gatilho, ele SAI — ficar gravado
+      // faria a próxima troca de volta reativar um filtro que ninguém viu.
+      const savedTrigger = isSavedEventName(formData.eventName);
+      const changeType = savedTrigger && formData.changeType ? formData.changeType : null;
+      const changedFields = savedTrigger ? formData.changedFields : [];
 
       if (isNew) {
         const createData: Record<string, unknown> = {
@@ -757,6 +790,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (parameters) createData.parameters = parameters;
         if (schedule) createData.schedule = schedule;
         if (dateReached) createData.dateReached = dateReached;
+        if (changeType) createData.changeType = changeType;
+        if (changedFields.length > 0) createData.changedFields = changedFields;
 
         const chosenId = withArtifactPrefix(
           artifactPrefix,
@@ -777,6 +812,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (lookupCollection) updateData.lookupCollection = lookupCollection;
         if (schedule) updateData.schedule = schedule;
         if (dateReached) updateData.dateReached = dateReached;
+        updateData.changeType = changeType;
+        updateData.changedFields = changedFields;
 
         await updateWorkflow(workflow.id, updateData as Parameters<typeof updateWorkflow>[1]);
         notify(t('workflow.saved'), 'success');
@@ -907,6 +944,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const targetSuffix = useCallback((target?: InsertTarget): string => {
     if (!target || target.kind === 'root') return '';
     if (target.kind === 'loop') return `:addloop:${target.loopId}`;
+    if (target.kind === 'case') return `:addcase:${target.switchId}:${target.caseKey}`;
     return `:add:${target.conditionId}:${target.branch}`;
   }, []);
 
@@ -961,6 +999,44 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
       console.error('[ViewWorkflow] openAddLoop:', error);
       notify(t('loop.add-failed'), 'error');
+    });
+  }, [workflow, updateWorkflowSteps, notify, t]);
+
+  const openAddSwitch = useCallback(async (target?: InsertTarget, index?: number) => {
+    if (!workflow) return;
+    const draft: WorkflowStep = {
+      id: suggestStepIdentifier(workflow.steps, 'caminhos'),
+      stepDefinitionId: '',
+      type: 'Switch',
+      order: 0,
+      configuration: {},
+      enabled: true,
+      switch: { cases: [], otherwise: [] },
+    };
+    // Nasce com DOIS caminhos: um `Switch` de um caminho só é uma condição, e a tela teria de explicar
+    // por que ele existe.
+    const first = nextSwitchCaseId(draft);
+    const withFirst: WorkflowStep = {
+      ...draft,
+      switch: { cases: [{ id: first, condition: { kind: 'AlwaysTrue' }, steps: [] }], otherwise: [] },
+    };
+    const switchStep: WorkflowStep = {
+      ...withFirst,
+      switch: {
+        cases: [
+          ...(withFirst.switch?.cases ?? []),
+          { id: nextSwitchCaseId(withFirst), condition: { kind: 'AlwaysTrue' }, steps: [] },
+        ],
+        otherwise: [],
+      },
+    };
+    const location = target ?? { kind: 'root' };
+    const nextSteps = index !== undefined
+      ? insertStepAtIndex(workflow.steps, location, switchStep, index)
+      : insertStepInto(workflow.steps, location, switchStep);
+    await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
+      console.error('[ViewWorkflow] openAddSwitch:', error);
+      notify(t('switch.add-failed'), 'error');
     });
   }, [workflow, updateWorkflowSteps, notify, t]);
 
@@ -1041,6 +1117,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const getStepTypeLabel = useCallback((step: WorkflowStep): string => {
     if (step.type === 'Condition') return t('step.type.condition');
     if (step.type === 'Loop') return t('step.type.loop');
+    if (step.type === 'Switch') return t('step.type.switch');
     const definition = getStepDefinition(step.stepDefinitionId);
     if (!definition) return step.stepDefinitionId;
     const categoryLabel = t(STEP_CATEGORY_KEYS[definition.category] ?? definition.category);
@@ -1050,6 +1127,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   }, [getStepDefinition, t]);
 
   const getConditionSummary = useCallback((step: WorkflowStep): string => describeCondition(tUi, step.condition), [tUi]);
+
+  const getSwitchSummary = useCallback(
+    (step: WorkflowStep): string => t('switch.summary', { count: String(step.switch?.cases.length ?? 0) }),
+    [t],
+  );
 
   const getLoopSummary = useCallback((step: WorkflowStep): string => {
     if (!step.loop) return t('loop.summary');
@@ -1116,6 +1198,43 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     if (log.level === 'WARN') return 'WARN';
     return 'INFO';
   }, []);
+
+  const isSavedEvent = isSavedEventName(formData.eventName);
+
+  const changeTypeOptions = useMemo(
+    () => [
+      { value: '', label: t('trigger.change.any') },
+      ...WORKFLOW_CHANGE_TYPES.map((type) => ({ value: type, label: t(`trigger.change.${type}`) })),
+    ],
+    [t],
+  );
+
+  const changedFieldOptions = useMemo(() => {
+    if (!isSavedEvent) return [];
+    const entity = eventEntity(formData.eventName, ctx);
+    return (entity?.fields ?? []).map((field) => ({ value: field.key, label: label(field.label) }));
+  }, [isSavedEvent, formData.eventName, ctx, label]);
+
+  const canRerun = can(PERMISSION_AUTOMATION_MANAGE);
+
+  const isRerunnable = useCallback(
+    (execution: WorkflowExecution) => execution.status !== 'RUNNING' && execution.status !== 'WAITING',
+    [],
+  );
+
+  const rerunExecution = useCallback(async (execution: WorkflowExecution) => {
+    if (!currentTenant) return;
+    setRerunningId(execution.id);
+    try {
+      await workflowExecutionRepository.rerunExecution(currentTenant.id, execution.id);
+      notify(t('executions.rerun.done'), 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      notify(label(message) || t('executions.rerun.failed'), 'error');
+    } finally {
+      setRerunningId(null);
+    }
+  }, [currentTenant, workflowExecutionRepository, notify, t, label]);
 
   const canRunWorkflow = useMemo(
     () => !!workflow && isCalledEventName(workflow.eventName),
@@ -1317,6 +1436,15 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     handleConditionLocalChange,
     handleSaveCondition,
     canRunWorkflow,
+    isSavedEvent,
+    changeTypeOptions,
+    changedFieldOptions,
+    canRerun,
+    isRerunnable,
+    rerunExecution,
+    rerunningId,
+    openAddSwitch,
+    getSwitchSummary,
     runWorkflowDisabledReason,
     runModalOpen,
     runModalParameters,

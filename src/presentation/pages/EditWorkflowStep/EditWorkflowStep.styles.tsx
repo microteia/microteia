@@ -180,4 +180,21 @@ export const S = {
       cursor: not-allowed;
     }
   `,
+  IconBtn: styled.button`
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.textMuted};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: ${({ theme }) => theme.transitions.fast};
+
+    &:hover:not(:disabled) { border-color: ${({ theme }) => theme.colors.primary}; color: ${({ theme }) => theme.colors.primary}; }
+    &:disabled { opacity: 0.4; cursor: not-allowed; }
+  `,
 };

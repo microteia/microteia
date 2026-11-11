@@ -1,5 +1,6 @@
 import { collection, query, where, orderBy, limit, Timestamp, onSnapshot } from 'firebase/firestore';
-import { db } from '../../infrastructure/firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../infrastructure/firebase/config';
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
 import type { WorkflowExecution, WorkflowExecutionLogEntry } from '../../domain/entities/Workflow';
 
@@ -42,5 +43,13 @@ export class FirebaseWorkflowExecutionRepository implements IWorkflowExecutionRe
         onError?.(error);
       },
     );
+  }
+
+  async rerunExecution(tenantId: string, executionId: string): Promise<void> {
+    const call = httpsCallable<{ tenantId: string; executionId: string }, { eventId: string }>(
+      functions,
+      'rerunWorkflowExecution',
+    );
+    await call({ tenantId, executionId });
   }
 }

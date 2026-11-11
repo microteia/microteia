@@ -107,7 +107,7 @@ const traverse = (
     const halted = states.filter((state) => state.halted);
 
     let next: PathState[];
-    if (step.type === 'Condition') {
+    if (step.type === 'Condition' || step.type === 'Switch') {
       next = workflowChildLists(step).flatMap((child) => traverse(child.steps, live, catalog));
     } else if (step.type === 'Loop') {
       const body = traverse(step.loop?.body ?? [], [{ ending: NOTHING_RAN, halted: false }], catalog);

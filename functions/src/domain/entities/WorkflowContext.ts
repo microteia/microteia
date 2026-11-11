@@ -46,6 +46,11 @@ export interface WorkflowServices {
    * sempre foi.
    */
   deadlineAt?: number;
+  /**
+   * Espera entre duas tentativas de um passo (`onError.retries`). Injetável para que o teste não
+   * durma de verdade; ausente, `setTimeout`.
+   */
+  sleep?(ms: number): Promise<void>;
 }
 
 /**

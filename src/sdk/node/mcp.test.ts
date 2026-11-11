@@ -120,7 +120,7 @@ describe('o servidor MCP de autoria', () => {
     // Contagem DERIVADA: um passo novo no kernel aparece aqui sem que ninguém precise lembrar de
     // subir um número — e um passo que o MCP deixasse de servir reprova na mesma linha.
     expect([...ids].sort()).toEqual([...CORE_STEP_DEFINITION_IDS].sort());
-    expect(answer.controlStepTypes).toEqual(['Condition', 'Loop']);
+    expect(answer.controlStepTypes).toEqual(['Condition', 'Loop', 'Switch']);
     expect(answer.unimplementedStepTypes).toContain('Delay');
 
     // Rótulo RESOLVIDO, não a chave: quem lê é um modelo, e `@core.automation/step.upsert.name` não

@@ -442,6 +442,8 @@ const WORKFLOW_REACH: Record<keyof WorkflowModuleTemplate, string | null> = {
     + 'condition of a user-action flow reads the state field through',
   schedule: 'trigger "schedule" — its `when`, as cron',
   dateReached: 'trigger "date-reached" — its field, offset and time',
+  changeType: null,
+  changedFields: null,
   steps: 'the guard, the state write and the effects, in order — and, on a user-action flow, the map that answers '
     + 'the button',
   condition: 'the `from` of the transition',
@@ -453,6 +455,10 @@ const WORKFLOW_REACH: Record<keyof WorkflowModuleTemplate, string | null> = {
 const WORKFLOW_NOTES: Record<string, string> = {
   version: 'the revision of the flow definition itself, bumped when the office edits it in the Automations screen',
   lookupCollection: 'which list fires a `lookup.saved`. It is the other half of the missing lookup trigger',
+  changeType: 'narrows a save trigger to creation or to change. A transition fires on the move INTO its target state, '
+    + 'which the guard already writes, so the model never needs it',
+  changedFields: 'narrows a save trigger to a change of the named fields. Same reason as changeType: the transition '
+    + 'guard compares the state field, and that IS the field that changed',
   ownerPluginIds: 'the refcount of extensions sharing the flow, set by the installation',
   sourceId: 'the universal identity of the flow — how an update recognises it across offices',
   sourceRev: 'the origin revision, stamped at packaging so an update only rewrites what is genuinely newer',

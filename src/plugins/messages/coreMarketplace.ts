@@ -698,4 +698,6 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'author.patch.field-count': '{name} ({count} field(s))',
   'issue.step.http-invalid': 'step "{step}" calls an API with an invalid request: {detail}',
   'issue.step.http-literal-secret': 'step "{step}" sends the header "{name}" with a fixed value. It looks like a secret, and in a package it would leave the office inside the extension file — take it from a variable or an earlier step.',
+  'issue.workflow.feature-kernel':
+    'uses {feature}, which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest. An older kernel does not refuse it: it ignores it, and the automation runs differently from what you wrote.',
 };

@@ -84,6 +84,7 @@ const SHARED_FILES = [
   'domain/schema/memberMfa.ts',
   'domain/schema/registration.ts',
   'domain/schema/workflowReturn.ts',
+  'domain/schema/workflowChangeFilter.ts',
   'domain/schema/dataExtensionPoints.ts',
   'domain/schema/settings.ts',
   'domain/schema/notifications.ts',

@@ -3,8 +3,8 @@ import type { WorkflowStep } from '../entities/Workflow';
 /**
  * A travessia da árvore de passos de uma automação, num lugar só.
  *
- * Um passo não mora necessariamente na raiz de `steps`: `Condition` guarda dois ramos e `Loop`
- * guarda um corpo, e os dois são sequências de passos como qualquer outra. Quem varre a automação
+ * Um passo não mora necessariamente na raiz de `steps`: `Condition` guarda dois ramos, `Loop`
+ * guarda um corpo e `Switch` guarda N caminhos mais o "senão", e os dois são sequências de passos como qualquer outra. Quem varre a automação
  * PRECISA descer, e quem esquece de descer não falha — apenas deixa de enxergar, o que é a forma
  * mais cara de errar neste repositório.
  *
@@ -23,6 +23,8 @@ export const flattenSteps = (steps: readonly WorkflowStep[] | undefined): Workfl
     ...flattenSteps(step.branches?.whenTrue),
     ...flattenSteps(step.branches?.whenFalse),
     ...flattenSteps(step.loop?.body),
+    ...(step.switch?.cases ?? []).flatMap((one) => flattenSteps(one.steps)),
+    ...flattenSteps(step.switch?.otherwise),
   ]);
 
 /**
@@ -45,6 +47,15 @@ export const mapSteps = (
   }
   if (next.loop) {
     next = { ...next, loop: { ...next.loop, body: mapSteps(next.loop.body, fn) } };
+  }
+  if (next.switch) {
+    next = {
+      ...next,
+      switch: {
+        cases: next.switch.cases.map((one) => ({ ...one, steps: mapSteps(one.steps, fn) })),
+        otherwise: mapSteps(next.switch.otherwise, fn),
+      },
+    };
   }
   return next;
 });

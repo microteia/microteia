@@ -39,7 +39,16 @@ import {
 } from '../../shared/workflowHelpers';
 import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
-import type { Condition, InputMapping, WorkflowParameter, WorkflowStep } from '../../../domain/entities/Workflow';
+import type {
+  Condition,
+  InputMapping,
+  WorkflowParameter,
+  WorkflowStep,
+  WorkflowStepErrorPolicy,
+  WorkflowSwitchCase,
+} from '../../../domain/entities/Workflow';
+import { MAX_STEP_RETRIES } from '../../../domain/entities/Workflow';
+import { nextSwitchCaseId } from '../../shared/workflowHelpers';
 import type {
   InputDefinition,
   InputPickerKind,
@@ -255,6 +264,21 @@ export interface EditWorkflowStepViewModel {
   setEnabled: (enabled: boolean) => void;
   isConditionStep: boolean;
   isLoopStep: boolean;
+  isSwitchStep: boolean;
+  /** Os caminhos de um `Switch`, na ordem em que são avaliados. */
+  switchCases: (WorkflowSwitchCase & { canMoveUp: boolean; canMoveDown: boolean; canRemove: boolean })[];
+  addSwitchCase: () => void;
+  removeSwitchCase: (id: string) => void;
+  moveSwitchCase: (id: string, direction: -1 | 1) => void;
+  setSwitchCaseLabel: (id: string, label: string) => void;
+  setSwitchCaseCondition: (id: string, condition: Condition) => void;
+  /** A política de falha de um passo do catálogo. Ver `WorkflowStepErrorPolicy`. */
+  errorAction: 'fail' | 'continue';
+  setErrorAction: (action: 'fail' | 'continue') => void;
+  errorRetries: number;
+  setErrorRetries: (retries: number) => void;
+  errorActionOptions: { value: string; label: string }[];
+  errorRetryOptions: { value: string; label: string }[];
   loopItemName: string;
   setLoopItemName: (name: string) => void;
   loopOutputName: string;
@@ -313,14 +337,17 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const workflowId = parts[0] ?? '';
   const isBranchAdd = parts[1] === 'add';
   const isLoopAdd = parts[1] === 'addloop';
-  const stepId = isBranchAdd || isLoopAdd ? null : (parts[1] ?? null);
+  //   "edit-workflow-step:{wfId}:addcase:{switchId}:{caseKey}" → adicionar step num caminho de Switch
+  const isCaseAdd = parts[1] === 'addcase';
+  const stepId = isBranchAdd || isLoopAdd || isCaseAdd ? null : (parts[1] ?? null);
   const insertTarget = useMemo<InsertTarget>(
     () => {
       if (isBranchAdd && parts[2] && parts[3]) return { kind: 'branch', conditionId: parts[2], branch: parts[3] as BranchKey };
       if (isLoopAdd && parts[2]) return { kind: 'loop', loopId: parts[2] };
+      if (isCaseAdd && parts[2] && parts[3]) return { kind: 'case', switchId: parts[2], caseKey: parts[3] };
       return { kind: 'root' };
     },
-    [isBranchAdd, isLoopAdd, parts],
+    [isBranchAdd, isLoopAdd, isCaseAdd, parts],
   );
 
   const { workflows, updateWorkflowSteps } = useWorkflowStore();
@@ -348,6 +375,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const isConditionStep = editingStep?.type === 'Condition';
   const isLoopStep = editingStep?.type === 'Loop';
+  const isSwitchStep = editingStep?.type === 'Switch';
 
   const [selectedDefinitionId, setSelectedDefinitionId] = useState('');
   const [stepIdentifier, setStepIdentifier] = useState('');
@@ -358,6 +386,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const [pendingCondition, setPendingCondition] = useState<Condition>({ kind: 'AlwaysTrue' });
   const [loopItemName, setLoopItemName] = useState('item');
   const [loopOutputName, setLoopOutputName] = useState('itens');
+  const [switchCases, setSwitchCases] = useState<WorkflowSwitchCase[]>([]);
+  const [errorAction, setErrorAction] = useState<'fail' | 'continue'>('fail');
+  const [errorRetries, setErrorRetries] = useState(0);
   const [conditionViewMode, setConditionViewModeState] = useState<ConditionViewMode>(loadConditionViewMode);
   const [conditionFocusPath, setConditionFocusPath] = useState<number[] | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -401,7 +432,61 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setPendingCondition(editingStep?.condition ?? { kind: 'AlwaysTrue' });
     setLoopItemName(editingStep?.loop?.itemName ?? 'item');
     setLoopOutputName(editingStep?.loop?.outputName ?? 'itens');
+    setSwitchCases(editingStep?.switch?.cases ?? []);
+    setErrorAction(editingStep?.onError?.action === 'continue' ? 'continue' : 'fail');
+    setErrorRetries(editingStep?.onError?.retries ?? 0);
   }, [editingStep]);
+
+  const addSwitchCase = useCallback(() => {
+    setSwitchCases((current) => [
+      ...current,
+      {
+        id: nextSwitchCaseId({ ...(editingStep as WorkflowStep), switch: { cases: current, otherwise: [] } }),
+        condition: { kind: 'AlwaysTrue' },
+        steps: [],
+      },
+    ]);
+  }, [editingStep]);
+
+  // Só o caminho VAZIO sai por aqui: um caminho com passos levaria os passos junto, e quem os quer
+  // apagar faz isso nos passos, onde a confirmação diz o que vai embora.
+  const removeSwitchCase = useCallback((id: string) => {
+    setSwitchCases((current) => current.filter((one) => one.id !== id || one.steps.length > 0));
+  }, []);
+
+  const moveSwitchCase = useCallback((id: string, direction: -1 | 1) => {
+    setSwitchCases((current) => {
+      const index = current.findIndex((one) => one.id === id);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }, []);
+
+  const setSwitchCaseLabel = useCallback((id: string, value: string) => {
+    setSwitchCases((current) => current.map((one) => {
+      if (one.id !== id) return one;
+      const next = { ...one };
+      delete next.label;
+      return value.trim() ? { ...next, label: value } : next;
+    }));
+  }, []);
+
+  const setSwitchCaseCondition = useCallback((id: string, condition: Condition) => {
+    setSwitchCases((current) => current.map((one) => (one.id === id ? { ...one, condition } : one)));
+  }, []);
+
+  /** A política de falha como ela vai para o passo: AUSENTE no padrão, para o `.json` não carregar ruído. */
+  const errorPolicy = useMemo<WorkflowStepErrorPolicy | null>(() => {
+    const retries = Math.max(0, Math.min(MAX_STEP_RETRIES, errorRetries));
+    if (errorAction === 'fail' && retries === 0) return null;
+    return {
+      ...(errorAction === 'continue' ? { action: 'continue' as const } : {}),
+      ...(retries > 0 ? { retries } : {}),
+    };
+  }, [errorAction, errorRetries]);
 
   const selectedDefinition = useMemo(
     () => stepCatalog.find((s) => s.id === selectedDefinitionId),
@@ -1179,6 +1264,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const canSave = useMemo(() => {
     if (isConditionStep) return true;
+    if (isSwitchStep) return switchCases.length > 0;
     if (isLoopStep) return !!configuration.source && !!loopItemName.trim() && !!loopOutputName.trim();
     if (!selectedDefinition) return false;
     if (stepIdentifierError) return false;
@@ -1186,7 +1272,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     return effectiveInputs
       .filter((input) => input.required)
       .every((input) => configuration[input.id] !== undefined);
-  }, [isConditionStep, isLoopStep, configuration, loopItemName, loopOutputName, selectedDefinition, effectiveInputs, stepIdentifierError, placementError]);
+  }, [isConditionStep, isSwitchStep, switchCases, isLoopStep, configuration, loopItemName, loopOutputName, selectedDefinition, effectiveInputs, stepIdentifierError, placementError]);
 
   const handleSave = useCallback(async () => {
     if (!workflow) return;
@@ -1211,6 +1297,31 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         closeTab(tabKey, activePanelId ?? 'main');
       } catch (error) {
         notify(t('condition.save-failed', { detail: String(error) }), 'error');
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Modo Switch: edita os caminhos (nome, condição, ordem) preservando os passos de cada um e o "senão".
+    if (isSwitchStep && editingStep && editingStep.switch) {
+      setIsSaving(true);
+      try {
+        const updated: WorkflowStep = {
+          id: editingStep.id,
+          stepDefinitionId: '',
+          type: 'Switch',
+          order: editingStep.order,
+          ...(stepLabel.trim() ? { signature: stepLabel.trim() } : {}),
+          configuration: {},
+          enabled,
+          switch: { cases: switchCases, otherwise: editingStep.switch.otherwise },
+        };
+        await updateWorkflowSteps(workflow.id, replaceStepInTree(existingSteps, updated));
+        notify(t('switch.saved'), 'success');
+        closeTab(tabKey, activePanelId ?? 'main');
+      } catch (error) {
+        notify(t('switch.save-failed', { detail: String(error) }), 'error');
       } finally {
         setIsSaving(false);
       }
@@ -1262,6 +1373,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
         ...(stepLabel.trim() ? { signature: stepLabel.trim() } : {}),
         configuration,
         enabled,
+        ...(errorPolicy ? { onError: errorPolicy } : {}),
       };
 
       const updatedSteps = editingStep
@@ -1280,6 +1392,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     }
   }, [
     isConditionStep,
+    isSwitchStep,
+    switchCases,
+    errorPolicy,
     isLoopStep,
     loopItemName,
     loopOutputName,
@@ -1351,6 +1466,30 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setEnabled,
     isConditionStep: !!isConditionStep,
     isLoopStep: !!isLoopStep,
+    isSwitchStep: !!isSwitchStep,
+    switchCases: switchCases.map((one, index) => ({
+      ...one,
+      canMoveUp: index > 0,
+      canMoveDown: index < switchCases.length - 1,
+      canRemove: one.steps.length === 0,
+    })),
+    addSwitchCase,
+    removeSwitchCase,
+    moveSwitchCase,
+    setSwitchCaseLabel,
+    setSwitchCaseCondition,
+    errorAction,
+    setErrorAction,
+    errorRetries,
+    setErrorRetries,
+    errorActionOptions: [
+      { value: 'fail', label: t('step.on-error.fail') },
+      { value: 'continue', label: t('step.on-error.continue') },
+    ],
+    errorRetryOptions: Array.from({ length: MAX_STEP_RETRIES + 1 }, (_, retries) => ({
+      value: String(retries),
+      label: retries === 0 ? t('step.on-error.no-retry') : t('step.on-error.retries', { count: String(retries) }),
+    })),
     loopItemName,
     setLoopItemName,
     loopOutputName,

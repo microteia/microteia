@@ -18,12 +18,16 @@ import {
   RiLoopLeftLine,
   RiArrowDownSLine,
   RiPlayLine,
+  RiSignpostLine,
+  RiRestartLine,
 } from 'react-icons/ri';
 import { S } from './ViewWorkflow.styles';
 import { useViewWorkflowViewModel } from './ViewWorkflow.viewmodel';
 import type { ViewWorkflowViewModel } from './ViewWorkflow.viewmodel';
 import type { WorkflowStep } from '../../../domain/entities/Workflow';
 import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
+import { SWITCH_OTHERWISE, switchPathKeyOf } from '../../shared/workflowHelpers';
+import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { Button } from '../../components/ui/Button';
 import { InputGroup, Label, Input } from '../../components/ui/Input';
 import { LabelInput } from '../../components/ui/LabelInput';
@@ -49,6 +53,17 @@ const loopKeyOf = (loopId: string): string => `${loopId}:body`;
 
 const loopTarget = (loopId: string): InsertTarget => ({ kind: 'loop', loopId });
 
+const caseTarget = (switchId: string, caseKey: string): InsertTarget => ({ kind: 'case', switchId, caseKey });
+
+/**
+ * Os caminhos de um `Switch` como a tela os desenha: cada caso, na ordem em que é avaliado, e o
+ * "senão" por último. A ordem é a regra — o primeiro caso que vale é o único que roda.
+ */
+const switchPaths = (step: WorkflowStep): { key: string; label: string | null; steps: WorkflowStep[] }[] => [
+  ...(step.switch?.cases ?? []).map((one) => ({ key: one.id, label: one.label ?? null, steps: one.steps })),
+  { key: SWITCH_OTHERWISE, label: null, steps: step.switch?.otherwise ?? [] },
+];
+
 interface LevelProps {
   vm: ViewWorkflowViewModel;
   steps: WorkflowStep[];
@@ -69,6 +84,9 @@ const AddControls: React.FC<{ vm: ViewWorkflowViewModel; target: InsertTarget }>
     </S.AddNodeBtn>
     <S.AddNodeBtn onClick={() => void vm.openAddLoop(target)} title={t('loop.add')}>
       <RiLoopLeftLine size={16} />
+    </S.AddNodeBtn>
+    <S.AddNodeBtn onClick={() => void vm.openAddSwitch(target)} title={t('switch.add')}>
+      <RiSignpostLine size={16} />
     </S.AddNodeBtn>
   </S.AddRow>
   );
@@ -93,6 +111,9 @@ const ConnectorInsert: React.FC<{ vm: ViewWorkflowViewModel; parentKey: string; 
         </S.ConnectorBtn>
         <S.ConnectorBtn onClick={() => void vm.openAddLoop(target, index)} title={t('loop.insert-here')}>
           <RiLoopLeftLine size={13} />
+        </S.ConnectorBtn>
+        <S.ConnectorBtn onClick={() => void vm.openAddSwitch(target, index)} title={t('switch.insert-here')}>
+          <RiSignpostLine size={13} />
         </S.ConnectorBtn>
       </S.ConnectorActions>
     )}
@@ -130,6 +151,7 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => {
       const StepIcon = vm.getStepIconForStep(step);
       const isCondition = step.type === 'Condition';
       const isLoop = step.type === 'Loop';
+      const isSwitch = step.type === 'Switch';
       return (
       <React.Fragment key={step.id}>
         <ConnectorInsert vm={vm} parentKey={parentKey} index={index} target={target} />
@@ -151,7 +173,13 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => {
           </S.NodeIconBox>
           <S.NodeBody>
             <S.NodeTitle>{getStepDisplayName(t, step, definition)}</S.NodeTitle>
-            <S.NodeType>{isCondition ? vm.getConditionSummary(step) : isLoop ? vm.getLoopSummary(step) : vm.getStepTypeLabel(step)}</S.NodeType>
+            <S.NodeType>
+              {isCondition
+                ? vm.getConditionSummary(step)
+                : isLoop
+                  ? vm.getLoopSummary(step)
+                  : isSwitch ? vm.getSwitchSummary(step) : vm.getStepTypeLabel(step)}
+            </S.NodeType>
           </S.NodeBody>
           <S.NodeStatusDot $enabled={step.enabled} title={t(step.enabled ? 'workflow.active' : 'workflow.inactive')} />
           <StepNodeActions vm={vm} step={step} />
@@ -174,6 +202,29 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => {
                   steps={step.branches![branch]}
                   parentKey={branchKeyOf(step.id, branch)}
                   target={branchTarget(step.id, branch)}
+                />
+              </S.BranchLane>
+            ))}
+          </S.BranchSplit>
+        )}
+        {isSwitch && step.switch && (
+          <S.BranchSplit>
+            {switchPaths(step).map((path) => (
+              <S.BranchLane
+                key={path.key}
+                $variant={path.key === SWITCH_OTHERWISE ? 'false' : 'true'}
+                $dropActive={vm.draggingStepId !== null && vm.dropTarget?.parentKey === switchPathKeyOf(step.id, path.key)}
+                onDragOver={(e) => vm.handleContainerDragOver(e, switchPathKeyOf(step.id, path.key), path.steps.length)}
+                onDrop={vm.handleStepDrop}
+              >
+                <S.BranchLabel $variant={path.key === SWITCH_OTHERWISE ? 'false' : 'true'}>
+                  {path.key === SWITCH_OTHERWISE ? t('switch.otherwise') : (path.label ?? path.key)}
+                </S.BranchLabel>
+                <FlowLevel
+                  vm={vm}
+                  steps={path.steps}
+                  parentKey={switchPathKeyOf(step.id, path.key)}
+                  target={caseTarget(step.id, path.key)}
                 />
               </S.BranchLane>
             ))}
@@ -226,6 +277,7 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
       const StepIcon = vm.getStepIconForStep(step);
       const isCondition = step.type === 'Condition';
       const isLoop = step.type === 'Loop';
+      const isSwitch = step.type === 'Switch';
       return (
         <React.Fragment key={step.id}>
           <S.StepRow $disabled={!step.enabled}>
@@ -239,7 +291,9 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
                 ? <S.StepDescription>{vm.getConditionSummary(step)}</S.StepDescription>
                 : isLoop
                   ? <S.StepDescription>{vm.getLoopSummary(step)}</S.StepDescription>
-                  : definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}
+                  : isSwitch
+                    ? <S.StepDescription>{vm.getSwitchSummary(step)}</S.StepDescription>
+                    : definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}
             </S.StepInfo>
             <S.StepActions>
               <S.IconBtn title={t(step.enabled ? 'step.deactivate' : 'step.activate')} onClick={() => void vm.toggleStepEnabled(step)}>
@@ -268,6 +322,15 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
               </S.BranchLabel>
               <ListLevel vm={vm} steps={step.branches![branch]} />
               <AddControls vm={vm} target={branchTarget(step.id, branch)} />
+            </S.BranchListGroup>
+          ))}
+          {isSwitch && step.switch && switchPaths(step).map((path) => (
+            <S.BranchListGroup key={path.key} $variant={path.key === SWITCH_OTHERWISE ? 'false' : 'true'}>
+              <S.BranchLabel $variant={path.key === SWITCH_OTHERWISE ? 'false' : 'true'}>
+                {path.key === SWITCH_OTHERWISE ? t('switch.otherwise') : (path.label ?? path.key)}
+              </S.BranchLabel>
+              <ListLevel vm={vm} steps={path.steps} />
+              <AddControls vm={vm} target={caseTarget(step.id, path.key)} />
             </S.BranchListGroup>
           ))}
           {isLoop && step.loop && (
@@ -453,6 +516,31 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     placeholder={t('parameter.lookup.placeholder')}
                   />
                 </InputGroup>
+              )}
+
+              {vm.isSavedEvent && (
+                <>
+                  <InputGroup>
+                    <Label>{t('trigger.change.type')}</Label>
+                    <SearchSelect
+                      options={vm.changeTypeOptions}
+                      value={vm.formData.changeType}
+                      onChange={(changeType) => vm.setFormData({
+                        changeType: changeType === 'created' || changeType === 'updated' ? changeType : '',
+                      })}
+                    />
+                  </InputGroup>
+                  <InputGroup>
+                    <Label>{t('trigger.change.fields')}</Label>
+                    <MultiSearchSelect
+                      options={vm.changedFieldOptions}
+                      values={vm.formData.changedFields}
+                      onChange={(changedFields) => vm.setFormData({ changedFields })}
+                      placeholder={t('trigger.change.fields.any')}
+                    />
+                    <S.FieldHint>{t('trigger.change.fields.hint')}</S.FieldHint>
+                  </InputGroup>
+                </>
               )}
 
               {vm.isScheduleEvent && (
@@ -691,6 +779,17 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                         {formatDateTime(execution.startedAt)}
                         {execution.status === 'WAITING' && execution.resumeAt && (
                           <S.FieldHint>{t('executions.waiting-until', { when: formatDateTime(execution.resumeAt) })}</S.FieldHint>
+                        )}
+                        {vm.canRerun && vm.isRerunnable(execution) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => void vm.rerunExecution(execution)}
+                            disabled={vm.rerunningId !== null}
+                            title={t('executions.rerun')}
+                          >
+                            <RiRestartLine size={14} />
+                          </Button>
                         )}
                       </S.ExecutionSummary>
 

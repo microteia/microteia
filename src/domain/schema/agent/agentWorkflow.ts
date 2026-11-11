@@ -162,8 +162,8 @@ const literalText = (mapping: InputMapping | undefined): string | null =>
 
 export interface AgentStepSummary {
   id: string;
-  /** `step` é um passo do catálogo; `condition` e `loop` são nós de controle do motor. */
-  kind: 'step' | 'condition' | 'loop';
+  /** `step` é um passo do catálogo; `condition`, `switch` e `loop` são nós de controle do motor. */
+  kind: 'step' | 'condition' | 'switch' | 'loop';
   /** O nome do passo no catálogo. Ausente nos nós de controle, que o `kind` já nomeia. */
   name?: string;
   /** O id do passo no catálogo. Ausente nos nós de controle. */
@@ -181,6 +181,11 @@ export interface AgentStepSummary {
   whenTrue?: AgentStepSummary[];
   whenFalse?: AgentStepSummary[];
   loop?: { over: Record<string, unknown>; itemName: string; outputName: string; body: AgentStepSummary[] };
+  /** Os caminhos de um `switch`, na ordem em que são avaliados: o primeiro que vale é o único que roda. */
+  cases?: { id: string; label?: string; condition: Condition; steps: AgentStepSummary[] }[];
+  otherwise?: AgentStepSummary[];
+  /** A política de falha declarada no passo — o agente decide por ela se a falha encerra ou segue. */
+  onError?: { action?: 'fail' | 'continue'; retries?: number };
 }
 
 type StepCatalog = ReadonlyMap<string, WorkflowStepMetadata>;
@@ -198,6 +203,20 @@ const summarizeStep = (catalog: MessageCatalog, steps: StepCatalog, step: Workfl
       ...(step.condition ? { condition: step.condition } : {}),
       whenTrue: summarizeSteps(catalog, steps, step.branches?.whenTrue ?? []),
       whenFalse: summarizeSteps(catalog, steps, step.branches?.whenFalse ?? []),
+    };
+  }
+  if (step.type === 'Switch' && step.switch) {
+    return {
+      id: step.id,
+      kind: 'switch',
+      ...disabled,
+      cases: step.switch.cases.map((one) => ({
+        id: one.id,
+        ...(one.label ? { label: one.label } : {}),
+        condition: one.condition,
+        steps: summarizeSteps(catalog, steps, one.steps),
+      })),
+      otherwise: summarizeSteps(catalog, steps, step.switch.otherwise),
     };
   }
   if (step.type === 'Loop' && step.loop) {
@@ -238,6 +257,7 @@ const summarizeStep = (catalog: MessageCatalog, steps: StepCatalog, step: Workfl
     step: step.stepDefinitionId,
     ...disabled,
     ...effects,
+    ...(step.onError ? { onError: step.onError } : {}),
     ...(inputs.length > 0
       ? { inputs: Object.fromEntries(inputs.map(([id, mapping]) => [id, describeMapping(mapping)])) }
       : {}),
@@ -256,6 +276,8 @@ const walk = (summaries: readonly AgentStepSummary[]): AgentStepSummary[] =>
     ...walk(one.whenTrue ?? []),
     ...walk(one.whenFalse ?? []),
     ...walk(one.loop?.body ?? []),
+    ...(one.cases ?? []).flatMap((entry) => walk(entry.steps)),
+    ...walk(one.otherwise ?? []),
   ]);
 
 /**

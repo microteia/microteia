@@ -16,8 +16,17 @@ const byOrder = (a: WorkflowStep, b: WorkflowStep): number => a.order - b.order;
 const orderedEnabledSteps = (steps: WorkflowStep[]): WorkflowStep[] =>
   steps.filter((step) => step.enabled).sort(byOrder);
 
-/** As listas-filhas de um nó de controle: Condition tem duas, Loop tem uma, o resto nenhuma. */
+/**
+ * As listas-filhas de um nó de controle: Condition tem duas, Loop tem uma, Switch tem uma por caminho
+ * mais o "senão", o resto nenhuma.
+ */
 export const workflowChildLists = (step: WorkflowStep): { key: string; steps: WorkflowStep[] }[] => {
+  if (step.type === 'Switch' && step.switch) {
+    return [
+      ...step.switch.cases.map((one) => ({ key: one.id, steps: one.steps })),
+      { key: 'otherwise', steps: step.switch.otherwise },
+    ];
+  }
   if (step.type === 'Condition') {
     const branches = step.branches ?? { whenTrue: [], whenFalse: [] };
     return [
@@ -31,10 +40,10 @@ export const workflowChildLists = (step: WorkflowStep): { key: string; steps: Wo
   return [];
 };
 
-// Um nó de condição não tem saída própria: quem contribui é o último Step do ramo que executar.
-// Loop não expande — a saída dele é o vetor publicado sob `loop.outputName`.
+// Um nó de condição ou de caminhos não tem saída própria: quem contribui é o último Step do ramo que
+// executar. Loop não expande — a saída dele é o vetor publicado sob `loop.outputName`.
 const terminalStepsOf = (step: WorkflowStep): WorkflowStep[] => {
-  if (step.type !== 'Condition') return [step];
+  if (step.type !== 'Condition' && step.type !== 'Switch') return [step];
   return workflowChildLists(step).flatMap((child) => {
     const ordered = orderedEnabledSteps(child.steps);
     const last = ordered[ordered.length - 1];

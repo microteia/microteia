@@ -41,6 +41,7 @@ const ALL_FUNCTIONS = [
   'callAIProxy',
   'detectWorkflows',
   'runWorkflow',
+  'rerunWorkflowExecution',
   'getUserInfo',
   'checkNicknameAvailability',
   'claimNickname',

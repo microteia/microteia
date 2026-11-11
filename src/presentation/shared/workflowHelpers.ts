@@ -31,6 +31,7 @@ export const getStepDisplayName = (
   if (definition?.name) return definition.name;
   if (step.type === 'Condition') return t('core.automation/step.type.condition');
   if (step.type === 'Loop') return t('core.automation/step.type.loop');
+  if (step.type === 'Switch') return t('core.automation/step.type.switch');
   return fallback ?? step.stepDefinitionId;
 };
 
@@ -79,7 +80,25 @@ export type BranchKey = 'whenTrue' | 'whenFalse';
 export type InsertTarget =
   | { kind: 'root' }
   | { kind: 'branch'; conditionId: string; branch: BranchKey }
-  | { kind: 'loop'; loopId: string };
+  | { kind: 'loop'; loopId: string }
+  /** Um caminho de um `Switch`: o id do caso, ou `SWITCH_OTHERWISE` para o "senão". */
+  | { kind: 'case'; switchId: string; caseKey: string };
+
+/** A chave do "senão" de um `Switch` — reservada: nenhum caso recebe este id (`nextSwitchCaseId`). */
+export const SWITCH_OTHERWISE = 'otherwise';
+
+export const isSwitchStep = (step: WorkflowStep): boolean => step.type === 'Switch';
+
+/**
+ * O id do próximo caminho de um `Switch`: `c1`, `c2`... O id vai no endereço da aba e na chave de
+ * arrastar (`{switchId}:path.{id}`), por isso é curto e sem `:`.
+ */
+export const nextSwitchCaseId = (step: WorkflowStep): string => {
+  const taken = new Set((step.switch?.cases ?? []).map((one) => one.id));
+  let index = 1;
+  while (taken.has(`c${index}`)) index += 1;
+  return `c${index}`;
+};
 
 export const isConditionStep = (step: WorkflowStep): boolean => step.type === 'Condition';
 
@@ -103,6 +122,12 @@ interface ChildList {
 // Listas-filhas de um nó de controle (vazio para Steps normais). Condition → duas listas;
 // Loop → uma lista.
 const childListsOf = (step: WorkflowStep): ChildList[] => {
+  if (step.type === 'Switch' && step.switch) {
+    return [
+      ...step.switch.cases.map((one) => ({ key: one.id, steps: one.steps })),
+      { key: SWITCH_OTHERWISE, steps: step.switch.otherwise },
+    ];
+  }
   if (step.type === 'Condition') {
     const branches = step.branches ?? { whenTrue: [], whenFalse: [] };
     return [
@@ -118,6 +143,16 @@ const childListsOf = (step: WorkflowStep): ChildList[] => {
 
 // Reconstrói um nó de controle com listas-filhas novas (contraparte de childListsOf).
 const withChildLists = (step: WorkflowStep, lists: ChildList[]): WorkflowStep => {
+  if (step.type === 'Switch' && step.switch) {
+    const byKey = new Map(lists.map((list) => [list.key, list.steps]));
+    return {
+      ...step,
+      switch: {
+        cases: step.switch.cases.map((one) => ({ ...one, steps: byKey.get(one.id) ?? one.steps })),
+        otherwise: byKey.get(SWITCH_OTHERWISE) ?? step.switch.otherwise,
+      },
+    };
+  }
   if (step.type === 'Condition') {
     const byKey = new Map(lists.map((list) => [list.key, list.steps]));
     return { ...step, branches: { whenTrue: byKey.get('whenTrue') ?? [], whenFalse: byKey.get('whenFalse') ?? [] } };
@@ -179,6 +214,25 @@ export const removeStepFromTree = (steps: WorkflowStep[], id: string): WorkflowS
   return filtered.length !== steps.length ? sortAndReindex(mapped) : mapped;
 };
 
+/** Reescreve UM caminho de um `Switch` — o caso de id `caseKey`, ou o "senão". */
+const withSwitchPath = (
+  step: WorkflowStep,
+  caseKey: string,
+  fn: (list: WorkflowStep[]) => WorkflowStep[],
+): WorkflowStep => {
+  if (!step.switch) return step;
+  if (caseKey === SWITCH_OTHERWISE) {
+    return { ...step, switch: { ...step.switch, otherwise: fn(step.switch.otherwise) } };
+  }
+  return {
+    ...step,
+    switch: {
+      ...step.switch,
+      cases: step.switch.cases.map((one) => (one.id === caseKey ? { ...one, steps: fn(one.steps) } : one)),
+    },
+  };
+};
+
 /** Insere um Step no fim do alvo (raiz, um ramo de uma Condição, ou o corpo de um Loop). */
 export const insertStepInto = (
   steps: WorkflowStep[],
@@ -201,6 +255,9 @@ export const insertStepInto = (
         ...current,
         loop: { ...current.loop, body: reindex([...[...current.loop.body].sort(byOrder), step]) },
       };
+    }
+    if (target.kind === 'case' && current.id === target.switchId && current.type === 'Switch') {
+      return withSwitchPath(current, target.caseKey, (list) => reindex([...[...list].sort(byOrder), step]));
     }
     return mapChildLists(current, (list) => insertStepInto(list, target, step));
   });
@@ -285,20 +342,33 @@ export const insertStepAtIndex = (
         loop: { ...current.loop, body: insertAtIndex(current.loop.body, step, index) },
       };
     }
+    if (target.kind === 'case' && current.id === target.switchId && current.type === 'Switch') {
+      return withSwitchPath(current, target.caseKey, (list) => insertAtIndex(list, step, index));
+    }
     return mapChildLists(current, (list) => insertStepAtIndex(list, target, step, index));
   });
 };
 
 // Converte o `parentKey` usado no drag & drop do fluxo de volta para um InsertTarget.
-// Formatos: 'root' | '{loopId}:body' | '{conditionId}:whenTrue' | '{conditionId}:whenFalse'.
+// Formatos: 'root' | '{loopId}:body' | '{conditionId}:whenTrue' | '{conditionId}:whenFalse'
+// | '{switchId}:path.{caseKey}'.
 export const parseParentKey = (parentKey: string): InsertTarget => {
   if (parentKey === 'root') return { kind: 'root' };
   const separator = parentKey.lastIndexOf(':');
   const id = parentKey.slice(0, separator);
   const suffix = parentKey.slice(separator + 1);
   if (suffix === 'body') return { kind: 'loop', loopId: id };
+  if (suffix.startsWith(SWITCH_PATH_PREFIX)) {
+    return { kind: 'case', switchId: id, caseKey: suffix.slice(SWITCH_PATH_PREFIX.length) };
+  }
   return { kind: 'branch', conditionId: id, branch: suffix as BranchKey };
 };
+
+const SWITCH_PATH_PREFIX = 'path.';
+
+/** A chave de arrastar de um caminho de `Switch` — a contraparte de `parseParentKey`. */
+export const switchPathKeyOf = (switchId: string, caseKey: string): string =>
+  `${switchId}:${SWITCH_PATH_PREFIX}${caseKey}`;
 
 /** O passo, ou algum da subárvore dele, pausa a execução (`delay`). */
 export const containsPausingStep = (step: WorkflowStep): boolean =>
@@ -313,8 +383,12 @@ export const canPlaceStep = (step: WorkflowStep, target: InsertTarget): boolean 
   target.kind === 'root' || !containsPausingStep(step);
 
 // Container-alvo de um InsertTarget (null na raiz); usado para barrar mover um nó para dentro de si.
-const targetContainerId = (target: InsertTarget): string | null =>
-  target.kind === 'root' ? null : target.kind === 'branch' ? target.conditionId : target.loopId;
+const targetContainerId = (target: InsertTarget): string | null => {
+  if (target.kind === 'root') return null;
+  if (target.kind === 'branch') return target.conditionId;
+  if (target.kind === 'case') return target.switchId;
+  return target.loopId;
+};
 
 /**
  * Move um Step (com sua subárvore, se for nó de controle) para uma posição em outro nível da
@@ -356,7 +430,7 @@ export const collectPriorSteps = (rootSteps: WorkflowStep[], targetId: string): 
         result.unshift(...precedingHere);
         return true;
       }
-      if (step.type !== 'Condition') precedingHere.push(step);
+      if (step.type !== 'Condition' && step.type !== 'Switch') precedingHere.push(step);
     }
     return false;
   };
@@ -369,8 +443,17 @@ export const collectPriorStepsForInsert = (
   rootSteps: WorkflowStep[],
   target: InsertTarget,
 ): WorkflowStep[] => {
+  const producers = (list: WorkflowStep[]): WorkflowStep[] =>
+    list.filter((s) => s.type !== 'Condition' && s.type !== 'Switch').sort(byOrder);
   if (target.kind === 'root') {
-    return [...rootSteps].filter((s) => s.type !== 'Condition').sort(byOrder);
+    return producers([...rootSteps]);
+  }
+  if (target.kind === 'case') {
+    const node = findStepInTree(rootSteps, target.switchId);
+    const path = target.caseKey === SWITCH_OTHERWISE
+      ? node?.switch?.otherwise ?? []
+      : node?.switch?.cases.find((one) => one.id === target.caseKey)?.steps ?? [];
+    return [...collectPriorSteps(rootSteps, target.switchId), ...producers(path)];
   }
   if (target.kind === 'branch') {
     const condition = findStepInTree(rootSteps, target.conditionId);

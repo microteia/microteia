@@ -751,3 +751,220 @@ describe('runWorkflow — orçamento de tempo (deadlineAt)', () => {
     expect(result.status).toBe('FAILED');
   });
 });
+
+describe('runWorkflow — Switch (caminhos)', () => {
+  const switchStep = (cases: { id: string; when: Condition; steps: WorkflowStep[] }[], otherwise: WorkflowStep[]): WorkflowStep => ({
+    id: `sw-${seq++}`,
+    stepDefinitionId: '',
+    type: 'Switch',
+    order: 0,
+    configuration: {},
+    enabled: true,
+    switch: {
+      cases: cases.map((one) => ({ id: one.id, condition: one.when, steps: withOrder(one.steps) })),
+      otherwise: withOrder(otherwise),
+    },
+  });
+
+  const paths = (): WorkflowStep[] => withOrder([
+    switchStep([
+      { id: 'c1', when: takeIf('a'), steps: [recordStep('A')] },
+      { id: 'c2', when: takeIf('b'), steps: [recordStep('B')] },
+      { id: 'c3', when: { kind: 'AlwaysTrue' }, steps: [recordStep('ALWAYS')] },
+    ], [recordStep('OTHER')]),
+    recordStep('Z'),
+  ]);
+
+  it('segue o PRIMEIRO caminho que vale — e só ele — e converge depois do nó', async () => {
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: makeDefinition(paths()),
+      event: makeEvent({ branch: 'b' }),
+      registry: makeRegistry(order),
+      services,
+    });
+
+    expect(result.status).toBe('SUCCESS');
+    expect(order).toEqual(['B', 'Z']);
+  });
+
+  it('nenhum caminho valendo, roda o "senão"', async () => {
+    const order: string[] = [];
+    const steps = withOrder([
+      switchStep([{ id: 'c1', when: takeIf('a'), steps: [recordStep('A')] }], [recordStep('OTHER')]),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({ branch: 'x' }),
+      registry: makeRegistry(order),
+      services,
+    });
+
+    expect(order).toEqual(['OTHER']);
+    expect(result.outputs).toEqual({ value: 'OTHER' });
+  });
+
+  it('o encerramento dentro de um caminho atravessa o nó', async () => {
+    const order: string[] = [];
+    const exit: WorkflowStep = { ...recordStep('x'), stepDefinitionId: 'exit', configuration: {} };
+    const steps = withOrder([
+      switchStep([{ id: 'c1', when: { kind: 'AlwaysTrue' }, steps: [recordStep('A'), exit] }], []),
+      recordStep('Z'),
+    ]);
+    const result = await runWorkflow({
+      definition: makeDefinition(steps),
+      event: makeEvent({}),
+      registry: makeRegistry(order),
+      services,
+    });
+
+    expect(order).toEqual(['A', 'EXIT']);
+    expect(result.outputs).toEqual({ value: 'A' });
+  });
+});
+
+describe('runWorkflow — filtro de mudança do gatilho', () => {
+  const saved = (filter: Partial<WorkflowDefinition>): WorkflowDefinition => ({
+    ...makeDefinition(withOrder([recordStep('RAN')])),
+    eventName: 'invoices.saved',
+    ...filter,
+  });
+
+  const run = (definition: WorkflowDefinition, payload: Record<string, unknown>) => runWorkflow({
+    definition,
+    event: { ...makeEvent(payload), name: 'invoices.saved' },
+    registry: makeRegistry([]),
+    services,
+  });
+
+  it('"só quando alterado" não roda na criação', async () => {
+    const result = await run(saved({ changeType: 'updated' }), { changeType: 'created', status: 'open' });
+
+    expect(result.skipped).toBe('change');
+    expect(result.status).toBe('SUCCESS');
+  });
+
+  it('"só quando a situação mudar" ignora o salvamento que não a mudou', async () => {
+    const result = await run(
+      saved({ changedFields: ['status'] }),
+      { changeType: 'updated', status: 'open', title: 'novo', old: { status: 'open', title: 'velho' } },
+    );
+
+    expect(result.skipped).toBe('change');
+  });
+
+  it('roda quando um dos campos pedidos mudou', async () => {
+    const result = await run(
+      saved({ changedFields: ['status', 'amount'] }),
+      { changeType: 'updated', status: 'paid', old: { status: 'open' } },
+    );
+
+    expect(result.skipped).toBeUndefined();
+    expect(result.outputs).toEqual({ value: 'RAN' });
+  });
+
+  it('na criação, o campo "mudou" quando nasce preenchido', async () => {
+    expect((await run(saved({ changedFields: ['status'] }), { changeType: 'created', status: 'open' })).skipped)
+      .toBeUndefined();
+    expect((await run(saved({ changedFields: ['status'] }), { changeType: 'created', status: '' })).skipped)
+      .toBe('change');
+  });
+});
+
+describe('runWorkflow — política de falha do passo (onError)', () => {
+  /** Um passo que falha nas primeiras `failures` chamadas e depois funciona. */
+  const flakyRegistry = (failures: number, calls: { count: number }, order: string[]): StepRegistry => {
+    const record = makeRecordStep(order);
+    const flaky: StepDefinition = {
+      ...record,
+      id: 'flaky',
+      inputs: [],
+      createExecutor: () => ({
+        execute: async () => {
+          calls.count += 1;
+          if (calls.count <= failures) throw new Error('serviço fora do ar');
+          order.push('FLAKY');
+          return { success: true, outputs: { value: 'ok' } };
+        },
+      }),
+    };
+    return {
+      register: () => undefined,
+      resolve: (id) => (id === 'flaky' ? flaky : id === 'record' ? record : undefined),
+      list: () => [record, flaky],
+    };
+  };
+
+  const flakyStep = (onError?: WorkflowStep['onError']): WorkflowStep => ({
+    id: 'chamada',
+    stepDefinitionId: 'flaky',
+    type: 'Action',
+    order: 0,
+    configuration: {},
+    enabled: true,
+    ...(onError ? { onError } : {}),
+  });
+
+  const sleeps: number[] = [];
+  const quickServices: WorkflowServices = { ...services, sleep: async (ms) => { sleeps.push(ms); } };
+
+  it('sem política, a falha encerra a execução — como sempre', async () => {
+    const calls = { count: 0 };
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: makeDefinition(withOrder([flakyStep(), recordStep('Z')])),
+      event: makeEvent({}),
+      registry: flakyRegistry(1, calls, order),
+      services: quickServices,
+    });
+
+    expect(result.status).toBe('FAILED');
+    expect(calls.count).toBe(1);
+    expect(order).toEqual([]);
+  });
+
+  it('tenta de novo, esperando um pouco mais a cada vez, até dar certo', async () => {
+    sleeps.length = 0;
+    const calls = { count: 0 };
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: makeDefinition(withOrder([flakyStep({ retries: 3 }), recordStep('Z')])),
+      event: makeEvent({}),
+      registry: flakyRegistry(2, calls, order),
+      services: quickServices,
+    });
+
+    expect(result.status).toBe('SUCCESS');
+    expect(calls.count).toBe(3);
+    expect(sleeps).toEqual([1000, 2000]);
+    expect(order).toEqual(['FLAKY', 'Z']);
+  });
+
+  it('"seguir em frente" publica a falha como saída e continua', async () => {
+    const calls = { count: 0 };
+    const order: string[] = [];
+    const result = await runWorkflow({
+      definition: makeDefinition(withOrder([flakyStep({ action: 'continue' })])),
+      event: makeEvent({}),
+      registry: flakyRegistry(5, calls, order),
+      services: quickServices,
+    });
+
+    expect(result.status).toBe('SUCCESS');
+    expect(result.outputs).toEqual({ failed: true, error: 'serviço fora do ar' });
+    expect(result.logs.some((log) => log.message === '@core.automation/run.step.continued')).toBe(true);
+  });
+
+  it('não tenta de novo se a espera atravessaria o orçamento da execução', async () => {
+    const calls = { count: 0 };
+    const result = await runWorkflow({
+      definition: makeDefinition(withOrder([flakyStep({ retries: 3 })])),
+      event: makeEvent({}),
+      registry: flakyRegistry(5, calls, []),
+      services: { ...quickServices, deadlineAt: services.now().getTime() + 500 },
+    });
+
+    expect(result.status).toBe('FAILED');
+    expect(calls.count).toBe(1);
+  });
+});
