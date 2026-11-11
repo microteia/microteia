@@ -16,9 +16,11 @@ vi.mock('../i18n/useT', () => ({
   useT: () => (key: string, params?: Record<string, unknown>) => (
     params ? `${key}:${JSON.stringify(params)}` : key
   ),
+  useLabel: () => (ref: string) => ref,
 }));
 
 const { useEntityDocuments } = await import('./useEntityDocuments');
+const { LocalizedError } = await import('../../../domain/errors/LocalizedError');
 
 const arquivo = (name: string): File => new File(['x'], name, { type: 'text/plain' });
 
@@ -28,11 +30,13 @@ const escolha = (...files: File[]): React.ChangeEvent<HTMLInputElement> => ({
 
 const gravados: { name: string; type?: string }[] = [];
 const falharEm = new Set<string>();
+const recusarEm = new Set<string>();
 
 const port: DocumentsPort = {
   get: async () => [],
   upload: async (_recordId, file) => {
     if (falharEm.has(file.name)) throw new Error('storage fora do ar');
+    if (recusarEm.has(file.name)) throw new LocalizedError('@core.ui/documents.upload-denied');
     return { url: `https://files/${file.name}`, storagePath: `p/${file.name}` };
   },
   add: async (_recordId, input) => {
@@ -48,6 +52,8 @@ beforeEach(() => {
   notified.length = 0;
   gravados.length = 0;
   falharEm.clear();
+  recusarEm.clear();
+  vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 /**
@@ -102,6 +108,19 @@ describe('fila de envio de documentos', () => {
     ]);
     expect(result.current.documents.map((d) => d.id)).toEqual(['a.pdf']);
     expect(notified.at(-1)?.kind).toBe('error');
+  });
+
+  it('a recusa das regras chega à tela pelo motivo dela, e não como falha genérica', async () => {
+    recusarEm.add('a.pdf');
+    const { result } = montar();
+
+    act(() => { result.current.handleSelectFiles(escolha(arquivo('a.pdf'))); });
+    await act(async () => { await result.current.handleConfirmUpload(); });
+
+    await waitFor(() => expect(result.current.isUploadingDoc).toBe(false));
+    expect(notified.at(-1)).toEqual({ text: '@core.ui/documents.upload-denied', kind: 'error' });
+    expect(result.current.pendingUploads.map((p) => p.status)).toEqual(['failed']);
+    expect(console.error).toHaveBeenCalled();
   });
 
   it('tirar um item da fila não mexe nos outros, e cancelar limpa tudo', () => {

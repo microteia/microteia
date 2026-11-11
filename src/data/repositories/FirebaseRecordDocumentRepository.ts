@@ -16,6 +16,7 @@ import type { IRecordDocumentRepository } from '../../domain/repositories/IRecor
 import type { RecordDocument } from '../../domain/entities/EntityRecord';
 import type { DeletionActor } from '../../domain/entities';
 import { stampDeletionActor } from '../utils/stampDeletionActor';
+import { LocalizedError } from '../../domain/errors/LocalizedError';
 
 const docsRef = (tenantId: string, collection: string, recordId: string) =>
   firestoreCollection(db, 'tenants', tenantId, collection, recordId, 'documents');
@@ -64,9 +65,18 @@ export class FirebaseRecordDocumentRepository implements IRecordDocumentReposito
     const safeName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
     const storagePath = `tenants/${tenantId}/${collection}/${recordId}/${safeName}`;
     const storageRef = ref(storage, storagePath);
-    await uploadBytes(storageRef, file, { contentType: file.type });
-    const url = await getDownloadURL(storageRef);
-    return JSON.stringify({ url, storagePath });
+    try {
+      await uploadBytes(storageRef, file, { contentType: file.type });
+      const url = await getDownloadURL(storageRef);
+      return JSON.stringify({ url, storagePath });
+    } catch (error) {
+      // A recusa do `storage.rules` acontece antes de qualquer gravação no Firestore: não deixa rastro
+      // na Auditoria, e a mensagem genérica deixava permissão e queda de rede indistinguíveis.
+      if ((error as { code?: string } | null)?.code === 'storage/unauthorized') {
+        throw new LocalizedError('@core.ui/documents.upload-denied', undefined, { cause: error });
+      }
+      throw error;
+    }
   }
 
   async addDocument(

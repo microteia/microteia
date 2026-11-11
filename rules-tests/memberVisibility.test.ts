@@ -57,7 +57,9 @@ beforeEach(async () => {
         desenhista: ['screens.manage'],
         sigilo: ['screens.manage', 'screens.member-visibility'],
         instalador: ['extensions.manage'],
-        dono: [],
+        // Como em produção: o servidor carimba o curinga no documento de membro do dono — e é dele, não
+        // de `tenants/{id}.ownerId`, que o Storage tira a resposta (o teto de leituras não comporta as duas).
+        dono: ['*'],
       },
     },
     screens: {

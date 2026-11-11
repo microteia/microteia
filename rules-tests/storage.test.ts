@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { deleteObject, getMetadata, ref, uploadString, type FirebaseStorage } from 'firebase/storage';
+import { doc, setDoc, type Firestore } from 'firebase/firestore';
 import { TENANT, seed, testEnv } from './helpers';
 
 /**
@@ -19,10 +20,12 @@ beforeEach(async () => {
   await env.clearFirestore();
   await env.clearStorage();
   await seed(env, {
-    users: { dono: {}, leitor: {}, editor: {}, outro: {}, gerente: {} },
+    users: { dono: {}, leitor: {}, editor: {}, outro: {}, gerente: {}, sys: { role: 'SYSTEM' } },
     owners: { [TENANT]: 'dono' },
     members: {
       [TENANT]: {
+        // O dono como ele existe em produção: o servidor carimba o curinga no documento de membro dele.
+        dono: ['*'],
         leitor: ['invoices.read'],
         editor: ['invoices.read', 'invoices.update'],
         outro: ['clients.read'],
@@ -51,6 +54,26 @@ describe('arquivos de registro', () => {
   it('apaga quem altera a coleção — o campo antigo `role` não decide mais nada', async () => {
     await assertFails(deleteObject(ref(storageOf('leitor'), FILE)));
     await assertSucceeds(deleteObject(ref(storageOf('editor'), FILE)));
+  });
+
+  it('o dono anexa e lê pelo curinga do documento de membro — sem ler o escritório', async () => {
+    const novo = `tenants/${TENANT}/invoices/nf1/1700000003_procuracao.pdf`;
+    await assertSucceeds(uploadString(ref(storageOf('dono'), novo), 'x'));
+    await assertSucceeds(getMetadata(ref(storageOf('dono'), novo)));
+    await assertSucceeds(deleteObject(ref(storageOf('dono'), novo)));
+  });
+
+  it('o SYSTEM que não é membro anexa e lê', async () => {
+    const novo = `tenants/${TENANT}/invoices/nf1/1700000004_sys.pdf`;
+    await assertSucceeds(uploadString(ref(storageOf('sys'), novo), 'x'));
+    await assertSucceeds(getMetadata(ref(storageOf('sys'), novo)));
+  });
+
+  it('o dono ainda sem o curinga materializado não anexa — o Storage não lê `tenants/{id}.ownerId`', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore() as unknown as Firestore, `tenants/${TENANT}/members/dono`), { userId: 'dono', permissions: [] });
+    });
+    await assertFails(uploadString(ref(storageOf('dono'), `tenants/${TENANT}/invoices/nf1/1700000005_x.pdf`), 'x'));
   });
 
   it('ninguém grava POR CIMA de um arquivo anexado — para o Storage, sobrescrever é `create`', async () => {

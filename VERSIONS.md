@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.223.1] — 2026-11-11
+
+- Corrigido um problema que impedia os membros do escritório — inclusive o dono — de anexar documentos aos registros. Agora o envio volta a funcionar para todos que têm permissão de alterar o registro.
+- Quando um anexo é recusado por falta de permissão, a mensagem passa a dizer isso, em vez de um aviso genérico de falha.
+
 #### [9.223.0] — 2026-11-10
 
 - Ao preparar a pasta de extensões, o Console agora pergunta também quem publica as extensões e o prefixo dos nomes que elas criam, explicando cada um e já sugerindo uma resposta — o prefixo é tirado do namespace, e basta confirmar.

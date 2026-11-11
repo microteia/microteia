@@ -14,9 +14,39 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
-    // Verifica se o usuário autenticado é SYSTEM ou SUPPORT — ambos agem como
-    // admin em qualquer tenant nas regras de Storage abaixo (mesmo racional de
-    // isSystemOrSupport() nas regras do Firestore).
+    // ─── O ORÇAMENTO: no máximo DOIS documentos do Firestore por avaliação ───
+    //
+    // O Storage recusa a avaliação que lê mais de dois documentos DISTINTOS do Firestore. Ler de novo
+    // um documento que EXISTE sai do cache e não conta; perguntar de novo por um que NÃO existe conta
+    // outra vez — medido no microteia-dev, e não documentado. Por isso todo documento que pode faltar
+    // (o membro, para o SYSTEM; a tela; o registro) é perguntado UMA vez por caminho: a função que o
+    // lê passa o `data` adiante em vez de chamar `firestore.exists` de novo.
+    //
+    // O emulador NÃO cobra esse limite: a regra passa em
+    // `npm run test:rules` e é recusada em produção, sem erro que diga o porquê — o cliente recebe só
+    // `storage/unauthorized`. Foi assim que, em 11/2026, só o SYSTEM conseguia anexar documento: a
+    // pergunta do dono passou a ler `users` + `tenants/{id}` + `members/{uid}`.
+    //
+    // Por isso a ordem das perguntas aqui é decisão, não estilo:
+    // 1. o documento de MEMBRO vem primeiro. Ele responde sozinho por permissão e segundo fator — o dono
+    //    inclusive, porque o servidor carimba nele o curinga `*` (`materializeMemberPermissions`). Não
+    //    há leitura de `tenants/{id}.ownerId`: ela era o terceiro documento.
+    // 2. `users/{uid}` (SYSTEM/SUPPORT) só é lido quando o membro não respondeu — e quem chega até ele
+    //    não lê mais nada, porque o SYSTEM vê todo registro.
+    // 3. a tela (`screenDefinitions`) e o registro só entram depois do membro, e o registro só quando a
+    //    tela declara `memberVisibility` ou `editWindow`.
+    //
+    // Passar do teto não libera nada: a consulta excedente vira ERRO, e erro só cede num `||` cujo outro
+    // lado já é verdadeiro sozinho. É o que deixa o supervisor apagar sob `memberVisibility` mesmo com o
+    // registro fora da conta. A resposta dele não depende do registro.
+    //
+    // A conta de cada caminho está ao lado de cada `match`. Ao mexer aqui, refaça-a.
+    function memberDocPath(tenantId) {
+      return /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
+    }
+
+    // SYSTEM ou SUPPORT — ambos agem como admin em qualquer tenant nas regras de Storage abaixo (mesmo
+    // racional de isSystemOrSupport() nas regras do Firestore). Lido por ÚLTIMO em toda pergunta.
     function isSystemOrSupportUser() {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['SYSTEM', 'SUPPORT'];
     }
@@ -30,35 +60,36 @@ service firebase.storage {
         || (verifiedAt is number && verifiedAt > 0
             && (!acting || request.time.toMillis() < (verifiedAt + requirement.maxAgeSeconds) * 1000));
     }
-    // O SYSTEM não é alcançado pela política do escritório, mesmo sendo DONO dele — a mesma dispensa
-    // de `isTenantMember` no `firestore.rules`, consultada só quando a sessão falharia (EV-36).
-    function memberSessionOk(tenantId, acting) {
-      let memberPath = /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
-      return !firestore.exists(memberPath)
-        || sessionSatisfiesMfa(firestore.get(memberPath).data, acting)
-        || isSystemOrSupportUser();
-    }
-    function isTenantMemberOrElevated(tenantId) {
-      let memberPath = /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
-      return isSystemOrSupportUser()
-        || (firestore.exists(memberPath) && sessionSatisfiesMfa(firestore.get(memberPath).data, false));
-    }
-    // A MESMA pergunta do `can()` do Firestore: o dono do escritório, ou o membro cuja lista EFETIVA de
-    // permissões (`permissions`, materializada pelo servidor) tem a pedida ou o curinga `*`. Antes, a
-    // exclusão perguntava `role == 'admin'` — um campo que não existe mais, e que só deixava o SYSTEM.
+    // A MESMA pergunta do `can()` do Firestore, respondida só pelo documento de membro: a lista EFETIVA
+    // de permissões (`permissions`, materializada pelo servidor) tem a pedida ou o curinga `*` do dono, e
+    // a sessão tem a prova que o escritório exige.
     //
     // Toda permissão que não termina em `.read` é tratada como AGIR, e pede a prova recente: errar para
     // esse lado só pede o código mais cedo; errar para o outro deixaria a sessão vencida gravar.
-    function canInTenant(tenantId, permission) {
-      let memberPath = /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
-      return (firestore.get(/databases/(default)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid
-          || (firestore.exists(memberPath)
-              && firestore.get(memberPath).data.get('permissions', []).hasAny([permission, '*'])))
-        && memberSessionOk(tenantId, !permission.matches('.*[.]read$'));
+    function memberCan(tenantId, permission) {
+      let memberPath = memberDocPath(tenantId);
+      return firestore.exists(memberPath) && memberDataCan(firestore.get(memberPath).data, permission);
     }
-
-    function canOnCollection(tenantId, collection, action) {
-      return isSystemOrSupportUser() || canInTenant(tenantId, collection + '.' + action);
+    // As duas permissões numa pergunta só: chamar `memberCan` duas vezes perguntaria duas vezes pelo
+    // membro que não existe — e o SYSTEM que não é membro estouraria o teto antes de chegar a `users`.
+    function memberCanEither(tenantId, first, second) {
+      let memberPath = memberDocPath(tenantId);
+      return firestore.exists(memberPath)
+        && (memberDataCan(firestore.get(memberPath).data, first) || memberDataCan(firestore.get(memberPath).data, second));
+    }
+    function memberDataCan(member, permission) {
+      return member.get('permissions', []).hasAny([permission, '*'])
+        && sessionSatisfiesMfa(member, !permission.matches('.*[.]read$'));
+    }
+    // O SYSTEM entra quando o membro não respondeu — e é o que o dispensa da política do escritório
+    // mesmo sendo membro dele, como em `isTenantMember` no `firestore.rules` (EV-36).
+    function canInTenant(tenantId, permission) {
+      return memberCan(tenantId, permission) || isSystemOrSupportUser();
+    }
+    function isTenantMemberOrElevated(tenantId) {
+      let memberPath = memberDocPath(tenantId);
+      return (firestore.exists(memberPath) && sessionSatisfiesMfa(firestore.get(memberPath).data, false))
+        || isSystemOrSupportUser();
     }
 
     // As coleções de entidade que saíram do kernel (`cases`, `persons`, `contracts`, `financials`) NÃO
@@ -98,21 +129,33 @@ service firebase.storage {
     // Isto NÃO afeta o link de download (a URL com `token=` que o sistema guarda no documento): ele não
     // passa por regra nenhuma, e quem o tem abre o arquivo — é o que o portal e os e-mails usam, e o que
     // permite mandar o link a quem não tem conta.
+    //
+    // Documentos lidos por caminho (o teto é dois — ver "O ORÇAMENTO" acima):
+    //   create — membro (1); SYSTEM: membro + users (2).
+    //   read   — membro + tela (2); SYSTEM: membro + users (2), sem tela, porque ele vê todo registro.
+    //            Sob `memberVisibility`, quem supervisiona continua em 2; quem só é NOMEADO no registro
+    //            precisaria de 3 e é recusado — esse arquivo ele abre pelo link guardado no documento.
+    //   delete — membro + tela (2), sem `editWindow` nem `memberVisibility`. Sob `memberVisibility`,
+    //            quem supervisiona continua em 2. Fora isso o registro entra na conta (exista ou não):
+    //            são 3, e a exclusão do arquivo é recusada.
+    //            O SYSTEM que não é membro chega a 3 (membro + users + tela) e também é recusado.
+    //            O cliente ignora essa recusa (o documento sai, o arquivo fica).
     match /tenants/{tenantId}/{collection}/{recordId}/{allPaths=**} {
       allow read: if request.auth != null
         && !isReservedStoragePath(collection)
-        && canOnCollection(tenantId, collection, 'read')
-        && recordFilesVisible(tenantId, collection, recordId);
+        && ((memberCan(tenantId, collection + '.read') && memberSeesRecordFiles(tenantId, collection, recordId))
+            || isSystemOrSupportUser());
       allow create: if request.auth != null
         && !isReservedStoragePath(collection)
-        && (canOnCollection(tenantId, collection, 'create') || canOnCollection(tenantId, collection, 'update'))
         && resource == null
-        && request.resource.size < 20 * 1024 * 1024;     // máximo 20 MB
+        && request.resource.size < 20 * 1024 * 1024     // máximo 20 MB
+        && (memberCanEither(tenantId, collection + '.create', collection + '.update')
+            || isSystemOrSupportUser());
       allow delete: if request.auth != null
         && !isReservedStoragePath(collection)
-        && (canOnCollection(tenantId, collection, 'update') || canOnCollection(tenantId, collection, 'delete'))
-        && recordFilesUnlocked(tenantId, collection, recordId)
-        && recordFilesVisibleOrGone(tenantId, collection, recordId);
+        && ((memberCanEither(tenantId, collection + '.update', collection + '.delete')
+              && memberDeletesRecordFiles(tenantId, collection, recordId))
+            || (isSystemOrSupportUser() && recordFilesUnlocked(tenantId, collection, recordId)));
     }
 
     // A visibilidade por registro (`memberVisibility`) vale para os ARQUIVOS do registro como vale para
@@ -123,21 +166,48 @@ service firebase.storage {
     // PROVAR uma consulta, e aqui só responde por um arquivo. Enviar continua livre, como criar o registro: o arquivo de um registro novo
     // sobe ANTES de ele existir.
     //
+    // A supervisão é perguntada ANTES do registro: ela sai do documento de membro, já lido, e poupa a
+    // leitura do registro a quem supervisiona. O SYSTEM não passa por aqui — ele vê todo registro, e a
+    // pergunta dele vem depois, no `match`.
+    //
     // O link de download com `token=` continua fora de regra, como sempre: ele mora no documento e no
     // campo do registro, e é a regra DELES que o esconde de quem não lê.
-    function recordFilesVisible(tenantId, collection, recordId) {
+    function memberSeesRecordFiles(tenantId, collection, recordId) {
       let screenPath = /databases/(default)/documents/tenants/$(tenantId)/screenDefinitions/$(collection);
-      let recordPath = /databases/(default)/documents/tenants/$(tenantId)/$(collection)/$(recordId);
       return !firestore.exists(screenPath)
-        || firestore.get(screenPath).data.get('memberVisibility', null) == null
-        || (firestore.exists(recordPath)
-            && fileRecordNamesMember(firestore.get(screenPath).data.memberVisibility, firestore.get(recordPath).data))
-        || canOnCollectionVisibility(tenantId, collection, firestore.get(screenPath).data.memberVisibility);
+        || memberSeesFilesUnder(firestore.get(screenPath).data, tenantId, collection, recordId);
     }
-    // A cascata apaga o registro antes dos anexos: o arquivo de um registro que não existe mais sai.
-    function recordFilesVisibleOrGone(tenantId, collection, recordId) {
-      return !firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/$(collection)/$(recordId))
-        || recordFilesVisible(tenantId, collection, recordId);
+    function memberSeesFilesUnder(screen, tenantId, collection, recordId) {
+      let spec = screen.get('memberVisibility', null);
+      let recordPath = /databases/(default)/documents/tenants/$(tenantId)/$(collection)/$(recordId);
+      return spec == null
+        || memberCan(tenantId, fileBypassPermission(collection, spec))
+        || (firestore.exists(recordPath) && fileRecordNamesMember(spec, firestore.get(recordPath).data));
+    }
+    // Apagar o arquivo pede VER o registro e a janela de edição ABERTA — numa pergunta só pela tela e
+    // numa só pelo registro (ver "O ORÇAMENTO"). A cascata apaga o registro antes dos anexos: o arquivo
+    // de um registro que não existe mais sai, sob qualquer declaração.
+    function memberDeletesRecordFiles(tenantId, collection, recordId) {
+      let screenPath = /databases/(default)/documents/tenants/$(tenantId)/screenDefinitions/$(collection);
+      return !firestore.exists(screenPath)
+        || memberDeletesFilesUnder(firestore.get(screenPath).data, tenantId, collection, recordId);
+    }
+    function memberDeletesFilesUnder(screen, tenantId, collection, recordId) {
+      let spec = screen.get('memberVisibility', null);
+      let windowSpec = screen.get('editWindow', null);
+      let recordPath = /databases/(default)/documents/tenants/$(tenantId)/$(collection)/$(recordId);
+      return (spec == null && windowSpec == null)
+        || !firestore.exists(recordPath)
+        || ((spec == null
+              || memberCan(tenantId, fileBypassPermission(collection, spec))
+              || fileRecordNamesMember(spec, firestore.get(recordPath).data))
+            && (windowSpec == null
+              || editWindowOpenSince(windowSpec, firestore.get(recordPath).data.get('createdAt', null))));
+    }
+    function fileBypassPermission(collection, spec) {
+      return spec is map && spec.get('bypassPermission', null) is string
+        ? spec.get('bypassPermission', null)
+        : collection + '.read-all';
     }
     function fileVisibilityFields(spec) {
       return spec is map && spec.get('userFields', []) is list ? spec.get('userFields', []) : [];
@@ -154,12 +224,6 @@ service firebase.storage {
         || fileNamesMember(data, fields, 1)
         || fileNamesMember(data, fields, 2)
         || fileNamesMember(data, fields, 3);
-    }
-    function canOnCollectionVisibility(tenantId, collection, spec) {
-      return isSystemOrSupportUser()
-        || canInTenant(tenantId, spec is map && spec.get('bypassPermission', null) is string
-          ? spec.get('bypassPermission', null)
-          : collection + '.read-all');
     }
 
     // A janela de edição da tela (`editWindow`) vale para os ARQUIVOS do registro como vale para os
@@ -185,10 +249,12 @@ service firebase.storage {
     // ─── Logo do escritório ──────────────────────────────────────────────────
     // Path: tenants/{tenantId}/branding/logo/{fileName}
     //
-    // Envia quem ALTERA o escritório — o dono, ou o membro com `tenant.update` materializado em
-    // `permissions` (ou o curinga `*`) —, só imagem e até 2 MB. Cada envio é um arquivo NOVO: trocar ou
+    // Envia quem ALTERA o escritório — o membro com `tenant.update` materializado em `permissions` (ou o
+    // curinga `*`, que é o do dono), ou o SYSTEM, como no `can()` do Firestore —, só imagem e até 2 MB.
+    // Cada envio é um arquivo NOVO: trocar ou
     // apagar o anterior quebraria o logo dos e-mails já enviados, que apontam para ele. O e-mail e o
     // portal abrem pela URL de download, que carrega o próprio token; a leitura aqui é a dos membros.
+    // Documentos lidos: membro (1); SYSTEM, membro + users (2).
     function canChangeTenant(tenantId) {
       return canInTenant(tenantId, 'tenant.update');
     }

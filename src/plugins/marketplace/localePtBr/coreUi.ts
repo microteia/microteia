@@ -48,6 +48,7 @@ export const CORE_UI: Record<string, string> = {
   'documents.upload-failed': 'Não foi possível enviar o documento.',
   'documents.upload-failed.many': 'Não foi possível enviar nenhum dos {count} documentos.',
   'documents.upload-failed.partial': '{failed} de {total} documentos não puderam ser enviados. Eles continuam na lista.',
+  'documents.upload-denied': 'Você não tem permissão para anexar documentos aqui. Fale com quem gerencia os acessos do escritório.',
   'documents.delete-failed': 'Não foi possível excluir o documento.',
   'file.choose': 'Escolher arquivo',
   'file.replace': 'Substituir arquivo',

@@ -55,6 +55,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'documents.upload-failed': 'Could not upload the document.',
   'documents.upload-failed.many': 'Could not upload any of the {count} documents.',
   'documents.upload-failed.partial': '{failed} of {total} documents could not be uploaded. They are still in the list.',
+  'documents.upload-denied': 'You are not allowed to attach documents here. Ask whoever manages access in your organization.',
   'documents.delete-failed': 'Could not delete the document.',
   'file.choose': 'Choose file',
   'file.replace': 'Replace file',

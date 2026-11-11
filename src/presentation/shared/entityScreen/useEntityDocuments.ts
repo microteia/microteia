@@ -10,7 +10,8 @@ import type {
   PendingDocumentUpload,
 } from './types';
 
-import { useT } from '../i18n/useT';
+import { useLabel, useT } from '../i18n/useT';
+import { LocalizedError } from '../../../domain/errors/LocalizedError';
 
 interface UseEntityDocumentsParams {
   enabled: boolean;
@@ -28,6 +29,7 @@ export const useEntityDocuments = ({
 }: UseEntityDocumentsParams): EntityDocumentsController => {
   const { notify } = useNotification();
   const t = useT('core.ui');
+  const label = useLabel();
   const { getOptions, addOption, removeOption } = useLookups();
   const typeConfigs = getOptions('documentTypes');
 
@@ -90,6 +92,7 @@ export const useEntityDocuments = ({
     setIsUploadingDoc(true);
     const uploaded: EntityDocument[] = [];
     const failed: PendingDocumentUpload[] = [];
+    let explained: LocalizedError | null = null;
     for (const pending of pendingUploads) {
       setPendingUploads((prev) => prev.map((item) => (
         item.id === pending.id ? { ...item, status: 'uploading' } : item
@@ -102,7 +105,9 @@ export const useEntityDocuments = ({
           url,
           storagePath,
         }));
-      } catch {
+      } catch (err) {
+        console.error('[useEntityDocuments upload]', err);
+        if (err instanceof LocalizedError) explained ??= err;
         failed.push({ ...pending, status: 'failed' });
       }
     }
@@ -114,6 +119,8 @@ export const useEntityDocuments = ({
         uploaded.length === 1 ? t('documents.uploaded') : t('documents.uploaded.many', { count: uploaded.length }),
         'success',
       );
+    } else if (explained) {
+      notify(label(explained.message, explained.messageParams), 'error');
     } else if (uploaded.length === 0) {
       notify(
         failed.length === 1 ? t('documents.upload-failed') : t('documents.upload-failed.many', { count: failed.length }),
@@ -122,7 +129,7 @@ export const useEntityDocuments = ({
     } else {
       notify(t('documents.upload-failed.partial', { failed: failed.length, total: uploaded.length + failed.length }), 'error');
     }
-  }, [pendingUploads, recordId, port, notify, t]);
+  }, [pendingUploads, recordId, port, notify, t, label]);
 
   const requestDeleteDoc = useCallback((doc: EntityDocument) => setDocToDelete(doc), []);
   const cancelDeleteDoc = useCallback(() => setDocToDelete(null), []);

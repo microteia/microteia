@@ -916,6 +916,7 @@ regra que tem uma decisão a defender:
 | `portalReprojections.test.ts` | o job da reprojeção: lê só quem tem `portal.manage`; ninguém grava do cliente |
 | `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid — ou, a pública, por `public == true`, a mesma para dois convidados de sujeitos diferentes e para ninguém de fora; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
 | `memberMfa.test.ts` | o segundo fator: sem `mfa` no membro, nada muda; exigido, a sessão sem `mfaAt` não lê nem grava (mas lê o próprio escritório e o próprio documento de membro); a prova vencida lê e não grava; o curinga do dono não pula o fator; o `SYSTEM` não é alcançado — nem como DONO, no sino, no voto e no logo, e a conta rebaixada volta a ser cobrada sem rematerializar (EV-36); ninguém apaga `mfa` do membro; política e fator fechados ao cliente; o Storage segue a mesma conta |
+| `storage.test.ts` | o arquivo de registro segue a permissão da coleção; o dono envia, lê e apaga pelo `*` do documento de membro e NÃO pelo `ownerId` (sem o curinga, recusa); o `SYSTEM` que não é membro envia e lê; ninguém grava por cima; logo e área de espera do portal. O teto de duas leituras não é cobrado pelo emulador — ver "O teto de DUAS leituras" |
 | `memberVisibility.test.ts` | a visibilidade por registro: só o registro que nomeia o membro, pelo campo simples ou pelo `multi` (e o mapa forjado não passa); a consulta sem filtro recusada e a do repositório aceita, inclusive com o filtro do pai; supervisão derivada, nomeada, dono e `SYSTEM`; declaração malformada fecha; alterar e excluir pedem ver, criar não; anotações, documentos e arquivos seguem o registro; quem só desenha telas não muda nem exclui a declaração |
 
 Ela fica **fora do `npm test`**, com configuração própria (`vitest.rules.config.ts`), porque exige um
@@ -1046,7 +1047,7 @@ perguntar se era `SYSTEM`, e o logo do escritório não subia.
 | Onde | Como dispensa |
 |---|---|
 | `firestore.rules` | `isTenantMember` = pertence **e** (`sessionSatisfiesMfa` **ou** `isSystemAdmin()`) — o segundo termo só é lido quando o primeiro falha |
-| `storage.rules` | `memberSessionOk` termina em `isSystemOrSupportUser()`, pelo mesmo motivo |
+| `storage.rules` | `canInTenant` = `memberCan` **ou** `isSystemOrSupportUser()` — o segundo termo só é lido quando o membro não respondeu (era `memberSessionOk`, que saiu: ver "O teto de DUAS leituras") |
 | Callables | `assertMemberSession` — já era assim |
 | Tela | `TenantStore` não consulta a exigência; `secondFactor.status` e `manageMemberMfa.overview` dizem `required: false` à conta global (`IUserRepository.getSystemAccounts`, uma leitura só) |
 
@@ -15308,7 +15309,7 @@ linha a linha — inclusive no que ela faz com a declaração malformada: FECHA 
 
 | Ponta | Onde | O que faz |
 |---|---|---|
-| Regras | `firestore.rules` (`seesRecord`) e `storage.rules` (`recordFilesVisible`) | recusam ler, alterar e excluir o registro que não nomeia quem pede, e as anotações, os documentos e os arquivos dele. É a garantia, e a única que alcança quem lê direto do banco |
+| Regras | `firestore.rules` (`seesRecord`) e `storage.rules` (`memberSeesRecordFiles`, `memberDeletesRecordFiles`) | recusam ler, alterar e excluir o registro que não nomeia quem pede, e as anotações, os documentos e os arquivos dele. É a garantia, e a única que alcança quem lê direto do banco |
 | Front | `RecordStore` + `FirebaseRecordRepository.subscribe` | a assinatura da coleção leva o filtro que a regra prova — a regra não é filtro, e sem ele a consulta inteira seria recusada |
 | Servidor | `WorkflowContext.reader` → `runRecordQuery`, `runWorkflowUpsert/Remove`, documento | as portas que entregam registro a uma PESSOA filtram, porque o Admin SDK passa por cima das regras |
 
@@ -15459,7 +15460,7 @@ ela — só o dono e o `SYSTEM`, que já supervisionam, os alcançam depois que 
 | Arquivo | Papel |
 |---|---|
 | `domain/schema/memberVisibility.ts` | declaração, leitura como a regra lê, quem lê o quê, termos do filtro, validação (compartilhado) |
-| `firestore.rules` (`seesRecord`, `seesParentRecord*`) e `storage.rules` (`recordFilesVisible*`) | a garantia |
+| `firestore.rules` (`seesRecord`, `seesParentRecord*`) e `storage.rules` (`memberSeesRecordFiles`, `memberDeletesRecordFiles`) | a garantia |
 | `rules-tests/memberVisibility.test.ts` | registro, consulta (`or()` e com o pai), escrita, anotações, documentos, arquivos e quem muda a declaração — contra o emulador |
 | `stores/RecordStore.tsx`, `data/repositories/FirebaseRecordRepository.ts` | o filtro da assinatura, a ordem em memória, `readBack` e `hasRecords` |
 | `functions/src/infrastructure/workflow/query/readerScope.ts` | a varredura de quem é restrito e o fetcher filtrado |
@@ -15895,12 +15896,64 @@ deixa as regras em versões diferentes daquilo que o código espera.
 
 Não documente as regras neste arquivo — a fonte de verdade é `storage.rules`. O princípio, só: pelo
 SDK, o arquivo de um registro segue a PERMISSÃO da coleção (`<coleção>.read` lê; `.create`/`.update`
-envia; `.update`/`.delete` apaga), pela mesma pergunta do `can()` do Firestore (dono, ou `permissions`
-materializado com a pedida ou `*`). Nenhum `create` grava por cima de objeto existente (`resource == null`:
+envia; `.update`/`.delete` apaga), respondida pelo documento de membro (`permissions` materializado com
+a pedida ou `*`, que é o do dono) e, só quando ele não responde, pelo `SYSTEM`/`SUPPORT`. Nenhum `create` grava por cima de objeto existente (`resource == null`:
 para o Storage, sobrescrever é `create`), e o arquivo de um registro de tela com `editWindow` não é apagado
 depois da janela do registro, salvo quando o registro já não existe. O link de download com `token=` não passa por regra nenhuma — é ele
 que o portal, os e-mails e quem recebe um link usam, e por isso apertar a regra não os quebra. Os testes
 (`rules-tests/storage.test.ts`) rodam no emulador do Storage, junto com o do Firestore (`npm run test:rules`).
+
+### O teto de DUAS leituras — e o emulador não o cobra
+
+O Storage recusa a avaliação de regra que lê mais de **dois documentos distintos** do Firestore
+(`firestore.get`/`firestore.exists`). O emulador **não** cobra esse limite: a suíte passa e a produção
+recusa, e o cliente recebe só `storage/unauthorized`. Como a recusa acontece antes de qualquer gravação
+no Firestore, nada aparece na Auditoria.
+
+**O incidente.** As regras publicadas em 07/11/2026 (segundo fator do EV-07 + visibilidade por registro)
+fizeram a pergunta do DONO ler `users` + `tenants/{id}` + `members/{uid}`: três documentos. Dali em diante,
+só o `SYSTEM` (que parava em `users`) anexava documento, em qualquer escritório. Até então o dono parava em
+dois (`users` + `ownerId`). O membro comum já precisava de três desde 22/10.
+
+**Medido no `microteia-dev`**, com bloco de sonda temporário, porque nada disto está na documentação:
+
+| Situação | Conta |
+|---|---|
+| o mesmo documento EXISTENTE lido várias vezes (`exists` + `get` + `get`) | 1 |
+| o mesmo documento INEXISTENTE perguntado duas vezes | 2 — não há cache para o que não existe |
+| 1 existente + 1 inexistente | 2 — passa |
+| 3 distintos, existentes ou não | recusa |
+| a consulta excedente | vira ERRO: num `\|\|`, cede ao outro lado verdadeiro; num `&&`, recusa |
+
+Daí as três regras de autoria do arquivo:
+
+1. **O documento de membro primeiro.** Ele responde sozinho por permissão e segundo fator — o dono
+   inclusive, pelo `*` que `materializeMemberPermissions` carimba nele. `tenants/{id}.ownerId` não é lido:
+   era o terceiro documento. O preço é que o dono de um escritório recém-criado só envia arquivo depois
+   da materialização (segundos), e um `ownerId` trocado à mão só vale no Storage quando o membro for
+   rematerializado.
+2. **`users/{uid}` por último**, só quando o membro não respondeu; e quem chega a ele não lê mais nada,
+   porque o `SYSTEM` vê todo registro.
+3. **Todo documento que pode faltar é perguntado UMA vez por caminho** — o membro (para o `SYSTEM`), a
+   tela, o registro. A função que o lê passa o `data` adiante (`memberSeesFilesUnder(screen, …)`), e
+   duas permissões vão numa pergunta só (`memberCanEither`).
+
+O que ainda não cabe, e por isso é recusado (o comentário de cada `match` tem a conta completa):
+
+| Caminho | Documentos | Efeito |
+|---|---|---|
+| ler o arquivo de tela com `memberVisibility` sendo só NOMEADO no registro | membro + tela + registro | `getDownloadURL` recusado; o arquivo abre pelo link guardado no documento |
+| apagar o arquivo sob `editWindow` (ou `memberVisibility` sem supervisionar) | membro + tela + registro | o documento sai e o arquivo fica (o cliente ignora a recusa) |
+| apagar o arquivo sendo `SYSTEM` que não é membro | membro + users + tela | idem |
+
+Fechar essas três pede tirar a exclusão do cliente (um gatilho na exclusão do documento, que já passa
+pelas regras do Firestore) ou uma claim de papel no token. Até lá, **toda alteração no `storage.rules`
+refaz a conta de cada caminho** e é provada no `microteia-dev` com uma sessão que não seja `SYSTEM` —
+`npm run test:rules` sozinho não prova o teto.
+
+O erro do envio, que antes era engolido, agora vai para o console (`[useEntityDocuments upload]`), e a
+recusa das regras chega à tela como `@core.ui/documents.upload-denied`
+(`FirebaseRecordDocumentRepository` traduz `storage/unauthorized` num `LocalizedError`).
 
 ---
 

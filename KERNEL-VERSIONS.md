@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.223.1] — 2026-11-11
+
+- fix(storage.rules): record attachments failed with `storage/unauthorized` for every account except `SYSTEM`, owners included. Cloud Storage rules may read at most two distinct Firestore documents per evaluation, and the owner check had grown to three (`users`, `tenants/{id}`, `members/{uid}`). The emulator does not enforce the cap, so the rules suite passed. Rules now answer from the member document first (its `permissions` carry the owner's `*`), read `users/{uid}` only when the member does not answer, and ask once for each document that may be missing, because repeated lookups of a missing document are not cached. `tenants/{id}.ownerId` is no longer read by the Storage rules.
+- fix(storage.rules): the same cap had been refusing every client-side file delete, so deleting a document left its file behind in the bucket. The client ignores that refusal. Members and owners now delete files on screens without `editWindow` or `memberVisibility`, and supervisors also delete them under `memberVisibility`.
+- fix(documents): the upload error is logged instead of swallowed, and a rules denial reaches the screen as `@core.ui/documents.upload-denied`.
+- Still refused by the budget, unchanged from before: reading a file under `memberVisibility` when the member is only named in the record, deleting a file under `editWindow`, and deleting a file as a `SYSTEM` account that is not a member. Download links with `token=` are unaffected.
+
 #### [9.223.0] — 2026-11-10
 
 - docs(readme): `microteia plugin-init` takes `--publisher` and `--prefix`, and asks for both with a
