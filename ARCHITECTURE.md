@@ -9478,8 +9478,8 @@ próprios componentes do Microteia — zero `dangerouslySetInnerHTML`, zero `eva
 
 **`WidgetSpec`** (`domain/schema/ui/widgetSpec.ts`, lista em `WIDGET_NODE_TYPES`) é uma união
 discriminada por `type`: `stack`, `grid`, `heading`, `text`, `markdown`, `metric`, `keyValue`, `banner`,
-`divider` — estáticos — e `report`, o nó LIGADO A DADOS, que desenha um relatório declarado. Adicionar um
-nó é aditivo.
+`divider` — estáticos —, `report`, o nó LIGADO A DADOS, que desenha um relatório declarado, e `filters`, a
+barra de filtros de um painel; o `metric` também se liga a um relatório. Adicionar um nó é aditivo.
 
 **`WidgetRenderer`** (`components/ui/WidgetRenderer/`) percorre a árvore recursivamente. **Nó
 desconhecido é ignorado, não derruba a tela** — um plugin escrito para uma versão mais nova do DSL
@@ -9496,8 +9496,31 @@ aparece como qualquer outra — o caminho está pronto.
 depender da carga por tenant. O segundo consumidor é `manifest.license` — ver "O termo de licença é
 da extensão, e soma ao da Microteia".
 
-**Falta para o Widget DSL completo:** `when` por expressão. A ligação a dados existe pelo nó `report`
-(o relatório declarado é a consulta); uma fonte genérica (`source: query:/script:/field:`) não.
+**Painel de verdade — KPI e filtro compartilhado (kernel `WIDGET_DATA_SINCE_KERNEL`, 2.112.0).** A
+ligação a dados continua sendo SÓ o relatório declarado, mas por três portas:
+
+- **`metric` com `report`** (+ `measure?`) mostra o TOTAL daquela medida (`ReportMetric`), pelo mesmo
+  `runReport` — mesma permissão, filtros e visibilidade por registro. `compare: 'previous-period'` roda o
+  relatório de novo com o filtro de período trocado por `previousReportPeriod` (este mês → mês passado);
+  período sem anterior nomeado ("últimos 30 dias") não compara, em vez de inventar uma janela. A cor da
+  variação segue a direção, e o sinal vai no texto: só quem lê sabe se a medida é custo ou receita.
+- **`report`** ganhou `view` (`full` | `chart` | `table` — a compacta sem cabeçalho nem barra de
+  filtros), `prompts` (respostas fixas) e `bind`.
+- **`filters`** é a barra do painel: guarda as respostas (`WidgetFilters`) e as entrega por contexto
+  (`widgetFilterContext.ts`). Um nó só usa a resposta que LIGA (`bind: { <filtro do relatório>: <filtro da
+  barra> }`) — a barra não adivinha que `period` num relatório e `issuedOn` noutro são a mesma pergunta.
+  Precedência (`resolveWidgetAnswers`): a barra, o fixo, o padrão do relatório; "qualquer período" na barra
+  é resposta (`null`, sem restrição) e o padrão não volta por cima.
+- O filtro já respondido de fora some da barra do próprio relatório; as respostas viajam por TEXTO
+  (`JSON.stringify`) até o efeito, para o relatório não rodar de novo a cada render.
+- **Pacote:** `packageWidgetDataIssues` (`pluginWidgetData.ts`) recusa a página de widget que usa qualquer
+  dessas capacidades (`widgetDataFeatures`) num pacote que admite kernel anterior — ali o nó desconhecido é
+  ignorado, e a barra `filters` levaria junto o painel inteiro que está dentro dela. O cartão do portal
+  (`portal.view`) tem vocabulário próprio e fica de fora.
+
+**Falta para o Widget DSL completo:** `when` por expressão e uma fonte genérica (`source:
+query:/script:/field:`); a comparação fora dos períodos correntes; e o `useReport` da API curada ainda não
+recebe respostas de uma barra.
 
 O irmão ligado a dados é o **cartão declarado** da listagem — ver "O cartão da listagem é declarado —
 `cardTemplate`": mesmo molde (árvore, nó desconhecido ignorado, só tokens), com `field` e `hiddenWhen`

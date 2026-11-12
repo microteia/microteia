@@ -6,7 +6,7 @@ import { EXTENSION_IMAGE_MAX_BYTES } from '../../../domain/usecases/plugins/plug
 import type { ExtensionPointDefinition } from '../../../domain/schema/plugin/extensionPoint';
 import { CUSTOM_FIELD_TYPES } from '../../../domain/schema/fieldRules';
 import type { CustomFieldType } from '../../../domain/schema/fieldRules';
-import { WIDGET_NODE_TYPES } from '../../../domain/schema/ui/widgetSpec';
+import { WIDGET_DATA_SINCE_KERNEL, WIDGET_NODE_TYPES } from '../../../domain/schema/ui/widgetSpec';
 import {
   REPORT_CHART_KINDS,
   REPORT_GRANULARITIES,
@@ -293,11 +293,18 @@ const WIDGET_NODES: Record<WidgetNodeType, string> = {
   heading: 'A section title. `text`.',
   text: 'A paragraph. `text`, `muted?: boolean`.',
   markdown: 'A block of Markdown. `content`.',
-  metric: 'A big number with a caption. `label`, `value`.',
+  metric: 'A big number with a caption. `label`, and either `value` (fixed text) or `report` + `measure?` '
+    + '(that report\'s total for the measure; the first one when absent), with `prompts?`, `bind?` and '
+    + '`compare?: \'previous-period\'` (the change against the previous period, when the report\'s period '
+    + 'filter is on a current period: this month against last month).',
   report: 'A report from the organization\'s catalogue, by name. `report` is its key. '
     + 'It names the report instead of embedding the query on purpose: an inline query would put '
     + 'aggregation, permission and scan limits inside a layout DSL, and give you a second place to '
-    + 'declare what a number means.',
+    + 'declare what a number means. `view?: \'full\' \\| \'chart\' \\| \'table\'` shows only one part, without '
+    + 'header or filter bar; `prompts?` answers its filters, `bind?` ties them to a `filters` bar.',
+  filters: 'A dashboard filter bar. `filters: { key, label?, control?: \'period\' \\| \'text\', default? }[]`, '
+    + '`children`. A report or metric inside it uses an answer only where its `bind` says so — '
+    + '`bind: { <report prompt>: <filter key> }`.',
   keyValue: 'A list of label/value rows. `items: { label, value }[]`.',
   banner: 'A notice. `message`, `variant?: \'info\' \\| \'warning\'`.',
   divider: 'A rule between blocks. No properties.',
@@ -1559,9 +1566,10 @@ widgetPage({ key: 'hello', title: label('page.hello'), icon: 'star' }, {
 
 Every string in a spec is a message reference, exactly as everywhere else — every string but the
 one named below, which is an identifier and not text anybody reads. The DSL has no
-expressions, and it reaches data in exactly ONE way: the \`report\` node, which names a report from
-the organization's catalogue (§11). That is what a dashboard is here — a \`grid\` of \`report\`
-nodes, each one a table or a chart, with no code in it and nothing for anybody to review:
+expressions, and it reaches data in exactly ONE way: through a report from the organization's
+catalogue (§11), named by the \`report\` node (a table or a chart) or by a \`metric\` (one of its totals).
+That is what a dashboard is here — a \`grid\` of those nodes, with no code in it and nothing for anybody
+to review:
 
 \`\`\`ts
 widgetPage({ key: 'sales', title: label('page.sales'), icon: 'fileChart' }, {
@@ -1574,6 +1582,33 @@ widgetPage({ key: 'sales', title: label('page.sales'), icon: 'fileChart' }, {
   ],
 })
 \`\`\`
+
+A dashboard with numbers and one filter bar for all of them — each node says which of ITS report's filters
+the bar answers (\`bind\`), because only the author knows that \`period\` in one report and \`issuedOn\` in
+another are the same question:
+
+\`\`\`ts
+widgetPage({ key: 'sales-board', title: label('page.board'), icon: 'fileChart' }, {
+  type: 'filters',
+  filters: [{ key: 'when', label: label('filter.when'), control: 'period', default: 'this-month' }],
+  children: [{
+    type: 'grid',
+    columns: 3,
+    children: [
+      { type: 'metric', label: label('kpi.revenue'), report: 'acme-revenue', measure: 'total',
+        bind: { period: 'when' }, compare: 'previous-period' },
+      { type: 'metric', label: label('kpi.invoices'), report: 'acme-revenue', measure: 'count',
+        bind: { period: 'when' } },
+      { type: 'report', report: 'acme-invoices-by-city', view: 'chart', bind: { issuedOn: 'when' } },
+    ],
+  }],
+})
+\`\`\`
+
+Precedence for each filter: the bar's answer, then the node's \`prompts\`, then the report's own default. Choosing
+"any period" in the bar is an answer — "no restriction" — and the default does not come back over it. A compact
+\`view\` has no filter bar of its own, so every filter of that report must be answered by \`prompts\`, \`bind\` or a
+default. Data-bound dashboards need kernel ${WIDGET_DATA_SINCE_KERNEL} or later.
 
 The node names the report by its \`key\`, and that key is **not** rewritten on installation the way a
 collection name is — so prefix it with your extension, or you inherit whichever report of that name

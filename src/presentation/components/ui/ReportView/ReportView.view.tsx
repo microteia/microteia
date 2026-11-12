@@ -12,12 +12,15 @@ import { ReportTable } from '../ReportTable';
 import { SearchSelect } from '../SearchSelect';
 import { ReportDrill } from '../ReportDrill';
 import { ReportSubscribe } from '../ReportSubscribe';
+import type { WidgetReportAnswers, WidgetReportView } from '../../../../domain/schema/ui/widgetSpec';
 
-export interface ReportViewProps {
+export interface ReportViewProps extends WidgetReportAnswers {
   /** A CHAVE do relatório no catálogo do escritório. */
   reportKey: string;
   /** A aba que o hospeda, quando há uma — é ela que passa a se chamar como o relatório. */
   tabKey?: string;
+  /** `chart`/`table`: só aquela parte, sem cabeçalho nem filtros — o relatório como peça de um painel. */
+  view?: WidgetReportView;
 }
 
 /**
@@ -27,35 +30,37 @@ export interface ReportViewProps {
  * este kernel não conhece já foi degradada para `tabular` na validação, com aviso — então aqui não
  * existe caso "desconhecido" a tratar.
  */
-export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey }) => {
-  const vm = useReportViewViewModel(reportKey, tabKey);
+export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey, view = 'full', prompts, bind }) => {
+  const vm = useReportViewViewModel(reportKey, tabKey, { prompts, bind }, view);
 
   if (!vm.report || !vm.spec) return <InfoBanner message={reportKey} variant="warning" />;
 
   return (
     <S.Wrapper data-print-root>
-      <S.Header>
-        <div>
-          <S.Title>{vm.title}</S.Title>
-          {vm.description && <S.Description>{vm.description}</S.Description>}
-        </div>
-        <S.Actions data-print-hide>
-          {vm.meta && <S.Meta>{vm.meta}</S.Meta>}
-          <Button variant="secondary" size="sm" onClick={vm.exportCsv} disabled={!vm.canExport}>
-            {vm.exportLabel}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={vm.print} disabled={!vm.canExport}>
-            {vm.printLabel}
-          </Button>
-          {vm.canSubscribe && (
-            <Button variant="secondary" size="sm" onClick={vm.openSubscribe}>
-              {vm.subscribeLabel}
+      {vm.showChrome && (
+        <S.Header>
+          <div>
+            <S.Title>{vm.title}</S.Title>
+            {vm.description && <S.Description>{vm.description}</S.Description>}
+          </div>
+          <S.Actions data-print-hide>
+            {vm.meta && <S.Meta>{vm.meta}</S.Meta>}
+            <Button variant="secondary" size="sm" onClick={vm.exportCsv} disabled={!vm.canExport}>
+              {vm.exportLabel}
             </Button>
-          )}
-        </S.Actions>
-      </S.Header>
+            <Button variant="secondary" size="sm" onClick={vm.print} disabled={!vm.canExport}>
+              {vm.printLabel}
+            </Button>
+            {vm.canSubscribe && (
+              <Button variant="secondary" size="sm" onClick={vm.openSubscribe}>
+                {vm.subscribeLabel}
+              </Button>
+            )}
+          </S.Actions>
+        </S.Header>
+      )}
 
-      {vm.prompts.length > 0 && (
+      {vm.showChrome && vm.prompts.length > 0 && (
         <S.Prompts
           data-print-hide
           onSubmit={(event) => { event.preventDefault(); void vm.run(); }}
@@ -107,9 +112,9 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey }) => 
 
       {vm.isLoading && !vm.result && <S.Loading />}
 
-      {vm.result && <ReportChart spec={vm.spec} result={vm.result} />}
+      {vm.result && vm.showChart && <ReportChart spec={vm.spec} result={vm.result} />}
 
-      {vm.result && (vm.spec.shape.kind === 'matrix'
+      {vm.result && vm.showTable && (vm.spec.shape.kind === 'matrix'
         ? <ReportMatrix spec={vm.spec} result={vm.result} onDrill={vm.drill} />
         : <ReportTable spec={vm.spec} result={vm.result} onDrill={vm.drill} />)}
 

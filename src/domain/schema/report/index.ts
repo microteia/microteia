@@ -57,6 +57,7 @@ export {
   REPORT_PERIODS,
   REPORT_PROMPT_PERIOD_CONTROL,
   isReportPeriod,
+  previousReportPeriod,
   reportPeriodRange,
 } from './reportPeriod';
 export type { ReportDayRange, ReportPeriod } from './reportPeriod';

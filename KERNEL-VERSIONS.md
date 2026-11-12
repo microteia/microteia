@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.229.0] — 2026-11-12
+
+- feat(widget): `metric` can bind to a report (`report`, `measure?`, `prompts?`, `bind?`, `compare?: 'previous-period'`), rendered by the new `ReportMetric`: the report's total for the measure through `runReport`, and — for a current period answer — the change against `previousReportPeriod` (this-month → last-month, …).
+- feat(widget): `report` node gains `view` (`full` | `chart` | `table`; the compact views drop header and prompt bar), `prompts` (fixed answers) and `bind`. `ReportView` accepts the same props; prompts answered from outside leave its own bar.
+- feat(widget): new `filters` node — a dashboard filter bar (`WidgetFilters`, `widgetFilterContext`) whose answers reach a report or metric only through its `bind`. Precedence (`resolveWidgetAnswers`): bar, then fixed `prompts`, then the report default; an empty bar answer is sent as `null` (no restriction).
+- feat(package): `packageWidgetDataIssues` refuses a widget contribution using any data binding (`widgetDataFeatures`) in a package that admits a kernel older than `WIDGET_DATA_SINCE_KERNEL` — an older kernel drops the unknown node, and a `filters` bar would take the whole dashboard with it. `KERNEL_VERSION` 2.112.0. pt-BR locale package 1.180.0.
+
 #### [9.228.0] — 2026-11-12
 
 - feat(workflow): `run-report` step — runs a stored report by key (or document id) through `runReportQuery`, answering its prompts with `prompts` (object) and `param.<key>` (wins; empty means unanswered, so the report default applies). Publishes `total`, `totals`, `count`, `groups`, `rows` (deepest level, raw keys, capped at `RUN_REPORT_MAX_ROWS`), `rowsTruncated`, `complete`, `scanned`, `name` and `link` (`rep:<key>`). A report that cannot run fails the step. New `IReportDefinitionReader` / `FirestoreReportDefinitionReader`, injected as `RegisterStepsDeps.reportReader`.

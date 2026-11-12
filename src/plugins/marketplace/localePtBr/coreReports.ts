@@ -216,6 +216,7 @@ export const CORE_REPORTS: Record<string, string> = {
   'period.today': 'Hoje',
   'period.year-to-date': 'Do início do ano até hoje',
   'period.yesterday': 'Ontem',
+  'metric.compare.previous': '{delta}% em relação ao período anterior',
   'subscribe.action': 'Assinar',
   'subscribe.title': 'Assinar "{title}"',
   'subscribe.name': 'Nome da automação',

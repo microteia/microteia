@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.229.0] — 2026-11-12
+
+- Os painéis ganharam **indicadores ligados aos relatórios**: um número grande que mostra o total de uma medida e, quando o relatório é do mês, da semana ou do ano corrente, quanto ele variou em relação ao período anterior.
+- Os painéis podem ter uma **barra de filtros** que vale para vários relatórios e indicadores de uma vez — troque o período ali e o painel inteiro acompanha.
+- Um relatório dentro de um painel pode aparecer só como **gráfico** ou só como **tabela**, sem o cabeçalho e os botões.
+
 #### [9.228.0] — 2026-11-12
 
 - Novo passo de automação **Executar relatório**: a automação roda um relatório do escritório, com os filtros que você escolher, e usa o resultado nos próximos passos — enviar o total, comparar com um limite, decidir o caminho.

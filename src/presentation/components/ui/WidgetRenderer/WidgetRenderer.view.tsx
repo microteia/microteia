@@ -1,6 +1,8 @@
 import React from 'react';
 import { InfoBanner } from '../InfoBanner';
 import { ReportView } from '../ReportView';
+import { ReportMetric } from '../ReportMetric';
+import { WidgetFilters } from '../WidgetFilters';
 import { MarkdownContent } from '../MarkdownContent';
 import type { WidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
 import { isWidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
@@ -53,9 +55,21 @@ const WidgetNode: React.FC<{ node: WidgetSpec }> = ({ node }) => {
         </S.Markdown>
       );
     case 'metric':
+      if (typeof node.report === 'string' && node.report !== '') {
+        return (
+          <ReportMetric
+            reportKey={node.report}
+            label={node.label}
+            measure={node.measure}
+            compare={node.compare}
+            prompts={node.prompts}
+            bind={node.bind}
+          />
+        );
+      }
       return (
         <S.Metric>
-          <S.MetricValue>{label(node.value)}</S.MetricValue>
+          <S.MetricValue>{label(node.value ?? '')}</S.MetricValue>
           <S.MetricLabel>{label(node.label)}</S.MetricLabel>
         </S.Metric>
       );
@@ -75,7 +89,13 @@ const WidgetNode: React.FC<{ node: WidgetSpec }> = ({ node }) => {
     case 'divider':
       return <S.Divider />;
     case 'report':
-      return <ReportView reportKey={node.report} />;
+      return <ReportView reportKey={node.report} view={node.view} prompts={node.prompts} bind={node.bind} />;
+    case 'filters':
+      return (
+        <WidgetFilters filters={node.filters}>
+          <Children nodes={node.children} />
+        </WidgetFilters>
+      );
   }
 };
 

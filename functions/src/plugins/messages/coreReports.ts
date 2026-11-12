@@ -230,6 +230,7 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'period.today': 'Today',
   'period.year-to-date': 'Year to date',
   'period.yesterday': 'Yesterday',
+  'metric.compare.previous': '{delta}% vs. the previous period',
   'subscribe.action': 'Subscribe',
   'subscribe.title': 'Subscribe to "{title}"',
   'subscribe.name': 'Automation name',

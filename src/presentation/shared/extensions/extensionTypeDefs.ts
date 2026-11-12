@@ -1931,8 +1931,20 @@ const REPORT_MODULE_DEFS = `declare module '@microteia/report' {
   /** Runs a report from the organization's catalogue, by its key. */
   export function useReport(reportKey: string, prompts?: Record<string, unknown>): UseReportResult;
 
-  /** The whole declared report: header, warnings, chart and fold. Wrap it in your own chrome. */
-  export function ReportView(props: { reportKey: string }): JSX.Element;
+  /**
+   * The whole declared report: header, warnings, chart and fold. Wrap it in your own chrome.
+   *
+   * \`view\`: \`'chart'\` or \`'table'\` shows only that part, without header or filter bar — then every
+   * filter of the report must be answered by \`prompts\` or have a default. \`prompts\` answers filters by
+   * key; a filter answered here leaves the report's own bar. \`bind\` ties a filter to a Widget DSL
+   * \`filters\` bar around it — outside one it does nothing. Needs kernel 2.112.0 or later.
+   */
+  export function ReportView(props: {
+    reportKey: string;
+    view?: 'full' | 'chart' | 'table';
+    prompts?: Record<string, unknown>;
+    bind?: Record<string, string>;
+  }): JSX.Element;
 
   /** The grouped table: levels by indent, subtotals as marked rows, total in the footer. */
   export function ReportTable(props: { spec: unknown; result: ReportResult | null }): JSX.Element;

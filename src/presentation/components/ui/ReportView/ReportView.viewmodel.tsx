@@ -17,6 +17,9 @@ import { useReportGroupLabels } from '../../../shared/report/useReportGroupLabel
 import { useReportCsv } from '../../../shared/report/useReportCsv';
 import { useAuthorization } from '../../../../stores/useAuthorization';
 import { PERMISSION_AUTOMATION_MANAGE } from '../../../../domain/schema/access/kernelPermissions';
+import { resolveWidgetAnswers } from '../../../../domain/schema/ui/widgetSpec';
+import type { WidgetReportAnswers, WidgetReportView } from '../../../../domain/schema/ui/widgetSpec';
+import { useWidgetFilterValues } from '../../../shared/widgetFilterContext';
 
 /** Um filtro que o LEITOR preenche, já com o que a tela precisa para desenhá-lo. */
 export interface ReportPromptField {
@@ -78,6 +81,10 @@ export interface ReportViewViewModel {
   drillLoading: boolean;
   closeDrill: () => void;
   openDrillRecord: (recordId: string) => void;
+  /** Cabeçalho e barra de filtros: só na vista inteira — a compacta é peça de um painel. */
+  showChrome: boolean;
+  showChart: boolean;
+  showTable: boolean;
   /** Assinar cria uma AUTOMAÇÃO: só aparece para quem pode criá-la. */
   canSubscribe: boolean;
   subscribeLabel: string;
@@ -101,7 +108,12 @@ const EMPTY_SPEC: ReportSpec = {
   shape: { kind: 'tabular', columns: [] },
 };
 
-export const useReportViewViewModel = (reportKey: string, tabKey?: string): ReportViewViewModel => {
+export const useReportViewViewModel = (
+  reportKey: string,
+  tabKey?: string,
+  answers?: WidgetReportAnswers,
+  view: WidgetReportView = 'full',
+): ReportViewViewModel => {
   const { getReport, runReport } = useReportDefinitions();
   const { setTabTitle } = useWorkspace();
   const label = useLabel();
@@ -132,11 +144,22 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
   const { can } = useAuthorization();
   const [subscribeOpen, setSubscribeOpen] = useState(false);
 
+  /*
+   * As respostas que vêm de FORA — as fixas de um nó do painel e as da barra que ele liga. Por texto,
+   * pela mesma razão do `useMemo` abaixo: remontadas a cada render, elas mudariam a identidade de quem
+   * executa e o relatório rodaria de novo sem nada ter mudado.
+   */
+  const filterValues = useWidgetFilterValues();
+  const fixedKey = JSON.stringify(resolveWidgetAnswers(answers ?? {}, filterValues));
+  const fixed = useMemo(() => JSON.parse(fixedKey) as Record<string, unknown>, [fixedKey]);
+
   // Memoizado, e não derivado solto: um `?? []` cria um array novo a cada render, e o `useMemo`
-  // abaixo passaria a recalcular sempre — refazendo a lista a cada tecla digitada num filtro.
+  // abaixo passaria a recalcular sempre — refazendo a lista a cada tecla digitada num filtro. O filtro
+  // já respondido de fora não é perguntado de novo ao leitor.
   const declaredPrompts = useMemo<ReportPrompt[]>(
-    () => spec?.presentation?.prompts ?? [],
-    [spec],
+    () => (spec?.presentation?.prompts ?? [])
+      .filter((prompt) => !Object.prototype.hasOwnProperty.call(fixed, prompt.key)),
+    [spec, fixed],
   );
   const pathOptions = useReportPathOptions(spec?.dataset.table ?? '');
 
@@ -194,8 +217,8 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
         ? text
         : filterLiteralOf(fieldByPath(prompt.path), text);
     }
-    return filled;
-  }, [declaredPrompts, effectiveText, fieldByPath]);
+    return { ...filled, ...fixed };
+  }, [declaredPrompts, effectiveText, fieldByPath, fixed]);
 
   const runWith = useCallback(async (values: Record<string, string>) => {
     if (!report) return;
@@ -368,6 +391,9 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
     openDrillRecord: (recordId) => {
       if (spec) openRecord(spec.dataset.table, recordId);
     },
+    showChrome: view === 'full',
+    showChart: view !== 'table',
+    showTable: view !== 'chart',
     canSubscribe: report !== undefined && can(PERMISSION_AUTOMATION_MANAGE),
     subscribeLabel: t('subscribe.action'),
     subscribeOpen,

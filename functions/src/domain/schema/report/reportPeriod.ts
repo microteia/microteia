@@ -109,3 +109,19 @@ export const reportPeriodRange = (period: ReportPeriod, today: string): ReportDa
     default: return null;
   }
 };
+
+/**
+ * O período ANTERIOR a um período corrente — o que a comparação de um indicador põe ao lado. Só os
+ * correntes têm par: "últimos 30 dias" contra "os 30 antes deles" não é um período que esta lista
+ * nomeie, e inventá-lo aqui seria uma segunda gramática de datas.
+ */
+const PREVIOUS_PERIOD: Partial<Record<ReportPeriod, ReportPeriod>> = {
+  today: 'yesterday',
+  'this-week': 'last-week',
+  'this-month': 'last-month',
+  'this-quarter': 'last-quarter',
+  'this-year': 'last-year',
+};
+
+export const previousReportPeriod = (period: unknown): ReportPeriod | null =>
+  (isReportPeriod(period) ? PREVIOUS_PERIOD[period] ?? null : null);

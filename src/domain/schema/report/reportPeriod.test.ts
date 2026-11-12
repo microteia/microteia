@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isReportPeriod, REPORT_PERIODS, reportPeriodRange } from './reportPeriod';
+import { isReportPeriod, previousReportPeriod, REPORT_PERIODS, reportPeriodRange } from './reportPeriod';
 
 // 2026-11-11 é uma quarta-feira: é o que deixa a semana ISO ser conferida por inteiro.
 const TODAY = '2026-11-11';
@@ -33,5 +33,14 @@ describe('reportPeriodRange', () => {
   it('um dia malformado não vira período nenhum', () => {
     expect(reportPeriodRange('this-month', '11/11/2026')).toBeNull();
     expect(isReportPeriod('this_decade')).toBe(false);
+  });
+});
+
+describe('previousReportPeriod', () => {
+  it('só os períodos correntes têm anterior nomeado', () => {
+    expect(previousReportPeriod('this-month')).toBe('last-month');
+    expect(previousReportPeriod('today')).toBe('yesterday');
+    expect(previousReportPeriod('last-30-days')).toBeNull();
+    expect(previousReportPeriod('qualquer')).toBeNull();
   });
 });
