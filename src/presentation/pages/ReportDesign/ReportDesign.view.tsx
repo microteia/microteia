@@ -89,10 +89,21 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               placeholder={vm.labels.aiPlaceholder}
               onChange={(event) => vm.setAiDescription(event.target.value)}
             />
+            {vm.aiUnavailable && <InfoBanner message={vm.aiUnavailable} variant="info" />}
             <S.Row>
-              <Button variant="secondary" size="sm" onClick={vm.describeWithAI} disabled={vm.aiBusy || vm.aiDescription.trim() === ''}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={vm.describeWithAI}
+                disabled={!vm.canDescribeWithAI || vm.aiBusy || vm.aiDescription.trim() === ''}
+              >
                 {vm.labels.aiAction}
               </Button>
+              {vm.openAISettings && (
+                <Button variant="ghost" size="sm" onClick={vm.openAISettings}>
+                  {vm.labels.aiOpenSettings}
+                </Button>
+              )}
             </S.Row>
           </S.Group>
 

@@ -21,6 +21,8 @@ import {
 import { screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { parseReportDesignTabKey } from '../../../shared/constants/reportKeys';
 import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_AI_MANAGE } from '../../../domain/schema/access';
+import type { ReportDraftAvailability } from '../../../domain/repositories/IReportDraftRepository';
 import { REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL } from '../../../domain/schema/report/reportPeriod';
 
 /** A lista, para onde a autoria volta depois de excluir. */
@@ -303,6 +305,12 @@ export interface ReportDesignViewModel {
   setAiDescription: (value: string) => void;
   aiBusy: boolean;
   describeWithAI: () => void;
+  /** Há IA para propor? `false` desliga o botão e mostra `aiUnavailable`. Enquanto pergunta, `false`. */
+  canDescribeWithAI: boolean;
+  /** Por que não há IA para propor — só quando o servidor respondeu que não há. */
+  aiUnavailable: string | null;
+  /** Quem gerencia a IA vai direto à aba das conexões; quem não gerencia não recebe o atalho. */
+  openAISettings: (() => void) | null;
   setDimensionOthers: (key: string, others: boolean) => void;
   sortOptions: { value: string; label: string }[];
   grandTotal: boolean;
@@ -468,6 +476,7 @@ export interface ReportDesignViewModel {
     aiHint: string;
     aiPlaceholder: string;
     aiAction: string;
+    aiOpenSettings: string;
     computedDimension: string;
     computedDimensionHint: string;
     computedDimensionName: string;
@@ -665,7 +674,28 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const { reportDraftRepository } = useDI();
   const [aiDescription, setAiDescription] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
+  const [aiAvailability, setAiAvailability] = useState<ReportDraftAvailability | null>(null);
   const { openTab, setTabTitle } = useWorkspace();
+  const { can } = useAuthorization();
+
+  // Pergunta ao servidor ANTES de oferecer o botão: as conexões só são legíveis por quem gerencia a IA,
+  // e um botão que falha no clique ensina menos que um botão desligado com o motivo ao lado.
+  useEffect(() => {
+    if (!currentTenant) return;
+    let alive = true;
+    reportDraftRepository.availability(currentTenant.id)
+      .then((availability) => { if (alive) setAiAvailability(availability); })
+      // Sem resposta (rede, função antiga): o botão fica como era, e o clique diz o que houver.
+      .catch(() => { if (alive) setAiAvailability({ available: true }); });
+    return () => { alive = false; };
+  }, [currentTenant, reportDraftRepository]);
+  const canManageAI = can(PERMISSION_AI_MANAGE);
+  const aiUnavailable = aiAvailability && !aiAvailability.available
+    ? t(canManageAI ? 'design.ai.unavailable' : 'design.ai.unavailable.ask', {
+        detail: label(aiAvailability.reason ?? '@core.automation/ai.no-default-connection'),
+      })
+    : null;
+  const openAISettings = useCallback(() => openTab('tenant-settings:ai'), [openTab]);
 
   const editingKey = useMemo(() => parseReportDesignTabKey(tabKey), [tabKey]);
   /**
@@ -1427,6 +1457,9 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     setAiDescription,
     aiBusy,
     describeWithAI: () => { void describeWithAI(); },
+    canDescribeWithAI: aiAvailability?.available === true,
+    aiUnavailable,
+    openAISettings: aiUnavailable && canManageAI ? openAISettings : null,
     removeDimension,
     setGranularity,
     moveDimension,
@@ -1630,6 +1663,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       aiHint: t('design.ai.hint'),
       aiPlaceholder: t('design.ai.placeholder'),
       aiAction: t('design.ai.action'),
+      aiOpenSettings: t('design.ai.open-settings'),
       computedDimension: t('design.dimension.computed'),
       computedDimensionHint: t('design.dimension.computed.hint'),
       computedDimensionName: t('design.dimension.computed.name'),

@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.240.1] — 2026-11-12
+
+- "Descreva o relatório" agora monta listas simples, como "todas as faturas em aberto": a IA passa a aplicar o filtro pedido e a incluir a contagem, que antes faltava e fazia a proposta ser recusada.
+- A IA não propõe mais relatórios com campos que a tela não tem; quando isso acontece, o motivo aparece em vez de um relatório em branco.
+- Quando o escritório ainda não tem uma Conexão de IA padrão, o botão "Propor com IA" fica desativado e explica o motivo — com um atalho para Conexões de IA para quem as gerencia.
+
 #### [9.240.0] — 2026-11-12
 
 - As automações agora repetem passos sobre uma consulta inteira, página a página: em "Repetição", escolha "Uma consulta, página a página" para tratar milhares de registros — como "todo dia, para cada fatura vencida" — sem esbarrar no limite de uma execução. Entre uma página e outra a automação aguarda alguns minutos e continua sozinha.

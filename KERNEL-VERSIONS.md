@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.240.1] — 2026-11-12
+
+- fix(reports/draft): the draft prompt now states that every report needs a measure (a list uses `count`) and teaches `dataset.where`; select fields reach the model as `key:select[key=Label|…]` so a filter compares the stored key. A draft that still comes back measureless gets a `count` measure instead of failing on `dataset.no-measure`.
+- fix(reports/draft): a draft path the screen does not declare is blocking (`@core.reports/draft.unknown-field`). The shared validator stays lenient on undeclared paths — extension data is legitimate there — but the model only saw declared fields, so an undeclared one is invented.
+- feat(reports/draft): `draftReport` accepts `{ probe: true }` and answers `{ available, reason? }` without calling the model. The designer disables "Propose with AI" when no default AI connection exists and links `ai.manage` holders to `tenant-settings:ai`.
+
 #### [9.240.0] — 2026-11-12
 
 - feat(workflow): `Loop` over a paged query (`loop.query: { spec, pageSize }`). Each page runs the body per record; when more remain, the run suspends with `{ stepId, cursor, page, processed }` on the resume clock entry and the next tick resumes INTO the loop from the cursor. Pages follow the document id (the query's `orderBy` is ignored), the output is `processed`/`pages` rather than the collected body outputs, and it only runs where a run can suspend — top level of an event, schedule or date run (`run.loop.paged-cannot-wait` elsewhere). Breaks the `QUERY_MAX_RESULTS` ceiling without breaking the per-run time budget.

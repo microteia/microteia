@@ -63,12 +63,46 @@ describe('draftReportSpec', () => {
     const { run } = draft({
       spec: {
         v: 1,
-        dataset: { table: 'faturas', dimensions: [{ key: 'x', path: 'naoExiste' }], measures: [] },
+        dataset: { table: 'faturas', dimensions: [{ key: 'x', path: 'naoExiste' }], measures: [{ key: 'count', op: 'count' }] },
         shape: { kind: 'tabular', columns: ['x'] },
       },
     });
     const outcome = await run();
+    // O validador de sempre ACEITA o caminho que não conhece (dado de extensão); o modelo, que só viu os
+    // campos declarados, não pode inventar um — é o rascunho que bloqueia.
     expect(outcome.ok && hasBlockingReportIssue(outcome.draft.issues)).toBe(true);
+    expect(outcome.ok && outcome.draft.issues.map((issue) => issue.error)).toContain('@core.reports/draft.unknown-field');
+  });
+
+  it('o campo de lista vai com as opções, CHAVE=rótulo — é a chave que o filtro compara', () => {
+    const comSituacao = createSchemaContext([{
+      ...faturas,
+      fields: [{
+        key: 'status', label: 'Situação', type: 'select', required: false, order: 0, origin: 'design',
+        options: [{ key: 'open', label: 'Em aberto' }, { key: 'paid', label: 'Paga' }],
+      }],
+    }], []);
+    expect(schemaForReportDraft(comSituacao)).toBe('- faturas (Faturas): status:select[open=Em aberto|paid=Paga]');
+  });
+
+  it('a LISTA sem medida ganha a contagem, em vez de voltar reprovada por "sem número"', async () => {
+    const { run } = draft({
+      title: 'Faturas em aberto',
+      spec: {
+        v: 1,
+        dataset: {
+          table: 'faturas',
+          where: [{ path: 'numero', op: 'exists' }],
+          dimensions: [{ key: 'numero', path: 'numero' }],
+        },
+        shape: { kind: 'tabular', columns: ['numero'] },
+      },
+    });
+    const outcome = await run();
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.draft.spec.dataset.measures).toEqual([{ key: 'count', op: 'count' }]);
+    expect(hasBlockingReportIssue(outcome.draft.issues)).toBe(false);
   });
 
   it('o modelo que recusa, ou não devolve spec, vira mensagem', async () => {
