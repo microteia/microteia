@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.237.0] — 2026-11-12
+
+- feat(reports): `draftReport` callable (`reports.manage`) — `draftReportSpec` sends the organization's screens (`schemaForReportDraft`: fields, types, references) and a spec grammar built from the contract constants to the default AI connection, and returns `{ title, spec, issues }` validated by `validateReportSpec`. Nothing is written. Added to `deploy:reports`.
+- feat(ui): "Describe the report" box on the report designer; the proposal is applied through `draftFromSpec` (shared with opening a stored report) only when no issue blocks it. pt-BR locale package 1.188.0.
+
 #### [9.236.0] — 2026-11-12
 
 - feat(scripts): script versioning through the same path as workflows — `versionArtifactOnWrite` (generalized from `versionWorkflowOnWrite`) with `SCRIPT_VERSION_CONTENT_KEYS`, trigger `versionScript` (`scripts/{id}/versions/{n}`, added to `deploy:workflow`), origin marked by `FirebaseScriptRepository` (shared `withContentOrigin`) and by the installer (`scriptInputFromTemplate`). Resumed executions are NOT pinned to a script version (late binding, warning only). `ScriptModuleTemplate` omits `contentOrigin`.

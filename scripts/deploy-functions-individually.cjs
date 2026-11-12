@@ -111,6 +111,7 @@ const ALL_FUNCTIONS = [
   'runScript',
   'runAction',
   'runReport',
+  'draftReport',
   'importRecords',
   'renderDocument',
   'onDownloadDeleted',

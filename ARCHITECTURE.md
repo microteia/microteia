@@ -11063,6 +11063,22 @@ deriva — sem campo de controle nem automação gravando um número no registro
   (`bucketsFromLimits`). Os rótulos gerados são só número e símbolo — dado, não frase —; quem quer outro
   nome escreve o `spec`.
 
+### "Descreva o relatório" — rascunho por IA (`draftReport`)
+
+A autoria ganhou uma caixa de descrição: a IA do escritório (conexão padrão de `core.ai`) PROPÕE um
+`ReportSpec`, e quem decide é o validador de sempre.
+
+- **Callable `draftReport`** (`reports.manage`, descrição até `REPORT_DRAFT_MAX_DESCRIPTION`):
+  `draftReportSpec` (`domain/services/aiReportDraft.ts`) manda ao modelo as telas do escritório com os
+  campos e as referências (`schemaForReportDraft`) e a gramática do spec montada das constantes do contrato
+  (operações, cortes de data, gráficos) — não de prosa à mão —, e devolve `{ title, spec, issues }`, com
+  `issues` do `validateReportSpec` (o MESMO do salvar e da execução). Não grava nada.
+- **A tela** (`ReportDesign`) aplica o rascunho só quando nada bloqueia, pelo MESMO `draftFromSpec` que
+  abre um relatório gravado — e diz quantos avisos vieram. A pessoa revisa e salva.
+- O pedido é dado: o prompt de sistema diz ao modelo que a descrição não muda as regras. O que ele devolve
+  passa pela validação inteira antes de chegar ao formulário.
+- **Ainda não:** a ferramenta `draft_report` no MCP do escritório.
+
 ### Exportação — CSV, XLSX e impressão (`presentation.export`)
 
 - **XLSX** (`reportResultToXlsx`, `reportXlsx.ts`, domínio compartilhado): a MESMA tabela do CSV

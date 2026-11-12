@@ -21,7 +21,7 @@ import { InfoBanner } from '../../components/ui/InfoBanner';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { ExpressionEditor } from '../../components/ui/ExpressionEditor';
 import { FieldFilterInput } from '../../components/ui/FieldFilterInput';
-import { Input } from '../../components/ui/Input';
+import { Input, Textarea } from '../../components/ui/Input';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { ReportChart } from '../../components/ui/ReportChart';
@@ -78,6 +78,24 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
       <S.Columns>
         <S.Panel>
+          {/* Descrever primeiro: o rascunho proposto PREENCHE o formulário abaixo, que continua sendo a
+              autoria — nada é salvo sem a pessoa revisar e salvar. */}
+          <S.Group>
+            <S.Legend as="label" htmlFor="report-ai">{vm.labels.aiTitle}</S.Legend>
+            <S.Hint>{vm.labels.aiHint}</S.Hint>
+            <Textarea
+              id="report-ai"
+              value={vm.aiDescription}
+              placeholder={vm.labels.aiPlaceholder}
+              onChange={(event) => vm.setAiDescription(event.target.value)}
+            />
+            <S.Row>
+              <Button variant="secondary" size="sm" onClick={vm.describeWithAI} disabled={vm.aiBusy || vm.aiDescription.trim() === ''}>
+                {vm.labels.aiAction}
+              </Button>
+            </S.Row>
+          </S.Group>
+
           <S.Group>
             <SearchSelect
               label={vm.labels.table}

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDI } from '../../../infrastructure/di/useDI';
+import { useTenant } from '../../../stores/useTenant';
 import { withArtifactPrefix } from '../../../domain/schema/plugin/artifactPrefix';
 import { useArtifactPrefix } from '../../shared/settings/useArtifactPrefix';
 import { useNotification } from '../../../stores/useNotification';
@@ -296,6 +298,11 @@ export interface ReportDesignViewModel {
   setComputedDimensionExpression: (value: string) => void;
   addComputedDimension: () => void;
   canAddComputedDimension: boolean;
+  /** "Descreva o relatório": a IA do escritório propõe o rascunho, e o validador de sempre o confere. */
+  aiDescription: string;
+  setAiDescription: (value: string) => void;
+  aiBusy: boolean;
+  describeWithAI: () => void;
   setDimensionOthers: (key: string, others: boolean) => void;
   sortOptions: { value: string; label: string }[];
   grandTotal: boolean;
@@ -457,6 +464,10 @@ export interface ReportDesignViewModel {
     sort: string;
     limit: string;
     limitPlaceholder: string;
+    aiTitle: string;
+    aiHint: string;
+    aiPlaceholder: string;
+    aiAction: string;
     computedDimension: string;
     computedDimensionHint: string;
     computedDimensionName: string;
@@ -608,6 +619,33 @@ const groupDimensionsOf = (spec: ReportSpec): string[] => {
 };
 
 /**
+ * O rascunho a partir de um `ReportSpec` — o de um relatório aberto, ou o que a IA propôs. Uma função só
+ * para os dois: o rascunho proposto passa pelo MESMO caminho de quem abre um relatório gravado.
+ */
+const draftFromSpec = (spec: ReportSpec, title: string): ReportDraft => ({
+  table: spec.dataset.table,
+  title,
+  dimensions: spec.dataset.dimensions ?? [],
+  measures: spec.dataset.measures ?? [],
+  shapeKind: shapeKindOf(spec),
+  columnDimension: columnDimensionOf(spec),
+  groupDimensions: groupDimensionsOf(spec),
+  filters: spec.dataset.where ?? [],
+  filterExpression: spec.dataset.includeWhen ?? '',
+  chartKind: spec.presentation?.chart?.kind ?? '',
+  chartCategory: spec.presentation?.chart?.category ?? '',
+  chartSeries: spec.presentation?.chart?.series ?? [],
+  chartSplitBy: spec.presentation?.chart?.splitBy ?? '',
+  chartStacked: spec.presentation?.chart?.stacked === true,
+  prompts: spec.presentation?.prompts ?? [],
+  highlights: spec.presentation?.highlight ?? [],
+  grandTotal: !('grandTotal' in spec.shape) || spec.shape.grandTotal !== false,
+  emptyCell: spec.shape.kind === 'matrix' ? (spec.shape.emptyCell ?? '') : '',
+  scanLimit: spec.dataset.scanLimit !== undefined ? String(spec.dataset.scanLimit) : '',
+  permission: spec.access?.permission ?? '',
+});
+
+/**
  * A autoria de um relatório — criando um novo ou editando um que já existe.
  *
  * O spec é DERIVADO do rascunho a cada render, e é ele que a pré-visualização manda ao servidor: a
@@ -623,6 +661,10 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     reports, isLoading, getReport, createReport, updateReport, deleteReport, runReport,
   } = useReportDefinitions();
   const { notify } = useNotification();
+  const { currentTenant } = useTenant();
+  const { reportDraftRepository } = useDI();
+  const [aiDescription, setAiDescription] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
   const { openTab, setTabTitle } = useWorkspace();
 
   const editingKey = useMemo(() => parseReportDesignTabKey(tabKey), [tabKey]);
@@ -651,28 +693,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
 
   /** O rascunho SEMEADO: o relatório carregado, ou um em branco sobre a primeira coleção. */
   const seeded = useMemo<ReportDraft>(() => (editing
-    ? {
-        table: editing.spec.dataset.table,
-        title: label(editing.title),
-        dimensions: editing.spec.dataset.dimensions ?? [],
-        measures: editing.spec.dataset.measures ?? [],
-        shapeKind: shapeKindOf(editing.spec),
-        columnDimension: columnDimensionOf(editing.spec),
-        groupDimensions: groupDimensionsOf(editing.spec),
-        filters: editing.spec.dataset.where ?? [],
-        filterExpression: editing.spec.dataset.includeWhen ?? '',
-        chartKind: editing.spec.presentation?.chart?.kind ?? '',
-        chartCategory: editing.spec.presentation?.chart?.category ?? '',
-        chartSeries: editing.spec.presentation?.chart?.series ?? [],
-        chartSplitBy: editing.spec.presentation?.chart?.splitBy ?? '',
-        chartStacked: editing.spec.presentation?.chart?.stacked === true,
-        prompts: editing.spec.presentation?.prompts ?? [],
-        highlights: editing.spec.presentation?.highlight ?? [],
-        grandTotal: !('grandTotal' in editing.spec.shape) || editing.spec.shape.grandTotal !== false,
-        emptyCell: editing.spec.shape.kind === 'matrix' ? (editing.spec.shape.emptyCell ?? '') : '',
-        scanLimit: editing.spec.dataset.scanLimit !== undefined ? String(editing.spec.dataset.scanLimit) : '',
-        permission: editing.spec.access?.permission ?? '',
-      }
+    ? draftFromSpec(editing.spec, label(editing.title))
     : {
         table: tableOptions[0]?.value ?? '',
         title: '',
@@ -828,6 +849,35 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
    * A dimensão CALCULADA: um nome e a expressão por linha. O caminho fica vazio — a expressão é o que
    * se lê —, e é o `isComputedDimension` que o diz a todo o resto.
    */
+  /**
+   * O rascunho proposto SUBSTITUI o que está na tela — é o gesto de quem pediu um relatório novo —, e só
+   * quando o validador não o recusa: um spec que não roda não entra no formulário para alguém salvar sem
+   * ver. Os avisos (o que degrada sem impedir) vão junto, para a pessoa conferir antes de salvar.
+   */
+  const describeWithAI = useCallback(async () => {
+    const description = aiDescription.trim();
+    if (!currentTenant || description === '') return;
+    setAiBusy(true);
+    try {
+      const proposed = await reportDraftRepository.draftReport(currentTenant.id, description);
+      if (hasBlockingReportIssue(proposed.issues)) {
+        notify(t('design.ai.refused', {
+          detail: proposed.issues.map((issue) => label(issue.error, issue.errorParams)).join(' · '),
+        }), 'error');
+        return;
+      }
+      change(draftFromSpec(proposed.spec, proposed.title || draft.title));
+      setPreview(null);
+      notify(proposed.issues.length > 0
+        ? t('design.ai.applied-with-warnings', { count: String(proposed.issues.length) })
+        : t('design.ai.applied'), 'success');
+    } catch (caught) {
+      notify(label(caught instanceof Error ? caught.message : String(caught)), 'error');
+    } finally {
+      setAiBusy(false);
+    }
+  }, [aiDescription, currentTenant, reportDraftRepository, notify, t, label, change, draft.title]);
+
   const addComputedDimension = useCallback(() => {
     const name = computedDimensionName.trim();
     const expression = computedDimensionExpression.trim();
@@ -1373,6 +1423,10 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     setComputedDimensionExpression,
     addComputedDimension,
     canAddComputedDimension: computedDimensionName.trim() !== '' && computedDimensionExpression.trim() !== '',
+    aiDescription,
+    setAiDescription,
+    aiBusy,
+    describeWithAI: () => { void describeWithAI(); },
     removeDimension,
     setGranularity,
     moveDimension,
@@ -1572,6 +1626,10 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       sort: t('design.sort'),
       limit: t('design.limit'),
       limitPlaceholder: t('design.limit.placeholder'),
+      aiTitle: t('design.ai.title'),
+      aiHint: t('design.ai.hint'),
+      aiPlaceholder: t('design.ai.placeholder'),
+      aiAction: t('design.ai.action'),
       computedDimension: t('design.dimension.computed'),
       computedDimensionHint: t('design.dimension.computed.hint'),
       computedDimensionName: t('design.dimension.computed.name'),

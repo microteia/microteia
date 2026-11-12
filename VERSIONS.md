@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.237.0] — 2026-11-12
+
+- Na criação de relatórios, **descreva o que você quer ver** — por exemplo, "total das faturas em aberto por cliente, mês a mês" — e a inteligência artificial do escritório propõe o relatório, preenchendo o formulário para você revisar e salvar.
+
 #### [9.236.0] — 2026-11-12
 
 - Os scripts também têm **versões**: cada alteração de código ou de parâmetros fica guardada, com a indicação se foi uma edição do escritório ou a atualização de uma extensão, e pode ser restaurada na nova seção "Versões" da tela do script.

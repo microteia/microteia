@@ -16,6 +16,7 @@ export { workflowWebhook, manageWorkflowWebhook } from './infrastructure/handler
 export { runScript } from './infrastructure/handlers/runScript';
 export { runAction } from './infrastructure/handlers/runAction';
 export { runReport } from './infrastructure/handlers/runReport';
+export { draftReport } from './infrastructure/handlers/draftReport';
 export { importRecords } from './infrastructure/handlers/importRecords';
 export { renderDocument } from './infrastructure/handlers/renderDocument';
 export { onDownloadDeleted } from './infrastructure/handlers/onDownloadDeleted';
