@@ -3,7 +3,9 @@ import { getDI } from '../di/container';
 import { requirePermission } from './shared/requirePermission';
 import { PERMISSION_REPORTS_MANAGE } from '../../domain/schema/access';
 import { AIResponseFormatError } from '../../domain/usecases/CallAIUseCase';
-import { REPORT_DRAFT_MAX_DESCRIPTION, draftReportSpec } from '../../domain/services/aiReportDraft';
+import { REPORT_DRAFT_MAX_DESCRIPTION, draftLookupCollections, draftReportSpec } from '../../domain/services/aiReportDraft';
+import { agentCatalog, agentText } from '../agent/agentMessages';
+import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
 import type { ReportDraft } from '../../domain/services/aiReportDraft';
 import { REPORT_MAX_SCAN } from '../report/reportLimits';
 
@@ -52,12 +54,23 @@ export const draftReport = onCall(
 
     const di = getDI();
     try {
+      const schema = await di.getScreenDefinitionCache().getSchemaContext(tenantId);
+      // A lista que falha não derruba o rascunho: o campo só chega ao modelo sem as opções.
+      const lookups = new Map(await Promise.all(draftLookupCollections(schema).map(async (collection) => [
+        collection,
+        await di.getPortalRepository().getLookupOptions(tenantId, collection)
+          .then((options) => options.map((option) => ({ key: option.key, label: option.label })))
+          .catch(() => []),
+      ] as const)));
+      const catalog = agentCatalog([], DEFAULT_LOCALE);
       const outcome = await draftReportSpec({
         callAI: di.getCallAIUseCase(),
         credentials: await di.getAIConnectionRepository().getDefaultCredentials(tenantId),
         description: text,
-        schema: await di.getScreenDefinitionCache().getSchemaContext(tenantId),
+        schema,
         scanCeiling: REPORT_MAX_SCAN,
+        lookups,
+        describeIssue: (issue) => agentText(catalog, issue.error, issue.errorParams).text,
       });
       if (!outcome.ok) {
         throw new HttpsError('failed-precondition', outcome.error, { messageParams: { detail: outcome.detail ?? '' } });

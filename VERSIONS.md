@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.241.0] — 2026-11-12
+
+- "Descreva o relatório" ficou mais preciso: a IA passa a conhecer os nomes dos campos como aparecem na tela, as opções das listas, os períodos ("este mês", "últimos 30 dias"), as faixas, o Top 10 e os destaques em cor — e, quando a primeira proposta não serve, ela mesma corrige antes de mostrar.
+- O botão "Propor com IA" ganhou o ícone de IA.
+
 #### [9.240.1] — 2026-11-12
 
 - "Descreva o relatório" agora monta listas simples, como "todas as faturas em aberto": a IA passa a aplicar o filtro pedido e a incluir a contagem, que antes faltava e fazia a proposta ser recusada.

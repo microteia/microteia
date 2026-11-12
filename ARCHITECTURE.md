@@ -11112,10 +11112,24 @@ A autoria ganhou uma caixa de descrição: a IA do escritório (conexão padrão
 `ReportSpec`, e quem decide é o validador de sempre.
 
 - **Callable `draftReport`** (`reports.manage`, descrição até `REPORT_DRAFT_MAX_DESCRIPTION`):
-  `draftReportSpec` (`domain/services/aiReportDraft.ts`) manda ao modelo as telas do escritório com os
-  campos e as referências (`schemaForReportDraft`) e a gramática do spec montada das constantes do contrato
-  (operações, cortes de data, gráficos) — não de prosa à mão —, e devolve `{ title, spec, issues }`, com
-  `issues` do `validateReportSpec` (o MESMO do salvar e da execução). Não grava nada.
+  `draftReportSpec` (`domain/services/aiReportDraft.ts`) devolve `{ title, spec, issues }`, com `issues` do
+  `validateReportSpec` (o MESMO do salvar e da execução). Não grava nada.
+- **A gramática é derivada** (`reportDraftGrammar.ts`, domínio compartilhado): uma linha por token de
+  `REPORT_CAPABILITIES` em `REPORT_DRAFT_TEACHING`, com os valores tirados das constantes que o executor lê
+  (operadores, cortes de data, períodos, gráficos, tons, funções de expressão). `null` é decisão (exportação,
+  detalhamento), e `reportDraftGrammar.test.ts` reprova a capacidade nova sem decisão. Antes era prosa no
+  prompt — e ficou para trás no filtro fixo: "as faturas em aberto" virava "todas as faturas".
+- **O contexto** (`schemaForReportDraft`): cada tela com os campos como `chave "Rótulo":tipo`, a coleção
+  apontada por referência e as opções de lista — as da tela e as da coleção de lista (`lookupCollection`),
+  lidas pelo handler até `MAX_DRAFT_LOOKUP_COLLECTIONS`. O rótulo é o que liga o pedido à chave.
+- **Consertos do rascunho**, só aqui: lista sem medida ganha `count` (`dataset.no-measure` reprovaria um
+  pedido em que ninguém fala de número); caminho que a tela não declara BLOQUEIA (`draft.unknown-field`) —
+  o validador compartilhado é tolerante com o não declarado (dado de extensão), mas o modelo só viu os
+  declarados.
+- **Uma segunda volta**: recusado, o modelo recebe a resposta anterior e os motivos EM TEXTO (`agentText`,
+  idioma-fonte) e responde de novo. Uma só; a segunda que piora não substitui a primeira.
+- **`{ probe: true }`** responde `{ available, reason? }` sem chamar o modelo: a tela desliga o botão sem
+  conexão padrão — as conexões só são legíveis por `ai.manage`, e quem escreve relatório não as enxerga.
 - **A tela** (`ReportDesign`) aplica o rascunho só quando nada bloqueia, pelo MESMO `draftFromSpec` que
   abre um relatório gravado — e diz quantos avisos vieram. A pessoa revisa e salva.
 - O pedido é dado: o prompt de sistema diz ao modelo que a descrição não muda as regras. O que ele devolve

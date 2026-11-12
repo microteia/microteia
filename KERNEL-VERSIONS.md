@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.241.0] — 2026-11-12
+
+- feat(reports/draft): the draft grammar is derived — `reportDraftGrammar.ts` (shared domain) holds one line per `REPORT_CAPABILITIES` token in `REPORT_DRAFT_TEACHING`, values read from the constants the executor uses; `null` is a decision (export, drill-down), and a capability without one fails `reportDraftGrammar.test.ts`. The draft now knows `includeWhen`, computed dimensions, buckets, Top N and others, distinct and filtered and computed measures, highlights and prompts (period, default, required).
+- feat(reports/draft): fields reach the model as `key "Label":type`, and list options come from the field or from its `lookupCollection` (read by the handler, up to `MAX_DRAFT_LOOKUP_COLLECTIONS`).
+- feat(reports/draft): a refused draft gets one retry — the model receives its previous answer and the reasons as source-language text (`agentText`); a worse second answer never replaces the first.
+
 #### [9.240.1] — 2026-11-12
 
 - fix(reports/draft): the draft prompt now states that every report needs a measure (a list uses `count`) and teaches `dataset.where`; select fields reach the model as `key:select[key=Label|…]` so a filter compares the stored key. A draft that still comes back measureless gets a `count` measure instead of failing on `dataset.no-measure`.

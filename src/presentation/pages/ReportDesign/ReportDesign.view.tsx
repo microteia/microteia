@@ -1,4 +1,5 @@
 import React from 'react';
+import { RiSparkling2Line } from 'react-icons/ri';
 import {
   RiArrowDownSLine,
   RiArrowUpSLine,
@@ -97,7 +98,7 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onClick={vm.describeWithAI}
                 disabled={!vm.canDescribeWithAI || vm.aiBusy || vm.aiDescription.trim() === ''}
               >
-                {vm.labels.aiAction}
+                <RiSparkling2Line /> {vm.labels.aiAction}
               </Button>
               {vm.openAISettings && (
                 <Button variant="ghost" size="sm" onClick={vm.openAISettings}>
