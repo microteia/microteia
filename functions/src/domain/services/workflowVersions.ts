@@ -1,5 +1,13 @@
-import { contentOriginOf, sameInstallation, sameWorkflowContent, workflowVersionContent } from '../schema/workflowVersion';
-import type { WorkflowContentOrigin, WorkflowVersionContent } from '../schema/workflowVersion';
+import {
+  WORKFLOW_VERSION_CONTENT_KEYS,
+  contentOriginOf,
+  sameInstallation,
+  sameVersionContent,
+  versionContentOf,
+} from '../schema/workflowVersion';
+import type { WorkflowContentOrigin } from '../schema/workflowVersion';
+
+type VersionContent = Record<string, unknown>;
 
 export interface StoredVersionHead {
   version: number;
@@ -9,11 +17,11 @@ export interface StoredVersionHead {
 export interface WorkflowVersionDeps {
   /** Grava a versão se ela ainda não existe — uma versão é imutável, e um reenvio do gatilho não a reescreve. */
   saveVersionIfAbsent(
-    tenantId: string, definitionId: string, version: number, content: WorkflowVersionContent, origin: WorkflowContentOrigin,
+    tenantId: string, definitionId: string, version: number, content: VersionContent, origin: WorkflowContentOrigin,
   ): Promise<void>;
   /** Completa a versão com a segunda passada da MESMA instalação. */
   replaceVersion(
-    tenantId: string, definitionId: string, version: number, content: WorkflowVersionContent, origin: WorkflowContentOrigin,
+    tenantId: string, definitionId: string, version: number, content: VersionContent, origin: WorkflowContentOrigin,
   ): Promise<void>;
   /** A versão guardada de número mais alto — inclusive de uma automação apagada e recriada com o mesmo id. */
   latestVersion(tenantId: string, definitionId: string): Promise<StoredVersionHead | null>;
@@ -29,7 +37,7 @@ const versionOf = (definition: Stored): number => {
 };
 
 /**
- * Numera a automação a cada mudança de CONTEÚDO e guarda cada versão, com a ORIGEM dela — o número é do
+ * Numera o artefato (automação ou script) a cada mudança de CONTEÚDO e guarda cada versão, com a ORIGEM dela — o número é do
  * SERVIDOR.
  *
  * Do servidor porque o cliente grava sem saber quantas vezes ela já mudou, e a instalação de uma extensão
@@ -46,18 +54,19 @@ const versionOf = (definition: Stored): number => {
  *
  * A gravação do número dispara este gatilho de novo, e é o conteúdo igual que o encerra ali.
  */
-export const versionWorkflowOnWrite = async (
+export const versionArtifactOnWrite = async (
   tenantId: string,
   definitionId: string,
   before: Stored,
   after: Stored,
+  contentKeys: readonly string[],
   deps: WorkflowVersionDeps,
 ): Promise<number | null> => {
   if (!after) return null;
-  if (before && sameWorkflowContent(before, after)) return null;
+  if (before && sameVersionContent(contentKeys, before, after)) return null;
 
   const origin = contentOriginOf(after.contentOrigin);
-  const content = workflowVersionContent(after);
+  const content = versionContentOf(contentKeys, after);
   const latest = await deps.latestVersion(tenantId, definitionId);
   const current = versionOf(before);
 
@@ -69,7 +78,7 @@ export const versionWorkflowOnWrite = async (
 
   if (before && current > 0) {
     await deps.saveVersionIfAbsent(
-      tenantId, definitionId, current, workflowVersionContent(before), contentOriginOf(before.contentOrigin),
+      tenantId, definitionId, current, versionContentOf(contentKeys, before), contentOriginOf(before.contentOrigin),
     );
   }
   const next = Math.max(current, latest?.version ?? 0) + 1;
@@ -77,3 +86,12 @@ export const versionWorkflowOnWrite = async (
   if (versionOf(after) !== next) await deps.setDefinitionVersion(tenantId, definitionId, next);
   return next;
 };
+
+/** A automação. O script passa pelo MESMO caminho, com as chaves dele (`SCRIPT_VERSION_CONTENT_KEYS`). */
+export const versionWorkflowOnWrite = (
+  tenantId: string,
+  definitionId: string,
+  before: Stored,
+  after: Stored,
+  deps: WorkflowVersionDeps,
+): Promise<number | null> => versionArtifactOnWrite(tenantId, definitionId, before, after, WORKFLOW_VERSION_CONTENT_KEYS, deps);

@@ -61,7 +61,10 @@ export type WorkflowInput = Omit<WorkflowDefinition, 'id' | 'tenantId' | 'create
 
 export const scriptInputFromTemplate = (template: ScriptModuleTemplate, pluginId: string): ScriptInput => {
   const rest = withoutTemplateId(template);
-  return stripUndefined({ ...rest, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null });
+  return stripUndefined({
+    ...rest, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null,
+    contentOrigin: { kind: 'extension', pluginId, sourceRev: template.sourceRev ?? null },
+  });
 };
 
 /**

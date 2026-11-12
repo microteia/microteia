@@ -17,7 +17,12 @@ beforeEach(async () => {
     users: { ana: {}, gestor: {}, deFora: {} },
     owners: { [TENANT]: 'dono', [OTHER_TENANT]: 'outroDono' },
     members: { [TENANT]: { ana: [], gestor: ['automation.manage'] }, [OTHER_TENANT]: { deFora: [] } },
-    records: { [TENANT]: { 'workflow_definitions/wf/versions/1': { version: 1, content: { name: 'x' } } } },
+    records: {
+      [TENANT]: {
+        'workflow_definitions/wf/versions/1': { version: 1, content: { name: 'x' } },
+        'scripts/calc/versions/1': { version: 1, content: { name: 'calc' } },
+      },
+    },
   });
 });
 
@@ -30,6 +35,12 @@ describe('workflow_definitions/{id}/versions', () => {
   it('ninguém grava uma versão pelo cliente — ela nasce do gatilho', async () => {
     for (const uid of ['gestor', 'dono']) {
       await assertFails(setDoc(doc(asUser(env, uid), `tenants/${TENANT}/workflow_definitions/wf/versions/9`), { version: 9 }));
+      await assertFails(setDoc(doc(asUser(env, uid), `tenants/${TENANT}/scripts/calc/versions/9`), { version: 9 }));
     }
+  });
+
+  it('as versões do script seguem a mesma regra', async () => {
+    await assertSucceeds(getDoc(doc(asUser(env, 'ana'), `tenants/${TENANT}/scripts/calc/versions/1`)));
+    await assertFails(getDoc(doc(asUser(env, 'deFora'), `tenants/${TENANT}/scripts/calc/versions/1`)));
   });
 });

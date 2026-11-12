@@ -1,18 +1,23 @@
 import { Timestamp } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
 import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
-import { WORKFLOW_VERSIONS_SUBCOLLECTION, contentOriginOf } from '../../domain/schema/workflowVersion';
-import type { WorkflowContentOrigin, WorkflowVersionContent } from '../../domain/schema/workflowVersion';
+import { VERSIONED_ARTIFACT_COLLECTIONS, WORKFLOW_VERSIONS_SUBCOLLECTION, contentOriginOf } from '../../domain/schema/workflowVersion';
+import type { VersionedArtifact, WorkflowContentOrigin } from '../../domain/schema/workflowVersion';
 import type { StoredVersionHead } from '../../domain/services/workflowVersions';
 
 /** O código gRPC de "documento já existe" — a versão já estava guardada, e isso não é erro. */
 const ALREADY_EXISTS = 6;
 
+/** As versões de um artefato versionado — a automação ou o script, pela coleção dele. */
 export class FirestoreWorkflowVersionRepository {
-  constructor(private readonly db: Firestore) {}
+  constructor(
+    private readonly db: Firestore,
+    private readonly artifact: VersionedArtifact = 'workflow',
+  ) {}
 
   private definitionRef(tenantId: string, definitionId: string) {
-    return this.db.collection('tenants').doc(tenantId).collection('workflow_definitions').doc(definitionId);
+    return this.db.collection('tenants').doc(tenantId)
+      .collection(VERSIONED_ARTIFACT_COLLECTIONS[this.artifact]).doc(definitionId);
   }
 
   private versionRef(tenantId: string, definitionId: string, version: number) {
@@ -20,7 +25,7 @@ export class FirestoreWorkflowVersionRepository {
   }
 
   async saveVersionIfAbsent(
-    tenantId: string, definitionId: string, version: number, content: WorkflowVersionContent, origin: WorkflowContentOrigin,
+    tenantId: string, definitionId: string, version: number, content: Record<string, unknown>, origin: WorkflowContentOrigin,
   ): Promise<void> {
     try {
       await this.versionRef(tenantId, definitionId, version).create({ version, content, origin, savedAt: Timestamp.now() });
@@ -30,7 +35,7 @@ export class FirestoreWorkflowVersionRepository {
   }
 
   async replaceVersion(
-    tenantId: string, definitionId: string, version: number, content: WorkflowVersionContent, origin: WorkflowContentOrigin,
+    tenantId: string, definitionId: string, version: number, content: Record<string, unknown>, origin: WorkflowContentOrigin,
   ): Promise<void> {
     await this.versionRef(tenantId, definitionId, version).set({ version, content, origin, savedAt: Timestamp.now() });
   }
@@ -48,7 +53,7 @@ export class FirestoreWorkflowVersionRepository {
     await this.definitionRef(tenantId, definitionId).update({ version });
   }
 
-  async findVersion(tenantId: string, definitionId: string, version: number): Promise<WorkflowVersionContent | null> {
+  async findVersion(tenantId: string, definitionId: string, version: number): Promise<Record<string, unknown> | null> {
     const snapshot = await this.versionRef(tenantId, definitionId, version).get();
     const content = snapshot.exists ? snapshot.get('content') : null;
     return content && typeof content === 'object' ? normalizeFirestoreValue(content as Record<string, unknown>) : null;

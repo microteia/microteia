@@ -72,7 +72,7 @@ export {
   getWebPushPublicKey,
 } from './infrastructure/handlers/notifications';
 export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEventCreated';
-export { syncWorkflowClock, runWorkflowClock, versionWorkflowDefinition } from './infrastructure/handlers/workflowClock';
+export { syncWorkflowClock, runWorkflowClock, versionWorkflowDefinition, versionScript } from './infrastructure/handlers/workflowClock';
 export { onHttpDispatchWritten } from './infrastructure/handlers/httpDispatch';
 export { testHttpRequest } from './infrastructure/handlers/testHttpRequest';
 export { getWorkflowStepCatalog } from './infrastructure/handlers/getWorkflowStepCatalog';

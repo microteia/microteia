@@ -46,6 +46,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'run.resume.workflow-changed': 'A automação chamada "{ref}" foi alterada enquanto esta execução esperava; o restante da execução chama a versão atual dela.',
   'tab.versions': 'Versões',
   'versions.empty': 'Nenhuma versão guardada ainda. Uma versão é guardada cada vez que a automação é salva com alguma mudança.',
+  'versions.empty-script': 'Nenhuma versão guardada ainda. Uma versão é guardada cada vez que o script é salvo com mudança no código ou nos parâmetros.',
   'versions.load-failed': 'Não foi possível carregar as versões: {detail}',
   'versions.item': 'Versão {version} — {date}',
   'versions.current': 'atual',

@@ -416,6 +416,12 @@ service cloud.firestore {
         allow create, update, delete: if can(tenantId, 'automation.manage');
       }
 
+      // As versões de cada script, pelo mesmo caminho das da automação (`versionScript`).
+      match /scripts/{scriptId}/versions/{version} {
+        allow read: if isMember(tenantId);
+        allow write: if false;
+      }
+
       // Ações customizadas exibidas nas telas de dados (botão -> workflow síncrono).
       // Todo membro lê (precisa montar os botões da tela); só admin configura.
       // Ver "Actions Customizadas" no corpo do doc.

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
-import type { WorkflowVersion } from '../../../domain/schema/workflowVersion';
+import type { ArtifactVersion } from '../../../domain/schema/workflowVersion';
 import { WORKFLOW_WEBHOOK_EVENT } from '../../../domain/schema/workflowWebhook';
 import { isParameterRootedEvent } from '../../../domain/schema/eventCatalog';
 import type { DragEvent } from 'react';
@@ -634,7 +634,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const isDateReachedEvent = useMemo(() => dateReachedPrefix(formData.eventName) !== null, [formData.eventName]);
   const isWebhookEvent = formData.eventName === WORKFLOW_WEBHOOK_EVENT;
 
-  const [storedVersions, setStoredVersions] = useState<WorkflowVersion[]>([]);
+  const [storedVersions, setStoredVersions] = useState<ArtifactVersion[]>([]);
   const [versionsError, setVersionsError] = useState<string | null>(null);
   const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
   const workflowIdForVersions = workflow?.id ?? null;
@@ -647,7 +647,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   useEffect(() => {
     if (activeTab !== 'versions' || !currentTenant || !workflowIdForVersions) return undefined;
     let active = true;
-    workflowVersionRepository.listVersions(currentTenant.id, workflowIdForVersions, WORKFLOW_VERSIONS_SHOWN)
+    workflowVersionRepository.listVersions(currentTenant.id, 'workflow', workflowIdForVersions, WORKFLOW_VERSIONS_SHOWN)
       .then((found) => {
         if (!active) return;
         setStoredVersions(found);

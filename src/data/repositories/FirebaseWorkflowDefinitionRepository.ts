@@ -15,6 +15,7 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import { EDIT_ORIGIN, WORKFLOW_VERSION_CONTENT_KEYS } from '../../domain/schema/workflowVersion';
+import { withContentOrigin as withOrigin } from './contentOrigin';
 import type { WorkflowContentOrigin } from '../../domain/schema/workflowVersion';
 import { db } from '../../infrastructure/firebase/config';
 import { pruneUndefined } from '../utils/pruneUndefined';
@@ -24,15 +25,8 @@ import type { WorkflowDateReached, WorkflowSchedule } from '../../domain/schema/
 
 import { LocalizedError } from '../../domain/errors/LocalizedError';
 
-/**
- * Toda gravação de CONTEÚDO diz de onde veio: quem não disse é uma edição. É o que o versionamento do
- * servidor copia para a versão — ele não tem como saber se quem gravou foi a tela ou a instalação.
- * Gravação que não toca conteúdo (ligar, desligar, os donos) não leva origem nenhuma.
- */
 const withContentOrigin = <T extends Record<string, unknown>>(data: T): T =>
-  data.contentOrigin === undefined && WORKFLOW_VERSION_CONTENT_KEYS.some((key) => data[key] !== undefined)
-    ? { ...data, contentOrigin: EDIT_ORIGIN }
-    : data;
+  withOrigin(data, WORKFLOW_VERSION_CONTENT_KEYS);
 
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date));
 

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.236.0] — 2026-11-12
+
+- Os scripts também têm **versões**: cada alteração de código ou de parâmetros fica guardada, com a indicação se foi uma edição do escritório ou a atualização de uma extensão, e pode ser restaurada na nova seção "Versões" da tela do script.
+
 #### [9.235.0] — 2026-11-12
 
 - As automações agora têm **versões**: cada alteração salva fica guardada, e a nova aba "Versões" mostra o histórico e permite restaurar uma versão anterior.

@@ -299,6 +299,46 @@ const names = r.results.map((item) => item.name);`}</S.Pre>
             </S.SectionBody>
           )}
         </S.Section>
+
+        {!vm.isNew && (
+          <S.Section>
+            <S.SectionHeader type="button" onClick={() => vm.toggleSection('versions')}>
+              <S.SectionChevron $open={!vm.isSectionCollapsed('versions')}><RiArrowRightSLine size={18} /></S.SectionChevron>
+              <S.SectionTitle>{t('tab.versions')}</S.SectionTitle>
+            </S.SectionHeader>
+            {!vm.isSectionCollapsed('versions') && (
+              <S.SectionBody>
+                {vm.versionsError && (
+                  <InfoBanner variant="warning" message={t('versions.load-failed', { detail: vm.versionsError })} />
+                )}
+                {vm.versions.length === 0 ? (
+                  <S.SectionHint>{t('versions.empty-script')}</S.SectionHint>
+                ) : (
+                  vm.versions.map((version) => (
+                    <S.VersionRow key={version.version}>
+                      <div>
+                        <S.VersionTitle>
+                          {version.title}
+                          {version.isCurrent && <S.VersionCurrent>{t('versions.current')}</S.VersionCurrent>}
+                        </S.VersionTitle>
+                        <S.SectionHint>{version.origin}</S.SectionHint>
+                      </div>
+                      {!version.isCurrent && (
+                        <S.AddBtn
+                          type="button"
+                          disabled={vm.restoringVersion !== null}
+                          onClick={() => vm.restoreVersion(version.version)}
+                        >
+                          {t('versions.restore')}
+                        </S.AddBtn>
+                      )}
+                    </S.VersionRow>
+                  ))
+                )}
+              </S.SectionBody>
+            )}
+          </S.Section>
+        )}
       </S.Content>
 
       {vm.runModalOpen && (

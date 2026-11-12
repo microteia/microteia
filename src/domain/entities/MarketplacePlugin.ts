@@ -188,7 +188,7 @@ export type ReportModuleTemplate = ReportModuleTemplateType;
 /** Um script do pacote, referenciado por `step.configuration.scriptId` de workflows via `templateId`. */
 export type ScriptModuleTemplate = { templateId: string } & Omit<
   Script,
-  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'ownerPluginId'
+  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'ownerPluginId' | 'contentOrigin'
 >;
 
 /**

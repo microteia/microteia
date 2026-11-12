@@ -85,6 +85,7 @@ const ALL_FUNCTIONS = [
   'onWorkflowEventCreated',
   'syncWorkflowClock',
   'versionWorkflowDefinition',
+  'versionScript',
   'runWorkflowClock',
   'onHttpDispatchWritten',
   'testHttpRequest',

@@ -919,7 +919,11 @@ class DIContainer {
 
   /** A caixa de tarefas das aprovações — a do passo, a da retomada e a da decisão são a mesma. */
   getWorkflowVersionRepository(): FirestoreWorkflowVersionRepository {
-    return new FirestoreWorkflowVersionRepository(getDb());
+    return new FirestoreWorkflowVersionRepository(getDb(), 'workflow');
+  }
+
+  getScriptVersionRepository(): FirestoreWorkflowVersionRepository {
+    return new FirestoreWorkflowVersionRepository(getDb(), 'script');
   }
 
   getWorkflowTaskRepository(): FirestoreWorkflowTaskRepository {

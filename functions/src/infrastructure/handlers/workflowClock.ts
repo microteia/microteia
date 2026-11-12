@@ -4,7 +4,8 @@ import { getDI } from '../di/container';
 import { isClockedDefinition, runWorkflowClockRound, syncWorkflowClockEntry } from '../../domain/services/workflowClock';
 import type { ClockedDefinition } from '../../domain/services/workflowClock';
 import { WORKFLOW_CLOCK_TICK_MINUTES } from '../../domain/schema/workflowClock';
-import { versionWorkflowOnWrite } from '../../domain/services/workflowVersions';
+import { versionArtifactOnWrite, versionWorkflowOnWrite } from '../../domain/services/workflowVersions';
+import { SCRIPT_VERSION_CONTENT_KEYS } from '../../domain/schema/workflowVersion';
 
 const REGION = 'southamerica-east1';
 
@@ -66,6 +67,30 @@ export const versionWorkflowDefinition = onDocumentWritten(
       );
     } catch (error) {
       console.error(`[workflow-version] Falha ao guardar a versão de ${tenantId}/${definitionId}:`, error);
+    }
+  },
+);
+
+/**
+ * Numera o SCRIPT a cada mudança de código ou de contrato, pelo mesmo caminho da automação. A retomada de
+ * uma execução NÃO é presa à versão do script — ele é resolvido na hora, e a mudança vira aviso (ver
+ * `changedDependencies`) —; a versão é o histórico e a restauração.
+ */
+export const versionScript = onDocumentWritten(
+  { document: 'tenants/{tenantId}/scripts/{scriptId}', region: REGION },
+  async (event) => {
+    const { tenantId, scriptId } = event.params;
+    try {
+      await versionArtifactOnWrite(
+        tenantId,
+        scriptId,
+        event.data?.before.data(),
+        event.data?.after.data(),
+        SCRIPT_VERSION_CONTENT_KEYS,
+        getDI().getScriptVersionRepository(),
+      );
+    } catch (error) {
+      console.error(`[script-version] Falha ao guardar a versão de ${tenantId}/${scriptId}:`, error);
     }
   },
 );

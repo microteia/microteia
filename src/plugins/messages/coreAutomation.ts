@@ -47,6 +47,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'run.resume.workflow-changed': 'The called automation "{ref}" was changed while this run was waiting; the rest of the run calls its current version.',
   'tab.versions': 'Versions',
   'versions.empty': 'No version saved yet. A version is kept each time the automation is saved with a change.',
+  'versions.empty-script': 'No version saved yet. A version is kept each time the script is saved with a change to its code or its parameters.',
   'versions.load-failed': 'The versions could not be loaded: {detail}',
   'versions.item': 'Version {version} — {date}',
   'versions.current': 'current',

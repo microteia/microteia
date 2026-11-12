@@ -9131,8 +9131,14 @@ citava saídas que não existiam mais, sem erro nenhum.
   `run.resume.workflow-changed` para cada um alterado depois que a execução começou.
 - **Tela:** aba "Versões" (as 50 mais recentes, com a atual marcada); "Restaurar" grava o conteúdo daquela
   versão como a automação de agora — vira uma versão NOVA, e nada se perde.
-- **Ainda não:** versão de script com histórico próprio, diff entre versões e rascunho separado do
-  publicado.
+- **O script também é versionado**, pelo MESMO caminho (`versionArtifactOnWrite` com
+  `SCRIPT_VERSION_CONTENT_KEYS`: nome, descrição, fonte, compilado e contrato; gatilho `versionScript`;
+  `scripts/{id}/versions/{n}`, mesma regra; origem marcada pelo `FirebaseScriptRepository` e pela
+  instalação). Mas a retomada NÃO é presa à versão do script — a decisão acima vale: ele é resolvido na
+  hora, e a mudança vira aviso. A versão do script é histórico e restauração ("Versões", seção recolhida na
+  página do script, lida só quando aberta; a atual é a mais recente guardada, porque o script não grava o
+  próprio número).
+- **Ainda não:** diff entre versões e rascunho separado do publicado.
 
 ### Gatilho de webhook — `webhook.received`
 

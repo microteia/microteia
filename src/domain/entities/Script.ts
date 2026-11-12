@@ -1,4 +1,5 @@
 import type { WorkflowParameter, WorkflowParameterType } from './Workflow';
+import type { WorkflowContentOrigin } from '../schema/workflowVersion';
 
 export interface ScriptOutputParam {
   key: string;
@@ -28,6 +29,8 @@ export interface Script {
   /** Revisão de ORIGEM (epoch ms do `updatedAt` no autor), carimbada no empacotamento. A atualização
    * só reescreve o conteúdo quando a revisão que chega é estritamente maior que a materializada. */
   sourceRev?: number | null;
+  /** De onde veio o conteúdo gravado por último — edição ou extensão. Ver `WorkflowContentOrigin`. */
+  contentOrigin?: WorkflowContentOrigin;
   createdAt: Date;
   updatedAt: Date;
 }

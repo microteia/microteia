@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.186.0",
+    "version": "1.187.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -3478,6 +3478,7 @@
             "run.resume.workflow-changed": "A automação chamada \"{ref}\" foi alterada enquanto esta execução esperava; o restante da execução chama a versão atual dela.",
             "tab.versions": "Versões",
             "versions.empty": "Nenhuma versão guardada ainda. Uma versão é guardada cada vez que a automação é salva com alguma mudança.",
+            "versions.empty-script": "Nenhuma versão guardada ainda. Uma versão é guardada cada vez que o script é salvo com mudança no código ou nos parâmetros.",
             "versions.load-failed": "Não foi possível carregar as versões: {detail}",
             "versions.item": "Versão {version} — {date}",
             "versions.current": "atual",

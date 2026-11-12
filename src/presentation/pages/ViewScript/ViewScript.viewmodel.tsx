@@ -24,8 +24,13 @@ import type { Script, ScriptOutputParam } from '../../../domain/entities/Script'
 import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 import type { RunModalResult } from '../../components/ui/RunModal';
 
-import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
+import { useT, useLabel, useLocaleFormat, type TranslateFn } from '../../shared/i18n/useT';
+import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
+import type { ArtifactVersion } from '../../../domain/schema/workflowVersion';
 import { PARAMETER_TYPE_KEYS } from '../../shared/parameterTypeKeys';
+
+/** Quantas versões a seção mostra — as mais recentes; as anteriores continuam guardadas. */
+const SCRIPT_VERSIONS_SHOWN = 50;
 
 /**
  * O esqueleto que aparece num script novo. Os COMENTÁRIOS dele são texto de usuário — quem escreve o
@@ -101,6 +106,11 @@ export interface ViewScriptViewModel {
   cloneOutputParam: (index: number) => void;
   isSectionCollapsed: (key: string) => boolean;
   toggleSection: (key: string) => void;
+  /** As versões guardadas do script — a seção só existe para um script salvo. */
+  versions: { version: number; title: string; origin: string; isCurrent: boolean }[];
+  versionsError: string | null;
+  restoringVersion: number | null;
+  restoreVersion: (version: number) => void;
   openDataFunctionReference: () => void;
   isSaving: boolean;
   canSave: boolean;
@@ -123,10 +133,12 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
 
   const { scripts, createScript, updateScript, deleteScript } = useScriptStore();
   const takenScriptIds = useMemo(() => new Set(scripts.map((item) => item.id)), [scripts]);
-  const { scriptRepository } = useDI();
+  const { scriptRepository, workflowVersionRepository } = useDI();
   const { currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
+  const { formatDateTime } = useLocaleFormat();
+  const { installed } = useInstalledExtensions();
   const { dynamicScreens } = useScreenDefinitions();
   const { functions: expressionFunctions } = useExpressionFunctions();
 
@@ -153,11 +165,71 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
   const [isSaving, setIsSaving] = useState(false);
   const [runModalOpen, setRunModalOpen] = useState(false);
   const [scriptToDelete, setScriptToDelete] = useState<Script | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => new Set(['queryDoc']));
+  // As versões começam recolhidas: são lidas só quando alguém as abre.
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => new Set(['queryDoc', 'versions']));
 
   const isSectionCollapsed = useCallback((key: string) => collapsedSections.has(key), [collapsedSections]);
 
   const openDataFunctionReference = useCallback(() => openTab('data-function-reference'), [openTab]);
+
+  const [storedVersions, setStoredVersions] = useState<ArtifactVersion[]>([]);
+  const [versionsError, setVersionsError] = useState<string | null>(null);
+  const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
+  const versionsOpen = !collapsedSections.has('versions');
+  const savedScriptId = script?.id ?? null;
+  const savedAt = script?.updatedAt?.getTime() ?? 0;
+
+  // Lidas ao abrir a seção — e de novo depois de cada gravação, que é quando o servidor guarda uma nova.
+  useEffect(() => {
+    if (!versionsOpen || !currentTenant || !savedScriptId) return undefined;
+    let active = true;
+    workflowVersionRepository.listVersions(currentTenant.id, 'script', savedScriptId, SCRIPT_VERSIONS_SHOWN)
+      .then((found) => {
+        if (!active) return;
+        setStoredVersions(found);
+        setVersionsError(null);
+      })
+      .catch((caught: unknown) => {
+        if (active) setVersionsError(caught instanceof Error ? caught.message : String(caught));
+      });
+    return () => { active = false; };
+  }, [versionsOpen, currentTenant, savedScriptId, savedAt, workflowVersionRepository]);
+
+  /** Restaurar grava o código e o contrato daquela versão — o servidor o guarda como uma versão nova. */
+  const restoreVersion = useCallback(async (version: number) => {
+    const chosen = storedVersions.find((one) => one.version === version);
+    if (!script || !chosen) return;
+    setRestoringVersion(version);
+    try {
+      await updateScript(script.id, chosen.content as Partial<Script>);
+      notify(t('versions.restored', { version: String(version) }), 'success');
+    } catch (caught) {
+      notify(label(caught instanceof Error ? caught.message : String(caught)), 'error');
+    } finally {
+      setRestoringVersion(null);
+    }
+  }, [storedVersions, script, updateScript, notify, t, label]);
+
+  const latestStored = storedVersions[0]?.version ?? 0;
+  const versions = useMemo(
+    () => storedVersions.map((one) => {
+      const { origin } = one;
+      return {
+        version: one.version,
+        title: t('versions.item', { version: String(one.version), date: formatDateTime(one.savedAt) }),
+        origin: origin.kind === 'extension'
+          ? t('versions.origin.extension', {
+            name: label(installed.find((extension) => extension.id === origin.pluginId)?.package.manifest.name)
+              || origin.pluginId,
+            rev: origin.sourceRev !== null ? String(origin.sourceRev) : '—',
+          })
+          : t('versions.origin.edit'),
+        // O script não guarda o próprio número: a versão de agora é a mais recente guardada.
+        isCurrent: one.version === latestStored,
+      };
+    }),
+    [storedVersions, latestStored, formatDateTime, installed, label, t],
+  );
 
   const toggleSection = useCallback((key: string) => {
     setCollapsedSections((prev) => {
@@ -395,6 +467,10 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     cloneOutputParam,
     isSectionCollapsed,
     toggleSection,
+    versions,
+    versionsError,
+    restoringVersion,
+    restoreVersion: (version) => { void restoreVersion(version); },
     openDataFunctionReference,
     isSaving,
     canSave,

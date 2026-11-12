@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.236.0] — 2026-11-12
+
+- feat(scripts): script versioning through the same path as workflows — `versionArtifactOnWrite` (generalized from `versionWorkflowOnWrite`) with `SCRIPT_VERSION_CONTENT_KEYS`, trigger `versionScript` (`scripts/{id}/versions/{n}`, added to `deploy:workflow`), origin marked by `FirebaseScriptRepository` (shared `withContentOrigin`) and by the installer (`scriptInputFromTemplate`). Resumed executions are NOT pinned to a script version (late binding, warning only). `ScriptModuleTemplate` omits `contentOrigin`.
+- feat(rules/ui): script versions readable by members, never client-written; "Versions" section on the script page (loaded when opened) with origin and restore. `IWorkflowVersionRepository.listVersions` takes the artifact kind. pt-BR locale package 1.187.0.
+
 #### [9.235.0] — 2026-11-12
 
 - feat(workflow): server-side versioning — `versionWorkflowDefinition` (`onDocumentWritten` on definitions, `versionWorkflowOnWrite`) stores an immutable `workflow_definitions/{id}/versions/{n}` on every content change (`WORKFLOW_VERSION_CONTENT_KEYS`, compared with `canonicalJson`; enabling is not content) and writes `version: n` = previous + 1, saving the previous version too when missing. Added to `deploy:workflow`.

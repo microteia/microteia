@@ -187,6 +187,32 @@ export const S = {
     color: ${({ theme }) => theme.colors.danger};
   `,
 
+  VersionRow: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.sm} 0;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  `,
+
+  VersionTitle: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  VersionCurrent: styled.span`
+    padding: 2px 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.primary};
+    border: 1px solid ${({ theme }) => theme.colors.primary};
+  `,
+
   SectionHint: styled.p`
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme }) => theme.colors.textMuted};

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { versionWorkflowOnWrite } from './workflowVersions';
+import { versionArtifactOnWrite, versionWorkflowOnWrite } from './workflowVersions';
+import { SCRIPT_VERSION_CONTENT_KEYS } from '../schema/workflowVersion';
 import type { WorkflowVersionDeps } from './workflowVersions';
 import type { WorkflowContentOrigin } from '../schema/workflowVersion';
 
@@ -89,3 +90,20 @@ describe('versionWorkflowOnWrite', () => {
     expect(saved.size).toBe(1);
   });
 });
+
+describe('versionArtifactOnWrite — o script', () => {
+  const script = (sourceTs: string, extra: Record<string, unknown> = {}) => ({
+    name: 'calc', sourceTs, compiledJs: sourceTs.toUpperCase(), inputParams: [], outputParams: [], ...extra,
+  });
+
+  it('código ou contrato novos são versão; os donos e o carimbo de data, não', async () => {
+    const { deps, saved } = setup();
+    expect(await versionArtifactOnWrite('t1', 'calc', script('a', { version: 1 }), script('b'), SCRIPT_VERSION_CONTENT_KEYS, deps)).toBe(2);
+    expect(saved.get(2)?.content).toMatchObject({ sourceTs: 'b', compiledJs: 'B' });
+    expect(await versionArtifactOnWrite(
+      't1', 'calc', script('b', { version: 2 }), script('b', { version: 2, ownerPluginIds: ['x'], updatedAt: 'agora' }),
+      SCRIPT_VERSION_CONTENT_KEYS, deps,
+    )).toBeNull();
+  });
+});
+

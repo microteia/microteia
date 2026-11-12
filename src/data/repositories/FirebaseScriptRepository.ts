@@ -14,6 +14,8 @@ import {
   setDoc,
   onSnapshot,
 } from 'firebase/firestore';
+import { SCRIPT_VERSION_CONTENT_KEYS } from '../../domain/schema/workflowVersion';
+import { withContentOrigin } from './contentOrigin';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../infrastructure/firebase/config';
 import type {
@@ -79,7 +81,7 @@ export class FirebaseScriptRepository implements IScriptRepository {
     id?: string,
   ): Promise<Script> {
     const payload = {
-      ...data,
+      ...withContentOrigin(data as Record<string, unknown>, SCRIPT_VERSION_CONTENT_KEYS),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -105,7 +107,10 @@ export class FirebaseScriptRepository implements IScriptRepository {
     id: string,
     data: Partial<Omit<Script, 'id' | 'tenantId' | 'createdAt'>>,
   ): Promise<void> {
-    await updateDoc(doc(scriptsRef(tenantId), id), { ...data, updatedAt: serverTimestamp() });
+    await updateDoc(doc(scriptsRef(tenantId), id), {
+      ...withContentOrigin(data as Record<string, unknown>, SCRIPT_VERSION_CONTENT_KEYS),
+      updatedAt: serverTimestamp(),
+    });
   }
 
   async deleteScript(tenantId: string, id: string): Promise<void> {

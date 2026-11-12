@@ -5,8 +5,16 @@
 
 import { canonicalJson } from './contentFingerprint';
 
-/** `tenants/{t}/workflow_definitions/{id}/versions/{n}` — imutável; só o kernel grava. */
+/**
+ * `tenants/{t}/<coleção>/{id}/versions/{n}` — imutável; só o kernel grava. Vale para a automação e para
+ * o script: os dois são editados no escritório E trazidos por extensão, e os dois mudam o que uma
+ * execução faz.
+ */
 export const WORKFLOW_VERSIONS_SUBCOLLECTION = 'versions';
+
+/** As coleções versionadas, pelo artefato. */
+export const VERSIONED_ARTIFACT_COLLECTIONS = { workflow: 'workflow_definitions', script: 'scripts' } as const;
+export type VersionedArtifact = keyof typeof VERSIONED_ARTIFACT_COLLECTIONS;
 
 /**
  * O que é a AUTOMAÇÃO, e não o estado dela: o que, se muda, faz uma execução de antes e uma de depois
@@ -26,6 +34,17 @@ export const WORKFLOW_VERSION_CONTENT_KEYS = [
   'condition',
   'steps',
 ] as const;
+
+/**
+ * O que é o SCRIPT: o código e o contrato dele. O compilado vai junto — é derivado da fonte, mas é ele que
+ * roda, e restaurar uma versão sem ele exigiria compilar no servidor.
+ */
+export const SCRIPT_VERSION_CONTENT_KEYS = ['name', 'description', 'sourceTs', 'compiledJs', 'inputParams', 'outputParams'] as const;
+
+export const ARTIFACT_VERSION_CONTENT_KEYS: Readonly<Record<VersionedArtifact, readonly string[]>> = {
+  workflow: WORKFLOW_VERSION_CONTENT_KEYS,
+  script: SCRIPT_VERSION_CONTENT_KEYS,
+};
 
 export type WorkflowVersionContent = Partial<Record<typeof WORKFLOW_VERSION_CONTENT_KEYS[number], unknown>>;
 
@@ -47,6 +66,14 @@ export interface WorkflowVersion {
   origin: WorkflowContentOrigin;
 }
 
+/** Uma versão de qualquer artefato versionado — a de automação é o caso particular. */
+export interface ArtifactVersion {
+  version: number;
+  savedAt: Date;
+  content: Record<string, unknown>;
+  origin: WorkflowContentOrigin;
+}
+
 /** A origem gravada, ou EDIÇÃO quando não há uma válida — o que todo caminho antigo de gravação era. */
 export const contentOriginOf = (value: unknown): WorkflowContentOrigin => {
   const origin = value as { kind?: unknown; pluginId?: unknown; sourceRev?: unknown } | null | undefined;
@@ -64,13 +91,22 @@ export const sameInstallation = (left: WorkflowContentOrigin | null, right: Work
   left?.kind === 'extension' && right.kind === 'extension'
   && left.pluginId === right.pluginId && left.sourceRev === right.sourceRev;
 
-export const workflowVersionContent = (definition: Record<string, unknown>): WorkflowVersionContent =>
+export const versionContentOf = (keys: readonly string[], record: Record<string, unknown>): Record<string, unknown> =>
   Object.fromEntries(
-    WORKFLOW_VERSION_CONTENT_KEYS
-      .filter((key) => definition[key] !== undefined && definition[key] !== null)
-      .map((key) => [key, definition[key]]),
+    keys
+      .filter((key) => record[key] !== undefined && record[key] !== null)
+      .map((key) => [key, record[key]]),
   );
 
 /** O conteúdo é o MESMO — a ordem das chaves, que o Firestore não preserva, não conta. */
+export const sameVersionContent = (
+  keys: readonly string[],
+  left: Record<string, unknown>,
+  right: Record<string, unknown>,
+): boolean => canonicalJson(versionContentOf(keys, left)) === canonicalJson(versionContentOf(keys, right));
+
+export const workflowVersionContent = (definition: Record<string, unknown>): WorkflowVersionContent =>
+  versionContentOf(WORKFLOW_VERSION_CONTENT_KEYS, definition) as WorkflowVersionContent;
+
 export const sameWorkflowContent = (left: Record<string, unknown>, right: Record<string, unknown>): boolean =>
-  canonicalJson(workflowVersionContent(left)) === canonicalJson(workflowVersionContent(right));
+  sameVersionContent(WORKFLOW_VERSION_CONTENT_KEYS, left, right);
