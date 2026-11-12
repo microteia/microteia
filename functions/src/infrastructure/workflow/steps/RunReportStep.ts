@@ -1,16 +1,65 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
 import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
 import { resolveMapping } from '../../../domain/engine/InputMapping';
-import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
-import type { IReportDefinitionReader } from '../../../domain/repositories/IReportDefinitionReader';
-import { RUN_REPORT_STEP_ID, reportTabLink, runReportStepOutputs } from '../../../domain/schema/report/reportStep';
+import type { WorkflowContext, WorkflowResult } from '../../../domain/entities/WorkflowContext';
+import type { IReportDefinitionReader, StoredReport } from '../../../domain/repositories/IReportDefinitionReader';
+import type { IDownloadWriter } from '../../../domain/repositories/IDownloadWriter';
+import type { RecordDocumentAuthor } from '../../../domain/repositories/IRecordDocumentWriter';
+import {
+  RUN_REPORT_MAX_ROWS,
+  RUN_REPORT_STEP_ID,
+  isReportFileFormat,
+  reportTabLink,
+  runReportStepOutputs,
+} from '../../../domain/schema/report/reportStep';
+import type { ReportFileFormat } from '../../../domain/schema/report/reportStep';
+import type { ReportResult } from '../../../domain/schema/report/reportResult';
+import { buildReportTable } from '../../../domain/schema/report/reportTable';
+import { reportFileName, reportResultToCsv } from '../../../domain/schema/report/reportCsv';
+import type { ReportCsvTable } from '../../../domain/schema/report/reportCsv';
+import { XLSX_MIME_TYPE, reportResultToXlsx } from '../../../domain/schema/report/reportXlsx';
+import { downloadExpiresAt, resolveRetentionDays } from '../../../domain/schema/document/documentDownloads';
+import type { DownloadPolicy } from '../../../domain/schema/document/documentDownloads';
+import type { MessageCatalog } from '../../../domain/schema/i18n/messages';
+import { resolveLabel } from '../../../domain/schema/i18n/messageRef';
+import type { SchemaContext } from '../../../domain/schema/pathResolver';
+import { reportFileText } from '../../../domain/services/reportFileText';
+import type { ReportFileTextSources } from '../../../domain/services/reportFileText';
 import { runReportQuery } from '../../report/runReportQuery';
 import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
+
+/**
+ * O que o passo precisa para escrever o relatório como o escritório o lê — a tabela legível e o arquivo.
+ * Opcional: sem isto o passo publica só os números crus, como antes.
+ */
+export interface RunReportFileDeps {
+  sources: ReportFileTextSources;
+  catalog(tenantId: string): Promise<MessageCatalog>;
+  localeOf(tenantId: string): Promise<string>;
+  downloads: IDownloadWriter;
+  downloadPolicyOf(tenantId: string): Promise<DownloadPolicy>;
+  renderPdf(table: ReportCsvTable, title: string): Promise<Buffer>;
+}
 
 export interface RunReportStepDeps {
   reports: IReportDefinitionReader;
   query: WorkflowQueryDeps;
+  file?: RunReportFileDeps;
 }
+
+const WORKFLOW_ACTOR = 'workflow-engine';
+
+const FILE_TYPES: Record<ReportFileFormat, string> = {
+  csv: 'text/csv;charset=utf-8',
+  xlsx: XLSX_MIME_TYPE,
+  pdf: 'application/pdf',
+};
+
+/** O autor pela regra do "Gerar documento": a pessoa do escritório por trás, ou o motor, sem nome. */
+const authorOf = (context: WorkflowContext): RecordDocumentAuthor =>
+  context.actor && context.actor.via !== 'portal'
+    ? { uid: context.actor.userId, name: context.actor.name, photoUrl: context.actor.photoURL, via: context.actor.via }
+    : { uid: WORKFLOW_ACTOR, name: null, via: 'automation' };
 
 const PARAM_PREFIX = 'param.';
 
@@ -62,6 +111,14 @@ export const makeRunReportStepDefinition = (deps: RunReportStepDeps): StepDefini
       for (const issue of outcome.issues) context.logger.warn(issue.error, issue.errorParams);
 
       const outputs = runReportStepOutputs(report.spec, outcome.value);
+
+      const format = textOf(inputs.file).toLowerCase();
+      if (format !== '' && !isReportFileFormat(format)) {
+        return { success: false, message: '@core.automation/step.run-report.file-unsupported', messageParams: { format } };
+      }
+      const schema = await deps.query.screenProvider.getSchemaContext(context.execution.tenantId);
+      const file = await writeReportFile(deps.file, context, schema, report, outcome.value, isReportFileFormat(format) ? format : null);
+      if (file && 'error' in file) return { success: false, message: file.error };
       const params = {
         name: report.title,
         count: String(outputs.count),
@@ -72,8 +129,61 @@ export const makeRunReportStepDefinition = (deps: RunReportStepDeps): StepDefini
         success: true,
         message: outputs.complete ? '@core.automation/step.run-report.done' : '@core.automation/step.run-report.done-partial',
         messageParams: params,
-        outputs: { ...outputs, name: report.title, link: reportTabLink(report.key) },
+        outputs: {
+          ...outputs,
+          name: report.title,
+          link: reportTabLink(report.key),
+          ...(file ? { table: file.table, fileId: file.id, fileName: file.name, fileUrl: file.url } : {}),
+        },
       };
     },
   }),
 });
+
+type WrittenFile = { table: ReportCsvTable; id: string; name: string; url: string };
+
+/**
+ * A tabela legível e, quando pedido, o ARQUIVO em Downloads — com a retenção e a visibilidade que o
+ * escritório configurou para arquivos de automação, como o "Gerar documento". A tabela publicada é
+ * cortada no mesmo teto das linhas; o arquivo leva tudo.
+ */
+const writeReportFile = async (
+  deps: RunReportFileDeps | undefined,
+  context: WorkflowContext,
+  schema: SchemaContext,
+  report: StoredReport,
+  result: ReportResult,
+  format: ReportFileFormat | null,
+): Promise<WrittenFile | { error: string } | null> => {
+  if (!deps) return format ? { error: '@core.automation/step.run-report.file-unavailable' } : null;
+  const tenantId = context.execution.tenantId;
+  const [catalog, locale] = await Promise.all([deps.catalog(tenantId), deps.localeOf(tenantId)]);
+  const title = resolveLabel(catalog, report.title) || report.key;
+  const textFor = (formatted: boolean) => reportFileText({
+    tenantId, spec: report.spec, result, schema,
+    catalog, sources: deps.sources, locale, formatted,
+  });
+  const readable = buildReportTable(report.spec, result, await textFor(true));
+  const table: ReportCsvTable = { ...readable, rows: readable.rows.slice(0, RUN_REPORT_MAX_ROWS) };
+  if (!format) return { table, id: '', name: '', url: '' };
+
+  const data = format === 'pdf'
+    ? await deps.renderPdf(readable, title)
+    : format === 'xlsx'
+      ? Buffer.from(reportResultToXlsx(buildReportTable(report.spec, result, await textFor(false)), title))
+      : Buffer.from(reportResultToCsv(buildReportTable(report.spec, result, await textFor(false))), 'utf8');
+  const author = authorOf(context);
+  const unattended = author.via === 'automation';
+  const policy = await deps.downloadPolicyOf(tenantId);
+  const saved = await deps.downloads.save({
+    tenantId,
+    name: reportFileName(report.spec.presentation?.export?.fileName?.trim() || title, context.services.now(), format),
+    contentType: FILE_TYPES[format],
+    data,
+    ownerId: unattended ? null : author.uid,
+    visibility: unattended ? policy.automationVisibility : 'owner',
+    expiresAt: downloadExpiresAt(context.services.now(), resolveRetentionDays(undefined, undefined, policy)),
+    author,
+  });
+  return { table, id: saved.id, name: saved.name, url: saved.url };
+};

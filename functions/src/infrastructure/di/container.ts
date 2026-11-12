@@ -148,6 +148,7 @@ import { dateReachedOnSave } from '../../domain/services/workflowClock';
 import { resumeWorkflowExecution } from '../../domain/services/workflowSuspension';
 import { FirestoreWorkflowTaskRepository } from '../../data/repositories/FirestoreWorkflowTaskRepository';
 import { FirestoreReportDefinitionReader } from '../../data/repositories/FirestoreReportDefinitionReader';
+import { reportTableToPdf } from '../../data/services/document/reportTableToPdf';
 import { FirestoreWorkflowVersionRepository } from '../../data/repositories/FirestoreWorkflowVersionRepository';
 import { entityDateFieldKeys, eventEntity } from '../../domain/schema/eventCatalog';
 import { dateReachedEventName } from '../../domain/schema/workflowClock';
@@ -1361,6 +1362,15 @@ class DIContainer {
         screens: this.getScreenDefinitionCache(),
       },
       reportReader: new FirestoreReportDefinitionReader(getDb()),
+      reportFile: {
+        sources: this.getRecordSearchDeps().repository,
+        catalog: (tenantId) => this.getRecordSearchDeps().catalog(tenantId),
+        localeOf: async (tenantId) => preferredLocale({}, await this.getTenantSettingsRepository().getTenantValues(tenantId)),
+        downloads: this.getDownloadWriter(),
+        downloadPolicyOf: async (tenantId) =>
+          downloadPolicyOf(await this.getTenantSettingsRepository().getTenantValues(tenantId)),
+        renderPdf: reportTableToPdf,
+      },
     });
     this.workflowStepsRegistered = true;
   }

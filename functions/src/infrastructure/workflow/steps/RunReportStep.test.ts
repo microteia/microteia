@@ -12,6 +12,9 @@ import type { WorkflowContext, WorkflowLogger } from '../../../domain/entities/W
 import type { InputMapping } from '../../../domain/entities/Workflow';
 import type { ReportSpec } from '../../../domain/schema/report/reportSpec';
 import { makeRunReportStepDefinition } from './RunReportStep';
+import type { RunReportFileDeps } from './RunReportStep';
+import type { DownloadFileInput } from '../../../domain/repositories/IDownloadWriter';
+import { buildMessageCatalog } from '../../../domain/schema/i18n/messages';
 
 const lancamentos: SchemaScreen = {
   id: 'lancamentos',
@@ -158,3 +161,53 @@ describe('passo run-report', () => {
     expect(result.message).toBe('@core.automation/step.run-report.not-configured');
   });
 });
+
+describe('passo run-report — o arquivo em Downloads', () => {
+  const saved: DownloadFileInput[] = [];
+  const fileDeps: RunReportFileDeps = {
+    sources: { getRecords: async () => new Map(), getLookupOptions: async () => [] },
+    catalog: async () => buildMessageCatalog([{ locale: 'en', namespace: 'core.reports', messages: { 'table.total': 'Total' } }], 'en'),
+    localeOf: async () => 'en',
+    downloads: {
+      save: async (file) => {
+        saved.push(file);
+        return { id: 'd1', name: file.name, url: 'https://files/d1', storagePath: 'x', contentType: file.contentType, size: file.data.length, expiresAt: file.expiresAt };
+      },
+    },
+    downloadPolicyOf: async () => ({ retentionDays: 7, automationVisibility: 'managers' }),
+    renderPdf: async () => Buffer.from('%PDF-fake'),
+  };
+  const withFile = () => makeRunReportStepDefinition({
+    reports: reader([{ id: 'doc1', key: 'receita', title: 'Receita', spec }]),
+    query: { queryRepository: new FakeQueryRepository(rows), fetcher: new FakeFetcher(), screenProvider: fakeScreenProvider([lancamentos]) },
+    file: fileDeps,
+  }).createExecutor();
+
+  it('grava o XLSX com a visibilidade de arquivo de automação e publica o nome e o endereço', async () => {
+    const result = await withFile().execute({ report: 'receita', file: 'xlsx' }, context());
+
+    expect(result.success).toBe(true);
+    expect(saved[0]).toMatchObject({
+      name: 'receita-2026-05-05.xlsx',
+      ownerId: null,
+      visibility: 'managers',
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    expect(result.outputs).toMatchObject({ fileId: 'd1', fileName: 'receita-2026-05-05.xlsx', fileUrl: 'https://files/d1' });
+    expect(result.outputs?.table).toMatchObject({ header: ['situacao', 'total'], totals: ['Total', '350'] });
+  });
+
+  it('o PDF vai pelo renderizador do motor de Documentos', async () => {
+    const result = await withFile().execute({ report: 'receita', file: 'pdf' }, context());
+    expect(result.outputs?.fileName).toBe('receita-2026-05-05.pdf');
+    expect(saved.at(-1)?.data.toString()).toBe('%PDF-fake');
+  });
+
+  it('formato que não existe reprova; sem as dependências de arquivo, pedir arquivo também', async () => {
+    expect((await withFile().execute({ report: 'receita', file: 'docx' }, context())).message)
+      .toBe('@core.automation/step.run-report.file-unsupported');
+    expect((await step().execute({ report: 'receita', file: 'xlsx' }, context())).message)
+      .toBe('@core.automation/step.run-report.file-unavailable');
+  });
+});
+

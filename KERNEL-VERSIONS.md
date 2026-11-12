@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.239.0] — 2026-11-12
+
+- feat(reports): `buildReportTable` (shared `reportTable.ts`, with `columnLabel`, `shownMeasures`, `rowDimensions`, `groupDimensions` moved from the presentation layer) builds the file table from a `ReportTableText`; the screen's export now uses it too.
+- feat(functions): `reportFileText` resolves group keys and cells as the organization reads them on the server (option and office-list labels, referenced record titles, buckets, "Others", empty; numbers raw or formatted in the office locale) from the record-search sources. `reportTableToPdf` renders the table through `blocksToPdf`.
+- feat(workflow): `run-report` gains `file` (`xlsx` | `pdf` | `csv`) — written to Downloads with the automation retention and visibility — and the outputs `table`, `fileId`, `fileName`, `fileUrl`. Package validation requires `REPORT_FILE_SINCE_KERNEL` for `file`. `KERNEL_VERSION` 2.119.0.
+- feat(reports/ui): the subscription can add the file; the notice then names it and links to Downloads (no e-mail attachment). pt-BR locale package 1.190.0.
+
 #### [9.238.0] — 2026-11-12
 
 - refactor(workflow): `ai-classify` and `ai-extract` (unreleased, 9.234.0) are removed. `ai-extract-parameters` gains `fields` — fields declared on the step (`aiExtractFields`: `key: description`, one per line; a trailing `[a|b|c]` makes it a closed-list `select`, checked by the existing extractor) as an alternative to `targetWorkflowId` (now not catalog-required; the step refuses both or neither) — and the output `matched` (per closed-list field). Package validation requires `AI_EXTRACT_FIELDS_SINCE_KERNEL` for `fields`. `KERNEL_VERSION` 2.118.0. pt-BR locale package 1.189.0.

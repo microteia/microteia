@@ -1,5 +1,6 @@
 import type { InputMapping, WorkflowDefinition, WorkflowStep } from '../entities/Workflow';
 import { RUN_REPORT_STEP_ID, reportTabLink } from '../schema/report/reportStep';
+import type { ReportFileFormat } from '../schema/report/reportStep';
 import { isAggregateMeasure } from '../schema/report/reportSpec';
 import type { ReportSpec } from '../schema/report/reportSpec';
 import { WORKFLOW_SCHEDULE_EVENT } from '../schema/workflowClock';
@@ -30,9 +31,23 @@ export interface ReportSubscriptionInput {
   recipientIds: string[];
   /** Ausente: avisa toda vez. Presente: só quando a medida atende à comparação. */
   alert?: ReportAlert;
+  /**
+   * O relatório em ARQUIVO, gravado em Downloads a cada execução — e aí o aviso leva à página Downloads.
+   * O arquivo não vai anexado ao e-mail: um link público passaria por cima da visibilidade que o
+   * escritório configurou para arquivos de automação.
+   */
+  file?: ReportFileFormat;
 }
 
 const REPORT_STEP = 'report';
+
+/** A página Downloads — onde o arquivo da assinatura fica, com a visibilidade do escritório. */
+const DOWNLOADS_PAGE_KEY = 'downloads';
+
+const MESSAGES = {
+  notify: { plain: '@core.reports/subscribe.notify.message', file: '@core.reports/subscribe.notify.message-file' },
+  alert: { plain: '@core.reports/subscribe.alert.message', file: '@core.reports/subscribe.alert.message-file' },
+} as const;
 const NOTIFY_STEP = 'notify';
 const ALERT_STEP = 'alert';
 
@@ -82,6 +97,7 @@ export const buildReportSubscription = (
     enabled: true,
     configuration: {
       report: literal(input.reportKey),
+      ...(input.file ? { file: literal(input.file) } : {}),
       ...Object.fromEntries(answered.map(([key, value]) => [`param.${key}`, literal(value)])),
     },
   };
@@ -98,14 +114,17 @@ export const buildReportSubscription = (
     enabled: true,
     configuration: {
       title: literal(input.reportTitle),
-      message: literal(alert ? '@core.reports/subscribe.alert.message' : '@core.reports/subscribe.notify.message'),
+      message: literal(MESSAGES[alert ? 'alert' : 'notify'][input.file ? 'file' : 'plain']),
       messageParams: {
         kind: 'Expression',
-        expression: alert
-          ? `object("count", output.${REPORT_STEP}.count, "value", output.${REPORT_STEP}.totals.${alert.measure})`
-          : `object("count", output.${REPORT_STEP}.count, "total", output.${REPORT_STEP}.total)`,
+        expression: [
+          'object("count", ', `output.${REPORT_STEP}.count`,
+          alert ? `, "value", output.${REPORT_STEP}.totals.${alert.measure}` : `, "total", output.${REPORT_STEP}.total`,
+          input.file ? `, "file", output.${REPORT_STEP}.fileName` : '',
+          ')',
+        ].join(''),
       },
-      link: literal(reportTabLink(input.reportKey)),
+      link: literal(input.file ? DOWNLOADS_PAGE_KEY : reportTabLink(input.reportKey)),
       openRecord: literal(false),
       toInApp: literal(true),
       toEmail: literal(true),

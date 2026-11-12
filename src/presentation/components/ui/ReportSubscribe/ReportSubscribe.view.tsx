@@ -46,6 +46,11 @@ export const ReportSubscribe: React.FC<ReportSubscribeProps> = (props) => {
         </S.Row>
 
         <S.Field>
+          {vm.labels.file}
+          <SearchSelect options={vm.fileOptions} value={vm.file} onChange={vm.setFile} />
+        </S.Field>
+
+        <S.Field>
           {vm.labels.recipients}
           <MultiSearchSelect options={vm.memberOptions} values={vm.recipients} onChange={vm.setRecipients} />
         </S.Field>

@@ -11034,8 +11034,21 @@ O relatório não ganhou agendador próprio: ganhou um PASSO, e o agendador é o
   texto do aviso é referência de catálogo (`@core.reports/subscribe.*`) com parâmetros por `object(...)`.
 - Um pacote que usa o passo exige kernel `WORKFLOW_RUN_REPORT_SINCE_KERNEL` (2.111.0) —
   `STEP_DEFINITION_SINCE_KERNEL` em `workflowIntegrity.ts`, a tabela para os próximos passos que chegarem.
-- **Ainda não:** anexar o resultado como arquivo — ver "Exportação" abaixo: o que falta são os rótulos no
-  servidor, o leiaute padrão e o anexo, não a geração de PDF —; e a assinatura pelo MCP.
+- **Relatório em arquivo** (`file`: `xlsx`, `pdf` ou `csv`). A tabela é a MESMA do botão "Exportar":
+  `buildReportTable` (`reportTable.ts`, domínio compartilhado) recebe só o TEXTO de cada pedaço
+  (`ReportTableText`). A tela o dá pela listagem do escritório; o servidor, por `reportFileText`
+  (`domain/services/reportFileText.ts`), com as fontes da busca de registros — título do registro
+  apontado (`recordSearchTitle`), rótulo de opção e de lista do escritório (`getLookupOptions`), catálogo
+  no idioma do escritório —, uma leitura por coleção e uma por lista. O número sai cru na planilha e
+  formatado no PDF. O PDF é `reportTableToPdf` sobre o `blocksToPdf` do motor de Documentos — sem modelo
+  por relatório. O arquivo vai para Downloads com a retenção e a visibilidade de arquivo de automação
+  (`downloadPolicyOf`), como o "Gerar documento"; saídas `fileId`, `fileName`, `fileUrl`. Mesmo sem arquivo,
+  o passo publica `table`: cabeçalho e linhas legíveis (cortadas no teto das linhas). Pacote com `file`
+  exige `REPORT_FILE_SINCE_KERNEL` (2.119.0).
+- **Assinatura com arquivo:** "Arquivo" no "Assinar" põe `file` no passo; o aviso passa a dizer o nome do
+  arquivo e a levar à página Downloads. O arquivo NÃO vai anexado ao e-mail: o envio não tem anexo, e um
+  link público passaria por cima da visibilidade que o escritório configurou para arquivos de automação.
+- **Ainda não:** anexo de verdade no e-mail, e a assinatura pelo MCP.
 
 ### Dimensão calculada e faixas (`dimensions[].expression`, `dimensions[].buckets`)
 
@@ -11096,11 +11109,8 @@ A autoria ganhou uma caixa de descrição: a IA do escritório (conexão padrão
   é o nome-base (`reportFileName` acrescenta o dia e a extensão). `export.filename` e `export.xlsx` saíram
   da lista de não executados.
 - **Na tela, o PDF é a impressão do navegador** ("Salvar como PDF", com a folha de impressão do
-  `GlobalStyles`). No SERVIDOR, o motor de Documentos já gera PDF a partir de `payload` (com `{{#each}}`
-  sobre listas). O que falta para o relatório virar ARQUIVO numa automação não é o PDF: é (1) o
-  `run-report` publicar as linhas com o texto que a tela mostra — hoje as chaves saem cruas (`pending`, o id
-  do cliente), e a tradução mora na listagem do front —, (2) um leiaute padrão de tabela, sem exigir um
-  modelo por relatório, e (3) o anexo na assinatura.
+  `GlobalStyles`). Numa AUTOMAÇÃO, o relatório vira arquivo pelo passo "Executar relatório" (`file`) — ver
+  "Relatório como passo de automação".
 
 ### Destaque condicional (`presentation.highlight`)
 

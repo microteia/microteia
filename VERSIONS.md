@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.239.0] — 2026-11-12
+
+- O passo **Executar relatório** agora pode gerar o relatório em **Excel, PDF ou CSV**, guardado em Downloads, já com os nomes que o escritório lê — as opções, os nomes dos clientes, os valores formatados — e não os códigos internos.
+- Na **assinatura de relatório**, escolha receber também o arquivo: a cada envio ele fica em Downloads, e o aviso diz o nome do arquivo e leva até lá.
+
 #### [9.238.0] — 2026-11-12
 
 - Os passos de IA ficaram mais simples: **Classificar texto** e **Extrair campos** passaram a fazer parte do passo **Extrair parâmetros**. Nele você declara os campos que quer tirar do texto e, para classificar, termina o campo com a lista de opções — por exemplo, "assunto: do que trata [financeiro|suporte|vendas]". A resposta sai exatamente como está na lista, ou vazia quando nenhuma opção serve.

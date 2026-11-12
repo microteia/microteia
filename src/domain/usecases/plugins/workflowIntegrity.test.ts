@@ -402,6 +402,20 @@ describe('extrair parâmetros com campos declarados', () => {
   });
 });
 
+describe('executar relatório com arquivo', () => {
+  it('exige o kernel em que o passo grava o arquivo', () => {
+    const base = pacote([passo({
+      id: 'numeros',
+      stepDefinitionId: 'run-report',
+      configuration: { report: { kind: 'Literal', value: 'receita' }, file: { kind: 'Literal', value: 'xlsx' } },
+    })]);
+    const comKernel = (kernel: string) => ({ ...base, manifest: { ...base.manifest, kernel } }) as unknown as MarketplacePlugin;
+    expect(workflowStepIssues(comKernel('^2.118.0')).map((issue) => [issue.message, issue.messageParams?.input]))
+      .toContainEqual(['@core.marketplace/issue.step.input-kernel', 'file']);
+    expect(workflowStepIssues(comKernel('^2.119.0')).map((issue) => issue.message)).not.toContain('@core.marketplace/issue.step.input-kernel');
+  });
+});
+
 describe('gatilho de webhook', () => {
   it('exige o kernel em que a function de entrada existe', () => {
     const base = pacote([passo({})]);

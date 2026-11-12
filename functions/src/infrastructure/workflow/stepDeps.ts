@@ -15,6 +15,7 @@ import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWo
 import type { HttpStepDeps } from './steps/HttpRequestStep';
 import type { ApprovalStepDeps } from './steps/ApprovalStep';
 import type { IReportDefinitionReader } from '../../domain/repositories/IReportDefinitionReader';
+import type { RunReportFileDeps } from './steps/RunReportStep';
 
 /**
  * Dependências que o composition root injeta nas fábricas de Step. Vive em arquivo próprio para
@@ -42,6 +43,8 @@ export interface RegisterStepsDeps {
   approval: ApprovalStepDeps;
   /** Os relatórios do escritório, do passo "Executar relatório". */
   reportReader: IReportDefinitionReader;
+  /** O texto legível e o arquivo do mesmo passo. */
+  reportFile?: RunReportFileDeps;
 }
 
 /**

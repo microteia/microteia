@@ -34,8 +34,8 @@ const CONFERIDOS: Record<string, string> = {
   'http-request': '1b0d018be3252c',
   // 9.227.0: a tarefa humana — o passo que para a execução até uma pessoa decidir.
   approval: '0096488f2a08d9',
-  // 9.228.0: o relatório como passo — o número que uma automação agenda, envia ou vigia.
-  'run-report': '04c23d92e4759a',
+  // 9.228.0: o relatório como passo. 9.239.0: o arquivo em Downloads (`file`) e a tabela legível (`table`).
+  'run-report': '09b9d5fbcce27e',
   // 9.230.0: esperar o próximo evento de um registro, com condição e prazo.
   'wait-for': '197d258050dfe2',
   // 9.234.0: escrever um texto com a IA do escritório.

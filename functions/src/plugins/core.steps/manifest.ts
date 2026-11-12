@@ -43,7 +43,11 @@ const factories: Record<string, StepFactory> = {
     ),
   Upsert: (deps) => makeUpsertStepDefinition(mutationDepsOf(deps)),
   Remove: (deps) => makeRemoveStepDefinition(mutationDepsOf(deps)),
-  RunReport: (deps) => makeRunReportStepDefinition({ reports: deps.reportReader, query: queryDepsOf(deps) }),
+  RunReport: (deps) => makeRunReportStepDefinition({
+    reports: deps.reportReader,
+    query: queryDepsOf(deps),
+    ...(deps.reportFile ? { file: deps.reportFile } : {}),
+  }),
   RenderDocument: (deps) => makeRenderDocumentStepDefinition(deps.renderDocumentUseCase),
   ShareDocuments: (deps) => makeShareDocumentsStepDefinition(deps.shareRecordDocumentsUseCase),
   PortalInvite: (deps) => makePortalInviteStepDefinition(deps.portalAccess),

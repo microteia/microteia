@@ -25,6 +25,16 @@ export const WORKFLOW_RUN_REPORT_SINCE_KERNEL = '2.111.0';
  */
 export const RUN_REPORT_MAX_ROWS = 100;
 
+/** O kernel a partir do qual o passo grava o relatório em arquivo (`file`) e publica a tabela legível. */
+export const REPORT_FILE_SINCE_KERNEL = '2.119.0';
+
+/** O arquivo que o passo grava em Downloads, quando pedido. */
+export const REPORT_FILE_FORMATS = ['xlsx', 'csv', 'pdf'] as const;
+export type ReportFileFormat = typeof REPORT_FILE_FORMATS[number];
+
+export const isReportFileFormat = (value: unknown): value is ReportFileFormat =>
+  typeof value === 'string' && (REPORT_FILE_FORMATS as readonly string[]).includes(value);
+
 /** O endereço da aba do relatório — o mesmo `rep:` que o ⌘K e o painel usam. */
 export const reportTabLink = (key: string): string => `rep:${key}`;
 

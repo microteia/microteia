@@ -1,10 +1,9 @@
 import { useCallback } from 'react';
 import { useLabel, useT } from '../i18n/useT';
 import { useReportGroupLabels } from './useReportGroupLabels';
-import { columnLabel, groupDimensions, rowDimensions, shownMeasures } from './reportFormatting';
 import { useReportCellText } from './useReportCellText';
-import { reportCellKey } from '../../../domain/schema/report/aggregateRows';
 import { reportFileName, reportResultToCsv } from '../../../domain/schema/report/reportCsv';
+import { buildReportTable } from '../../../domain/schema/report/reportTable';
 import { reportResultToXlsx, XLSX_MIME_TYPE } from '../../../domain/schema/report/reportXlsx';
 import type { ReportResult } from '../../../domain/schema/report/reportResult';
 import type { ReportSpec } from '../../../domain/schema/report/reportSpec';
@@ -41,109 +40,14 @@ export const useReportExport = (
   return useCallback((format: ReportExportFormat) => {
     if (!result) return;
 
-    const measures = shownMeasures(spec);
-    const dimensions = rowDimensions(spec);
-    const dimensionLabels = dimensions
-      .map((dimension) => columnLabel(dimension.label, dimension.key, label));
-
-    const header: string[] = [];
-    const rows: string[][] = [];
-    let totals: string[] | undefined;
-    let totalsHeader: string[] | undefined;
-
-    /*
-     * A LISTA SIMPLES é outro arquivo — a mesma lição que a tabela já aprendeu.
-     *
-     * Numa dobra `tabular` o agregador não devolve grupos: ele devolve os REGISTROS, em `records`, e
-     * `rows` vem vazio. Ler `rows` aqui — como o caminho agrupado faz — exportava um arquivo com
-     * cabeçalho e nenhuma linha, com a coleção cheia.
-     */
-    if (spec.shape.kind === 'tabular') {
-      /*
-       * A lista AGRUPADA vira arquivo PLANO: o valor do grupo repetido em cada linha, numa coluna
-       * própria à frente das outras.
-       *
-       * De propósito diferente da tela. Uma faixa de grupo e um subtotal no meio do arquivo são
-       * texto que quebra o `SOMA` de qualquer coluna abaixo dele — a planilha recebe uma tabela que
-       * não pode somar. Repetido em cada linha, o grupo é o que uma tabela dinâmica reagrupa, e o
-       * subtotal ela refaz sozinha.
-       */
-      const groups = groupDimensions(spec);
-      header.push(
-        ...groups.map((dimension) => columnLabel(dimension.label, dimension.key, label)),
-        ...dimensionLabels,
-      );
-
-      if (groups.length > 0) {
-        for (const row of result.rows) {
-          const prefix = row.keys.map((entry) => groupLabel(entry));
-          for (const record of row.records ?? []) {
-            rows.push([...prefix, ...dimensions.map((dimension) => cellText(record, dimension))]);
-          }
-        }
-      } else {
-        for (const record of result.records ?? []) {
-          rows.push(dimensions.map((dimension) => cellText(record, dimension)));
-        }
-      }
-
-      if (result.totals && measures.length > 0) {
-        // Bloco à parte: o corpo tem as colunas do registro, o total tem as das medidas.
-        totalsHeader = ['', ...measures.map((measure) =>
-          columnLabel(measure.label, measure.key, label))];
-        totals = [t('table.total'), ...measures.map((measure) =>
-          rawNumber(result.totals?.values[measure.key]))];
-      }
-    } else if (spec.shape.kind === 'matrix') {
-      header.push(dimensionLabels.join(' / '));
-      for (const column of result.columns) {
-        const columnName = column.map((entry) => groupLabel(entry)).join(' / ');
-        for (const measure of measures) {
-          header.push(measures.length > 1
-            ? `${columnName} — ${columnLabel(measure.label, measure.key, label)}`
-            : columnName);
-        }
-      }
-      for (const row of result.rows) {
-        rows.push([
-          groupLabel(row.keys[row.keys.length - 1]),
-          ...result.columns.flatMap((column) => measures.map((measure) =>
-            rawNumber(row.cells?.[reportCellKey(column)]?.[measure.key]))),
-        ]);
-      }
-      if (result.columnTotals) {
-        totals = [
-          t('table.total'),
-          ...result.columns.flatMap((column) => measures.map((measure) =>
-            rawNumber(result.columnTotals?.[reportCellKey(column)]?.[measure.key]))),
-        ];
-      }
-    } else {
-      header.push(dimensionLabels.join(' / '));
-      header.push(...measures.map((measure) => columnLabel(measure.label, measure.key, label)));
-      for (const row of result.rows) {
-        rows.push([
-          groupLabel(row.keys[row.keys.length - 1]),
-          ...measures.map((measure) => rawNumber(row.values[measure.key])),
-        ]);
-      }
-      if (result.totals) {
-        totals = [
-          t('table.total'),
-          ...measures.map((measure) => rawNumber(result.totals?.values[measure.key])),
-        ];
-      }
-    }
-
-    const table = {
-      header,
-      rows,
-      totals,
-      totalsHeader,
-      notice: result.complete && result.completeGroups
-        ? undefined
-        : t('csv.partial', { scanned: String(result.scanned) }),
-    };
+    const table = buildReportTable(spec, result, {
+      label,
+      group: groupLabel,
+      cell: cellText,
+      number: rawNumber,
+      total: t('table.total'),
+      partial: (scanned) => t('csv.partial', { scanned: String(scanned) }),
+    });
 
     const baseName = spec.presentation?.export?.fileName?.trim() || title;
     // O mesmo gesto de download que o Marketplace e as Traduções já usam.

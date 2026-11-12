@@ -59,6 +59,20 @@ describe('buildReportSubscription', () => {
   });
 });
 
+describe('assinatura com arquivo', () => {
+  it('o passo grava o arquivo, e o aviso leva à página Downloads com o nome dele', () => {
+    const workflow = buildReportSubscription({ ...base, file: 'xlsx' });
+    const [run, notify] = workflow.steps;
+    expect(run.configuration.file).toEqual({ kind: 'Literal', value: 'xlsx' });
+    expect(notify.configuration.link).toEqual({ kind: 'Literal', value: 'downloads' });
+    expect(notify.configuration.message).toEqual({ kind: 'Literal', value: '@core.reports/subscribe.notify.message-file' });
+    expect(notify.configuration.messageParams).toEqual({
+      kind: 'Expression',
+      expression: 'object("count", output.report.count, "total", output.report.total, "file", output.report.fileName)',
+    });
+  });
+});
+
 describe('alertableMeasures', () => {
   it('só as medidas agregadas com chave de expressão', () => {
     const spec: ReportSpec = {

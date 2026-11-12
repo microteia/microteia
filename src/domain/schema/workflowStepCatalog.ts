@@ -1067,6 +1067,26 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         picker: 'report',
       },
       {
+        /**
+         * O relatório em ARQUIVO, gravado em Downloads com a retenção e a visibilidade de arquivo de
+         * automação do escritório. Vazio = só os números.
+         */
+        id: 'file',
+        label: '@core.automation/step.run-report.label.file',
+        description: '@core.automation/step.run-report.help.file',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        options: {
+          kind: 'Static',
+          options: [
+            { value: 'xlsx', label: '@core.automation/step.run-report.file.xlsx' },
+            { value: 'pdf', label: '@core.automation/step.run-report.file.pdf' },
+            { value: 'csv', label: '@core.automation/step.run-report.file.csv' },
+          ],
+        },
+      },
+      {
         /** As respostas em BLOCO; os `param.<chave>` declarados um a um vencem chave por chave. */
         id: 'prompts',
         label: '@core.automation/step.run-report.label.prompts',
@@ -1087,6 +1107,10 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'scanned', label: '@core.automation/step.run-report.output.scanned', type: 'Number' },
       { id: 'name', label: '@core.automation/step.run-report.output.name', type: 'String' },
       { id: 'link', label: '@core.automation/step.run-report.output.link', type: 'String' },
+      { id: 'table', label: '@core.automation/step.run-report.output.table', type: 'String' },
+      { id: 'fileId', label: '@core.automation/step.run-report.output.file-id', type: 'String' },
+      { id: 'fileName', label: '@core.automation/step.run-report.output.file-name', type: 'String' },
+      { id: 'fileUrl', label: '@core.automation/step.run-report.output.file-url', type: 'String' },
     ],
     dynamicInputs: { kind: 'from-target-report-prompts', sourceInputId: 'report' },
   },

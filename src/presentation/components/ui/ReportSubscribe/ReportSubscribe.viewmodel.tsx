@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
+import { REPORT_FILE_FORMATS, isReportFileFormat } from '../../../../domain/schema/report/reportStep';
+import type { ReportFileFormat } from '../../../../domain/schema/report/reportStep';
 import { useLabel, useT } from '../../../shared/i18n/useT';
 import { useAuth } from '../../../../stores/useAuth';
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore';
@@ -51,6 +53,10 @@ export interface ReportSubscribeViewModel {
   opOptions: Option[];
   alertValue: string;
   setAlertValue: (value: string) => void;
+  /** O arquivo gravado em Downloads a cada execução; vazio = só o aviso. */
+  file: string;
+  setFile: (value: string) => void;
+  fileOptions: Option[];
   /** A tarja que diz o que a assinatura carrega dos filtros de agora. */
   filtersNotice: string | null;
   error: string | null;
@@ -66,6 +72,7 @@ export interface ReportSubscribeViewModel {
     measure: string;
     op: string;
     value: string;
+    file: string;
     save: string;
   };
 }
@@ -111,6 +118,7 @@ export const useReportSubscribeViewModel = ({ report, prompts, onClose }: Report
   const [alertMeasure, setAlertMeasure] = useState(measures[0] ?? '');
   const [alertOp, setAlertOp] = useState<ReportAlertOp>('>');
   const [alertValue, setAlertValue] = useState('');
+  const [file, setFile] = useState<ReportFileFormat | ''>('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -131,6 +139,13 @@ export const useReportSubscribeViewModel = ({ report, prompts, onClose }: Report
   );
   const opOptions = useMemo(
     () => REPORT_ALERT_OPS.map((value) => ({ value, label: t(OP_KEYS[value]) })),
+    [t],
+  );
+  const fileOptions = useMemo(
+    () => [
+      { value: '', label: t('subscribe.file.none') },
+      ...REPORT_FILE_FORMATS.map((format) => ({ value: format, label: t(`subscribe.file.${format}`) })),
+    ],
     [t],
   );
   const memberOptions = useMemo(
@@ -161,6 +176,7 @@ export const useReportSubscribeViewModel = ({ report, prompts, onClose }: Report
         hour,
         recipientIds: recipients,
         ...(alertOn ? { alert: { measure: alertMeasure, op: alertOp, value: limit } } : {}),
+        ...(file ? { file } : {}),
       }));
       notify(t('subscribe.created'), 'success');
       onClose();
@@ -172,7 +188,7 @@ export const useReportSubscribeViewModel = ({ report, prompts, onClose }: Report
     }
   }, [
     canSave, createWorkflow, name, report.key, reportTitle, prompts, frequency, hour, recipients,
-    alertOn, alertMeasure, alertOp, limit, notify, t, onClose, openTab, label,
+    alertOn, alertMeasure, alertOp, limit, file, notify, t, onClose, openTab, label,
   ]);
 
   return {
@@ -199,6 +215,9 @@ export const useReportSubscribeViewModel = ({ report, prompts, onClose }: Report
     opOptions,
     alertValue,
     setAlertValue,
+    file,
+    setFile: (value) => setFile(isReportFileFormat(value) ? value : ''),
+    fileOptions,
     filtersNotice: answered > 0 ? t('subscribe.filters', { count: String(answered) }) : null,
     error: error ?? (recipients.length === 0 ? t('subscribe.recipients.missing') : null),
     canSave,
@@ -213,6 +232,7 @@ export const useReportSubscribeViewModel = ({ report, prompts, onClose }: Report
       measure: t('subscribe.alert.measure'),
       op: t('subscribe.alert.op'),
       value: t('subscribe.alert.value'),
+      file: t('subscribe.file'),
       save: t('subscribe.save'),
     },
   };
