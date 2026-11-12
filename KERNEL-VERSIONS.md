@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.230.0] — 2026-11-12
+
+- feat(workflow): `wait-for` step — suspends until the next record event (`eventName`, `.saved`/`.deleted`) of `recordId`, optionally only when the `until` expression holds against the arriving record, or until `timeoutInDays` (default 30, max 365). Outputs `matched`, `timedOut`, `record`, `eventId`, `arrivedAt`. It is a pausing step (`PAUSING_STEP_DEFINITION_IDS`) and checks `context.canSuspend` first.
+- feat(workflow/clock): `WorkflowResult.suspend.wait`, `WorkflowSuspension.wait` and `ResumeClockEntry.wait`; the clock document carries `waitKey` (`workflowWaitKey`) and the repository gains `waitingFor(tenantId, eventName, recordId, limit)`.
+- feat(functions): `onWorkflowEventCreated` calls `resumeWaitsForEvent` after the event's automations, isolated from them: matching waits are annotated through `annotateResume` (first writer wins against a concurrent event or the deadline) and resumed through the clock's `resume`. The event that created a wait never ends it; an `until` that throws never matches.
+- feat(ui/package): `record-event` input picker (record events from the event catalogue); package validation requires `WORKFLOW_WAIT_FOR_SINCE_KERNEL` for `wait-for`. `KERNEL_VERSION` 2.113.0. pt-BR locale package 1.181.0.
+
 #### [9.229.0] — 2026-11-12
 
 - feat(widget): `metric` can bind to a report (`report`, `measure?`, `prompts?`, `bind?`, `compare?: 'previous-period'`), rendered by the new `ReportMetric`: the report's total for the measure through `runReport`, and — for a current period answer — the change against `previousReportPeriod` (this-month → last-month, …).

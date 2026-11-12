@@ -5,6 +5,7 @@ import type {
   ClaimedEvent,
   DateReachedClockEntry,
   IWorkflowClockRepository,
+  ResumeClockEntry,
   WorkflowClockEntry,
 } from '../repositories/IWorkflowClockRepository';
 import type { WorkflowDefinition, WorkflowEvent } from '../entities/Workflow';
@@ -68,6 +69,10 @@ const makeDeps = (now: string, officeTimeZone = 'America/Sao_Paulo') => {
       entries.set(key(entry.tenantId, id), { ...stored, outputs, decided: true });
       return 'fired';
     },
+    waitingFor: async (tenantId, eventName, recordId, limit) => [...entries.values()]
+      .filter((entry): entry is ResumeClockEntry => entry.kind === 'resume' && entry.tenantId === tenantId
+        && entry.wait?.eventName === eventName && entry.wait.recordId === recordId)
+      .slice(0, limit),
     advance: async (entry, patch) => {
       const stored = entries.get(key(entry.tenantId, entry.definitionId));
       if (!stored || stored.nextRunAt.getTime() !== entry.nextRunAt.getTime()) return 'stale';

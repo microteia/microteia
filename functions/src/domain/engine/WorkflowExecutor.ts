@@ -16,6 +16,7 @@ import { flattenSteps } from '../services/stepTree';
 import { isStepExcludedFromTrigger } from '../schema/workflowStepCatalog';
 import { matchesChangeFilter } from '../schema/workflowChangeFilter';
 import { MAX_STEP_RETRIES } from '../entities/Workflow';
+import type { WorkflowWait } from '../schema/workflowWait';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -25,6 +26,8 @@ export interface WorkflowSuspension {
   resumeAt: Date;
   /** A tarefa humana que a pausa espera, quando é uma aprovação. */
   taskId?: string;
+  /** O evento que a pausa espera, quando é um `wait-for`. */
+  wait?: WorkflowWait;
   afterStepId: string;
   lastStepId: string | null;
   outputs: Record<string, Record<string, unknown>>;
@@ -32,7 +35,7 @@ export interface WorkflowSuspension {
 }
 
 /** A continuação de uma execução que esperou: a mesma identidade, o histórico até ali e o estado. */
-export interface WorkflowResume extends Omit<WorkflowSuspension, 'resumeAt' | 'taskId'> {
+export interface WorkflowResume extends Omit<WorkflowSuspension, 'resumeAt' | 'taskId' | 'wait'> {
   executionId: string;
   startedAt: Date;
   logs: WorkflowExecutionLogEntry[];
@@ -246,7 +249,7 @@ export const runWorkflow = async ({
       ok: true;
       lastStepId: string | null;
       halted?: boolean;
-      suspended?: { resumeAt: Date; afterStepId: string; taskId?: string };
+      suspended?: { resumeAt: Date; afterStepId: string; taskId?: string; wait?: WorkflowWait };
     }
     | { ok: false };
 
@@ -591,6 +594,7 @@ export const runWorkflow = async ({
               resumeAt: result.suspend.resumeAt,
               afterStepId: step.id,
               ...(result.suspend.taskId ? { taskId: result.suspend.taskId } : {}),
+              ...(result.suspend.wait ? { wait: result.suspend.wait } : {}),
             },
           };
         }
@@ -632,7 +636,7 @@ export const runWorkflow = async ({
   }
 
   if (run.suspended) {
-    const { resumeAt, afterStepId, taskId } = run.suspended;
+    const { resumeAt, afterStepId, taskId, wait } = run.suspended;
     return {
       ...finish('WAITING', {}),
       finishedAt: undefined,
@@ -641,6 +645,7 @@ export const runWorkflow = async ({
         resumeAt,
         afterStepId,
         ...(taskId ? { taskId } : {}),
+        ...(wait ? { wait } : {}),
         lastStepId: run.lastStepId,
         outputs: context.outputs,
         variables: context.variables,

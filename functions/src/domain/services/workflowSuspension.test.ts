@@ -195,6 +195,19 @@ describe('resumeWorkflowExecution', () => {
   });
 });
 
+describe('recordWorkflowRun — a espera por evento', () => {
+  it('a continuação guarda o evento que a pausa espera', async () => {
+    const { deps, entries } = setup(definition());
+    const run = waitingRun();
+    run.suspension = {
+      ...(run.suspension as NonNullable<WorkflowRun['suspension']>),
+      wait: { eventName: 'medico.saved', recordId: 'r1', until: 'event.ativo == true' },
+    };
+    await recordWorkflowRun(run, { definition: definition(), event }, deps);
+    expect((entries.get('exec-1') as ResumeClockEntry).wait).toEqual({ eventName: 'medico.saved', recordId: 'r1', until: 'event.ativo == true' });
+  });
+});
+
 describe('resumeWorkflowExecution — a espera de uma aprovação', () => {
   const prepareApproval = async (decided: boolean) => {
     const context = setup(definition());

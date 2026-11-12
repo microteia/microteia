@@ -1,5 +1,6 @@
 import type { PublishedActor } from '../engine/workflowActor';
 import type { WorkflowClockLastRun } from '../schema/workflowClock';
+import type { WorkflowWait } from '../schema/workflowWait';
 
 interface WorkflowClockEntryBase {
   tenantId: string;
@@ -70,6 +71,8 @@ export interface ResumeClockEntry extends WorkflowClockEntryBase {
    * retomada é o prazo vencido, e a tarefa é fechada como expirada.
    */
   decided?: boolean;
+  /** O evento que a pausa espera (passo `wait-for`). Ausente nas outras esperas. */
+  wait?: WorkflowWait;
 }
 
 export type WorkflowClockEntry = ScheduleClockEntry | DateReachedClockEntry | ResumeClockEntry;
@@ -129,6 +132,11 @@ export interface IWorkflowClockRepository {
     entry: ResumeClockEntry,
     outputs: Record<string, Record<string, unknown>>,
   ): Promise<WorkflowClockFireResult>;
+  /**
+   * As continuações do escritório que esperam o evento `eventName` do registro `recordId`
+   * (`workflowWaitKey`). Uma consulta de UM campo: o índice automático a atende.
+   */
+  waitingFor(tenantId: string, eventName: string, recordId: string, limit: number): Promise<ResumeClockEntry[]>;
   /** Move a entrada sem publicar nada. `stale` quando outra passada já a moveu. */
   advance(entry: WorkflowClockEntry, patch: ClockAdvance): Promise<WorkflowClockFireResult>;
   /**

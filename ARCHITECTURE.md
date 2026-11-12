@@ -8311,6 +8311,37 @@ e com hífen, e é ela que a automação compara; sem nenhum, `approved`/`reject
 **Ainda não**: decisão pelo portal ou pelo MCP, quórum ("todos precisam aprovar"), lembrete periódico e
 delegação. A forma da tarefa já comporta os três primeiros sem mudar o contrato.
 
+### Esperar um evento (`wait-for`)
+
+O passo PARA a execução até o PRÓXIMO evento de um registro — `eventName` (o `.saved`/`.deleted` de uma
+tela; o editor oferece só esses, `picker: 'record-event'`) do `recordId` —, opcionalmente só quando
+`until` vale, ou até o prazo (`timeoutInDays`, 30 por padrão, teto 365). Responde ao "até a fatura ser
+paga" e ao "até o cliente responder" sem um `date-reached` por cima de um campo de controle.
+
+- **Pausa pelo relógio** do `delay` e da aprovação: o passo devolve `suspend: { resumeAt, wait }`, e a
+  continuação (`ResumeClockEntry.wait`) leva o que espera mais a chave `waitKey`
+  (`workflowWaitKey(eventName, recordId)`), gravada no documento para a correlação ser consulta de UM
+  campo — o índice automático atende. As regras são as dos passos que pausam (`PAUSING_STEP_DEFINITION_IDS`):
+  nível principal, execução do barramento, nunca num botão.
+- **Quem retoma antes do prazo é o barramento.** `onWorkflowEventCreated`, depois das automações do
+  evento e isolado delas, chama `resumeWaitsForEvent` (`domain/services/workflowWaits.ts`): acha as
+  esperas daquele registro (`waitingFor`, até `MAX_WAITS_PER_EVENT`), avalia `until` contra o registro
+  COMO CHEGOU (`event.<campo>` — o vocabulário de um gatilho; as saídas e variáveis da execução também
+  valem), grava `matched`/`record`/`eventId`/`arrivedAt` nas saídas do passo por `annotateResume` e
+  retoma pela porta do relógio. É a ordem da decisão de uma tarefa, e pelo mesmo motivo: dois eventos
+  juntos, ou o evento e o prazo no mesmo instante — quem anota primeiro vence, o outro é `stale`.
+- **O evento que criou a espera não a encerra** (mesmo `event.id`): a execução parada por ele ouviria a
+  si mesma.
+- **Condição que estoura não casa** (log de aviso): seguir por uma condição que não se sabe avaliar seria
+  tomar o caminho de quem esperou certo.
+- **O prazo** retoma com as saídas que o passo deixou — `timedOut: true`, `matched: false`.
+- Responde, para quem usa este passo, ao limite "a espera não reconfere o estado" do modelo de
+  comportamento: o registro que chega vem nas saídas, e é ele que os passos seguintes leem.
+- Pacote: exige `WORKFLOW_WAIT_FOR_SINCE_KERNEL` (2.113.0) — antes dele o barramento não procura esperas,
+  e a execução só seguiria pelo prazo.
+- **Ainda não**: esperar um evento que não é de registro, e conferir na hora se o registro JÁ atende à
+  condição — a espera é pelo próximo evento; quem precisa do estado de agora põe uma `Condition` antes.
+
 ### Compatibilidade de pacote
 
 Um kernel anterior a `WORKFLOW_FLOW_CONTROL_SINCE_KERNEL` (2.108.0) não RECUSA `changeType`, `Switch` nem

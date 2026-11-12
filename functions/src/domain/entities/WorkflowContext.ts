@@ -1,4 +1,5 @@
 import type { BusinessCalendarSet } from '../schema/time/businessDays';
+import type { WorkflowWait } from '../schema/workflowWait';
 import type { InputMapping, WorkflowEvent, WorkflowParameter } from './Workflow';
 import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
 import type { RecordReader } from '../schema/memberVisibility';
@@ -161,5 +162,10 @@ export interface WorkflowResult {
      * tarefa.
      */
     taskId?: string;
+    /**
+     * O evento que a pausa espera (passo `wait-for`). Como a tarefa, ela pode acabar ANTES de
+     * `resumeAt` — quando o evento chega —, e `resumeAt` é o prazo.
+     */
+    wait?: WorkflowWait;
   };
 }

@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.180.0",
+    "version": "1.181.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -5081,7 +5081,28 @@
             "step.run-report.done": "Relatório \"{name}\" executado: {count} registros em {groups} grupos.",
             "step.run-report.done-partial": "Relatório \"{name}\" executado sobre parte dos dados: {count} registros em {groups} grupos, {scanned} lidos.",
             "step.target.report": "Selecione o relatório…",
-            "step.target.report.missing": "O relatório \"{key}\" não existe mais."
+            "step.target.report.missing": "O relatório \"{key}\" não existe mais.",
+            "step.wait-for.name": "Esperar evento",
+            "step.wait-for.description": "Para a automação até chegar o próximo evento de um registro — gravado ou excluído, e opcionalmente só quando uma condição vale — ou até o prazo. Depois, a mesma execução continua.",
+            "step.wait-for.label.event": "Evento a esperar",
+            "step.wait-for.help.event": "Um evento de registro: o \"gravado\" ou o \"excluído\" de uma tela.",
+            "step.wait-for.label.record": "Registro",
+            "step.wait-for.help.record": "O id do registro cujo evento é esperado — normalmente o registro que disparou a automação.",
+            "step.wait-for.label.until": "Só quando (expressão)",
+            "step.wait-for.help.until": "Opcional. Avaliada a cada evento do registro, contra o registro como ele chegou — event.<campo>, ex.: event.status == \"paid\". O evento que não a atende mantém a automação esperando.",
+            "step.wait-for.label.timeout": "Prazo (dias)",
+            "step.wait-for.help.timeout": "Quanto tempo esperar. Passado o prazo sem o evento, a automação continua com timedOut = true. Até 365 dias; 30 quando vazio.",
+            "step.wait-for.output.matched": "O evento chegou",
+            "step.wait-for.output.timed-out": "O prazo venceu",
+            "step.wait-for.output.record": "O registro como chegou",
+            "step.wait-for.output.event-id": "Id do evento",
+            "step.wait-for.output.arrived-at": "Quando chegou",
+            "step.wait-for.cannot-wait": "Esta automação não pode esperar aqui: a espera só funciona no nível principal de uma automação disparada por evento — nunca num ramo, numa repetição ou num botão.",
+            "step.wait-for.event-invalid": "\"{event}\" não é um evento de registro. Escolha o evento \"gravado\" ou \"excluído\" de uma tela.",
+            "step.wait-for.no-record": "O registro a esperar está vazio.",
+            "step.wait-for.waiting": "Esperando \"{event}\" até {until}.",
+            "step.target.record-event": "Selecione o evento…",
+            "step.target.record-event.missing": "O evento \"{key}\" não é emitido por nenhuma tela deste escritório."
           }
         }
       },

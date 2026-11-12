@@ -24,6 +24,9 @@ const LACUNAS_CONFERIDAS = [
   // Quem APROVA uma transição ainda não está no vocabulário do modelo: uma regra "o gerente aprova
   // antes de fechar" vira hoje duas transições e nenhuma tarefa. É a próxima lacuna a fechar.
   'workflow-step\tapproval',
+  // Esperar um evento é o equivalente de uma transição que o modelo ainda não descreve: o estado que
+  // aguarda outro registro mudar. Fica com a aprovação, na mesma fila.
+  'workflow-step\twait-for',
   'workflow-step\tscript',
   'workflow-step\tai-detect-workflow',
   'workflow-step\tai-extract-parameters',

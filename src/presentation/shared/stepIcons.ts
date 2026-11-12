@@ -22,6 +22,7 @@ import {
   RiUserAddLine,
   RiUserUnfollowLine,
   RiBarChart2Line,
+  RiTimerFlashLine,
 } from 'react-icons/ri';
 
 const STEP_ICONS: Record<string, IconType> = {
@@ -46,6 +47,7 @@ const STEP_ICONS: Record<string, IconType> = {
   RiUserAddLine,
   RiUserUnfollowLine,
   RiBarChart2Line,
+  RiTimerFlashLine,
 };
 
 export const getStepIcon = (icon: string): IconType => STEP_ICONS[icon] ?? RiToolsLine;

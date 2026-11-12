@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.230.0] — 2026-11-12
+
+- Novo passo de automação **Esperar evento**: a automação para até um registro mudar — por exemplo, até a fatura ser marcada como paga — e segue na hora em que isso acontece. Se o prazo que você definir vencer antes, ela segue pelo caminho do "não aconteceu".
+
 #### [9.229.0] — 2026-11-12
 
 - Os painéis ganharam **indicadores ligados aos relatórios**: um número grande que mostra o total de uma medida e, quando o relatório é do mês, da semana ou do ano corrente, quanto ele variou em relação ao período anterior.

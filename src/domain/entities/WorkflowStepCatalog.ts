@@ -35,7 +35,8 @@ export type InputPickerKind =
   | 'documents-collection'
   | 'portal-subject'
   | 'portal-invite-subject'
-  | 'report';
+  | 'report'
+  | 'record-event';
 
 export interface InputDefinition {
   id: string;

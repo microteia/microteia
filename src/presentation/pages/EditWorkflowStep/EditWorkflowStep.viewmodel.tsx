@@ -18,7 +18,7 @@ import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { screenDataCollection } from '../../../domain/schema/tenantCollections';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
 import { getWorkflowEventFields, WORKFLOW_CALLED_EVENT, workflowEventRoot, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
-import { workflowParameterToNativeField } from '../../../domain/schema/eventCatalog';
+import { buildWorkflowEventCatalog, resolveEventCatalogLabel, workflowParameterToNativeField } from '../../../domain/schema/eventCatalog';
 import type { PathRoot } from '../../../domain/schema/pathResolver';
 import type { NativeFieldSpec } from '../../../domain/schema/entityRegistry';
 import { getStepIcon } from '../../shared/stepIcons';
@@ -72,6 +72,7 @@ import { isPausingStepDefinition, isStepExcludedFromTrigger, inputsForTemplateSo
 import { useResolvedDocumentTemplates } from '../../shared/documents/useResolvedDocumentTemplates';
 import { useReportDefinitions } from '../../../stores/useReportDefinitions';
 import { reportPromptParameters } from '../../../domain/schema/report/reportStep';
+import { isRecordEventName } from '../../../domain/schema/workflowWait';
 import { isPayloadTemplate, isSingleRecordParameter } from '../../../domain/schema/document/documentTemplate';
 
 const queryProjectionOutputs = (
@@ -581,6 +582,14 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [reports, label],
   );
 
+  /** Os eventos que um `wait-for` pode esperar: os de REGISTRO — só eles têm um registro a correlacionar. */
+  const recordEventOptions = useMemo(
+    () => buildWorkflowEventCatalog(schemaContext)
+      .filter((entry) => isRecordEventName(entry.name))
+      .map((entry) => ({ value: entry.name, label: resolveEventCatalogLabel(label, entry), meta: entry.name })),
+    [schemaContext, label],
+  );
+
   /** O modelo `payload` escolhido: os parâmetros dele viram `param.<chave>`. */
   const targetTemplate = chosenTemplate && isPayloadTemplate(chosenTemplate) ? chosenTemplate : null;
 
@@ -796,6 +805,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const pickerDisplay = useCallback(
     (kind: InputPickerKind, stored: string): PickerDisplay => {
       if (kind === 'ai-connection') return { options: aiConnectionOptions };
+      if (kind === 'record-event') {
+        return !stored || recordEventOptions.some((option) => option.value === stored)
+          ? { options: recordEventOptions }
+          : { options: recordEventOptions, orphanMessage: t('step.target.record-event.missing', { key: stored }) };
+      }
       if (kind === 'report') {
         return !stored || reportOptions.some((option) => option.value === stored)
           ? { options: reportOptions }
@@ -851,6 +865,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     [
       aiConnectionOptions,
       reportOptions,
+      recordEventOptions,
       documentTemplateOptions,
       templateReferenceOptions,
       documentsCollectionOptions,
@@ -888,7 +903,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
                         ? 'step.target.portal-invite-subject'
                         : kind === 'report'
                           ? 'step.target.report'
-                          : 'step.target.workflow',
+                          : kind === 'record-event'
+                            ? 'step.target.record-event'
+                            : 'step.target.workflow',
       ),
     [t],
   );

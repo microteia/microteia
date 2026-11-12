@@ -386,6 +386,29 @@ describe('integridade do gatilho de auditoria', () => {
   });
 });
 
+describe('esperar evento', () => {
+  const comKernel = (steps: WorkflowStep[], kernel: string): MarketplacePlugin => {
+    const base = pacote(steps);
+    return { ...base, manifest: { ...base.manifest, kernel } } as unknown as MarketplacePlugin;
+  };
+  const esperar = passo({
+    id: 'pago',
+    stepDefinitionId: 'wait-for',
+    configuration: {
+      eventName: { kind: 'Literal', value: 'records.saved' },
+      recordId: { kind: 'Event', path: 'id' },
+    },
+  });
+
+  it('exige o kernel em que o barramento retoma a espera', () => {
+    const issues = workflowStepIssues(comKernel([esperar], '^2.112.0'));
+    expect(issues.map((issue) => [issue.message, issue.messageParams?.definition, issue.messageParams?.minimum])).toEqual([
+      ['@core.marketplace/issue.step.definition-kernel', 'wait-for', '2.113.0'],
+    ]);
+    expect(workflowStepIssues(comKernel([esperar], '^2.113.0'))).toEqual([]);
+  });
+});
+
 describe('executar relatório', () => {
   const comKernel = (steps: WorkflowStep[], kernel: string): MarketplacePlugin => {
     const base = pacote(steps);

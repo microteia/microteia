@@ -58,6 +58,7 @@ import { WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../../domain/schema/workf
 import { REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
 import { WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../../domain/schema/workflowTask';
 import { WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../../domain/schema/report/reportStep';
+import { WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../../domain/schema/workflowWait';
 import { REPORT_HIGHLIGHT_TONES } from '../../../domain/schema/report/reportSpec';
 import {
   ACTION_COMMAND_ORDER,
@@ -388,6 +389,7 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   script: 'Runs one of your `scripts` in the server sandbox.',
   'ai-detect-workflow': 'Asks a model which callable workflow fits a free text, reading their descriptions. No match is a success with `found` false.',
   'ai-extract-parameters': 'Asks a model to fill the parameters of a target workflow from a free text. Publishes `params`, plus `params.<key>` when the target is a `Literal`.',
+  'wait-for': 'Stops the run until the next `eventName` (a record\'s `.saved`/`.deleted`) of `recordId` arrives — only one that satisfies `until` (an expression on `event.<field>`), when given — or until `timeoutInDays`. Publishes `matched`, `timedOut`, `record`, `eventId`, `arrivedAt`. Top level only, and only in a run started by an event.',
   'run-report': 'Runs one of the organization\'s reports by its key (`report`), answering its filters with `param.<key>` or `prompts`. Publishes `total` (first measure), `totals.<measure>`, `count`, `groups`, `rows` (one per group, raw keys, capped), `complete` and `link` (`rep:<key>`) — numbers, never records.',
   query: 'Asks the database. Publishes `count`, `results`, `first`, plus `first.<projection>`.',
   upsert: 'Writes one record. An `id` in the object means update, no `id` means insert — or, with `matchPrimaryKey: true`, update the record that holds the same `primary` key.',
@@ -3514,6 +3516,33 @@ notified; the first decision resumes the SAME run at once, and the chosen outcom
   event**; the step refuses BEFORE creating the task or notifying anyone where the run cannot wait.
 
 The \`approval\` step needs kernel ${WORKFLOW_APPROVAL_SINCE_KERNEL} or later, and \`validate_plugin\` refuses a package that admits an older one.
+
+### Waiting for a record — the \`wait-for\` step
+
+\`\`\`ts
+{ id: 'paid', stepDefinitionId: 'wait-for', type: 'Action', order: 2, enabled: true,
+  configuration: {
+    eventName: { kind: 'Literal', value: 'acme-invoices.saved' },
+    recordId: { kind: 'Event', path: 'id' },
+    until: { kind: 'Literal', value: 'event.status == "paid"' },   // optional, on the record as it arrived
+    timeoutInDays: { kind: 'Literal', value: 15 },
+  } }
+// then a Condition on output.paid.matched — or output.paid.timedOut
+\`\`\`
+
+It stops the run until the NEXT \`eventName\` of \`recordId\` arrives — a record event, \`.saved\` or
+\`.deleted\` — and, with \`until\`, only one that satisfies it; or until the deadline (30 days when absent, at
+most 365). The event resumes the SAME run at once with \`matched: true\`, \`record\` (the record as it arrived),
+\`eventId\` and \`arrivedAt\`; the deadline resumes it with \`timedOut: true\`.
+
+- \`until\` is the TEXT of an expression (a \`Literal\`), evaluated on each event against \`event.<field>\` — the
+  arriving record — and the run's own outputs. An event that does not satisfy it keeps the run waiting; an
+  expression that fails never matches.
+- It waits for the NEXT event: the record may already be in the state you want. Put a \`Condition\` before it
+  when that matters.
+- It pauses like \`delay\`: **only at the top level**, **only in a run started by an event**.
+
+The \`wait-for\` step needs kernel ${WORKFLOW_WAIT_FOR_SINCE_KERNEL} or later, and \`validate_plugin\` refuses a package that admits an older one.
 
 ### Numbers in a workflow — the \`run-report\` step
 

@@ -60,6 +60,7 @@ import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { hasChangeFilter, WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../schema/workflowChangeFilter';
 import { APPROVAL_STEP_ID, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../schema/workflowTask';
 import { RUN_REPORT_STEP_ID, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../schema/report/reportStep';
+import { WAIT_FOR_STEP_ID, WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../schema/workflowWait';
 import { screenEventPrefix } from './screenModule';
 import { RENDER_DOCUMENT_STEP_ID, declaredDocumentTemplates, renderDocumentStepIssues, renderDocumentTemplateKey } from './documentStepIntegrity';
 
@@ -734,8 +735,9 @@ const delayIssues = (
     : [];
 
   const declared = pkg.manifest?.kernel ?? '';
-  const waits = delays.filter((step) => step.stepDefinitionId !== APPROVAL_STEP_ID);
+  const waits = delays.filter((step) => step.stepDefinitionId !== APPROVAL_STEP_ID && step.stepDefinitionId !== WAIT_FOR_STEP_ID);
   const approvals = delays.filter((step) => step.stepDefinitionId === APPROVAL_STEP_ID);
+  const eventWaits = delays.filter((step) => step.stepDefinitionId === WAIT_FOR_STEP_ID);
   const kernel = [
     ...(waits.length > 0 && !rangeExcludesBelow(declared, WORKFLOW_DELAY_SINCE_KERNEL)
       ? [{ ref, message: '@core.marketplace/issue.step.delay-kernel', messageParams: { step: waits[0].id, minimum: WORKFLOW_DELAY_SINCE_KERNEL } }]
@@ -746,6 +748,15 @@ const delayIssues = (
           ref,
           message: '@core.marketplace/issue.step.definition-kernel',
           messageParams: { step: approvals[0].id, definition: APPROVAL_STEP_ID, minimum: WORKFLOW_APPROVAL_SINCE_KERNEL },
+        }]
+      : []),
+    // A espera por evento pausa pelo mesmo relógio, mas quem a retoma é o barramento — e ele só a
+    // procura a partir deste kernel.
+    ...(eventWaits.length > 0 && !rangeExcludesBelow(declared, WORKFLOW_WAIT_FOR_SINCE_KERNEL)
+      ? [{
+          ref,
+          message: '@core.marketplace/issue.step.definition-kernel',
+          messageParams: { step: eventWaits[0].id, definition: WAIT_FOR_STEP_ID, minimum: WORKFLOW_WAIT_FOR_SINCE_KERNEL },
         }]
       : []),
   ];

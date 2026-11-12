@@ -86,6 +86,7 @@ const SHARED_FILES = [
   'domain/schema/workflowReturn.ts',
   'domain/schema/workflowChangeFilter.ts',
   'domain/schema/workflowTask.ts',
+  'domain/schema/workflowWait.ts',
   'domain/schema/dataExtensionPoints.ts',
   'domain/schema/settings.ts',
   'domain/schema/notifications.ts',

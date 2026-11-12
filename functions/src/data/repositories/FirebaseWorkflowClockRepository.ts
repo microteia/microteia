@@ -13,6 +13,8 @@ import type {
 } from '../../domain/repositories/IWorkflowClockRepository';
 import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
 import type { WorkflowClockLastRun } from '../../domain/schema/workflowClock';
+import { workflowWaitKey } from '../../domain/schema/workflowWait';
+import type { WorkflowWait } from '../../domain/schema/workflowWait';
 import {
   RESUME_CLOCK_ID_PREFIX,
   clockOccurrenceEventId,
@@ -35,6 +37,17 @@ const mapPage = (value: unknown): DateReachedPage | null => {
     return null;
   }
   return { fromDay: page.fromDay, toDay: page.toDay, afterValue, afterId: page.afterId };
+};
+
+const waitOf = (value: unknown): WorkflowWait | null => {
+  if (!value || typeof value !== 'object') return null;
+  const wait = value as Record<string, unknown>;
+  if (typeof wait.eventName !== 'string' || typeof wait.recordId !== 'string') return null;
+  return {
+    eventName: wait.eventName,
+    recordId: wait.recordId,
+    ...(typeof wait.until === 'string' && wait.until.trim() ? { until: wait.until } : {}),
+  };
 };
 
 const SKIP_REASONS: ReadonlySet<string> = new Set(['owners-deactivated', 'date-field-missing']);
@@ -95,6 +108,7 @@ const mapEntry = (tenantId: string, definitionId: string, data: DocumentData): W
       actor: data.actor && typeof data.actor === 'object' ? (data.actor as ResumeClockEntry['actor']) : null,
       ...(typeof data.taskId === 'string' ? { taskId: data.taskId } : {}),
       ...(data.decided === true ? { decided: true } : {}),
+      ...(waitOf(data.wait) ? { wait: waitOf(data.wait) as WorkflowWait } : {}),
     };
   }
   if (data.kind === 'dateReached') {
@@ -151,6 +165,11 @@ const entryDocument = (entry: WorkflowClockEntry): DocumentData => {
       actor: entry.actor,
       ...(entry.taskId ? { taskId: entry.taskId } : {}),
       ...(entry.decided ? { decided: true } : {}),
+      // A chave mora no documento, e não só dentro de `wait`, para o barramento achar quem espera com
+      // uma consulta de um campo.
+      ...(entry.wait
+        ? { wait: entry.wait, waitKey: workflowWaitKey(entry.wait.eventName, entry.wait.recordId) }
+        : {}),
     };
   }
   return {
@@ -259,6 +278,16 @@ export class FirebaseWorkflowClockRepository implements IWorkflowClockRepository
       tx.update(entryRef, { outputs, decided: true, updatedAt: Timestamp.now() });
       return 'fired';
     });
+  }
+
+  async waitingFor(tenantId: string, eventName: string, recordId: string, limit: number): Promise<ResumeClockEntry[]> {
+    const snapshot = await this.db.collection('tenants').doc(tenantId).collection(WORKFLOW_CLOCK_COLLECTION)
+      .where('waitKey', '==', workflowWaitKey(eventName, recordId))
+      .limit(limit)
+      .get();
+    return snapshot.docs
+      .map(fromSnapshot)
+      .filter((entry): entry is ResumeClockEntry => entry?.kind === 'resume' && entry.wait !== undefined);
   }
 
   async advance(entry: WorkflowClockEntry, patch: ClockAdvance): Promise<WorkflowClockFireResult> {

@@ -3,6 +3,7 @@ import { getDI } from '../di/container';
 import type { WorkflowEvent } from '../../domain/entities/Workflow';
 import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
 import { actorFromPublished } from '../../domain/engine/workflowActor';
+import { resumeWaitsForEvent } from '../../domain/services/workflowWaits';
 import { officeSetting } from '../settings/officeSettings';
 import {
   WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS,
@@ -49,6 +50,26 @@ export const onWorkflowEventCreated = onDocumentCreated(
       });
     } catch (error) {
       console.error(`[workflow] Falha ao processar evento ${tenantId}/${eventId}:`, error);
+    }
+
+    // Isolado do resto: uma automação que falhou acima não pode deixar parada para sempre a execução
+    // que esperava justamente este evento (passo `wait-for`).
+    try {
+      const data = snapshot.data();
+      const clock = getDI().getWorkflowClockDeps();
+      const resume = clock.resume;
+      if (resume) await resumeWaitsForEvent(
+        {
+          id: eventId,
+          tenantId,
+          name: data.name,
+          payload: normalizeFirestoreValue(data.payload ?? {}),
+          timestamp: data.timestamp?.toDate?.() ?? new Date(),
+        },
+        { clockRepository: clock.repository, services: getDI().getWorkflowServices(), resume },
+      );
+    } catch (error) {
+      console.error(`[workflow] Falha ao retomar esperas do evento ${tenantId}/${eventId}:`, error);
     }
   },
 );

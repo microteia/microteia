@@ -65,6 +65,7 @@ export const recordWorkflowRun = async (
     variables: suspension.variables,
     actor: origin.actor ? toPublishedActor(origin.actor) : null,
     ...(suspension.taskId ? { taskId: suspension.taskId } : {}),
+    ...(suspension.wait ? { wait: suspension.wait } : {}),
     nextRunAt: suspension.resumeAt,
     timeZone: 'UTC',
     declaredTimeZone: null,

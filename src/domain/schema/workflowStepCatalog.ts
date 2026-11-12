@@ -7,6 +7,7 @@ import { WORKFLOW_AUDIT_EVENT } from './workflowAuditTrigger';
 import { HTTP_REQUEST_STEP_ID } from './httpRequestSpec';
 import type { FieldRules } from './fieldRules';
 import { RUN_REPORT_STEP_ID } from './report/reportStep';
+import { DEFAULT_WAIT_DAYS, WAIT_FOR_STEP_ID } from './workflowWait';
 
 /**
  * O catálogo de passos de automação — a METADATA, sem os executores.
@@ -82,7 +83,8 @@ export type InputPickerKind =
   | 'documents-collection'
   | 'portal-subject'
   | 'portal-invite-subject'
-  | 'report';
+  | 'report'
+  | 'record-event';
 
 export interface InputDefinition {
   id: string;
@@ -714,6 +716,62 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'decidedAt', label: '@core.automation/step.approval.output.decided-at', type: 'Date' },
       { id: 'comment', label: '@core.automation/step.approval.output.comment', type: 'String' },
       { id: 'taskId', label: '@core.automation/step.approval.output.task-id', type: 'String' },
+    ],
+  },
+  {
+    /**
+     * Espera o PRÓXIMO evento de um registro — "até a fatura ser paga", "até o cliente responder" —, com
+     * prazo. Pausa pelo mesmo relógio do `delay`; quem retoma antes do prazo é o barramento de eventos,
+     * quando chega o evento esperado e a condição vale para o registro como ele chegou.
+     */
+    id: WAIT_FOR_STEP_ID,
+    version: 1,
+    name: '@core.automation/step.wait-for.name',
+    description: '@core.automation/step.wait-for.description',
+    icon: 'RiTimerFlashLine',
+    category: 'Action',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'eventName',
+        label: '@core.automation/step.wait-for.label.event',
+        description: '@core.automation/step.wait-for.help.event',
+        required: true,
+        type: 'String',
+        picker: 'record-event',
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'recordId',
+        label: '@core.automation/step.wait-for.label.record',
+        description: '@core.automation/step.wait-for.help.record',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'until',
+        label: '@core.automation/step.wait-for.label.until',
+        description: '@core.automation/step.wait-for.help.until',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'timeoutInDays',
+        label: '@core.automation/step.wait-for.label.timeout',
+        description: '@core.automation/step.wait-for.help.timeout',
+        required: false,
+        type: 'Number',
+        defaultValue: DEFAULT_WAIT_DAYS,
+      },
+    ],
+    outputDefinitions: [
+      { id: 'matched', label: '@core.automation/step.wait-for.output.matched', type: 'Boolean' },
+      { id: 'timedOut', label: '@core.automation/step.wait-for.output.timed-out', type: 'Boolean' },
+      { id: 'record', label: '@core.automation/step.wait-for.output.record', type: 'String' },
+      { id: 'eventId', label: '@core.automation/step.wait-for.output.event-id', type: 'String' },
+      { id: 'arrivedAt', label: '@core.automation/step.wait-for.output.arrived-at', type: 'Date' },
     ],
   },
   {
@@ -1468,7 +1526,7 @@ export const UNIMPLEMENTED_STEP_TYPES: readonly string[] = ['Delay'];
  * condição ou do corpo de uma repetição a pausa falharia com o fluxo rodando. Uma regra só para quem a
  * cobra: o editor (que não oferece nem deixa arrastar), a validação de pacote e o modelo de domínio.
  */
-export const PAUSING_STEP_DEFINITION_IDS: readonly string[] = ['delay', 'approval'];
+export const PAUSING_STEP_DEFINITION_IDS: readonly string[] = ['delay', 'approval', WAIT_FOR_STEP_ID];
 
 export const isPausingStepDefinition = (stepDefinitionId: string | undefined): boolean =>
   !!stepDefinitionId && PAUSING_STEP_DEFINITION_IDS.includes(stepDefinitionId);
