@@ -667,6 +667,12 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // O hash do token do webhook de entrada de cada automação. Ninguém lê nem grava pelo cliente: quem
+      // emite e revoga é a callable `manageWorkflowWebhook`, e quem confere é o `workflowWebhook`.
+      match /workflow_webhooks/{workflowId} {
+        allow read, write: if false;
+      }
+
       // ─── Listas de opções declaradas pelo tenant ─────────────────────────────
       // O gêmeo, do lado do Firestore, do LOOKUP_REGISTRY de código. O id do documento É o nome da
       // coleção onde as opções ficam, e é este `exists()` que autoriza a escrita nela lá embaixo.
@@ -762,7 +768,7 @@ service cloud.firestore {
         'tagDefinitions', 'plugin_installations',
         'recordKeys', 'record_key_adoptions', 'recordSequences', 'record_imports', 'record_search_jobs',
         'httpConnections', 'http_dispatches', 'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_clock',
-        'workflow_definitions', 'workflow_events', 'workflow_executions', 'workflow_tasks', 'workflow_trigger_marks'
+        'workflow_definitions', 'workflow_events', 'workflow_executions', 'workflow_tasks', 'workflow_trigger_marks', 'workflow_webhooks'
         ];
       }
       function isDeclaredScreen(name) {

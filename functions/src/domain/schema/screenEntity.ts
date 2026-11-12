@@ -30,6 +30,7 @@ import { RECORD_SEARCH_JOBS_COLLECTION } from './recordSearch';
 import { EXTENSION_SEEDS_COLLECTION } from './screenSeed';
 import { WORKFLOW_CLOCK_COLLECTION, WORKFLOW_TRIGGER_MARKS_COLLECTION } from './workflowClock';
 import { WORKFLOW_TASKS_COLLECTION } from './workflowTask';
+import { WORKFLOW_WEBHOOKS_COLLECTION } from './workflowWebhook';
 import { NOTIFICATION_DISPATCHES_COLLECTION, NOTIFICATION_INBOX_COLLECTION } from './notifications';
 import { asContactKind, NOTIFICATION_CONTACTS_COLLECTION } from './notificationContacts';
 import {
@@ -618,6 +619,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'workflow_events',
   'workflow_executions',
   WORKFLOW_TASKS_COLLECTION,
+  WORKFLOW_WEBHOOKS_COLLECTION,
   WORKFLOW_CLOCK_COLLECTION,
   WORKFLOW_TRIGGER_MARKS_COLLECTION,
   'scripts',

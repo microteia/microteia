@@ -8,7 +8,7 @@ import { WorkflowContextHydrator, createHydrationCache, type HydrationCache } fr
 import { SCHEMA_VERSION } from '../schema/entityRegistry';
 import { withBusinessCalendars } from '../services/businessCalendarScope';
 import { mentionsBusinessDays } from '../schema/time/businessDays';
-import { WORKFLOW_CALLED_EVENT, workflowParametersToRoot, applyParameterDefaults } from '../schema/eventCatalog';
+import { isParameterRootedEvent, workflowParametersToRoot, applyParameterDefaults } from '../schema/eventCatalog';
 
 export interface HydrateAndRunWorkflowDeps {
   registry: StepRegistry;
@@ -34,9 +34,9 @@ export const prepareWorkflowEvent = async (
 ): Promise<WorkflowEvent> => {
   const referencedPaths = deps.hydrator.collectReferencedPaths(definition);
   const rootOverride =
-    definition.eventName === WORKFLOW_CALLED_EVENT ? workflowParametersToRoot(definition.parameters) : undefined;
+    isParameterRootedEvent(definition.eventName) ? workflowParametersToRoot(definition.parameters) : undefined;
   const effectiveEvent =
-    definition.eventName === WORKFLOW_CALLED_EVENT && definition.parameters?.length
+    isParameterRootedEvent(definition.eventName) && definition.parameters?.length
       ? { ...event, payload: applyParameterDefaults(definition.parameters, event.payload) }
       : event;
   const hydratedEvent = await deps.hydrator.hydrate(

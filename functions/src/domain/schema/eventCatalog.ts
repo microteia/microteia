@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
+import { WORKFLOW_WEBHOOK_EVENT } from './workflowWebhook';
 import { ENTITY_REGISTRY, getEntityByCollection } from './entityRegistry';
 import type { PathRoot, SchemaContext } from './pathResolver';
 import type { WorkflowParameter } from '../entities/Workflow';
@@ -14,6 +15,14 @@ import { DATE_REACHED_ACTION, WORKFLOW_SCHEDULE_EVENT } from './workflowClock';
 import { AUDIT_EVENT_FIELDS, WORKFLOW_AUDIT_EVENT } from './workflowAuditTrigger';
 
 export const WORKFLOW_CALLED_EVENT = 'workflow.called';
+
+/**
+ * O evento cujo payload são os PARÂMETROS que a automação declara — o fluxo chamado e o webhook. Nenhum
+ * dos dois tem forma própria: quem sabe o que chega é a automação, e é pela lista dela que o editor
+ * sugere, o hidratador carrega e o passo tipa um caminho `event.<chave>`.
+ */
+export const isParameterRootedEvent = (eventName: string): boolean =>
+  eventName === WORKFLOW_CALLED_EVENT || eventName === WORKFLOW_WEBHOOK_EVENT;
 
 /**
  * O convidado do portal abriu o registro, ou obteve o link de um documento dele — publicado pelo
@@ -323,6 +332,14 @@ const scheduleEntry: WorkflowEventCatalogEntry = {
   root: { kind: 'fields', fields: SCHEDULE_FIELDS, hasOld: false },
 };
 
+/** Disparado por um sistema de fora, por HTTP: o corpo da chamada, na forma dos parâmetros declarados. */
+const webhookEntry: WorkflowEventCatalogEntry = {
+  name: WORKFLOW_WEBHOOK_EVENT,
+  label: '@core.automation/event.webhook',
+  fields: [],
+  root: { kind: 'fields', fields: [], hasOld: false },
+};
+
 const workflowCalledEntry: WorkflowEventCatalogEntry = {
   name: WORKFLOW_CALLED_EVENT,
   label: '@core.automation/event.called',
@@ -346,6 +363,7 @@ export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   ...orderedEntities.map((entity) => entityEntry(entity, 'deleted')),
   lookupEntry('deleted'),
   workflowCalledEntry,
+  webhookEntry,
   scheduleEntry,
   auditEntry,
 ];
@@ -630,7 +648,7 @@ export const workflowEventRoot = (
   parameters: WorkflowParameter[] | undefined,
   ctx?: SchemaContext,
 ): PathRoot | null =>
-  eventName === WORKFLOW_CALLED_EVENT ? workflowParametersToRoot(parameters) : eventNameToRoot(eventName, ctx);
+  isParameterRootedEvent(eventName) ? workflowParametersToRoot(parameters) : eventNameToRoot(eventName, ctx);
 
 /**
  * A entidade que um gatilho de registro alcança — a tela que EMITE o prefixo, mesmo quando ele não é o

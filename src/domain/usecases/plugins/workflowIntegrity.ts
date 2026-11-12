@@ -61,6 +61,7 @@ import { hasChangeFilter, WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../schem
 import { APPROVAL_STEP_ID, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../schema/workflowTask';
 import { RUN_REPORT_STEP_ID, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../schema/report/reportStep';
 import { WAIT_FOR_STEP_ID, WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../schema/workflowWait';
+import { WORKFLOW_WEBHOOK_EVENT, WORKFLOW_WEBHOOK_SINCE_KERNEL } from '../../schema/workflowWebhook';
 import { screenEventPrefix } from './screenModule';
 import { RENDER_DOCUMENT_STEP_ID, declaredDocumentTemplates, renderDocumentStepIssues, renderDocumentTemplateKey } from './documentStepIntegrity';
 
@@ -322,6 +323,7 @@ const workflowIssues = (
   return [
     ...triggerIssues(workflow, ref, pkg),
     ...auditTriggerIssues(workflow, ref, pkg),
+    ...webhookTriggerIssues(workflow, ref, pkg),
     ...childEventKernelIssues(workflow, ref, pkg),
     ...portalViewedIssues(workflow, ref, pkg),
     ...portalSharingKernelIssues(steps, ref, pkg),
@@ -655,6 +657,23 @@ const auditTriggerIssues = (
         ref,
         message: '@core.marketplace/issue.workflow.trigger-kernel',
         messageParams: { event: workflow.eventName, minimum: WORKFLOW_AUDIT_SINCE_KERNEL },
+      }];
+
+/**
+ * O gatilho de webhook num pacote que admite um kernel anterior a ele: a automação instalaria, e a
+ * function de entrada que a dispara não existiria.
+ */
+const webhookTriggerIssues = (
+  workflow: WorkflowModuleTemplate,
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] =>
+  workflow.eventName !== WORKFLOW_WEBHOOK_EVENT || rangeExcludesBelow(pkg.manifest?.kernel ?? '', WORKFLOW_WEBHOOK_SINCE_KERNEL)
+    ? []
+    : [{
+        ref,
+        message: '@core.marketplace/issue.workflow.trigger-kernel',
+        messageParams: { event: workflow.eventName, minimum: WORKFLOW_WEBHOOK_SINCE_KERNEL },
       }];
 
 /**

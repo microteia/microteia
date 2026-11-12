@@ -18,7 +18,7 @@ import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { screenDataCollection } from '../../../domain/schema/tenantCollections';
 import { useStepCatalog } from '../../../stores/useStepCatalog';
 import { getWorkflowEventFields, WORKFLOW_CALLED_EVENT, workflowEventRoot, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
-import { buildWorkflowEventCatalog, resolveEventCatalogLabel, workflowParameterToNativeField } from '../../../domain/schema/eventCatalog';
+import { buildWorkflowEventCatalog, isParameterRootedEvent, resolveEventCatalogLabel, workflowParameterToNativeField } from '../../../domain/schema/eventCatalog';
 import type { PathRoot } from '../../../domain/schema/pathResolver';
 import type { NativeFieldSpec } from '../../../domain/schema/entityRegistry';
 import { getStepIcon } from '../../shared/stepIcons';
@@ -953,7 +953,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const eventFields = useMemo<WorkflowEventFieldOption[]>(() => {
     if (!workflow) return [];
-    if (workflow.eventName === WORKFLOW_CALLED_EVENT) {
+    if (isParameterRootedEvent(workflow.eventName)) {
       return workflowParametersToFieldOptions(workflow.parameters, schemaContext);
     }
     return getWorkflowEventFields(workflow.eventName, schemaContext);

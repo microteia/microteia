@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.233.0] — 2026-11-12
+
+- feat(workflow): `webhook.received` trigger — payload shaped by the workflow's `parameters`, like `workflow.called` (`isParameterRootedEvent` now drives the editor, conditions, hydration and parameter defaults for both).
+- feat(functions): `workflowWebhook` (`onRequest`, `POST /<tenantId>/<workflowId>`, token in `Authorization: Bearer` or `X-Microteia-Token`, body ≤ `WEBHOOK_MAX_BODY_BYTES`). `receiveWebhook` checks the token first (401 also for unknown workflows), then 409 / 400 / 422 (missing required parameters), and publishes a targeted event, answering 202 with its id. `manageWorkflowWebhook` callable (`automation.manage`) issues a 32-byte token shown once — only its SHA-256 is stored, compared in constant time — or revokes it. Both added to `deploy:workflow`.
+- feat(rules): `tenants/{t}/workflow_webhooks` is neither readable nor writable by any client; reserved collection.
+- feat(ui/package): webhook panel on the workflow screen (generate / revoke, address and token shown once); package validation requires `WORKFLOW_WEBHOOK_SINCE_KERNEL`. `KERNEL_VERSION` 2.116.0. pt-BR locale package 1.184.0.
+
 #### [9.232.0] — 2026-11-12
 
 - feat(reports): XLSX export — `reportResultToXlsx` (shared domain, no dependency: stored ZIP, inline strings, numeric cells, bold header and total) renders the same `ReportCsvTable` as the CSV. Numeric text with a leading zero stays text.

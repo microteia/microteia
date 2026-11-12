@@ -59,6 +59,7 @@ import { REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
 import { WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../../domain/schema/workflowTask';
 import { WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../../domain/schema/report/reportStep';
 import { WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../../domain/schema/workflowWait';
+import { WORKFLOW_WEBHOOK_SINCE_KERNEL } from '../../../domain/schema/workflowWebhook';
 import { REPORT_HIGHLIGHT_TONES } from '../../../domain/schema/report/reportSpec';
 import {
   ACTION_COMMAND_ORDER,
@@ -3568,6 +3569,24 @@ and publishes the NUMBERS: \`total\` (the first aggregate measure), \`totals.<me
   the \`notify\` is an alert. That is what the report screen's **Subscribe** writes — there is no second scheduler.
 
 The \`run-report\` step needs kernel ${WORKFLOW_RUN_REPORT_SINCE_KERNEL} or later, and \`validate_plugin\` refuses a package that admits an older one.
+
+### A workflow another system calls — \`webhook.received\`
+
+\`eventName: 'webhook.received'\` is started by a system OUTSIDE the organization, by HTTP. The body of the
+call is the event, shaped by the workflow's \`parameters\` — exactly as in a called workflow, so
+\`event.<key>\` autocompletes, references are hydrated and \`required\` parameters are checked before the run
+(a missing one answers 422 with its name).
+
+- The organization generates the address and the token on the automation's screen (\`automation.manage\`);
+  the token is shown once and only its hash is kept. Generating a new one invalidates the old one.
+- The caller sends \`POST <address>\` with \`Authorization: Bearer <token>\` and a JSON object (at most
+  256 KB). It answers 202 with the event id as soon as the event is published — it does not wait for the
+  run; 401 for a wrong token (and for a workflow that does not exist), 409 when the workflow is off or no
+  longer a webhook, 400 when the body is not an object.
+- The body is DATA. No field of it is ever evaluated as an expression.
+- A package ships the workflow, never the token: each organization generates its own after installing.
+
+A package with a \`webhook.received\` workflow needs kernel ${WORKFLOW_WEBHOOK_SINCE_KERNEL} or later.
 
 ### A workflow that only exists to be called
 

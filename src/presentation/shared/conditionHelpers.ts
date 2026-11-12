@@ -1,5 +1,6 @@
 import type { ExpressionCondition, FieldComparisonCondition, WorkflowParameter } from '../../domain/entities/Workflow';
-import { getWorkflowEventFields, WORKFLOW_CALLED_EVENT, workflowParametersToFieldOptions } from '../../domain/services/workflowEventCatalog';
+import { getWorkflowEventFields, workflowParametersToFieldOptions } from '../../domain/services/workflowEventCatalog';
+import { isParameterRootedEvent } from '../../domain/schema/eventCatalog';
 import type { WorkflowEventFieldOption } from '../../domain/services/workflowEventCatalog';
 import type { SchemaContext } from '../../domain/schema/pathResolver';
 
@@ -44,6 +45,6 @@ export const buildConditionEventFields = (
   ctx: SchemaContext,
   parameters?: WorkflowParameter[],
 ): WorkflowEventFieldOption[] =>
-  eventName === WORKFLOW_CALLED_EVENT
+  isParameterRootedEvent(eventName)
     ? workflowParametersToFieldOptions(parameters, ctx)
     : getWorkflowEventFields(eventName, ctx);

@@ -9070,6 +9070,32 @@ Uma regra que depende do estado de AGORA ("dois dias depois, se ainda estiver ab
 | `functions/src/domain/services/workflowSuspension.ts` | guardar a continuação de quem esperou, e retomá-la |
 | `functions/src/infrastructure/workflow/steps/DelayStep.ts` | o passo `delay` — só pede a pausa |
 
+### Gatilho de webhook — `webhook.received`
+
+Um sistema de FORA dispara uma automação por HTTP. É o segundo `onRequest` do produto, e a mesma
+pergunta inversa do MCP resolve o portão: o escritório vem da URL e só vale com o token dele.
+
+- **Forma do evento:** o corpo é o payload, na forma dos `parameters` da automação — como no fluxo
+  chamado. `isParameterRootedEvent` (`eventCatalog.ts`) é a regra única que o editor, o hidratador
+  (`prepareWorkflowEvent`, com os padrões dos parâmetros) e as condições usam para os dois eventos.
+- **Entrada** (`workflowWebhook`, `POST …/workflowWebhook/<tenantId>/<workflowId>`): token em
+  `Authorization: Bearer` (ou `X-Microteia-Token`) — nunca na URL, que vai para log —; corpo até
+  `WEBHOOK_MAX_BODY_BYTES` (256 KB, 413 acima). A decisão é `receiveWebhook`
+  (`domain/services/workflowWebhooks.ts`), testável sem HTTP: o TOKEN primeiro, com 401 também para a
+  automação que não existe (um 404 ensinaria quais ids existem); depois 409 (desligada ou não é mais de
+  webhook), 400 (corpo não é objeto) e 422 com os `parameters` obrigatórios faltando. Aceito, publica
+  `webhook.received` com `target` = a automação — só ela acorda — e responde **202** com o id do evento,
+  sem esperar a execução: um retry por timeout de quem chama publicaria o pedido duas vezes.
+- **Token** (`manageWorkflowWebhook`, `automation.manage`): 32 bytes aleatórios, mostrado UMA vez; o que
+  fica é o SHA-256 em `tenants/{t}/workflow_webhooks/{workflowId}`, comparado em tempo constante. Emitir
+  de novo troca o hash (invalida o anterior); revogar apaga. A coleção não é lida nem gravada pelo
+  cliente — nem pelo dono (`rules-tests/workflowWebhooks.test.ts`) — e é reservada.
+- **Fronteira de confiança:** o corpo é dado; nenhum campo dele vira expressão.
+- **Pacote:** o fluxo viaja, o token nunca — cada escritório gera o seu depois de instalar. Exige
+  `WORKFLOW_WEBHOOK_SINCE_KERNEL` (2.116.0).
+- **Ainda não:** assinatura HMAC do corpo, limite de taxa por automação e resposta síncrona com o
+  retorno da automação.
+
 ### Gatilho de Auditoria — `audit.recorded`
 
 Uma automação pode reagir a cada log gravado na Auditoria do escritório e decidir pelo conteúdo dele —

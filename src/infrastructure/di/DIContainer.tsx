@@ -32,6 +32,7 @@ import { FirebaseRecordFileRepository } from '../../data/repositories/FirebaseRe
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
 import { FirebaseWorkflowTaskRepository } from '../../data/repositories/FirebaseWorkflowTaskRepository';
+import { FirebaseWorkflowWebhookRepository } from '../../data/repositories/FirebaseWorkflowWebhookRepository';
 import { FirebaseWorkflowClockRepository } from '../../data/repositories/FirebaseWorkflowClockRepository';
 import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScriptRepository';
 import { FirebaseDataProcessorRepository } from '../../data/repositories/FirebaseDataProcessorRepository';
@@ -99,6 +100,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     workflowDefinitionRepository: new FirebaseWorkflowDefinitionRepository(),
     workflowExecutionRepository: new FirebaseWorkflowExecutionRepository(),
     workflowTaskRepository:   new FirebaseWorkflowTaskRepository(),
+    workflowWebhookRepository: new FirebaseWorkflowWebhookRepository(),
     workflowClockRepository:  new FirebaseWorkflowClockRepository(),
     scriptRepository:         new FirebaseScriptRepository(),
     dataProcessorRepository:  new FirebaseDataProcessorRepository(),

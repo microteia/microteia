@@ -36,6 +36,7 @@ import {
   WORKFLOW_CALLED_EVENT,
 } from '../../domain/schema/eventCatalog';
 import { AUDIT_EVENT_FIELDS, WORKFLOW_AUDIT_EVENT } from '../../domain/schema/workflowAuditTrigger';
+import { WORKFLOW_WEBHOOK_EVENT } from '../../domain/schema/workflowWebhook';
 import { PORTAL_VIEW_REPEAT_MINUTES } from '../../domain/schema/portal';
 import {
   DATE_REACHED_ACTION,
@@ -1231,6 +1232,13 @@ const PURE_READS: ToolDefinition[] = [
           eventName: WORKFLOW_CALLED_EVENT,
           fires: 'an action, or another workflow, invokes it — never on its own',
           eventPayload: 'the `parameters` the workflow declares, which become its `event.`',
+        },
+        {
+          eventName: WORKFLOW_WEBHOOK_EVENT,
+          fires: 'a system outside the organization POSTs to the workflow\'s webhook address with its token — '
+            + 'the organization generates both after installing; the package never carries a token',
+          eventPayload: 'the JSON body, shaped by the `parameters` the workflow declares (required ones are checked '
+            + 'before the run) — data, never evaluated as an expression',
         },
         {
           eventName: WORKFLOW_AUDIT_EVENT,

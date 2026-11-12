@@ -54,6 +54,10 @@ const LACUNAS_CONFERIDAS = [
   'workflow-event\tlookup.saved',
   'workflow-event\tlookup.deleted',
 
+  // O webhook: "quando a loja virtual avisar de um pedido". É integração — quem declara é o autor, com o
+  // token que o escritório gera —, não regra de negócio que o modelo descreva.
+  'workflow-event\twebhook.received',
+
   // O gatilho de auditoria: "quando uma exclusão crítica é registrada, avise o responsável". O modelo
   // fala de estados de registro, não da trilha que os observa.
   'workflow-event\taudit.recorded',

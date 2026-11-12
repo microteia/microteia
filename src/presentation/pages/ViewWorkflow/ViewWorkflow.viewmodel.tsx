@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { WORKFLOW_WEBHOOK_EVENT } from '../../../domain/schema/workflowWebhook';
+import { isParameterRootedEvent } from '../../../domain/schema/eventCatalog';
 import type { DragEvent } from 'react';
 import type { IconType } from 'react-icons';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
@@ -308,6 +310,15 @@ export interface ViewWorkflowViewModel {
   /** Abre, na aba de execuções, a execução que nasceu do último disparo do relógio. */
   openLastClockRun: () => void;
   isDateReachedEvent: boolean;
+  /** O gatilho é um webhook de ENTRADA: um sistema de fora dispara a automação por HTTP. */
+  isWebhookEvent: boolean;
+  /** Emitir e revogar exige a automação salva com o gatilho de webhook, e `automation.manage`. */
+  canManageWebhook: boolean;
+  /** O token recém-emitido — só nesta tela, só agora: o servidor guarda o hash. */
+  issuedWebhook: { token: string; url: string | null } | null;
+  webhookBusy: boolean;
+  issueWebhook: () => void;
+  revokeWebhook: () => void;
   /** Os campos de data da tela do gatilho. */
   dateFieldOptions: { value: string; label: string }[];
   dateReachedError: string | null;
@@ -395,7 +406,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const { currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
-  const { workflowExecutionRepository, workflowClockRepository, dataProcessorRepository } = useDI();
+  const { workflowExecutionRepository, workflowClockRepository, dataProcessorRepository, workflowWebhookRepository } = useDI();
   const { getDefinition } = useScreenDefinitions();
   const ctx = useSchemaContext();
   const tUi = useT('core.ui');
@@ -536,7 +547,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   // Os campos declarados pelo tenant já vêm na entidade resolvida — não há lista dinâmica à parte.
   const eventFields = useMemo(() => {
     if (!workflow) return [];
-    if (isCalledEventName(workflow.eventName)) return workflowParametersToFieldOptions(workflow.parameters, ctx);
+    if (isParameterRootedEvent(workflow.eventName)) return workflowParametersToFieldOptions(workflow.parameters, ctx);
     return getWorkflowEventFields(workflow.eventName, ctx);
   }, [workflow, ctx]);
 
@@ -579,7 +590,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     [isLookupEvent, formData.lookupCollection],
   );
 
-  const isCalledEvent = useMemo(() => isCalledEventName(formData.eventName), [formData.eventName]);
+  // Os PARÂMETROS valem para o fluxo chamado e para o webhook: nos dois, é a lista que diz o que chega.
+  const isCalledEvent = useMemo(() => isParameterRootedEvent(formData.eventName), [formData.eventName]);
   const isScheduleEvent = useMemo(() => isScheduleEventName(formData.eventName), [formData.eventName]);
 
   const { values: settingsValues } = useSettings();
@@ -605,6 +617,29 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   }, [isScheduleEvent, scheduleError, formData, officeTimeZone, locale, t]);
 
   const isDateReachedEvent = useMemo(() => dateReachedPrefix(formData.eventName) !== null, [formData.eventName]);
+  const isWebhookEvent = formData.eventName === WORKFLOW_WEBHOOK_EVENT;
+  const [issuedWebhook, setIssuedWebhook] = useState<{ token: string; url: string | null } | null>(null);
+  const [webhookBusy, setWebhookBusy] = useState(false);
+  const webhookWorkflowId = workflow?.eventName === WORKFLOW_WEBHOOK_EVENT ? workflow.id : null;
+
+  /** Emite ou revoga — e, nos dois casos, o token mostrado antes deixa de valer e sai da tela. */
+  const manageWebhook = useCallback(async (action: 'issue' | 'revoke') => {
+    if (!currentTenant || !webhookWorkflowId) return;
+    setWebhookBusy(true);
+    try {
+      if (action === 'issue') {
+        setIssuedWebhook(await workflowWebhookRepository.issue(currentTenant.id, webhookWorkflowId));
+      } else {
+        await workflowWebhookRepository.revoke(currentTenant.id, webhookWorkflowId);
+        setIssuedWebhook(null);
+        notify(t('webhook.revoked'), 'success');
+      }
+    } catch (caught) {
+      notify(label(caught instanceof Error ? caught.message : String(caught)), 'error');
+    } finally {
+      setWebhookBusy(false);
+    }
+  }, [currentTenant, webhookWorkflowId, workflowWebhookRepository, notify, t, label]);
 
   // O gatilho que um passo já presente declara incompatível não pode ser escolhido: a troca deixaria
   // gravada uma automação que o motor recusa no primeiro passo proibido.
@@ -1403,6 +1438,12 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     isLookupCollectionRecognized,
     isCalledEvent,
     isScheduleEvent,
+    isWebhookEvent,
+    canManageWebhook: webhookWorkflowId !== null && can(PERMISSION_AUTOMATION_MANAGE),
+    issuedWebhook,
+    webhookBusy,
+    issueWebhook: () => { void manageWebhook('issue'); },
+    revokeWebhook: () => { void manageWebhook('revoke'); },
     scheduleError,
     schedulePreview,
     scheduleTimeZoneOptions,

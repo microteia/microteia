@@ -575,6 +575,37 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 </>
               )}
 
+              {vm.isWebhookEvent && (
+                <InputGroup>
+                  <Label>{t('webhook.title')}</Label>
+                  <S.FieldHint>{t('webhook.hint')}</S.FieldHint>
+                  {!vm.canManageWebhook && <S.FieldHint>{t('webhook.save-first')}</S.FieldHint>}
+                  {vm.issuedWebhook && (
+                    <>
+                      <InfoBanner message={t('webhook.token-once')} variant="warning" />
+                      {vm.issuedWebhook.url && (
+                        <>
+                          <Label>{t('webhook.url')}</Label>
+                          <Input readOnly value={vm.issuedWebhook.url} />
+                        </>
+                      )}
+                      <Label>{t('webhook.token')}</Label>
+                      <Input readOnly value={vm.issuedWebhook.token} />
+                    </>
+                  )}
+                  {vm.canManageWebhook && (
+                    <S.HeaderActions>
+                      <Button type="button" variant="secondary" size="sm" onClick={vm.issueWebhook} disabled={vm.webhookBusy}>
+                        {t('webhook.issue')}
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={vm.revokeWebhook} disabled={vm.webhookBusy}>
+                        {t('webhook.revoke')}
+                      </Button>
+                    </S.HeaderActions>
+                  )}
+                </InputGroup>
+              )}
+
               {vm.isDateReachedEvent && (
                 <>
                   <InputGroup>

@@ -386,6 +386,23 @@ describe('integridade do gatilho de auditoria', () => {
   });
 });
 
+describe('gatilho de webhook', () => {
+  it('exige o kernel em que a function de entrada existe', () => {
+    const base = pacote([passo({})]);
+    const [workflow] = base.workflows ?? [];
+    const comKernel = (kernel: string) => ({
+      ...base,
+      manifest: { ...base.manifest, kernel },
+      workflows: [{ ...workflow, eventName: 'webhook.received' }],
+    }) as unknown as MarketplacePlugin;
+
+    expect(workflowStepIssues(comKernel('^2.115.0')).map((issue) => [issue.message, issue.messageParams?.minimum]))
+      .toContainEqual(['@core.marketplace/issue.workflow.trigger-kernel', '2.116.0']);
+    expect(workflowStepIssues(comKernel('^2.116.0')).map((issue) => issue.message))
+      .not.toContain('@core.marketplace/issue.workflow.trigger-kernel');
+  });
+});
+
 describe('esperar evento', () => {
   const comKernel = (steps: WorkflowStep[], kernel: string): MarketplacePlugin => {
     const base = pacote(steps);

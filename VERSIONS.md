@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.233.0] — 2026-11-12
+
+- Novo gatilho de automação **Quando outro sistema chamar (webhook)**: um sistema externo — uma loja virtual, um formulário, um ERP — pode disparar uma automação do escritório enviando os dados por um endereço próprio, protegido por um token que você gera e pode revogar a qualquer momento.
+
 #### [9.232.0] — 2026-11-12
 
 - Os relatórios agora podem ser baixados em **Excel**, além de CSV: os números chegam como números, prontos para somar e montar gráficos, sem a planilha confundir valores com datas.
