@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.231.0] — 2026-11-12
+
+- Os relatórios agora agrupam por **faixas**: informe os limites (por exemplo 30, 60, 90) e os números aparecem agrupados em "< 30", "30 – 60", "60 – 90" e "≥ 90" — ideal para idade de títulos em aberto ou faixas de valor.
+- Novo **agrupamento calculado**: agrupe por algo que o registro não guarda, mas que se calcula a partir dele — como os dias em atraso desde o vencimento.
+
 #### [9.230.0] — 2026-11-12
 
 - Novo passo de automação **Esperar evento**: a automação para até um registro mudar — por exemplo, até a fatura ser marcada como paga — e segue na hora em que isso acontece. Se o prazo que você definir vencer antes, ela segue pelo caminho do "não aconteceu".

@@ -128,6 +128,7 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 </S.DragHandle>
                 <div>
                   <S.ItemLabel>{dimension.label}</S.ItemLabel>
+                  {dimension.expression && <S.Hint>{dimension.expression}</S.Hint>}
                   {dimension.isDate && (
                     <SearchSelect
                       options={[
@@ -171,6 +172,18 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       onChange={(checked) => vm.setDimensionOthers(dimension.key, checked)}
                       label={vm.labels.others}
                     />
+                  )}
+                  {/* Faixas valem sobre NÚMERO: num campo de data, o corte é o balde de tempo acima. */}
+                  {dimension.isGroup && !dimension.isDate && (
+                    <>
+                      <S.Legend as="label" htmlFor={`bands-${dimension.key}`}>{vm.labels.bands}</S.Legend>
+                      <Input
+                        id={`bands-${dimension.key}`}
+                        value={dimension.bandLimits}
+                        placeholder={vm.labels.bandsPlaceholder}
+                        onChange={(event) => vm.setDimensionBands(dimension.key, event.target.value)}
+                      />
+                    </>
                   )}
                 </div>
                 <S.ItemActions>
@@ -275,6 +288,31 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 onClick={vm.addMeasure}
                 disabled={!vm.canAddMeasure}
               >
+                {vm.labels.add}
+              </Button>
+            </S.Row>
+          </S.Group>
+
+          {/* O AGRUPAMENTO calculado lê o REGISTRO — o oposto do número calculado abaixo, que lê os totais. */}
+          <S.Group>
+            <S.GroupHeader>
+              <S.Legend>{vm.labels.computedDimension}</S.Legend>
+            </S.GroupHeader>
+            <S.Hint>{vm.labels.computedDimensionHint}</S.Hint>
+            <S.Legend as="label" htmlFor="computed-dimension-name">{vm.labels.computedDimensionName}</S.Legend>
+            <Input
+              id="computed-dimension-name"
+              value={vm.computedDimensionName}
+              onChange={(event) => vm.setComputedDimensionName(event.target.value)}
+            />
+            <ExpressionEditor
+              value={vm.computedDimensionExpression}
+              onChange={vm.setComputedDimensionExpression}
+              workflowVariables={vm.expressionVariables}
+              placeholder={vm.labels.computedDimensionPlaceholder}
+            />
+            <S.Row>
+              <Button variant="secondary" size="sm" onClick={vm.addComputedDimension} disabled={!vm.canAddComputedDimension}>
                 {vm.labels.add}
               </Button>
             </S.Row>

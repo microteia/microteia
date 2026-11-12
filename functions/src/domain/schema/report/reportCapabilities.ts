@@ -10,7 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { REPORT_PROMPT_PERIOD_CONTROL } from './reportPeriod';
-import { DEFAULT_REPORT_DATASET_KIND, isAggregateMeasure } from './reportSpec';
+import { DEFAULT_REPORT_DATASET_KIND, isAggregateMeasure, isComputedDimension } from './reportSpec';
 import type { ReportGroupLevel, ReportSpec } from './reportSpec';
 
 /**
@@ -23,7 +23,9 @@ import type { ReportGroupLevel, ReportSpec } from './reportSpec';
  */
 export const REPORT_CAPABILITIES: readonly string[] = [
   'dataset.collection',
+  'dataset.dimension.expression',
   'dataset.includeWhen',
+  'dimension.buckets',
   'dimension.granularity',
   'dimension.others',
   'dimension.sort.measure',
@@ -80,6 +82,10 @@ export const deriveReportRequires = (spec: ReportSpec): string[] => {
   const measureKeys = new Set((spec.dataset.measures ?? []).map((measure) => measure.key));
   for (const dimension of spec.dataset.dimensions ?? []) {
     if (dimension.granularity !== undefined) required.add('dimension.granularity');
+    // Calculada RECUSA num kernel que não a conhece: ele leria o `path` vazio e poria tudo num grupo
+    // só. Faixa só AVISA: sem ela o agrupamento é pelo valor cru, e os números continuam certos.
+    if (isComputedDimension(dimension)) required.add('dataset.dimension.expression');
+    if ((dimension.buckets ?? []).length > 0) required.add('dimension.buckets');
     const by = dimension.sort?.by;
     if (by !== undefined && by !== 'key') {
       required.add(measureKeys.has(by) ? 'dimension.sort.measure' : 'dimension.sort.by');

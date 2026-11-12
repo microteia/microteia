@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   MEASURE_COUNT_KEY,
+  bucketsFromLimits,
+  limitsOfBuckets,
   movedDimensions,
   operatorNeedsValue,
   tabularShapeOf,
@@ -174,5 +176,27 @@ describe('tabularShapeOf', () => {
 
   it('agrupar por todos os campos deixa a lista sem coluna — a validação recusa, não a tela', () => {
     expect(tabularShapeOf(['cidade'], ['cidade']).columns).toEqual([]);
+  });
+});
+
+describe('faixas a partir dos limites', () => {
+  it('limites viram faixas com rótulos de número e símbolo, na ordem, mais a faixa do resto', () => {
+    expect(bucketsFromLimits('60, 30 90')).toEqual([
+      { key: 'lt-30', label: '< 30', lt: 30 },
+      { key: 'lt-60', label: '30 – 60', lt: 60 },
+      { key: 'lt-90', label: '60 – 90', lt: 90 },
+      { key: 'ge-90', label: '≥ 90' },
+    ]);
+  });
+
+  it('limite repetido entra uma vez; nada numérico é sem faixas', () => {
+    expect(bucketsFromLimits('30, 30').map((bucket) => bucket.key)).toEqual(['lt-30', 'ge-30']);
+    expect(bucketsFromLimits('abc')).toEqual([]);
+    expect(bucketsFromLimits('')).toEqual([]);
+  });
+
+  it('o campo nasce preenchido com os limites gravados', () => {
+    expect(limitsOfBuckets(bucketsFromLimits('30, 60'))).toBe('30, 60');
+    expect(limitsOfBuckets(undefined)).toBe('');
   });
 });

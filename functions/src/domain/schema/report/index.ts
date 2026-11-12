@@ -21,6 +21,7 @@ export {
   REPORT_SPEC_VERSION,
   buildReportQuery,
   isAggregateMeasure,
+  isComputedDimension,
   reportDrillEnabled,
   reportGranularityOf,
   reportPaths,
@@ -30,6 +31,7 @@ export {
 export type {
   ReportAccess,
   ReportAggregateMeasure,
+  ReportBucket,
   ReportChart,
   ReportChartKind,
   ReportComputedMeasure,
@@ -57,7 +59,14 @@ export type {
 
 export { REPORT_CAPABILITIES, deriveReportRequires, unsupportedReportCapabilities } from './reportCapabilities';
 
-export { bucketDateValue } from './reportBuckets';
+export { bucketDateValue, reportBucketOf } from './reportBuckets';
+
+export {
+  REPORT_DIMENSION_SLOT,
+  computedDimensionValue,
+  materializeReportDimensions,
+  withoutComputedDimensions,
+} from './reportComputedDimension';
 
 export {
   REPORT_PERIODS,

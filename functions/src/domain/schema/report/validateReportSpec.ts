@@ -26,6 +26,7 @@ import { isReportPeriod, REPORT_PROMPT_PERIOD_CONTROL } from './reportPeriod';
 import {
   DEFAULT_REPORT_DATASET_KIND,
   isAggregateMeasure,
+  isComputedDimension,
   REPORT_DATASET_KINDS,
   REPORT_HIGHLIGHT_OPS,
   REPORT_HIGHLIGHT_TONES,
@@ -158,6 +159,41 @@ export const validateReportSpecShape = (
         errorParams: { key: dimension.key, granularity: String(dimension.granularity) },
         severity: 'warning',
       });
+    }
+    // A dimensão calculada é RECUSADA quando não parseia, pela razão do `includeWhen`: sem resultado,
+    // cada linha estouraria na hora de agrupar.
+    const syntax = isComputedDimension(dimension) ? fieldExpressionSyntaxError(dimension.expression) : null;
+    if (syntax) {
+      issues.push({
+        field: `dataset.dimensions[${index}].expression`,
+        error: '@core.reports/dimension.expression.syntax',
+        errorParams: { key: dimension.key, detail: syntax },
+      });
+    }
+    // Faixa sem chave, chave repetida ou limites fora de ordem: o grupo de uma linha dependeria de
+    // qual faixa vem primeiro, e "61–90" antes de "31–60" engoliria as duas. É recusa — o número
+    // de cada faixa estaria errado.
+    const buckets = dimension.buckets ?? [];
+    if (buckets.length > 0) {
+      const keys = buckets.map((bucket) => (typeof bucket?.key === 'string' ? bucket.key.trim() : ''));
+      const limits = buckets.map((bucket) => bucket?.lt).filter((lt): lt is number => typeof lt === 'number');
+      const ascending = limits.every((lt, at) => Number.isFinite(lt) && (at === 0 || lt > limits[at - 1]));
+      const catchAll = buckets.filter((bucket) => typeof bucket?.lt !== 'number').length;
+      if (keys.some((key) => key === '') || new Set(keys).size !== keys.length || !ascending || catchAll > 1) {
+        issues.push({
+          field: `dataset.dimensions[${index}].buckets`,
+          error: '@core.reports/dimension.buckets.invalid',
+          errorParams: { key: dimension.key },
+        });
+      }
+      if (dimension.granularity !== undefined) {
+        issues.push({
+          field: `dataset.dimensions[${index}].granularity`,
+          error: '@core.reports/dimension.buckets.with-granularity',
+          errorParams: { key: dimension.key },
+          severity: 'warning',
+        });
+      }
     }
     // "Outros" junta o que o limite deixou de fora. Sem limite não há o que juntar, e o autor que o
     // pediu esperava ver o grupo — calar seria deixá-lo procurar uma linha que nunca vem.
@@ -502,6 +538,12 @@ export const validateReportSpec = (
   }
 
   (spec.dataset.dimensions ?? []).forEach((dimension, index) => {
+    if (isComputedDimension(dimension)) {
+      for (const path of extractFieldExpressionPaths(dimension.expression)) {
+        check(path, `dataset.dimensions[${index}].expression`);
+      }
+      return;
+    }
     check(dimension.path, `dataset.dimensions[${index}].path`);
 
     // Balde sobre o que não é data é ignorado no cálculo. É AVISO, e não erro: o relatório continua

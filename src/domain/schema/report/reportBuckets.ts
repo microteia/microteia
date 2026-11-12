@@ -3,7 +3,7 @@
 // GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import type { ReportGranularity } from './reportSpec';
+import type { ReportBucket, ReportGranularity } from './reportSpec';
 
 /** Uma data CIVIL — ano, mês e dia, sem instante e sem fuso. É sobre ela que o balde é cortado. */
 interface CivilDate {
@@ -112,4 +112,27 @@ export const bucketDateValue = (
     default:
       return null;
   }
+};
+
+const numericOf = (value: unknown): number | null => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+/**
+ * A faixa do valor: a primeira cujo `lt` ele não alcança, ou a do resto (sem `lt`).
+ *
+ * O que não é número não cai em faixa nenhuma — e vira o grupo VAZIO, nunca a primeira faixa: um
+ * registro sem vencimento contado como "0–30 dias" seria a pior leitura de um aging.
+ */
+export const reportBucketOf = (buckets: readonly ReportBucket[], value: unknown): ReportBucket | null => {
+  const number = numericOf(value);
+  if (number === null) return null;
+  return buckets.find((bucket) => typeof bucket.lt === 'number' && number < bucket.lt)
+    ?? buckets.find((bucket) => typeof bucket.lt !== 'number')
+    ?? null;
 };

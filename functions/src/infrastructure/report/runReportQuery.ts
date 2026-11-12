@@ -11,6 +11,7 @@ import type { ResolvedPredicate } from '../../domain/schema/predicateMatch';
 import { aggregateReportRows, drillReportRows } from '../../domain/schema/report/aggregateRows';
 import type { ReportDrillResult, ReportDrillTarget } from '../../domain/schema/report/aggregateRows';
 import { filterReportRows } from '../../domain/schema/report/reportRowFilter';
+import { materializeReportDimensions } from '../../domain/schema/report/reportComputedDimension';
 import type { ReportResult } from '../../domain/schema/report/reportResult';
 import {
   buildReportQuery,
@@ -231,9 +232,8 @@ export const runReportQuery = async ({
    * restringe o que entra na conta, não muda quantos documentos foram lidos.
    */
   const now = context.services.now();
-  const filtered = filterReportRows({
+  const rowContext = {
     spec,
-    rows: outcome.value.results,
     entity: resolveQueryTable(spec.dataset.table, schema)?.physicalCollection,
     permissions: context.actor?.permissions,
     now,
@@ -241,9 +241,18 @@ export const runReportQuery = async ({
     businessCalendars: await businessCalendarsFor(
       context.services,
       context.execution.tenantId,
-      mentionsBusinessDays(spec.dataset.includeWhen),
+      mentionsBusinessDays(JSON.stringify([
+        spec.dataset.includeWhen ?? '',
+        ...(spec.dataset.dimensions ?? []).map((dimension) => dimension.expression ?? ''),
+      ])),
     ),
-  });
+  };
+  const kept = filterReportRows({ ...rowContext, rows: outcome.value.results });
+  if (!kept.ok) {
+    return { ok: false, error: kept.error, errorParams: kept.errorParams, issues };
+  }
+  // As dimensões calculadas, uma vez por linha e depois do filtro — o que ele descartou não é calculado.
+  const filtered = materializeReportDimensions({ ...rowContext, rows: kept.rows });
   if (!filtered.ok) {
     return { ok: false, error: filtered.error, errorParams: filtered.errorParams, issues };
   }

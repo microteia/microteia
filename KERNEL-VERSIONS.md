@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.231.0] — 2026-11-12
+
+- feat(reports): `dimensions[].expression` — a grouping calculated per record in the `includeWhen` language. `materializeReportDimensions` evaluates it once per row after the row filter and stores it in `REPORT_DIMENSION_SLOT`; a failing expression refuses the report (`@core.reports/dimension.expression.failed`). Its paths join `reportPaths` (hydration and RBAC); `path` is not read. Records leaving the result go through `withoutComputedDimensions`.
+- feat(reports): `dimensions[].buckets` (`ReportBucket { key, label?, lt? }`) — numeric bands over the dimension value (`reportBucketOf`), kept in declared order; non-numbers go to the empty group. Invalid bands are refused (`dimension.buckets.invalid`); bands with a granularity warn.
+- feat(reports): capabilities `dataset.dimension.expression` (refusing) and `dimension.buckets` (warning). Group labels sent by the server now go through `useLabel`, so a band label may be a message reference.
+- feat(ui): report designer — "Calculated grouping" (name + expression) and per-dimension "Bands (limits)" (`bucketsFromLimits`). `KERNEL_VERSION` 2.114.0. pt-BR locale package 1.182.0.
+
 #### [9.230.0] — 2026-11-12
 
 - feat(workflow): `wait-for` step — suspends until the next record event (`eventName`, `.saved`/`.deleted`) of `recordId`, optionally only when the `until` expression holds against the arriving record, or until `timeoutInDays` (default 30, max 365). Outputs `matched`, `timedOut`, `record`, `eventId`, `arrivedAt`. It is a pausing step (`PAUSING_STEP_DEFINITION_IDS`) and checks `context.canSuspend` first.

@@ -65,13 +65,35 @@ export interface ReportValueFormat {
  * pelo `path`. A indireção é o que compra anos: trocar o caminho medido, mudar o balde ou promover a
  * dimensão a calculada é mudança de UMA entrada daqui, e nenhuma das outras camadas muda uma letra.
  */
+/**
+ * Uma FAIXA de uma dimensão numérica. O valor cai na primeira faixa cujo `lt` ele não alcança; a faixa
+ * sem `lt` recebe o resto. A ordem declarada é a ordem do relatório — "0–30, 31–60, 61–90, 90+" não se
+ * ordena pela chave.
+ */
+export type ReportBucket = {
+  key: string;
+  /** Referência `@ns/chave` numa extensão; o que o escritório digitou passa intacto. */
+  label?: string;
+  /** Limite SUPERIOR, exclusivo. Ausente: a faixa do resto. */
+  lt?: number;
+};
+
 export interface ReportDimension {
   key: string;
   /**
    * Caminho no registro, com hop de FK (`client.name`). MESMA gramática de `QuerySpec.projections`,
-   * mesmo `resolvePath`, mesma hidratação — é o que dispensa um mecanismo de join na v1.
+   * mesmo `resolvePath`, mesma hidratação — é o que dispensa um mecanismo de join na v1. Ignorado
+   * quando a dimensão é calculada (`expression`).
    */
   path: string;
+  /**
+   * A dimensão CALCULADA por linha — a mesma linguagem do `includeWhen`, sobre o mesmo escopo. É o
+   * "dias em atraso" de um aging, a "faixa de valor" de um funil: o que o registro não guarda, mas
+   * deriva. Com ela, `path` não é lido.
+   */
+  expression?: string;
+  /** Faixas numéricas sobre o valor da dimensão — calculado ou lido. Ver `ReportBucket`. */
+  buckets?: ReportBucket[];
   /** Referência `@ns/chave` numa extensão; o que o escritório digitou passa INTACTO por `useLabel`. */
   label?: string;
   /**
@@ -414,6 +436,10 @@ export interface ReportSpec {
 
 const trimmed = (value: string | undefined): string => (value ?? '').trim();
 
+/** A dimensão é calculada por expressão, e não lida de um caminho. */
+export const isComputedDimension = (dimension: Pick<ReportDimension, 'expression'>): boolean =>
+  (dimension.expression ?? '').trim() !== '';
+
 /**
  * Todos os caminhos que o relatório LÊ. Alimenta `projections`, e portanto o plano de hidratação —
  * um caminho que falte aqui chega ao agregador como `undefined`, e vira um grupo vazio silencioso.
@@ -429,7 +455,13 @@ export const reportPaths = (spec: ReportSpec): string[] => {
   // O que a EXPRESSÃO lê é dado que o relatório lê: sem entrar aqui, o caminho não é hidratado (e
   // chega ao avaliador como ausente) nem a coleção que ele atravessa é cobrada de quem lê.
   for (const path of extractFieldExpressionPaths(spec.dataset.includeWhen)) add(path);
-  for (const dimension of spec.dataset.dimensions ?? []) add(dimension.path);
+  for (const dimension of spec.dataset.dimensions ?? []) {
+    if (isComputedDimension(dimension)) {
+      for (const path of extractFieldExpressionPaths(dimension.expression)) add(path);
+    } else {
+      add(dimension.path);
+    }
+  }
 
   for (const measure of spec.dataset.measures ?? []) {
     if (!isAggregateMeasure(measure)) continue;

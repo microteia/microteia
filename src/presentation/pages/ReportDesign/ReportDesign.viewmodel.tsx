@@ -34,6 +34,7 @@ import {
 import { QUERY_OPERATORS } from '../../../domain/schema/querySpec';
 import type { QueryOperator, QueryPredicate } from '../../../domain/schema/querySpec';
 import type {
+  ReportBucket,
   ReportDimension,
   ReportGranularity,
   ReportHighlight,
@@ -83,6 +84,10 @@ export interface ReportDesignDimension {
   sortValue: string;
   limit: string;
   others: boolean;
+  /** A expressão de uma dimensão CALCULADA — vazia numa dimensão lida de um campo. */
+  expression: string;
+  /** Os limites das faixas, como a pessoa os digita (`30, 60, 90`); vazio = sem faixas. */
+  bandLimits: string;
 }
 
 /** Uma medida como a TELA a mostra: o que ela é e como é exibida. */
@@ -146,6 +151,40 @@ export const withLimit = (dimension: ReportDimension, limit: string, others: boo
   if (!Number.isFinite(parsed) || parsed <= 0) return next;
   return { ...next, limit: parsed, ...(others ? { others: true } : {}) };
 };
+
+const bandNumber = (value: number): string => String(value);
+const bandKey = (prefix: 'lt' | 'ge', limit: number): string => [prefix, bandNumber(limit)].join('-');
+const bandBelow = (limit: number): string => ['<', bandNumber(limit)].join(' ');
+const bandBetween = (from: number, to: number): string => [bandNumber(from), '–', bandNumber(to)].join(' ');
+const bandFrom = (limit: number): string => ['≥', bandNumber(limit)].join(' ');
+
+/**
+ * As faixas a partir dos LIMITES que a pessoa digita: `30, 60, 90` vira "< 30", "30 – 60", "60 – 90"
+ * e "≥ 90". Os rótulos são só números e símbolos — dado, e não frase —, e por isso nascem prontos em
+ * qualquer idioma; quem quiser outro nome escreve o `spec`.
+ *
+ * Limite repetido ou fora de ordem é ORDENADO e deduplicado aqui: a autoria não grava as faixas que a
+ * validação recusaria. Nada numérico = sem faixas.
+ */
+export const bucketsFromLimits = (text: string): ReportBucket[] => {
+  const limits = [...new Set(
+    text.split(/[,;\s]+/).filter((part) => part !== '').map(Number).filter((value) => Number.isFinite(value)),
+  )].sort((a, b) => a - b);
+  if (limits.length === 0) return [];
+  const last = limits[limits.length - 1];
+  return [
+    ...limits.map((lt, index): ReportBucket => ({
+      key: bandKey('lt', lt),
+      label: index === 0 ? bandBelow(lt) : bandBetween(limits[index - 1], lt),
+      lt,
+    })),
+    { key: bandKey('ge', last), label: bandFrom(last) },
+  ];
+};
+
+/** O inverso de `bucketsFromLimits`, para o campo nascer preenchido. */
+export const limitsOfBuckets = (buckets: readonly ReportBucket[] | undefined): string =>
+  (buckets ?? []).map((bucket) => bucket.lt).filter((lt): lt is number => typeof lt === 'number').join(', ');
 
 /**
  * O RASCUNHO — tudo o que a tela edita, num objeto só.
@@ -250,6 +289,13 @@ export interface ReportDesignViewModel {
   canAddComputed: boolean;
   setDimensionSort: (key: string, value: string) => void;
   setDimensionLimit: (key: string, limit: string) => void;
+  setDimensionBands: (key: string, limits: string) => void;
+  computedDimensionName: string;
+  setComputedDimensionName: (value: string) => void;
+  computedDimensionExpression: string;
+  setComputedDimensionExpression: (value: string) => void;
+  addComputedDimension: () => void;
+  canAddComputedDimension: boolean;
   setDimensionOthers: (key: string, others: boolean) => void;
   sortOptions: { value: string; label: string }[];
   grandTotal: boolean;
@@ -411,6 +457,12 @@ export interface ReportDesignViewModel {
     sort: string;
     limit: string;
     limitPlaceholder: string;
+    computedDimension: string;
+    computedDimensionHint: string;
+    computedDimensionName: string;
+    computedDimensionPlaceholder: string;
+    bands: string;
+    bandsPlaceholder: string;
     others: string;
     grandTotal: string;
     emptyCell: string;
@@ -658,6 +710,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const [promptPath, setPromptPath] = useState('');
   const [promptOp, setPromptOp] = useState<ReportPromptChoice>('eq');
   const [computedName, setComputedName] = useState('');
+  const [computedDimensionName, setComputedDimensionName] = useState('');
+  const [computedDimensionExpression, setComputedDimensionExpression] = useState('');
   const [computedExpression, setComputedExpression] = useState('');
   const [highlightMeasure, setHighlightMeasure] = useState('');
   const [highlightOp, setHighlightOp] = useState<ReportHighlightOp>('lt');
@@ -762,6 +816,34 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       patchDimension(key, (one) => withLimit(one, one.limit !== undefined ? String(one.limit) : '', others)),
     [patchDimension],
   );
+
+  const setDimensionBands = useCallback((key: string, text: string) => patchDimension(key, (one) => {
+    const next = { ...one };
+    delete next.buckets;
+    const buckets = bucketsFromLimits(text);
+    return buckets.length > 0 ? { ...next, buckets } : next;
+  }), [patchDimension]);
+
+  /**
+   * A dimensão CALCULADA: um nome e a expressão por linha. O caminho fica vazio — a expressão é o que
+   * se lê —, e é o `isComputedDimension` que o diz a todo o resto.
+   */
+  const addComputedDimension = useCallback(() => {
+    const name = computedDimensionName.trim();
+    const expression = computedDimensionExpression.trim();
+    if (name === '' || expression === '') return;
+    const taken = new Set([...draft.dimensions, ...draft.measures].map((one) => one.key));
+    change({
+      dimensions: [...draft.dimensions, {
+        key: keyFromPath(slug(name.toLowerCase()) || 'dim', taken),
+        path: '',
+        label: name,
+        expression,
+      }],
+    });
+    setComputedDimensionName('');
+    setComputedDimensionExpression('');
+  }, [computedDimensionName, computedDimensionExpression, draft, change]);
 
   const removeDimension = useCallback((key: string) => {
     change({
@@ -980,6 +1062,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       sortValue: sortValueOf(dimension),
       limit: dimension.limit !== undefined ? String(dimension.limit) : '',
       others: dimension.others === true,
+      expression: dimension.expression ?? '',
+      bandLimits: limitsOfBuckets(dimension.buckets),
     })),
     [draft, pathOptions],
   );
@@ -1282,6 +1366,13 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     pathOptions,
     dimensions: designDimensions,
     addDimension,
+    setDimensionBands,
+    computedDimensionName,
+    setComputedDimensionName,
+    computedDimensionExpression,
+    setComputedDimensionExpression,
+    addComputedDimension,
+    canAddComputedDimension: computedDimensionName.trim() !== '' && computedDimensionExpression.trim() !== '',
     removeDimension,
     setGranularity,
     moveDimension,
@@ -1481,6 +1572,12 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       sort: t('design.sort'),
       limit: t('design.limit'),
       limitPlaceholder: t('design.limit.placeholder'),
+      computedDimension: t('design.dimension.computed'),
+      computedDimensionHint: t('design.dimension.computed.hint'),
+      computedDimensionName: t('design.dimension.computed.name'),
+      computedDimensionPlaceholder: t('design.dimension.computed.placeholder'),
+      bands: t('design.dimension.bands'),
+      bandsPlaceholder: t('design.dimension.bands.placeholder'),
       others: t('design.others'),
       grandTotal: t('design.grand-total'),
       emptyCell: t('design.empty-cell'),

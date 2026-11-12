@@ -10938,6 +10938,35 @@ O relatório não ganhou agendador próprio: ganhou um PASSO, e o agendador é o
 - **Ainda não:** anexar o resultado como arquivo (CSV/XLSX/PDF) — as chaves sairiam cruas sem a tela que
   as traduz, e o caminho certo é o motor de Documentos (Onda 3, R9); e a assinatura pelo MCP.
 
+### Dimensão calculada e faixas (`dimensions[].expression`, `dimensions[].buckets`)
+
+O "aging" (0–30, 31–60, 61+ dias em atraso) e a "faixa de valor" — o que o registro não guarda, mas
+deriva — sem campo de controle nem automação gravando um número no registro.
+
+- **`expression`** é a dimensão calculada por linha, na linguagem do `includeWhen` e sobre o mesmo escopo
+  total (`reportRowScope`). `materializeReportDimensions` (`reportComputedDimension.ts`) a calcula UMA vez
+  por linha, depois do filtro e antes da agregação, e guarda o valor em `REPORT_DIMENSION_SLOT` — um nome
+  que nenhum campo pode ter. Uma vez, e não a cada leitura da chave, porque o pivô e o detalhamento leem a
+  chave de novo: `today()` em instantes diferentes poria a mesma linha em dois grupos. Expressão que
+  estoura numa linha é RECUSA nomeada (`@core.reports/dimension.expression.failed`), pela razão do filtro:
+  "na dúvida, grupo vazio" esconderia justamente os registros de idade desconhecida.
+- O que a expressão cita entra em `reportPaths` — hidratação e RBAC —; o `path` da dimensão calculada não
+  é lido (a autoria grava `''`). Os registros que saem no resultado (lista, grupo, detalhamento) passam
+  por `withoutComputedDimensions`: o detalhe mostra o registro como ele é.
+- **`buckets`** (`ReportBucket`: `key`, `label?`, `lt?`): o valor cai na primeira faixa cujo `lt` não
+  alcança; a única faixa sem `lt` fica com o resto; o que não é número vai para o grupo VAZIO, nunca para a
+  primeira faixa (`reportBucketOf`). A ordem dos membros é a declarada, não a da chave. Chave repetida,
+  limite fora de ordem ou duas faixas abertas são recusa (`dimension.buckets.invalid`) — o número de cada
+  faixa dependeria de qual vem primeiro. A faixa leva `label`, que a tela passa por `useLabel` (o rótulo
+  vindo do servidor agora passa sempre — o texto do balde de data continua intacto).
+- **Compatibilidade:** a calculada é `dataset.dimension.expression` e RECUSA num kernel que não a conhece
+  (ele agruparia tudo sob o `path` vazio); a faixa é `dimension.buckets` e só AVISA (o kernel antigo agrupa
+  pelo valor cru, com os mesmos números).
+- **Autoria:** "Agrupamento calculado" (nome + expressão, com o autocomplete do filtro) e, por dimensão que
+  agrupa e não é data, "Faixas (limites)" — `30, 60, 90` vira `< 30`, `30 – 60`, `60 – 90`, `≥ 90`
+  (`bucketsFromLimits`). Os rótulos gerados são só número e símbolo — dado, não frase —; quem quer outro
+  nome escreve o `spec`.
+
 ### Destaque condicional (`presentation.highlight`)
 
 `[{ measure, op, value, tone }]`, com `tone` em `positive | warning | negative`. A primeira regra que

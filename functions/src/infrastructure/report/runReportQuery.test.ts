@@ -861,3 +861,27 @@ describe('runReportQuery — o detalhamento', () => {
     if (!outcome.ok) expect(outcome.error).toBe('@core.reports/drill.disabled');
   });
 });
+
+describe('runReportQuery — dimensão calculada com faixas', () => {
+  it('calcula no servidor, depois do filtro, e agrupa pela faixa', async () => {
+    const porFaixa: ReportSpec = {
+      v: 1,
+      dataset: {
+        table: 'lancamentos',
+        includeWhen: 'situacao == "pago" || valor < 100',
+        dimensions: [{ key: 'faixa', path: '', expression: 'valor * 2', buckets: [{ key: 'baixo', lt: 300 }, { key: 'alto' }] }],
+        measures: [{ key: 'total', op: 'sum', path: 'valor' }],
+      },
+      shape: { kind: 'summary', groupBy: [{ dimension: 'faixa' }], values: ['total'] },
+    };
+    const outcome = await runReportQuery({ spec: porFaixa, context: context(), deps: deps(rows) });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.value.rows.map((row) => [row.keys[0].key, row.values.total])).toEqual([
+      ['baixo', 150],
+      ['alto', 200],
+    ]);
+  });
+});
+

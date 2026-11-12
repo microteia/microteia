@@ -3914,6 +3914,20 @@ mean, and treat a refusal as the platform telling you it cannot answer for them.
 - \`dimensions[].granularity\`: ${inlineList(REPORT_GRANULARITIES)}. Only meaningful over a date. **Set \`timeZone\`**: without it the bucket is cut in UTC, and a sale at nine at night
   on the 31st lands in the wrong month — with nothing on screen saying so.
 - \`dimensions[].path\` may cross a reference (\`client.city\`), same grammar as a query projection.
+- \`dimensions[].expression\`: a grouping CALCULATED on each record, in the language of \`includeWhen\` —
+  \`dateDiff(today(), dueDate)\` is "days overdue". With it, \`path\` is not read (write \`''\`); the fields
+  the expression names are hydrated and their collections checked like any path. It is evaluated once per
+  record after the row filter, and an expression that fails on a record refuses the report by name — never
+  a silent empty group. An older kernel would group everything under one empty key, so it **refuses**
+  (\`dataset.dimension.expression\`).
+- \`dimensions[].buckets\`: \`{ key, label?, lt? }[]\` — numeric bands over the dimension's value, read or
+  calculated. A value falls in the first band whose \`lt\` (exclusive upper limit) it does not reach; the
+  ONE band without \`lt\` takes the rest; anything that is not a number goes to the empty group, never to
+  the first band. Members keep the declared order. Limits must go up and keys be unique, or the report is
+  refused. \`label\` is a message reference or literal text. Aging in one dimension:
+  \`{ key: 'age', path: '', expression: 'dateDiff(today(), dueDate)', buckets: [{ key: 'a', label: '0–30',
+  lt: 31 }, { key: 'b', label: '31–60', lt: 61 }, { key: 'c', label: '61+' }] }\`. An older kernel groups by
+  the raw value (same numbers, a longer table), so it only warns (\`dimension.buckets\`).
 - \`dimensions[].sort\`: \`{ dir: 'asc' | 'desc' }\` orders that level's members by their value;
   \`{ by: '<measure key>', dir: 'desc' }\` orders them by that measure in each group — the TOP N, with
   \`limit\`. A group with no value in that measure goes last either way. \`limit\` keeps the first N, and

@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
 import { useSchemaContext } from '../useSchemaContext';
 import { fieldAtPath } from './reportFilterFields';
-import { useT } from '../i18n/useT';
+import { useLabel, useT } from '../i18n/useT';
 import type { FieldDefinition } from '../../../domain/entities/entitySchemas';
 import type { ReportGroupKey } from '../../../domain/schema/report/reportResult';
 import { REPORT_OTHERS_KEY } from '../../../domain/schema/report/reportSpec';
@@ -16,12 +16,13 @@ import type { ReportSpec } from '../../../domain/schema/report/reportSpec';
  * dela é o que faz o relatório e o cartão dizerem a MESMA palavra sobre o mesmo dado; um segundo
  * formatador aqui divergiria na primeira lista renomeada.
  *
- * O que o backend já rotulou — o balde de data — passa direto: ele derivou aquele texto, e nenhuma
- * opção do escritório o descreve.
+ * O que o backend já rotulou — o balde de data, a faixa — não passa pela listagem: ele derivou aquele
+ * texto, e nenhuma opção do escritório o descreve.
  */
 export const useReportGroupLabels = (spec: ReportSpec): ((entry: ReportGroupKey | undefined) => string) => {
   const ctx = useSchemaContext();
   const t = useT('core.reports');
+  const label = useLabel();
   const emptyLabel = t('group.empty');
   const othersLabel = t('group.others');
 
@@ -39,7 +40,9 @@ export const useReportGroupLabels = (spec: ReportSpec): ((entry: ReportGroupKey 
 
   return useCallback((entry) => {
     if (!entry) return '';
-    if (entry.label) return entry.label;
+    // O balde de data e a FAIXA declarada já vêm rotuladas — a faixa pode ser uma referência `@ns/chave`
+    // de uma extensão, e o texto do escritório passa intacto pelo mesmo `label`.
+    if (entry.label) return label(entry.label);
     if (entry.key === '') return emptyLabel;
     // O grupo residual de um Top N tem chave reservada, e é a tela que diz o nome dele no idioma de
     // quem lê — o servidor que o montou não fala idioma nenhum.
@@ -50,5 +53,5 @@ export const useReportGroupLabels = (spec: ReportSpec): ((entry: ReportGroupKey 
 
     const shown = listing.displayValue({ [field.key]: entry.key }, field);
     return shown.trim() === '' ? entry.key : shown;
-  }, [fieldByDimension, listing, emptyLabel, othersLabel]);
+  }, [fieldByDimension, listing, emptyLabel, othersLabel, label]);
 };

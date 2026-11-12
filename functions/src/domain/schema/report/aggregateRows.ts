@@ -13,10 +13,11 @@ import { applyAggregationOp } from '../aggregationSpec';
 import { getValueAtPath, parsePath } from '../pathResolver';
 import { matchesResolvedPredicates } from '../predicateMatch';
 import type { ResolvedPredicate } from '../predicateMatch';
-import { bucketDateValue } from './reportBuckets';
+import { bucketDateValue, reportBucketOf } from './reportBuckets';
+import { computedDimensionValue, withoutComputedDimensions } from './reportComputedDimension';
 import { computedMeasureReferences, evaluateComputedMeasure, isComputedMeasure } from './reportComputedMeasure';
 import type { ReportGroupKey, ReportResult, ReportRow, ReportTotals } from './reportResult';
-import { isAggregateMeasure, REPORT_OTHERS_KEY, reportGranularityOf } from './reportSpec';
+import { isAggregateMeasure, isComputedDimension, REPORT_OTHERS_KEY, reportGranularityOf } from './reportSpec';
 import type { ReportDimension, ReportGroupLevel, ReportMeasure, ReportSpec } from './reportSpec';
 
 export interface ReportAggregateLimits {
@@ -98,6 +99,10 @@ const wireValue = (value: unknown): unknown => {
   return value;
 };
 
+/** O registro como sai no resultado: sem o que o relatório calculou nele, e no formato do fio. */
+const recordOut = (row: Record<string, unknown>): Record<string, unknown> =>
+  wireValue(withoutComputedDimensions(row)) as Record<string, unknown>;
+
 /**
  * A chave do grupo desta dimensão, nesta linha.
  *
@@ -106,7 +111,19 @@ const wireValue = (value: unknown): unknown => {
  * trimestre é uma mentira, e o leitor não tem como notar.
  */
 const dimensionKeyOf = (row: Record<string, unknown>, dimension: ReportDimension): ReportGroupKey => {
-  const raw = getValueAtPath(row, parsePath(dimension.path));
+  const raw = isComputedDimension(dimension)
+    ? computedDimensionValue(row, dimension.key)
+    : getValueAtPath(row, parsePath(dimension.path));
+
+  // Com faixas, o grupo é a FAIXA — e o que não cai em nenhuma é o grupo vazio, nunca o valor cru: um
+  // aging com um grupo por número de dias seria a tabela que as faixas existem para evitar.
+  if ((dimension.buckets ?? []).length > 0) {
+    const bucket = reportBucketOf(dimension.buckets ?? [], raw);
+    return bucket
+      ? { dimension: dimension.key, key: bucket.key, label: bucket.label ?? bucket.key }
+      : { dimension: dimension.key, key: scalarKey(null) };
+  }
+
   const granularity = reportGranularityOf(dimension.granularity);
 
   if (granularity) {
@@ -239,6 +256,11 @@ const sortedChildren = (
       if (b === null) return -1;
       return (a - b) * direction || lastKey(left).localeCompare(lastKey(right));
     });
+  } else if ((dimension?.buckets ?? []).length > 0) {
+    // As faixas na ordem DECLARADA: "0–30, 31–60, 90+" ordenado pela chave seria "31–60, 90+, 0–30".
+    const order = new Map((dimension?.buckets ?? []).map((bucket, index) => [bucket.key, index] as const));
+    const rank = (child: GroupNode): number => order.get(lastKey(child)) ?? Number.MAX_SAFE_INTEGER;
+    children.sort((left, right) => (rank(left) - rank(right)) * direction);
   } else {
     children.sort((left, right) => lastKey(left).localeCompare(lastKey(right)) * direction);
   }
@@ -358,7 +380,7 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
         ...base,
         columns: [],
         rows: [],
-        records: rows.slice(0, limits.maxRecords).map((row) => wireValue(row) as Record<string, unknown>),
+        records: rows.slice(0, limits.maxRecords).map((row) => recordOut(row)),
         totals,
         completeGroups: rows.length <= limits.maxRecords,
       };
@@ -403,7 +425,7 @@ export const aggregateReportRows = (input: AggregateReportInput): ReportResult =
           values: valuesOf(measures, measureKeys, child.rows, filters),
           count: child.rows.length,
           level: depth,
-          ...(leaf ? { records: shown.map((row) => wireValue(row) as Record<string, unknown>) } : {}),
+          ...(leaf ? { records: shown.map((row) => recordOut(row)) } : {}),
         });
         if (!leaf) walk(child, depth + 1);
       }
@@ -626,7 +648,7 @@ export const drillReportRows = (input: ReportDrillInput): ReportDrillResult => {
       })();
 
   return {
-    records: selected.slice(0, maxRecords).map((row) => wireValue(row) as Record<string, unknown>),
+    records: selected.slice(0, maxRecords).map((row) => recordOut(row)),
     matched: selected.length,
   };
 };
