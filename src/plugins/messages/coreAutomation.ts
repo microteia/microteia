@@ -43,6 +43,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'tab.conditions': 'Conditions',
   'tab.executions': 'Executions',
   'run.resume.pinned': 'This run continues on version {version} of the automation, the one it started on.',
+  'run.resume.step-outputs': 'The step "{step}" resumed with this result.',
   'run.resume.script-changed': 'The script "{ref}" was changed while this run was waiting; the rest of the run uses its current version.',
   'run.resume.workflow-changed': 'The called automation "{ref}" was changed while this run was waiting; the rest of the run calls its current version.',
   'tab.versions': 'Versions',

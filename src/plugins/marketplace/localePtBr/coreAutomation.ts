@@ -42,6 +42,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'tab.conditions': 'Condições',
   'tab.executions': 'Execuções',
   'run.resume.pinned': 'Esta execução continua na versão {version} da automação, a mesma em que começou.',
+  'run.resume.step-outputs': 'O passo "{step}" foi retomado com este resultado.',
   'run.resume.script-changed': 'O script "{ref}" foi alterado enquanto esta execução esperava; o restante da execução usa a versão atual dele.',
   'run.resume.workflow-changed': 'A automação chamada "{ref}" foi alterada enquanto esta execução esperava; o restante da execução chama a versão atual dela.',
   'tab.versions': 'Versões',

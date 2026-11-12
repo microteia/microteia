@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.239.1] — 2026-11-12
+
+- fix(workflow): a run resumed by a decision or an event (`ResumeClockEntry.decided`) now appends the suspended step's real outputs to the history (`run.resume.step-outputs`). Before, the history only had the outputs written at suspension — the timeout defaults (`timedOut: true`, the expiry outcome) —, which read as "the deadline passed" for a wait that ended with the event. Found by the end-to-end run on microteia-dev. pt-BR locale package 1.191.0.
+
 #### [9.239.0] — 2026-11-12
 
 - feat(reports): `buildReportTable` (shared `reportTable.ts`, with `columnLabel`, `shownMeasures`, `rowDimensions`, `groupDimensions` moved from the presentation layer) builds the file table from a `ReportTableText`; the screen's export now uses it too.

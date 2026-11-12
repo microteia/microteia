@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.239.1] — 2026-11-12
+
+- Corrigido o histórico das automações que esperam uma aprovação ou um evento: depois da retomada, ele passa a mostrar o resultado real do passo (a decisão tomada, o registro que chegou), em vez do resultado de prazo vencido que aparecia antes.
+
 #### [9.239.0] — 2026-11-12
 
 - O passo **Executar relatório** agora pode gerar o relatório em **Excel, PDF ou CSV**, guardado em Downloads, já com os nomes que o escritório lê — as opções, os nomes dos clientes, os valores formatados — e não os códigos internos.

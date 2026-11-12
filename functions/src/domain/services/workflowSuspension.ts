@@ -222,6 +222,19 @@ export const resumeWorkflowExecution = async (
   const warnedAt = deps.now();
   const resumeLogs = [
     ...logs,
+    // O passo que pausou já está no histórico — com as saídas de QUANDO pausou (o prazo: `timedOut`, o
+    // desfecho de expiração). Retomado por uma decisão ou por um evento, o resultado verdadeiro é outro, e
+    // sem esta linha o histórico diria "venceu o prazo" de uma espera que terminou com o evento.
+    ...(entry.decided && entry.outputs[entry.afterStepId]
+      ? [{
+          stepId: entry.afterStepId,
+          level: 'INFO' as const,
+          message: '@core.automation/run.resume.step-outputs',
+          messageParams: { step: entry.afterStepId },
+          outputs: entry.outputs[entry.afterStepId],
+          at: warnedAt,
+        }]
+      : []),
     ...(definition.version !== current.version
       ? [{
           level: 'INFO' as const,

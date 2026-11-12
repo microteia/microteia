@@ -236,6 +236,20 @@ describe('resumeWorkflowExecution — a espera de uma aprovação', () => {
     expect(await resumeWorkflowExecution(entry, deps)).toBe('fired');
     expect(expired).toEqual([]);
   });
+
+  it('retomada pela DECISÃO põe no histórico o resultado do passo — e não o de quando ele pausou', async () => {
+    const { deps, entry, executions } = await prepareApproval(true);
+    const decided = { ...entry, outputs: { ...entry.outputs, wait: { outcome: 'approved', decidedBy: 'ana' } } };
+    await resumeWorkflowExecution(decided, deps);
+    const line = executions.get('exec-1')?.logs.find((log) => log.message === '@core.automation/run.resume.step-outputs');
+    expect(line).toMatchObject({ stepId: 'wait', outputs: { outcome: 'approved', decidedBy: 'ana' } });
+  });
+
+  it('retomada pelo PRAZO não acrescenta resultado: o que o passo deixou já é o do prazo', async () => {
+    const { deps, entry, executions } = await prepareApproval(false);
+    await resumeWorkflowExecution(entry, deps);
+    expect(executions.get('exec-1')?.logs.some((log) => log.message === '@core.automation/run.resume.step-outputs')).toBe(false);
+  });
 });
 
 describe('resumeWorkflowExecution — a versão em que a execução começou', () => {
