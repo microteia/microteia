@@ -8342,6 +8342,33 @@ paga" e ao "até o cliente responder" sem um `date-reached` por cima de um campo
 - **Ainda não**: esperar um evento que não é de registro, e conferir na hora se o registro JÁ atende à
   condição — a espera é pelo próximo evento; quem precisa do estado de agora põe uma `Condition` antes.
 
+### Repetição sobre consulta paginada (`loop.query`)
+
+O `Loop` ganha uma segunda fonte: em vez da lista de `source`, uma CONSULTA (`loop.query: { spec, pageSize }`,
+`domain/schema/workflowLoopQuery.ts`) lida uma página por vez. Responde ao "todo dia, para cada registro
+vencido…" sobre milhares de registros — o `query` sozinho para em `QUERY_MAX_RESULTS`, e uma execução só não
+caberia no orçamento de tempo para todos eles.
+
+- **Uma página por volta do relógio.** `runPagedLoop` (`WorkflowExecutor.ts`) lê a página por
+  `services.queryPage` (`infrastructure/workflow/query/pagedLoopQuery.ts`, a MESMA `runWorkflowQuery` do passo
+  `query` — filtros, hidratação, visibilidade), roda o corpo para cada registro e, havendo mais, devolve
+  `suspended.loop: { stepId, cursor, page, processed }`. A continuação (`ResumeClockEntry.loop`) leva isso, e a
+  retomada volta AO laço — `topLevel` recomeça nele, não depois dele —, que relê pelo cursor guardado.
+- **Ordem do id, nunca a declarada.** O cursor é o id do documento (`QuerySpec.page`), que dispensa índice e
+  é estável: uma `orderBy` num campo que o próprio corpo altera ("marcar como processado") faria registros
+  pularem de página ou repetirem.
+- **A saída é a contagem** (`processed`, `pages`), não as contribuições do corpo: a lista seria o volume que o
+  laço existe para não carregar, e a continuação mora num documento só. O item da última volta também não
+  atravessa a pausa.
+- **Pausa, então tem as regras de quem pausa**: nível principal de uma execução que pode esperar
+  (`suspendable`). Num botão, num teste ou dentro de um ramo, `run.loop.paged-cannot-wait` — reprovar é melhor
+  que processar a primeira página e dizer que terminou. O editor não deixa salvar fora do nível principal, e
+  `pagedLoopIssues` (`workflowIntegrity.ts`) recusa no pacote o aninhado, o disparado por ação e o kernel.
+- **`source` continua gravada** (uma lista vazia, pelo editor): o kernel anterior, que não conhece `query`,
+  tem o que ler. É também por isso que a trava de kernel importa — lá o laço terminaria "com sucesso" sem
+  tocar registro nenhum.
+- Pacote: exige `WORKFLOW_PAGED_LOOP_SINCE_KERNEL` (2.120.0), por `issue.workflow.feature-kernel`.
+
 ### Compatibilidade de pacote
 
 Um kernel anterior a `WORKFLOW_FLOW_CONTROL_SINCE_KERNEL` (2.108.0) não RECUSA `changeType`, `Switch` nem

@@ -1,3 +1,4 @@
+import { pagedLoopPageSize } from '../../../domain/schema/workflowLoopQuery';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
 import type { ArtifactVersion } from '../../../domain/schema/workflowVersion';
@@ -1254,6 +1255,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const getLoopSummary = useCallback((step: WorkflowStep): string => {
     if (!step.loop) return t('loop.summary');
+    if (step.loop.query) return t('loop.summary.query', { size: String(pagedLoopPageSize(step.loop.query.pageSize)) });
     return t('loop.summary.named', { output: step.loop.outputName });
   }, [t]);
 

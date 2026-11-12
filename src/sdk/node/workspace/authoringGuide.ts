@@ -59,6 +59,11 @@ import { REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
 import { WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../../domain/schema/workflowTask';
 import { WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../../domain/schema/report/reportStep';
 import { WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../../domain/schema/workflowWait';
+import {
+  PAGED_LOOP_DEFAULT_PAGE_SIZE,
+  PAGED_LOOP_MAX_PAGE_SIZE,
+  WORKFLOW_PAGED_LOOP_SINCE_KERNEL,
+} from '../../../domain/schema/workflowLoopQuery';
 import { WORKFLOW_WEBHOOK_SINCE_KERNEL } from '../../../domain/schema/workflowWebhook';
 import { REPORT_HIGHLIGHT_TONES } from '../../../domain/schema/report/reportSpec';
 import {
@@ -317,7 +322,7 @@ const STEP_KINDS: Record<StepType, string> = {
   Action: 'Runs one entry of the platform\'s step catalog, named by `stepDefinitionId`. Its inputs are `configuration`.',
   Condition: 'A control node: `condition` decides which of `branches.whenTrue` / `branches.whenFalse` runs, and the flow converges after. `stepDefinitionId` is empty.',
   Delay: '**Not a step type of its own.** It is in the union for compatibility, and a step declared with it stops the flow at that point — `validate_plugin` refuses it. To wait, use the `delay` catalog step (`type: \'Action\'`, `stepDefinitionId: \'delay\'`, §10); to act at a time, a workflow with `eventName: \'schedule\'`.',
-  Loop: 'A control node: `loop: { source, itemName, outputName, body }` runs `body` once per item and publishes the collected outputs under `outputName`. `stepDefinitionId` is empty.',
+  Loop: 'A control node: `loop: { source, itemName, outputName, body }` runs `body` once per item and publishes the collected outputs under `outputName`. With `loop.query` it reads a query page by page instead, pausing between pages, and publishes `processed` and `pages`. `stepDefinitionId` is empty.',
   Script: 'Runs a script, named by `configuration.scriptId` as a `Literal` — a `templateId` of your own package, or `<extension-id>/<source-id>` for a script another extension exports (§3).',
   SubWorkflow: 'Calls another workflow, named by `configuration.targetWorkflowId` as a `Literal` — again a `templateId`, or a qualified reference.',
   Switch: 'A control node: `switch: { cases: [{ id, label?, condition, steps }], otherwise }` takes the FIRST case whose condition holds — only that one — or `otherwise` when none does, and the flow converges after. `stepDefinitionId` is empty.',
@@ -3189,6 +3194,8 @@ configuration: {
   returns up to \`limit\` records and publishes **\`cursor\`**: pass it back as \`page.after\` to read the next
   page; it is \`null\` after the last one. Every record that matches comes in exactly one page, whatever the
   filters kept in memory leave out of each read.
+- **Most sweeps want \`loop.query\`** (below), which keeps the cursor for you. Page by hand only when the
+  cursor has to outlive the workflow.
 - **One page per run.** A run reads a page, works through it with a \`Loop\`, and leaves the cursor where the
   next run reads it — typically a field of the record that drives the work (the batch above), written by an
   \`upsert\` and read back as \`event.cursor\` by a \`schedule\` or a \`<collection>.saved\` workflow. Stop when
@@ -3199,6 +3206,36 @@ configuration: {
   \`cursor\` and \`hasMore\`.
 - \`page\` needs kernel ${QUERY_PAGE_SINCE_KERNEL} or later: \`validate_plugin\` refuses it in a package whose \`kernel\`
   range starts below, where the option is ignored and no cursor is ever published.
+
+#### Looping over a query — \`loop.query\`
+
+\`\`\`ts
+{ id: 'overdue', type: 'Loop', stepDefinitionId: '', order: 0, enabled: true, configuration: {},
+  loop: {
+    source: { kind: 'Literal', value: [] },     // not read when \`query\` is set; kept for older kernels
+    itemName: 'invoice', outputName: 'invoices',
+    query: {
+      spec: { table: 'invoices', where: [{ path: 'status', op: 'eq', value: { kind: 'Literal', value: 'open' } }],
+              projections: ['dueDate', 'customer'], limit: ${PAGED_LOOP_DEFAULT_PAGE_SIZE} },
+      pageSize: ${PAGED_LOOP_DEFAULT_PAGE_SIZE},                             // 1 to ${PAGED_LOOP_MAX_PAGE_SIZE}
+    },
+    body: [/* steps that read output.overdue.<field> for the current record */],
+  } }
+// after the loop: output.overdue.processed, output.overdue.pages
+\`\`\`
+
+The loop reads one page of the query, runs \`body\` for each record of it, and — when there are more —
+**pauses the run until the next clock tick** with the cursor, then reads the next page in the SAME run. It goes
+through thousands of records without one run hitting the time budget.
+
+- **Pages follow the record id.** The query's \`orderBy\` is ignored: an order on a field that the body
+  changes would make records skip a page or come twice. Narrow with \`where\` instead of sorting.
+- **The result is a count**, \`processed\` and \`pages\` — not the outputs of each pass, which would be the very
+  volume the loop exists not to carry. Do what each record needs inside the body.
+- It pauses like \`delay\`: **only at the top level**, **only in a run started by an event, a schedule or a date**
+  — never in a workflow an action runs, nor in a test run.
+- \`loop.query\` needs kernel ${WORKFLOW_PAGED_LOOP_SINCE_KERNEL} or later: \`validate_plugin\` refuses it in a package
+  whose \`kernel\` range starts below, where the query is ignored and the loop ends over an empty list.
 
 **Paging is for the exceptional sweep.** Work that happens once per record is better declared per record: a
 \`<collection>.saved\` workflow on each item — the bulk import (§8) fires it for every row — or \`dateReached\`.

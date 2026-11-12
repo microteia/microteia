@@ -61,6 +61,7 @@ import { hasChangeFilter, WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../schem
 import { APPROVAL_STEP_ID, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../schema/workflowTask';
 import { REPORT_FILE_SINCE_KERNEL, RUN_REPORT_STEP_ID, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../schema/report/reportStep';
 import { WAIT_FOR_STEP_ID, WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../schema/workflowWait';
+import { WORKFLOW_PAGED_LOOP_SINCE_KERNEL } from '../../schema/workflowLoopQuery';
 import { WORKFLOW_WEBHOOK_EVENT, WORKFLOW_WEBHOOK_SINCE_KERNEL } from '../../schema/workflowWebhook';
 import {
   AI_DATA_STEPS_SINCE_KERNEL,
@@ -340,6 +341,7 @@ const workflowIssues = (
     ...calledPathTypeKernelIssues(workflow, steps, ref, pkg),
     ...excludedStepIssues(workflow, steps, ref),
     ...delayIssues(workflow, steps, ref, pkg),
+    ...pagedLoopIssues(workflow, steps, ref, pkg),
     ...flowControlKernelIssues(workflow, steps, ref, pkg),
     ...stepDefinitionKernelIssues(steps, ref, pkg),
     ...extractFieldsKernelIssues(steps, ref, pkg),
@@ -722,10 +724,6 @@ const STEP_DEFINITION_SINCE_KERNEL: Readonly<Record<string, string>> = {
   [AI_GENERATE_STEP_ID]: AI_DATA_STEPS_SINCE_KERNEL,
 };
 
-/**
- * "Extrair parâmetros" com os campos declarados no passo (`fields`) num pacote que admite kernel
- * anterior: lá o passo sem automação-alvo reprova em toda execução.
- */
 /** "Executar relatório" com arquivo num pacote que admite kernel anterior: lá o `file` é ignorado em silêncio. */
 const reportFileKernelIssues = (
   steps: WorkflowStep[],
@@ -739,6 +737,10 @@ const reportFileKernelIssues = (
     : [];
 };
 
+/**
+ * "Extrair parâmetros" com os campos declarados no passo (`fields`) num pacote que admite kernel
+ * anterior: lá o passo sem automação-alvo reprova em toda execução.
+ */
 const extractFieldsKernelIssues = (
   steps: WorkflowStep[],
   ref: PackageRef,
@@ -823,6 +825,39 @@ const delayIssues = (
   ];
 
   return [...nested, ...fromAction, ...kernel];
+};
+
+/**
+ * O `Loop` sobre consulta (`loop.query`) PAUSA entre as páginas, então tem as recusas de quem pausa —
+ * aninhado e disparado por ação — mais a do kernel. Num kernel anterior a recusa é a pior possível: o
+ * `query` é ignorado e o laço percorre a `source`, uma lista vazia, terminando "com sucesso" sem ter
+ * tocado registro nenhum.
+ */
+const pagedLoopIssues = (
+  workflow: WorkflowModuleTemplate,
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  const paged = steps.filter((step) => step.type === 'Loop' && step.loop?.query !== undefined);
+  if (paged.length === 0) return [];
+  const topLevel = new Set(workflow.steps.map((step) => step.id));
+  const action = (pkg.actions ?? []).find((candidate) => candidate.workflowId === workflow.templateId);
+  return [
+    ...paged
+      .filter((step) => !topLevel.has(step.id))
+      .map((step) => ({ ref, message: '@core.marketplace/issue.step.delay-nested', messageParams: { step: step.id } })),
+    ...(action
+      ? [{ ref, message: '@core.marketplace/issue.step.delay-in-action', messageParams: { step: paged[0].id, action: action.key } }]
+      : []),
+    ...(rangeExcludesBelow(pkg.manifest?.kernel ?? '', WORKFLOW_PAGED_LOOP_SINCE_KERNEL)
+      ? []
+      : [{
+          ref,
+          message: '@core.marketplace/issue.workflow.feature-kernel',
+          messageParams: { feature: 'loop.query', minimum: WORKFLOW_PAGED_LOOP_SINCE_KERNEL },
+        }]),
+  ];
 };
 
 /**

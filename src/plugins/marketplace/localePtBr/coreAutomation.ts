@@ -531,6 +531,16 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'loop.source': 'Lista de itens',
   'loop.source.hint':
     'A lista (ou item único) sobre a qual repetir. Cada item roda os steps do corpo da repetição.',
+  'loop.mode': 'Repetir sobre',
+  'loop.mode.list': 'Uma lista',
+  'loop.mode.query': 'Uma consulta, página a página',
+  'loop.mode.list.hint': 'Repete sobre uma lista do evento ou de um passo anterior, tudo na mesma execução.',
+  'loop.mode.query.hint':
+    'Lê os registros de uma consulta uma página por vez, na ordem dos registros. Entre uma página e outra a execução pausa até a próxima volta do relógio (cerca de 5 minutos), e por isso dá conta de milhares de registros. O resultado é quantos registros foram processados e quantas páginas foram lidas — não a lista: faça dentro da repetição o que cada registro precisa.',
+  'loop.mode.query.top-level-only':
+    'A repetição sobre consulta pausa entre as páginas, e uma execução só retoma no nível principal da automação. Tire esta repetição do ramo ou da repetição em que ela está.',
+  'loop.page-size': 'Registros por página',
+  'loop.page-size.hint': 'De 1 a {max}. Cada página roda o corpo da repetição para cada registro lido antes de pausar.',
   'mapping.event.example': 'ex: status',
   'mapping.event.placeholder': 'Campo do evento...',
   'mapping.expression.example': 'ex: event.campo || input.campo || variavel',
@@ -572,6 +582,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'loop.saved': 'Repetição salva com sucesso.',
   'loop.summary': 'Para cada item',
   'loop.summary.named': 'Para cada item → {output}',
+  'loop.summary.query': 'Para cada registro de uma consulta — {size} por página',
   'step.delete-failed': 'Erro ao excluir step.',
   'step.move-failed': 'Erro ao mover o step.',
   'step.new': 'Novo step',
@@ -1052,6 +1063,11 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'run.loop.done': 'Repetição concluída — {count} resultado(s)',
   'run.loop.failed': '[Repetição] {detail}',
   'run.loop.halted': 'Repetição interrompida por encerramento do workflow',
+  'run.loop.page': 'Página {page} — {count} registro(s)',
+  'run.loop.paged-done': 'Repetição concluída — {count} registro(s) em {pages} página(s)',
+  'run.loop.paged-cannot-wait':
+    'Esta repetição lê uma consulta página a página e pausa entre elas, mas esta execução não pode pausar: foi iniciada por um botão ou por um teste, ou a repetição está dentro de um ramo. Coloque-a no nível principal de uma automação disparada por evento, agenda ou data.',
+  'run.loop.paged-unavailable': 'A repetição sobre consulta não está disponível neste ambiente.',
   'run.loop.missing-config': '[Repetição] Nó de repetição sem configuração',
   'run.loop.start': 'Repetição sobre {count} item(ns)',
   'run.parameters.invalid': 'Parâmetros do workflow inválidos: {detail}',

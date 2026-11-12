@@ -15,6 +15,7 @@ import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestor
 import type { WorkflowClockLastRun } from '../../domain/schema/workflowClock';
 import { workflowWaitKey } from '../../domain/schema/workflowWait';
 import type { WorkflowWait } from '../../domain/schema/workflowWait';
+import type { PagedLoopState } from '../../domain/schema/workflowLoopQuery';
 import {
   RESUME_CLOCK_ID_PREFIX,
   clockOccurrenceEventId,
@@ -47,6 +48,18 @@ const waitOf = (value: unknown): WorkflowWait | null => {
     eventName: wait.eventName,
     recordId: wait.recordId,
     ...(typeof wait.until === 'string' && wait.until.trim() ? { until: wait.until } : {}),
+  };
+};
+
+const loopOf = (value: unknown): PagedLoopState | null => {
+  if (!value || typeof value !== 'object') return null;
+  const loop = value as Record<string, unknown>;
+  if (typeof loop.stepId !== 'string' || typeof loop.cursor !== 'string') return null;
+  return {
+    stepId: loop.stepId,
+    cursor: loop.cursor,
+    page: typeof loop.page === 'number' ? loop.page : 0,
+    processed: typeof loop.processed === 'number' ? loop.processed : 0,
   };
 };
 
@@ -110,6 +123,7 @@ const mapEntry = (tenantId: string, definitionId: string, data: DocumentData): W
       ...(data.decided === true ? { decided: true } : {}),
       ...(waitOf(data.wait) ? { wait: waitOf(data.wait) as WorkflowWait } : {}),
       ...(typeof data.definitionVersion === 'number' ? { definitionVersion: data.definitionVersion } : {}),
+      ...(loopOf(data.loop) ? { loop: loopOf(data.loop) as PagedLoopState } : {}),
     };
   }
   if (data.kind === 'dateReached') {
@@ -172,6 +186,7 @@ const entryDocument = (entry: WorkflowClockEntry): DocumentData => {
         ? { wait: entry.wait, waitKey: workflowWaitKey(entry.wait.eventName, entry.wait.recordId) }
         : {}),
       ...(entry.definitionVersion ? { definitionVersion: entry.definitionVersion } : {}),
+      ...(entry.loop ? { loop: entry.loop } : {}),
     };
   }
   return {

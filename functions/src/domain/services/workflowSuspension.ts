@@ -68,6 +68,7 @@ export const recordWorkflowRun = async (
     actor: origin.actor ? toPublishedActor(origin.actor) : null,
     ...(suspension.taskId ? { taskId: suspension.taskId } : {}),
     ...(suspension.wait ? { wait: suspension.wait } : {}),
+    ...(suspension.loop ? { loop: suspension.loop } : {}),
     ...(origin.definition.version > 0 ? { definitionVersion: origin.definition.version } : {}),
     nextRunAt: suspension.resumeAt,
     timeZone: 'UTC',
@@ -276,6 +277,7 @@ export const resumeWorkflowExecution = async (
         lastStepId: entry.lastStepId,
         outputs: entry.outputs,
         variables: entry.variables,
+        ...(entry.loop ? { loop: entry.loop } : {}),
       },
     });
     await recordWorkflowRun(run, { definition, event, ...(actor ? { actor } : {}) }, deps);

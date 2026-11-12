@@ -17,6 +17,8 @@ import { isStepExcludedFromTrigger } from '../schema/workflowStepCatalog';
 import { matchesChangeFilter } from '../schema/workflowChangeFilter';
 import { MAX_STEP_RETRIES } from '../entities/Workflow';
 import type { WorkflowWait } from '../schema/workflowWait';
+import { pagedLoopPageSize } from '../schema/workflowLoopQuery';
+import type { PagedLoopState, WorkflowLoopQuery } from '../schema/workflowLoopQuery';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -28,6 +30,8 @@ export interface WorkflowSuspension {
   taskId?: string;
   /** O evento que a pausa espera, quando é um `wait-for`. */
   wait?: WorkflowWait;
+  /** Onde o laço paginado parou — a retomada volta AO laço, com este cursor. */
+  loop?: PagedLoopState;
   afterStepId: string;
   lastStepId: string | null;
   outputs: Record<string, Record<string, unknown>>;
@@ -87,6 +91,8 @@ export const runWorkflow = async ({
   const executionId = resume?.executionId ?? crypto.randomUUID();
   const startedAt = resume?.startedAt ?? services.now();
   const logs: WorkflowExecutionLogEntry[] = [...(resume?.logs ?? [])];
+  // O laço paginado de onde a execução volta: lido UMA vez, pelo próprio laço, na primeira passagem.
+  let resumedLoop: PagedLoopState | null = resume?.loop ?? null;
 
   const log = (
     level: WorkflowExecutionLogEntry['level'],
@@ -249,7 +255,7 @@ export const runWorkflow = async ({
       ok: true;
       lastStepId: string | null;
       halted?: boolean;
-      suspended?: { resumeAt: Date; afterStepId: string; taskId?: string; wait?: WorkflowWait };
+      suspended?: { resumeAt: Date; afterStepId: string; taskId?: string; wait?: WorkflowWait; loop?: PagedLoopState };
     }
     | { ok: false };
 
@@ -378,6 +384,13 @@ export const runWorkflow = async ({
           return { ok: false };
         }
         const { source, itemName, outputName, body } = step.loop;
+
+        if (step.loop.query) {
+          const paged = await runPagedLoop(step, step.loop.query, itemName, body, depth, lastStepId);
+          if (!paged.ok || paged.halted || paged.suspended) return paged;
+          lastStepId = paged.lastStepId;
+          continue;
+        }
 
         let sourceValue: unknown;
         try {
@@ -618,8 +631,99 @@ export const runWorkflow = async ({
     return { ok: true, lastStepId };
   };
 
+  /**
+   * O laço sobre uma CONSULTA, uma página por vez.
+   *
+   * Cada página roda o corpo para cada registro; havendo mais, a execução PAUSA com o cursor
+   * (`suspended.loop`) para a próxima volta do relógio, e a retomada volta a este laço — é o que quebra
+   * o teto de uma consulta sem estourar o orçamento de uma execução. As contribuições do corpo NÃO se
+   * acumulam entre páginas (seriam o próprio volume que o laço existe para não carregar): a saída do laço
+   * é o que foi feito, `processed` e `pages`.
+   *
+   * Pausa, então tem as regras de quem pausa: só no nível principal de uma execução que pode esperar.
+   */
+  const runPagedLoop = async (
+    step: WorkflowStep,
+    query: WorkflowLoopQuery,
+    itemName: string,
+    body: WorkflowStep[],
+    depth: number,
+    lastStepId: string | null,
+  ): Promise<StepsRunResult> => {
+    if (!suspendable || depth > 0) {
+      log('ERROR', '@core.automation/run.loop.paged-cannot-wait', step.id, undefined, context.input);
+      return { ok: false };
+    }
+    if (!services.queryPage) {
+      log('ERROR', '@core.automation/run.loop.paged-unavailable', step.id, undefined, context.input);
+      return { ok: false };
+    }
+
+    const resumed = resumedLoop?.stepId === step.id ? resumedLoop : null;
+    resumedLoop = null;
+    const pageSize = pagedLoopPageSize(query.pageSize);
+    const page = await services.queryPage(query.spec, resumed?.cursor ?? null, pageSize, context);
+    if (!page.ok) {
+      log('ERROR', page.error, step.id, undefined, context.input, undefined, undefined, page.errorParams);
+      return { ok: false };
+    }
+
+    const pageNumber = (resumed?.page ?? 0) + 1;
+    log(
+      'INFO', '@core.automation/run.loop.page', step.id, undefined, context.input, undefined,
+      { page: pageNumber, count: page.items.length },
+      { page: String(pageNumber), count: String(page.items.length) },
+    );
+
+    const bodyStepIds = flattenSteps(body).map((bodyStep) => bodyStep.id);
+    for (const item of page.items) {
+      for (const bodyStepId of bodyStepIds) delete context.outputs[bodyStepId];
+      context.outputs[step.id] = isPlainObject(item) ? { ...item } : { [itemName]: item };
+      const recur = await executeSteps(body, null, depth + 1);
+      if (!recur.ok) return { ok: false };
+      if (recur.halted) {
+        log('INFO', '@core.automation/run.loop.halted', step.id, undefined, context.input);
+        return { ok: true, lastStepId: recur.lastStepId ?? lastStepId, halted: true };
+      }
+    }
+    for (const bodyStepId of bodyStepIds) delete context.outputs[bodyStepId];
+
+    const processed = (resumed?.processed ?? 0) + page.items.length;
+    if (page.hasMore && page.cursor) {
+      // O item da última iteração não atravessa a pausa: ele não é saída de ninguém, e a continuação
+      // tem teto de tamanho.
+      delete context.outputs[step.id];
+      return {
+        ok: true,
+        lastStepId,
+        suspended: {
+          resumeAt: services.now(),
+          afterStepId: step.id,
+          loop: { stepId: step.id, cursor: page.cursor, page: pageNumber, processed },
+        },
+      };
+    }
+
+    const loopOutputs = { processed, pages: pageNumber };
+    context.outputs[step.id] = loopOutputs;
+    log(
+      'SUCCESS', '@core.automation/run.loop.paged-done', step.id, undefined, context.input, undefined, loopOutputs,
+      { count: String(processed), pages: String(pageNumber) },
+    );
+    return { ok: true, lastStepId: step.id };
+  };
+
   let topLevel = definition.steps;
-  if (resume) {
+  if (resume?.loop) {
+    // Voltando de uma PÁGINA: o laço paginado roda de novo — a partir do cursor guardado —, e só depois
+    // dele os passos seguintes.
+    const loopStep = definition.steps.find((step) => step.id === resume.loop?.stepId);
+    if (!loopStep?.loop?.query) {
+      log('WARN', '@core.automation/run.delay.step-missing', resume.loop.stepId);
+      return finish('CANCELLED', {});
+    }
+    topLevel = definition.steps.filter((step) => step.order >= loopStep.order);
+  } else if (resume) {
     // Continua pelos passos POSTERIORES ao que esperou, na definição de AGORA: a automação editada
     // durante a espera segue a versão nova. Sem o passo em que parou, não há "depois" a seguir.
     const anchor = definition.steps.find((step) => step.id === resume.afterStepId);
@@ -636,7 +740,7 @@ export const runWorkflow = async ({
   }
 
   if (run.suspended) {
-    const { resumeAt, afterStepId, taskId, wait } = run.suspended;
+    const { resumeAt, afterStepId, taskId, wait, loop } = run.suspended;
     return {
       ...finish('WAITING', {}),
       finishedAt: undefined,
@@ -646,6 +750,7 @@ export const runWorkflow = async ({
         afterStepId,
         ...(taskId ? { taskId } : {}),
         ...(wait ? { wait } : {}),
+        ...(loop ? { loop } : {}),
         lastStepId: run.lastStepId,
         outputs: context.outputs,
         variables: context.variables,

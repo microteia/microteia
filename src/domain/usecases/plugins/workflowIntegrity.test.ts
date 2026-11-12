@@ -338,6 +338,48 @@ describe('integridade do passo de espera', () => {
   });
 });
 
+describe('repetição sobre consulta paginada', () => {
+  const lote = (id: string): WorkflowStep => passo({
+    id,
+    type: 'Loop',
+    stepDefinitionId: '',
+    loop: {
+      source: { kind: 'Literal', value: [] },
+      itemName: 'item',
+      outputName: 'itens',
+      body: [],
+      query: { spec: { table: 'registros', where: [], projections: [], limit: 50 }, pageSize: 50 },
+    },
+  });
+  const comLote = (steps: WorkflowStep[], extra: Record<string, unknown> = {}, kernel = '^2.120.0'): MarketplacePlugin => {
+    const base = pacote(steps);
+    return { ...base, manifest: { ...base.manifest, kernel }, ...extra } as unknown as MarketplacePlugin;
+  };
+
+  it('aceita a repetição paginada no nível principal', () => {
+    expect(workflowStepIssues(comLote([lote('l')]))).toEqual([]);
+  });
+
+  it('recusa dentro de um ramo e numa automação que uma ação dispara — ela pausa entre as páginas', () => {
+    const condicao = passo({
+      id: 'cond',
+      type: 'Condition',
+      stepDefinitionId: '',
+      condition: { kind: 'AlwaysTrue' },
+      branches: { whenTrue: [lote('l')], whenFalse: [] },
+    });
+    expect(workflowStepIssues(comLote([condicao])).map((issue) => issue.message)).toContain('@core.marketplace/issue.step.delay-nested');
+    expect(workflowStepIssues(comLote([lote('l')], { actions: [{ key: 'rodar', workflowId: 'wf-teste' }] })).map((issue) => issue.message))
+      .toEqual(['@core.marketplace/issue.step.delay-in-action']);
+  });
+
+  it('cobra o kernel: no anterior a consulta é ignorada e o laço termina sem tocar registro', () => {
+    const [issue] = workflowStepIssues(comLote([lote('l')], {}, '^2.119.0'));
+    expect(issue?.message).toBe('@core.marketplace/issue.workflow.feature-kernel');
+    expect(issue?.messageParams).toEqual({ feature: 'loop.query', minimum: '2.120.0' });
+  });
+});
+
 describe('integridade do gatilho de auditoria', () => {
   const deAuditoria = (steps: WorkflowStep[], kernel = '^2.45.0'): MarketplacePlugin => {
     const base = pacote(steps);

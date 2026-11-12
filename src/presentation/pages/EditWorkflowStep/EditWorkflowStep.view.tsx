@@ -543,22 +543,53 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
               <S.HelpText>{t('step.label.hint')}</S.HelpText>
             </InputGroup>
             <S.StepsDivider />
-            <S.Field>
-              <S.FieldHeader>
-                <Label>{label(LOOP_SOURCE_INPUT.label)}</Label>
-                <S.Required>*</S.Required>
-              </S.FieldHeader>
-              <S.HelpText>{t('loop.source.hint')}</S.HelpText>
-              <S.MappingRow>
-                <SearchSelect
-                  options={getMappingKindOptions(LOOP_SOURCE_INPUT, t)}
-                  value={vm.configuration.source?.kind ?? ''}
-                  onChange={(kind) => vm.setMappingKind('source', kind as InputMapping['kind'] | '')}
-                  placeholder={t('mapping.source.placeholder')}
-                />
-                {renderMappingControl(LOOP_SOURCE_INPUT)}
-              </S.MappingRow>
-            </S.Field>
+            <InputGroup>
+              <Label>{t('loop.mode')}</Label>
+              <SearchSelect options={vm.loopModeOptions} value={vm.loopMode} onChange={vm.setLoopMode} />
+              <S.HelpText>{t(vm.loopMode === 'query' ? 'loop.mode.query.hint' : 'loop.mode.list.hint')}</S.HelpText>
+              {vm.loopModeError && <InfoBanner variant="warning" message={vm.loopModeError} />}
+            </InputGroup>
+            {vm.loopMode === 'query' ? (
+              <>
+                <S.Field>
+                  <QueryBuilderControl
+                    value={vm.loopQuery}
+                    onChange={vm.setLoopQuery}
+                    eventFields={vm.eventFields}
+                    pathRoot={vm.pathRoot}
+                    inputRoot={vm.inputRoot}
+                    stepOutputFields={vm.stepOutputFields}
+                    workflowVariables={vm.workflowVariables}
+                  />
+                </S.Field>
+                <InputGroup>
+                  <Label>{t('loop.page-size')}</Label>
+                  <Input
+                    inputMode="numeric"
+                    value={vm.loopPageSize}
+                    onChange={(e) => vm.setLoopPageSize(e.target.value)}
+                  />
+                  <S.HelpText>{vm.loopPageSizeHint}</S.HelpText>
+                </InputGroup>
+              </>
+            ) : (
+              <S.Field>
+                <S.FieldHeader>
+                  <Label>{label(LOOP_SOURCE_INPUT.label)}</Label>
+                  <S.Required>*</S.Required>
+                </S.FieldHeader>
+                <S.HelpText>{t('loop.source.hint')}</S.HelpText>
+                <S.MappingRow>
+                  <SearchSelect
+                    options={getMappingKindOptions(LOOP_SOURCE_INPUT, t)}
+                    value={vm.configuration.source?.kind ?? ''}
+                    onChange={(kind) => vm.setMappingKind('source', kind as InputMapping['kind'] | '')}
+                    placeholder={t('mapping.source.placeholder')}
+                  />
+                  {renderMappingControl(LOOP_SOURCE_INPUT)}
+                </S.MappingRow>
+              </S.Field>
+            )}
             <InputGroup>
               <Label>{t('loop.item-name')}</Label>
               <Input

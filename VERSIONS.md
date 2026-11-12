@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.240.0] — 2026-11-12
+
+- As automações agora repetem passos sobre uma consulta inteira, página a página: em "Repetição", escolha "Uma consulta, página a página" para tratar milhares de registros — como "todo dia, para cada fatura vencida" — sem esbarrar no limite de uma execução. Entre uma página e outra a automação aguarda alguns minutos e continua sozinha.
+
 #### [9.239.1] — 2026-11-12
 
 - Corrigido o histórico das automações que esperam uma aprovação ou um evento: depois da retomada, ele passa a mostrar o resultado real do passo (a decisão tomada, o registro que chegou), em vez do resultado de prazo vencido que aparecia antes.

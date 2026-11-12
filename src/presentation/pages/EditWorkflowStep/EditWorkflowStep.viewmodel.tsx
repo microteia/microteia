@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { PAGED_LOOP_DEFAULT_PAGE_SIZE, PAGED_LOOP_MAX_PAGE_SIZE, pagedLoopPageSize } from '../../../domain/schema/workflowLoopQuery';
 import type { IconType } from 'react-icons';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuthorization } from '../../../stores/useAuthorization';
@@ -286,6 +287,17 @@ export interface EditWorkflowStepViewModel {
   setLoopItemName: (name: string) => void;
   loopOutputName: string;
   setLoopOutputName: (name: string) => void;
+  /** De onde o laço tira os itens: uma lista (`source`) ou uma consulta lida em páginas (`query`). */
+  loopMode: 'list' | 'query';
+  setLoopMode: (mode: string) => void;
+  loopModeOptions: { value: string; label: string }[];
+  loopQuery: QuerySpec | undefined;
+  setLoopQuery: (spec: QuerySpec) => void;
+  loopPageSize: string;
+  setLoopPageSize: (value: string) => void;
+  loopPageSizeHint: string;
+  /** O laço paginado PAUSA entre páginas: fora do nível principal, ele não pode ser salvo. */
+  loopModeError: string | null;
   pendingCondition: Condition;
   setPendingCondition: (condition: Condition) => void;
   conditionViewMode: ConditionViewMode;
@@ -389,6 +401,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const [pendingCondition, setPendingCondition] = useState<Condition>({ kind: 'AlwaysTrue' });
   const [loopItemName, setLoopItemName] = useState('item');
   const [loopOutputName, setLoopOutputName] = useState('itens');
+  const [loopMode, setLoopModeState] = useState<'list' | 'query'>('list');
+  const [loopQuery, setLoopQuery] = useState<QuerySpec | undefined>(undefined);
+  const [loopPageSize, setLoopPageSize] = useState(String(PAGED_LOOP_DEFAULT_PAGE_SIZE));
   const [switchCases, setSwitchCases] = useState<WorkflowSwitchCase[]>([]);
   const [errorAction, setErrorAction] = useState<'fail' | 'continue'>('fail');
   const [errorRetries, setErrorRetries] = useState(0);
@@ -435,6 +450,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setPendingCondition(editingStep?.condition ?? { kind: 'AlwaysTrue' });
     setLoopItemName(editingStep?.loop?.itemName ?? 'item');
     setLoopOutputName(editingStep?.loop?.outputName ?? 'itens');
+    setLoopModeState(editingStep?.loop?.query ? 'query' : 'list');
+    setLoopQuery(editingStep?.loop?.query?.spec);
+    setLoopPageSize(String(editingStep?.loop?.query?.pageSize ?? PAGED_LOOP_DEFAULT_PAGE_SIZE));
     setSwitchCases(editingStep?.switch?.cases ?? []);
     setErrorAction(editingStep?.onError?.action === 'continue' ? 'continue' : 'fail');
     setErrorRetries(editingStep?.onError?.retries ?? 0);
@@ -1307,17 +1325,30 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     return variables;
   }, [priorSteps, stepCatalog, t]);
 
+  const loopModeOptions = useMemo(
+    () => [
+      { value: 'list', label: t('loop.mode.list') },
+      { value: 'query', label: t('loop.mode.query') },
+    ],
+    [t],
+  );
+  // A consulta paginada pausa entre páginas, e só o nível principal retoma — a regra dos passos que pausam.
+  const loopModeError = isLoopStep && loopMode === 'query' && !atTopLevel ? t('loop.mode.query.top-level-only') : null;
+
   const canSave = useMemo(() => {
     if (isConditionStep) return true;
     if (isSwitchStep) return switchCases.length > 0;
-    if (isLoopStep) return !!configuration.source && !!loopItemName.trim() && !!loopOutputName.trim();
+    if (isLoopStep) {
+      const hasSource = loopMode === 'query' ? !!loopQuery?.table && loopModeError === null : !!configuration.source;
+      return hasSource && !!loopItemName.trim() && !!loopOutputName.trim();
+    }
     if (!selectedDefinition) return false;
     if (stepIdentifierError) return false;
     if (placementError) return false;
     return effectiveInputs
       .filter((input) => input.required)
       .every((input) => configuration[input.id] !== undefined);
-  }, [isConditionStep, isSwitchStep, switchCases, isLoopStep, configuration, loopItemName, loopOutputName, selectedDefinition, effectiveInputs, stepIdentifierError, placementError]);
+  }, [isConditionStep, isSwitchStep, switchCases, isLoopStep, configuration, loopItemName, loopOutputName, loopMode, loopQuery, loopModeError, selectedDefinition, effectiveInputs, stepIdentifierError, placementError]);
 
   const handleSave = useCallback(async () => {
     if (!workflow) return;
@@ -1376,7 +1407,10 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     // Modo Loop: edita a configuração de repetição de um nó de controle já existente,
     // preservando o corpo (loop.body).
     if (isLoopStep && editingStep && editingStep.loop) {
-      const source = configuration.source;
+      const paged = loopMode === 'query' && loopQuery ? { spec: loopQuery, pageSize: pagedLoopPageSize(loopPageSize) } : null;
+      // O laço paginado não lê `source`; ela continua gravada (uma lista vazia) para o kernel anterior,
+      // que não conhece `query`, ter o que ler em vez de quebrar.
+      const source = paged ? (configuration.source ?? { kind: 'Literal' as const, value: [] }) : configuration.source;
       if (!source) return;
       setIsSaving(true);
       try {
@@ -1393,6 +1427,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
             itemName: loopItemName.trim(),
             outputName: loopOutputName.trim(),
             body: editingStep.loop.body,
+            ...(paged ? { query: paged } : {}),
           },
         };
         await updateWorkflowSteps(workflow.id, replaceStepInTree(existingSteps, updated));
@@ -1443,6 +1478,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     isLoopStep,
     loopItemName,
     loopOutputName,
+    loopMode,
+    loopQuery,
+    loopPageSize,
     selectedDefinition,
     workflow,
     editingStep,
@@ -1539,6 +1577,15 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setLoopItemName,
     loopOutputName,
     setLoopOutputName,
+    loopMode,
+    setLoopMode: (mode) => setLoopModeState(mode === 'query' ? 'query' : 'list'),
+    loopModeOptions,
+    loopQuery,
+    setLoopQuery,
+    loopPageSize,
+    setLoopPageSize,
+    loopPageSizeHint: t('loop.page-size.hint', { max: String(PAGED_LOOP_MAX_PAGE_SIZE) }),
+    loopModeError,
     pendingCondition,
     setPendingCondition,
     conditionViewMode,

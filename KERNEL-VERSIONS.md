@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.240.0] — 2026-11-12
+
+- feat(workflow): `Loop` over a paged query (`loop.query: { spec, pageSize }`). Each page runs the body per record; when more remain, the run suspends with `{ stepId, cursor, page, processed }` on the resume clock entry and the next tick resumes INTO the loop from the cursor. Pages follow the document id (the query's `orderBy` is ignored), the output is `processed`/`pages` rather than the collected body outputs, and it only runs where a run can suspend — top level of an event, schedule or date run (`run.loop.paged-cannot-wait` elsewhere). Breaks the `QUERY_MAX_RESULTS` ceiling without breaking the per-run time budget.
+- feat(marketplace): `pagedLoopIssues` refuses `loop.query` nested in a branch, in a workflow a package action runs, or in a package whose kernel range admits < 2.120.0 — where the query is ignored and the loop ends over an empty `source`. `KERNEL_VERSION` 2.120.0.
+
 #### [9.239.1] — 2026-11-12
 
 - fix(workflow): a run resumed by a decision or an event (`ResumeClockEntry.decided`) now appends the suspended step's real outputs to the history (`run.resume.step-outputs`). Before, the history only had the outputs written at suspension — the timeout defaults (`timedOut: true`, the expiry outcome) —, which read as "the deadline passed" for a wait that ended with the event. Found by the end-to-end run on microteia-dev. pt-BR locale package 1.191.0.

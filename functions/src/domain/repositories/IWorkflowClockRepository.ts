@@ -1,6 +1,7 @@
 import type { PublishedActor } from '../engine/workflowActor';
 import type { WorkflowClockLastRun } from '../schema/workflowClock';
 import type { WorkflowWait } from '../schema/workflowWait';
+import type { PagedLoopState } from '../schema/workflowLoopQuery';
 
 interface WorkflowClockEntryBase {
   tenantId: string;
@@ -78,6 +79,8 @@ export interface ResumeClockEntry extends WorkflowClockEntryBase {
    * passo editado durante a espera não pode mudar o resto de uma execução que já ia por outro caminho.
    */
   definitionVersion?: number;
+  /** Onde o laço paginado parou (`loop.query`): a retomada volta a ele, com este cursor. */
+  loop?: PagedLoopState;
 }
 
 export type WorkflowClockEntry = ScheduleClockEntry | DateReachedClockEntry | ResumeClockEntry;

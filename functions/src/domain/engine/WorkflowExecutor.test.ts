@@ -968,3 +968,92 @@ describe('runWorkflow — política de falha do passo (onError)', () => {
     expect(calls.count).toBe(1);
   });
 });
+
+describe('runWorkflow — Loop sobre consulta paginada', () => {
+  const records = Array.from({ length: 5 }, (_, index) => ({ id: `r${index + 1}`, name: `n${index + 1}` }));
+  const pagedServices = (calls: (string | null)[]): WorkflowServices => ({
+    ...services,
+    queryPage: async (_spec, cursor, pageSize) => {
+      calls.push(cursor);
+      const start = cursor ? records.findIndex((record) => record.id === cursor) + 1 : 0;
+      const items = records.slice(start, start + pageSize);
+      const hasMore = start + pageSize < records.length;
+      return { ok: true, items, cursor: hasMore ? items.at(-1)?.id ?? null : null, hasMore };
+    },
+  });
+  const pagedLoop = (pageSize: number): WorkflowStep => ({
+    ...loopStep('lote', { kind: 'Literal', value: [] }, []),
+    loop: {
+      source: { kind: 'Literal', value: [] },
+      itemName: 'item',
+      outputName: 'itens',
+      body: withOrder([recordFromExpr('input.name')]),
+      query: { spec: { table: 't', where: [], projections: [], limit: 100 }, pageSize },
+    },
+  });
+
+  it('processa UMA página e pausa com o cursor para a próxima volta do relógio', async () => {
+    const order: string[] = [];
+    const calls: (string | null)[] = [];
+    const run = await runWorkflow({
+      definition: makeDefinition(withOrder([pagedLoop(2), recordStep('depois')])),
+      event: makeEvent({}),
+      registry: makeRegistry(order),
+      services: pagedServices(calls),
+      suspendable: true,
+    });
+
+    expect(run.status).toBe('WAITING');
+    expect(order).toEqual(['n1', 'n2']);
+    expect(run.suspension?.loop).toEqual({ stepId: 'lote', cursor: 'r2', page: 1, processed: 2 });
+    expect(run.suspension?.afterStepId).toBe('lote');
+    expect(calls).toEqual([null]);
+  });
+
+  it('a retomada volta AO laço pelo cursor, e na última página segue para o passo seguinte', async () => {
+    const order: string[] = [];
+    const calls: (string | null)[] = [];
+    const definition = makeDefinition(withOrder([pagedLoop(2), recordStep('depois')]));
+    const params = { definition, event: makeEvent({}), registry: makeRegistry(order), services: pagedServices(calls), suspendable: true };
+    const first = await runWorkflow(params);
+    const second = await runWorkflow({
+      ...params,
+      resume: { ...first.suspension!, executionId: first.id, startedAt: first.startedAt, logs: first.logs },
+    });
+    const third = await runWorkflow({
+      ...params,
+      resume: { ...second.suspension!, executionId: second.id, startedAt: second.startedAt, logs: second.logs },
+    });
+
+    expect(calls).toEqual([null, 'r2', 'r4']);
+    expect(order).toEqual(['n1', 'n2', 'n3', 'n4', 'n5', 'depois']);
+    expect(third.status).toBe('SUCCESS');
+    expect(third.logs.some((log) => log.message === '@core.automation/run.loop.paged-done')).toBe(true);
+  });
+
+  it('fora de uma execução que pode esperar, reprova em vez de processar só a primeira página', async () => {
+    const order: string[] = [];
+    const run = await runWorkflow({
+      definition: makeDefinition(withOrder([pagedLoop(2)])),
+      event: makeEvent({}),
+      registry: makeRegistry(order),
+      services: pagedServices([]),
+    });
+    expect(run.status).toBe('FAILED');
+    expect(order).toEqual([]);
+    expect(run.logs.map((log) => log.message)).toContain('@core.automation/run.loop.paged-cannot-wait');
+  });
+
+  it('uma página só termina na hora, com o que foi feito como saída', async () => {
+    const order: string[] = [];
+    const run = await runWorkflow({
+      definition: makeDefinition(withOrder([pagedLoop(10)])),
+      event: makeEvent({}),
+      registry: makeRegistry(order),
+      services: pagedServices([]),
+      suspendable: true,
+    });
+    expect(run.status).toBe('SUCCESS');
+    expect(run.outputs).toEqual({ processed: 5, pages: 1 });
+  });
+});

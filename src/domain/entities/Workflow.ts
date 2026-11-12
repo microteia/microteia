@@ -1,4 +1,5 @@
 import type { FieldRules } from '../schema/fieldRules';
+import type { WorkflowLoopQuery } from '../schema/workflowLoopQuery';
 import type { WorkflowDateReached, WorkflowSchedule } from '../schema/workflowClock';
 import type { WorkflowChangeFilter } from '../schema/workflowChangeFilter';
 import type { WorkflowContentOrigin } from '../schema/workflowVersion';
@@ -62,6 +63,11 @@ export interface WorkflowLoopConfig {
   itemName: string;
   outputName: string;
   body: WorkflowStep[];
+  /**
+   * Percorre uma CONSULTA em páginas, em vez da lista de `source` (que então não é lida): uma página por
+   * volta, a execução pausando entre elas. Ver `workflowLoopQuery.ts`.
+   */
+  query?: WorkflowLoopQuery;
 }
 
 /**

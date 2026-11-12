@@ -1,4 +1,5 @@
 import type { BusinessCalendarSet } from '../schema/time/businessDays';
+import type { QuerySpec } from '../schema/querySpec';
 import type { WorkflowWait } from '../schema/workflowWait';
 import type { InputMapping, WorkflowEvent, WorkflowParameter } from './Workflow';
 import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
@@ -52,7 +53,21 @@ export interface WorkflowServices {
    * durma de verdade; ausente, `setTimeout`.
    */
   sleep?(ms: number): Promise<void>;
+  /**
+   * Uma PÁGINA de uma consulta, para o `Loop` paginado. Do serviço, e não do executor, porque a consulta
+   * é infraestrutura (o banco, a hidratação) e o executor é domínio. Ausente, o laço paginado reprova.
+   */
+  queryPage?(
+    spec: QuerySpec,
+    cursor: string | null,
+    pageSize: number,
+    context: WorkflowContext,
+  ): Promise<WorkflowQueryPage>;
 }
+
+export type WorkflowQueryPage =
+  | { ok: true; items: Record<string, unknown>[]; cursor: string | null; hasMore: boolean }
+  | { ok: false; error: string; errorParams?: Record<string, string> };
 
 /**
  * De onde partiu o gesto de uma PESSOA: o app, um agente de IA pelo MCP em nome dela, o portal — e aí a
