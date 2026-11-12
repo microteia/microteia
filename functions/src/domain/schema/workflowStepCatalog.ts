@@ -14,7 +14,7 @@ import { HTTP_REQUEST_STEP_ID } from './httpRequestSpec';
 import type { FieldRules } from './fieldRules';
 import { RUN_REPORT_STEP_ID } from './report/reportStep';
 import { DEFAULT_WAIT_DAYS, WAIT_FOR_STEP_ID } from './workflowWait';
-import { AI_CLASSIFY_STEP_ID, AI_EXTRACT_STEP_ID, AI_GENERATE_DEFAULT_CHARACTERS, AI_GENERATE_STEP_ID } from './aiSteps';
+import { AI_GENERATE_DEFAULT_CHARACTERS, AI_GENERATE_STEP_ID } from './aiSteps';
 
 /**
  * O catálogo de passos de automação — a METADATA, sem os executores.
@@ -925,10 +925,23 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         type: 'String',
       },
       {
+        /**
+         * Os campos a extrair, declarados AQUI — `chave: o que é [a|b|c]`, a lista fechando a
+         * classificação. É o modo sem automação-alvo; com eles, `targetWorkflowId` fica vazio. Não é
+         * `required` em nenhum dos dois, porque o motor cobraria em toda execução: quem cobra "um dos
+         * dois" é o passo.
+         */
+        id: 'fields',
+        label: '@core.automation/step.ai-extract-parameters.label.fields',
+        description: '@core.automation/step.ai-extract-parameters.fields.description',
+        required: false,
+        type: 'String',
+      },
+      {
         id: 'targetWorkflowId',
         label: '@core.automation/step.ai-extract-parameters.label.target',
         description: '@core.automation/step.ai-extract-parameters.target.description',
-        required: true,
+        required: false,
         type: 'String',
         picker: 'workflow',
       },
@@ -945,6 +958,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
     outputDefinitions: [
       { id: 'params', label: '@core.automation/step.ai-extract-parameters.label.params', type: 'String' },
       { id: 'filled', label: '@core.automation/step.ai-extract-parameters.label.filled', type: 'Number' },
+      { id: 'matched', label: '@core.automation/step.ai-extract-parameters.label.matched', type: 'String' },
     ],
     dynamicOutputs: {
       kind: 'from-target-workflow-parameters',
@@ -954,9 +968,9 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
   },
   {
     /**
-     * Os passos de IA GENÉRICOS: escrever, classificar e extrair. Os dois de antes servem ao roteamento
-     * entre automações; estes servem ao dado — o resumo de um chamado, a categoria de um e-mail, os campos
-     * de uma nota fiscal colada no corpo. A saída é DADO: nada que o modelo devolve vira expressão.
+     * Escrever um texto — o único passo de IA que não tem par: "Detectar automação" roteia, "Extrair
+     * parâmetros" tira dado (inclusive a classificação, por lista fechada). A saída é DADO: nada que o
+     * modelo devolve vira expressão.
      */
     id: AI_GENERATE_STEP_ID,
     version: 1,
@@ -1002,91 +1016,6 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
     outputDefinitions: [
       { id: 'text', label: '@core.automation/step.ai-generate.output.text', type: 'String' },
       { id: 'truncated', label: '@core.automation/step.ai-generate.output.truncated', type: 'Boolean' },
-    ],
-  },
-  {
-    id: AI_CLASSIFY_STEP_ID,
-    version: 1,
-    name: '@core.automation/step.ai-classify.name',
-    description: '@core.automation/step.ai-classify.description',
-    icon: 'RiAiGenerate',
-    category: 'Integration',
-    type: 'Action',
-    configurable: true,
-    inputs: [
-      {
-        id: 'text',
-        label: '@core.automation/step.ai.label.text',
-        description: '@core.automation/step.ai.text.description',
-        required: true,
-        type: 'String',
-      },
-      {
-        id: 'categories',
-        label: '@core.automation/step.ai-classify.label.categories',
-        description: '@core.automation/step.ai-classify.categories.description',
-        required: true,
-        type: 'String',
-      },
-      {
-        id: 'instructions',
-        label: '@core.automation/step.ai.label.instructions',
-        description: '@core.automation/step.ai.instructions.description',
-        required: false,
-        type: 'String',
-      },
-      {
-        id: 'connectionId',
-        label: '@core.automation/step.ai.label.connection',
-        description: '@core.automation/step.ai.connection.description',
-        required: false,
-        type: 'String',
-        allowedMappingKinds: ['Literal'],
-        picker: 'ai-connection',
-      },
-    ],
-    outputDefinitions: [
-      { id: 'category', label: '@core.automation/step.ai-classify.output.category', type: 'String' },
-      { id: 'matched', label: '@core.automation/step.ai-classify.output.matched', type: 'Boolean' },
-    ],
-  },
-  {
-    id: AI_EXTRACT_STEP_ID,
-    version: 1,
-    name: '@core.automation/step.ai-extract.name',
-    description: '@core.automation/step.ai-extract.description',
-    icon: 'RiAiGenerate',
-    category: 'Integration',
-    type: 'Action',
-    configurable: true,
-    inputs: [
-      {
-        id: 'text',
-        label: '@core.automation/step.ai.label.text',
-        description: '@core.automation/step.ai.text.description',
-        required: true,
-        type: 'String',
-      },
-      {
-        id: 'fields',
-        label: '@core.automation/step.ai-extract.label.fields',
-        description: '@core.automation/step.ai-extract.fields.description',
-        required: true,
-        type: 'String',
-      },
-      {
-        id: 'connectionId',
-        label: '@core.automation/step.ai.label.connection',
-        description: '@core.automation/step.ai.connection.description',
-        required: false,
-        type: 'String',
-        allowedMappingKinds: ['Literal'],
-        picker: 'ai-connection',
-      },
-    ],
-    outputDefinitions: [
-      { id: 'values', label: '@core.automation/step.ai-extract.output.values', type: 'String' },
-      { id: 'filled', label: '@core.automation/step.ai-extract.output.filled', type: 'Number' },
     ],
   },
   {

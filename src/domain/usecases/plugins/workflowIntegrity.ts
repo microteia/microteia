@@ -63,9 +63,9 @@ import { RUN_REPORT_STEP_ID, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../sche
 import { WAIT_FOR_STEP_ID, WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../schema/workflowWait';
 import { WORKFLOW_WEBHOOK_EVENT, WORKFLOW_WEBHOOK_SINCE_KERNEL } from '../../schema/workflowWebhook';
 import {
-  AI_CLASSIFY_STEP_ID,
   AI_DATA_STEPS_SINCE_KERNEL,
-  AI_EXTRACT_STEP_ID,
+  AI_EXTRACT_FIELDS_SINCE_KERNEL,
+  AI_EXTRACT_PARAMETERS_STEP_ID,
   AI_GENERATE_STEP_ID,
 } from '../../schema/aiSteps';
 import { screenEventPrefix } from './screenModule';
@@ -342,6 +342,7 @@ const workflowIssues = (
     ...delayIssues(workflow, steps, ref, pkg),
     ...flowControlKernelIssues(workflow, steps, ref, pkg),
     ...stepDefinitionKernelIssues(steps, ref, pkg),
+    ...extractFieldsKernelIssues(steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
     ...outputRefIssues(steps, ref),
     ...documentStepIssues(steps, ref, pkg),
@@ -718,8 +719,26 @@ const flowControlKernelIssues = (
 const STEP_DEFINITION_SINCE_KERNEL: Readonly<Record<string, string>> = {
   [RUN_REPORT_STEP_ID]: WORKFLOW_RUN_REPORT_SINCE_KERNEL,
   [AI_GENERATE_STEP_ID]: AI_DATA_STEPS_SINCE_KERNEL,
-  [AI_CLASSIFY_STEP_ID]: AI_DATA_STEPS_SINCE_KERNEL,
-  [AI_EXTRACT_STEP_ID]: AI_DATA_STEPS_SINCE_KERNEL,
+};
+
+/**
+ * "Extrair parâmetros" com os campos declarados no passo (`fields`) num pacote que admite kernel
+ * anterior: lá o passo sem automação-alvo reprova em toda execução.
+ */
+const extractFieldsKernelIssues = (
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  if (rangeExcludesBelow(pkg.manifest?.kernel ?? '', AI_EXTRACT_FIELDS_SINCE_KERNEL)) return [];
+  const first = steps.find((step) => step.stepDefinitionId === AI_EXTRACT_PARAMETERS_STEP_ID && step.configuration?.fields !== undefined);
+  return first
+    ? [{
+        ref,
+        message: '@core.marketplace/issue.step.input-kernel',
+        messageParams: { step: first.id, input: 'fields', minimum: AI_EXTRACT_FIELDS_SINCE_KERNEL },
+      }]
+    : [];
 };
 
 const stepDefinitionKernelIssues = (

@@ -386,6 +386,22 @@ describe('integridade do gatilho de auditoria', () => {
   });
 });
 
+describe('extrair parâmetros com campos declarados', () => {
+  it('exige o kernel em que o passo aceita campos sem automação-alvo', () => {
+    const base = pacote([passo({
+      id: 'ler',
+      stepDefinitionId: 'ai-extract-parameters',
+      configuration: { text: { kind: 'Event', path: 'texto' }, fields: { kind: 'Literal', value: 'assunto: [a|b]' } },
+    })]);
+    const comKernel = (kernel: string) => ({ ...base, manifest: { ...base.manifest, kernel } }) as unknown as MarketplacePlugin;
+
+    expect(workflowStepIssues(comKernel('^2.117.0')).map((issue) => [issue.message, issue.messageParams?.input, issue.messageParams?.minimum]))
+      .toContainEqual(['@core.marketplace/issue.step.input-kernel', 'fields', '2.118.0']);
+    expect(workflowStepIssues(comKernel('^2.118.0')).map((issue) => issue.message))
+      .not.toContain('@core.marketplace/issue.step.input-kernel');
+  });
+});
+
 describe('gatilho de webhook', () => {
   it('exige o kernel em que a function de entrada existe', () => {
     const base = pacote([passo({})]);

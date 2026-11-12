@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.238.0] — 2026-11-12
+
+- refactor(workflow): `ai-classify` and `ai-extract` (unreleased, 9.234.0) are removed. `ai-extract-parameters` gains `fields` — fields declared on the step (`aiExtractFields`: `key: description`, one per line; a trailing `[a|b|c]` makes it a closed-list `select`, checked by the existing extractor) as an alternative to `targetWorkflowId` (now not catalog-required; the step refuses both or neither) — and the output `matched` (per closed-list field). Package validation requires `AI_EXTRACT_FIELDS_SINCE_KERNEL` for `fields`. `KERNEL_VERSION` 2.118.0. pt-BR locale package 1.189.0.
+
 #### [9.237.0] — 2026-11-12
 
 - feat(reports): `draftReport` callable (`reports.manage`) — `draftReportSpec` sends the organization's screens (`schemaForReportDraft`: fields, types, references) and a spec grammar built from the contract constants to the default AI connection, and returns `{ title, spec, issues }` validated by `validateReportSpec`. Nothing is written. Added to `deploy:reports`.

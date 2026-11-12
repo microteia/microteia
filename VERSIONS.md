@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.238.0] — 2026-11-12
+
+- Os passos de IA ficaram mais simples: **Classificar texto** e **Extrair campos** passaram a fazer parte do passo **Extrair parâmetros**. Nele você declara os campos que quer tirar do texto e, para classificar, termina o campo com a lista de opções — por exemplo, "assunto: do que trata [financeiro|suporte|vendas]". A resposta sai exatamente como está na lista, ou vazia quando nenhuma opção serve.
+
 #### [9.237.0] — 2026-11-12
 
 - Na criação de relatórios, **descreva o que você quer ver** — por exemplo, "total das faturas em aberto por cliente, mês a mês" — e a inteligência artificial do escritório propõe o relatório, preenchendo o formulário para você revisar e salvar.

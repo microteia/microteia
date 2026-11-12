@@ -30,11 +30,9 @@ const LACUNAS_CONFERIDAS = [
   'workflow-step\tscript',
   'workflow-step\tai-detect-workflow',
   'workflow-step\tai-extract-parameters',
-  // Escrever, classificar e extrair com um modelo são EFEITOS de integração; o modelo de comportamento
-  // descreve estados e transições, e nenhum deles depende de um modelo de linguagem.
+  // Escrever com um modelo é EFEITO de integração; o modelo de comportamento descreve estados e
+  // transições, e nenhum deles depende de um modelo de linguagem.
   'workflow-step\tai-generate',
-  'workflow-step\tai-classify',
-  'workflow-step\tai-extract',
   // Um relatório é LEITURA do que o modelo já descreve; o comportamento não pergunta números a si mesmo.
   'workflow-step\trun-report',
   'workflow-step\tshare-documents',

@@ -21,7 +21,8 @@ const CONFERIDOS: Record<string, string> = {
   'call-workflow': '0b88286ce67838',
   script: '04a7ac3c09bcb2',
   'ai-detect-workflow': '1d8f59ebef72ef',
-  'ai-extract-parameters': '14904dfcfa96af',
+  // 9.238.0: os campos declarados no passo (`fields`), com lista fechada para classificar, e a saída `matched`.
+  'ai-extract-parameters': '1cc561f5f54142',
   query: '14b4bb8a823b1c',
   upsert: '0ff6ee551a0e58',
   remove: '18ad0b28013cf8',
@@ -37,10 +38,8 @@ const CONFERIDOS: Record<string, string> = {
   'run-report': '04c23d92e4759a',
   // 9.230.0: esperar o próximo evento de um registro, com condição e prazo.
   'wait-for': '197d258050dfe2',
-  // 9.234.0: os passos de IA genéricos — escrever, classificar numa lista fechada, extrair campos.
+  // 9.234.0: escrever um texto com a IA do escritório.
   'ai-generate': '14ad08654df165',
-  'ai-classify': '0292773dbc700b',
-  'ai-extract': '1fdae36bb950df',
 };
 
 /**

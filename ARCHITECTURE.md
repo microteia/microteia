@@ -8763,25 +8763,28 @@ Três decisões que não são detalhe de implementação:
 A conexão de IA é opcional: vazia, usa a **padrão do escritório** (`getDefaultCredentials`). Uma
 automação declarada numa extensão não pode carregar o id de uma conexão que quem instala nem criou.
 
-### Passos de IA genéricos — `ai-generate`, `ai-classify`, `ai-extract`
+### Passos de IA — um papel cada: rotear, extrair, escrever
 
-Os dois passos de IA de antes servem ao ROTEAMENTO (qual automação, com que parâmetros). Estes servem ao
-DADO, com a mesma conexão do escritório (`resolveAICredentials`, a padrão quando o passo não nomeia uma):
+Três passos, e cada um com um papel que nenhum outro cumpre:
 
-- **`ai-generate`**: `prompt` (com o registro trazido por expressão) e `instructions` como instrução de
-  sistema. `text` é cortado em `maxCharacters` (padrão `AI_GENERATE_DEFAULT_CHARACTERS`, teto 20 000) e o
-  corte é dito em `truncated` — as saídas moram no histórico da execução, que é um documento.
-- **`ai-classify`**: `text` numa lista FECHADA de `categories` (`aiStepList`: por linha ou por vírgula).
-  A resposta passa por `matchAiCategory` — sem caixa nem espaço, devolvida na grafia da lista —; o que não
-  está na lista não vira categoria: `matched: false`, `category: ''`, e o passo NÃO falha, para a
-  automação decidir o caminho do "não sei". Menos de duas categorias é recusa.
-- **`ai-extract`**: os `fields` declarados no passo (`chave: o que é`, `aiExtractFields`; a chave segue a
-  regra de identificador para virar `values.<chave>`) pelo MESMO extrator de "Extrair parâmetros"
-  (`extractParameterValues`). Sai só o que foi pedido, como texto; tipar e gravar é dos passos seguintes.
-- **Fronteira:** o texto lido é dado — o prompt de sistema do classificador diz isso ao modelo —, e nada
-  que o modelo devolve vira expressão. Resposta cortada ou fora de JSON reprova com as mensagens dos
-  outros passos de IA.
-- Pacote: `AI_DATA_STEPS_SINCE_KERNEL` (2.117.0), pela tabela `STEP_DEFINITION_SINCE_KERNEL`.
+- **`ai-detect-workflow`** — ROTEAR: qual automação chamável trata o texto.
+- **`ai-extract-parameters`** — EXTRAIR dado de um texto, de dois moldes: os parâmetros de uma automação-alvo
+  (`targetWorkflowId`, o comportamento de sempre) ou os campos declarados no próprio passo (`fields`,
+  `aiExtractFields`: `chave: o que é`, um por linha). Um campo terminado em `[a|b|c]` vira `select`, e é a
+  CLASSIFICAÇÃO: o extrator manda ao modelo os valores aceitos e confere a resposta (sem caixa nem acento,
+  na grafia da lista, `null` quando nada casa); `matched.<chave>` diz se casou. Os dois moldes juntos, ou
+  nenhum, é recusa. Pacote com `fields` exige `AI_EXTRACT_FIELDS_SINCE_KERNEL` (2.118.0).
+- **`ai-generate`** — ESCREVER: `prompt` + `instructions` (instrução de sistema); `text` cortado em
+  `maxCharacters` (teto 20 000) com `truncated`. Exige `AI_DATA_STEPS_SINCE_KERNEL` (2.117.0).
+
+**Por que não há passo de classificar:** ele existiu (9.234.0) e saiu antes de ser publicado. Classificar é
+extrair um campo com lista fechada — a única coisa que um passo próprio acrescentava era a conferência
+contra a lista, e ela é propriedade do CAMPO, que o extrator já tinha para `select`. Dois passos para a
+mesma coisa obrigariam quem monta a escolher entre eles sem diferença real. Pelo mesmo motivo o "Extrair
+campos" virou um modo do "Extrair parâmetros".
+
+Fronteira: o texto lido é dado — o prompt do extrator diz isso ao modelo —, e nada que o modelo devolve
+vira expressão.
 
 ### Quem disparou — `actor`
 
@@ -11031,8 +11034,8 @@ O relatório não ganhou agendador próprio: ganhou um PASSO, e o agendador é o
   texto do aviso é referência de catálogo (`@core.reports/subscribe.*`) com parâmetros por `object(...)`.
 - Um pacote que usa o passo exige kernel `WORKFLOW_RUN_REPORT_SINCE_KERNEL` (2.111.0) —
   `STEP_DEFINITION_SINCE_KERNEL` em `workflowIntegrity.ts`, a tabela para os próximos passos que chegarem.
-- **Ainda não:** anexar o resultado como arquivo (CSV/XLSX/PDF) — as chaves sairiam cruas sem a tela que
-  as traduz, e o caminho certo é o motor de Documentos (Onda 3, R9); e a assinatura pelo MCP.
+- **Ainda não:** anexar o resultado como arquivo — ver "Exportação" abaixo: o que falta são os rótulos no
+  servidor, o leiaute padrão e o anexo, não a geração de PDF —; e a assinatura pelo MCP.
 
 ### Dimensão calculada e faixas (`dimensions[].expression`, `dimensions[].buckets`)
 
@@ -11092,9 +11095,12 @@ A autoria ganhou uma caixa de descrição: a IA do escritório (conexão padrão
 - `export: { csv?, xlsx?, pdf?, fileName? }` — ausente oferece todos; `false` esconde o botão; `fileName`
   é o nome-base (`reportFileName` acrescenta o dia e a extensão). `export.filename` e `export.xlsx` saíram
   da lista de não executados.
-- **PDF continua sendo a impressão do navegador** ("Salvar como PDF", com a folha de impressão do
-  `GlobalStyles`). O PDF gerado no SERVIDOR — para anexar numa assinatura — fica para quando a assinatura
-  ganhar anexo: o motor de Documentos já gera PDF a partir de `payload`.
+- **Na tela, o PDF é a impressão do navegador** ("Salvar como PDF", com a folha de impressão do
+  `GlobalStyles`). No SERVIDOR, o motor de Documentos já gera PDF a partir de `payload` (com `{{#each}}`
+  sobre listas). O que falta para o relatório virar ARQUIVO numa automação não é o PDF: é (1) o
+  `run-report` publicar as linhas com o texto que a tela mostra — hoje as chaves saem cruas (`pending`, o id
+  do cliente), e a tradução mora na listagem do front —, (2) um leiaute padrão de tabela, sem exigir um
+  modelo por relatório, e (3) o anexo na assinatura.
 
 ### Destaque condicional (`presentation.highlight`)
 

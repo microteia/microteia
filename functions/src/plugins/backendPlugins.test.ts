@@ -38,7 +38,7 @@ const PASSOS_DO_NUCLEO = [
  * Os passos que chamam um MODELO. Vivem em `core.ai.steps`, e não em `core.steps`, e é por isso que
  * os testes de remoção abaixo distinguem "os passos" de "os passos daquele plugin".
  */
-const PASSOS_DE_IA = ['ai-detect-workflow', 'ai-extract-parameters', 'ai-generate', 'ai-classify', 'ai-extract'].sort();
+const PASSOS_DE_IA = ['ai-detect-workflow', 'ai-extract-parameters', 'ai-generate'].sort();
 
 /** As 53 funções que o `ExpressionEngine` registrava direto, antes da migração. */
 const FUNCOES_ANTES_DA_MIGRACAO = [
