@@ -319,7 +319,9 @@ export const useReportViewViewModel = (
   // O aviso de PARCIAL só existe quando o resultado é parcial. Um relatório que não diz que é
   // parcial é a única falha deste desenho que o leitor não teria como notar.
   const partial = result && !result.complete
-    ? t('result.partial', { scanned: formatters.formatNumber(result.scanned, { maximumFractionDigits: 0 }) })
+    ? t(result.totalsExact ? 'result.partial-total-exact' : 'result.partial', {
+        scanned: formatters.formatNumber(result.scanned, { maximumFractionDigits: 0 }),
+      })
     : (result && !result.completeGroups ? t('result.partial-groups') : null);
 
   const groupLabel = useReportGroupLabels(spec ?? EMPTY_SPEC);

@@ -74,6 +74,11 @@ export interface ReportResult {
   records?: Record<string, unknown>[];
   scanned: number;
   complete: boolean;
+  /**
+   * O total veio do BANCO, sobre todos os registros que atendem — mesmo com a varredura parcial
+   * (`complete: false`): os grupos cobrem só o que foi varrido, o total não. Ver `reportExactTotals.ts`.
+   */
+  totalsExact?: boolean;
   /** Houve mais grupos ou colunas do que o teto de retorno. */
   completeGroups: boolean;
   /** Reservado para o executor paginado — ver "O executor vai mudar" no plano. */

@@ -137,6 +137,7 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'prompts.run': 'Run',
   'result.meta': '{count} records covered, {at}',
   'result.partial': 'This report covered {scanned} records and there may be more. The numbers below are partial.',
+  'result.partial-total-exact': 'The groups below cover the first {scanned} records and there are more — the total, though, counts every record.',
   'result.partial-groups': 'There were more groups than this report shows. What is below is part of the answer.',
   'save.done': 'Report saved.',
   'schedule.not-implemented':

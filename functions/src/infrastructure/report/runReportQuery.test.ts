@@ -965,3 +965,68 @@ describe('runReportQuery — com ou sem registros relacionados', () => {
       .toEqual(expect.arrayContaining(['clientes.read', 'lancamentos.read']));
   });
 });
+
+describe('runReportQuery — o total respondido pelo banco quando a varredura não alcança tudo', () => {
+  const muitos: WorkflowQueryRow[] = Array.from({ length: REPORT_MAX_SCAN + 500 }, (_, index) => ({
+    id: `r${index}`,
+    data: { situacao: index % 2 === 0 ? 'pago' : 'aberto', valor: 2, titulo: `t${index}` },
+  }));
+  /** O banco de verdade: a varredura para no teto; a agregação conta todos os que atendem. */
+  class ComAgregacao extends FakeQueryRepository {
+    aggregated = 0;
+    async queryByEquality(tenantId: string, collection: string, filters: WorkflowEqualityFilter[], limit: number) {
+      return (await super.queryByEquality(tenantId, collection, filters, limit)).slice(0, limit);
+    }
+    async aggregateByEquality(_t: string, _c: string, filters: WorkflowEqualityFilter[], measures: { key: string; op: string }[]) {
+      this.aggregated += 1;
+      const all = muitos.filter((row) => filters.every((filter) => row.data[filter.path] === filter.value));
+      return {
+        count: all.length,
+        values: Object.fromEntries(measures.map((measure) => [
+          measure.key,
+          measure.op === 'count' ? all.length : all.reduce((sum, row) => sum + Number(row.data.valor), 0),
+        ])),
+      };
+    }
+  }
+  const pagos: ReportSpec = {
+    v: 1,
+    dataset: {
+      table: 'lancamentos',
+      where: [{ path: 'situacao', op: 'eq', value: { kind: 'Literal', value: 'pago' } }],
+      dimensions: [{ key: 'titulo', path: 'titulo' }],
+      measures: [{ key: 'qtd', op: 'count' }, { key: 'total', op: 'sum', path: 'valor' }],
+    },
+    shape: { kind: 'summary', groupBy: [{ dimension: 'titulo' }], values: ['qtd', 'total'] },
+  };
+  const run = (spec: ReportSpec, rowsIn: WorkflowQueryRow[]) => {
+    const repo = new ComAgregacao(rowsIn);
+    return runReportQuery({
+      spec,
+      context: context(),
+      deps: { queryRepository: repo, fetcher: new FakeFetcher(), screenProvider: fakeScreenProvider([personsScreen, lancamentosScreen, processosScreen]) },
+    }).then((outcome) => ({ outcome, repo }));
+  };
+
+  it('a varredura parcial ganha o total de TODOS, e os grupos continuam parciais', async () => {
+    const { outcome } = await run({ ...pagos, dataset: { ...pagos.dataset, where: [] } }, muitos);
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.value.complete).toBe(false);
+    expect(outcome.value.totalsExact).toBe(true);
+    expect(outcome.value.totals).toEqual({ count: REPORT_MAX_SCAN + 500, values: { qtd: REPORT_MAX_SCAN + 500, total: (REPORT_MAX_SCAN + 500) * 2 } });
+  });
+
+  it('o relatório que cabe no teto não pergunta ao banco — o número é o de sempre', async () => {
+    const { outcome, repo } = await run(pagos, muitos.slice(0, 10));
+    expect(repo.aggregated).toBe(0);
+    expect(outcome.ok && outcome.value.totalsExact).toBeFalsy();
+  });
+
+  it('com filtro que fica em memória, o banco não responde — o total segue parcial e dito', async () => {
+    const { outcome, repo } = await run({ ...pagos, dataset: { ...pagos.dataset, includeWhen: 'valor > 0', where: [] } }, muitos);
+    expect(repo.aggregated).toBe(0);
+    expect(outcome.ok && outcome.value.complete).toBe(false);
+    expect(outcome.ok && outcome.value.totalsExact).toBeFalsy();
+  });
+});

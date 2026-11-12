@@ -10713,6 +10713,21 @@ relatório que cobre mais do que isso devolve `complete: false`, e a incompletud
 superfície**: banner na tela, cabeçalho do CSV, rodapé da impressão. Um número parcial que se
 apresenta como total é a única falha deste desenho que o leitor não teria como notar.
 
+**O total pelo banco, quando a varredura não alcança tudo** (`reportExactTotals.ts`). Só então — o
+relatório que cabe no teto continua exatamente como era. `runWorkflowQuery` informa `pushdown` quando
+TODOS os filtros desceram (nenhum em memória, nem leitura por id, nem leitor restrito pela visibilidade
+por registro, nem página), e `exactTotalsPlan` aceita o relatório quando o banco daria o MESMO número: sem
+`includeWhen`, sem `related`, sem `scanLimit` (é decisão do autor), e cada medida contagem, ou soma/média de
+campo NUMÉRICO do próprio documento (sem salto, sem campo derivado), sem filtro de medida, `distinct`,
+`min` ou `max` — o Firestore não os sabe. A calculada não impede: `withExactTotals` a refaz sobre os
+totais exatos. O repositório pergunta por `aggregateByEquality` (`AggregateField.count/sum/average`), e
+uma agregação que falha deixa o total parcial de antes. O resultado diz `totalsExact`, a tela troca o aviso
+("os grupos cobrem os primeiros N; o total conta todos") e o passo `run-report` publica `totalExact`.
+
+Por que só quando a varredura é parcial: a soma em memória aceita número gravado como texto (`"12.5"`) e
+a do Firestore o ignora. Num dado sujo, os dois divergiriam — e um relatório que hoje fecha completo não
+pode mudar de número por uma otimização.
+
 `complete` é enquadrado no positivo de propósito: o padrão de um campo esquecido não pode ser "está
 tudo bem".
 

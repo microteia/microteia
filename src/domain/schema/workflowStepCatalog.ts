@@ -1104,6 +1104,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'rows', label: '@core.automation/step.run-report.output.rows', type: 'String' },
       { id: 'rowsTruncated', label: '@core.automation/step.run-report.output.rows-truncated', type: 'Boolean' },
       { id: 'complete', label: '@core.automation/step.run-report.output.complete', type: 'Boolean' },
+      { id: 'totalExact', label: '@core.automation/step.run-report.output.total-exact', type: 'Boolean' },
       { id: 'scanned', label: '@core.automation/step.run-report.output.scanned', type: 'Number' },
       { id: 'name', label: '@core.automation/step.run-report.output.name', type: 'String' },
       { id: 'link', label: '@core.automation/step.run-report.output.link', type: 'String' },

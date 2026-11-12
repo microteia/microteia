@@ -1824,6 +1824,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.run-report.output.rows': 'Linhas (uma por grupo)',
   'step.run-report.output.rows-truncated': 'As linhas foram cortadas',
   'step.run-report.output.complete': 'Resultado completo',
+  'step.run-report.output.total-exact': 'O total cobre todos os registros',
   'step.run-report.output.scanned': 'Registros lidos',
   'step.run-report.output.name': 'Nome do relatório',
   'step.run-report.output.link': 'Link para o relatório',

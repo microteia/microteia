@@ -72,6 +72,12 @@ export interface WorkflowQueryResult {
    * coleção acabou. Fora dela, sempre `null`.
    */
   cursor: string | null;
+  /**
+   * Os filtros desceram TODOS ao banco — nenhum em memória, nem leitura por id, nem leitor restrito,
+   * nem página —, e o banco sozinho responde quais documentos atendem. É o que deixa o relatório pedir
+   * o total ao Firestore com a certeza de que ele conta os mesmos registros.
+   */
+  pushdown?: { collection: string; filters: WorkflowEqualityFilter[] };
 }
 
 export type WorkflowQueryOutcome =
@@ -487,6 +493,9 @@ export async function runRecordQuery(
       complete,
       hasMore: paging ? nextCursor !== null : truncated || !complete,
       cursor: nextCursor,
+      ...(!paging && !byId && !restrictedScan && memoryPredicates.length === 0
+        ? { pushdown: { collection: resolved.physicalCollection, filters: equalityFilters } }
+        : {}),
     },
   };
 }

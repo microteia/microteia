@@ -58,6 +58,12 @@ export interface RunReportStepOutputs {
   /** As linhas foram cortadas em `RUN_REPORT_MAX_ROWS`. */
   rowsTruncated: boolean;
   complete: boolean;
+  /**
+   * O `total` e os `totals` são de TODOS os registros, mesmo com `complete` falso: o banco os respondeu
+   * (`ReportResult.totalsExact`). É o que um alerta sobre o total precisa saber — os grupos podem ser
+   * parciais sem que o número que ele compara seja.
+   */
+  totalExact: boolean;
   scanned: number;
 }
 
@@ -95,6 +101,7 @@ export const runReportStepOutputs = (spec: ReportSpec, result: ReportResult): Ru
     rows: leaves.slice(0, RUN_REPORT_MAX_ROWS),
     rowsTruncated: leaves.length > RUN_REPORT_MAX_ROWS,
     complete: result.complete && result.completeGroups,
+    totalExact: result.totals !== null && (result.complete || result.totalsExact === true),
     scanned: result.scanned,
   };
 };

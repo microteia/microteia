@@ -1,4 +1,5 @@
 import { requirePermission } from '../handlers/shared/requirePermission';
+import { exactTotalsPlan, withExactTotals } from '../../domain/schema/report/reportExactTotals';
 import { keepByRelated, relatedParentIds, relatedQuery } from '../../domain/schema/report/reportRelated';
 import type { ResolvedRelated } from '../../domain/schema/report/reportRelated';
 import type { CallerAuth } from '../handlers/shared/requirePermission';
@@ -31,7 +32,7 @@ import { dayInTimeZone } from '../../domain/schema/i18n/timeZone';
 import { hasBlockingReportIssue, validateReportSpec } from '../../domain/schema/report/validateReportSpec';
 import type { ReportSpecIssue } from '../../domain/schema/report/validateReportSpec';
 import { runWorkflowQuery } from '../workflow/query/runWorkflowQuery';
-import type { WorkflowQueryDeps } from '../workflow/query/runWorkflowQuery';
+import type { WorkflowQueryDeps, WorkflowQueryResult } from '../workflow/query/runWorkflowQuery';
 import {
   REPORT_MAX_COLUMNS,
   REPORT_MAX_GROUPS,
@@ -297,6 +298,20 @@ export const runReportQuery = async ({
     return { ok: false, error: '@core.reports/drill.disabled', issues };
   }
 
+  const aggregated = aggregateReportRows({
+    spec,
+    rows: filtered.rows,
+    measureFilters,
+    scanned: outcome.value.scanned,
+    complete: outcome.value.complete && relatedComplete,
+    limits: {
+      maxGroups: REPORT_MAX_GROUPS,
+      maxColumns: REPORT_MAX_COLUMNS,
+      maxRecords: REPORT_MAX_RECORDS,
+    },
+    now,
+  });
+
   return {
     ok: true,
     issues,
@@ -311,18 +326,34 @@ export const runReportQuery = async ({
           }),
         }
       : {}),
-    value: aggregateReportRows({
-      spec,
-      rows: filtered.rows,
-      measureFilters,
-      scanned: outcome.value.scanned,
-      complete: outcome.value.complete && relatedComplete,
-      limits: {
-        maxGroups: REPORT_MAX_GROUPS,
-        maxColumns: REPORT_MAX_COLUMNS,
-        maxRecords: REPORT_MAX_RECORDS,
-      },
-      now,
-    }),
+    value: await withTotalsFromDatabase(aggregated, spec, schema, outcome.value, tenantId, deps),
   };
+};
+
+/**
+ * O total pedido ao BANCO quando a varredura não alcançou tudo — e só então. O relatório que cabe no teto
+ * continua exatamente como sempre foi; o que hoje sai marcado como parcial ganha o total de todos os
+ * registros (`totalsExact`), com os grupos ainda da varredura.
+ *
+ * Só quando o banco responde com o MESMO número: os filtros desceram todos (`pushdown`) e o relatório não
+ * pede nada que só a memória faz (`exactTotalsPlan`). Uma agregação que falha deixa o total parcial de
+ * antes — pior seria trocar um parcial dito por um erro.
+ */
+const withTotalsFromDatabase = async (
+  result: ReportResult,
+  spec: ReportSpec,
+  schema: SchemaContext,
+  scan: WorkflowQueryResult,
+  tenantId: string,
+  deps: WorkflowQueryDeps,
+): Promise<ReportResult> => {
+  if (result.complete || !result.totals || !scan.pushdown || !deps.queryRepository.aggregateByEquality) return result;
+  const plan = exactTotalsPlan(spec, schema);
+  if (!plan) return result;
+  try {
+    const exact = await deps.queryRepository.aggregateByEquality(tenantId, scan.pushdown.collection, scan.pushdown.filters, plan);
+    return withExactTotals(result, spec, exact);
+  } catch {
+    return result;
+  }
 };

@@ -1821,6 +1821,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.run-report.output.rows': 'Rows (one per group)',
   'step.run-report.output.rows-truncated': 'Rows were cut short',
   'step.run-report.output.complete': 'Result is complete',
+  'step.run-report.output.total-exact': 'Total covers every record',
   'step.run-report.output.scanned': 'Records read',
   'step.run-report.output.name': 'Report name',
   'step.run-report.output.link': 'Link to the report',

@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.244.0] — 2026-11-12
+
+- feat(reports): exact totals from the database when the scan stops short. `runWorkflowQuery` reports `pushdown` when every filter went to Firestore (no memory predicate, by-id read, restricted reader or paging); `exactTotalsPlan` accepts the report only when Firestore yields the same number — no `includeWhen`/`related`/`scanLimit`, each measure a `count` or a `sum`/`avg` of a numeric field on the document itself (no hop, not derived), no measure filter, `distinct`, `min` or `max`. `IWorkflowQueryRepository.aggregateByEquality` (`AggregateField.count/sum/average`); `withExactTotals` replaces the totals and recomputes computed measures; groups stay partial. `ReportResult.totalsExact`, the `run-report` step output `totalExact`, and a partial banner that says the total counts every record. Only when the scan is partial: in-memory `sum` accepts numeric strings and Firestore does not, so a complete report never changes number.
+
 #### [9.243.0] — 2026-11-12
 
 - feat(reports): `dataset.related: [{ table, via, mode: 'with' | 'without', where?, includeWhen? }]` keeps only the records that have — or have no — records of another collection pointing to them (AND across entries). Not a join: nothing of the related record becomes a column. `via` must be the related collection's reference to `dataset.table` (`related.via.not-reference` otherwise). Executed in `runReportQuery` after `includeWhen`: one scan per entry through `runWorkflowQuery` (where pushed down, record visibility applied), `includeWhen` over the related rows via the extracted `filterRowsByExpression`, `keepByRelated` on the referenced ids (multi references count each item). A related scan that hits the ceiling marks the result partial.

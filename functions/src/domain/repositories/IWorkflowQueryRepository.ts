@@ -14,6 +14,18 @@ export interface WorkflowEqualityFilter {
   op?: '==' | 'array-contains';
 }
 
+/** Uma medida que o banco responde: contagem, soma ou média de um campo do documento. */
+export interface WorkflowAggregateMeasure {
+  key: string;
+  op: 'count' | 'sum' | 'avg';
+  path?: string;
+}
+
+export interface WorkflowAggregateResult {
+  count: number;
+  values: Record<string, number | null>;
+}
+
 export interface WorkflowQueryPage {
   after?: string;
 }
@@ -31,4 +43,14 @@ export interface IWorkflowQueryRepository {
     limit: number,
     page?: WorkflowQueryPage,
   ) => Promise<WorkflowQueryRow[]>;
+  /**
+   * A agregação feita PELO BANCO, com os mesmos filtros de igualdade, sobre todos os documentos que
+   * atendem — sem varredura nem teto. Opcional: um repositório que não a tem deixa o total parcial.
+   */
+  aggregateByEquality?: (
+    tenantId: string,
+    collection: string,
+    equalityFilters: WorkflowEqualityFilter[],
+    measures: WorkflowAggregateMeasure[],
+  ) => Promise<WorkflowAggregateResult>;
 }

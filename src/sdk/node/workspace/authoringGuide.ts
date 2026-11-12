@@ -4209,6 +4209,13 @@ report covering more than that comes back marked partial, and the platform says 
 CSV header and on the printed page. Do not work around it — a partial number presented as a total is
 the one failure a reader cannot catch.
 
+When the scan stops short, the **total** can still be exact: if every filter is an equality on a field of
+the record itself, and every measure is a \`count\`, or a \`sum\`/\`avg\` of a numeric field of the record
+(no \`includeWhen\`, no \`related\`, no \`scanLimit\`, no measure filter, no \`distinct\`, no \`min\`/\`max\`),
+the platform asks the database for the total of ALL matching records. The groups stay partial, the result
+says \`totalsExact\`, and the screen says the total counts every record. The \`run-report\` step publishes
+it as \`totalExact\` — check it before alerting on a total.
+
 **The collection name.** \`dataset.table\` is the \`key\` of a screen your package installs, and the
 installation rewrites it: an organization that already had that screen, with the same \`sourceId\`, keeps
 its own key. Paths

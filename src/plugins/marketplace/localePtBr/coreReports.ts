@@ -129,6 +129,7 @@ export const CORE_REPORTS: Record<string, string> = {
   'prompts.run': 'Executar',
   'result.meta': '{count} registros cobertos, {at}',
   'result.partial': 'Este relatório cobriu {scanned} registros e pode haver mais. Os números abaixo são parciais.',
+  'result.partial-total-exact': 'Os grupos abaixo cobrem os primeiros {scanned} registros e há mais — o total, porém, conta todos os registros.',
   'result.partial-groups': 'Havia mais grupos do que este relatório mostra. O que está abaixo é parte da resposta.',
   'save.done': 'Relatório salvo.',
   'schedule.not-implemented':

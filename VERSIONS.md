@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.244.0] — 2026-11-12
+
+- Em relatórios sobre muitos registros, o total agora conta todos eles: quando o relatório passa do limite de leitura, os grupos continuam mostrando a parte lida, mas a contagem, a soma e a média do total passam a ser de todos os registros — e o aviso na tela diz isso. Vale também para os alertas feitos com "Executar relatório".
+
 #### [9.243.0] — 2026-11-12
 
 - Relatórios agora respondem "com" ou "sem" registros relacionados: por exemplo, os clientes sem pedido nos últimos 90 dias, ou os contratos com parcela vencida. Em "Registros relacionados", escolha a tela que aponta para a do relatório, se o registro deve ter ou não ter, e, se quiser, quais desses registros contam.
