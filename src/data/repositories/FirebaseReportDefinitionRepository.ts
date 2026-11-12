@@ -37,7 +37,7 @@ const reportsRef = (tenantId: string) => collection(db, 'tenants', tenantId, 're
  * perde em silêncio o que uma mais nova escreveu. Um mapper que enumerasse propriedades mataria essa
  * garantia no primeiro save, e nada acusaria.
  */
-const mapReport = (id: string, d: Record<string, unknown>, tenantId: string): ReportDefinition => ({
+export const mapReport = (id: string, d: Record<string, unknown>, tenantId: string): ReportDefinition => ({
   id,
   tenantId,
   key: (d.key as string | undefined) ?? id,
@@ -55,6 +55,7 @@ const mapReport = (id: string, d: Record<string, unknown>, tenantId: string): Re
   hideFromSidebar: (d.hideFromSidebar as boolean | null | undefined) ?? null,
   sidebarOrder: (d.sidebarOrder as number | null | undefined) ?? null,
   createdBy: (d.createdBy as string | null | undefined) ?? null,
+  ownerId: (d.ownerId as string | null | undefined) ?? null,
   createdAt: toDate(d.createdAt),
   updatedAt: toDate(d.updatedAt),
 });
@@ -68,7 +69,7 @@ const mapReport = (id: string, d: Record<string, unknown>, tenantId: string): Re
  * `Unsupported field value: undefined`, apontando um documento que quem estava desenhando o
  * relatório nunca viu. Um `undefined` não é valor em JSON, então nada se perde ao removê-lo.
  */
-const stripUndefined = <T>(value: T): T => {
+export const stripUndefined = <T>(value: T): T => {
   if (Array.isArray(value)) return value.map((item) => stripUndefined(item)) as T;
   if (value === null || typeof value !== 'object' || value instanceof Date) return value;
   return Object.fromEntries(

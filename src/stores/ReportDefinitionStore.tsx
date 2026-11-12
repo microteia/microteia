@@ -12,6 +12,12 @@ import {
   makeRunReportUseCase,
   makeSubscribeToReportsUseCase,
   makeUpdateReportUseCase,
+  makeCreatePersonalReportUseCase,
+  makeDeletePersonalReportUseCase,
+  makeGetPersonalReportsUseCase,
+  makeSharePersonalReportUseCase,
+  makeSubscribeToPersonalReportsUseCase,
+  makeUpdatePersonalReportUseCase,
 } from '../domain/usecases/reports/ReportUseCases';
 import type { ReportDefinition } from '../domain/entities/Report';
 import type { RunReportInput } from '../domain/repositories/IReportDefinitionRepository';
@@ -27,10 +33,12 @@ import { LocalizedError } from '../domain/errors/LocalizedError';
 export const ReportDefinitionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
   const { user } = useAuth();
-  const { reportRepository } = useDI();
+  const { reportRepository, personalReportRepository } = useDI();
 
-  const [reports, setReports] = useState<ReportDefinition[]>([]);
+  const [tenantReports, setTenantReports] = useState<ReportDefinition[]>([]);
+  const [personalReports, setPersonalReports] = useState<ReportDefinition[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const userId = user?.id ?? null;
 
   const uc = useMemo(() => ({
     get: makeGetReportsUseCase(reportRepository),
@@ -39,31 +47,57 @@ export const ReportDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     update: makeUpdateReportUseCase(reportRepository),
     delete: makeDeleteReportUseCase(reportRepository),
     run: makeRunReportUseCase(reportRepository),
-  }), [reportRepository]);
+    getPersonal: makeGetPersonalReportsUseCase(personalReportRepository),
+    subscribePersonal: makeSubscribeToPersonalReportsUseCase(personalReportRepository),
+    createPersonal: makeCreatePersonalReportUseCase(personalReportRepository),
+    updatePersonal: makeUpdatePersonalReportUseCase(personalReportRepository),
+    deletePersonal: makeDeletePersonalReportUseCase(personalReportRepository),
+    sharePersonal: makeSharePersonalReportUseCase(personalReportRepository),
+  }), [reportRepository, personalReportRepository]);
 
   const refresh = useCallback(async () => {
     if (!currentTenant) return;
     setIsLoading(true);
     try {
-      setReports(await uc.get.execute(currentTenant.id));
+      const [shared, personal] = await Promise.all([
+        uc.get.execute(currentTenant.id),
+        userId ? uc.getPersonal.execute(currentTenant.id, userId) : Promise.resolve([]),
+      ]);
+      setTenantReports(shared);
+      setPersonalReports(personal);
     } finally {
       setIsLoading(false);
     }
-  }, [currentTenant, uc.get]);
+  }, [currentTenant, userId, uc.get, uc.getPersonal]);
 
   useEffect(() => {
     if (!currentTenant) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- limpa o cache ao sair do escritório
-      setReports([]);
+      setTenantReports([]);
       return;
     }
     setIsLoading(true);
     const unsub = uc.subscribe.execute(currentTenant.id, (list) => {
-      setReports(list);
+      setTenantReports(list);
       setIsLoading(false);
     });
     return () => unsub();
   }, [currentTenant, uc.subscribe]);
+
+  useEffect(() => {
+    if (!currentTenant || !userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- limpa o cache ao sair do escritório
+      setPersonalReports([]);
+      return;
+    }
+    return uc.subscribePersonal.execute(currentTenant.id, userId, setPersonalReports);
+  }, [currentTenant, userId, uc.subscribePersonal]);
+
+  const reports = useMemo(() => [...tenantReports, ...personalReports], [tenantReports, personalReports]);
+  const isPersonal = useCallback(
+    (reportId: string | undefined) => !!reportId && personalReports.some((report) => report.id === reportId),
+    [personalReports],
+  );
 
   useEffect(() => {
     const unsub = storeEvents.on(StoreEvents.REPORTS_UPDATED, () => void refresh());
@@ -76,34 +110,52 @@ export const ReportDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [refresh]);
 
+  // O do ESCRITÓRIO vence quando as chaves colidem: um relatório do escritório criado depois com a chave
+  // de um pessoal não pode ficar inalcançável para todos os outros membros.
   const getReport = useCallback(
-    (key: string) => reports.find((report) => report.key === key || report.id === key),
-    [reports],
+    (key: string) => tenantReports.find((report) => report.key === key || report.id === key)
+      ?? personalReports.find((report) => report.key === key || report.id === key),
+    [tenantReports, personalReports],
   );
 
-  const createReport = useCallback(async (data: ReportSaveInput, id?: string) => {
+  const createReport = useCallback(async (data: ReportSaveInput, id?: string, options?: { personal?: boolean }) => {
     if (!currentTenant) throw new LocalizedError('@core.ui/tenant.none-selected');
-    const created = await uc.create.execute(currentTenant.id, { ...data, createdBy: user?.id ?? null }, id);
+    if (options?.personal) {
+      if (!userId) throw new LocalizedError('@core.ui/tenant.none-selected');
+      const created = await uc.createPersonal.execute(currentTenant.id, userId, data);
+      storeEvents.emit(StoreEvents.REPORTS_UPDATED);
+      return created;
+    }
+    const created = await uc.create.execute(currentTenant.id, { ...data, createdBy: userId }, id);
     storeEvents.emit(StoreEvents.REPORTS_UPDATED);
     return created;
-  }, [currentTenant, user, uc.create]);
+  }, [currentTenant, userId, uc.create, uc.createPersonal]);
 
   const updateReport = useCallback(async (reportId: string, data: Partial<ReportSaveInput>) => {
     if (!currentTenant) throw new LocalizedError('@core.ui/tenant.none-selected');
-    await uc.update.execute(currentTenant.id, reportId, data);
+    if (isPersonal(reportId)) await uc.updatePersonal.execute(currentTenant.id, reportId, data);
+    else await uc.update.execute(currentTenant.id, reportId, data);
     storeEvents.emit(StoreEvents.REPORTS_UPDATED);
-  }, [currentTenant, uc.update]);
+  }, [currentTenant, isPersonal, uc.update, uc.updatePersonal]);
 
   const deleteReport = useCallback(async (reportId: string) => {
     if (!currentTenant) return;
-    await uc.delete.execute(currentTenant.id, reportId);
+    if (isPersonal(reportId)) await uc.deletePersonal.execute(currentTenant.id, reportId);
+    else await uc.delete.execute(currentTenant.id, reportId);
     storeEvents.emit(StoreEvents.REPORTS_UPDATED);
-  }, [currentTenant, uc.delete]);
+  }, [currentTenant, isPersonal, uc.delete, uc.deletePersonal]);
 
+  const shareReport = useCallback(async (reportId: string, key: string) => {
+    if (!currentTenant) throw new LocalizedError('@core.ui/tenant.none-selected');
+    await uc.sharePersonal.execute(currentTenant.id, reportId, key);
+    storeEvents.emit(StoreEvents.REPORTS_UPDATED);
+  }, [currentTenant, uc.sharePersonal]);
+
+  // Quem chama passa o `report.id` que tem na mão; é aqui que se sabe de qual coleção ele é.
   const runReport = useCallback(async (input: Omit<RunReportInput, 'tenantId'>) => {
     if (!currentTenant) throw new LocalizedError('@core.ui/tenant.none-selected');
-    return uc.run.execute({ ...input, tenantId: currentTenant.id });
-  }, [currentTenant, uc.run]);
+    return uc.run.execute({ ...input, tenantId: currentTenant.id, ...(isPersonal(input.reportId) ? { personal: true } : {}) });
+  }, [currentTenant, isPersonal, uc.run]);
 
   return (
     <ReportDefinitionContext.Provider value={{
@@ -113,6 +165,7 @@ export const ReportDefinitionStoreProvider: React.FC<{ children: React.ReactNode
       createReport,
       updateReport,
       deleteReport,
+      shareReport,
       runReport,
       refresh,
     }}>

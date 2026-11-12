@@ -406,7 +406,8 @@ export const useReportViewViewModel = (
     showChrome: view === 'full',
     showChart: view !== 'table',
     showTable: view !== 'chart',
-    canSubscribe: report !== undefined && can(PERMISSION_AUTOMATION_MANAGE),
+    // O pessoal fica fora das automações: a assinatura roda como sistema e avisa outras pessoas.
+    canSubscribe: report !== undefined && !report.ownerId && can(PERMISSION_AUTOMATION_MANAGE),
     subscribeLabel: t('subscribe.action'),
     subscribeOpen,
     openSubscribe: () => setSubscribeOpen(true),

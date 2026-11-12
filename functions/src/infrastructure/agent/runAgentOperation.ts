@@ -1,6 +1,7 @@
 import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import type { QueryPredicate, QuerySpec } from '../../domain/schema/querySpec';
 import { QUERY_OPERATORS_WITHOUT_VALUE } from '../../domain/schema/querySpec';
+import { PERSONAL_REPORTS_COLLECTION } from '../../domain/schema/report/personalReport';
 import type { ReportSpec } from '../../domain/schema/report/reportSpec';
 import { reportRequiredPermissions } from '../../domain/schema/report/reportSpec';
 import { grants } from '../../domain/schema/access/memberPermissions';
@@ -524,6 +525,29 @@ const renderAgentDocument = async (
  * quem se cobra: aquela chama `requirePermission`, que responde pelo conjunto do USUÁRIO, e usá-la
  * aqui faria um relatório ler uma coleção que o teto do token exclui. Mesma pergunta, outro ator.
  */
+/**
+ * O relatório que o agente pediu, pelo MESMO endereço que `office/reports` lista: a chave, e o id do
+ * documento como reserva. Lia só pelo id, e o relatório instalado por extensão — cujo id não é a
+ * chave — aparecia na lista e era "não encontrado" ao rodar.
+ *
+ * O do escritório vence a colisão, como na tela; depois, os PESSOAIS de quem emitiu o acesso.
+ */
+const findAgentReport = async (session: AgentSession, reference: string): Promise<Record<string, unknown> | null> => {
+  if (reference === '') return null;
+  const tenant = getDb().collection('tenants').doc(session.tenantId);
+  const shared = tenant.collection('reports');
+  const byKey = await shared.where('key', '==', reference).limit(1).get();
+  if (!byKey.empty) return byKey.docs[0].data();
+  const byId = await shared.doc(reference).get();
+  if (byId.exists) return byId.data() ?? null;
+
+  const personal = tenant.collection(PERSONAL_REPORTS_COLLECTION);
+  const mineByKey = await personal.where('ownerId', '==', session.userId).where('key', '==', reference).limit(1).get();
+  if (!mineByKey.empty) return mineByKey.docs[0].data();
+  const mineById = await personal.doc(reference).get();
+  return mineById.exists && mineById.get('ownerId') === session.userId ? mineById.data() ?? null : null;
+};
+
 const runAgentReport = async (
   input: Record<string, unknown>,
   session: AgentSession,
@@ -531,10 +555,10 @@ const runAgentReport = async (
   schema: SchemaContext,
 ): Promise<AgentOperationOutcome> => {
   const reportId = asText(input.report);
-  const snapshot = await getDb().doc(`tenants/${session.tenantId}/reports/${reportId}`).get();
-  if (!snapshot.exists) return refuse(catalog, '@core.reports/handler.not-found', { id: reportId });
+  const found = await findAgentReport(session, reportId);
+  if (!found) return refuse(catalog, '@core.reports/handler.not-found', { id: reportId });
 
-  const spec = (snapshot.data() as { spec?: ReportSpec } | undefined)?.spec;
+  const spec = (found as { spec?: ReportSpec }).spec;
   if (!spec) return refuse(catalog, '@core.reports/handler.spec.missing');
 
   for (const permission of reportRequiredPermissions(spec, schema)) {

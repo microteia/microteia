@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
-import { requirePermission } from './shared/requirePermission';
-import { PERMISSION_REPORTS_MANAGE } from '../../domain/schema/access';
+import { requireAnyPermission } from './shared/requirePermission';
+import { PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL } from '../../domain/schema/access';
 import { AIResponseFormatError } from '../../domain/usecases/CallAIUseCase';
 import { REPORT_DRAFT_MAX_DESCRIPTION, draftLookupCollections, draftReportSpec } from '../../domain/services/aiReportDraft';
 import { agentCatalog, agentText } from '../agent/agentMessages';
@@ -24,7 +24,7 @@ export interface ReportDraftAvailability {
 
 /**
  * "Descreva o relatório": a IA do escritório propõe um `ReportSpec` sobre as telas dele, e o validador
- * de sempre diz o que achou. Exige `reports.manage` — é autoria —, e não grava nada: o rascunho vai para
+ * de sempre diz o que achou. Exige `reports.manage` ou `reports.personal` — é autoria —, e não grava nada: o rascunho vai para
  * a tela de autoria, e quem salva é a pessoa.
  */
 export const draftReport = onCall(
@@ -36,7 +36,7 @@ export const draftReport = onCall(
     // IA, e quem escreve relatórios não precisa — nem deve — enxergá-las para saber que não há uma.
     if (probe === true) {
       if (!tenantId) throw new HttpsError('invalid-argument', '@core.automation/handler.params.missing');
-      await requirePermission(tenantId, request.auth, PERMISSION_REPORTS_MANAGE);
+      await requireAnyPermission(tenantId, request.auth, [PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL]);
       try {
         await getDI().getAIConnectionRepository().getDefaultCredentials(tenantId);
         return { available: true };
@@ -50,7 +50,7 @@ export const draftReport = onCall(
     if (text.length > REPORT_DRAFT_MAX_DESCRIPTION) {
       throw new HttpsError('invalid-argument', '@core.reports/draft.too-long', { messageParams: { max: String(REPORT_DRAFT_MAX_DESCRIPTION) } });
     }
-    await requirePermission(tenantId, request.auth, PERMISSION_REPORTS_MANAGE);
+    await requireAnyPermission(tenantId, request.auth, [PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL]);
 
     const di = getDI();
     try {

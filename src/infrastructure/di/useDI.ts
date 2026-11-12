@@ -43,6 +43,7 @@ import type { IScriptRepository } from '../../domain/repositories/IScriptReposit
 import type { IDataProcessorRepository } from '../../domain/repositories/IDataProcessorRepository';
 import type { IActionRepository } from '../../domain/repositories/IActionRepository';
 import type { IReportDefinitionRepository } from '../../domain/repositories/IReportDefinitionRepository';
+import type { IPersonalReportRepository } from '../../domain/repositories/IPersonalReportRepository';
 import type { IDocumentTemplateRepository } from '../../domain/repositories/IDocumentTemplateRepository';
 import type { IDownloadRepository } from '../../domain/repositories/IDownloadRepository';
 import type { IRoleRepository } from '../../domain/repositories/IRoleRepository';
@@ -110,6 +111,7 @@ export interface DIContainer {
   dataProcessorRepository: IDataProcessorRepository;
   actionRepository: IActionRepository;
   reportRepository: IReportDefinitionRepository;
+  personalReportRepository: IPersonalReportRepository;
   documentTemplateRepository: IDocumentTemplateRepository;
   downloadRepository: IDownloadRepository;
   roleRepository: IRoleRepository;

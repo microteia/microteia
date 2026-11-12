@@ -66,6 +66,7 @@ export const PERMISSION_TRANSLATIONS_MANAGE = 'translations.manage';
 export const PERMISSION_DATA_PROCESSOR_USE = 'data-processor.use';
 export const PERMISSION_DOCUMENT_TYPES_MANAGE = 'document-types.manage';
 export const PERMISSION_REPORTS_MANAGE = 'reports.manage';
+export const PERMISSION_REPORTS_PERSONAL = 'reports.personal';
 export const PERMISSION_DOCUMENT_TEMPLATES_MANAGE = 'document-templates.manage';
 export const PERMISSION_DOWNLOADS_MANAGE = 'downloads.manage';
 export const PERMISSION_DOCUMENTS_GENERATE = 'documents.generate';
@@ -217,6 +218,14 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     id: PERMISSION_REPORTS_MANAGE,
     name: '@core.access/permission.reports.manage',
     description: '@core.access/permission.reports.manage.description',
+  },
+  {
+    // O relatório PESSOAL só conta o que o autor já pode ler — a leitura de cada coleção continua
+    // cobrada na execução —, então esta permissão não concede dado nenhum. Ela existe porque cada
+    // execução custa leituras: é o escritório que decide quem pode gastá-las com perguntas próprias.
+    id: PERMISSION_REPORTS_PERSONAL,
+    name: '@core.access/permission.reports.personal',
+    description: '@core.access/permission.reports.personal.description',
   },
   {
     // Autoria, e só autoria: GERAR um documento é anexar, e anexar cobra `<coleção>.update` do

@@ -438,6 +438,19 @@ service cloud.firestore {
         allow create, update, delete: if can(tenantId, 'reports.manage');
       }
 
+      // Relatórios PESSOAIS: só o autor lê, edita e apaga. A lista os pede por `ownerId == uid` — a regra
+      // não filtra, ela recusa a consulta que poderia trazer o de outro membro. Criar e editar exigem a
+      // permissão; APAGAR o próprio não, para quem a perdeu ainda poder limpar o que é seu. O dono não
+      // muda: quem "compartilha" cria nos relatórios do escritório e apaga este, num lote.
+      match /personalReports/{reportId} {
+        allow read, delete: if isMember(tenantId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isMember(tenantId) && can(tenantId, 'reports.personal')
+          && request.resource.data.ownerId == request.auth.uid;
+        allow update: if isMember(tenantId) && can(tenantId, 'reports.personal')
+          && resource.data.ownerId == request.auth.uid
+          && request.resource.data.ownerId == request.auth.uid;
+      }
+
       // Modelos de documento do escritório, um por CHAVE (o id do documento é a chave). Todo membro
       // LÊ: o gesto "Gerar documento" lista os modelos da tela, e o modelo não é o dado — gerar cobra,
       // no servidor, a edição do registro. Só quem gerencia modelos escreve.
@@ -775,7 +788,7 @@ service cloud.firestore {
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
         'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extension_seeds', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox', 'notification_dispatches', 'notification_contacts',
-        'portalIdentityInvites', 'portalRecords', 'portalTexts', 'portalUsers', 'portal_reprojections', 'reports', 'roles',
+        'personalReports', 'portalIdentityInvites', 'portalRecords', 'portalTexts', 'portalUsers', 'portal_reprojections', 'reports', 'roles',
         // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de
         // `installed_extensions`. Continua RESERVADA porque os documentos de então continuam nos
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.

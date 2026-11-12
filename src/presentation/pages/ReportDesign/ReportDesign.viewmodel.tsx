@@ -21,7 +21,7 @@ import {
 import { screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { parseReportDesignTabKey } from '../../../shared/constants/reportKeys';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_AI_MANAGE } from '../../../domain/schema/access';
+import { PERMISSION_AI_MANAGE, PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL } from '../../../domain/schema/access';
 import type { ReportDraftAvailability } from '../../../domain/repositories/IReportDraftRepository';
 import { REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL } from '../../../domain/schema/report/reportPeriod';
 
@@ -261,6 +261,15 @@ export interface ReportDesignViewModel {
 
   reportTitle: string;
   setReportTitle: (value: string) => void;
+  /**
+   * Quem verá o relatório, ao CRIAR e só para quem pode escolher (gerencia relatórios e cria pessoais).
+   * `null`: não há escolha — ou a pessoa só cria pessoais, ou o relatório já existe e é o que é.
+   */
+  visibilityOptions: { value: string; label: string }[] | null;
+  visibility: 'personal' | 'tenant';
+  setVisibility: (value: string) => void;
+  /** O aviso de que o relatório é pessoal — só quem o escreveu o vê, e ele fica fora das automações. */
+  personalNotice: string | null;
 
   pathOptions: ReportPathOption[];
 
@@ -429,6 +438,7 @@ export interface ReportDesignViewModel {
   labels: {
     table: string;
     reportTitle: string;
+    visibility: string;
     dimensions: string;
     dimensionsHint: string;
     measures: string;
@@ -677,6 +687,9 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const [aiAvailability, setAiAvailability] = useState<ReportDraftAvailability | null>(null);
   const { openTab, setTabTitle } = useWorkspace();
   const { can } = useAuthorization();
+  const canManageReports = can(PERMISSION_REPORTS_MANAGE);
+  const canPersonalReports = can(PERMISSION_REPORTS_PERSONAL);
+  const [visibilityChoice, setVisibilityChoice] = useState<'personal' | 'tenant'>('tenant');
 
   // Pergunta ao servidor ANTES de oferecer o botão: as conexões só são legíveis por quem gerencia a IA,
   // e um botão que falha no clique ensina menos que um botão desligado com o motivo ao lado.
@@ -712,6 +725,20 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   // trazê-lo — e é nesse intervalo que um segundo Salvar criaria a cópia.
   const editing = (openKey ? getReport(openKey) : undefined)
     ?? (editingKey === null ? createdReport ?? undefined : undefined);
+  // O relatório que já existe é o que é; ao criar, quem só pode o pessoal não escolhe, e quem pode os
+  // dois escolhe — começando pelo do escritório, que é o gesto de sempre de quem gerencia relatórios.
+  const visibility: 'personal' | 'tenant' = editing
+    ? (editing.ownerId ? 'personal' : 'tenant')
+    : (canManageReports ? visibilityChoice : 'personal');
+  const visibilityOptions = useMemo(
+    () => (!editing && canManageReports && canPersonalReports
+      ? [
+          { value: 'tenant', label: t('design.visibility.tenant') },
+          { value: 'personal', label: t('design.visibility.personal') },
+        ]
+      : null),
+    [editing, canManageReports, canPersonalReports, t],
+  );
 
   const tableOptions = useMemo(
     () => dynamicScreens.map((screen) => ({
@@ -1398,7 +1425,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
           spec,
           origin: 'design',
           enabled: true,
-        }, key);
+        }, key, { personal: visibility === 'personal' });
         // A partir daqui esta aba EDITA. Sem esta linha, cada Salvar seguinte criava outro relatório.
         setCreatedReport(created);
       }
@@ -1408,7 +1435,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     } finally {
       setIsSaving(false);
     }
-  }, [artifactPrefix, issues, draft, spec, editing, reports, createReport, updateReport, notify, t, reportProblem]);
+  }, [artifactPrefix, issues, draft, spec, editing, reports, createReport, updateReport, notify, t, reportProblem, visibility]);
 
   const confirmDelete = useCallback(async () => {
     if (!editing) return;
@@ -1433,6 +1460,10 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     // Só o de PACOTE: ele explica um bloqueio. Dizer "você está editando" a quem clicou em Editar
     // é ocupar a tela com o que a pessoa acabou de fazer.
     editingNotice: isManaged ? t('design.managed') : null,
+    visibilityOptions,
+    visibility,
+    setVisibility: (value) => setVisibilityChoice(value === 'personal' ? 'personal' : 'tenant'),
+    personalNotice: visibility === 'personal' ? t('design.visibility.personal.notice') : null,
     // Enquanto a lista carrega, "não achei" seria mentira: o relatório pode estar a caminho.
     notFound: editingKey !== null && editing === undefined && !isLoading
       ? t('design.not-found', { key: editingKey })
@@ -1616,6 +1647,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     labels: {
       table: t('design.table'),
       reportTitle: t('design.title'),
+      visibility: t('design.visibility'),
       dimensions: t('design.dimensions'),
       dimensionsHint: t('design.dimensions.hint'),
       measures: t('design.measures'),

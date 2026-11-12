@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.242.0] — 2026-11-12
+
+- Relatórios pessoais: quem tiver a permissão "Criar relatórios pessoais" pode montar relatórios que só ele vê, para as próprias perguntas, sem mexer nos relatórios do escritório. Eles aparecem na lista com o selo "Pessoal".
+- Quem gerencia relatórios pode levar um relatório pessoal para o escritório com "Compartilhar com o escritório".
+- Relatórios pessoais ficam fora das automações e das assinaturas, para o resultado não chegar a outras pessoas.
+- O agente de IA conectado pelo MCP passa a enxergar também os relatórios pessoais de quem o conectou, e encontra os relatórios trazidos por extensões pelo nome.
+
 #### [9.241.0] — 2026-11-12
 
 - "Descreva o relatório" ficou mais preciso: a IA passa a conhecer os nomes dos campos como aparecem na tela, as opções das listas, os períodos ("este mês", "últimos 30 dias"), as faixas, o Top 10 e os destaques em cor — e, quando a primeira proposta não serve, ela mesma corrige antes de mostrar.

@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.242.0] — 2026-11-12
+
+- feat(reports): personal reports in `tenants/{id}/personalReports` (`PERSONAL_REPORTS_COLLECTION`, generated ids, `ownerId`), gated by the new `reports.personal` permission. Rules: only the author reads and deletes (not even the tenant owner); create/update need the permission and keep `ownerId`; deleting one's own does not. A separate collection, not a visibility field on `reports`: rules do not filter, and the report list reads the whole collection. Name reserved in `firestore.rules` and `screenEntity.ts`.
+- feat(reports): `IPersonalReportRepository`; the report store merges both lists (organization report wins a key collision) and routes update/delete/run by id; `runReport({ personal: true })` reads the personal collection and answers `not-found` for another member's report. Raw-spec preview and `draftReport` accept `reports.manage` or `reports.personal`. Share: one batch creates `reports/<key>` and deletes the personal one.
+- feat(reports): personal reports stay out of automations — the run-report picker filters them, the server reader never sees them, and "Subscribe" is hidden.
+- feat(mcp): `office/reports` lists the grant owner's personal reports (`personal: true`); fix(mcp): `run_report` resolves by key first, then doc id — it read by doc id only, so an extension-installed report (id ≠ key) was listed and then "not found".
+
 #### [9.241.0] — 2026-11-12
 
 - feat(reports/draft): the draft grammar is derived — `reportDraftGrammar.ts` (shared domain) holds one line per `REPORT_CAPABILITIES` token in `REPORT_DRAFT_TEACHING`, values read from the constants the executor uses; `null` is a decision (export, drill-down), and a capability without one fails `reportDraftGrammar.test.ts`. The draft now knows `includeWhen`, computed dimensions, buckets, Top N and others, distinct and filtered and computed measures, highlights and prompts (period, default, required).

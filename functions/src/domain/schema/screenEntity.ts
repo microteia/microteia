@@ -9,6 +9,7 @@
 // GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import { PERSONAL_REPORTS_COLLECTION } from './report/personalReport';
 import type { CustomFieldType, FieldDefinition, FieldOrigin } from '../entities/entitySchemas';
 import { HTTP_DISPATCHES_COLLECTION } from './httpRequestSpec';
 import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
@@ -644,6 +645,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'tags',
   'lookupDefinitions',
   'reports',
+  PERSONAL_REPORTS_COLLECTION,
   'documentTemplates',
   'downloads',
   'tagDefinitions',

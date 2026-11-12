@@ -99,6 +99,18 @@ export const S = {
     white-space: nowrap;
   `,
 
+  PersonalTag: styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    padding: 2px ${({ theme }) => theme.spacing.sm};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    color: ${({ theme }) => theme.colors.textMuted};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    flex-shrink: 0;
+  `,
+
   RowActions: styled.div`
     display: flex;
     align-items: center;

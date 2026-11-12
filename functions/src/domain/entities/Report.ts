@@ -62,6 +62,12 @@ export interface ReportDefinition {
   hideFromSidebar?: boolean | null;
   sidebarOrder?: number | null;
   createdBy?: string | null;
+  /**
+   * O relatório é PESSOAL: só este membro o vê, e ele mora em `personalReports`. Ausente, é do
+   * escritório. Fora das automações por decisão: uma automação roda como sistema e avisa outras
+   * pessoas, e o relatório privado vazaria pela notificação.
+   */
+  ownerId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -69,5 +75,5 @@ export interface ReportDefinition {
 /** Um relatório do pacote. `templateId` é o endereço estável antes de a instalação gerar o `id`. */
 export type ReportModuleTemplate = { templateId: string } & Omit<
   ReportDefinition,
-  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'createdBy' | 'ownerPluginId' | 'ownerPluginIds'
+  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'createdBy' | 'ownerPluginId' | 'ownerPluginIds' | 'ownerId'
 >;

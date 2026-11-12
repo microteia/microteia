@@ -6,15 +6,18 @@ import type {
   RunReportResult,
 } from '../domain/repositories/IReportDefinitionRepository';
 
-export type ReportSaveInput = Omit<ReportDefinitionInput, 'createdBy'>;
+export type ReportSaveInput = Omit<ReportDefinitionInput, 'createdBy' | 'ownerId'>;
 
 export interface ReportDefinitionStoreState {
   reports: ReportDefinition[];
   isLoading: boolean;
   getReport: (key: string) => ReportDefinition | undefined;
-  createReport: (data: ReportSaveInput, id?: string) => Promise<ReportDefinition>;
+  /** `personal` grava em `personalReports`, com quem está logado como autor; o `id` é então ignorado. */
+  createReport: (data: ReportSaveInput, id?: string, options?: { personal?: boolean }) => Promise<ReportDefinition>;
   updateReport: (reportId: string, data: Partial<ReportSaveInput>) => Promise<void>;
   deleteReport: (reportId: string) => Promise<void>;
+  /** Leva um relatório pessoal para os do escritório, com a chave `key`. */
+  shareReport: (reportId: string, key: string) => Promise<void>;
   /** Executa no servidor. O `tenantId` é do escritório corrente — quem chama não o informa. */
   runReport: (input: Omit<RunReportInput, 'tenantId'>) => Promise<RunReportResult>;
   refresh: () => Promise<void>;

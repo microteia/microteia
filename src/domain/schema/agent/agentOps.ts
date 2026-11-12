@@ -959,7 +959,8 @@ export const AGENT_RESOURCES = [
     name: 'Reports',
     description:
       'The office reports this access can run, and the filters each one asks for — key, field, '
-      + 'operator, type, whether it is required, and its options or source collection.',
+      + 'operator, type, whether it is required, and its options or source collection. The personal '
+      + 'reports of whoever issued this access come too, marked "personal": true.',
   },
   {
     uri: 'microteia://office/workflows',

@@ -1,6 +1,6 @@
 import type { PluginRecord } from '../../kernel';
 import { command, lazyView, nav, page } from '../contributionBuilders';
-import { PERMISSION_REPORTS_MANAGE } from '../../domain/schema/access';
+import { PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL } from '../../domain/schema/access';
 import { REPORT_DESIGN_TAB_PREFIX, REPORT_TAB_PREFIX } from '../../shared/constants/reportKeys';
 import { REPORT_EXTENSION_POINTS } from '../../domain/schema/report/reportExtensionPoints';
 import { ReportCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/ReportCommandProvider';
@@ -53,13 +53,13 @@ export const coreReportsPlugin: PluginRecord = {
         { key: '', keyPrefix: REPORT_TAB_PREFIX, title: '@core.reports/page.report', icon: 'fileChart' },
         'ViewReportView',
       ),
-      // A autoria é gesto de administração: quem não gerencia relatórios não vê a tela.
+      // A autoria é de quem gerencia relatórios OU cria os pessoais — `requiredPermissions` basta uma.
       page(
         {
           key: 'report-design',
           title: '@core.reports/page.design',
           icon: 'fileList2',
-          requiredPermissions: [PERMISSION_REPORTS_MANAGE],
+          requiredPermissions: [PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL],
         },
         'ReportDesignView',
       ),
@@ -70,7 +70,7 @@ export const coreReportsPlugin: PluginRecord = {
           keyPrefix: REPORT_DESIGN_TAB_PREFIX,
           title: '@core.reports/page.design',
           icon: 'fileList2',
-          requiredPermissions: [PERMISSION_REPORTS_MANAGE],
+          requiredPermissions: [PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL],
         },
         'ReportDesignView',
       ),

@@ -11106,6 +11106,38 @@ deriva — sem campo de controle nem automação gravando um número no registro
   (`bucketsFromLimits`). Os rótulos gerados são só número e símbolo — dado, não frase —; quem quer outro
   nome escreve o `spec`.
 
+### Relatório pessoal (`personalReports`)
+
+Um relatório que só o autor vê. Criar exige `reports.personal` — que não concede dado: o relatório conta só
+o que o autor já pode ler, cobrado na execução como em qualquer outro; a permissão existe porque cada
+execução custa leituras.
+
+- **Coleção própria** (`tenants/{id}/personalReports`, `PERSONAL_REPORTS_COLLECTION`), com `ownerId` e id
+  GERADO. Não um campo em `reports`: a regra não filtra, e a lista de relatórios lê a coleção inteira — uma
+  regra por autor a recusaria para todos, e exigiria preencher o campo em todo relatório já gravado (o de
+  uma extensão antiga, sem ele, sumiria). Assim `reports`, o instalador, as automações e o MCP do escritório
+  seguem como eram. Nome reservado nas duas listas (`firestore.rules` e `screenEntity.ts`).
+- **Regra:** lê e apaga só o autor (`ownerId == uid`), nem o dono do escritório; cria e edita com a
+  permissão e sem trocar o `ownerId`. Apagar o próprio NÃO exige a permissão — quem a perdeu ainda limpa o
+  que é seu. A lista é a consulta `where('ownerId', '==', uid)`, sem `orderBy` (pediria índice composto;
+  ordena na tela). Testes: `rules-tests/personalReports.test.ts`.
+- **Front:** `IPersonalReportRepository` (repositório à parte — o instalador não tem o que fazer aqui). O
+  `ReportDefinitionStore` junta as duas listas; `getReport` acha primeiro o do escritório (na colisão de
+  chave, o pessoal não pode esconder o do escritório dos outros), e update/delete/run sabem pela lista de
+  qual coleção é o id. O designer oferece "Visível para" a quem tem as duas permissões; quem só tem a
+  pessoal cria pessoal.
+- **Servidor:** `runReport({ reportId, personal: true })` lê de `personalReports` e responde
+  `not-found` ao relatório de outro membro (dizer "não é seu" contaria que existe). A pré-visualização (spec
+  cru) e o `draftReport` aceitam `reports.manage` OU `reports.personal`.
+- **Fora das automações, por decisão:** o seletor de "Executar relatório" e o `FirestoreReportDefinitionReader`
+  só veem `reports`, e "Assinar" some no pessoal — uma automação roda como sistema e avisa outras pessoas, e o
+  resultado vazaria pela notificação.
+- **MCP:** `office/reports` traz os pessoais de quem emitiu o acesso (`personal: true`), e `run_report` os
+  acha (`findAgentReport`). De passagem, `run_report` passou a resolver pela CHAVE, como a lista anuncia — lia
+  só pelo id, e o relatório instalado por extensão (id ≠ chave) era listado e "não encontrado".
+- **Compartilhar com o escritório** (quem tem `reports.manage`): um lote cria `reports/<chave>` e apaga o
+  pessoal — nunca nos dois lugares, nem em nenhum. Chave tomada é recusa.
+
 ### "Descreva o relatório" — rascunho por IA (`draftReport`)
 
 A autoria ganhou uma caixa de descrição: a IA do escritório (conexão padrão de `core.ai`) PROPÕE um

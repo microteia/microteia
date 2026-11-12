@@ -7,7 +7,7 @@ import { useSchemaContext } from '../../shared/useSchemaContext';
 import { useLabel, useT } from '../../shared/i18n/useT';
 import { useExtensionName } from '../../shared/extensions/useExtensionName';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
-import { PERMISSION_REPORTS_MANAGE } from '../../../domain/schema/access';
+import { PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL } from '../../../domain/schema/access';
 import { reportRequiredPermissions } from '../../../domain/schema/report/reportSpec';
 import { buildReportDesignTabKey, buildReportTabKey } from '../../../shared/constants/reportKeys';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
@@ -25,6 +25,12 @@ export interface ReportsListItem {
   extension: string | null;
   /** O que o relatório cobre, mostrado como a linha de baixo do item. */
   covers: string;
+  /** Só esta pessoa o vê — mora nos relatórios pessoais. */
+  personal: boolean;
+  /** Editar e excluir: o pessoal é sempre de quem o vê; o do escritório, de quem gerencia. */
+  canEdit: boolean;
+  /** Levar para os relatórios do escritório: só o pessoal, e só para quem gerencia relatórios. */
+  canShare: boolean;
 }
 
 export interface ReportsViewModel {
@@ -41,6 +47,13 @@ export interface ReportsViewModel {
   open: (reportKey: string) => void;
   /** Quem gerencia relatórios cria e edita; quem só lê, não vê os gestos. */
   canManage: boolean;
+  /** Criar: quem gerencia relatórios OU quem pode criar os pessoais. */
+  canCreate: boolean;
+  toShare: ReportsListItem | null;
+  askShare: (report: ReportsListItem) => void;
+  cancelShare: () => void;
+  confirmShare: () => Promise<void>;
+  isSharing: boolean;
   create: () => void;
   edit: (reportKey: string) => void;
 
@@ -61,6 +74,11 @@ export interface ReportsViewModel {
     deleteTitle: string;
     deleteMessage: string;
     deleteConfirm: string;
+    personal: string;
+    share: string;
+    shareTitle: string;
+    shareMessage: string;
+    shareConfirm: string;
   };
 }
 
@@ -72,7 +90,7 @@ export interface ReportsViewModel {
  * referência. Mostrar um relatório que a callable vai recusar seria oferecer uma porta fechada.
  */
 export const useReportsViewModel = (): ReportsViewModel => {
-  const { reports, isLoading, deleteReport } = useReportDefinitions();
+  const { reports, isLoading, deleteReport, shareReport } = useReportDefinitions();
   const { canAll, can } = useAuthorization();
   const { openTab } = useWorkspace();
   const { notify } = useNotification();
@@ -84,6 +102,9 @@ export const useReportsViewModel = (): ReportsViewModel => {
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [toDelete, setToDelete] = useState<ReportsListItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [toShare, setToShare] = useState<ReportsListItem | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const canManage = can(PERMISSION_REPORTS_MANAGE);
 
   const visible = useMemo(
     () => reports
@@ -98,8 +119,11 @@ export const useReportsViewModel = (): ReportsViewModel => {
         managed: report.managed === true,
         extension: extensionOf(report.ownerPluginId),
         covers: report.spec.dataset.table,
+        personal: !!report.ownerId,
+        canEdit: report.managed !== true && (!!report.ownerId || canManage),
+        canShare: !!report.ownerId && canManage,
       })),
-    [reports, canAll, schema, label, extensionOf],
+    [reports, canAll, schema, label, extensionOf, canManage],
   );
 
   const filterDefs = useMemo<FilterDef[]>(() => [
@@ -134,6 +158,23 @@ export const useReportsViewModel = (): ReportsViewModel => {
     }
   }, [toDelete, deleteReport, notify, t, label]);
 
+  // A chave pessoal pode já ser de um relatório do escritório: aí o repositório recusa, e a mensagem diz
+  // qual chave — renomear é gesto de quem sabe o que o relatório responde.
+  const confirmShare = useCallback(async () => {
+    if (!toShare) return;
+    setIsSharing(true);
+    try {
+      await shareReport(toShare.documentId, toShare.id);
+      notify(t('share.done'), 'success');
+      setToShare(null);
+    } catch (caught) {
+      const raw = caught instanceof Error ? caught.message : String(caught);
+      notify(label(raw, errorParamsOf(caught)), 'error');
+    } finally {
+      setIsSharing(false);
+    }
+  }, [toShare, shareReport, notify, t, label]);
+
   return {
     title: t('page.reports'),
     reports: filtered,
@@ -144,7 +185,13 @@ export const useReportsViewModel = (): ReportsViewModel => {
     setFilterTokens,
     savedFiltersScreenKey: 'reports',
     open,
-    canManage: can(PERMISSION_REPORTS_MANAGE),
+    canManage,
+    canCreate: canManage || can(PERMISSION_REPORTS_PERSONAL),
+    toShare,
+    askShare: setToShare,
+    cancelShare: () => setToShare(null),
+    confirmShare,
+    isSharing,
     create,
     edit,
     toDelete,
@@ -155,6 +202,11 @@ export const useReportsViewModel = (): ReportsViewModel => {
     labels: {
       create: t('list.create'),
       edit: t('list.edit'),
+      personal: t('list.personal'),
+      share: t('share.action'),
+      shareTitle: t('share.title'),
+      shareMessage: t('share.message'),
+      shareConfirm: t('share.confirm'),
       remove: t('design.remove'),
       filterPlaceholder: t('list.filter.placeholder'),
       filterSearch: t('list.filter.search'),

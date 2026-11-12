@@ -592,11 +592,13 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     if (dynamicTargetKind !== 'report' || !dynamicInputsSourceId) return null;
     const mapping = configuration[dynamicInputsSourceId];
     const key = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
-    return key ? reports.find((report) => report.key === key || report.id === key) ?? null : null;
+    return key ? reports.find((report) => !report.ownerId && (report.key === key || report.id === key)) ?? null : null;
   }, [dynamicTargetKind, dynamicInputsSourceId, configuration, reports]);
 
   const reportOptions = useMemo(
-    () => reports.map((report) => ({ value: report.key, label: label(report.title) })),
+    // Só os do escritório: o servidor não acha um pessoal, e um relatório privado numa automação
+    // vazaria pela notificação de quem ela avisa.
+    () => reports.filter((report) => !report.ownerId).map((report) => ({ value: report.key, label: label(report.title) })),
     [reports, label],
   );
 

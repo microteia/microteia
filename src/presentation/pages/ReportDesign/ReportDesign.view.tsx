@@ -126,6 +126,18 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             />
           </S.Group>
 
+          {vm.visibilityOptions && (
+            <S.Group>
+              <SearchSelect
+                label={vm.labels.visibility}
+                options={vm.visibilityOptions}
+                value={vm.visibility}
+                onChange={vm.setVisibility}
+              />
+            </S.Group>
+          )}
+          {vm.personalNotice && <InfoBanner message={vm.personalNotice} variant="info" />}
+
           <S.Group>
             <S.GroupHeader>
               <S.Legend>{vm.labels.dimensions}</S.Legend>

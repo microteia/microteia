@@ -2,6 +2,7 @@ import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { ReportPrompt, ReportSpec } from '../../domain/schema/report/reportSpec';
 import { reportRequiredPermissions } from '../../domain/schema/report/reportSpec';
+import { PERSONAL_REPORTS_COLLECTION } from '../../domain/schema/report/personalReport';
 import { AGENT_ENFORCED, AGENT_UNENFORCED } from '../../domain/schema/agent/agentOps';
 import { WORKFLOW_CALLED_EVENT } from '../../domain/schema/eventCatalog';
 import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access/kernelPermissions';
@@ -76,12 +77,15 @@ export const officeReports = async (
   session: AgentSession,
   catalog: MessageCatalog,
 ): Promise<Record<string, unknown>[]> => {
-  const [snapshot, ctx] = await Promise.all([
+  const [snapshot, personal, ctx] = await Promise.all([
     getDb().collection(`tenants/${session.tenantId}/reports`).get(),
+    // Os PESSOAIS de quem emitiu o acesso — de ninguém mais. O agente age em nome dessa pessoa.
+    getDb().collection(`tenants/${session.tenantId}/${PERSONAL_REPORTS_COLLECTION}`).where('ownerId', '==', session.userId).get(),
     getDI().getScreenDefinitionCache().getSchemaContext(session.tenantId),
   ]);
+  const personalIds = new Set(personal.docs.map((doc) => doc.id));
 
-  return snapshot.docs
+  return [...snapshot.docs, ...personal.docs]
     .filter((doc) => doc.get('enabled') !== false)
     .filter((doc) => {
       const spec = doc.get('spec') as ReportSpec | undefined;
@@ -96,6 +100,7 @@ export const officeReports = async (
       return {
         report: doc.get('key') ?? doc.id,
         title: resolveLabel(catalog, String(doc.get('title') ?? doc.id)),
+        ...(personalIds.has(doc.id) ? { personal: true } : {}),
         ...(doc.get('description') ? { description: resolveLabel(catalog, String(doc.get('description'))) } : {}),
         ...(prompts.length > 0
           ? {

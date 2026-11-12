@@ -2,8 +2,8 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { identifyActor } from '../workflow/identifyActor';
 import { getDI } from '../di/container';
 import { getDb } from '../firebase/initFirebase';
-import { requirePermission } from './shared/requirePermission';
-import { PERMISSION_REPORTS_MANAGE } from '../../domain/schema/access';
+import { requireAnyPermission } from './shared/requirePermission';
+import { PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL } from '../../domain/schema/access';
 import { FirestoreWorkflowQueryRepository } from '../../data/services/FirestoreWorkflowQueryRepository';
 import { FirestoreWorkflowRecordFetcher } from '../../data/services/FirestoreWorkflowRecordFetcher';
 import type { WorkflowQueryDeps } from '../workflow/query/runWorkflowQuery';
@@ -13,6 +13,7 @@ import type { ReportResult } from '../../domain/schema/report/reportResult';
 import type { ReportDrillResult, ReportDrillTarget } from '../../domain/schema/report/aggregateRows';
 import type { ReportSpecIssue } from '../../domain/schema/report/validateReportSpec';
 import { requireReportAccess, runReportQuery } from '../report/runReportQuery';
+import { PERSONAL_REPORTS_COLLECTION } from '../../domain/schema/report/personalReport';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 import { tenantBusinessCalendars } from '../settings/tenantBusinessCalendars';
 
@@ -20,7 +21,9 @@ interface RunReportRequest {
   tenantId: string;
   /** A chave do relatório gravado. Excludente com `spec`. */
   reportId?: string;
-  /** O spec CRU — a pré-visualização da autoria. Exige `reports.manage`. */
+  /** `reportId` é de um relatório PESSOAL: só o autor o executa. */
+  personal?: boolean;
+  /** O spec CRU — a pré-visualização da autoria. Exige `reports.manage` ou `reports.personal`. */
   spec?: ReportSpec;
   /** Os valores que o leitor preencheu nos filtros declarados. */
   prompts?: Record<string, unknown>;
@@ -60,7 +63,7 @@ export const runReport = onCall(
       throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
-    const { tenantId, reportId, spec: rawSpec, prompts, drill } = request.data as RunReportRequest;
+    const { tenantId, reportId, personal, spec: rawSpec, prompts, drill } = request.data as RunReportRequest;
     if (!tenantId) {
       throw new HttpsError('invalid-argument', '@core.automation/handler.tenant.missing');
     }
@@ -74,11 +77,17 @@ export const runReport = onCall(
 
     let spec: ReportSpec;
     if (rawSpec !== undefined) {
-      await requirePermission(tenantId, request.auth, PERMISSION_REPORTS_MANAGE);
+      // Quem escreve relatório pessoal também pré-visualiza: a leitura de cada coleção continua cobrada
+      // logo abaixo, então a pré-visualização não lhe mostra nada que o relatório salvo não mostraria.
+      await requireAnyPermission(tenantId, request.auth, [PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL]);
       spec = rawSpec;
     } else {
-      const snapshot = await db.doc(`tenants/${tenantId}/reports/${reportId}`).get();
-      if (!snapshot.exists) {
+      const collection = personal === true ? PERSONAL_REPORTS_COLLECTION : 'reports';
+      const snapshot = await db.doc(`tenants/${tenantId}/${collection}/${reportId}`).get();
+      // O relatório pessoal de OUTRO membro responde como inexistente: dizer "não é seu" já contaria
+      // que ele existe.
+      const foreign = personal === true && (snapshot.data() as { ownerId?: unknown } | undefined)?.ownerId !== userId;
+      if (!snapshot.exists || foreign) {
         throw new HttpsError('not-found', '@core.reports/handler.not-found', { messageParams: { id: reportId ?? '' } });
       }
       const stored = (snapshot.data() as { spec?: ReportSpec } | undefined)?.spec;

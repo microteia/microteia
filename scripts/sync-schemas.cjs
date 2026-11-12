@@ -155,6 +155,7 @@ const SHARED_FILES = [
   'domain/schema/report/reportHighlight.ts',
   'domain/schema/report/reportStep.ts',
   'domain/schema/report/reportDraftGrammar.ts',
+  'domain/schema/report/personalReport.ts',
   'domain/schema/report/reportComputedDimension.ts',
   'domain/schema/report/reportXlsx.ts',
   'domain/schema/report/reportTable.ts',

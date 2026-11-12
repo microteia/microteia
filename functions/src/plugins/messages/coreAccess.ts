@@ -251,6 +251,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.reports.manage': 'Manage reports',
   'permission.reports.manage.description':
     'Create, edit and remove the reports of the organization. Reading each collection a report covers is still required to run it.',
+  'permission.reports.personal': 'Create personal reports',
+  'permission.reports.personal.description':
+    'Create reports only the author sees. They count only what the author can already read, so this grants no data — it allows spending reads on one\'s own questions.',
   'permission.roles.manage': 'Manage access profiles',
   'permission.roles.manage.description':
     'Create, edit and delete access profiles, and choose which permissions each one grants.',

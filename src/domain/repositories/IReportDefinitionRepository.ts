@@ -13,6 +13,8 @@ export interface RunReportInput {
   tenantId: string;
   /** A chave do relatório gravado. Excludente com `spec`. */
   reportId?: string;
+  /** `reportId` é de um relatório PESSOAL (`personalReports`): o servidor confere que é de quem pede. */
+  personal?: boolean;
   /** O spec CRU — a pré-visualização da autoria. Exige `reports.manage`. */
   spec?: ReportSpec;
   /** Os valores que o leitor preencheu nos filtros declarados. */

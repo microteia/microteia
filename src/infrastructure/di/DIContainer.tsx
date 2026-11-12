@@ -40,6 +40,7 @@ import { FirebaseScriptRepository } from '../../data/repositories/FirebaseScript
 import { FirebaseDataProcessorRepository } from '../../data/repositories/FirebaseDataProcessorRepository';
 import { FirebaseActionRepository } from '../../data/repositories/FirebaseActionRepository';
 import { FirebaseReportDefinitionRepository } from '../../data/repositories/FirebaseReportDefinitionRepository';
+import { FirebasePersonalReportRepository } from '../../data/repositories/FirebasePersonalReportRepository';
 import { FirebaseDocumentTemplateRepository } from '../../data/repositories/FirebaseDocumentTemplateRepository';
 import { FirebaseDownloadRepository } from '../../data/repositories/FirebaseDownloadRepository';
 import { FirebasePortalRepository } from '../../data/repositories/FirebasePortalRepository';
@@ -110,6 +111,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     dataProcessorRepository:  new FirebaseDataProcessorRepository(),
     actionRepository:         new FirebaseActionRepository(),
     reportRepository:         new FirebaseReportDefinitionRepository(),
+    personalReportRepository: new FirebasePersonalReportRepository(),
     documentTemplateRepository: new FirebaseDocumentTemplateRepository(),
     downloadRepository:       new FirebaseDownloadRepository(),
     roleRepository:           new FirebaseRoleRepository(),

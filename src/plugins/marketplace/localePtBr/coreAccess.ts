@@ -240,6 +240,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.reports.manage': 'Gerenciar relatórios',
   'permission.reports.manage.description':
     'Criar, editar e remover os relatórios do escritório. Para EXECUTAR um relatório continua sendo preciso poder ler cada cadastro que ele cobre.',
+  'permission.reports.personal': 'Criar relatórios pessoais',
+  'permission.reports.personal.description':
+    'Criar relatórios que só o autor vê. Eles contam só o que o autor já pode ler, então esta permissão não libera dado nenhum — libera gastar leituras com perguntas próprias.',
   'permission.roles.manage': 'Gerenciar perfis de acesso',
   'permission.roles.manage.description':
     'Criar, editar e excluir perfis de acesso, e escolher quais permissões cada um concede.',
