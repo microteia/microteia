@@ -84,6 +84,7 @@ const ALL_FUNCTIONS = [
   'getWebPushPublicKey',
   'onWorkflowEventCreated',
   'syncWorkflowClock',
+  'versionWorkflowDefinition',
   'runWorkflowClock',
   'onHttpDispatchWritten',
   'testHttpRequest',

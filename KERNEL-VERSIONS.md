@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.235.0] — 2026-11-12
+
+- feat(workflow): server-side versioning — `versionWorkflowDefinition` (`onDocumentWritten` on definitions, `versionWorkflowOnWrite`) stores an immutable `workflow_definitions/{id}/versions/{n}` on every content change (`WORKFLOW_VERSION_CONTENT_KEYS`, compared with `canonicalJson`; enabling is not content) and writes `version: n` = previous + 1, saving the previous version too when missing. Added to `deploy:workflow`.
+- feat(workflow): resumed executions are pinned — `ResumeClockEntry.definitionVersion`; `resumeWorkflowExecution` overlays that version's content on the current state (`pinnedDefinition`) and logs `run.resume.pinned`. Scripts and called workflows stay late-bound by design; the resume logs `run.resume.script-changed` / `run.resume.workflow-changed` for those used by the remaining enabled steps and changed after the run started.
+- feat(workflow): each version records its origin — `contentOrigin` on the definition (`WorkflowContentOrigin`: `edit`, or `extension` with `pluginId` and `sourceRev`), set by the front repository (`withContentOrigin`, edit by default) and by the installer; the two-pass extension update is coalesced into ONE version (`sameInstallation`); numbering continues after the highest stored version, so a reinstall with the same id never reuses version 1. `WorkflowModuleTemplate` omits `contentOrigin`.
+- feat(rules/ui): versions are readable by members and never client-written (`rules-tests/workflowVersions.test.ts`); "Versions" tab with restore (writes the old content back, producing a new version). pt-BR locale package 1.186.0.
+
 #### [9.234.0] — 2026-11-12
 
 - feat(workflow): generic AI steps in `core.ai.steps` — `ai-generate` (`prompt`, `instructions` as system prompt, `text` capped at `maxCharacters` with `truncated`), `ai-classify` (closed `categories` list; `matchAiCategory` returns the listed spelling or no match — `matched: false`, never a new category) and `ai-extract` (`fields` as `key: description`, through the existing `extractParameterValues`; `values.<key>` as text and `filled`). Shared helpers in `domain/schema/aiSteps.ts`.

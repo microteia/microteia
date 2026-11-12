@@ -401,6 +401,14 @@ service cloud.firestore {
         allow create, update, delete: if can(tenantId, 'automation.manage');
       }
 
+      // As VERSÕES de cada automação — imutáveis, numeradas pelo servidor (`versionWorkflowDefinition`).
+      // Lê quem lê automações; ninguém grava pelo cliente: restaurar é gravar a definição, e a versão
+      // nova nasce do gatilho.
+      match /workflow_definitions/{workflowId}/versions/{version} {
+        allow read: if isMember(tenantId);
+        allow write: if false;
+      }
+
       // Scripts reutilizáveis executados pelo Step "Script" (sandbox QuickJS) — feature
       // administrativa; só admin cria/edita/exclui. Ver "Step Script" no corpo do doc.
       match /scripts/{scriptId} {

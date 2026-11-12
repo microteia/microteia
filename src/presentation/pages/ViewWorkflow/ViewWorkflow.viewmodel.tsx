@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
+import type { WorkflowVersion } from '../../../domain/schema/workflowVersion';
 import { WORKFLOW_WEBHOOK_EVENT } from '../../../domain/schema/workflowWebhook';
 import { isParameterRootedEvent } from '../../../domain/schema/eventCatalog';
 import type { DragEvent } from 'react';
@@ -13,7 +15,7 @@ import { useStepCatalog } from '../../../stores/useStepCatalog';
 import { WORKFLOW_CALLED_EVENT, buildWorkflowEventCatalog, getWorkflowEventFields, eventNameToEntityKey, resolveEventCatalogLabel, workflowParametersToFieldOptions } from '../../../domain/services/workflowEventCatalog';
 import type { SchemaContext } from '../../../domain/schema/pathResolver';
 import { useSchemaContext } from '../../shared/useSchemaContext';
-import { useT, useLabel } from '../../shared/i18n/useT';
+import { useT, useLabel, useLocaleFormat } from '../../shared/i18n/useT';
 import { useOptionalLocale } from '../../../stores/useLocale';
 import { formatDateFor } from '../../../domain/schema/i18n/localeFormat';
 import { useEntityReferenceOptions, useLookupCollectionOptions } from '../../shared/useParameterOptions';
@@ -74,7 +76,10 @@ import { isStepExcludedFromTrigger } from '../../../domain/schema/workflowStepCa
 import { resolveOfficeTimeZone, timeZoneOptions } from '../../../domain/schema/i18n/timeZone';
 import { useSettings } from '../../../stores/useSettings';
 
-export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions';
+/** Quantas versões a aba mostra — as mais recentes; as anteriores continuam guardadas. */
+const WORKFLOW_VERSIONS_SHOWN = 50;
+
+export type ViewWorkflowTab = 'general' | 'conditions' | 'steps' | 'executions' | 'versions';
 
 export type StepsViewMode = 'flow' | 'list';
 export type ConditionViewMode = 'editor' | 'diagram';
@@ -310,6 +315,11 @@ export interface ViewWorkflowViewModel {
   /** Abre, na aba de execuções, a execução que nasceu do último disparo do relógio. */
   openLastClockRun: () => void;
   isDateReachedEvent: boolean;
+  /** As versões guardadas da automação, da mais nova para a mais antiga. */
+  versions: { version: number; title: string; summary: string; origin: string; isCurrent: boolean }[];
+  versionsError: string | null;
+  restoringVersion: number | null;
+  restoreVersion: (version: number) => void;
   /** O gatilho é um webhook de ENTRADA: um sistema de fora dispara a automação por HTTP. */
   isWebhookEvent: boolean;
   /** Emitir e revogar exige a automação salva com o gatilho de webhook, e `automation.manage`. */
@@ -406,7 +416,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const { currentTenant } = useTenant();
   const { setTabTitle, closeTab, openTab, activePanelId } = useWorkspace();
   const { notify } = useNotification();
-  const { workflowExecutionRepository, workflowClockRepository, dataProcessorRepository, workflowWebhookRepository } = useDI();
+  const {
+    workflowExecutionRepository, workflowClockRepository, dataProcessorRepository, workflowWebhookRepository,
+    workflowVersionRepository,
+  } = useDI();
   const { getDefinition } = useScreenDefinitions();
   const ctx = useSchemaContext();
   const tUi = useT('core.ui');
@@ -452,6 +465,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [dropTarget, setDropTarget] = useState<{ parentKey: string; index: number } | null>(null);
   const [rerunningId, setRerunningId] = useState<string | null>(null);
   const { can } = useAuthorization();
+  const { formatDateTime } = useLocaleFormat();
+  const { installed } = useInstalledExtensions();
 
   // Carrega o catálogo de steps uma vez (idempotente)
   useEffect(() => {
@@ -618,6 +633,75 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
 
   const isDateReachedEvent = useMemo(() => dateReachedPrefix(formData.eventName) !== null, [formData.eventName]);
   const isWebhookEvent = formData.eventName === WORKFLOW_WEBHOOK_EVENT;
+
+  const [storedVersions, setStoredVersions] = useState<WorkflowVersion[]>([]);
+  const [versionsError, setVersionsError] = useState<string | null>(null);
+  const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
+  const workflowIdForVersions = workflow?.id ?? null;
+  const currentVersion = workflow?.version ?? 0;
+
+  /*
+   * As versões são lidas ao abrir a aba — e de novo quando a automação muda de número, que é quando o
+   * gatilho do servidor acabou de guardar uma nova.
+   */
+  useEffect(() => {
+    if (activeTab !== 'versions' || !currentTenant || !workflowIdForVersions) return undefined;
+    let active = true;
+    workflowVersionRepository.listVersions(currentTenant.id, workflowIdForVersions, WORKFLOW_VERSIONS_SHOWN)
+      .then((found) => {
+        if (!active) return;
+        setStoredVersions(found);
+        setVersionsError(null);
+      })
+      .catch((caught: unknown) => {
+        if (active) setVersionsError(caught instanceof Error ? caught.message : String(caught));
+      });
+    return () => { active = false; };
+  }, [activeTab, currentTenant, workflowIdForVersions, currentVersion, workflowVersionRepository]);
+
+  /**
+   * Restaurar é GRAVAR o conteúdo daquela versão como a automação de agora: o servidor o guarda como uma
+   * versão NOVA, e a de antes continua na lista — restaurar se desfaz restaurando outra.
+   */
+  const restoreVersion = useCallback(async (version: number) => {
+    const chosen = storedVersions.find((one) => one.version === version);
+    if (!workflow || !chosen) return;
+    setRestoringVersion(version);
+    try {
+      await updateWorkflow(workflow.id, chosen.content as Parameters<typeof updateWorkflow>[1]);
+      notify(t('versions.restored', { version: String(version) }), 'success');
+    } catch (caught) {
+      notify(label(caught instanceof Error ? caught.message : String(caught)), 'error');
+    } finally {
+      setRestoringVersion(null);
+    }
+  }, [storedVersions, workflow, updateWorkflow, notify, t, label]);
+
+  const versions = useMemo(
+    () => storedVersions.map((one) => {
+      const { origin } = one;
+      return {
+      version: one.version,
+      title: t('versions.item', { version: String(one.version), date: formatDateTime(one.savedAt) }),
+      summary: t('versions.summary', {
+        steps: String(Array.isArray(one.content.steps) ? one.content.steps.length : 0),
+        event: eventNameOptions.find((option) => option.value === one.content.eventName)?.label
+          ?? String(one.content.eventName ?? ''),
+      }),
+      // A origem é o que diz se a versão foi uma edição do escritório ou a atualização de uma extensão —
+      // e, nesta, qual: restaurar uma edição sobre a atualização é decisão de quem sabe de qual se trata.
+      origin: origin.kind === 'extension'
+        ? t('versions.origin.extension', {
+          name: label(installed.find((extension) => extension.id === origin.pluginId)?.package.manifest.name)
+            || origin.pluginId,
+          rev: origin.sourceRev !== null ? String(origin.sourceRev) : '—',
+        })
+        : t('versions.origin.edit'),
+      isCurrent: one.version === currentVersion,
+      };
+    }),
+    [storedVersions, currentVersion, eventNameOptions, formatDateTime, t, label, installed],
+  );
   const [issuedWebhook, setIssuedWebhook] = useState<{ token: string; url: string | null } | null>(null);
   const [webhookBusy, setWebhookBusy] = useState(false);
   const webhookWorkflowId = workflow?.eventName === WORKFLOW_WEBHOOK_EVENT ? workflow.id : null;
@@ -1439,6 +1523,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     isCalledEvent,
     isScheduleEvent,
     isWebhookEvent,
+    versions,
+    versionsError,
+    restoringVersion,
+    restoreVersion: (version) => { void restoreVersion(version); },
     canManageWebhook: webhookWorkflowId !== null && can(PERMISSION_AUTOMATION_MANAGE),
     issuedWebhook,
     webhookBusy,

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.235.0] — 2026-11-12
+
+- As automações agora têm **versões**: cada alteração salva fica guardada, e a nova aba "Versões" mostra o histórico e permite restaurar uma versão anterior.
+- Uma automação que está esperando — uma aprovação, um evento ou um prazo — continua exatamente como era quando começou, mesmo que alguém a edite durante a espera.
+- Se um script ou uma automação chamada mudar enquanto a execução espera, o histórico da execução avisa.
+- Cada versão mostra se foi uma edição do escritório ou a atualização de uma extensão; uma edição sobrescrita por uma atualização continua no histórico e pode ser restaurada.
+
 #### [9.234.0] — 2026-11-12
 
 - Três novos passos de automação com a inteligência artificial do escritório:

@@ -73,6 +73,11 @@ export interface ResumeClockEntry extends WorkflowClockEntryBase {
   decided?: boolean;
   /** O evento que a pausa espera (passo `wait-for`). Ausente nas outras esperas. */
   wait?: WorkflowWait;
+  /**
+   * A VERSÃO da automação em que a execução começou. A retomada roda essa versão, e não a de agora: um
+   * passo editado durante a espera não pode mudar o resto de uma execução que já ia por outro caminho.
+   */
+  definitionVersion?: number;
 }
 
 export type WorkflowClockEntry = ScheduleClockEntry | DateReachedClockEntry | ResumeClockEntry;

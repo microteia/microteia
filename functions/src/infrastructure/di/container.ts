@@ -148,6 +148,7 @@ import { dateReachedOnSave } from '../../domain/services/workflowClock';
 import { resumeWorkflowExecution } from '../../domain/services/workflowSuspension';
 import { FirestoreWorkflowTaskRepository } from '../../data/repositories/FirestoreWorkflowTaskRepository';
 import { FirestoreReportDefinitionReader } from '../../data/repositories/FirestoreReportDefinitionReader';
+import { FirestoreWorkflowVersionRepository } from '../../data/repositories/FirestoreWorkflowVersionRepository';
 import { entityDateFieldKeys, eventEntity } from '../../domain/schema/eventCatalog';
 import { dateReachedEventName } from '../../domain/schema/workflowClock';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
@@ -917,6 +918,10 @@ class DIContainer {
   private workflowTaskRepository: FirestoreWorkflowTaskRepository | null = null;
 
   /** A caixa de tarefas das aprovações — a do passo, a da retomada e a da decisão são a mesma. */
+  getWorkflowVersionRepository(): FirestoreWorkflowVersionRepository {
+    return new FirestoreWorkflowVersionRepository(getDb());
+  }
+
   getWorkflowTaskRepository(): FirestoreWorkflowTaskRepository {
     if (!this.workflowTaskRepository) this.workflowTaskRepository = new FirestoreWorkflowTaskRepository(getDb());
     return this.workflowTaskRepository;
@@ -947,6 +952,11 @@ class DIContainer {
             hydrator: this.getWorkflowContextHydrator(),
             deactivatedPluginIds: (tenantId) => this.getInstalledExtensionCache().deactivatedPluginIds(tenantId),
             expireTask: (tenantId, taskId, at) => this.getWorkflowTaskRepository().expire(tenantId, taskId, at),
+            findVersion: (tenantId, definitionId, version) =>
+              this.getWorkflowVersionRepository().findVersion(tenantId, definitionId, version),
+            dependencyChangedAt: async (tenantId, kind, ref) => (kind === 'script'
+              ? (await new FirebaseScriptRepository(getDb()).findByRef(tenantId, ref))?.updatedAt
+              : (await this.getWorkflowDefinitionRepository().findByRef(tenantId, ref))?.updatedAt) ?? null,
             now: () => new Date(),
           });
         },

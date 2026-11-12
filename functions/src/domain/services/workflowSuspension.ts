@@ -11,6 +11,8 @@ import type { WorkflowContextHydrator } from '../engine/WorkflowContextHydrator'
 import { withBusinessCalendars } from './businessCalendarScope';
 import { mentionsBusinessDays } from '../schema/time/businessDays';
 import { actorFromPublished, toPublishedActor } from '../engine/workflowActor';
+import type { WorkflowVersionContent } from '../schema/workflowVersion';
+import { flattenSteps } from './stepTree';
 
 export interface WorkflowSuspensionDeps {
   executionRepository: IWorkflowExecutionRepository;
@@ -66,6 +68,7 @@ export const recordWorkflowRun = async (
     actor: origin.actor ? toPublishedActor(origin.actor) : null,
     ...(suspension.taskId ? { taskId: suspension.taskId } : {}),
     ...(suspension.wait ? { wait: suspension.wait } : {}),
+    ...(origin.definition.version > 0 ? { definitionVersion: origin.definition.version } : {}),
     nextRunAt: suspension.resumeAt,
     timeZone: 'UTC',
     declaredTimeZone: null,
@@ -96,6 +99,65 @@ export interface ResumeWorkflowDeps extends WorkflowSuspensionDeps {
   deactivatedPluginIds?(tenantId: string): Promise<ReadonlySet<string>>;
   /** Fecha como expirada a tarefa de uma aprovação cujo prazo venceu sem decisão. */
   expireTask?(tenantId: string, taskId: string, at: Date): Promise<void>;
+  /** O conteúdo de uma versão guardada da automação, ou `null` quando ela não foi guardada. */
+  findVersion?(tenantId: string, definitionId: string, version: number): Promise<WorkflowVersionContent | null>;
+  /** Quando o script ou a automação chamada foi alterada pela última vez — `null` quando não existe mais. */
+  dependencyChangedAt?(tenantId: string, kind: 'script' | 'workflow', ref: string): Promise<Date | null>;
+}
+
+const literalText = (mapping: unknown): string => {
+  const value = (mapping as { kind?: string; value?: unknown } | undefined);
+  return value?.kind === 'Literal' && typeof value.value === 'string' ? value.value.trim() : '';
+};
+
+/**
+ * Os SCRIPTS e as AUTOMAÇÕES CHAMADAS que os passos ainda por rodar usam e que mudaram depois que a
+ * execução começou — vira aviso no histórico, e não recusa.
+ *
+ * A automação é presa à versão em que começou (`pinnedDefinition`) porque mudar a lista de passos muda
+ * ONDE a retomada continua — o defeito silencioso. As dependências são resolvidas na hora em que rodam,
+ * como uma biblioteca: o contrato com elas é entrada e saída, e uma mudança que o quebra aparece como
+ * falha do passo, que o `onError` trata. Abortar seria pior — a maior parte das edições é correção, e uma
+ * aprovação que esperou dias seria jogada fora por uma vírgula. O aviso é o que deixa a diferença à vista.
+ */
+const changedDependencies = async (
+  definition: WorkflowDefinition,
+  entry: ResumeClockEntry,
+  startedAt: Date,
+  deps: ResumeWorkflowDeps,
+): Promise<{ kind: 'script' | 'workflow'; ref: string }[]> => {
+  if (!deps.dependencyChangedAt) return [];
+  const topLevel = [...definition.steps].sort((left, right) => left.order - right.order);
+  const after = topLevel.findIndex((step) => step.id === entry.afterStepId);
+  const remaining = flattenSteps(after < 0 ? [] : topLevel.slice(after + 1)).filter((step) => step.enabled !== false);
+  const refs = new Map<string, { kind: 'script' | 'workflow'; ref: string }>();
+  for (const step of remaining) {
+    const script = step.stepDefinitionId === 'script' ? literalText(step.configuration?.scriptId) : '';
+    const workflow = step.stepDefinitionId === 'call-workflow' ? literalText(step.configuration?.targetWorkflowId) : '';
+    if (script) refs.set(`script:${script}`, { kind: 'script', ref: script });
+    if (workflow) refs.set(`workflow:${workflow}`, { kind: 'workflow', ref: workflow });
+  }
+  const changed: { kind: 'script' | 'workflow'; ref: string }[] = [];
+  for (const dependency of refs.values()) {
+    const at = await deps.dependencyChangedAt(entry.tenantId, dependency.kind, dependency.ref).catch(() => null);
+    if (at && at.getTime() > startedAt.getTime()) changed.push(dependency);
+  }
+  return changed;
+};
+
+/**
+ * A automação como ela ERA quando a execução começou: o conteúdo da versão guardada por cima do estado
+ * de agora. O estado continua o de agora — desligada ou apagada cancela, como sempre —; o que volta é o
+ * que ela FAZ. Sem a versão guardada (uma execução de antes do versionamento), segue a de agora.
+ */
+const pinnedDefinition = async (
+  definition: WorkflowDefinition,
+  entry: ResumeClockEntry,
+  deps: ResumeWorkflowDeps,
+): Promise<WorkflowDefinition> => {
+  if (!entry.definitionVersion || entry.definitionVersion === definition.version || !deps.findVersion) return definition;
+  const content = await deps.findVersion(entry.tenantId, entry.definitionId, entry.definitionVersion);
+  return content ? { ...definition, ...content, version: entry.definitionVersion } as WorkflowDefinition : definition;
 }
 
 const isSwitchedOff = async (definition: WorkflowDefinition, deps: ResumeWorkflowDeps): Promise<boolean> => {
@@ -152,10 +214,31 @@ export const resumeWorkflowExecution = async (
     return 'fired';
   };
 
-  const definition = await deps.definitionRepository.findById(entry.tenantId, entry.definitionId);
-  if (!definition) return end('CANCELLED', 'WARN', '@core.automation/run.delay.cancelled.deleted');
-  if (!definition.enabled) return end('CANCELLED', 'WARN', '@core.automation/run.delay.cancelled.disabled');
-  if (await isSwitchedOff(definition, deps)) return end('CANCELLED', 'WARN', '@core.automation/run.delay.cancelled.extension-off');
+  const current = await deps.definitionRepository.findById(entry.tenantId, entry.definitionId);
+  if (!current) return end('CANCELLED', 'WARN', '@core.automation/run.delay.cancelled.deleted');
+  if (!current.enabled) return end('CANCELLED', 'WARN', '@core.automation/run.delay.cancelled.disabled');
+  if (await isSwitchedOff(current, deps)) return end('CANCELLED', 'WARN', '@core.automation/run.delay.cancelled.extension-off');
+  const definition = await pinnedDefinition(current, entry, deps);
+  const warnedAt = deps.now();
+  const resumeLogs = [
+    ...logs,
+    ...(definition.version !== current.version
+      ? [{
+          level: 'INFO' as const,
+          message: '@core.automation/run.resume.pinned',
+          messageParams: { version: String(definition.version) },
+          at: warnedAt,
+        }]
+      : []),
+    ...(await changedDependencies(definition, entry, startedAt, deps)).map((dependency) => ({
+      level: 'WARN' as const,
+      message: dependency.kind === 'script'
+        ? '@core.automation/run.resume.script-changed'
+        : '@core.automation/run.resume.workflow-changed',
+      messageParams: { ref: dependency.ref },
+      at: warnedAt,
+    })),
+  ];
 
   const actor = actorFromPublished(entry.actor);
   try {
@@ -175,7 +258,7 @@ export const resumeWorkflowExecution = async (
       resume: {
         executionId: entry.executionId,
         startedAt,
-        logs,
+        logs: resumeLogs,
         afterStepId: entry.afterStepId,
         lastStepId: entry.lastStepId,
         outputs: entry.outputs,

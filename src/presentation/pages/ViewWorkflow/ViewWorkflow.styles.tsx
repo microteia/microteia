@@ -659,6 +659,34 @@ export const S = {
     text-align: center;
   `,
 
+  VersionRow: styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.spacing.md};
+    background: ${({ theme }) => theme.colors.surface};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    padding: ${({ theme }) => theme.spacing.md};
+  `,
+
+  VersionTitle: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  VersionCurrent: styled.span`
+    padding: 2px 8px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.primary};
+    border: 1px solid ${({ theme }) => theme.colors.primary};
+  `,
+
   ExecutionRow: styled.details`
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};

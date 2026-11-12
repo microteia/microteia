@@ -154,7 +154,7 @@ export interface ScreenPatchTemplate {
  */
 export type WorkflowModuleTemplate = { templateId: string } & Omit<
   WorkflowDefinition,
-  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'ownerPluginId' | 'enabled'
+  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'ownerPluginId' | 'enabled' | 'contentOrigin'
 >;
 
 /**

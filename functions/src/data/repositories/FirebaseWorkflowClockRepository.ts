@@ -109,6 +109,7 @@ const mapEntry = (tenantId: string, definitionId: string, data: DocumentData): W
       ...(typeof data.taskId === 'string' ? { taskId: data.taskId } : {}),
       ...(data.decided === true ? { decided: true } : {}),
       ...(waitOf(data.wait) ? { wait: waitOf(data.wait) as WorkflowWait } : {}),
+      ...(typeof data.definitionVersion === 'number' ? { definitionVersion: data.definitionVersion } : {}),
     };
   }
   if (data.kind === 'dateReached') {
@@ -170,6 +171,7 @@ const entryDocument = (entry: WorkflowClockEntry): DocumentData => {
       ...(entry.wait
         ? { wait: entry.wait, waitKey: workflowWaitKey(entry.wait.eventName, entry.wait.recordId) }
         : {}),
+      ...(entry.definitionVersion ? { definitionVersion: entry.definitionVersion } : {}),
     };
   }
   return {

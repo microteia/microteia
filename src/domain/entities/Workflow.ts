@@ -1,6 +1,7 @@
 import type { FieldRules } from '../schema/fieldRules';
 import type { WorkflowDateReached, WorkflowSchedule } from '../schema/workflowClock';
 import type { WorkflowChangeFilter } from '../schema/workflowChangeFilter';
+import type { WorkflowContentOrigin } from '../schema/workflowVersion';
 
 /**
  * Os tipos de passo, como ARRAY — a união sai dele, pela mesma razão de `CUSTOM_FIELD_TYPES`: a
@@ -234,6 +235,11 @@ export interface WorkflowDefinition extends WorkflowChangeFilter {
   ownerPluginId?: string;
   /** Conjunto de extensões que compartilham este workflow (refcount); removido só quando vazio. */
   ownerPluginIds?: string[];
+  /**
+   * De onde veio o CONTEÚDO gravado por último — uma edição ou a instalação de uma extensão. O servidor o
+   * copia para a versão que guarda (ver `workflowVersion.ts`); quem grava é que sabe.
+   */
+  contentOrigin?: WorkflowContentOrigin;
   /** Id UNIVERSAL de origem (GUID do artefato no tenant autor) — chave de deduplicação na instalação. */
   sourceId?: string;
   /** Revisão de ORIGEM do artefato (epoch ms do `updatedAt` no autor), carimbada no empacotamento.

@@ -4,6 +4,7 @@ import { getDI } from '../di/container';
 import { isClockedDefinition, runWorkflowClockRound, syncWorkflowClockEntry } from '../../domain/services/workflowClock';
 import type { ClockedDefinition } from '../../domain/services/workflowClock';
 import { WORKFLOW_CLOCK_TICK_MINUTES } from '../../domain/schema/workflowClock';
+import { versionWorkflowOnWrite } from '../../domain/services/workflowVersions';
 
 const REGION = 'southamerica-east1';
 
@@ -42,6 +43,29 @@ export const syncWorkflowClock = onDocumentWritten(
       await syncWorkflowClockEntry(tenantId, definitionId, after ?? null, getDI().getWorkflowClockDeps());
     } catch (error) {
       console.error(`[workflow-clock] Falha ao acertar o relógio de ${tenantId}/${definitionId}:`, error);
+    }
+  },
+);
+
+/**
+ * Numera a automação a cada mudança de conteúdo e guarda a versão (`versionWorkflowOnWrite`). Um gatilho
+ * próprio, e não dentro do `syncWorkflowClock`, porque aquele sai cedo para toda automação que não é de
+ * horário — e toda automação tem versão.
+ */
+export const versionWorkflowDefinition = onDocumentWritten(
+  { document: 'tenants/{tenantId}/workflow_definitions/{definitionId}', region: REGION },
+  async (event) => {
+    const { tenantId, definitionId } = event.params;
+    try {
+      await versionWorkflowOnWrite(
+        tenantId,
+        definitionId,
+        event.data?.before.data(),
+        event.data?.after.data(),
+        getDI().getWorkflowVersionRepository(),
+      );
+    } catch (error) {
+      console.error(`[workflow-version] Falha ao guardar a versão de ${tenantId}/${definitionId}:`, error);
     }
   },
 );

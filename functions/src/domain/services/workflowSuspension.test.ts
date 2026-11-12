@@ -237,3 +237,62 @@ describe('resumeWorkflowExecution — a espera de uma aprovação', () => {
     expect(expired).toEqual([]);
   });
 });
+
+describe('resumeWorkflowExecution — a versão em que a execução começou', () => {
+  const prepare = async (stored: WorkflowDefinition, startedOn: WorkflowDefinition) => {
+    const context = setup(stored);
+    await recordWorkflowRun(waitingRun(), { definition: startedOn, event }, context.deps);
+    return { ...context, entry: context.entries.get('exec-1') as ResumeClockEntry };
+  };
+
+  it('retoma a versão guardada, e não a editada durante a espera', async () => {
+    const v1 = definition({ version: 1 });
+    // Na v2, o passo depois da espera mudou de "b" para "c".
+    const v2 = definition({ version: 2, steps: [recordStep('a', 0), { ...recordStep('wait', 1), id: 'wait' }, recordStep('c', 2)] });
+    const { deps, order, entry, executions } = await prepare(v2, v1);
+    expect(entry.definitionVersion).toBe(1);
+    deps.findVersion = async (_tenantId, _definitionId, version) => (version === 1 ? { steps: v1.steps } : null);
+
+    await resumeWorkflowExecution(entry, deps);
+
+    expect(order).toEqual(['b']);
+    expect(executions.get('exec-1')?.logs.map((log) => log.message))
+      .toContain('@core.automation/run.resume.pinned');
+  });
+
+  it('sem a versão guardada, segue a de agora — o comportamento de antes', async () => {
+    const v2 = definition({ version: 2, steps: [recordStep('a', 0), { ...recordStep('wait', 1), id: 'wait' }, recordStep('c', 2)] });
+    const { deps, order, entry } = await prepare(v2, definition({ version: 1 }));
+    deps.findVersion = async () => null;
+
+    await resumeWorkflowExecution(entry, deps);
+    expect(order).toEqual(['c']);
+  });
+
+  it('script ou automação chamada alterados durante a espera: AVISO no histórico, e a execução segue', async () => {
+    const withScript = definition({
+      steps: [
+        recordStep('a', 0),
+        { ...recordStep('wait', 1), id: 'wait' },
+        recordStep('b', 2),
+        // Desligado: não roda, e por isso não avisa.
+        { id: 'x', stepDefinitionId: 'script', type: 'Script', order: 3, enabled: false, configuration: { scriptId: { kind: 'Literal', value: 'velho' } } },
+        { id: 's', stepDefinitionId: 'script', type: 'Script', order: 4, enabled: true, configuration: { scriptId: { kind: 'Literal', value: 'calc' } } },
+        { id: 'w', stepDefinitionId: 'call-workflow', type: 'SubWorkflow', order: 5, enabled: true, configuration: { targetWorkflowId: { kind: 'Literal', value: 'filho' } } },
+      ],
+    });
+    const { deps, order, entry, executions } = await prepare(withScript, withScript);
+    deps.dependencyChangedAt = async (_tenantId, kind) => (kind === 'script' ? new Date('2026-10-13T00:00:00Z') : new Date('2026-01-01T00:00:00Z'));
+
+    await resumeWorkflowExecution(entry, deps);
+
+    // O aviso vem ANTES dos passos: a execução segue — e aqui o script falha porque o registro do teste
+    // não o conhece, o que prova que nada foi abortado por causa da mudança.
+    expect(order).toEqual(['b']);
+    const warnings = (executions.get('exec-1')?.logs ?? []).filter((log) => log.level === 'WARN');
+    expect(warnings.map((log) => [log.message, log.messageParams])).toEqual([
+      ['@core.automation/run.resume.script-changed', { ref: 'calc' }],
+    ]);
+  });
+});
+

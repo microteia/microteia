@@ -259,7 +259,8 @@ const materializeArtifacts = async (
     if (!touched) continue;
     const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap, screenCollectionMap);
     const steps = rewriteStepLiteral(input.steps, 'targetWorkflowId', workflowMap);
-    await deps.workflowRepository.updateWorkflowSteps(tenantId, touched.id, steps);
+    // A mesma origem da primeira passada: o servidor junta as duas numa versão só.
+    await deps.workflowRepository.updateWorkflowSteps(tenantId, touched.id, steps, input.contentOrigin);
   }
 
   const existingActions = await deps.actionRepository.getAll(tenantId);

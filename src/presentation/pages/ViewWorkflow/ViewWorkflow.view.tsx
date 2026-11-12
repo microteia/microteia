@@ -435,6 +435,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           <S.TabBtn $active={vm.activeTab === 'conditions'} onClick={() => vm.setActiveTab('conditions')}>{t('tab.conditions')}</S.TabBtn>
           <S.TabBtn $active={vm.activeTab === 'steps'} onClick={() => vm.setActiveTab('steps')}>{t('tab.steps')}</S.TabBtn>
           <S.TabBtn $active={vm.activeTab === 'executions'} onClick={() => vm.setActiveTab('executions')}>{t('tab.executions')}</S.TabBtn>
+          <S.TabBtn $active={vm.activeTab === 'versions'} onClick={() => vm.setActiveTab('versions')}>{t('tab.versions')}</S.TabBtn>
         </S.TabBar>
       )}
 
@@ -781,6 +782,47 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               variant="danger"
             />
           </S.StepsContentInner>
+        </S.Content>
+      )}
+
+      {vm.activeTab === 'versions' && !vm.isNew && (
+        <S.Content>
+          <S.ContentInner>
+            {vm.versionsError && (
+              <InfoBanner variant="warning" message={t('versions.load-failed', { detail: vm.versionsError })} />
+            )}
+            {vm.versions.length === 0 ? (
+              <S.EmptyState>
+                <div>{t('versions.empty')}</div>
+              </S.EmptyState>
+            ) : (
+              <S.List>
+                {vm.versions.map((version) => (
+                  <S.VersionRow key={version.version}>
+                    <div>
+                      <S.VersionTitle>
+                        {version.title}
+                        {version.isCurrent && <S.VersionCurrent>{t('versions.current')}</S.VersionCurrent>}
+                      </S.VersionTitle>
+                      <S.FieldHint>{version.summary}</S.FieldHint>
+                      <S.FieldHint>{version.origin}</S.FieldHint>
+                    </div>
+                    {!version.isCurrent && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={vm.restoringVersion !== null}
+                        onClick={() => vm.restoreVersion(version.version)}
+                      >
+                        {t('versions.restore')}
+                      </Button>
+                    )}
+                  </S.VersionRow>
+                ))}
+              </S.List>
+            )}
+          </S.ContentInner>
         </S.Content>
       )}
 

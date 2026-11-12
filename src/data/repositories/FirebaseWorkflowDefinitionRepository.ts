@@ -14,6 +14,8 @@ import {
   serverTimestamp,
   onSnapshot,
 } from 'firebase/firestore';
+import { EDIT_ORIGIN, WORKFLOW_VERSION_CONTENT_KEYS } from '../../domain/schema/workflowVersion';
+import type { WorkflowContentOrigin } from '../../domain/schema/workflowVersion';
 import { db } from '../../infrastructure/firebase/config';
 import { pruneUndefined } from '../utils/pruneUndefined';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
@@ -21,6 +23,17 @@ import type { WorkflowDefinition, WorkflowParameter, WorkflowStep } from '../../
 import type { WorkflowDateReached, WorkflowSchedule } from '../../domain/schema/workflowClock';
 
 import { LocalizedError } from '../../domain/errors/LocalizedError';
+
+/**
+ * Toda gravação de CONTEÚDO diz de onde veio: quem não disse é uma edição. É o que o versionamento do
+ * servidor copia para a versão — ele não tem como saber se quem gravou foi a tela ou a instalação.
+ * Gravação que não toca conteúdo (ligar, desligar, os donos) não leva origem nenhuma.
+ */
+const withContentOrigin = <T extends Record<string, unknown>>(data: T): T =>
+  data.contentOrigin === undefined && WORKFLOW_VERSION_CONTENT_KEYS.some((key) => data[key] !== undefined)
+    ? { ...data, contentOrigin: EDIT_ORIGIN }
+    : data;
+
 const toDate = (v: unknown): Date => (v instanceof Timestamp ? v.toDate() : (v as Date));
 
 const definitionsRef = (tenantId: string) =>
@@ -75,7 +88,7 @@ export class FirebaseWorkflowDefinitionRepository implements IWorkflowDefinition
     id?: string,
   ): Promise<WorkflowDefinition> {
     const payload = {
-      ...pruneUndefined(data),
+      ...withContentOrigin(pruneUndefined(data)),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -102,11 +115,20 @@ export class FirebaseWorkflowDefinitionRepository implements IWorkflowDefinition
     id: string,
     data: Partial<Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt'>>,
   ): Promise<void> {
-    await updateDoc(doc(definitionsRef(tenantId), id), { ...pruneUndefined(data), updatedAt: serverTimestamp() });
+    await updateDoc(doc(definitionsRef(tenantId), id), { ...withContentOrigin(pruneUndefined(data)), updatedAt: serverTimestamp() });
   }
 
-  async updateWorkflowSteps(tenantId: string, id: string, steps: WorkflowStep[]): Promise<void> {
-    await updateDoc(doc(definitionsRef(tenantId), id), { steps: pruneUndefined(steps), updatedAt: serverTimestamp() });
+  async updateWorkflowSteps(
+    tenantId: string,
+    id: string,
+    steps: WorkflowStep[],
+    origin: WorkflowContentOrigin = EDIT_ORIGIN,
+  ): Promise<void> {
+    await updateDoc(doc(definitionsRef(tenantId), id), {
+      steps: pruneUndefined(steps),
+      contentOrigin: origin,
+      updatedAt: serverTimestamp(),
+    });
   }
 
   async deleteWorkflowDefinition(tenantId: string, id: string): Promise<void> {

@@ -134,6 +134,8 @@ export const workflowInputFromTemplate = (
       : rest.eventName;
   return stripUndefined({
     ...rest, steps, eventName, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null, enabled: true,
+    // A versão que esta gravação gerar é DA EXTENSÃO, nesta revisão — é o que o histórico mostra.
+    contentOrigin: { kind: 'extension', pluginId, sourceRev: template.sourceRev ?? null },
   });
 };
 

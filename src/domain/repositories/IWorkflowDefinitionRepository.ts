@@ -1,4 +1,5 @@
 import type { WorkflowDefinition, WorkflowStep } from '../entities/Workflow';
+import type { WorkflowContentOrigin } from '../schema/workflowVersion';
 
 export interface IWorkflowDefinitionRepository {
   getWorkflowDefinitions(tenantId: string): Promise<WorkflowDefinition[]>;
@@ -15,6 +16,7 @@ export interface IWorkflowDefinitionRepository {
     id: string,
     data: Partial<Omit<WorkflowDefinition, 'id' | 'tenantId' | 'createdAt'>>,
   ): Promise<void>;
-  updateWorkflowSteps(tenantId: string, id: string, steps: WorkflowStep[]): Promise<void>;
+  /** `origin` ausente é EDIÇÃO; a instalação de extensão diz que é ela (ver `WorkflowContentOrigin`). */
+  updateWorkflowSteps(tenantId: string, id: string, steps: WorkflowStep[], origin?: WorkflowContentOrigin): Promise<void>;
   deleteWorkflowDefinition(tenantId: string, id: string): Promise<void>;
 }

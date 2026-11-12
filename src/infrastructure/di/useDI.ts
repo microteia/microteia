@@ -36,6 +36,7 @@ import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IW
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
 import type { IWorkflowTaskRepository } from '../../domain/repositories/IWorkflowTaskRepository';
 import type { IWorkflowWebhookRepository } from '../../domain/repositories/IWorkflowWebhookRepository';
+import type { IWorkflowVersionRepository } from '../../domain/repositories/IWorkflowVersionRepository';
 import type { IWorkflowClockRepository } from '../../domain/repositories/IWorkflowClockRepository';
 import type { IScriptRepository } from '../../domain/repositories/IScriptRepository';
 import type { IDataProcessorRepository } from '../../domain/repositories/IDataProcessorRepository';
@@ -101,6 +102,7 @@ export interface DIContainer {
   workflowExecutionRepository: IWorkflowExecutionRepository;
   workflowTaskRepository: IWorkflowTaskRepository;
   workflowWebhookRepository: IWorkflowWebhookRepository;
+  workflowVersionRepository: IWorkflowVersionRepository;
   workflowClockRepository: IWorkflowClockRepository;
   scriptRepository: IScriptRepository;
   dataProcessorRepository: IDataProcessorRepository;

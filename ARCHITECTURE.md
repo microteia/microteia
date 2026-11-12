@@ -9090,6 +9090,50 @@ Uma regra que depende do estado de AGORA ("dois dias depois, se ainda estiver ab
 | `functions/src/domain/services/workflowSuspension.ts` | guardar a continuação de quem esperou, e retomá-la |
 | `functions/src/infrastructure/workflow/steps/DelayStep.ts` | o passo `delay` — só pede a pausa |
 
+### Versões de automação — e a execução presa à versão em que começou
+
+**O defeito que isto fecha:** uma execução que pausa (aprovação, `wait-for`, `delay`) retomava na
+definição de AGORA, a partir do "passo depois de X". Editar a lista de passos durante a espera mudava ONDE
+ela continuava — um passo apagado, reordenado ou renomeado, e a execução seguia por outro caminho, ou
+citava saídas que não existiam mais, sem erro nenhum.
+
+- **Versão pelo servidor** (`versionWorkflowDefinition`, gatilho na definição; `versionWorkflowOnWrite`):
+  a cada mudança de CONTEÚDO (`WORKFLOW_VERSION_CONTENT_KEYS`, comparado por `canonicalJson` — ligar e
+  desligar não contam), guarda `workflow_definitions/{id}/versions/{n}` imutável e grava `version: n`. O
+  número vem da versão de antes mais um — o cliente não sabe quantas vezes ela mudou, e a instalação de
+  extensão grava `version: 1` de novo. A versão de ANTES também é guardada, se faltava: é ela que uma
+  execução parada desde antes do versionamento precisa. Gravar o número dispara o gatilho de novo, e o
+  conteúdo igual o encerra ali. Regra: todo membro lê as versões; ninguém grava pelo cliente.
+- **Origem de cada versão — edição ou extensão.** Quem grava diz de onde veio (`contentOrigin` na
+  definição, `WorkflowContentOrigin`): o repositório do front marca EDIÇÃO em toda gravação de conteúdo que
+  não disse nada (`withContentOrigin`), e a instalação marca a extensão com a revisão do pacote
+  (`workflowInputFromTemplate`). O gatilho copia a origem para a versão, e a aba "Versões" a mostra. Uma
+  automação de extensão editada à mão e depois sobrescrita por uma atualização (quando a revisão do pacote
+  é maior) não perde a edição: ela fica no histórico, restaurável.
+- **A atualização de extensão é UMA versão.** Ela grava em duas passadas — o conteúdo, depois o
+  remapeamento dos ids de `call-workflow` —, e a segunda, da MESMA instalação (extensão e revisão,
+  `sameInstallation`), completa a versão que a primeira criou: a intermediária tinha referências no id do
+  pacote, e restaurá-la seria um erro.
+- **Numeração contínua.** O número seguinte é o maior entre a versão de antes e a maior GUARDADA: a
+  desinstalação apaga a automação e mantém as versões, e a reinstalação com o mesmo id continua a contagem
+  em vez de colidir com a versão 1 antiga (imutável, ela mostraria o conteúdo velho).
+- **Execução presa:** a continuação leva `definitionVersion`; `resumeWorkflowExecution` aplica o
+  conteúdo daquela versão sobre o estado de agora (`pinnedDefinition`) — desligada, apagada ou com a
+  extensão desativada continua cancelando — e registra `run.resume.pinned` quando a versão difere. Sem a
+  versão guardada, segue a de agora (o comportamento de antes).
+- **Dependências não são presas, e isto é decisão:** script e automação chamada são resolvidos na hora em
+  que rodam, como uma biblioteca. O contrato com eles é entrada e saída, e uma mudança que o quebra aparece
+  como falha do passo (que o `onError` trata), não como desvio silencioso. A automação chamada roda inteira
+  na hora da chamada e não pode pausar, então nunca mistura versões dentro dela. ABORTAR por causa de uma
+  dependência alterada seria pior: a maior parte das edições é correção, e uma aprovação de dias seria
+  descartada por uma vírgula. O que a retomada faz é AVISAR: `changedDependencies` confere os scripts e as
+  automações chamadas pelos passos LIGADOS que ainda vão rodar, e registra `run.resume.script-changed` /
+  `run.resume.workflow-changed` para cada um alterado depois que a execução começou.
+- **Tela:** aba "Versões" (as 50 mais recentes, com a atual marcada); "Restaurar" grava o conteúdo daquela
+  versão como a automação de agora — vira uma versão NOVA, e nada se perde.
+- **Ainda não:** versão de script com histórico próprio, diff entre versões e rascunho separado do
+  publicado.
+
 ### Gatilho de webhook — `webhook.received`
 
 Um sistema de FORA dispara uma automação por HTTP. É o segundo `onRequest` do produto, e a mesma
