@@ -555,6 +555,55 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
             />
           </S.Group>
 
+          {/* Com ou SEM registros de outra coleção apontando para estes: "clientes sem pedido nos
+              últimos 90 dias". Só as referências que apontam para a coleção do relatório são oferecidas. */}
+          <S.Group>
+            <S.GroupHeader>
+              <S.Legend>{vm.labels.related}</S.Legend>
+            </S.GroupHeader>
+            <S.Hint>{vm.labels.relatedHint}</S.Hint>
+            {vm.related.map((related, index) => (
+              <S.Item key={`${related.label}:${related.mode}:${index}`}>
+                <div>
+                  <S.ItemLabel>{`${related.mode} · ${related.label}`}</S.ItemLabel>
+                  {related.condition && <S.ItemMeta>{related.condition}</S.ItemMeta>}
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => vm.removeRelated(index)}>
+                  {vm.labels.remove}
+                </Button>
+              </S.Item>
+            ))}
+            <S.Row>
+              <S.Grow>
+                <SearchSelect options={vm.relatedModeOptions} value={vm.relatedMode} onChange={vm.setRelatedMode} />
+              </S.Grow>
+              <S.Grow>
+                <SearchSelect
+                  options={vm.relatedTargetOptions}
+                  value={vm.relatedTarget}
+                  onChange={vm.setRelatedTarget}
+                  placeholder={vm.labels.add}
+                />
+              </S.Grow>
+            </S.Row>
+            {vm.relatedTarget !== '' && (
+              <>
+                <S.Hint>{vm.labels.relatedCondition}</S.Hint>
+                <ExpressionEditor
+                  value={vm.relatedCondition}
+                  onChange={vm.setRelatedCondition}
+                  workflowVariables={vm.relatedExpressionVariables}
+                  placeholder={vm.labels.relatedConditionPlaceholder}
+                />
+              </>
+            )}
+            <S.Row>
+              <Button variant="secondary" size="sm" onClick={vm.addRelated} disabled={!vm.canAddRelated}>
+                {vm.labels.add}
+              </Button>
+            </S.Row>
+          </S.Group>
+
           <S.Group>
             <S.Legend>{vm.labels.chart}</S.Legend>
             <S.Hint>{vm.labels.chartHint}</S.Hint>

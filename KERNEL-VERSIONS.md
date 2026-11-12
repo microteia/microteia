@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.243.0] — 2026-11-12
+
+- feat(reports): `dataset.related: [{ table, via, mode: 'with' | 'without', where?, includeWhen? }]` keeps only the records that have — or have no — records of another collection pointing to them (AND across entries). Not a join: nothing of the related record becomes a column. `via` must be the related collection's reference to `dataset.table` (`related.via.not-reference` otherwise). Executed in `runReportQuery` after `includeWhen`: one scan per entry through `runWorkflowQuery` (where pushed down, record visibility applied), `includeWhen` over the related rows via the extracted `filterRowsByExpression`, `keepByRelated` on the referenced ids (multi references count each item). A related scan that hits the ceiling marks the result partial.
+- feat(reports): the related collection and its path hops join `reportSourceCollections`, so its `.read` is required. New capability `dataset.related` (an older kernel refuses by name); taught to the AI draft grammar; designer section "Related records". `KERNEL_VERSION` 2.121.0.
+
 #### [9.242.0] — 2026-11-12
 
 - feat(reports): personal reports in `tenants/{id}/personalReports` (`PERSONAL_REPORTS_COLLECTION`, generated ids, `ownerId`), gated by the new `reports.personal` permission. Rules: only the author reads and deletes (not even the tenant owner); create/update need the permission and keep `ownerId`; deleting one's own does not. A separate collection, not a visibility field on `reports`: rules do not filter, and the report list reads the whole collection. Name reserved in `firestore.rules` and `screenEntity.ts`.

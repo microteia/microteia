@@ -47,6 +47,7 @@ import type {
   ReportMeasure,
   ReportPresentation,
   ReportPrompt,
+  ReportRelated,
   ReportShape,
   ReportSpec,
   ReportTabularShape,
@@ -219,6 +220,8 @@ interface ReportDraft {
   filters: QueryPredicate[];
   /** A pergunta feita sobre a LINHA. Vazio = nada a mais do que os predicados já dizem. */
   filterExpression: string;
+  /** Com ou sem registros de outra coleção apontando para o do relatório (`dataset.related`). */
+  related: ReportRelated[];
   /** Vazio = sem gráfico. A tabela sozinha é um relatório legítimo. */
   chartKind: string;
   chartCategory: string;
@@ -389,6 +392,23 @@ export interface ReportDesignViewModel {
   setFilterExpression: (expression: string) => void;
   expressionVariables: WorkflowVariable[];
 
+  /** As condições de relacionados já declaradas, como a tela as lista. */
+  related: { label: string; mode: string; condition: string }[];
+  removeRelated: (index: number) => void;
+  /** Cada referência de OUTRA tela que aponta para a coleção do relatório: `<coleção>|<campo>`. */
+  relatedTargetOptions: { value: string; label: string }[];
+  relatedTarget: string;
+  setRelatedTarget: (value: string) => void;
+  relatedMode: 'with' | 'without';
+  setRelatedMode: (value: string) => void;
+  relatedModeOptions: { value: string; label: string }[];
+  relatedCondition: string;
+  setRelatedCondition: (value: string) => void;
+  /** As variáveis do editor da condição: os campos do RELACIONADO, não os do relatório. */
+  relatedExpressionVariables: WorkflowVariable[];
+  canAddRelated: boolean;
+  addRelated: () => void;
+
   chartKind: string;
   setChartKind: (kind: string) => void;
   chartCategory: string;
@@ -439,6 +459,10 @@ export interface ReportDesignViewModel {
     table: string;
     reportTitle: string;
     visibility: string;
+    related: string;
+    relatedHint: string;
+    relatedCondition: string;
+    relatedConditionPlaceholder: string;
     dimensions: string;
     dimensionsHint: string;
     measures: string;
@@ -651,6 +675,7 @@ const draftFromSpec = (spec: ReportSpec, title: string): ReportDraft => ({
   groupDimensions: groupDimensionsOf(spec),
   filters: spec.dataset.where ?? [],
   filterExpression: spec.dataset.includeWhen ?? '',
+  related: spec.dataset.related ?? [],
   chartKind: spec.presentation?.chart?.kind ?? '',
   chartCategory: spec.presentation?.chart?.category ?? '',
   chartSeries: spec.presentation?.chart?.series ?? [],
@@ -764,6 +789,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         groupDimensions: [],
         filters: [],
         filterExpression: '',
+        related: [],
         chartKind: '',
         chartCategory: '',
         chartSeries: [],
@@ -847,6 +873,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       groupDimensions: [],
       filters: [],
       filterExpression: '',
+      related: [],
       chartKind: '',
       chartCategory: '',
       chartSeries: [],
@@ -1150,6 +1177,51 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     [pathOptions, t],
   );
 
+  // O que pode ser "relacionado": toda referência de OUTRA tela que aponta para a coleção do relatório.
+  // Só essas — com outro campo, "sem pedido" compararia um id que nunca casa, e todos sairiam sem.
+  const relatedTargetOptions = useMemo(
+    () => dynamicScreens.flatMap((screen) => screen.fields
+      .filter((field) => field.refEntity === draft.table)
+      .map((field) => ({
+        value: `${screenDataCollection(screen)}|${field.key}`,
+        label: `${label(screen.titlePlural || screen.titleSingular)} · ${label(field.label)}`,
+      }))),
+    [dynamicScreens, draft.table, label],
+  );
+  const [relatedTarget, setRelatedTarget] = useState('');
+  const [relatedMode, setRelatedModeState] = useState<'with' | 'without'>('without');
+  const [relatedCondition, setRelatedCondition] = useState('');
+  const relatedTable = relatedTarget.split('|')[0] ?? '';
+  const relatedPathOptions = useReportPathOptions(relatedTable);
+  const relatedExpressionVariables = useMemo<WorkflowVariable[]>(
+    () => reportExpressionVariables(relatedPathOptions, t('design.expression.record-id')),
+    [relatedPathOptions, t],
+  );
+  const relatedModeOptions = useMemo(
+    () => [
+      { value: 'without', label: t('design.related.without') },
+      { value: 'with', label: t('design.related.with') },
+    ],
+    [t],
+  );
+  const addRelated = useCallback(() => {
+    const [table, via] = relatedTarget.split('|');
+    if (!table || !via) return;
+    const condition = relatedCondition.trim();
+    change({ related: [...draft.related, { table, via, mode: relatedMode, ...(condition ? { includeWhen: condition } : {}) }] });
+    setRelatedTarget('');
+    setRelatedCondition('');
+  }, [relatedTarget, relatedCondition, relatedMode, draft.related, change]);
+  const relatedRows = useMemo(
+    () => draft.related.map((related) => ({
+      label: relatedTargetOptions.find((option) => option.value === `${related.table}|${related.via}`)?.label
+        ?? `${related.table} · ${related.via}`,
+      mode: t(related.mode === 'with' ? 'design.related.with' : 'design.related.without'),
+      condition: related.includeWhen ?? '',
+    })),
+    [draft.related, relatedTargetOptions, t],
+  );
+
   /**
    * O agrupamento com o que a TELA precisa saber sobre ele: se é data, e onde está na ordem.
    *
@@ -1357,6 +1429,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         ...(draft.filterExpression.trim() !== ''
           ? { includeWhen: draft.filterExpression.trim() }
           : {}),
+        ...(draft.related.length > 0 ? { related: draft.related } : {}),
         dimensions: draft.dimensions,
         measures: draft.measures,
         ...(Number.isFinite(scan) && scan > 0 ? { scanLimit: scan } : {}),
@@ -1590,6 +1663,20 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     setFilterExpression: (filterExpression) => change({ filterExpression }),
     expressionVariables,
 
+    related: relatedRows,
+    removeRelated: (index) => change({ related: draft.related.filter((_, at) => at !== index) }),
+    relatedTargetOptions,
+    relatedTarget,
+    setRelatedTarget,
+    relatedMode,
+    setRelatedMode: (value) => setRelatedModeState(value === 'with' ? 'with' : 'without'),
+    relatedModeOptions,
+    relatedCondition,
+    setRelatedCondition,
+    relatedExpressionVariables,
+    canAddRelated: relatedTarget !== '',
+    addRelated,
+
     chartKind: draft.chartKind,
     setChartKind: (chartKind) => change({ chartKind }),
     chartCategory: draft.chartCategory,
@@ -1648,6 +1735,10 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       table: t('design.table'),
       reportTitle: t('design.title'),
       visibility: t('design.visibility'),
+      related: t('design.related'),
+      relatedHint: t('design.related.hint'),
+      relatedCondition: t('design.related.condition'),
+      relatedConditionPlaceholder: t('design.related.condition.placeholder'),
       dimensions: t('design.dimensions'),
       dimensionsHint: t('design.dimensions.hint'),
       measures: t('design.measures'),

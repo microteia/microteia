@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.243.0] — 2026-11-12
+
+- Relatórios agora respondem "com" ou "sem" registros relacionados: por exemplo, os clientes sem pedido nos últimos 90 dias, ou os contratos com parcela vencida. Em "Registros relacionados", escolha a tela que aponta para a do relatório, se o registro deve ter ou não ter, e, se quiser, quais desses registros contam.
+
 #### [9.242.0] — 2026-11-12
 
 - Relatórios pessoais: quem tiver a permissão "Criar relatórios pessoais" pode montar relatórios que só ele vê, para as próprias perguntas, sem mexer nos relatórios do escritório. Eles aparecem na lista com o selo "Pessoal".

@@ -117,8 +117,19 @@ export const reportRowScope = (
  * Roda em memória, depois da varredura, e por isso ela apenas RESTRINGE: nada aqui amplia o que foi
  * lido, e o teto de varredura continua valendo com o mesmo significado.
  */
-export const filterReportRows = (input: ReportRowFilterInput): ReportRowFilterOutcome => {
-  const expression = (input.spec.dataset.includeWhen ?? '').trim();
+export const filterReportRows = (input: ReportRowFilterInput): ReportRowFilterOutcome =>
+  filterRowsByExpression(input.spec.dataset.includeWhen, input);
+
+/**
+ * A mesma avaliação para QUALQUER expressão de linha — a do relatório e a dos relacionados
+ * (`dataset.related[].includeWhen`), que perguntam sobre outra coleção com a mesma linguagem e a mesma
+ * regra de recusa. `entity` é a coleção da linha avaliada.
+ */
+export const filterRowsByExpression = (
+  rawExpression: string | undefined,
+  input: Omit<ReportRowFilterInput, 'spec'>,
+): ReportRowFilterOutcome => {
+  const expression = (rawExpression ?? '').trim();
   if (expression === '') return { ok: true, rows: input.rows };
 
   const paths = extractFieldExpressionPaths(expression);

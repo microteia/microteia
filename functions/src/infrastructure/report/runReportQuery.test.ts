@@ -10,6 +10,7 @@ import type { SchemaScreen } from '../../domain/schema/pathResolver';
 import { fakeScreenProvider } from '../../domain/repositories/fakeScreenProvider';
 import type { WorkflowContext, WorkflowLogger } from '../../domain/entities/WorkflowContext';
 import type { ReportSpec } from '../../domain/schema/report/reportSpec';
+import { reportRequiredPermissions } from '../../domain/schema/report/reportSpec';
 import { requireReportAccess, runReportQuery } from './runReportQuery';
 import { REPORT_MAX_SCAN } from './reportLimits';
 
@@ -885,3 +886,82 @@ describe('runReportQuery — dimensão calculada com faixas', () => {
   });
 });
 
+
+describe('runReportQuery — com ou sem registros relacionados', () => {
+  /** O dublê que SEPARA as coleções: o cruzamento lê duas, e um banco de uma coleção só mentiria. */
+  class ByCollection implements IWorkflowQueryRepository {
+    constructor(private readonly data: Record<string, WorkflowQueryRow[]>) {}
+    async queryByEquality(_tenantId: string, collection: string, filters: WorkflowEqualityFilter[]) {
+      return (this.data[collection] ?? []).filter((row) => filters.every((filter) => row.data[filter.path] === filter.value));
+    }
+  }
+  const clientes: WorkflowQueryRow[] = [
+    { id: 'c1', data: { nome: 'Ana', cidade: 'Salvador' } },
+    { id: 'c2', data: { nome: 'Bia', cidade: 'Salvador' } },
+    { id: 'c3', data: { nome: 'Caio', cidade: 'Recife' } },
+  ];
+  const relacionados = {
+    clientes,
+    lancamentos: [
+      { id: 'l1', data: { situacao: 'aberto', valor: 10, clienteId: 'c1' } },
+      { id: 'l2', data: { situacao: 'pago', valor: 99, clienteId: 'c2' } },
+    ],
+    processos: [{ id: 'p1', data: { titulo: 'P', poloAtivoIds: ['c1', 'c3'] } }],
+  };
+  const depsRelated = () => ({
+    queryRepository: new ByCollection(relacionados),
+    fetcher: new FakeFetcher(),
+    screenProvider: fakeScreenProvider([personsScreen, lancamentosScreen, processosScreen]),
+  });
+  const porCliente = (related: NonNullable<ReportSpec['dataset']['related']>): ReportSpec => ({
+    v: 1,
+    dataset: {
+      table: 'clientes',
+      related,
+      dimensions: [{ key: 'nome', path: 'nome' }],
+      measures: [{ key: 'qtd', op: 'count' }],
+    },
+    shape: { kind: 'summary', groupBy: [{ dimension: 'nome' }], values: ['qtd'] },
+  });
+  const nomes = async (related: NonNullable<ReportSpec['dataset']['related']>) => {
+    const outcome = await runReportQuery({ spec: porCliente(related), context: context(), deps: depsRelated() });
+    if (!outcome.ok) throw new Error(outcome.error);
+    return outcome.value.rows.map((row) => row.keys[0].key).sort();
+  };
+
+  it('SEM lançamento em aberto: quem não tem nenhum que atenda', async () => {
+    expect(await nomes([{
+      table: 'lancamentos', via: 'clienteId', mode: 'without',
+      where: [{ path: 'situacao', op: 'eq', value: { kind: 'Literal', value: 'aberto' } }],
+    }])).toEqual(['Bia', 'Caio']);
+  });
+
+  it('COM lançamento, e a expressão sobre o RELACIONADO restringe quais contam', async () => {
+    expect(await nomes([{ table: 'lancamentos', via: 'clienteId', mode: 'with' }])).toEqual(['Ana', 'Bia']);
+    expect(await nomes([{ table: 'lancamentos', via: 'clienteId', mode: 'with', includeWhen: 'valor > 50' }])).toEqual(['Bia']);
+  });
+
+  it('a referência múltipla conta para cada apontado, e duas condições valem juntas', async () => {
+    expect(await nomes([{ table: 'processos', via: 'poloAtivoIds', mode: 'with' }])).toEqual(['Ana', 'Caio']);
+    expect(await nomes([
+      { table: 'processos', via: 'poloAtivoIds', mode: 'with' },
+      { table: 'lancamentos', via: 'clienteId', mode: 'without' },
+    ])).toEqual(['Caio']);
+  });
+
+  it('o campo de ligação que não aponta para a coleção do relatório é recusado', async () => {
+    const outcome = await runReportQuery({
+      spec: porCliente([{ table: 'lancamentos', via: 'situacao', mode: 'without' }]),
+      context: context(),
+      deps: depsRelated(),
+    });
+    expect(outcome.ok).toBe(false);
+    expect((outcome.issues ?? []).map((issue) => issue.error)).toContain('@core.reports/related.via.not-reference');
+  });
+
+  it('o relacionado é LIDO: a permissão de leitura dele é cobrada como a da fonte', async () => {
+    const ctx = await fakeScreenProvider([personsScreen, lancamentosScreen, processosScreen]).getSchemaContext('t1');
+    expect(reportRequiredPermissions(porCliente([{ table: 'lancamentos', via: 'clienteId', mode: 'without' }]), ctx))
+      .toEqual(expect.arrayContaining(['clientes.read', 'lancamentos.read']));
+  });
+});

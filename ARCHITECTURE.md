@@ -10749,6 +10749,30 @@ relação ao `FieldInput` que ele envolve. A divergência é da PERGUNTA, não d
 sim e não esgotam o assunto e a caixa de marcar diz os dois; num filtro existe a terceira — "não
 filtre por isto" — que uma caixa desmarcada não distingue de "não".
 
+### Com ou sem registros relacionados (`dataset.related`)
+
+O registro do relatório entra só se TEM — ou se NÃO TEM — registros de outra coleção apontando para ele:
+"clientes sem pedido nos últimos 90 dias", "contratos com parcela vencida". Antes não havia como
+perguntar; o `join` continua reservado (`dataset.kind`), e isto não é ele — nada do relacionado vira
+coluna, ele só DECIDE quem entra. Por isso mora em `dataset`, com token próprio (`dataset.related`): o
+kernel que não o conhece recusa, em vez de contar todo mundo sob o título dos "sem pedido".
+
+- **Forma:** `{ table, via, mode: 'with' | 'without', where?, includeWhen? }`, várias valendo juntas (E).
+  `via` é a referência DO RELACIONADO para a coleção do relatório; `relatedIssues` (`reportRelated.ts`)
+  recusa outro campo — com ele, "sem" compararia um id que nunca casa, e todos sairiam "sem".
+- **Execução** (`runReportQuery`): depois do `includeWhen` do relatório, uma leitura por entrada pela
+  MESMA `runWorkflowQuery` (o `where` desce ao banco, a visibilidade por registro vale), a expressão do
+  relacionado avaliada em memória por `filterRowsByExpression` (a mesma do `includeWhen`, com a coleção
+  dele), e `keepByRelated` sobre os ids apontados (`relatedParentIds` — a referência múltipla conta para
+  cada item). Relacionado que bate no teto deixa o resultado PARCIAL: num "sem", o não lido é um registro a
+  mais.
+- **RBAC:** `reportSourceCollections` inclui a coleção relacionada e os saltos dos caminhos dela — o
+  relacionado é LIDO, e "sem pedido" não pode contar pedido de quem não vê pedido.
+- **Autoria:** o designer oferece só as referências de outras telas que apontam para a coleção do
+  relatório, o modo e a condição (expressão sobre o relacionado). O `where` do relacionado é preservado
+  quando vem de pacote ou da IA. A gramática do rascunho por IA o ensina (`REPORT_DRAFT_TEACHING`).
+- Capacidade nova → `KERNEL_VERSION` 2.121.0.
+
 ### O filtro por EXPRESSÃO — a pergunta que nenhum predicado escreve
 
 `dataset.where` compara UM caminho com UM valor, e é isso que o faz barato: uma igualdade desce ao

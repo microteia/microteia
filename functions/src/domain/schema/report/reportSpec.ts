@@ -188,6 +188,30 @@ export type ReportMeasure = ReportAggregateMeasure | ReportComputedMeasure;
 export const isAggregateMeasure = (measure: ReportMeasure): measure is ReportAggregateMeasure =>
   measure.kind === undefined || measure.kind === 'aggregate';
 
+/** Se o registro do relatório precisa ter ou NÃO ter os relacionados. */
+export const REPORT_RELATED_MODES = ['with', 'without'] as const;
+export type ReportRelatedMode = typeof REPORT_RELATED_MODES[number];
+
+/**
+ * Os registros de OUTRA coleção que apontam para o do relatório — a pergunta "com" ou "sem" filhos.
+ *
+ * Não é o `join` (o discriminante de `dataset.kind` continua reservado para ele): nenhuma coluna do filho
+ * entra no relatório, e nenhum número muda de linha. O filho só DECIDE se o registro do relatório entra —
+ * é um filtro, e por isso mora em `dataset`, ao lado de `where` e `includeWhen`, e um kernel que não o
+ * conheça RECUSA o relatório pelo token `dataset.related` em vez de contar todo mundo.
+ */
+export interface ReportRelated {
+  /** A coleção dos relacionados (o pedido, a parcela). */
+  table: string;
+  /** O campo de referência, NO RELACIONADO, que aponta para a coleção do relatório (`clienteId`). */
+  via: string;
+  mode: ReportRelatedMode;
+  /** Só contam os relacionados que atendem — o filtro fixo, com a gramática de `dataset.where`. */
+  where?: QueryPredicate[];
+  /** Só contam os relacionados para os quais a expressão vale — "nos últimos 90 dias". Sobre o RELACIONADO. */
+  includeWhen?: string;
+}
+
 export interface ReportDataset {
   /** Ausente = `collection`. Mudar este padrão é QUEBRA, ainda que nenhum JSON mude. */
   kind?: ReportDatasetKind;
@@ -217,6 +241,12 @@ export interface ReportDataset {
    * RECUSAR o relatório pelo nome dela — em vez de somar, calado, justamente as linhas que ela exclui.
    */
   includeWhen?: string;
+  /**
+   * O registro entra só se TEM — ou só se NÃO TEM — registros de outra coleção apontando para ele: os
+   * clientes sem pedido nos últimos 90 dias, os contratos com parcela vencida. Várias entradas valem
+   * juntas (E). Ver `ReportRelated`.
+   */
+  related?: ReportRelated[];
   dimensions?: ReportDimension[];
   measures?: ReportMeasure[];
   /** Teto de registros VARRIDOS. Pedido acima do teto do executor é grampeado, nunca recusado. */
@@ -525,6 +555,22 @@ export const reportSourceCollections = (spec: ReportSpec, ctx: SchemaContext): s
   for (const path of reportPaths(spec)) {
     const resolution = resolvePath(ctx, resolved.root, parsePath(path));
     for (const hop of resolution.hops) collections.add(hop.targetCollection);
+  }
+
+  // O relacionado é LIDO — os pedidos de cada cliente —, então a leitura dele é cobrada como a da fonte.
+  // Sem isto, "clientes sem pedido" contaria pedidos de quem não pode ver pedido nenhum.
+  for (const related of spec.dataset.related ?? []) {
+    const table = resolveQueryTable(related.table, ctx);
+    if (!table) continue;
+    collections.add(table.physicalCollection);
+    const relatedPaths = [
+      related.via,
+      ...(related.where ?? []).map((predicate) => predicate.path),
+      ...extractFieldExpressionPaths(related.includeWhen),
+    ];
+    for (const path of relatedPaths) {
+      for (const hop of resolvePath(ctx, table.root, parsePath(path)).hops) collections.add(hop.targetCollection);
+    }
   }
 
   return [...collections];

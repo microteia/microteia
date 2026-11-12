@@ -1,4 +1,6 @@
 import { requirePermission } from '../handlers/shared/requirePermission';
+import { keepByRelated, relatedParentIds, relatedQuery } from '../../domain/schema/report/reportRelated';
+import type { ResolvedRelated } from '../../domain/schema/report/reportRelated';
 import type { CallerAuth } from '../handlers/shared/requirePermission';
 import { resolveMapping } from '../../domain/engine/InputMapping';
 import { businessCalendarsFor } from '../../domain/services/businessCalendarScope';
@@ -10,7 +12,7 @@ import type { QueryPredicate, QuerySpec } from '../../domain/schema/querySpec';
 import type { ResolvedPredicate } from '../../domain/schema/predicateMatch';
 import { aggregateReportRows, drillReportRows } from '../../domain/schema/report/aggregateRows';
 import type { ReportDrillResult, ReportDrillTarget } from '../../domain/schema/report/aggregateRows';
-import { filterReportRows } from '../../domain/schema/report/reportRowFilter';
+import { filterReportRows, filterRowsByExpression } from '../../domain/schema/report/reportRowFilter';
 import { materializeReportDimensions } from '../../domain/schema/report/reportComputedDimension';
 import type { ReportResult } from '../../domain/schema/report/reportResult';
 import {
@@ -251,8 +253,33 @@ export const runReportQuery = async ({
   if (!kept.ok) {
     return { ok: false, error: kept.error, errorParams: kept.errorParams, issues };
   }
+
+  /*
+   * Com ou SEM relacionados (`dataset.related`): uma leitura por entrada, com o filtro fixo dela no banco
+   * e a expressão em memória — sobre o RELACIONADO, como o leitor o vê (a mesma visibilidade por
+   * registro). O relacionado que a varredura não alcançou deixa o resultado PARCIAL: num "sem pedido",
+   * um pedido não lido é um cliente contado a mais, e isso precisa estar dito na tela.
+   */
+  const resolvedRelated: ResolvedRelated[] = [];
+  let relatedComplete = true;
+  for (const related of spec.dataset.related ?? []) {
+    const read = await runWorkflowQuery(relatedQuery(related, REPORT_MAX_SCAN), context, deps, {
+      maxScan: REPORT_MAX_SCAN,
+      maxResults: REPORT_MAX_SCAN,
+    });
+    if (!read.ok) return { ok: false, error: read.error, errorParams: read.errorParams, issues };
+    const matching = filterRowsByExpression(related.includeWhen, {
+      ...rowContext,
+      entity: resolveQueryTable(related.table, schema)?.physicalCollection,
+      rows: read.value.results,
+    });
+    if (!matching.ok) return { ok: false, error: matching.error, errorParams: matching.errorParams, issues };
+    relatedComplete = relatedComplete && read.value.complete;
+    resolvedRelated.push({ mode: related.mode, ids: relatedParentIds(matching.rows, related.via) });
+  }
+
   // As dimensões calculadas, uma vez por linha e depois do filtro — o que ele descartou não é calculado.
-  const filtered = materializeReportDimensions({ ...rowContext, rows: kept.rows });
+  const filtered = materializeReportDimensions({ ...rowContext, rows: keepByRelated(kept.rows, resolvedRelated) });
   if (!filtered.ok) {
     return { ok: false, error: filtered.error, errorParams: filtered.errorParams, issues };
   }
@@ -289,7 +316,7 @@ export const runReportQuery = async ({
       rows: filtered.rows,
       measureFilters,
       scanned: outcome.value.scanned,
-      complete: outcome.value.complete,
+      complete: outcome.value.complete && relatedComplete,
       limits: {
         maxGroups: REPORT_MAX_GROUPS,
         maxColumns: REPORT_MAX_COLUMNS,

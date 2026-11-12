@@ -4131,6 +4131,34 @@ Three properties follow from where it runs, and each one matters:
 It lives in \`dataset\`, so an older kernel that does not execute it **refuses** the report by the name
 of the token (\`dataset.includeWhen\`) rather than summing the rows it would have excluded.
 
+### With or without related records — \`dataset.related\`
+
+\`\`\`ts
+dataset: {
+  table: 'clients',
+  related: [{
+    table: 'orders',            // the OTHER collection
+    via: 'clientId',            // its reference field pointing to \`dataset.table\`
+    mode: 'without',            // 'with' | 'without'
+    includeWhen: 'dateDiff(today(), date) <= 90',   // optional: which of them count — on the ORDER
+  }],
+}
+// clients without an order in the last 90 days
+\`\`\`
+
+A record of the report enters only if it has — or has NO — records of the other collection pointing to it.
+Several entries all apply (AND). The related records are filtered by \`where\` (pushed to the database)
+and \`includeWhen\` (an expression over the related record), and nothing of theirs becomes a column: they
+only decide which records of the report count.
+
+- \`via\` must be a reference of the related collection pointing to the report's table; any other field is
+  refused, because "without" would compare an id that never matches and keep everyone.
+- The related collection is **read**: its \`.read\` permission is required like the source's, and the
+  reader's record visibility applies to it.
+- A related scan that hits the ceiling marks the result **partial** — in a "without", an unread related
+  record is a record counted too many.
+- It lives in \`dataset\`, so an older kernel refuses the report by the token \`dataset.related\`.
+
 ### What is refused, and what is only warned about
 
 The same function checks a report before it is packaged, before it is saved and before it runs — there

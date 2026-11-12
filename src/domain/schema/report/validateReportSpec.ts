@@ -6,6 +6,7 @@
 import { isValidAccessPermissionId } from '../access/permission';
 import { extractFieldExpressionPaths, fieldExpressionSyntaxError } from '../fieldExpression';
 import { NUMERIC_AGGREGATION_OPS } from '../fieldRules';
+import { relatedIssues } from './reportRelated';
 import { parsePath, resolvePath } from '../pathResolver';
 import type { PathRoot, SchemaContext } from '../pathResolver';
 import { checkQueryPath, checkQueryPredicates, QUERY_OPERATORS, resolveQueryTable } from '../querySpec';
@@ -523,6 +524,7 @@ export const validateReportSpec = (
   };
 
   issues.push(...checkQueryPredicates(ctx.schema, root, spec.dataset.where ?? [], 'dataset.where'));
+  issues.push(...relatedIssues(spec, ctx.schema));
 
   // Os caminhos que a EXPRESSÃO lê passam pela mesma porta dos outros: é a lista que a hidratação
   // traz e que o RBAC cobra, então um caminho que o esquema não sabe atravessar tem de aparecer aqui

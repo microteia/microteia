@@ -34,6 +34,8 @@ export const REPORT_DRAFT_TEACHING: Readonly<Record<string, string | null>> = {
     `"dataset.table" is one collection below. "dataset.where" is the FIXED filter: [{ "path": "<field>", "op": ${list(QUERY_OPERATORS)}, "value": { "kind": "Literal", "value": <value> } }] — "exists" takes no value.`,
   'dataset.includeWhen':
     '"dataset.includeWhen" is a filter EXPRESSION on the record, true keeps it — for what "where" cannot say: two fields compared, a date relative to today, an "or". Fields by key, a reference navigated as "<refField>.<field>".',
+  'dataset.related':
+    '"dataset.related": [{ "table": "<other collection>", "via": "<its reference field pointing to dataset.table>", "mode": "with" | "without", "where"?: [...], "includeWhen"?: "<expression on the OTHER record>" }] keeps only records that have — or have NO — such records: clients without orders in the last 90 days, contracts with an overdue installment.',
   'dataset.dimension.expression':
     'A computed dimension: { "key", "label", "expression": "<expression on the record>" } instead of "path" — e.g. days overdue.',
   'dimension.buckets':

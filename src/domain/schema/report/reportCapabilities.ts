@@ -19,6 +19,7 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'dataset.collection',
   'dataset.dimension.expression',
   'dataset.includeWhen',
+  'dataset.related',
   'dimension.buckets',
   'dimension.granularity',
   'dimension.others',
@@ -71,6 +72,9 @@ export const deriveReportRequires = (spec: ReportSpec): string[] => {
   // O filtro por expressão pede token PRÓPRIO, e sob `dataset.` de propósito: um kernel que não o
   // execute somaria justamente as linhas que ele exclui, com o mesmo rótulo no total.
   if ((spec.dataset.includeWhen ?? '').trim() !== '') required.add('dataset.includeWhen');
+  // Sob `dataset.` pelo mesmo motivo: o kernel que não o conhece contaria TODOS os registros, com e sem
+  // relacionado, sob o título de quem pediu só os sem pedido.
+  if ((spec.dataset.related ?? []).length > 0) required.add('dataset.related');
 
   // Ordenar pelo valor de uma MEDIDA é o Top N, e é executado; ordenar pelo rótulo continua só
   // previsto. São dois tokens porque são duas respostas — um só faria o kernel que sabe a primeira
