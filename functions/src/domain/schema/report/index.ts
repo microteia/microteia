@@ -70,6 +70,16 @@ export type { ReportDayRange, ReportPeriod } from './reportPeriod';
 export { reportHighlightTone } from './reportHighlight';
 
 export {
+  RUN_REPORT_MAX_ROWS,
+  RUN_REPORT_STEP_ID,
+  WORKFLOW_RUN_REPORT_SINCE_KERNEL,
+  reportPromptParameters,
+  reportTabLink,
+  runReportStepOutputs,
+} from './reportStep';
+export type { RunReportStepOutputs } from './reportStep';
+
+export {
   computedMeasureCycles,
   computedMeasureReferences,
   evaluateComputedMeasure,

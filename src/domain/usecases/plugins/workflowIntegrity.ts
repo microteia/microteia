@@ -59,6 +59,7 @@ import {
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { hasChangeFilter, WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../schema/workflowChangeFilter';
 import { APPROVAL_STEP_ID, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../schema/workflowTask';
+import { RUN_REPORT_STEP_ID, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../schema/report/reportStep';
 import { screenEventPrefix } from './screenModule';
 import { RENDER_DOCUMENT_STEP_ID, declaredDocumentTemplates, renderDocumentStepIssues, renderDocumentTemplateKey } from './documentStepIntegrity';
 
@@ -331,6 +332,7 @@ const workflowIssues = (
     ...excludedStepIssues(workflow, steps, ref),
     ...delayIssues(workflow, steps, ref, pkg),
     ...flowControlKernelIssues(workflow, steps, ref, pkg),
+    ...stepDefinitionKernelIssues(steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
     ...outputRefIssues(steps, ref),
     ...documentStepIssues(steps, ref, pkg),
@@ -678,6 +680,31 @@ const flowControlKernelIssues = (
     message: '@core.marketplace/issue.workflow.feature-kernel',
     messageParams: { feature, minimum: WORKFLOW_FLOW_CONTROL_SINCE_KERNEL },
   }));
+};
+
+/**
+ * O kernel a partir do qual existe cada passo do catálogo que chegou DEPOIS do pacote mais antigo que
+ * ainda instala. Um pacote que admite kernel anterior instalaria um fluxo que reprova no passo — "passo
+ * desconhecido" na primeira execução, longe de quem empacotou.
+ *
+ * Os passos que PAUSAM ficam em `delayIssues`, que já confere o resto do que eles exigem.
+ */
+const STEP_DEFINITION_SINCE_KERNEL: Readonly<Record<string, string>> = {
+  [RUN_REPORT_STEP_ID]: WORKFLOW_RUN_REPORT_SINCE_KERNEL,
+};
+
+const stepDefinitionKernelIssues = (
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  const declared = pkg.manifest?.kernel ?? '';
+  return Object.entries(STEP_DEFINITION_SINCE_KERNEL).flatMap(([definition, minimum]) => {
+    const first = steps.find((step) => step.stepDefinitionId === definition);
+    return first && !rangeExcludesBelow(declared, minimum)
+      ? [{ ref, message: '@core.marketplace/issue.step.definition-kernel', messageParams: { step: first.id, definition, minimum } }]
+      : [];
+  });
 };
 
 /**

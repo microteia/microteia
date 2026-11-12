@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.228.0] — 2026-11-12
+
+- Novo passo de automação **Executar relatório**: a automação roda um relatório do escritório, com os filtros que você escolher, e usa o resultado nos próximos passos — enviar o total, comparar com um limite, decidir o caminho.
+- Os relatórios ganharam o botão **Assinar**: escolha quando (todo dia, toda segunda ou todo dia 1º, no horário que preferir) e quem recebe, e o aviso chega no app e por e-mail com o link para o relatório já atualizado.
+- Na assinatura, dá para pedir um **alerta**: o aviso só chega quando um número do relatório passa do limite que você definiu.
+
 #### [9.227.0] — 2026-11-11
 
 - Aprovações nas automações: o novo passo "Aprovação" para a automação e pede a uma ou mais pessoas que decidam — aprovar um desconto, liberar um pedido, revisar um texto. Quem decide é avisado, escolhe a resposta (com um comentário, se quiser) e a automação continua na hora pelo caminho escolhido.

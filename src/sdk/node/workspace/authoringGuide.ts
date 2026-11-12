@@ -57,6 +57,7 @@ import { MAX_STEP_RETRIES, STEP_TYPES } from '../../../domain/entities/Workflow'
 import { WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../../domain/schema/workflowChangeFilter';
 import { REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
 import { WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../../domain/schema/workflowTask';
+import { WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../../domain/schema/report/reportStep';
 import { REPORT_HIGHLIGHT_TONES } from '../../../domain/schema/report/reportSpec';
 import {
   ACTION_COMMAND_ORDER,
@@ -380,6 +381,7 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   script: 'Runs one of your `scripts` in the server sandbox.',
   'ai-detect-workflow': 'Asks a model which callable workflow fits a free text, reading their descriptions. No match is a success with `found` false.',
   'ai-extract-parameters': 'Asks a model to fill the parameters of a target workflow from a free text. Publishes `params`, plus `params.<key>` when the target is a `Literal`.',
+  'run-report': 'Runs one of the organization\'s reports by its key (`report`), answering its filters with `param.<key>` or `prompts`. Publishes `total` (first measure), `totals.<measure>`, `count`, `groups`, `rows` (one per group, raw keys, capped), `complete` and `link` (`rep:<key>`) — numbers, never records.',
   query: 'Asks the database. Publishes `count`, `results`, `first`, plus `first.<projection>`.',
   upsert: 'Writes one record. An `id` in the object means update, no `id` means insert — or, with `matchPrimaryKey: true`, update the record that holds the same `primary` key.',
   remove: 'Deletes one record.',
@@ -3477,6 +3479,31 @@ notified; the first decision resumes the SAME run at once, and the chosen outcom
   event**; the step refuses BEFORE creating the task or notifying anyone where the run cannot wait.
 
 The \`approval\` step needs kernel ${WORKFLOW_APPROVAL_SINCE_KERNEL} or later, and \`validate_plugin\` refuses a package that admits an older one.
+
+### Numbers in a workflow — the \`run-report\` step
+
+\`\`\`ts
+{ id: 'revenue', stepDefinitionId: 'run-report', type: 'Action', order: 0, enabled: true,
+  configuration: {
+    report: { kind: 'Literal', value: 'revenue-by-month' },      // the report KEY (rep:<key>)
+    'param.period': { kind: 'Literal', value: 'last-month' },    // one filter of the report
+  } }
+// then: output.revenue.total, output.revenue.totals.<measure>, output.revenue.link
+\`\`\`
+
+It runs one of the organization's reports — the same path as the screen, its filters answered by the step —
+and publishes the NUMBERS: \`total\` (the first aggregate measure), \`totals.<measure>\`, \`count\`, \`groups\`,
+\`rows\` (one per deepest group, raw keys, capped), \`rowsTruncated\`, \`complete\`, \`scanned\`, \`name\` and
+\`link\` (\`rep:<key>\`, the tab a notification opens).
+
+- **Filters**: \`param.<key>\` one by one, or \`prompts\` as one object; \`param\` wins. An empty answer means
+  "unanswered", so the report's own default applies. A required filter left unanswered fails the step.
+- It runs **as the automation**, like \`query\` — no per-record visibility of a person. Send the \`link\`, not
+  the rows: the report screen translates each key and checks the reader's permissions.
+- **Schedule + run-report + notify** is a report subscription; a \`Condition\` on \`totals.<measure>\` before
+  the \`notify\` is an alert. That is what the report screen's **Subscribe** writes — there is no second scheduler.
+
+The \`run-report\` step needs kernel ${WORKFLOW_RUN_REPORT_SINCE_KERNEL} or later, and \`validate_plugin\` refuses a package that admits an older one.
 
 ### A workflow that only exists to be called
 

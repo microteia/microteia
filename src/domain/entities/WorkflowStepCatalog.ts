@@ -34,7 +34,8 @@ export type InputPickerKind =
   | 'document-template-reference'
   | 'documents-collection'
   | 'portal-subject'
-  | 'portal-invite-subject';
+  | 'portal-invite-subject'
+  | 'report';
 
 export interface InputDefinition {
   id: string;
@@ -152,6 +153,12 @@ export type DynamicInputsMetadata =
   | {
       kind: 'from-target-document-template-parameters';
       /** ID do input (Literal) que guarda a chave do modelo `payload` cujos parâmetros viram inputs `param.<chave>`. */
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
+      kind: 'from-target-report-prompts';
+      /** ID do input (Literal) que guarda a chave do relatório cujos FILTROS viram inputs `param.<chave>`. */
       sourceInputId: string;
       description?: string;
     };

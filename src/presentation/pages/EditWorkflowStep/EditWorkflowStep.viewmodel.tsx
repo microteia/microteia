@@ -70,6 +70,8 @@ import type { StepOutputField, WorkflowVariable } from '../../components/ui/Expr
 import { useT, useLabel, type TranslateFn } from '../../shared/i18n/useT';
 import { isPausingStepDefinition, isStepExcludedFromTrigger, inputsForTemplateSource } from '../../../domain/schema/workflowStepCatalog';
 import { useResolvedDocumentTemplates } from '../../shared/documents/useResolvedDocumentTemplates';
+import { useReportDefinitions } from '../../../stores/useReportDefinitions';
+import { reportPromptParameters } from '../../../domain/schema/report/reportStep';
 import { isPayloadTemplate, isSingleRecordParameter } from '../../../domain/schema/document/documentTemplate';
 
 const queryProjectionOutputs = (
@@ -519,11 +521,12 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     return null;
   }, [atTopLevel, selectedDefinitionId, selectedDefinition, triggerEventName, t]);
 
-  const dynamicTargetKind = useMemo<'workflow' | 'script' | 'document-template' | null>(() => {
+  const dynamicTargetKind = useMemo<'workflow' | 'script' | 'document-template' | 'report' | null>(() => {
     const kind = selectedDefinition?.dynamicInputs?.kind;
     if (kind === 'from-target-workflow-parameters') return 'workflow';
     if (kind === 'from-target-script-parameters') return 'script';
     if (kind === 'from-target-document-template-parameters') return 'document-template';
+    if (kind === 'from-target-report-prompts') return 'report';
     return null;
   }, [selectedDefinition]);
 
@@ -563,6 +566,21 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     return documentTemplates.find((one) => one.key === key) ?? null;
   }, [dynamicTargetKind, dynamicInputsSourceId, configuration, documentTemplates]);
 
+  const { reports } = useReportDefinitions();
+
+  /** O relatório do passo "Executar relatório": os FILTROS dele viram `param.<chave>`. */
+  const targetReport = useMemo(() => {
+    if (dynamicTargetKind !== 'report' || !dynamicInputsSourceId) return null;
+    const mapping = configuration[dynamicInputsSourceId];
+    const key = mapping?.kind === 'Literal' ? String(mapping.value ?? '') : '';
+    return key ? reports.find((report) => report.key === key || report.id === key) ?? null : null;
+  }, [dynamicTargetKind, dynamicInputsSourceId, configuration, reports]);
+
+  const reportOptions = useMemo(
+    () => reports.map((report) => ({ value: report.key, label: label(report.title) })),
+    [reports, label],
+  );
+
   /** O modelo `payload` escolhido: os parâmetros dele viram `param.<chave>`. */
   const targetTemplate = chosenTemplate && isPayloadTemplate(chosenTemplate) ? chosenTemplate : null;
 
@@ -587,7 +605,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       ? (targetScript?.inputParams ?? [])
       : dynamicTargetKind === 'document-template'
         ? (targetTemplate?.parameters ?? [])
-        : (targetWorkflow?.parameters ?? []);
+        : dynamicTargetKind === 'report'
+          ? (targetReport ? reportPromptParameters(targetReport.spec) : [])
+          : (targetWorkflow?.parameters ?? []);
     // No callback do passo HTTP, `response` é preenchido pela fila com o resultado — e sobreposto se
     // alguém o preenchesse aqui. Mostrá-lo seria pedir um valor que nunca chega; obrigatório, travaria o Salvar.
     const fromHttp = selectedDefinition.dynamicOutputs?.kind === 'from-http-request';
@@ -597,7 +617,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       (parameter) => flattenParameterInputs(label, parameterForDisplay(label, parameter)),
     );
     return [...declared, ...paramInputs];
-  }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript, targetTemplate, inputsForTemplate, label]);
+  }, [selectedDefinition, dynamicInputsSourceId, dynamicTargetKind, targetWorkflow, targetScript, targetTemplate, targetReport, inputsForTemplate, label]);
 
   /**
    * As automações que este passo pode chamar: as CHAMÁVEIS, ativas, menos ela mesma.
@@ -776,6 +796,11 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const pickerDisplay = useCallback(
     (kind: InputPickerKind, stored: string): PickerDisplay => {
       if (kind === 'ai-connection') return { options: aiConnectionOptions };
+      if (kind === 'report') {
+        return !stored || reportOptions.some((option) => option.value === stored)
+          ? { options: reportOptions }
+          : { options: reportOptions, orphanMessage: t('step.target.report.missing', { key: stored }) };
+      }
       if (kind === 'document-template') {
         return !stored || documentTemplateOptions.some((option) => option.value === stored)
           ? { options: documentTemplateOptions }
@@ -825,6 +850,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     },
     [
       aiConnectionOptions,
+      reportOptions,
       documentTemplateOptions,
       templateReferenceOptions,
       documentsCollectionOptions,
@@ -860,7 +886,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
                       ? 'step.target.portal-subject'
                       : kind === 'portal-invite-subject'
                         ? 'step.target.portal-invite-subject'
-                        : 'step.target.workflow',
+                        : kind === 'report'
+                          ? 'step.target.report'
+                          : 'step.target.workflow',
       ),
     [t],
   );

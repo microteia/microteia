@@ -386,6 +386,26 @@ describe('integridade do gatilho de auditoria', () => {
   });
 });
 
+describe('executar relatório', () => {
+  const comKernel = (steps: WorkflowStep[], kernel: string): MarketplacePlugin => {
+    const base = pacote(steps);
+    return { ...base, manifest: { ...base.manifest, kernel } } as unknown as MarketplacePlugin;
+  };
+  const executar = passo({
+    id: 'numeros',
+    stepDefinitionId: 'run-report',
+    configuration: { report: { kind: 'Literal', value: 'receita' } },
+  });
+
+  it('exige o kernel em que o passo existe', () => {
+    const issues = workflowStepIssues(comKernel([executar], '^2.110.0'));
+    expect(issues.map((issue) => [issue.message, issue.messageParams?.definition, issue.messageParams?.minimum])).toEqual([
+      ['@core.marketplace/issue.step.definition-kernel', 'run-report', '2.111.0'],
+    ]);
+    expect(workflowStepIssues(comKernel([executar], '^2.111.0'))).toEqual([]);
+  });
+});
+
 describe('compartilhar documento com o portal e eventos de nota e documento', () => {
   const comKernel = (steps: WorkflowStep[], kernel: string, eventName = 'records.saved'): MarketplacePlugin => {
     const base = pacote(steps);

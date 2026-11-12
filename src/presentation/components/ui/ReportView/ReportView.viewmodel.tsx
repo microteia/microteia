@@ -15,6 +15,8 @@ import type { ReportDrillTarget } from '../../../../domain/schema/report/aggrega
 import { useOpenRecord } from '../../../shared/useOpenRecord';
 import { useReportGroupLabels } from '../../../shared/report/useReportGroupLabels';
 import { useReportCsv } from '../../../shared/report/useReportCsv';
+import { useAuthorization } from '../../../../stores/useAuthorization';
+import { PERMISSION_AUTOMATION_MANAGE } from '../../../../domain/schema/access/kernelPermissions';
 
 /** Um filtro que o LEITOR preenche, já com o que a tela precisa para desenhá-lo. */
 export interface ReportPromptField {
@@ -76,6 +78,14 @@ export interface ReportViewViewModel {
   drillLoading: boolean;
   closeDrill: () => void;
   openDrillRecord: (recordId: string) => void;
+  /** Assinar cria uma AUTOMAÇÃO: só aparece para quem pode criá-la. */
+  canSubscribe: boolean;
+  subscribeLabel: string;
+  subscribeOpen: boolean;
+  openSubscribe: () => void;
+  closeSubscribe: () => void;
+  /** Os filtros como estão agora — a assinatura os repete em cada execução. */
+  subscribePrompts: Record<string, unknown>;
 }
 
 /**
@@ -119,6 +129,8 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
     loading: boolean;
   } | null>(null);
   const openRecord = useOpenRecord();
+  const { can } = useAuthorization();
+  const [subscribeOpen, setSubscribeOpen] = useState(false);
 
   // Memoizado, e não derivado solto: um `?? []` cria um array novo a cada render, e o `useMemo`
   // abaixo passaria a recalcular sempre — refazendo a lista a cada tecla digitada num filtro.
@@ -356,5 +368,11 @@ export const useReportViewViewModel = (reportKey: string, tabKey?: string): Repo
     openDrillRecord: (recordId) => {
       if (spec) openRecord(spec.dataset.table, recordId);
     },
+    canSubscribe: report !== undefined && can(PERMISSION_AUTOMATION_MANAGE),
+    subscribeLabel: t('subscribe.action'),
+    subscribeOpen,
+    openSubscribe: () => setSubscribeOpen(true),
+    closeSubscribe: () => setSubscribeOpen(false),
+    subscribePrompts: subscribeOpen ? promptPayload(promptValues) : {},
   };
 };

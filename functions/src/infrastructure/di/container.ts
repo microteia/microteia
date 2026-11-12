@@ -147,6 +147,7 @@ import type { WorkflowClockDeps } from '../../domain/services/workflowClock';
 import { dateReachedOnSave } from '../../domain/services/workflowClock';
 import { resumeWorkflowExecution } from '../../domain/services/workflowSuspension';
 import { FirestoreWorkflowTaskRepository } from '../../data/repositories/FirestoreWorkflowTaskRepository';
+import { FirestoreReportDefinitionReader } from '../../data/repositories/FirestoreReportDefinitionReader';
 import { entityDateFieldKeys, eventEntity } from '../../domain/schema/eventCatalog';
 import { dateReachedEventName } from '../../domain/schema/workflowClock';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
@@ -1345,6 +1346,7 @@ class DIContainer {
         dispatch: this.getDispatchNotificationUseCase(),
         screens: this.getScreenDefinitionCache(),
       },
+      reportReader: new FirestoreReportDefinitionReader(getDb()),
     });
     this.workflowStepsRegistered = true;
   }

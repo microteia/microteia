@@ -12,6 +12,7 @@
 import { WORKFLOW_AUDIT_EVENT } from './workflowAuditTrigger';
 import { HTTP_REQUEST_STEP_ID } from './httpRequestSpec';
 import type { FieldRules } from './fieldRules';
+import { RUN_REPORT_STEP_ID } from './report/reportStep';
 
 /**
  * O catálogo de passos de automação — a METADATA, sem os executores.
@@ -86,7 +87,8 @@ export type InputPickerKind =
   | 'document-template-reference'
   | 'documents-collection'
   | 'portal-subject'
-  | 'portal-invite-subject';
+  | 'portal-invite-subject'
+  | 'report';
 
 export interface InputDefinition {
   id: string;
@@ -222,6 +224,12 @@ export type DynamicInputsMetadata =
   | {
       kind: 'from-target-document-template-parameters';
       /** ID do input (Literal) que guarda a chave do modelo `payload` cujos parâmetros viram inputs `param.<chave>`. */
+      sourceInputId: string;
+      description?: string;
+    }
+  | {
+      kind: 'from-target-report-prompts';
+      /** ID do input (Literal) que guarda a chave do relatório cujos FILTROS viram inputs `param.<chave>`. */
       sourceInputId: string;
       description?: string;
     };
@@ -915,6 +923,53 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       sourceInputId: 'query',
       description: '@core.automation/step.query.description',
     },
+  },
+  {
+    /**
+     * Roda um relatório do escritório e publica o NÚMERO, não as linhas — o mesmo caminho da tela
+     * (`runReportQuery`), com os filtros dele respondidos pelo passo. É o que faz "mandar o relatório
+     * toda segunda" e "avisar quando passar de X" serem automações comuns, e não um agendador à parte.
+     */
+    id: RUN_REPORT_STEP_ID,
+    version: 1,
+    name: '@core.automation/step.run-report.name',
+    description: '@core.automation/step.run-report.description',
+    icon: 'RiBarChart2Line',
+    category: 'Data',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'report',
+        label: '@core.automation/step.run-report.label.report',
+        description: '@core.automation/step.run-report.help.report',
+        required: true,
+        type: 'String',
+        picker: 'report',
+      },
+      {
+        /** As respostas em BLOCO; os `param.<chave>` declarados um a um vencem chave por chave. */
+        id: 'prompts',
+        label: '@core.automation/step.run-report.label.prompts',
+        description: '@core.automation/step.run-report.help.prompts',
+        required: false,
+        type: 'Expression',
+        allowedMappingKinds: ['Expression', 'Output', 'Variable', 'Event'],
+      },
+    ],
+    outputDefinitions: [
+      { id: 'total', label: '@core.automation/step.run-report.output.total', type: 'Number' },
+      { id: 'totals', label: '@core.automation/step.run-report.output.totals', type: 'String' },
+      { id: 'count', label: '@core.automation/step.run-report.output.count', type: 'Number' },
+      { id: 'groups', label: '@core.automation/step.run-report.output.groups', type: 'Number' },
+      { id: 'rows', label: '@core.automation/step.run-report.output.rows', type: 'String' },
+      { id: 'rowsTruncated', label: '@core.automation/step.run-report.output.rows-truncated', type: 'Boolean' },
+      { id: 'complete', label: '@core.automation/step.run-report.output.complete', type: 'Boolean' },
+      { id: 'scanned', label: '@core.automation/step.run-report.output.scanned', type: 'Number' },
+      { id: 'name', label: '@core.automation/step.run-report.output.name', type: 'String' },
+      { id: 'link', label: '@core.automation/step.run-report.output.link', type: 'String' },
+    ],
+    dynamicInputs: { kind: 'from-target-report-prompts', sourceInputId: 'report' },
   },
   {
     id: 'upsert',

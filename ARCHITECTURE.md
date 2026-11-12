@@ -10767,7 +10767,9 @@ todos os níveis e não precisa.
 ### O que o contrato prevê e a v1 não executa
 
 `schedule` já é tipado — e AVISA (`@core.reports/schedule.not-implemented`), não recusa: o token não
-está sob `dataset.`/`measure.`, e o relatório continua certo; só não roda sozinho. Join já tem
+está sob `dataset.`/`measure.`, e o relatório continua certo; só não roda sozinho. Agendar é o passo
+`run-report` numa automação comum (ver "Relatório como passo de automação" abaixo) — não haverá um
+segundo relógio, e o `schedule` do contrato continua reservado só para não ser podado. Join já tem
 discriminante em `dataset.kind`, e este RECUSA. Cada um entra de forma aditiva — e reservar o nome agora
 é o que impede um kernel velho de podar em silêncio o que uma ferramenta nova escreveu.
 
@@ -10848,6 +10850,39 @@ recusa o pedido feito à mão (`@core.reports/drill.disabled`).
   afirmou. Clicar no registro abre o registro (`useOpenRecord`, pela coleção).
 - `ReportTable`/`ReportMatrix` aceitam `onDrill`, mas a API curada não o oferece às extensões ainda: o
   `useReport` delas não tem a contraparte. O `ReportView` curado já detalha sozinho.
+
+### Relatório como passo de automação (`run-report`) — assinar e alertar
+
+O relatório não ganhou agendador próprio: ganhou um PASSO, e o agendador é o relógio das automações.
+
+- **`run-report`** (`RunReportStep.ts`) lê o relatório pela CHAVE (`rep:<key>`, a que sobrevive a
+  reinstalar a extensão dona; o id do documento também é aceito — `FirestoreReportDefinitionReader`) e
+  roda `runReportQuery`, o mesmo caminho da callable. Os filtros chegam como `prompts` (bloco) e
+  `param.<chave>` (um a um, vencem o bloco); o `param` vazio é "sem resposta", e o padrão do relatório
+  vale. O editor mostra um campo por filtro (`dynamicInputs: from-target-report-prompts` →
+  `reportPromptParameters`), e o de período vira a lista fechada dos períodos.
+- **Saídas** (`runReportStepOutputs`, função pura): `total` (a primeira medida agregada), `totals.<medida>`,
+  `count`, `groups`, `rows` (o nível mais fundo, chaves CRUAS, cortado em `RUN_REPORT_MAX_ROWS` — as
+  saídas moram no documento da execução), `rowsTruncated`, `complete` (varredura E grupos), `scanned`,
+  `name` e `link`. Número, nunca registro: o aviso leva ao relatório pelo `link`, e é a tela que traduz
+  cada chave e cobra de quem abre a permissão de ver.
+- **Roda como a automação**, como `query`: sem a visibilidade por registro de uma pessoa. Quem decide a
+  quem o número chega é quem monta a automação (`automation.manage`).
+- **Relatório que não roda reprova o passo** (spec inválido, filtro obrigatório sem resposta,
+  relatório apagado): um alerta que seguisse com zero diria "está tudo bem" justamente quando não se sabe.
+- **Assinar** (`ReportSubscribe`, só para quem tem `automation.manage`) grava uma automação comum com
+  `buildReportSubscription` (`domain/services/reportSubscription.ts`): `schedule` (todo dia, toda
+  segunda ou dia 1º, na hora escolhida, no fuso do escritório) → `run-report` com as respostas de filtro
+  de agora → `notify` (no app e e-mail, `link: rep:<key>`, `openRecord: false`). Com **alerta**, o
+  `notify` fica dentro de uma `Condition` `output.report.totals.<medida> <op> <limite>`; só medidas
+  agregadas com chave de expressão (`alertableMeasures`) — a calculada não tem total que signifique o
+  que ela calcula. Depois de criada, a assinatura É uma automação: edita-se e apaga-se lá.
+- O nome da automação nasce do título do relatório (dado do escritório), nunca de uma palavra nossa; o
+  texto do aviso é referência de catálogo (`@core.reports/subscribe.*`) com parâmetros por `object(...)`.
+- Um pacote que usa o passo exige kernel `WORKFLOW_RUN_REPORT_SINCE_KERNEL` (2.111.0) —
+  `STEP_DEFINITION_SINCE_KERNEL` em `workflowIntegrity.ts`, a tabela para os próximos passos que chegarem.
+- **Ainda não:** anexar o resultado como arquivo (CSV/XLSX/PDF) — as chaves sairiam cruas sem a tela que
+  as traduz, e o caminho certo é o motor de Documentos (Onda 3, R9); e a assinatura pelo MCP.
 
 ### Destaque condicional (`presentation.highlight`)
 

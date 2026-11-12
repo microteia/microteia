@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.228.0] — 2026-11-12
+
+- feat(workflow): `run-report` step — runs a stored report by key (or document id) through `runReportQuery`, answering its prompts with `prompts` (object) and `param.<key>` (wins; empty means unanswered, so the report default applies). Publishes `total`, `totals`, `count`, `groups`, `rows` (deepest level, raw keys, capped at `RUN_REPORT_MAX_ROWS`), `rowsTruncated`, `complete`, `scanned`, `name` and `link` (`rep:<key>`). A report that cannot run fails the step. New `IReportDefinitionReader` / `FirestoreReportDefinitionReader`, injected as `RegisterStepsDeps.reportReader`.
+- feat(catalog): input picker `report` and dynamic inputs `from-target-report-prompts` (`reportPromptParameters`: one parameter per prompt, period prompts as a closed select). The step editor offers the report list and one field per filter.
+- feat(reports): **Subscribe** on the report screen (`automation.manage`) writes a plain automation via `buildReportSubscription`: `schedule` → `run-report` → `notify` (in-app + email, `link: rep:<key>`), with an optional alert `Condition` on `output.report.totals.<measure>` (`alertableMeasures`). Messages `@core.reports/subscribe.*`.
+- feat(package): `STEP_DEFINITION_SINCE_KERNEL` in `workflowIntegrity.ts` refuses a package using `run-report` that admits a kernel older than `WORKFLOW_RUN_REPORT_SINCE_KERNEL`. `KERNEL_VERSION` 2.111.0. pt-BR locale package 1.179.0.
+
 #### [9.227.0] — 2026-11-11
 
 - feat(workflow): `approval` step — resolves assignees (members, a path, everyone with a permission), creates a `workflow_tasks` document with a deterministic id, notifies them (category `core.automation/task`) and suspends with `suspend: { resumeAt: <deadline>, taskId }`. It checks `context.canSuspend` before creating anything. `WorkflowResult.suspend.taskId`, `ResumeClockEntry.taskId/decided`, `WorkflowContext.stepId/canSuspend`.

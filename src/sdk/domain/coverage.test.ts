@@ -27,6 +27,8 @@ const LACUNAS_CONFERIDAS = [
   'workflow-step\tscript',
   'workflow-step\tai-detect-workflow',
   'workflow-step\tai-extract-parameters',
+  // Um relatório é LEITURA do que o modelo já descreve; o comportamento não pergunta números a si mesmo.
+  'workflow-step\trun-report',
   'workflow-step\tshare-documents',
   'workflow-step\tportal-invite',
   'workflow-step\tportal-revoke',

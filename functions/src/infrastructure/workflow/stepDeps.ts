@@ -14,6 +14,7 @@ import type { CallAIUseCase } from '../../domain/usecases/CallAIUseCase';
 import type { RunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWorkflowUseCase';
 import type { HttpStepDeps } from './steps/HttpRequestStep';
 import type { ApprovalStepDeps } from './steps/ApprovalStep';
+import type { IReportDefinitionReader } from '../../domain/repositories/IReportDefinitionReader';
 
 /**
  * Dependências que o composition root injeta nas fábricas de Step. Vive em arquivo próprio para
@@ -39,6 +40,8 @@ export interface RegisterStepsDeps {
   http: HttpStepDeps;
   /** A caixa de tarefas e quem decide, do passo "Aprovação". */
   approval: ApprovalStepDeps;
+  /** Os relatórios do escritório, do passo "Executar relatório". */
+  reportReader: IReportDefinitionReader;
 }
 
 /**

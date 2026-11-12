@@ -19,6 +19,7 @@ import { makeShareDocumentsStepDefinition } from '../../infrastructure/workflow/
 import { makePortalInviteStepDefinition, makePortalRevokeStepDefinition } from '../../infrastructure/workflow/steps/PortalAccessSteps';
 import { makeHttpRequestStepDefinition } from '../../infrastructure/workflow/steps/HttpRequestStep';
 import { makeApprovalStepDefinition } from '../../infrastructure/workflow/steps/ApprovalStep';
+import { makeRunReportStepDefinition } from '../../infrastructure/workflow/steps/RunReportStep';
 
 const factories: Record<string, StepFactory> = {
   Notify: (deps) => makeNotifyStepDefinition(deps.dispatchNotificationUseCase, deps.screenDefinitionProvider),
@@ -40,6 +41,7 @@ const factories: Record<string, StepFactory> = {
     ),
   Upsert: (deps) => makeUpsertStepDefinition(mutationDepsOf(deps)),
   Remove: (deps) => makeRemoveStepDefinition(mutationDepsOf(deps)),
+  RunReport: (deps) => makeRunReportStepDefinition({ reports: deps.reportReader, query: queryDepsOf(deps) }),
   RenderDocument: (deps) => makeRenderDocumentStepDefinition(deps.renderDocumentUseCase),
   ShareDocuments: (deps) => makeShareDocumentsStepDefinition(deps.shareRecordDocumentsUseCase),
   PortalInvite: (deps) => makePortalInviteStepDefinition(deps.portalAccess),
@@ -68,6 +70,7 @@ export const coreStepsPlugin: PluginRecord = {
       workflowStep({ stepDefinitionId: 'call-workflow', name: '@core.automation/step.call-workflow.name', category: 'Action' }, 'CallWorkflow'),
       workflowStep({ stepDefinitionId: 'script', name: '@core.automation/step.script.name', category: 'Action' }, 'Script'),
       workflowStep({ stepDefinitionId: 'query', name: '@core.automation/step.query.name', category: 'Data' }, 'Query'),
+      workflowStep({ stepDefinitionId: 'run-report', name: '@core.automation/step.run-report.name', category: 'Data' }, 'RunReport'),
       workflowStep({ stepDefinitionId: 'upsert', name: '@core.automation/step.upsert.name', category: 'Data' }, 'Upsert'),
       workflowStep({ stepDefinitionId: 'remove', name: '@core.automation/step.remove.name', category: 'Data' }, 'Remove'),
       workflowStep({ stepDefinitionId: 'render-document', name: '@core.automation/step.render-document.name', category: 'Data' }, 'RenderDocument'),

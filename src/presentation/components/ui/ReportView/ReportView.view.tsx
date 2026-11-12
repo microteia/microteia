@@ -11,6 +11,7 @@ import { ReportMatrix } from '../ReportMatrix';
 import { ReportTable } from '../ReportTable';
 import { SearchSelect } from '../SearchSelect';
 import { ReportDrill } from '../ReportDrill';
+import { ReportSubscribe } from '../ReportSubscribe';
 
 export interface ReportViewProps {
   /** A CHAVE do relatório no catálogo do escritório. */
@@ -46,6 +47,11 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey }) => 
           <Button variant="secondary" size="sm" onClick={vm.print} disabled={!vm.canExport}>
             {vm.printLabel}
           </Button>
+          {vm.canSubscribe && (
+            <Button variant="secondary" size="sm" onClick={vm.openSubscribe}>
+              {vm.subscribeLabel}
+            </Button>
+          )}
         </S.Actions>
       </S.Header>
 
@@ -117,6 +123,9 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey }) => 
           onOpenRecord={vm.openDrillRecord}
           onClose={vm.closeDrill}
         />
+      )}
+      {vm.subscribeOpen && vm.report && (
+        <ReportSubscribe report={vm.report} prompts={vm.subscribePrompts} onClose={vm.closeSubscribe} />
       )}
     </S.Wrapper>
   );
