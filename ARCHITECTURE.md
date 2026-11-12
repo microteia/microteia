@@ -8763,6 +8763,26 @@ Três decisões que não são detalhe de implementação:
 A conexão de IA é opcional: vazia, usa a **padrão do escritório** (`getDefaultCredentials`). Uma
 automação declarada numa extensão não pode carregar o id de uma conexão que quem instala nem criou.
 
+### Passos de IA genéricos — `ai-generate`, `ai-classify`, `ai-extract`
+
+Os dois passos de IA de antes servem ao ROTEAMENTO (qual automação, com que parâmetros). Estes servem ao
+DADO, com a mesma conexão do escritório (`resolveAICredentials`, a padrão quando o passo não nomeia uma):
+
+- **`ai-generate`**: `prompt` (com o registro trazido por expressão) e `instructions` como instrução de
+  sistema. `text` é cortado em `maxCharacters` (padrão `AI_GENERATE_DEFAULT_CHARACTERS`, teto 20 000) e o
+  corte é dito em `truncated` — as saídas moram no histórico da execução, que é um documento.
+- **`ai-classify`**: `text` numa lista FECHADA de `categories` (`aiStepList`: por linha ou por vírgula).
+  A resposta passa por `matchAiCategory` — sem caixa nem espaço, devolvida na grafia da lista —; o que não
+  está na lista não vira categoria: `matched: false`, `category: ''`, e o passo NÃO falha, para a
+  automação decidir o caminho do "não sei". Menos de duas categorias é recusa.
+- **`ai-extract`**: os `fields` declarados no passo (`chave: o que é`, `aiExtractFields`; a chave segue a
+  regra de identificador para virar `values.<chave>`) pelo MESMO extrator de "Extrair parâmetros"
+  (`extractParameterValues`). Sai só o que foi pedido, como texto; tipar e gravar é dos passos seguintes.
+- **Fronteira:** o texto lido é dado — o prompt de sistema do classificador diz isso ao modelo —, e nada
+  que o modelo devolve vira expressão. Resposta cortada ou fora de JSON reprova com as mensagens dos
+  outros passos de IA.
+- Pacote: `AI_DATA_STEPS_SINCE_KERNEL` (2.117.0), pela tabela `STEP_DEFINITION_SINCE_KERNEL`.
+
 ### Quem disparou — `actor`
 
 Uma automação disparada por um botão gravava o registro como se ninguém o tivesse criado: o ator chegava

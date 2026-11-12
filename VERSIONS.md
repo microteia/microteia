@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.234.0] — 2026-11-12
+
+- Três novos passos de automação com a inteligência artificial do escritório:
+  - **Gerar texto** — resumos, rascunhos de resposta e títulos escritos a partir do que a automação já sabe.
+  - **Classificar texto** — coloca uma mensagem numa das categorias que você listar, como "financeiro", "suporte" ou "vendas"; se nenhuma servir, a automação fica sabendo e pode seguir outro caminho.
+  - **Extrair campos** — tira de um texto os dados que você nomear, como o número e o total de uma nota colada num e-mail.
+
 #### [9.233.0] — 2026-11-12
 
 - Novo gatilho de automação **Quando outro sistema chamar (webhook)**: um sistema externo — uma loja virtual, um formulário, um ERP — pode disparar uma automação do escritório enviando os dados por um endereço próprio, protegido por um token que você gera e pode revogar a qualquer momento.

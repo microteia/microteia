@@ -62,6 +62,12 @@ import { APPROVAL_STEP_ID, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../schema/w
 import { RUN_REPORT_STEP_ID, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../schema/report/reportStep';
 import { WAIT_FOR_STEP_ID, WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../schema/workflowWait';
 import { WORKFLOW_WEBHOOK_EVENT, WORKFLOW_WEBHOOK_SINCE_KERNEL } from '../../schema/workflowWebhook';
+import {
+  AI_CLASSIFY_STEP_ID,
+  AI_DATA_STEPS_SINCE_KERNEL,
+  AI_EXTRACT_STEP_ID,
+  AI_GENERATE_STEP_ID,
+} from '../../schema/aiSteps';
 import { screenEventPrefix } from './screenModule';
 import { RENDER_DOCUMENT_STEP_ID, declaredDocumentTemplates, renderDocumentStepIssues, renderDocumentTemplateKey } from './documentStepIntegrity';
 
@@ -711,6 +717,9 @@ const flowControlKernelIssues = (
  */
 const STEP_DEFINITION_SINCE_KERNEL: Readonly<Record<string, string>> = {
   [RUN_REPORT_STEP_ID]: WORKFLOW_RUN_REPORT_SINCE_KERNEL,
+  [AI_GENERATE_STEP_ID]: AI_DATA_STEPS_SINCE_KERNEL,
+  [AI_CLASSIFY_STEP_ID]: AI_DATA_STEPS_SINCE_KERNEL,
+  [AI_EXTRACT_STEP_ID]: AI_DATA_STEPS_SINCE_KERNEL,
 };
 
 const stepDefinitionKernelIssues = (

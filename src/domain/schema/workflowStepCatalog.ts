@@ -8,6 +8,7 @@ import { HTTP_REQUEST_STEP_ID } from './httpRequestSpec';
 import type { FieldRules } from './fieldRules';
 import { RUN_REPORT_STEP_ID } from './report/reportStep';
 import { DEFAULT_WAIT_DAYS, WAIT_FOR_STEP_ID } from './workflowWait';
+import { AI_CLASSIFY_STEP_ID, AI_EXTRACT_STEP_ID, AI_GENERATE_DEFAULT_CHARACTERS, AI_GENERATE_STEP_ID } from './aiSteps';
 
 /**
  * O catálogo de passos de automação — a METADATA, sem os executores.
@@ -944,6 +945,143 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       sourceInputId: 'targetWorkflowId',
       description: '@core.automation/step.ai-extract-parameters.description',
     },
+  },
+  {
+    /**
+     * Os passos de IA GENÉRICOS: escrever, classificar e extrair. Os dois de antes servem ao roteamento
+     * entre automações; estes servem ao dado — o resumo de um chamado, a categoria de um e-mail, os campos
+     * de uma nota fiscal colada no corpo. A saída é DADO: nada que o modelo devolve vira expressão.
+     */
+    id: AI_GENERATE_STEP_ID,
+    version: 1,
+    name: '@core.automation/step.ai-generate.name',
+    description: '@core.automation/step.ai-generate.description',
+    icon: 'RiAiGenerate',
+    category: 'Integration',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'prompt',
+        label: '@core.automation/step.ai-generate.label.prompt',
+        description: '@core.automation/step.ai-generate.prompt.description',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'instructions',
+        label: '@core.automation/step.ai.label.instructions',
+        description: '@core.automation/step.ai.instructions.description',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'maxCharacters',
+        label: '@core.automation/step.ai-generate.label.max-characters',
+        description: '@core.automation/step.ai-generate.max-characters.description',
+        required: false,
+        type: 'Number',
+        defaultValue: AI_GENERATE_DEFAULT_CHARACTERS,
+      },
+      {
+        id: 'connectionId',
+        label: '@core.automation/step.ai.label.connection',
+        description: '@core.automation/step.ai.connection.description',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'ai-connection',
+      },
+    ],
+    outputDefinitions: [
+      { id: 'text', label: '@core.automation/step.ai-generate.output.text', type: 'String' },
+      { id: 'truncated', label: '@core.automation/step.ai-generate.output.truncated', type: 'Boolean' },
+    ],
+  },
+  {
+    id: AI_CLASSIFY_STEP_ID,
+    version: 1,
+    name: '@core.automation/step.ai-classify.name',
+    description: '@core.automation/step.ai-classify.description',
+    icon: 'RiAiGenerate',
+    category: 'Integration',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'text',
+        label: '@core.automation/step.ai.label.text',
+        description: '@core.automation/step.ai.text.description',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'categories',
+        label: '@core.automation/step.ai-classify.label.categories',
+        description: '@core.automation/step.ai-classify.categories.description',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'instructions',
+        label: '@core.automation/step.ai.label.instructions',
+        description: '@core.automation/step.ai.instructions.description',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'connectionId',
+        label: '@core.automation/step.ai.label.connection',
+        description: '@core.automation/step.ai.connection.description',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'ai-connection',
+      },
+    ],
+    outputDefinitions: [
+      { id: 'category', label: '@core.automation/step.ai-classify.output.category', type: 'String' },
+      { id: 'matched', label: '@core.automation/step.ai-classify.output.matched', type: 'Boolean' },
+    ],
+  },
+  {
+    id: AI_EXTRACT_STEP_ID,
+    version: 1,
+    name: '@core.automation/step.ai-extract.name',
+    description: '@core.automation/step.ai-extract.description',
+    icon: 'RiAiGenerate',
+    category: 'Integration',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'text',
+        label: '@core.automation/step.ai.label.text',
+        description: '@core.automation/step.ai.text.description',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'fields',
+        label: '@core.automation/step.ai-extract.label.fields',
+        description: '@core.automation/step.ai-extract.fields.description',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'connectionId',
+        label: '@core.automation/step.ai.label.connection',
+        description: '@core.automation/step.ai.connection.description',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'ai-connection',
+      },
+    ],
+    outputDefinitions: [
+      { id: 'values', label: '@core.automation/step.ai-extract.output.values', type: 'String' },
+      { id: 'filled', label: '@core.automation/step.ai-extract.output.filled', type: 'Number' },
+    ],
   },
   {
     id: 'query',

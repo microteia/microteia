@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.234.0] — 2026-11-12
+
+- feat(workflow): generic AI steps in `core.ai.steps` — `ai-generate` (`prompt`, `instructions` as system prompt, `text` capped at `maxCharacters` with `truncated`), `ai-classify` (closed `categories` list; `matchAiCategory` returns the listed spelling or no match — `matched: false`, never a new category) and `ai-extract` (`fields` as `key: description`, through the existing `extractParameterValues`; `values.<key>` as text and `filled`). Shared helpers in `domain/schema/aiSteps.ts`.
+- feat(package): the three steps join `STEP_DEFINITION_SINCE_KERNEL` with `AI_DATA_STEPS_SINCE_KERNEL`. `KERNEL_VERSION` 2.117.0. pt-BR locale package 1.185.0.
+
 #### [9.233.0] — 2026-11-12
 
 - feat(workflow): `webhook.received` trigger — payload shaped by the workflow's `parameters`, like `workflow.called` (`isParameterRootedEvent` now drives the editor, conditions, hydration and parameter defaults for both).

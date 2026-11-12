@@ -37,6 +37,10 @@ const CONFERIDOS: Record<string, string> = {
   'run-report': '04c23d92e4759a',
   // 9.230.0: esperar o próximo evento de um registro, com condição e prazo.
   'wait-for': '197d258050dfe2',
+  // 9.234.0: os passos de IA genéricos — escrever, classificar numa lista fechada, extrair campos.
+  'ai-generate': '14ad08654df165',
+  'ai-classify': '0292773dbc700b',
+  'ai-extract': '1fdae36bb950df',
 };
 
 /**

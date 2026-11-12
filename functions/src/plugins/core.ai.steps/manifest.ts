@@ -4,6 +4,11 @@ import type { StepFactory } from '../workflowExtensionPoints';
 import { workflowStep } from '../workflowExtensionPoints';
 import { makeAIDetectWorkflowStepDefinition } from '../../infrastructure/workflow/steps/AIDetectWorkflowStep';
 import { makeAIExtractParametersStepDefinition } from '../../infrastructure/workflow/steps/AIExtractParametersStep';
+import {
+  makeAIClassifyStepDefinition,
+  makeAIExtractStepDefinition,
+  makeAIGenerateStepDefinition,
+} from '../../infrastructure/workflow/steps/AIDataSteps';
 
 /**
  * Os passos que chamam um MODELO. Vivem fora de `core.steps` porque dependem de `core.ai`, e os
@@ -13,6 +18,9 @@ import { makeAIExtractParametersStepDefinition } from '../../infrastructure/work
 const factories: Record<string, StepFactory> = {
   AIDetectWorkflow: (deps) => makeAIDetectWorkflowStepDefinition(aiDepsOf(deps)),
   AIExtractParameters: (deps) => makeAIExtractParametersStepDefinition(aiDepsOf(deps)),
+  AIGenerate: (deps) => makeAIGenerateStepDefinition(aiDepsOf(deps)),
+  AIClassify: (deps) => makeAIClassifyStepDefinition(aiDepsOf(deps)),
+  AIExtract: (deps) => makeAIExtractStepDefinition(aiDepsOf(deps)),
 };
 
 export const coreAiStepsPlugin: PluginRecord = {
@@ -40,6 +48,18 @@ export const coreAiStepsPlugin: PluginRecord = {
           category: 'Integration',
         },
         'AIExtractParameters',
+      ),
+      workflowStep(
+        { stepDefinitionId: 'ai-generate', name: '@core.automation/step.ai-generate.name', category: 'Integration' },
+        'AIGenerate',
+      ),
+      workflowStep(
+        { stepDefinitionId: 'ai-classify', name: '@core.automation/step.ai-classify.name', category: 'Integration' },
+        'AIClassify',
+      ),
+      workflowStep(
+        { stepDefinitionId: 'ai-extract', name: '@core.automation/step.ai-extract.name', category: 'Integration' },
+        'AIExtract',
       ),
     ],
   },

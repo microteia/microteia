@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { makeAIDetectWorkflowStepDefinition } from './AIDetectWorkflowStep';
 import { makeAIExtractParametersStepDefinition } from './AIExtractParametersStep';
+import { makeAIClassifyStepDefinition, makeAIExtractStepDefinition, makeAIGenerateStepDefinition } from './AIDataSteps';
 import type { AIStepDeps } from '../stepDeps';
 import type { IAIConnectionRepository } from '../../../domain/repositories/IAIConnectionRepository';
 import type { IWorkflowDefinitionRepository } from '../../../domain/repositories/IWorkflowDefinitionRepository';
@@ -322,5 +323,55 @@ describe('passo "Extrair Parâmetros"', () => {
     expect(result.success).toBe(true);
     expect(result.outputs).toEqual({ params: {}, filled: 0 });
     expect(ai.calls).toHaveLength(0);
+  });
+});
+
+describe('passos de IA genéricos', () => {
+  it('"Gerar texto" responde com o texto e corta no teto, dizendo que cortou', async () => {
+    const ai = fakeAI('x');
+    ai.execute = async (input) => {
+      ai.calls.push(input);
+      return '  Resumo do chamado: cliente sem acesso.  ';
+    };
+    const generate = makeAIGenerateStepDefinition(depsWith([], ai)).createExecutor();
+
+    const full = await generate.execute({ prompt: 'Resuma', instructions: 'Seja breve' }, context());
+    expect(full.outputs).toEqual({ text: 'Resumo do chamado: cliente sem acesso.', truncated: false });
+    expect(ai.calls[0].options?.systemPrompt).toBe('Seja breve');
+
+    const cut = await generate.execute({ prompt: 'Resuma', maxCharacters: 6 }, context());
+    expect(cut.outputs).toEqual({ text: 'Resumo', truncated: true });
+  });
+
+  it('"Classificar" devolve a categoria na grafia da lista — e não aceita categoria inventada', async () => {
+    const classify = (answer: unknown) => makeAIClassifyStepDefinition(depsWith([], fakeAI(answer))).createExecutor();
+
+    const hit = await classify({ category: 'SUPORTE ' }).execute({ text: 'não consigo entrar', categories: 'financeiro, suporte' }, context());
+    expect(hit.outputs).toEqual({ category: 'suporte', matched: true });
+
+    const invented = await classify({ category: 'reclamação' }).execute({ text: 'x', categories: ['financeiro', 'suporte'] }, context());
+    expect(invented.outputs).toEqual({ category: '', matched: false });
+    expect(invented.success).toBe(true);
+
+    const fewer = await classify({ category: 'a' }).execute({ text: 'x', categories: 'a' }, context());
+    expect(fewer.message).toBe('@core.automation/step.ai-classify.too-few');
+  });
+
+  it('"Extrair campos" devolve só as chaves pedidas, como texto', async () => {
+    const ai = fakeAI({ values: { total: 1500.5, numero: 'NF-10', extra: 'ignorar' } });
+    const extract = makeAIExtractStepDefinition(depsWith([], ai)).createExecutor();
+
+    const result = await extract.execute(
+      { text: 'Nota NF-10, total R$ 1.500,50', fields: 'numero: o número da nota\ntotal: o valor, com vírgula\nvencimento' },
+      context(),
+    );
+    expect(result.outputs).toEqual({ values: { numero: 'NF-10', total: '1500.5', vencimento: '' }, filled: 2 });
+    expect(result.messageParams).toEqual({ filled: '2', total: '3' });
+  });
+
+  it('a resposta cortada do modelo reprova com a mesma mensagem dos outros passos de IA', async () => {
+    const classify = makeAIClassifyStepDefinition(depsWith([], fakeAI(new AIResponseFormatError('{"cat', true)))).createExecutor();
+    const result = await classify.execute({ text: 'x', categories: 'a, b' }, context());
+    expect(result).toMatchObject({ success: false, message: '@core.automation/step.ai.response-truncated' });
   });
 });
