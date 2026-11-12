@@ -160,6 +160,7 @@ export const CORE_REPORTS: Record<string, string> = {
   'table.empty': 'Nenhum dado para este relatório.',
   'table.total': 'Total',
   'toolbar.export': 'Exportar CSV',
+  'toolbar.export-xlsx': 'Exportar Excel',
   'toolbar.print': 'Imprimir',
   'design.computed': 'Número calculado',
   'design.computed.hint': 'Um número calculado a partir dos outros, depois de somados — uma razão, um percentual, um ticket médio. Digite a chave de um número para ver o que está disponível.',

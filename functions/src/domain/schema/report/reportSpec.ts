@@ -387,7 +387,11 @@ export interface ReportPresentation {
    * detalhamento é a primeira coisa que este campo vai querer.
    */
   drillDown?: { enabled?: boolean };
-  export?: { csv?: boolean; pdf?: boolean; fileName?: string };
+  /**
+   * Os formatos que o leitor pode baixar. Ausente = todos; `false` esconde aquele botão (`pdf` é a
+   * impressão do navegador). `fileName` é o nome-base do arquivo — o dia e a extensão vêm junto.
+   */
+  export?: { csv?: boolean; xlsx?: boolean; pdf?: boolean; fileName?: string };
 }
 
 export interface ReportAccess {

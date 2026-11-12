@@ -4152,6 +4152,14 @@ The report still needs its \`dataset\`: code replaces the **presentation**, neve
 arrive through \`useReport\`, which asks the server — and that is where permission is charged. A view
 is \`impl: { kind: 'code' }\`, so it waits for an administrator to read and trust it (§7).
 
+### Downloads — CSV, Excel and print
+
+The report screen offers **CSV**, **Excel (XLSX)** and **Print** (the browser's "Save as PDF"). The XLSX
+holds the same table as the CSV, but a number is a NUMBER cell — in a CSV it is text the spreadsheet
+guesses in the reader's language. \`presentation.export\`: \`{ csv?, xlsx?, pdf?, fileName? }\` — absent means
+all are offered; \`false\` hides that button (\`pdf\` is the print); \`fileName\` is the base name of the file
+(the day and the extension are appended). A partial result says so in the first line of the file too.
+
 ### What the contract names but this version does not run
 
 \`dataset.kind: 'join'\` is refused by name: the platform does not run a report over one side of a join
@@ -4159,8 +4167,7 @@ and label it with the title of the whole.
 
 These are read and not acted on, and each says so as a warning rather than doing nothing:
 \`schedule\` (the report still runs whenever it is opened — to deliver one on a timer, write a scheduled
-workflow), \`shape.limit\`, \`presentation.fields\`,
-\`presentation.export.fileName\` (the file is always offered, and its name comes from the title), a
+workflow), \`shape.limit\`, \`presentation.fields\`, a
 \`prompts[].control\` other than \`'period'\`, and \`dimensions[].sort.by: 'label'\` — a label is
 resolved on screen, in the reader's language, and the server that cuts the level never sees it.
 

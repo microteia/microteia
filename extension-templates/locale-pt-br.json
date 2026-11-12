@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.182.0",
+    "version": "1.183.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -2749,6 +2749,7 @@
             "table.empty": "Nenhum dado para este relatório.",
             "table.total": "Total",
             "toolbar.export": "Exportar CSV",
+            "toolbar.export-xlsx": "Exportar Excel",
             "toolbar.print": "Imprimir",
             "design.computed": "Número calculado",
             "design.computed.hint": "Um número calculado a partir dos outros, depois de somados — uma razão, um percentual, um ticket médio. Digite a chave de um número para ver o que está disponível.",

@@ -99,7 +99,8 @@ export {
 export { isSingleSeriesChartKind, reportChartSplit, reportRowLevels } from './reportChartSplit';
 export type { ReportChartSplit } from './reportChartSplit';
 
-export { reportCsvFileName, reportResultToCsv } from './reportCsv';
+export { reportCsvFileName, reportFileName, reportResultToCsv } from './reportCsv';
+export { reportResultToXlsx, XLSX_MIME_TYPE } from './reportXlsx';
 export type { ReportCsvTable } from './reportCsv';
 
 export type { ReportGroupKey, ReportResult, ReportRow, ReportTotals } from './reportResult';

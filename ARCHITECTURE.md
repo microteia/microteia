@@ -10827,8 +10827,8 @@ segundo relógio, e o `schedule` do contrato continua reservado só para não se
 discriminante em `dataset.kind`, e este RECUSA. Cada um entra de forma aditiva — e reservar o nome agora
 é o que impede um kernel velho de podar em silêncio o que uma ferramenta nova escreveu.
 
-Ainda previstos e não executados, com aviso: `shape.limit`, `presentation.fields`,
-`presentation.export.fileName`, um `prompts[].control` diferente de `'period'` e `sort.by: 'label'` — o
+Ainda previstos e não executados, com aviso: `shape.limit`, `presentation.fields`, um
+`prompts[].control` diferente de `'period'` e `sort.by: 'label'` — o
 rótulo de um grupo é resolvido na tela, no idioma de quem lê, e o servidor que corta o nível não o vê.
 
 **`emptyCell` ausente mostra o valor calculado** (0 numa contagem, travessão numa média de nada); só
@@ -10966,6 +10966,23 @@ deriva — sem campo de controle nem automação gravando um número no registro
   agrupa e não é data, "Faixas (limites)" — `30, 60, 90` vira `< 30`, `30 – 60`, `60 – 90`, `≥ 90`
   (`bucketsFromLimits`). Os rótulos gerados são só número e símbolo — dado, não frase —; quem quer outro
   nome escreve o `spec`.
+
+### Exportação — CSV, XLSX e impressão (`presentation.export`)
+
+- **XLSX** (`reportResultToXlsx`, `reportXlsx.ts`, domínio compartilhado): a MESMA tabela do CSV
+  (`ReportCsvTable`), com o número como célula numérica — no CSV ele é texto que a planilha adivinha
+  pelo idioma de quem abre (`1234.5` vira data num Excel em português). Gerado à mão, sem dependência:
+  ZIP "stored" de seis partes, strings em linha, negrito no cabeçalho e no total. O texto com zero à
+  esquerda (`00123`) continua texto. Roda igual no navegador e na function — é o que a assinatura vai
+  anexar quando o anexo entrar.
+- `useReportExport(spec, result, title)(format)` monta a tabela uma vez e serializa; `useReportCsv` ficou
+  como atalho do CSV.
+- `export: { csv?, xlsx?, pdf?, fileName? }` — ausente oferece todos; `false` esconde o botão; `fileName`
+  é o nome-base (`reportFileName` acrescenta o dia e a extensão). `export.filename` e `export.xlsx` saíram
+  da lista de não executados.
+- **PDF continua sendo a impressão do navegador** ("Salvar como PDF", com a folha de impressão do
+  `GlobalStyles`). O PDF gerado no SERVIDOR — para anexar numa assinatura — fica para quando a assinatura
+  ganhar anexo: o motor de Documentos já gera PDF a partir de `payload`.
 
 ### Destaque condicional (`presentation.highlight`)
 

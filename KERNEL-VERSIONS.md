@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.232.0] — 2026-11-12
+
+- feat(reports): XLSX export — `reportResultToXlsx` (shared domain, no dependency: stored ZIP, inline strings, numeric cells, bold header and total) renders the same `ReportCsvTable` as the CSV. Numeric text with a leading zero stays text.
+- feat(reports): `presentation.export` gains `xlsx`; absent offers every format, `false` hides that button (`pdf` is the browser print). `fileName` is now honoured as the base name (`reportFileName` appends day and extension). Capabilities `export.xlsx` and `export.filename` are executed.
+- refactor(ui): `useReportExport(spec, result, title)(format)`; `useReportCsv` remains as the CSV shortcut. `KERNEL_VERSION` 2.115.0. pt-BR locale package 1.183.0.
+
 #### [9.231.0] — 2026-11-12
 
 - feat(reports): `dimensions[].expression` — a grouping calculated per record in the `includeWhen` language. `materializeReportDimensions` evaluates it once per row after the row filter and stores it in `REPORT_DIMENSION_SLOT`; a failing expression refuses the report (`@core.reports/dimension.expression.failed`). Its paths join `reportPaths` (hydration and RBAC); `path` is not read. Records leaving the result go through `withoutComputedDimensions`.

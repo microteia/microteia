@@ -45,12 +45,21 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey, view 
           </div>
           <S.Actions data-print-hide>
             {vm.meta && <S.Meta>{vm.meta}</S.Meta>}
-            <Button variant="secondary" size="sm" onClick={vm.exportCsv} disabled={!vm.canExport}>
-              {vm.exportLabel}
-            </Button>
-            <Button variant="secondary" size="sm" onClick={vm.print} disabled={!vm.canExport}>
-              {vm.printLabel}
-            </Button>
+            {vm.offersCsv && (
+              <Button variant="secondary" size="sm" onClick={vm.exportCsv} disabled={!vm.canExport}>
+                {vm.exportLabel}
+              </Button>
+            )}
+            {vm.offersXlsx && (
+              <Button variant="secondary" size="sm" onClick={vm.exportXlsx} disabled={!vm.canExport}>
+                {vm.exportXlsxLabel}
+              </Button>
+            )}
+            {vm.offersPrint && (
+              <Button variant="secondary" size="sm" onClick={vm.print} disabled={!vm.canExport}>
+                {vm.printLabel}
+              </Button>
+            )}
             {vm.canSubscribe && (
               <Button variant="secondary" size="sm" onClick={vm.openSubscribe}>
                 {vm.subscribeLabel}

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.232.0] — 2026-11-12
+
+- Os relatórios agora podem ser baixados em **Excel**, além de CSV: os números chegam como números, prontos para somar e montar gráficos, sem a planilha confundir valores com datas.
+- Quem cria o relatório pode escolher quais formatos oferecer e o nome do arquivo baixado.
+
 #### [9.231.0] — 2026-11-12
 
 - Os relatórios agora agrupam por **faixas**: informe os limites (por exemplo 30, 60, 90) e os números aparecem agrupados em "< 30", "30 – 60", "60 – 90" e "≥ 90" — ideal para idade de títulos em aberto ou faixas de valor.

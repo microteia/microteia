@@ -168,6 +168,7 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'table.empty': 'No data for this report.',
   'table.total': 'Total',
   'toolbar.export': 'Export CSV',
+  'toolbar.export-xlsx': 'Export Excel',
   'toolbar.print': 'Print',
   'design.computed': 'Calculated figure',
   'design.computed.hint': 'A figure calculated from the others after they are added up — a ratio, a percentage, an average ticket. Type the key of a figure to see what is available.',

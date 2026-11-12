@@ -62,9 +62,11 @@ export const reportResultToCsv = (table: ReportCsvTable): string => {
   return BOM + lines.join('\r\n');
 };
 
-/** O nome do arquivo, sem o que um sistema de arquivos recusa. */
-export const reportCsvFileName = (title: string, at: Date): string => {
+/** O nome do arquivo, sem o que um sistema de arquivos recusa, com o dia e a extensão do formato. */
+export const reportFileName = (title: string, at: Date, extension: 'csv' | 'xlsx'): string => {
   const slug = title.trim().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').toLowerCase();
   const day = at.toISOString().slice(0, 10);
-  return `${slug || 'relatorio'}-${day}.csv`;
+  return `${slug || 'relatorio'}-${day}.${extension}`;
 };
+
+export const reportCsvFileName = (title: string, at: Date): string => reportFileName(title, at, 'csv');

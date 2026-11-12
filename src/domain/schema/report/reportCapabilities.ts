@@ -24,7 +24,9 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'dimension.others',
   'dimension.sort.measure',
   'export.csv',
+  'export.filename',
   'export.pdf',
+  'export.xlsx',
   'measure.aggregate',
   'measure.computed',
   'measure.distinct',
@@ -129,6 +131,7 @@ export const deriveReportRequires = (spec: ReportSpec): string[] => {
   if (spec.presentation?.drillDown?.enabled === true) required.add('presentation.drilldown');
   if (spec.presentation?.export?.csv) required.add('export.csv');
   if (spec.presentation?.export?.pdf) required.add('export.pdf');
+  if (spec.presentation?.export?.xlsx) required.add('export.xlsx');
   if (spec.presentation?.export?.fileName !== undefined) required.add('export.filename');
   if (spec.schedule) required.add('schedule');
 

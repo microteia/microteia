@@ -14,7 +14,7 @@ import { reportDrillEnabled } from '../../../../domain/schema/report/reportSpec'
 import type { ReportDrillTarget } from '../../../../domain/schema/report/aggregateRows';
 import { useOpenRecord } from '../../../shared/useOpenRecord';
 import { useReportGroupLabels } from '../../../shared/report/useReportGroupLabels';
-import { useReportCsv } from '../../../shared/report/useReportCsv';
+import { useReportExport } from '../../../shared/report/useReportCsv';
 import { useAuthorization } from '../../../../stores/useAuthorization';
 import { PERMISSION_AUTOMATION_MANAGE } from '../../../../domain/schema/access/kernelPermissions';
 import { resolveWidgetAnswers } from '../../../../domain/schema/ui/widgetSpec';
@@ -68,9 +68,15 @@ export interface ReportViewViewModel {
   clearPrompts: () => void;
   hasPromptValues: boolean;
   exportLabel: string;
+  exportXlsxLabel: string;
   printLabel: string;
   canExport: boolean;
+  /** Os formatos que o relatório OFERECE — `export.<formato>: false` esconde o botão. */
+  offersCsv: boolean;
+  offersXlsx: boolean;
+  offersPrint: boolean;
   exportCsv: () => void;
+  exportXlsx: () => void;
   print: () => void;
   /** O detalhamento, quando o relatório o permite. Ausente, tabela e pivô não são clicáveis. */
   drill: ((target: ReportDrillTarget) => void) | undefined;
@@ -344,7 +350,8 @@ export const useReportViewViewModel = (
     }
   }, [report, groupLabel, t, runReport, promptPayload, promptValues, label]);
 
-  const exportCsv = useReportCsv(spec ?? EMPTY_SPEC, result, report ? label(report.title) : '');
+  const exportAs = useReportExport(spec ?? EMPTY_SPEC, result, report ? label(report.title) : '');
+  const offered = spec?.presentation?.export;
 
   return {
     report,
@@ -375,9 +382,14 @@ export const useReportViewViewModel = (
     clearPrompts: () => setPromptValues(Object.fromEntries(declaredPrompts.map((prompt) => [prompt.key, '']))),
     hasPromptValues: declaredPrompts.some((prompt) => effectiveText(prompt, promptValues).trim() !== ''),
     exportLabel: t('toolbar.export'),
+    exportXlsxLabel: t('toolbar.export-xlsx'),
     printLabel: t('toolbar.print'),
     canExport: result !== null,
-    exportCsv,
+    offersCsv: offered?.csv !== false,
+    offersXlsx: offered?.xlsx !== false,
+    offersPrint: offered?.pdf !== false,
+    exportCsv: () => exportAs('csv'),
+    exportXlsx: () => exportAs('xlsx'),
     // O navegador compõe a página e oferece "Salvar como PDF". A folha de impressão está no
     // `GlobalStyles`, e é ela que decide o que aparece no papel.
     print: () => window.print(),
