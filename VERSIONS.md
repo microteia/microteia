@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.257.0] — 2026-11-13
+
+- Corrigido o erro "A IA retornou uma resposta em formato inválido" ao usar o Claude, a Mistral ou a Cohere na detecção de automação e nas demais tarefas de IA: as instruções da tarefa não chegavam a esses provedores, que respondiam em texto livre.
+- A lista de modelos nas conexões de IA foi atualizada com os modelos atuais da OpenAI, Anthropic (Claude), Google (Gemini), Mistral e Cohere. Os modelos mais novos, que raciocinam antes de responder, foram ajustados para não estourar o limite de tokens configurado na conexão.
+- Saíram as opções "Ollama" e "Outro" do provedor de IA, que não funcionavam. Uma conexão antiga com um deles continua listada para poder ser excluída.
+
 #### [9.256.0] — 2026-11-13
 
 - A tela de criação de relatórios ficou mais organizada: as configurações agora aparecem em abas no topo — Geral, Campos, Números, Apresentação, Gráfico, Filtros e Acesso —, e a pré-visualização ocupa a largura inteira logo abaixo. Cada aba mostra quantos itens já foram configurados nela.

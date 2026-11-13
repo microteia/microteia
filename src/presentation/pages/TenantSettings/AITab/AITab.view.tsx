@@ -23,7 +23,8 @@ import type { AIConnectionForm, AIFieldErrors } from './AITab.viewmodel';
 
 import { useT, useLabel } from '../../../shared/i18n/useT';
 // Nome de PRODUTO é marca: "OpenAI" e "Anthropic (Claude)" se escrevem igual em qualquer idioma.
-// Só "Outro" é texto nosso, e por isso é o único que vira referência.
+// "Outro" saiu da lista: sem campo de endpoint e sem serviço no backend, a conexão era salva e
+// toda chamada falhava como provedor não suportado.
 /* eslint-disable no-restricted-syntax */
 const PROVIDER_OPTIONS: SearchSelectOption[] = [
   { value: 'openai', label: 'OpenAI' },
@@ -31,8 +32,6 @@ const PROVIDER_OPTIONS: SearchSelectOption[] = [
   { value: 'google', label: 'Google (Gemini)' },
   { value: 'mistral', label: 'Mistral AI' },
   { value: 'cohere', label: 'Cohere' },
-  { value: 'ollama', label: 'Ollama (Local)' },
-  { value: 'other', label: '@core.tenant/ai.provider.other' },
 ];
 /* eslint-enable no-restricted-syntax */
 
@@ -284,15 +283,16 @@ export const AITabView: React.FC = () => {
         icon: <RiRobot2Line size={18} />,
       },
       cohere: { label: 'Cohere', color: theme.colors.aiCohere, icon: <RiRobot2Line size={18} /> },
-      ollama: { label: 'Ollama', color: theme.colors.aiOllama, icon: <RiRobot2Line size={18} /> },
       /* eslint-enable no-restricted-syntax */
-      other: {
+    };
+    // Conexão gravada quando ainda existiam "Outro" e "Ollama" continua listada, para poder ser excluída.
+    return (
+      providerMap[provider] ?? {
         label: t('ai.provider.custom'),
         color: theme.colors.aiOther,
         icon: <RiRobot2Line size={18} />,
-      },
-    };
-    return providerMap[provider] ?? providerMap.other;
+      }
+    );
   };
 
   return (

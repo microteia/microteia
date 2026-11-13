@@ -31,13 +31,19 @@ const EMPTY_AI_FORM: AIConnectionForm = {
 };
 
 const MODEL_SUGGESTIONS: Record<string, string[]> = {
-  openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-  anthropic: ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
-  google: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-1.5-pro'],
-  mistral: ['mistral-large-latest', 'mistral-medium-latest', 'open-mistral-7b'],
-  cohere: ['command-r-plus', 'command-r', 'command'],
-  ollama: ['llama3.2', 'llama3.1', 'mistral', 'gemma2', 'phi4'],
-  other: [],
+  openai: ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna'],
+  anthropic: [
+    'claude-opus-5-5',
+    'claude-sonnet-5-5',
+    'claude-haiku-5-5',
+    'claude-fable-5-2',
+    'claude-opus-4-8',
+    'claude-sonnet-4-6',
+    'claude-haiku-4-5',
+  ],
+  google: ['gemini-4-carbon', 'gemini-4-hydrogen', 'gemini-4-argon', 'gemini-3.8-flash', 'gemini-3.5-flash-lite'],
+  mistral: ['mistral-large-4', 'mistral-large-latest', 'mistral-small-latest'],
+  cohere: ['command-a-plus-05-2026', 'command-a-03-2025', 'command-r7b-12-2024'],
 };
 
 export interface AITabViewModel {

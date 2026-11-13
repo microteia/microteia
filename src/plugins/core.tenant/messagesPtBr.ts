@@ -105,7 +105,6 @@ const CORE_TENANT_PT_BR: Record<string, string> = {
   'ai.name.placeholder': 'Ex: GPT-4o Produção',
   'ai.provider': 'Provider *',
   'ai.provider.custom': 'Personalizado',
-  'ai.provider.other': 'Outro',
   'ai.provider.placeholder': 'Selecione o provider...',
   'ai.save-failed': 'Erro ao salvar conexão IA.',
   'ai.section.title': 'Conexões IA do Escritório',

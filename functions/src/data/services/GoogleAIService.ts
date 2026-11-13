@@ -1,6 +1,15 @@
 import type { AICallOptions, IAIProviderService } from '../../domain/repositories/IAIProviderService';
 import type { AICredentials } from '../../domain/entities/AICredentials';
 
+/**
+ * Do Gemini 3 em diante o raciocínio vem ligado (até `high` por padrão) e os tokens dele contam no
+ * `maxOutputTokens`. Estourando o limite, a resposta volta vazia ou cortada. `low` é o nível que
+ * todas as famílias 3 e 4 aceitam.
+ */
+const THINKING_LEVEL_MODEL = /^gemini-([3-9]|\d{2})/;
+
+export const usesThinkingLevel = (model: string): boolean => THINKING_LEVEL_MODEL.test(model);
+
 export class GoogleAIService implements IAIProviderService {
   canHandle(provider: string): boolean {
     return provider === 'google';
@@ -15,6 +24,9 @@ export class GoogleAIService implements IAIProviderService {
     };
     if (options?.expectJson || options?.jsonSchema) {
       generationConfig.responseMimeType = 'application/json';
+    }
+    if (usesThinkingLevel(credentials.model)) {
+      generationConfig.thinkingConfig = { thinkingLevel: 'low' };
     }
 
     const body: Record<string, unknown> = {

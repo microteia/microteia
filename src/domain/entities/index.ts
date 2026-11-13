@@ -62,7 +62,7 @@ export interface NicknameCheckResult {
 
 // ─── AI Connections ───────────────────────────────────────────────────────────
 
-export type AIProvider = 'openai' | 'anthropic' | 'google' | 'mistral' | 'cohere' | 'ollama' | 'other';
+export type AIProvider = 'openai' | 'anthropic' | 'google' | 'mistral' | 'cohere';
 
 export interface AIConnection {
   id: string;

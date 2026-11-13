@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.257.0] — 2026-11-13
+
+- fix(ai/providers): `AnthropicService`, `MistralService` and `CohereService` ignored `AICallOptions`, so `systemPrompt` never reached those providers. Workflow detection, parameter extraction and report drafting put their whole instruction ("answer only with JSON …") in the system prompt, and Claude answered in prose, failing with `ai.invalid-response`. Anthropic now sends `system`; Mistral and Cohere send a `system` message and `response_format: json_object` when JSON is expected.
+- fix(ai/anthropic): the reply is the concatenation of every `text` block instead of `content[0].text`, which is a `thinking` block on models that reason. `temperature` is sent only to models that accept it (before Opus 4.7); later ones reject it with 400, and `claude-opus-4-8` was already offered in the model list.
+- feat(ai/providers): models that reason by default spend the connection's `maxTokens` on reasoning too, and a 2048 budget could end before the answer. Anthropic (after Opus 4.6) gets `output_config.effort: low`; OpenAI reasoning models (o-series, GPT-5, GPT-6) get `reasoning_effort: low` and no `temperature`; Gemini 3+ gets `thinkingConfig.thinkingLevel: low`. OpenAI now always sends `max_completion_tokens` instead of `max_tokens`.
+- feat(ai/anthropic): server-side refusal fallback (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) on `claude-opus-5-5`, `claude-opus-5`, `claude-sonnet-5-5` and `claude-fable-5-1|5-2`, so a safety decline is answered by another model instead of surfacing as an invalid-format error.
+- feat(tenant/ai): model suggestions updated to the current lineup of each provider.
+- refactor(tenant/ai): providers `ollama` and `other` removed from `AIProvider`/`Provider`. Neither had a backend service nor an endpoint field, so every call failed as an unsupported provider. A stored connection with either is still listed under the generic label so it can be deleted. Key `core.tenant` `ai.provider.other` removed. Theme tokens `aiOllama`/`aiOther` stay: they are part of the extension host API.
+
 #### [9.256.0] — 2026-11-13
 
 - feat(reports/design): the report authoring screen is reorganised into horizontal sub-tabs (General, Fields, Figures, Layout, Chart, Filters, Access) above a full-width preview. The settings panel has a capped height and scrolls on its own, and a header toggle hides tabs and panel so the preview takes the whole screen. Tabs show how many items each section declares. Spec issues stay visible outside the tabs, and the preview action moved from an unlabeled header icon to a labeled button next to the result, with an empty state. No change to the report spec or to what is saved.

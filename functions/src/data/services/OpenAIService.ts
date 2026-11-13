@@ -1,6 +1,14 @@
 import type { AICallOptions, IAIProviderService } from '../../domain/repositories/IAIProviderService';
 import type { AICredentials } from '../../domain/entities/AICredentials';
 
+/**
+ * Modelos de raciocínio (série o, GPT-5 e GPT-6) recusam `temperature` e gastam o mesmo limite de
+ * saída raciocinando. No esforço padrão (`medium`), um limite de 2048 podia acabar antes da resposta.
+ */
+const REASONING_MODEL = /^(o\d|gpt-[5-9]|gpt-\d{2})/;
+
+export const isOpenAIReasoningModel = (model: string): boolean => REASONING_MODEL.test(model);
+
 export class OpenAIService implements IAIProviderService {
   canHandle(provider: string): boolean {
     return provider === 'openai';
@@ -13,12 +21,18 @@ export class OpenAIService implements IAIProviderService {
     }
     messages.push({ role: 'user', content: prompt });
 
+    // `max_completion_tokens` é aceito por todos os modelos do Chat Completions; `max_tokens`, os de
+    // raciocínio recusam.
     const body: Record<string, unknown> = {
       model: credentials.model,
       messages,
-      temperature: credentials.temperature,
-      max_tokens: credentials.maxTokens,
+      max_completion_tokens: credentials.maxTokens,
     };
+    if (isOpenAIReasoningModel(credentials.model)) {
+      body.reasoning_effort = 'low';
+    } else {
+      body.temperature = credentials.temperature;
+    }
 
     if (options?.jsonSchema) {
       body.response_format = {

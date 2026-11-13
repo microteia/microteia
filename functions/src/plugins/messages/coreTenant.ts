@@ -100,7 +100,6 @@ export const CORE_TENANT_MESSAGES: Record<string, string> = {
   'ai.name.placeholder': 'e.g. GPT-4o Production',
   'ai.provider': 'Provider *',
   'ai.provider.custom': 'Custom',
-  'ai.provider.other': 'Other',
   'ai.provider.placeholder': 'Select the provider…',
   'ai.save-failed': 'Could not save the AI connection.',
   'ai.section.title': 'Organization AI Connections',

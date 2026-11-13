@@ -1,1 +1,1 @@
-export type Provider = 'openai' | 'anthropic' | 'google' | 'mistral' | 'cohere' | 'ollama' | 'other';
+export type Provider = 'openai' | 'anthropic' | 'google' | 'mistral' | 'cohere';
