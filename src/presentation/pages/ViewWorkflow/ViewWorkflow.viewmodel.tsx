@@ -343,6 +343,14 @@ export interface ViewWorkflowViewModel {
   webhookSchemeOptions: { value: string; label: string }[];
   webhookHeader: string;
   setWebhookHeader: (value: string) => void;
+  /** O cabeçalho do id de cada entrega — a proteção contra o reenvio. Vazio desliga. */
+  webhookDeliveryHeader: string;
+  setWebhookDeliveryHeader: (value: string) => void;
+  /** Só na assinatura: o cabeçalho da data assinada. Vazio desliga (o formato do Stripe dispensa). */
+  webhookTimestampHeader: string;
+  setWebhookTimestampHeader: (value: string) => void;
+  /** Grava só a proteção, sem trocar o segredo. */
+  saveWebhookProtection: () => void;
   issueWebhook: () => void;
   revokeWebhook: () => void;
   /** Os campos de data da tela do gatilho. */
@@ -734,6 +742,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [webhookBusy, setWebhookBusy] = useState(false);
   const [webhookScheme, setWebhookScheme] = useState<WebhookScheme>('token');
   const [webhookHeader, setWebhookHeader] = useState(WEBHOOK_DEFAULT_SIGNATURE_HEADER);
+  const [webhookDeliveryHeader, setWebhookDeliveryHeader] = useState('');
+  const [webhookTimestampHeader, setWebhookTimestampHeader] = useState('');
   const webhookSchemeOptions = useMemo(
     () => [
       { value: 'token', label: t('webhook.scheme.token') },
@@ -752,7 +762,12 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         setIssuedWebhook(await workflowWebhookRepository.issue(
           currentTenant.id,
           webhookWorkflowId,
-          webhookScheme === 'hmac' ? { scheme: 'hmac', header: webhookHeader.trim() } : { scheme: 'token' },
+          {
+            ...(webhookScheme === 'hmac'
+              ? { scheme: 'hmac', header: webhookHeader.trim(), timestampHeader: webhookTimestampHeader.trim() }
+              : { scheme: 'token' }),
+            deliveryHeader: webhookDeliveryHeader.trim(),
+          },
         ));
       } else {
         await workflowWebhookRepository.revoke(currentTenant.id, webhookWorkflowId);
@@ -764,7 +779,27 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     } finally {
       setWebhookBusy(false);
     }
-  }, [currentTenant, webhookWorkflowId, workflowWebhookRepository, notify, t, label, webhookScheme, webhookHeader]);
+  }, [currentTenant, webhookWorkflowId, workflowWebhookRepository, notify, t, label, webhookScheme, webhookHeader, webhookDeliveryHeader, webhookTimestampHeader]);
+
+  /**
+   * A proteção contra reenvio, trocada SEM emitir segredo novo — quem chama não precisa ser reconfigurado.
+   * O servidor recusa quando ainda não há webhook emitido, e a data assinada fora da assinatura.
+   */
+  const saveWebhookProtection = useCallback(async () => {
+    if (!currentTenant || !webhookWorkflowId) return;
+    setWebhookBusy(true);
+    try {
+      await workflowWebhookRepository.configure(currentTenant.id, webhookWorkflowId, {
+        deliveryHeader: webhookDeliveryHeader.trim(),
+        timestampHeader: webhookScheme === 'hmac' ? webhookTimestampHeader.trim() : '',
+      });
+      notify(t('webhook.protection.saved'), 'success');
+    } catch (caught) {
+      notify(label(caught instanceof Error ? caught.message : String(caught)), 'error');
+    } finally {
+      setWebhookBusy(false);
+    }
+  }, [currentTenant, webhookWorkflowId, workflowWebhookRepository, webhookDeliveryHeader, webhookTimestampHeader, webhookScheme, notify, t, label]);
 
   // O gatilho que um passo já presente declara incompatível não pode ser escolhido: a troca deixaria
   // gravada uma automação que o motor recusa no primeiro passo proibido.
@@ -1572,6 +1607,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     toggleCompareVersion: (version) => setComparingVersion((current) => (current === version ? null : version)),
     versionChanges,
     restoreVersion: (version) => { void restoreVersion(version); },
+    webhookDeliveryHeader,
+    setWebhookDeliveryHeader,
+    webhookTimestampHeader,
+    setWebhookTimestampHeader,
+    saveWebhookProtection: () => { void saveWebhookProtection(); },
     canManageWebhook: webhookWorkflowId !== null && can(PERMISSION_AUTOMATION_MANAGE),
     issuedWebhook,
     webhookBusy,

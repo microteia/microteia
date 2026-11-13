@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.251.0] — 2026-11-13
+
+- feat(workflow): webhook replay protection, optional per webhook (`WebhookProtection`). `deliveryHeader`: a delivery id the caller sends; the first arrival creates `workflow_webhooks/{id}/webhook_deliveries/{sha256(id)}` with `create()`, a copy answers 200 `{ eventId, duplicate: true }` with the first event and does not publish again. The mark is created only after every refusal check, released if publishing fails, and expires after 24 h (TTL); a missing declared id is 400 `delivery-id-missing`.
+- feat(workflow): signed timestamp for HMAC webhooks. Stripe's `t=<s>,v1=<hex>` is recognized without configuration; `timestampHeader` covers other senders. The HMAC is computed over `<timestamp>.<rawBody>` and the timestamp must be within 300 s.
+- feat(workflow): `manageWorkflowWebhook` takes `deliveryHeader`/`timestampHeader` on `issue` and a new `configure` action that changes only the protection, keeping the secret (`webhook.not-issued`, `webhook.timestamp-needs-hmac`). Rules: `webhook_deliveries` is server-only; TTL on `expiresAt`.
+
 #### [9.250.0] — 2026-11-13
 
 - feat(reports): report snapshot series. The `run-report` step takes `snapshot: true` and stores the result in `tenants/{id}/report_snapshots` — deepest-level groups (up to 500, `truncated`), totals, `count`, `complete`, `takenBy`, a `definition` fingerprint of what defines the number, and `expiresAt` (5-year TTL) — publishing `snapshotId`. Summary and matrix only (`snapshotRefusal`).

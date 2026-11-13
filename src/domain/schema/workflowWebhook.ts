@@ -34,6 +34,34 @@ export type WebhookScheme = typeof WEBHOOK_SCHEMES[number];
 /** O cabeçalho da assinatura quando quem configura não escolhe outro. */
 export const WEBHOOK_DEFAULT_SIGNATURE_HEADER = 'x-signature-256';
 
+/**
+ * Quanto tempo uma ENTREGA fica lembrada pelo id dela. Os sistemas que reenviam (Stripe, GitHub, Shopify)
+ * repetem por horas, não por dias; a marca expira sozinha depois disso (TTL).
+ */
+export const WEBHOOK_DELIVERY_WINDOW_HOURS = 24;
+
+/** A folga da data ASSINADA: fora dela, a chamada é uma cópia velha, e é recusada. */
+export const WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = 300;
+
+/** As marcas de entrega já recebida: `workflow_webhooks/{workflowId}/webhook_deliveries/{hash do id}`. */
+export const WEBHOOK_DELIVERIES_SUBCOLLECTION = 'webhook_deliveries';
+
+/**
+ * A proteção contra a MESMA entrega processada duas vezes — opcional, e por webhook:
+ * - `deliveryHeader`: o cabeçalho em que quem chama manda o id de cada entrega (`X-GitHub-Delivery`,
+ *   `Idempotency-Key`). A entrega repetida responde 200 com o evento da primeira, sem disparar de novo — é o
+ *   reenvio por tempo esgotado, que todo sistema de webhook faz;
+ * - `timestampHeader` (só na assinatura): o cabeçalho com a data, em segundos, que entra na conta
+ *   (`<data>.<corpo>`). Uma cópia capturada e reenviada depois da folga é recusada. A assinatura no formato do
+ *   Stripe (`t=<data>,v1=<assinatura>`) é reconhecida sem configurar nada.
+ *
+ * Chamar o mesmo webhook várias vezes continua valendo: cada entrega legítima tem id e data próprios.
+ */
+export interface WebhookProtection {
+  deliveryHeader?: string;
+  timestampHeader?: string;
+}
+
 /** Nome de cabeçalho HTTP aceitável: letras, dígitos e hífen. É ele que o servidor procura na chamada. */
 export const isWebhookHeaderName = (value: string): boolean => /^[A-Za-z0-9-]{1,64}$/.test(value);
 

@@ -1,4 +1,4 @@
-import type { WebhookScheme } from '../schema/workflowWebhook';
+import type { WebhookProtection, WebhookScheme } from '../schema/workflowWebhook';
 
 export interface IssuedWorkflowWebhook {
   /** O token — ou o segredo da assinatura —, visível SÓ nesta resposta. */
@@ -15,8 +15,10 @@ export interface IWorkflowWebhookRepository {
   issue(
     tenantId: string,
     workflowId: string,
-    options?: { scheme: WebhookScheme; header?: string },
+    options?: { scheme: WebhookScheme; header?: string } & WebhookProtection,
   ): Promise<IssuedWorkflowWebhook>;
+  /** Troca só a proteção contra reenvio — o segredo continua o mesmo. Vazio desliga. */
+  configure(tenantId: string, workflowId: string, protection: WebhookProtection): Promise<void>;
   /** Revoga o token: a URL passa a responder 401. */
   revoke(tenantId: string, workflowId: string): Promise<void>;
 }

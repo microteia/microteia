@@ -611,12 +611,33 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                           <Input value={vm.webhookHeader} onChange={(event) => vm.setWebhookHeader(event.target.value)} />
                         </>
                       )}
+                      <Label>{t('webhook.delivery-header')}</Label>
+                      <Input
+                        value={vm.webhookDeliveryHeader}
+                        placeholder={t('webhook.delivery-header.placeholder')}
+                        onChange={(event) => vm.setWebhookDeliveryHeader(event.target.value)}
+                      />
+                      <S.FieldHint>{t('webhook.delivery-header.hint')}</S.FieldHint>
+                      {vm.webhookScheme === 'hmac' && (
+                        <>
+                          <Label>{t('webhook.timestamp-header')}</Label>
+                          <Input
+                            value={vm.webhookTimestampHeader}
+                            placeholder={t('webhook.timestamp-header.placeholder')}
+                            onChange={(event) => vm.setWebhookTimestampHeader(event.target.value)}
+                          />
+                          <S.FieldHint>{t('webhook.timestamp-header.hint')}</S.FieldHint>
+                        </>
+                      )}
                     </>
                   )}
                   {vm.canManageWebhook && (
                     <S.HeaderActions>
                       <Button type="button" variant="secondary" size="sm" onClick={vm.issueWebhook} disabled={vm.webhookBusy}>
                         {t('webhook.issue')}
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={vm.saveWebhookProtection} disabled={vm.webhookBusy}>
+                        {t('webhook.protection.save')}
                       </Button>
                       <Button type="button" variant="ghost" size="sm" onClick={vm.revokeWebhook} disabled={vm.webhookBusy}>
                         {t('webhook.revoke')}

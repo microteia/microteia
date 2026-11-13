@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.251.0] — 2026-11-13
+
+- Webhooks agora podem se proteger de reenvios. Quando o sistema que chama repete a mesma entrega (o que acontece quando a resposta demora), a automação não roda duas vezes — basta informar o cabeçalho com o id da entrega. Para webhooks assinados, também é possível exigir uma data assinada, o que impede que uma chamada capturada seja repetida depois; a assinatura do Stripe é reconhecida automaticamente.
+
 #### [9.250.0] — 2026-11-13
 
 - Relatórios agora podem ter memória. Uma automação pode guardar um instantâneo do resultado de um relatório — por exemplo, toda segunda-feira — e um novo relatório mostra a evolução desses instantâneos ao longo do tempo, como "chamados abertos por prioridade, semana a semana". Basta ligar "Guardar instantâneo" no passo "Executar relatório" e escolher "Instantâneos de…" ao criar o relatório da série.

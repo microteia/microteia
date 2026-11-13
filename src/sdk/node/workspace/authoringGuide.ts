@@ -3685,6 +3685,10 @@ call is the event, shaped by the workflow's \`parameters\` — exactly as in a c
   longer a webhook, 400 when the body is not an object.
 - The body is DATA. No field of it is ever evaluated as an expression.
 - A package ships the workflow, never the token: each organization generates its own after installing.
+- The organization may also turn on replay protection for each webhook: a delivery id header (the same
+  delivery arriving again within 24 h is acknowledged with 200 and does not run again) and, with a signature,
+  a signed timestamp (Stripe's \`t=…,v1=…\` is recognized as is). Design the flow so a legitimate repeated call —
+  a new delivery — is still safe to run.
 
 A package with a \`webhook.received\` workflow needs kernel ${WORKFLOW_WEBHOOK_SINCE_KERNEL} or later.
 

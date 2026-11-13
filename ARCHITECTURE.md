@@ -9271,8 +9271,18 @@ pergunta inversa do MCP resolve o portão: o escritório vem da URL e só vale c
 - **Fronteira de confiança:** o corpo é dado; nenhum campo dele vira expressão.
 - **Pacote:** o fluxo viaja, a credencial nunca — cada escritório gera a sua depois de instalar. Exige
   `WORKFLOW_WEBHOOK_SINCE_KERNEL` (2.116.0).
-- **Ainda não:** proteção contra reenvio (carimbo de tempo assinado), limite de taxa por automação e
-  resposta síncrona com o retorno da automação.
+- **Proteção contra reenvio** (`WebhookProtection`, opcional por webhook, gravada na emissão ou trocada pela
+  ação `configure` sem novo segredo):
+  - `deliveryHeader`: o id de cada entrega (`X-GitHub-Delivery`, `Idempotency-Key`). A marca
+    `workflow_webhooks/{id}/webhook_deliveries/{sha256 do id}` é criada com `create()` (quem chega primeiro);
+    a cópia responde **200** `{ eventId, duplicate: true }` com o evento da primeira, sem disparar. A marca só
+    nasce DEPOIS de tudo que recusaria a chamada, sai se a publicação falhar (o reenvio é processado de
+    verdade) e expira em 24 h (TTL). Sem o id declarado: 400 `delivery-id-missing`. É o reenvio por tempo
+    esgotado que Stripe, GitHub e Shopify fazem — chamadas legítimas repetidas têm ids diferentes e passam.
+  - Data assinada (só HMAC): a assinatura do Stripe (`t=<s>,v1=<hex>`) é reconhecida sozinha; outro sistema
+    declara `timestampHeader`. A conta passa a ser sobre `<data>.<corpo>` e a data precisa estar a até
+    `WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS` (5 min) — uma chamada capturada não é repetida depois.
+- **Ainda não:** limite de taxa por automação e resposta síncrona com o retorno da automação.
 
 ### Gatilho de Auditoria — `audit.recorded`
 
@@ -16726,6 +16736,7 @@ Além dos compostos, o arquivo declara catorze `fieldOverrides`:
 | `http_dispatches` (collectionGroup) | `nextAttemptAt` ASC | `runWorkflowClock` devolve à fila, em todos os escritórios de uma vez, o pedido HTTP assíncrono cuja espera venceu, cuja entrega morreu no meio ou que ninguém pegou |
 | `http_dispatches` | `expiresAt` | TTL — o pedido HTTP assíncrono fica 7 dias depois de criado; o resultado já foi para o callback |
 | `report_snapshots` | `report` ASC, `takenAt` DESC | A série de instantâneos de um relatório: as fotos mais recentes dele, até `REPORT_SNAPSHOT_MAX_SERIES` |
+| `webhook_deliveries` (sob `workflow_webhooks/{id}`) | `expiresAt` | TTL — a marca de "esta entrega já chegou" do webhook vale a janela de reenvio (`WEBHOOK_DELIVERY_WINDOW_HOURS`, 24 h); sem índice, porque só é lida pelo id |
 | `report_snapshots` | `expiresAt` | TTL — a foto de um relatório é mantida por 5 anos (`REPORT_SNAPSHOT_RETENTION_YEARS`) |
 
 ---

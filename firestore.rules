@@ -704,6 +704,10 @@ service cloud.firestore {
       // emite e revoga é a callable `manageWorkflowWebhook`, e quem confere é o `workflowWebhook`.
       match /workflow_webhooks/{workflowId} {
         allow read, write: if false;
+        // As marcas de entrega já recebida (a proteção contra reenvio). Também só do servidor.
+        match /webhook_deliveries/{deliveryId} {
+          allow read, write: if false;
+        }
       }
 
       // ─── Listas de opções declaradas pelo tenant ─────────────────────────────
