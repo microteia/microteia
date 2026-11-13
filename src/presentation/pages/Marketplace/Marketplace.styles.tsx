@@ -424,6 +424,17 @@ export const S = {
     svg { flex-shrink: 0; margin-top: 2px; }
   `,
 
+  ProblemAction: styled.button`
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: ${({ theme }) => theme.colors.primary};
+    text-decoration: underline;
+    cursor: pointer;
+  `,
+
   Meta: styled.div`
     display: flex;
     align-items: center;

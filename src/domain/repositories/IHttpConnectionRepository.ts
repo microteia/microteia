@@ -6,6 +6,8 @@ import type { HttpConnection, HttpConnectionData } from '../schema/httpConnectio
  */
 export interface IHttpConnectionRepository {
   list(tenantId: string): Promise<HttpConnection[]>;
+  /** A lista ao vivo. `onError` recebe a recusa das regras — quem não pode ler não tem lista, e não uma vazia. */
+  subscribe(tenantId: string, onChange: (connections: HttpConnection[]) => void, onError: () => void): () => void;
   create(tenantId: string, data: HttpConnectionData, secret: string): Promise<HttpConnection>;
   /** `secret` ausente mantém o segredo gravado. */
   update(tenantId: string, id: string, data: HttpConnectionData, secret?: string): Promise<void>;

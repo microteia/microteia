@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.249.0] — 2026-11-13
+
+- feat(marketplace): extension-declared integration credentials. New point `http.connection` (`HTTP_CONNECTION_EXTENSION_POINTS`, owner `core.automation`, metadata only); SDK builder `httpConnection({ key, name, description?, scheme, paramName?, hosts })`. Installing creates nothing — the secret and the trust in the domains stay with the organization.
+- feat(marketplace): new pendency `connection` (after `backend`), computed from `httpConnectionRequirementState`: `missing`, `scheme`, `hosts`, `no-secret`, `office-hosts` (`integrations.http.allowedHosts`), `ok`. A declared wildcard is covered only by a wildcard containing it. Only users who can read credentials (`integrations.manage` or `automation.manage`) get it; unknown is never "missing".
+- feat(automation): `HttpConnectionStore` — live credential list shared by Integration credentials, Extensions and the menu badge; `IHttpConnectionRepository.subscribe`. "Configure" on an extension hands the declaration to the store (`requestDraft`) and opens `tenant-settings:integrations` with the form filled; on an existing key it fixes the scheme and adds domains, never removes them.
+- feat(marketplace): `httpConnectionPackageIssues` in `validatePluginPackage` — declaration shape (same `validateHttpConnection`, minus the basic user), duplicates, kernel >= 2.123.0, a `request.connection` key used and not declared (only in packages targeting the point) and a fixed URL outside the domains declared for its credential. `KERNEL_VERSION` 2.123.0.
+
 #### [9.248.0] — 2026-11-13
 
 - feat(workflow): extension-declared steps ("connectors"). `workflow.step` now accepts `impl.kind: 'workflow' | 'script'` from third parties (`WORKFLOW_STEP_EXTENSION_POINTS`, registered on the front by `core.automation`); the SDK builder is `automationStep(metadata, { workflowId } | { scriptId })`. The body is a called workflow or a sandbox script of the same package — no third-party code on the server. Step id is `<pluginId>/<key>`; inputs and outputs are the body's (catalog entry reuses the `from-target-*` dynamic kinds with `sourceInputId: 'connectorTarget'` and `fixedTarget`, seeded by the editor; execution ignores the seeded value and always runs the package body).

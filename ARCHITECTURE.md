@@ -9211,8 +9211,34 @@ não existia.
 - **Ponto no front:** `WORKFLOW_STEP_EXTENSION_POINTS` entra em `KERNEL_EXTENSION_POINTS` (registrado por
   `core.automation`), senão o host do front recusaria a contribuição como ponto desconhecido.
 - **Exemplo:** `automation-example` declara "Review a request" sobre o `wf-review`.
-- **Ainda não (fase 2):** o pacote declarar as conexões HTTP de que precisa, para a instalação mostrar o que
-  cadastrar.
+- **Fase 2:** o pacote declara as credenciais de que o corpo precisa — ver a seção seguinte.
+
+### Credencial declarada por extensão (`http.connection`)
+
+A automação do pacote nomeava a credencial só pela chave (`request.connection: 'crm'`), e o escritório que
+instalava descobria que ela faltava na primeira execução. O ponto `http.connection` (`httpConnection` no SDK;
+`httpConnectionRequirement.ts`) diz ANTES o que a extensão espera: chave, nome, descrição, esquema, cabeçalho
+ou parâmetro, e domínios.
+
+- **Instalar não cria nada.** O segredo e a decisão de confiar nos domínios são do escritório. A declaração
+  vira a pendência `connection` (`extensionPendencies`, logo depois de `backend`) e preenche o formulário.
+- **Estado** (`httpConnectionRequirementState`), na ordem do que impede a chamada: `missing`, `scheme`
+  (esquema ou cabeçalho/parâmetro diferente), `hosts` (a credencial não cobre um domínio declarado),
+  `no-secret`, `office-hosts` (a lista `integrations.http.allowedHosts` do escritório não libera), `ok`.
+  Curinga declarado só é coberto por curinga que o contenha (`isHostCovered`).
+- **A chave é do escritório**, não da extensão: duas extensões que declaram `crm` compartilham a credencial;
+  o usuário do `basic` não é declarado.
+- **Quem não pode ler as credenciais não vê a pendência.** `HttpConnectionStore` (ao vivo, montado dentro da
+  `AuthorizationStoreProvider`) só assina com `integrations.manage` ou `automation.manage`; sem isso
+  `known: false`, e "não sei" não acende o selo. A aba de Credenciais, a lista de Extensões e o selo do menu
+  leem o mesmo store — cadastrar numa apaga a pendência nas outras.
+- **"Configurar"** deixa a declaração no store (`requestDraft`) e abre `tenant-settings:integrations`; a aba
+  consome o pedido e abre o formulário preenchido. Sobre credencial existente, corrige o esquema e ACRESCENTA
+  domínios, nunca tira.
+- **Validação** (`httpConnectionIntegrity.ts`, na porta única): forma da declaração (a mesma
+  `validateHttpConnection`, menos o usuário), duplicada, kernel ≥ `DECLARED_CONNECTIONS_SINCE_KERNEL`
+  (2.123.0), chave usada em `request.connection` e não declarada (só no pacote que mira o ponto — o anterior
+  continua passando) e URL fixa fora dos domínios declarados para a credencial.
 
 ### Gatilho de webhook — `webhook.received`
 

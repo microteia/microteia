@@ -509,6 +509,7 @@ export {
   authProvider,
   automationStep,
   command,
+  httpConnection,
   menuItem,
   nav,
   navGroup,
@@ -532,6 +533,7 @@ export type { PortalViewMetadata, PortalViewSurface } from '../domain/schema/por
 export type { PortalPageSpecMetadata, PortalWidgetSpecMetadata } from './contributions';
 export type { NotificationCategoryMetadata } from '../domain/schema/notifications';
 export type { ExtensionStepMetadata } from '../domain/schema/workflowStepContribution';
+export type { HttpConnectionRequirementMetadata } from '../domain/schema/httpConnectionRequirement';
 
 // ─── Validação e serialização ─────────────────────────────────────────────────
 

@@ -60,6 +60,7 @@ import { WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../../domain/schema/workflowT
 import { WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../../domain/schema/report/reportStep';
 import { WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../../domain/schema/workflowWait';
 import { EXTENSION_STEPS_SINCE_KERNEL } from '../../../domain/schema/workflowStepContribution';
+import { DECLARED_CONNECTIONS_SINCE_KERNEL } from '../../../domain/schema/httpConnectionRequirement';
 import {
   PAGED_LOOP_DEFAULT_PAGE_SIZE,
   PAGED_LOOP_MAX_PAGE_SIZE,
@@ -406,7 +407,7 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   'share-documents': 'Shares the documents a record already has with the portal guests who can see that record (`shared: true`, the default), or stops sharing them (`false`). `collection` and `recordId` name the record; `documentId` narrows it to one document — one not attached to that record fails the step — and `documentType` to one type. Idempotent. Publishes `matched`, `changed` and `shared`.',
   'portal-invite': 'Invites `email` to the portal, to the record `subjectRecordId` of `subjectCollection` — the same invitation as Settings › Portal. Only on a screen declaring `portal: { subject: \'self\', invites: { automation: true } }`. Idempotent per e-mail and record; `sendEmail` (on by default) sends the welcome e-mail only to whoever was just invited. Publishes `guestId`, `created`, `granted` and `emailed` (see "Inviting to the portal" in section 10).',
   'portal-revoke': 'Removes the access of `email` to the record `subjectRecordId` of `subjectCollection` in the portal, at once — with `allSubjects`, the whole invitation, if they have that record. Someone without access changes nothing. Publishes `guestId` and `revoked`.',
-  'http-request': 'Calls a REST API and waits for the answer (kernel 2.101.0+). `request` is a literal `HttpRequestSpec`: `method`, `url` (with `{name}` placeholders filled by `pathParams`), `query`, `headers`, `body` (`none`, `json`, `json-from`, `form`, `text`), `timeoutSeconds` (1–120), `failOnHttpError`, `responseType` and `responseSample`; every value inside is an ordinary mapping. Only `https` to a domain the office allows in Settings › Integrations — the package cannot allow one. Secrets never go in the package: name an office credential by key in `connection` (kernel 2.102.0+), which the office creates with that key; a secret-looking header with a literal value is refused. Publishes `ok`, `status`, `headers`, `body`, `durationMs`, `error`, `timedOut`, plus `body.<path>` from `responseSample`. With `mode: \'async\'` (kernel 2.103.0+) the request goes to a durable queue and the flow does not wait: the step publishes only `dispatchId`, temporary failures (network, timeout, 408, 429, 5xx) are retried up to `retries` times (0–5, default 3), and the workflow named in `targetWorkflowId` — a `workflow.called` flow of this package, with its other parameters as `param.<key>` — receives the result in a parameter named `response` (`ok`, `status`, `headers`, `body`, `error`, `attempts`, `dispatchId`).',
+  'http-request': 'Calls a REST API and waits for the answer (kernel 2.101.0+). `request` is a literal `HttpRequestSpec`: `method`, `url` (with `{name}` placeholders filled by `pathParams`), `query`, `headers`, `body` (`none`, `json`, `json-from`, `form`, `text`), `timeoutSeconds` (1–120), `failOnHttpError`, `responseType` and `responseSample`; every value inside is an ordinary mapping. Only `https` to a domain the office allows in Settings › Integrations — the package cannot allow one. Secrets never go in the package: name an office credential by key in `connection` (kernel 2.102.0+), which the office creates with that key — declare it with `httpConnection` (kernel 2.123.0+) so installing asks for it; a secret-looking header with a literal value is refused. Publishes `ok`, `status`, `headers`, `body`, `durationMs`, `error`, `timedOut`, plus `body.<path>` from `responseSample`. With `mode: \'async\'` (kernel 2.103.0+) the request goes to a durable queue and the flow does not wait: the step publishes only `dispatchId`, temporary failures (network, timeout, 408, 429, 5xx) are retried up to `retries` times (0–5, default 3), and the workflow named in `targetWorkflowId` — a `workflow.called` flow of this package, with its other parameters as `param.<key>` — receives the result in a parameter named `response` (`ok`, `status`, `headers`, `body`, `error`, `attempts`, `dispatchId`).',
 };
 
 const excludedStepList = (steps: readonly WorkflowStepMetadata[], eventName: string): string => steps
@@ -3580,11 +3581,37 @@ or a script of the same package, and the step is that body with a name, an icon 
   the body **cannot pause**: no \`delay\`, \`approval\`, \`wait-for\` or paged loop inside it.
 - **Integrating with an API** is a body with an \`http-request\` step using a connection by KEY
   (\`request.connection: 'crm'\`): the organization that installs creates the connection, the package never
-  carries the secret.
+  carries the secret. Declare that connection with \`httpConnection\` (below), so the organization is told
+  before the first run.
 - If the extension is turned off or removed, an automation using the step fails AT the step, naming the
   extension. Another extension's workflow that uses your step must list you in \`dependencies\`.
 - \`automationStep\` needs kernel ${EXTENSION_STEPS_SINCE_KERNEL} or later: \`validate_plugin\` refuses it in a package
   whose \`kernel\` range starts below.
+
+### The credentials you need — \`httpConnection\`
+
+\`\`\`ts
+// manifest.contributes
+httpConnection({
+  key: 'crm',                                   // what your http-request steps put in request.connection
+  name: '@com.acme.crm/connection.crm',
+  description: '@com.acme.crm/connection.crm.description',   // where the organization gets the secret
+  scheme: 'header', paramName: 'X-Api-Key',     // or 'bearer' | 'basic' | 'query'
+  hosts: ['api.crm.com'],                       // or '*.crm.com'
+})
+\`\`\`
+
+Installing creates nothing: the secret, and the decision to trust those domains, belong to the organization.
+Instead, Extensions shows a **pending credential** — missing, sending the secret differently, not allowing a
+declared domain, without a secret, or a domain the organization does not allow for API calls — and
+"Configure" opens Integration credentials with the form filled from your declaration.
+
+- The key belongs to the ORGANIZATION, not to your extension: two extensions that declare \`crm\` share one
+  credential. The user of a \`basic\` credential is not declared — it is the organization's, like the secret.
+- \`validate_plugin\` closes the account: a key your workflows send in \`request.connection\` and you do not
+  declare is refused, and so is a fixed URL outside the domains declared for its credential.
+- \`httpConnection\` needs kernel ${DECLARED_CONNECTIONS_SINCE_KERNEL} or later; a package whose \`kernel\` range
+  starts below may still use a connection without declaring it.
 
 ### Waiting for a record — the \`wait-for\` step
 

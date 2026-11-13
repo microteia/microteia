@@ -4,6 +4,10 @@ import { usePublicExtensions } from '../../stores/usePublicExtensions';
 import { useTenantExtensions } from '../../stores/useTenantExtensions';
 import { useInstalledCodeTrust } from '../../stores/useExtensionCodeTrust';
 import { usePluginDiagnostics } from '../../stores/useKernel';
+import { useHttpConnections } from '../../stores/useHttpConnections';
+import { useOptionalSettings } from '../../stores/useSettings';
+import { HTTP_ALLOWED_HOSTS_SETTING } from '../../domain/schema/httpRequestSpec';
+import { httpConnectionStatusesOf, officeHostsOf } from '../../domain/schema/httpConnectionRequirement';
 import { hasExtensionUpdate } from '../../domain/usecases/plugins/extensionUpdates';
 import { extensionHasCode } from '../../domain/usecases/plugins/extensionCodeTrust';
 import { isExtensionBackendPending } from '../../domain/usecases/plugins/extensionBackendState';
@@ -36,7 +40,7 @@ export interface ExtensionPendencies {
 
 /**
  * O que as extensões instaladas neste escritório estão devendo — atualização, falha de carga, backend
- * que o Console ainda não criou, migração de dados, código à espera de revisão.
+ * que o Console ainda não criou, credencial de integração que falta, migração de dados, código à espera de revisão.
  *
  * O selo da barra lateral e o do alto da tela precisam da resposta ANTES de alguém abrir Extensões —
  * era esse o problema: a pendência existia e só quem entrasse na tela ficava sabendo. E o selo só
@@ -50,10 +54,13 @@ export const useExtensionPendencies = (): ExtensionPendencies => {
   const { publicExtensions, isLoading: loadingPublic } = usePublicExtensions();
   const codeTrust = useInstalledCodeTrust();
   const diagnostics = usePluginDiagnostics();
+  const { connections, known: connectionsKnown } = useHttpConnections();
+  const storedOfficeHosts = useOptionalSettings()?.values.tenant[HTTP_ALLOWED_HOSTS_SETTING];
 
   const ready = !loadingInstalled && !loadingAuthored && !loadingPublic && codeTrust.ready;
 
   return useMemo(() => {
+    const officeHosts = officeHostsOf(storedOfficeHosts);
     const authoredById = new Map(extensions.map((extension) => [extension.id, extension]));
     const approvedById = new Map(
       publicExtensions
@@ -85,6 +92,9 @@ export const useExtensionPendencies = (): ExtensionPendencies => {
         active: copy.active,
         loadFailed: failedIds.has(copy.id),
         backendPending: isExtensionBackendPending(copy, appliedBackend),
+        connectionPending: connectionsKnown && httpConnectionStatusesOf(
+          copy.id, copy.package.manifest.contributes, connections, officeHosts,
+        ).some((status) => status.state !== 'ok'),
         migrationPending: isExtensionMigrationPending(copy, migrationStates),
         // Enquanto o hash não termina, o conjunto de confiáveis é vazio por falha fechada — e não por
         // falta de revisão. Contar isso acenderia o selo em toda extensão com código a cada carga.
@@ -102,5 +112,5 @@ export const useExtensionPendencies = (): ExtensionPendencies => {
       pendenciesOf: (id: string) => byId.get(id) ?? NONE,
       pendingCount: byId.size,
     };
-  }, [installed, migrationStates, appliedBackend, extensions, publicExtensions, diagnostics, codeTrust, ready]);
+  }, [installed, migrationStates, appliedBackend, extensions, publicExtensions, diagnostics, codeTrust, ready, connections, connectionsKnown, storedOfficeHosts]);
 };

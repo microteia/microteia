@@ -4,7 +4,16 @@ import { useTenant } from '../../../stores/useTenant';
 import { useInstalledExtensions, type InstallExtensionInput } from '../../../stores/useInstalledExtensions';
 import { usePublicExtensions } from '../../../stores/usePublicExtensions';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_EXTENSIONS_MANAGE } from '../../../domain/schema/access';
+import { PERMISSION_EXTENSIONS_MANAGE, PERMISSION_INTEGRATIONS_MANAGE } from '../../../domain/schema/access';
+import { useHttpConnections } from '../../../stores/useHttpConnections';
+import { useOptionalSettings } from '../../../stores/useSettings';
+import { HTTP_ALLOWED_HOSTS_SETTING } from '../../../domain/schema/httpRequestSpec';
+import {
+  httpConnectionStatusesOf,
+  isHostCovered,
+  officeHostsOf,
+  type HttpConnectionRequirementState,
+} from '../../../domain/schema/httpConnectionRequirement';
 import { useAuth } from '../../../stores/useAuth';
 import { useNotification } from '../../../stores/useNotification';
 import { useWorkspace } from '../../../stores/useWorkspace';
@@ -238,6 +247,19 @@ export interface ExtensionRow {
    * Não ser vazio é o que a põe na aba "Pendentes".
    */
   pendencies: readonly ExtensionPendency[];
+  /**
+   * As credenciais de integração que ela declara e que o escritório ainda não tem prontas, cada uma com
+   * a frase do que falta. Vazio para quem não pode ler as credenciais: não saber não é faltar.
+   */
+  connectionIssues: ExtensionConnectionIssue[];
+}
+
+export interface ExtensionConnectionIssue {
+  key: string;
+  state: Exclude<HttpConnectionRequirementState, 'ok'>;
+  message: string;
+  /** Quem pode cadastrar credenciais, e o que falta se resolve no formulário dela. */
+  configurable: boolean;
 }
 
 export interface ExtensionProblem {
@@ -395,6 +417,8 @@ export interface MarketplaceViewModel {
   openLicense: (id: string) => void;
   closeLicense: () => void;
   openReview: (id: string) => void;
+  /** Abre Credenciais de integração com o formulário preenchido pela declaração da extensão. */
+  configureConnection: (id: string, key: string) => void;
   confirmReview: () => Promise<void>;
   cancelReview: () => void;
   /** O histórico aberto, ou `null`. Ver `HistoryPanel`. */
@@ -550,6 +574,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const { user, userRole } = useAuth();
   const { notify } = useNotification();
   const { openTab } = useWorkspace();
+  const { connections, known: connectionsKnown, requestDraft } = useHttpConnections();
+  const storedOfficeHosts = useOptionalSettings()?.values.tenant[HTTP_ALLOWED_HOSTS_SETTING];
+  const canManageIntegrations = can(PERMISSION_INTEGRATIONS_MANAGE);
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
@@ -840,6 +867,35 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   );
 
   /**
+   * O que falta de cada credencial que a extensão declara. Os domínios citados são só os que FALTAM —
+   * a lista inteira faria quem lê procurar qual deles é o problema.
+   */
+  const connectionIssuesOf = useCallback(
+    (id: string, pkg: MarketplacePlugin): ExtensionConnectionIssue[] => {
+      if (!connectionsKnown) return [];
+      const officeHosts = officeHostsOf(storedOfficeHosts);
+      return httpConnectionStatusesOf(id, pkg.manifest.contributes, connections, officeHosts).flatMap(({ requirement, state }) => {
+        if (state === 'ok') return [];
+        const connection = connections.find((one) => one.key === requirement.key);
+        const uncovered = (allowed: readonly string[]) =>
+          requirement.hosts.filter((host) => !isHostCovered(host, allowed)).join(', ');
+        const params = {
+          key: requirement.key,
+          name: label(requirement.name),
+          hosts: state === 'hosts' ? uncovered(connection?.hosts ?? []) : state === 'office-hosts' ? uncovered(officeHosts) : '',
+        };
+        return [{
+          key: requirement.key,
+          state,
+          message: t(`extension.connection.${state}`, params),
+          configurable: canManageIntegrations && state !== 'office-hosts',
+        }];
+      });
+    },
+    [connectionsKnown, storedOfficeHosts, connections, label, t, canManageIntegrations],
+  );
+
+  /**
    * O que a cópia privada tem a levar ao catálogo. Reusa a MESMA recusa que o store aplica ao
    * publicar: um botão oferecido aqui e recusado lá seria a tela mentindo sobre o que sabe.
    */
@@ -949,6 +1005,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         backendPendingDetail: backendPendingDetailOf(null),
         migrationPending: false,
         migrationError: null,
+        connectionIssues: [],
         canRunMigrations: false,
         hasHistory: false,
         codeTrustedByName: null,
@@ -1054,6 +1111,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         backendPendingDetail: backendPendingDetailOf(inst ? extensionBackendPendingCause(inst, appliedBackend) : null),
         migrationPending: inst ? isExtensionMigrationPending(inst, migrationStates) : false,
         migrationError: migrationErrorOf(inst),
+        connectionIssues: inst ? connectionIssuesOf(id, inst.package) : [],
         canRunMigrations: canManage && inst !== undefined && pendingMigrationsOf(id).length > 0,
         hasHistory: canManage && (histories.get(id)?.entries.length ?? 0) > 0,
         needsCodeReview: Boolean(inst) && installedNeedsReview.has(id),
@@ -1071,7 +1129,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, pendenciesOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, appliedBackend, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf, verifiedPublishers, reputationOf, verificationLabelOf]);
+  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, pendenciesOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, appliedBackend, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf, verifiedPublishers, reputationOf, verificationLabelOf, connectionIssuesOf]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,
@@ -1403,6 +1461,17 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   );
 
   const openHistory = useCallback((id: string) => setHistoryId(id), []);
+
+  const configureConnection = useCallback((id: string, key: string) => {
+    const copy = installed.find((one) => one.id === id);
+    const status = copy
+      ? httpConnectionStatusesOf(id, copy.package.manifest.contributes, connections, officeHostsOf(storedOfficeHosts))
+        .find((one) => one.requirement.key === key)
+      : undefined;
+    if (!status) return;
+    requestDraft(status.requirement);
+    openTab('tenant-settings:integrations');
+  }, [installed, connections, storedOfficeHosts, requestDraft, openTab]);
   const closeHistory = useCallback(() => setHistoryId(null), []);
 
   /**
@@ -1611,6 +1680,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     openLicense,
     closeLicense,
     openReview,
+    configureConnection,
     confirmReview,
     cancelReview,
     history,

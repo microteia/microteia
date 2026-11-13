@@ -29,6 +29,7 @@ import { InstalledExtensionStoreProvider } from './stores/InstalledExtensionStor
 import { PublicExtensionStoreProvider } from './stores/PublicExtensionStore';
 import { AuditLogStoreProvider } from './stores/AuditLogStore';
 import { AuditLogAlertStoreProvider } from './stores/AuditLogAlertStore';
+import { HttpConnectionStoreProvider } from './stores/HttpConnectionStore';
 import { WorkspaceStoreProvider } from './stores/WorkspaceStore';
 import { NotificationProvider } from './stores/NotificationContext';
 import { CommandPaletteProvider } from './stores/CommandPaletteContext';
@@ -141,6 +142,7 @@ const App: React.FC = () => {
                                                     <TenantKernelProvider>
                                                       <AuthorizationStoreProvider>
                                                       <AuditLogAlertStoreProvider>
+                                                      <HttpConnectionStoreProvider>
                                                       <TenantLocaleProvider>
                                                         <TenantThemeBridge />
                                                         <FieldRulePresetBridge />
@@ -165,6 +167,7 @@ const App: React.FC = () => {
                                                           <Route path="*" element={<WorkspaceShell />} />
                                                         </Routes>
                                                       </TenantLocaleProvider>
+                                                      </HttpConnectionStoreProvider>
                                                       </AuditLogAlertStoreProvider>
                                                       </AuthorizationStoreProvider>
                                                     </TenantKernelProvider>

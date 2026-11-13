@@ -233,6 +233,13 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'This extension needs to update data written by an earlier version of it, so it is installed but '
     + 'not running. Only an administrator runs it, from "Update data" on this card.',
   'extension.run-migrations': 'Update data',
+  'extension.badge.connection-pending': 'Credential pending',
+  'extension.connection.missing': 'Needs the integration credential "{name}" ({key}), which the organization does not have.',
+  'extension.connection.scheme': 'The integration credential {key} sends the secret differently from what this extension expects.',
+  'extension.connection.hosts': 'The integration credential {key} does not allow every domain this extension calls: {hosts}.',
+  'extension.connection.no-secret': 'The integration credential {key} has no secret stored.',
+  'extension.connection.office-hosts': 'The organization does not allow calls to {hosts}, which the credential {key} needs. Add them to "Domains allowed for API calls" in Settings.',
+  'extension.connection.configure': 'Configure',
   'extension.install': 'Install in the organization',
   'extension.update': 'Update',
   'extension.uninstall': 'Uninstall from the organization',
@@ -518,6 +525,14 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'the step "{step}" runs the automation "{body}", which is not triggered as a called workflow — only a called workflow receives parameters and returns a result.',
   'issue.extension-step.body-pauses':
     'the step "{step}" runs the automation "{body}", whose step "{pausing}" pauses. The step waits for its body in the same run, and a pause there would fail with the flow running.',
+  'issue.http-connection.kernel':
+    'declares the integration credentials it needs, which kernels before {minimum} ignore — declare `kernel: "^{minimum}"` (or later) in the manifest.',
+  'issue.http-connection.duplicate': 'the credential "{connection}" is declared twice.',
+  'issue.http-connection.invalid': 'the declared credential "{connection}" is invalid: {detail}',
+  'issue.http-connection.undeclared':
+    'step "{step}" of "{workflow}" sends the credential "{connection}", which the package does not declare — declare it with `httpConnection(...)`, or the organization only finds out it is missing at the first run.',
+  'issue.http-connection.host':
+    'step "{step}" of "{workflow}" sends the credential "{connection}" to "{host}", which is not among the domains declared for it — the call would be refused for sending the secret elsewhere.',
   'issue.step.delay-nested':
     'step "{step}" waits inside a condition branch or a loop body. A wait only pauses at the top level of the workflow — there the flow would stop with an error.',
   'issue.step.delay-in-action':

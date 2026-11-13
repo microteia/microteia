@@ -35,6 +35,10 @@ const LACUNAS_RECONHECIDAS: Record<string, string> = {
   'manifest-property/homepage':
     'onde ler mais sobre a extensão. Nenhum exemplo tem página própria, e inventar uma URL num molde é pior que '
     + 'omitir o campo: quem copiasse levaria junto um endereço que não existe.',
+  'extension-point/http.connection':
+    'a credencial de integração que o pacote declara. Ela só tem sentido diante de uma API de verdade: um exemplo '
+    + 'que a declarasse acenderia uma pendência em todo escritório que o instalasse, cobrando o segredo de um '
+    + 'serviço que não existe. O AUTHORING a ensina ("The credentials you need"), e a validação do pacote a confere.',
 };
 
 describe('cobertura dos exemplos de autoria', () => {

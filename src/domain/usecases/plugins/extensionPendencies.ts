@@ -4,8 +4,11 @@
  * A ordem é a de leitura na tela: primeiro o que a impede de funcionar, por último o que só a deixa
  * desatualizada. Cada motivo é um gesto diferente — atualizar, instalar a dependência, rodar o
  * `provision`, rodar a migração, revisar o código —, e é por isso que eles não viram um booleano só.
+ *
+ * `connection` vem logo depois do backend: a extensão está no ar, mas a automação que chama a API dela
+ * falharia na primeira execução.
  */
-export const EXTENSION_PENDENCIES = ['load-failed', 'backend', 'migration', 'code-review', 'update'] as const;
+export const EXTENSION_PENDENCIES = ['load-failed', 'backend', 'connection', 'migration', 'code-review', 'update'] as const;
 
 export type ExtensionPendency = (typeof EXTENSION_PENDENCIES)[number];
 
@@ -16,6 +19,11 @@ export interface ExtensionPendencyFacts {
   loadFailed: boolean;
   /** Exige do projeto Firebase o que o Microteia Console ainda não criou. */
   backendPending: boolean;
+  /**
+   * Declara uma credencial de integração que o escritório não tem pronta. Só é `true` quando a lista de
+   * credenciais foi LIDA: quem não pode lê-la não sabe se falta, e "não sei" não acende o selo.
+   */
+  connectionPending: boolean;
   /** Tem migração de dados obrigatória em dívida. */
   migrationPending: boolean;
   /** Traz código que ainda não pode executar — falta a revisão de um admin. */
@@ -26,6 +34,7 @@ export interface ExtensionPendencyFacts {
 const HOLDS: Record<ExtensionPendency, (facts: ExtensionPendencyFacts) => boolean> = {
   'load-failed': (facts) => facts.loadFailed,
   backend: (facts) => facts.backendPending,
+  connection: (facts) => facts.connectionPending,
   migration: (facts) => facts.migrationPending,
   'code-review': (facts) => facts.codeAwaitingReview,
   update: (facts) => facts.updateAvailable,

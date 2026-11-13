@@ -1386,6 +1386,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'notifications.bell.title': 'Notifications',
   'point.notification-category': 'Notification types',
   'point.notification-category.description': 'The kinds of notification a package sends, so each person can choose by which channels to receive each one.',
+  'point.http-connection.title': 'Integration credential',
+  'point.http-connection.description': 'An integration credential the package needs: the organization is asked to register it when installing.',
   'page.notifications': 'Notifications',
   'notifications.bell.see-all': 'See all',
   'notifications.page.subtitle': 'What was sent to you in this organization in the last {days} days.',

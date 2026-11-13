@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, setDoc, updateDoc, deleteField } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, setDoc, updateDoc, deleteField, type QuerySnapshot } from 'firebase/firestore';
 import { db } from '../../infrastructure/firebase/config';
 import type { IHttpConnectionRepository } from '../../domain/repositories/IHttpConnectionRepository';
 import {
@@ -24,13 +24,19 @@ const asDocument = (data: HttpConnectionData): Record<string, unknown> => ({
   paramName: data.paramName ?? deleteField(),
 });
 
+const fromSnapshot = (snap: QuerySnapshot): HttpConnection[] =>
+  snap.docs
+    .map((one) => asHttpConnection(one.id, one.data()))
+    .filter((one): one is HttpConnection => one !== null)
+    .sort((a, b) => a.key.localeCompare(b.key));
+
 export class FirebaseHttpConnectionRepository implements IHttpConnectionRepository {
   async list(tenantId: string): Promise<HttpConnection[]> {
-    const snap = await getDocs(connections(tenantId));
-    return snap.docs
-      .map((one) => asHttpConnection(one.id, one.data()))
-      .filter((one): one is HttpConnection => one !== null)
-      .sort((a, b) => a.key.localeCompare(b.key));
+    return fromSnapshot(await getDocs(connections(tenantId)));
+  }
+
+  subscribe(tenantId: string, onChange: (connections: HttpConnection[]) => void, onError: () => void): () => void {
+    return onSnapshot(connections(tenantId), (snap) => onChange(fromSnapshot(snap)), onError);
   }
 
   async create(tenantId: string, data: HttpConnectionData, secret: string): Promise<HttpConnection> {

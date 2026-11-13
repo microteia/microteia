@@ -40,6 +40,10 @@ import {
 import { PORTAL_API_VERSION, PORTAL_VIEW_POINT, type PortalViewMetadata } from '../domain/schema/portalExtensionPoints';
 import type { PortalPageSpec, PortalWidgetSpec } from '../domain/schema/ui/portalWidget';
 import { extensionStepContribution, type ExtensionStepMetadata } from '../domain/schema/workflowStepContribution';
+import {
+  httpConnectionRequirementContribution,
+  type HttpConnectionRequirementMetadata,
+} from '../domain/schema/httpConnectionRequirement';
 import { notificationCategoryContribution, type NotificationCategoryMetadata } from '../domain/schema/notifications';
 
 const slug = (value: string): string =>
@@ -326,3 +330,11 @@ export const automationStep = (
   metadata: ExtensionStepMetadata,
   body: { workflowId: string } | { scriptId: string },
 ): Contribution => extensionStepContribution(metadata, body);
+
+/**
+ * Uma CREDENCIAL de integração de que a extensão precisa — a chave que as automações dela usam em
+ * `request.connection`. Instalar não cria nada: a tela de Extensões cobra a credencial como pendência
+ * e preenche o formulário com a declaração; o segredo, quem digita é o escritório.
+ */
+export const httpConnection = (metadata: HttpConnectionRequirementMetadata): Contribution =>
+  httpConnectionRequirementContribution(metadata);

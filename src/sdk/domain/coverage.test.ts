@@ -103,6 +103,9 @@ const LACUNAS_CONFERIDAS = [
   // O passo DECLARADO por uma extensão (o conector) é integração empacotada, como o http-request: o
   // modelo de comportamento descreve estados e transições, não qual sistema de fora um passo chama.
   'extension-point\tworkflow.step',
+  // A credencial de integração que o pacote declara: é o que a extensão exige do escritório para
+  // chamar um sistema de fora — integração, não regra de negócio que o modelo descreva.
+  'extension-point\thttp.connection',
 
   // Os artefatos de pacote que o plano nunca preenche.
   'package-artifact\tsummary',

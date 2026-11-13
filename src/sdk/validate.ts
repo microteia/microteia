@@ -1,4 +1,5 @@
 import { extensionStepIssues } from '../domain/usecases/plugins/extensionStepIntegrity';
+import { httpConnectionPackageIssues } from '../domain/usecases/plugins/httpConnectionIntegrity';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 import type { DiagnosticCode, PluginDiagnostic } from '../domain/schema/plugin/diagnostics';
 import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
@@ -126,6 +127,12 @@ export const validatePluginPackage = (
   })),
   // O passo que o pacote DECLARA (o conector): o corpo existe, é chamável e não pausa.
   ...extensionStepIssues(pkg).map((issue) => ({
+    source: 'package' as const,
+    message: issue.message,
+    messageParams: issue.messageParams,
+  })),
+  // As credenciais de integração que o pacote declara, contra as que as automações dele usam.
+  ...httpConnectionPackageIssues(pkg).map((issue) => ({
     source: 'package' as const,
     message: issue.message,
     messageParams: issue.messageParams,

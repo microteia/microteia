@@ -226,6 +226,13 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'Esta extensão precisa atualizar dados gravados por uma versão anterior dela, então está instalada '
     + 'mas não está no ar. Só um administrador roda isso, em "Atualizar dados" neste cartão.',
   'extension.run-migrations': 'Atualizar dados',
+  'extension.badge.connection-pending': 'Credencial pendente',
+  'extension.connection.missing': 'Precisa da credencial de integração "{name}" ({key}), que o escritório não tem.',
+  'extension.connection.scheme': 'A credencial de integração {key} envia o segredo de um jeito diferente do que esta extensão espera.',
+  'extension.connection.hosts': 'A credencial de integração {key} não libera todos os domínios que esta extensão chama: {hosts}.',
+  'extension.connection.no-secret': 'A credencial de integração {key} está sem segredo gravado.',
+  'extension.connection.office-hosts': 'O escritório não libera chamadas para {hosts}, de que a credencial {key} precisa. Inclua-os em "Domínios liberados para chamadas de API", nas Configurações.',
+  'extension.connection.configure': 'Configurar',
   'extension.install': 'Instalar no escritório',
   'extension.update': 'Atualizar',
   'extension.uninstall': 'Desinstalar do escritório',
@@ -511,6 +518,14 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'o passo "{step}" executa a automação "{body}", que não é disparada como fluxo chamado — só um fluxo chamado recebe parâmetros e devolve resultado.',
   'issue.extension-step.body-pauses':
     'o passo "{step}" executa a automação "{body}", cujo passo "{pausing}" pausa. O passo espera o corpo na mesma execução, e uma pausa ali falharia com o fluxo rodando.',
+  'issue.http-connection.kernel':
+    'declara as credenciais de integração de que precisa, que kernels anteriores a {minimum} ignoram — declare `kernel: "^{minimum}"` (ou posterior) no manifest.',
+  'issue.http-connection.duplicate': 'a credencial "{connection}" está declarada duas vezes.',
+  'issue.http-connection.invalid': 'a credencial declarada "{connection}" é inválida: {detail}',
+  'issue.http-connection.undeclared':
+    'o passo "{step}" de "{workflow}" envia a credencial "{connection}", que o pacote não declara — declare-a com `httpConnection(...)`, ou o escritório só descobre que ela falta na primeira execução.',
+  'issue.http-connection.host':
+    'o passo "{step}" de "{workflow}" envia a credencial "{connection}" para "{host}", que não está entre os domínios declarados para ela — a chamada seria recusada por mandar o segredo para outro lugar.',
   'issue.step.delay-nested':
     'o passo "{step}" espera dentro de um ramo de condição ou do corpo de uma repetição. A espera só pausa no nível principal da automação — ali o fluxo pararia com erro.',
   'issue.step.delay-in-action':

@@ -7,6 +7,7 @@ const fakeRepo = () => {
   const calls: { op: string; data?: HttpConnectionData; secret?: string; id?: string }[] = [];
   const repo: IHttpConnectionRepository = {
     list: async () => [],
+    subscribe: () => () => undefined,
     create: async (_tenantId, data, secret) => {
       calls.push({ op: 'create', data, secret });
       return { ...data, id: 'novo', hasSecret: true };

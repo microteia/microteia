@@ -229,6 +229,7 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
           {row.needsCodeReview && <S.Badge $tone="warning">{t('extension.badge.unreviewed')}</S.Badge>}
           {row.backendPending && <S.Badge $tone="warning">{t('extension.badge.backend-pending')}</S.Badge>}
           {row.migrationPending && <S.Badge $tone="warning">{t('extension.badge.migration-pending')}</S.Badge>}
+          {row.connectionIssues.length > 0 && <S.Badge $tone="warning">{t('extension.badge.connection-pending')}</S.Badge>}
         </S.Badges>
       </S.TitleLine>
 
@@ -242,6 +243,24 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
             <RiErrorWarningLine size={13} />
             <span>{t(row.backendPendingDetail.key, { functions: row.backendPendingDetail.functions })}</span>
           </S.Problem>
+        </S.Problems>
+      )}
+
+      {/* Declara uma credencial de integração que o escritório não tem pronta. Ela está no ar, mas a
+          automação que chama a API falharia na primeira execução — e o gesto que resolve é aqui. */}
+      {row.connectionIssues.length > 0 && (
+        <S.Problems>
+          {row.connectionIssues.map((issue) => (
+            <S.Problem key={issue.key} $error={false}>
+              <RiErrorWarningLine size={13} />
+              <span>{issue.message}</span>
+              {issue.configurable && (
+                <S.ProblemAction type="button" onClick={() => vm.configureConnection(row.id, issue.key)}>
+                  {t('extension.connection.configure')}
+                </S.ProblemAction>
+              )}
+            </S.Problem>
+          ))}
         </S.Problems>
       )}
 

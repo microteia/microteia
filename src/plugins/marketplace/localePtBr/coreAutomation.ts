@@ -1383,6 +1383,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'notifications.bell.title': 'Notificações',
   'point.notification-category': 'Tipos de aviso',
   'point.notification-category.description': 'Os tipos de aviso que um pacote envia, para cada pessoa escolher por quais canais recebê-los.',
+  'point.http-connection.title': 'Credencial de integração',
+  'point.http-connection.description': 'Uma credencial de integração de que o pacote precisa: o escritório é chamado a cadastrá-la ao instalar.',
   'page.notifications': 'Notificações',
   'notifications.bell.see-all': 'Ver todas',
   'notifications.page.subtitle': 'O que foi enviado a você neste escritório nos últimos {days} dias.',

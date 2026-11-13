@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.249.0] — 2026-11-13
+
+- Extensões que se integram a outros sistemas agora dizem, já na instalação, quais credenciais de integração precisam. A tela de Extensões aponta a credencial que falta, a que está sem segredo ou a que não libera o endereço necessário, e o botão "Configurar" abre o cadastro já preenchido — basta revisar e informar o segredo.
+
 #### [9.248.0] — 2026-11-13
 
 - Extensões agora podem trazer passos de automação próprios — os "conectores". Uma extensão de CRM, por exemplo, pode oferecer o passo "Criar contato", que aparece na lista de passos de qualquer automação do escritório, com as entradas e saídas certas, sem que ninguém precise montar a chamada à API à mão.

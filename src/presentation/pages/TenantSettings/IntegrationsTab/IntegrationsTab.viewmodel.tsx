@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTenant } from '../../../../stores/useTenant';
-import { useDI } from '../../../../infrastructure/di/useDI';
 import { useNotification } from '../../../../stores/useNotification';
-import { makeGetHttpConnectionsUseCase } from '../../../../domain/usecases/httpconnections/GetHttpConnectionsUseCase';
-import { makeSaveHttpConnectionUseCase } from '../../../../domain/usecases/httpconnections/SaveHttpConnectionUseCase';
-import { makeDeleteHttpConnectionUseCase } from '../../../../domain/usecases/httpconnections/DeleteHttpConnectionUseCase';
+import { useHttpConnections } from '../../../../stores/useHttpConnections';
+import type { HttpConnectionRequirement } from '../../../../domain/schema/httpConnectionRequirement';
 import {
   HTTP_AUTH_SCHEMES,
   type HttpAuthScheme,
@@ -69,6 +66,24 @@ export interface IntegrationsTabViewModel {
   confirmDelete: () => Promise<void>;
 }
 
+/**
+ * O formulário que a declaração de uma extensão preenche. Sobre uma credencial que já existe com a
+ * chave, a declaração corrige o esquema e ACRESCENTA domínios — nunca tira um que o escritório pôs.
+ */
+const formFromRequirement = (
+  requirement: HttpConnectionRequirement,
+  existing: HttpConnection | undefined,
+  name: string,
+): HttpConnectionForm => ({
+  key: requirement.key,
+  name: existing?.name ?? name,
+  scheme: requirement.scheme,
+  username: existing?.username ?? '',
+  paramName: requirement.paramName ?? '',
+  hosts: [...new Set([...(existing?.hosts ?? []), ...requirement.hosts])],
+  secret: '',
+});
+
 const formOf = (connection: HttpConnection): HttpConnectionForm => ({
   key: connection.key,
   name: connection.name,
@@ -82,16 +97,9 @@ const formOf = (connection: HttpConnection): HttpConnectionForm => ({
 export const useIntegrationsTabViewModel = (): IntegrationsTabViewModel => {
   const t = useT('core.automation');
   const label = useLabel();
-  const { currentTenant } = useTenant();
-  const { httpConnectionRepository } = useDI();
   const { notify } = useNotification();
+  const { connections, isLoading: loading, failed, save: saveConnection, remove: removeConnection, draft, clearDraft } = useHttpConnections();
 
-  const getAll = useMemo(() => makeGetHttpConnectionsUseCase(httpConnectionRepository), [httpConnectionRepository]);
-  const saveOne = useMemo(() => makeSaveHttpConnectionUseCase(httpConnectionRepository), [httpConnectionRepository]);
-  const deleteOne = useMemo(() => makeDeleteHttpConnectionUseCase(httpConnectionRepository), [httpConnectionRepository]);
-
-  const [loading, setLoading] = useState(true);
-  const [connections, setConnections] = useState<HttpConnection[]>([]);
   const [editing, setEditing] = useState<HttpConnection | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<HttpConnectionForm>(EMPTY_FORM);
@@ -100,14 +108,21 @@ export const useIntegrationsTabViewModel = (): IntegrationsTabViewModel => {
   const [pendingDelete, setPendingDelete] = useState<HttpConnection | null>(null);
 
   useEffect(() => {
-    if (!currentTenant) return;
-    let alive = true;
-    getAll.execute(currentTenant.id)
-      .then((list) => { if (alive) setConnections(list); })
-      .catch(() => notify(t('http-connection.load-failed'), 'error'))
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, [currentTenant, getAll, notify, t]);
+    if (failed) notify(t('http-connection.load-failed'), 'error');
+  }, [failed, notify, t]);
+
+  // A tela de Extensões deixou no store a credencial que uma extensão declara: ela vira o formulário
+  // aberto, e o pedido é consumido para não reabrir a cada visita à aba.
+  useEffect(() => {
+    if (!draft || loading) return;
+    const existing = connections.find((one) => one.key === draft.key);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- o pedido chega de outra tela, pelo store; abrir o formulário é a resposta a ele
+    setEditing(existing ?? null);
+    setForm(formFromRequirement(draft, existing, label(draft.name)));
+    setFieldErrors({});
+    setModalOpen(true);
+    clearDraft();
+  }, [draft, loading, connections, label, clearDraft]);
 
   const schemeOptions = useMemo<SearchSelectOption[]>(
     () => HTTP_AUTH_SCHEMES.map((scheme) => ({ value: scheme, label: t(`http-connection.scheme.${scheme}`) })),
@@ -142,7 +157,6 @@ export const useIntegrationsTabViewModel = (): IntegrationsTabViewModel => {
   }, []);
 
   const save = useCallback(async () => {
-    if (!currentTenant) return;
     setSaving(true);
     const data: HttpConnectionData = {
       key: form.key,
@@ -153,19 +167,15 @@ export const useIntegrationsTabViewModel = (): IntegrationsTabViewModel => {
       hosts: form.hosts,
     };
     try {
-      const result = await saveOne.execute({
-        tenantId: currentTenant.id,
+      const result = await saveConnection({
         ...(editing ? { id: editing.id } : {}),
         data,
         secret: form.secret,
-        existing: connections,
       });
       if (!result.ok) {
         setFieldErrors(Object.fromEntries(result.issues.map((issue) => [issue.field, label(issue.error, issue.errorParams)])));
         return;
       }
-      setConnections((current) => [...current.filter((one) => one.id !== result.connection.id), result.connection]
-        .sort((a, b) => a.key.localeCompare(b.key)));
       setModalOpen(false);
       notify(t('http-connection.saved'), 'success');
     } catch {
@@ -173,22 +183,21 @@ export const useIntegrationsTabViewModel = (): IntegrationsTabViewModel => {
     } finally {
       setSaving(false);
     }
-  }, [currentTenant, form, saveOne, editing, connections, label, notify, t]);
+  }, [form, saveConnection, editing, label, notify, t]);
 
   const askDelete = useCallback((connection: HttpConnection) => setPendingDelete(connection), []);
   const cancelDelete = useCallback(() => setPendingDelete(null), []);
 
   const confirmDelete = useCallback(async () => {
-    if (!currentTenant || !pendingDelete) return;
+    if (!pendingDelete) return;
     try {
-      await deleteOne.execute(currentTenant.id, pendingDelete.id);
-      setConnections((current) => current.filter((one) => one.id !== pendingDelete.id));
+      await removeConnection(pendingDelete.id);
     } catch {
       notify(t('http-connection.delete-failed'), 'error');
     } finally {
       setPendingDelete(null);
     }
-  }, [currentTenant, pendingDelete, deleteOne, notify, t]);
+  }, [pendingDelete, removeConnection, notify, t]);
 
   const isHostValid = useCallback((host: string) => HOST_RE.test(host), []);
   const normalizeHost = useCallback((host: string) => host.trim().toLowerCase(), []);
