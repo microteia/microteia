@@ -1,4 +1,4 @@
-import type { WorkflowTask } from '../schema/workflowTask';
+import type { WorkflowTask, WorkflowTaskVoteVia } from '../schema/workflowTask';
 
 export interface WorkflowTaskDecision {
   userId: string;
@@ -6,13 +6,15 @@ export interface WorkflowTaskDecision {
   outcome: string;
   comment: string;
   at: Date;
+  via: WorkflowTaskVoteVia;
 }
 
 /** Por que a decisão não foi aceita — cada motivo vira uma mensagem própria para quem decidiu. */
-export type WorkflowTaskRefusal = 'not-found' | 'not-open' | 'not-assignee' | 'invalid-outcome';
+export type WorkflowTaskRefusal = 'not-found' | 'not-open' | 'not-assignee' | 'invalid-outcome' | 'already-voted';
 
 export type WorkflowTaskDecisionResult =
-  | { ok: true; task: WorkflowTask }
+  /** `closed`: o voto fechou a tarefa (o quórum foi atingido, ou ficou impossível). Sem isso, ela segue aberta. */
+  | { ok: true; task: WorkflowTask; closed: boolean }
   | { ok: false; reason: WorkflowTaskRefusal };
 
 export interface IWorkflowTaskRepository {
@@ -25,9 +27,10 @@ export interface IWorkflowTaskRepository {
   /** As tarefas ABERTAS em que a pessoa está designada, as mais novas primeiro — a caixa dela. */
   listOpenForAssignee(tenantId: string, userId: string, limit: number): Promise<WorkflowTask[]>;
   /**
-   * Grava a decisão NUMA transação, conferindo ali dentro que a tarefa está aberta, que quem decide está
-   * entre os designados e que o desfecho é um dos dela. Duas pessoas que decidem juntas: uma vence, a
-   * outra recebe `not-open`.
+   * Grava o VOTO numa transação, conferindo ali dentro que a tarefa está aberta, que quem vota está entre
+   * os designados (membro ou convidado), que ainda não votou e que o desfecho é um dos dela — e apura
+   * (`tallyApprovalVotes`). Sem quórum, o primeiro voto decide; duas pessoas que decidem juntas: uma
+   * vence, a outra recebe `not-open`.
    */
   decide(tenantId: string, taskId: string, decision: WorkflowTaskDecision): Promise<WorkflowTaskDecisionResult>;
   /** Fecha como expirada — só a que ainda está aberta. */

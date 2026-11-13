@@ -694,7 +694,10 @@ service cloud.firestore {
       // Tarefas de aprovação. Lê quem está DESIGNADO — a caixa é de cada um — e quem administra as
       // automações (acompanha o que está parado). Ninguém grava: a decisão é da callable
       // `completeWorkflowTask`, que confere a tarefa aberta e retoma a execução junto.
+      // O convidado do portal lê a tarefa em que ele está entre os convidados (`guestIds`) — é ela que a
+      // página do registro, no portal, mostra com os botões de desfecho. Decidir é pela callable.
       match /workflow_tasks/{taskId} {
+        allow read: if isPortalUser(tenantId) && request.auth.uid in resource.data.get('guestIds', []);
         allow read: if (isMember(tenantId) && request.auth.uid in resource.data.assigneeIds)
           || can(tenantId, 'automation.manage');
         allow write: if false;

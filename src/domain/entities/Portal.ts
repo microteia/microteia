@@ -293,3 +293,22 @@ export const portalWelcomeValues = (input: {
  */
 export const fillPortalWelcome = (text: string, values: Readonly<Record<string, string>>): string =>
   text.replace(/\{([\w.]+)\}/g, (match, token: string) => (Object.hasOwn(values, token) ? values[token] : match));
+
+/**
+ * Uma APROVAÇÃO pendente para o convidado — a tarefa do passo `approval` em que ele está entre os
+ * convidados. A página do registro (`target`) a mostra com os botões de desfecho.
+ */
+export interface PortalTask {
+  id: string;
+  title: string;
+  message: string;
+  outcomes: { key: string; label: string }[];
+  target: { collection: string; recordId: string };
+  /** Votos no primeiro desfecho que fecham a tarefa; 1 = a primeira decisão. */
+  quorum: number;
+  /** Quantos votos já foram dados. */
+  votes: number;
+  /** Este convidado já votou — a tarefa segue aberta à espera dos outros. */
+  voted: boolean;
+  dueAt: Date | null;
+}

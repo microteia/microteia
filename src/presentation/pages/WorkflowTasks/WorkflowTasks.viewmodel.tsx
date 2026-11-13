@@ -21,6 +21,8 @@ export interface WorkflowTaskCard {
   comment: string;
   /** A tarefa fala de um registro: o botão de abri-lo aparece. */
   hasRecord: boolean;
+  /** "Precisa de 2 aprovações — 1 até agora"; `null` quando a primeira decisão fecha. */
+  progress: string | null;
   deciding: boolean;
 }
 
@@ -84,8 +86,8 @@ export const useWorkflowTasksViewModel = (): WorkflowTasksViewModel => {
     if (!currentTenant) return;
     setDecidingId(taskId);
     try {
-      await workflowTaskRepository.completeTask(currentTenant.id, taskId, outcome, comments[taskId] ?? '');
-      notify(t('task.decided'), 'success');
+      const status = await workflowTaskRepository.completeTask(currentTenant.id, taskId, outcome, comments[taskId] ?? '');
+      notify(t(status === 'voted' ? 'task.voted' : 'task.decided'), 'success');
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : String(caught);
       notify(label(message, errorParamsOf(caught)), 'error');
@@ -99,7 +101,8 @@ export const useWorkflowTasksViewModel = (): WorkflowTasksViewModel => {
     if (target) openRecordOf(target.collection, target.recordId);
   }, [tasks, openRecordOf]);
 
-  const cards = useMemo<WorkflowTaskCard[]>(() => tasks.map((task) => ({
+  // Quem já votou não vê de novo: com quórum, a tarefa segue aberta à espera dos outros.
+  const cards = useMemo<WorkflowTaskCard[]>(() => tasks.filter((task) => !(user && task.votes?.[user.id])).map((task) => ({
     id: task.id,
     title: label(task.title),
     message: task.message ? label(task.message) : '',
@@ -109,8 +112,11 @@ export const useWorkflowTasksViewModel = (): WorkflowTasksViewModel => {
     outcomes: task.outcomes.map((outcome) => ({ key: outcome.key, label: label(outcome.label) })),
     comment: comments[task.id] ?? '',
     hasRecord: task.target !== null,
+    progress: task.quorum && task.quorum > 1
+      ? t('task.progress', { quorum: String(task.quorum), votes: String(Object.keys(task.votes ?? {}).length) })
+      : null,
     deciding: decidingId === task.id,
-  })), [tasks, label, formatDateTime, t, now, comments, decidingId]);
+  })), [tasks, user, label, formatDateTime, t, now, comments, decidingId]);
 
   return {
     title: t('page.workflow-tasks'),

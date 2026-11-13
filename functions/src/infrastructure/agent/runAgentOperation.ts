@@ -621,7 +621,7 @@ const completeAgentTask = async (
     userId: session.userId,
     userName: actor?.name ?? '',
   });
-  return decided.ok ? { ok: true, value: { status: 'decided', taskId } } : refuse(catalog, decided.error);
+  return decided.ok ? { ok: true, value: { status: decided.pending ? 'voted' : 'decided', taskId } } : refuse(catalog, decided.error);
 };
 
 /**

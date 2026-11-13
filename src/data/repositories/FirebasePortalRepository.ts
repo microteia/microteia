@@ -36,8 +36,13 @@ import type {
   PortalActionOutcome,
   PortalRecord,
   PortalRecordAction,
+  PortalTask,
   PortalSignInSettingsView,
 } from '../../domain/entities/Portal';
+import { WORKFLOW_TASKS_COLLECTION } from '../../domain/schema/workflowTask';
+
+/** As aprovações abertas que o portal acompanha ao vivo — um convidado com mais que isso abre as mais novas. */
+const PORTAL_TASKS_WINDOW = 50;
 import { PORTAL_RECORDS_WINDOW } from '../../domain/entities/Portal';
 import { PORTAL_IDENTITY_INVITES_COLLECTION } from '../../domain/schema/portalCollections';
 import {
@@ -212,6 +217,50 @@ export class FirebasePortalRepository implements IPortalRepository {
   async recordView(tenantId: string, projectionId: string): Promise<void> {
     const call = httpsCallable<{ tenantId: string; projectionId: string }, { recorded: boolean }>(functions, 'recordPortalView');
     await call({ tenantId, projectionId });
+  }
+
+  subscribeTasks(
+    tenantId: string,
+    userId: string,
+    onUpdate: (tasks: PortalTask[]) => void,
+    onError?: (error: Error) => void,
+  ): () => void {
+    // A regra só deixa o convidado ler a tarefa em que ele está: a consulta pelo próprio uid é o que a prova.
+    const q = query(
+      collection(db, 'tenants', tenantId, WORKFLOW_TASKS_COLLECTION),
+      where('guestIds', 'array-contains', userId),
+      where('status', '==', 'open'),
+      orderBy('createdAt', 'desc'),
+      limit(PORTAL_TASKS_WINDOW),
+    );
+    return onSnapshot(q, (snap) => onUpdate(snap.docs.flatMap((one): PortalTask[] => {
+      const data = one.data();
+      const target = data.target as { collection?: unknown; recordId?: unknown } | null;
+      if (!target || typeof target.collection !== 'string' || typeof target.recordId !== 'string') return [];
+      const votes = data.votes && typeof data.votes === 'object' ? data.votes as Record<string, unknown> : {};
+      return [{
+        id: one.id,
+        title: String(data.title ?? ''),
+        message: String(data.message ?? ''),
+        outcomes: Array.isArray(data.outcomes)
+          ? data.outcomes.filter((item: unknown): item is { key: string; label: string } =>
+            !!item && typeof (item as { key?: unknown }).key === 'string' && typeof (item as { label?: unknown }).label === 'string')
+          : [],
+        target: { collection: target.collection, recordId: target.recordId },
+        quorum: typeof data.quorum === 'number' ? data.quorum : 1,
+        votes: Object.keys(votes).length,
+        voted: Object.prototype.hasOwnProperty.call(votes, userId),
+        dueAt: data.dueAt?.toDate?.() ?? null,
+      }];
+    })), (error) => onError?.(error));
+  }
+
+  async decideTask(tenantId: string, taskId: string, outcome: string, comment: string): Promise<'decided' | 'voted'> {
+    const call = httpsCallable<
+      { tenantId: string; taskId: string; outcome: string; comment: string },
+      { status: 'decided' | 'voted' }
+    >(functions, 'decidePortalTask');
+    return (await call({ tenantId, taskId, outcome, comment })).data.status;
   }
 
   async listRecordActions(tenantId: string, projectionId: string, locale: string): Promise<PortalRecordAction[]> {

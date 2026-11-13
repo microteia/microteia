@@ -30,14 +30,20 @@ const task = (assigneeIds: string[]) => ({
 beforeEach(async () => {
   await env.clearFirestore();
   await seed(env, {
-    users: { ana: {}, bia: {}, gestor: {}, deFora: {} },
+    users: { ana: {}, bia: {}, gestor: {}, deFora: {}, cliente: {}, suspenso: {}, outroCliente: {} },
     owners: { [TENANT]: 'dono', [OTHER_TENANT]: 'outroDono' },
     members: {
       [TENANT]: { ana: [], bia: [], gestor: ['automation.manage'] },
       [OTHER_TENANT]: { deFora: ['automation.manage'] },
     },
     records: {
-      [TENANT]: { 'workflow_tasks/t1': task(['ana']) },
+      [TENANT]: {
+        'workflow_tasks/t1': task(['ana']),
+        'workflow_tasks/t3': { ...task(['ana']), guestIds: ['cliente', 'suspenso'] },
+        'portalUsers/cliente': { userId: 'cliente', subjectKeys: ['empresas/acme'] },
+        'portalUsers/suspenso': { userId: 'suspenso', subjectKeys: ['empresas/acme'], suspended: true },
+        'portalUsers/outroCliente': { userId: 'outroCliente', subjectKeys: ['empresas/globex'] },
+      },
     },
   });
 });
@@ -73,5 +79,21 @@ describe('workflow_tasks', () => {
   it('ninguém grava pelo cliente — nem o designado decide por fora da callable', async () => {
     await assertFails(updateDoc(ref('ana'), { status: 'decided', outcome: 'approved' }));
     await assertFails(setDoc(doc(asUser(env, 'gestor'), `tenants/${TENANT}/workflow_tasks/t2`), task(['gestor'])));
+  });
+
+  it('o convidado do portal lê a tarefa em que está entre os convidados — e a consulta dele é provada pelo uid', async () => {
+    const guestRef = (uid: string) => doc(asUser(env, uid), `tenants/${TENANT}/workflow_tasks/t3`);
+    await assertSucceeds(getDoc(guestRef('cliente')));
+    await assertFails(getDoc(guestRef('outroCliente')));
+    await assertFails(getDoc(guestRef('suspenso')));
+    await assertFails(getDoc(ref('cliente')));
+    await assertSucceeds(getDocs(query(
+      collection(asUser(env, 'cliente'), `tenants/${TENANT}/workflow_tasks`),
+      where('guestIds', 'array-contains', 'cliente'),
+      where('status', '==', 'open'),
+      orderBy('createdAt', 'desc'),
+      limit(50),
+    )));
+    await assertFails(updateDoc(guestRef('cliente'), { status: 'decided', outcome: 'approved' }));
   });
 });

@@ -13,6 +13,7 @@ import type {
   PortalLinkOption,
   PortalMembership,
   PortalRecordAction,
+  PortalTask,
 } from '../../entities/Portal';
 
 export type ListPortalMembershipsUseCase = {
@@ -197,4 +198,20 @@ export type UploadPortalDocumentUseCase = {
 
 export const makeUploadPortalDocumentUseCase = (repo: IPortalRepository): UploadPortalDocumentUseCase => ({
   execute: (input) => repo.uploadDocument(input),
+});
+
+export type SubscribePortalTasksUseCase = {
+  execute: (tenantId: string, userId: string, onUpdate: (tasks: PortalTask[]) => void, onError?: (error: Error) => void) => () => void;
+};
+
+export const makeSubscribePortalTasksUseCase = (repo: IPortalRepository): SubscribePortalTasksUseCase => ({
+  execute: (tenantId, userId, onUpdate, onError) => repo.subscribeTasks(tenantId, userId, onUpdate, onError),
+});
+
+export type DecidePortalTaskUseCase = {
+  execute: (tenantId: string, taskId: string, outcome: string, comment: string) => Promise<'decided' | 'voted'>;
+};
+
+export const makeDecidePortalTaskUseCase = (repo: IPortalRepository): DecidePortalTaskUseCase => ({
+  execute: (tenantId, taskId, outcome, comment) => repo.decideTask(tenantId, taskId, outcome, comment),
 });

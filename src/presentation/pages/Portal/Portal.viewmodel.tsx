@@ -182,6 +182,8 @@ export interface PortalViewModel {
    * extensão de detalhe, como o "Voltar": a declaração é da tela, não de quem a desenha. `null`, sem ações.
    */
   recordActions: { collection: string; recordId: string } | null;
+  /** O registro aberto, para as aprovações pendentes do convidado nele — em qualquer tela, com ações ou não. */
+  recordTasks: { collection: string; recordId: string } | null;
   startEdit: () => void;
   openRecord: (collection: string, id: string) => void;
   setActiveTab: (tab: string) => void;
@@ -280,6 +282,10 @@ export const usePortalViewModel = (): PortalViewModel => {
   const recordActions = useMemo(
     () => (topRecord && topScreen?.actions ? { collection: topRecord.collection, recordId: topRecord.recordId } : null),
     [topRecord, topScreen],
+  );
+  const recordTasks = useMemo(
+    () => (topRecord ? { collection: topRecord.collection, recordId: topRecord.recordId } : null),
+    [topRecord],
   );
 
   // A abertura conta quando o registro CHEGA à tela — a casca nativa ou a view de extensão de detalhe.
@@ -502,6 +508,7 @@ export const usePortalViewModel = (): PortalViewModel => {
     emptyScreens: !!portal.context && menuEntries.length === 0,
     selected,
     recordActions,
+    recordTasks,
     openRecord,
     setActiveTab: (tab: string) => setTabChoice({ recordId: topRecord?.id ?? '', tab }),
     goBack,

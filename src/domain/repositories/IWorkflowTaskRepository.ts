@@ -12,5 +12,6 @@ export interface IWorkflowTaskRepository {
     onError?: (error: Error) => void,
   ): () => void;
   /** Decide a tarefa no SERVIDOR — é lá que a execução que a esperava é retomada. */
-  completeTask(tenantId: string, taskId: string, outcome: string, comment: string): Promise<void>;
+  /** `voted`: o voto contou, e a tarefa segue aberta até o quórum. */
+  completeTask(tenantId: string, taskId: string, outcome: string, comment: string): Promise<'decided' | 'voted'>;
 }

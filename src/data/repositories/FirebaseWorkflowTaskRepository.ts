@@ -29,6 +29,21 @@ const mapTask = (tenantId: string, id: string, data: DocumentData): WorkflowTask
   message: String(data.message ?? ''),
   assigneeIds: strings(data.assigneeIds),
   outcomes: outcomesOf(data.outcomes),
+  ...(Array.isArray(data.guestIds) ? { guestIds: strings(data.guestIds) } : {}),
+  ...(typeof data.quorum === 'number' && data.quorum > 1 ? { quorum: data.quorum } : {}),
+  // Só o que a caixa usa de cada voto: quem já votou some da lista dele, e o progresso conta os votos.
+  ...(data.votes && typeof data.votes === 'object'
+    ? {
+        votes: Object.fromEntries(Object.entries(data.votes as Record<string, { outcome?: unknown; name?: unknown; at?: unknown; comment?: unknown; via?: unknown }>)
+          .map(([userId, vote]) => [userId, {
+            outcome: String(vote?.outcome ?? ''),
+            name: String(vote?.name ?? ''),
+            at: toDate(vote?.at) ?? new Date(0),
+            comment: String(vote?.comment ?? ''),
+            via: vote?.via === 'portal' ? 'portal' as const : 'member' as const,
+          }])),
+      }
+    : {}),
   status: data.status === 'decided' || data.status === 'expired' ? data.status : 'open',
   createdAt: toDate(data.createdAt) ?? new Date(0),
   dueAt: toDate(data.dueAt),
@@ -61,11 +76,12 @@ export class FirebaseWorkflowTaskRepository implements IWorkflowTaskRepository {
     );
   }
 
-  async completeTask(tenantId: string, taskId: string, outcome: string, comment: string): Promise<void> {
+  async completeTask(tenantId: string, taskId: string, outcome: string, comment: string): Promise<'decided' | 'voted'> {
     const call = httpsCallable<
       { tenantId: string; taskId: string; outcome: string; comment: string },
       { status: string }
     >(functions, 'completeWorkflowTask');
-    await call({ tenantId, taskId, outcome, comment });
+    const { data } = await call({ tenantId, taskId, outcome, comment });
+    return data.status === 'voted' ? 'voted' : 'decided';
   }
 }

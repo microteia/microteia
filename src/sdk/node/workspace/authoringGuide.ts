@@ -56,7 +56,7 @@ import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { MAX_STEP_RETRIES, STEP_TYPES } from '../../../domain/entities/Workflow';
 import { WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../../domain/schema/workflowChangeFilter';
 import { REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
-import { WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../../domain/schema/workflowTask';
+import { WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../../domain/schema/workflowTask';
 import { REPORT_SNAPSHOTS_SINCE_KERNEL, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../../domain/schema/report/reportStep';
 import { WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../../domain/schema/workflowWait';
 import { EXTENSION_STEPS_SINCE_KERNEL } from '../../../domain/schema/workflowStepContribution';
@@ -3555,6 +3555,14 @@ notified; the first decision resumes the SAME run at once, and the chosen outcom
   with \`onTimeout\` as the outcome (\`'expired'\` when absent) and the task leaves the list.
 - It pauses like \`delay\` — so the same rules: **only at the top level**, **only in a run started by an
   event**; the step refuses BEFORE creating the task or notifying anyone where the run cannot wait.
+- **Portal guests** (\`portalGuests: true\`, kernel ${WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL}+): the guests who see the record of
+  the event also decide, on the record page in the portal — notified by the portal bell and e-mail. They add
+  to the members ("the client OR the manager approves"). No record, or a record outside the portal, fails the step.
+- **Quorum** (\`quorum\`, kernel ${WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL}+): empty for the first decision, \`'all'\`, or a number
+  of votes on the FIRST outcome. Each person votes once; the task closes with the first outcome when it reaches
+  the quorum, or with the most voted other outcome as soon as reaching it is impossible (with \`'all'\`, one
+  rejection closes it). The output \`votes\` lists every vote (\`outcome\`, \`decidedBy\`, \`decidedByName\`,
+  \`decidedAt\`, \`comment\`, \`via\`).
 
 The \`approval\` step needs kernel ${WORKFLOW_APPROVAL_SINCE_KERNEL} or later, and \`validate_plugin\` refuses a package that admits an older one.
 

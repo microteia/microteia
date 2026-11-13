@@ -11,6 +11,7 @@ import type {
   PortalRecord,
   PortalRecordAction,
   PortalSignInSettingsView,
+  PortalTask,
 } from '../entities/Portal';
 import type { PortalRequiredClaim, PortalSignInOptions, PortalSignInSettings } from '../schema/portalIdentity';
 import type { PortalHomeSettings } from '../schema/portalExtensionPoints';
@@ -60,6 +61,15 @@ export interface IPortalRepository {
    * `portal.trackViews`. A leitura da projeção é direta, e o servidor não a vê de outro jeito.
    */
   recordView(tenantId: string, projectionId: string): Promise<void>;
+  /** As aprovações ABERTAS em que o convidado está entre os que decidem — as mais novas primeiro. */
+  subscribeTasks(
+    tenantId: string,
+    userId: string,
+    onUpdate: (tasks: PortalTask[]) => void,
+    onError?: (error: Error) => void,
+  ): () => void;
+  /** Vota numa aprovação. `voted`: o voto contou, e a tarefa espera os outros (quórum). */
+  decideTask(tenantId: string, taskId: string, outcome: string, comment: string): Promise<'decided' | 'voted'>;
   /** Os botões do registro aberto (`portal.actions`), para este convidado e agora. */
   listRecordActions(tenantId: string, projectionId: string, locale: string): Promise<PortalRecordAction[]>;
   /** Dispara uma ação do escritório no registro aberto — o servidor confere tudo de novo. */

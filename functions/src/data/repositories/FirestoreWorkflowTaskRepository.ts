@@ -5,8 +5,8 @@ import type {
   WorkflowTaskDecision,
   WorkflowTaskDecisionResult,
 } from '../../domain/repositories/IWorkflowTaskRepository';
-import { WORKFLOW_TASKS_COLLECTION } from '../../domain/schema/workflowTask';
-import type { WorkflowTask, WorkflowTaskOutcome, WorkflowTaskStatus } from '../../domain/schema/workflowTask';
+import { WORKFLOW_TASKS_COLLECTION, tallyApprovalVotes, workflowTaskVoters } from '../../domain/schema/workflowTask';
+import type { WorkflowTask, WorkflowTaskOutcome, WorkflowTaskStatus, WorkflowTaskVote } from '../../domain/schema/workflowTask';
 
 const toDate = (value: unknown): Date | null => {
   if (value instanceof Timestamp) return value.toDate();
@@ -25,6 +25,23 @@ const outcomesOf = (value: unknown): WorkflowTaskOutcome[] =>
 
 const STATUSES: readonly WorkflowTaskStatus[] = ['open', 'decided', 'expired'];
 
+/** Os votos gravados, lidos com desconfiança: o que não tem forma de voto fica de fora. */
+const votesOf = (value: unknown): Record<string, WorkflowTaskVote> => {
+  if (!value || typeof value !== 'object') return {};
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).flatMap(([userId, raw]) => {
+    const vote = raw as Record<string, unknown> | null;
+    const at = toDate(vote?.at);
+    if (!vote || typeof vote.outcome !== 'string' || !at) return [];
+    return [[userId, {
+      outcome: vote.outcome,
+      name: typeof vote.name === 'string' ? vote.name : '',
+      at,
+      comment: typeof vote.comment === 'string' ? vote.comment : '',
+      via: vote.via === 'portal' ? 'portal' : 'member',
+    } satisfies WorkflowTaskVote]];
+  }));
+};
+
 export const mapWorkflowTask = (tenantId: string, id: string, data: DocumentData): WorkflowTask => {
   const target = data.target && typeof data.target === 'object'
     && typeof data.target.collection === 'string' && typeof data.target.recordId === 'string'
@@ -39,6 +56,9 @@ export const mapWorkflowTask = (tenantId: string, id: string, data: DocumentData
     title: String(data.title ?? ''),
     message: String(data.message ?? ''),
     assigneeIds: strings(data.assigneeIds),
+    ...(Array.isArray(data.guestIds) ? { guestIds: strings(data.guestIds) } : {}),
+    ...(typeof data.quorum === 'number' && data.quorum > 1 ? { quorum: data.quorum } : {}),
+    ...(data.votes && typeof data.votes === 'object' ? { votes: votesOf(data.votes) } : {}),
     outcomes: outcomesOf(data.outcomes),
     status: STATUSES.includes(data.status) ? data.status : 'open',
     createdAt: toDate(data.createdAt) ?? new Date(0),
@@ -70,6 +90,8 @@ export class FirestoreWorkflowTaskRepository implements IWorkflowTaskRepository 
         title: task.title,
         message: task.message,
         assigneeIds: task.assigneeIds,
+        ...(task.guestIds && task.guestIds.length > 0 ? { guestIds: task.guestIds } : {}),
+        ...(task.quorum && task.quorum > 1 ? { quorum: task.quorum, votes: {} } : {}),
         outcomes: task.outcomes,
         status: task.status,
         createdAt: Timestamp.fromDate(task.createdAt),
@@ -102,12 +124,27 @@ export class FirestoreWorkflowTaskRepository implements IWorkflowTaskRepository 
       if (!snapshot.exists) return { ok: false, reason: 'not-found' };
       const task = mapWorkflowTask(tenantId, taskId, snapshot.data() as DocumentData);
       if (task.status !== 'open') return { ok: false, reason: 'not-open' };
-      if (!task.assigneeIds.includes(decision.userId)) return { ok: false, reason: 'not-assignee' };
+      if (!workflowTaskVoters(task).includes(decision.userId)) return { ok: false, reason: 'not-assignee' };
       if (!task.outcomes.some((one) => one.key === decision.outcome)) return { ok: false, reason: 'invalid-outcome' };
+      if (task.votes?.[decision.userId]) return { ok: false, reason: 'already-voted' };
 
+      const vote: WorkflowTaskVote = {
+        outcome: decision.outcome, name: decision.userName, at: decision.at, comment: decision.comment, via: decision.via,
+      };
+      const votes = { ...(task.votes ?? {}), [decision.userId]: vote };
+      const tally = tallyApprovalVotes(task, votes);
+      const quorumVote = task.quorum && task.quorum > 1
+        ? { [`votes.${decision.userId}`]: { ...vote, at: Timestamp.fromDate(decision.at) } }
+        : {};
+
+      if (!tally.closed) {
+        tx.update(ref, quorumVote);
+        return { ok: true, closed: false, task: { ...task, votes } };
+      }
       tx.update(ref, {
+        ...quorumVote,
         status: 'decided',
-        outcome: decision.outcome,
+        outcome: tally.outcome,
         decidedBy: decision.userId,
         decidedByName: decision.userName,
         decidedAt: Timestamp.fromDate(decision.at),
@@ -115,10 +152,12 @@ export class FirestoreWorkflowTaskRepository implements IWorkflowTaskRepository 
       });
       return {
         ok: true,
+        closed: true,
         task: {
           ...task,
+          ...(task.quorum && task.quorum > 1 ? { votes } : {}),
           status: 'decided',
-          outcome: decision.outcome,
+          outcome: tally.outcome,
           decidedBy: decision.userId,
           decidedByName: decision.userName,
           decidedAt: decision.at,

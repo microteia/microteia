@@ -12,6 +12,7 @@ export { detectWorkflows } from './infrastructure/handlers/detectWorkflows';
 export { runWorkflow } from './infrastructure/handlers/runWorkflow';
 export { rerunWorkflowExecution } from './infrastructure/handlers/rerunWorkflowExecution';
 export { completeWorkflowTask } from './infrastructure/handlers/completeWorkflowTask';
+export { decidePortalTask } from './infrastructure/handlers/decidePortalTask';
 export { workflowWebhook, manageWorkflowWebhook } from './infrastructure/handlers/workflowWebhook';
 export { runScript } from './infrastructure/handlers/runScript';
 export { runAction } from './infrastructure/handlers/runAction';

@@ -33,6 +33,7 @@ export const WorkflowTasksView: React.FC = () => {
             {task.message && <S.Message>{task.message}</S.Message>}
             <S.Meta $overdue={task.overdue}>
               <span>{task.createdAt}</span>
+              {task.progress && <span>{task.progress}</span>}
               {task.due && <span>{task.due}</span>}
             </S.Meta>
             <Input

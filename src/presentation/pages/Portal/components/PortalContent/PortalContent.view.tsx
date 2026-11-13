@@ -8,6 +8,7 @@ import { Spinner } from '../../../../components/ui/Spinner';
 import { PortalCreateForm } from '../PortalCreateForm';
 import { PortalUploadForm } from '../PortalUploadForm';
 import { PortalRecordActions } from '../PortalRecordActions';
+import { PortalRecordTasks } from '../PortalRecordTasks';
 import { PortalCardList } from '../PortalCardList';
 import { PortalTemplateNodes } from '../PortalTemplateNodes';
 import { useT } from '../../../../shared/i18n/useT';
@@ -156,6 +157,7 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
   ) : vm.detailView ? (
     <S.Detail>
       {backButton}
+      {vm.recordTasks && <PortalRecordTasks {...vm.recordTasks} />}
       {vm.recordActions && <PortalRecordActions {...vm.recordActions} />}
       <vm.detailView.Component collection={vm.detailView.collection} recordId={vm.detailView.recordId} />
     </S.Detail>
@@ -170,6 +172,7 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
           </Button>
         </S.DetailToolbar>
       )}
+      {vm.recordTasks && <PortalRecordTasks {...vm.recordTasks} />}
       {!vm.selected.placesActions && vm.recordActions && <PortalRecordActions {...vm.recordActions} />}
       <PortalTemplateNodes nodes={vm.selected.body} onEdit={vm.startEdit} actions={vm.recordActions} />
       {recordTabs}
@@ -186,6 +189,7 @@ export const PortalContent: React.FC<{ vm: PortalViewModel }> = ({ vm }) => {
           </Button>
         )}
       </S.DetailHeader>
+      {vm.recordTasks && <PortalRecordTasks {...vm.recordTasks} />}
       {vm.recordActions && <PortalRecordActions {...vm.recordActions} />}
       <S.Fields>
         {vm.selected.fields.map((field) => (

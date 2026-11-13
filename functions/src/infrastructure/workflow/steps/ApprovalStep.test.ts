@@ -11,7 +11,7 @@ import { makeApprovalStepDefinition } from './ApprovalStep';
 
 const NOW = new Date('2026-11-11T12:00:00Z');
 
-const harness = () => {
+const harness = (guests: { inPortal: boolean; ids: string[] } = { inPortal: true, ids: ['cliente', 'socio'] }) => {
   const created: WorkflowTask[] = [];
   const sent: DispatchNotificationRequest[] = [];
   const tasks: IWorkflowTaskRepository = {
@@ -41,6 +41,9 @@ const harness = () => {
     dispatch,
     screens,
     memberIdsGranting: async (_tenant, permission) => (permission === 'pedidos.approve' ? ['gestor', 'ana'] : []),
+    portalGuests: {
+      execute: async () => ({ inPortal: guests.inPortal, guests: guests.ids.map((userId) => ({ userId, email: `${userId}@x.com` })) }),
+    },
   });
   const registry: StepRegistry = {
     register: () => undefined,
@@ -152,6 +155,56 @@ describe('passo approval', () => {
 
     expect(run.status).toBe('FAILED');
     expect(run.logs.some((log) => log.message === '@core.automation/step.approval.no-assignee')).toBe(true);
+    expect(created).toHaveLength(0);
+  });
+
+  it('com convidados do portal, eles entram na tarefa à parte dos membros, e são avisados pelo portal no registro', async () => {
+    const { created, sent, registry } = harness();
+    const run = await runWorkflow({
+      definition: definition([approvalStep({
+        assigneeMembers: { kind: 'Literal', value: ['bia'] },
+        portalGuests: { kind: 'Literal', value: true },
+        quorum: { kind: 'Literal', value: 'all' },
+      })]),
+      event, registry, services, suspendable: true,
+    });
+    expect(run.status).toBe('WAITING');
+    expect(created[0]).toMatchObject({ assigneeIds: ['bia'], guestIds: ['cliente', 'socio'], quorum: 3 });
+    const toPortal = sent.find((one) => one.audience === 'portal');
+    expect(toPortal).toMatchObject({ recipientIds: ['cliente', 'socio'], target: { collection: 'pedidos', recordId: 'p1' } });
+    expect(sent.find((one) => one.audience !== 'portal')?.recipientIds).toEqual(['bia']);
+  });
+
+  it('só convidados também vale; registro fora do portal falha antes de criar a tarefa', async () => {
+    const soConvidados = harness();
+    const run = await runWorkflow({
+      definition: definition([approvalStep({ portalGuests: { kind: 'Literal', value: true } })]),
+      event, registry: soConvidados.registry, services, suspendable: true,
+    });
+    expect(run.status).toBe('WAITING');
+    expect(soConvidados.created[0].assigneeIds).toEqual([]);
+    expect(soConvidados.sent.every((one) => one.audience === 'portal')).toBe(true);
+
+    const fora = harness({ inPortal: false, ids: [] });
+    const failed = await runWorkflow({
+      definition: definition([approvalStep({ portalGuests: { kind: 'Literal', value: true } })]),
+      event, registry: fora.registry, services, suspendable: true,
+    });
+    expect(failed.status).toBe('FAILED');
+    expect(fora.created).toHaveLength(0);
+  });
+
+  it('quórum maior que o número de quem decide falha dizendo os números', async () => {
+    const { created, registry } = harness();
+    const run = await runWorkflow({
+      definition: definition([approvalStep({
+        assigneeMembers: { kind: 'Literal', value: ['bia', 'ana'] },
+        quorum: { kind: 'Literal', value: '3' },
+      })]),
+      event, registry, services, suspendable: true,
+    });
+    expect(run.status).toBe('FAILED');
+    expect(run.logs.some((log) => log.message === '@core.automation/step.approval.quorum-invalid')).toBe(true);
     expect(created).toHaveLength(0);
   });
 });

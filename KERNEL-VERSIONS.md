@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.252.0] — 2026-11-13
+
+- feat(workflow): approval by portal guests. `approval` takes `portalGuests: true`: the guests who see the event record now (`ResolvePortalGuestsUseCase`) are stored in `guestIds`, apart from member `assigneeIds`, and notified through the portal channel with the record as target. No record or a record outside the portal fails the step before creating the task.
+- feat(workflow): new callable `decidePortalTask` (in `deploy:portal`): active invite, uid in `guestIds`, and the guest must still see the record at decision time; it goes through `decideWorkflowTask` with `via: 'portal'`. Rules: a portal user reads a task whose `guestIds` contains their uid; index `guestIds` CONTAINS + `status` + `createdAt` DESC. The portal shows pending tasks on the record page (`PortalRecordTasks`).
+- feat(workflow): approval quorum. `quorum` is empty/`any` (first decision, unchanged), `all` (stored as the voter count) or an integer up to the voter count (else `step.approval.quorum-invalid`). Each person votes once (`votes.<uid>`, `already-voted`); `tallyApprovalVotes` closes with the first outcome at the quorum, or with the most voted other outcome once the quorum is unreachable. A non-closing vote returns `voted` and does not resume the run; the closing one resumes with the `votes` list in the outputs. `KERNEL_VERSION` 2.125.0.
+
 #### [9.251.0] — 2026-11-13
 
 - feat(workflow): webhook replay protection, optional per webhook (`WebhookProtection`). `deliveryHeader`: a delivery id the caller sends; the first arrival creates `workflow_webhooks/{id}/webhook_deliveries/{sha256(id)}` with `create()`, a copy answers 200 `{ eventId, duplicate: true }` with the first event and does not publish again. The mark is created only after every refusal check, released if publishing fails, and expires after 24 h (TTL); a missing declared id is 400 `delivery-id-missing`.

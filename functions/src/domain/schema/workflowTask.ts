@@ -34,6 +34,21 @@ export const MAX_APPROVAL_DAYS = 365;
 /** O kernel que passou a entender o passo `approval` e a caixa de tarefas. */
 export const WORKFLOW_APPROVAL_SINCE_KERNEL = '2.110.0';
 
+/** O kernel que passou a entender a aprovação pelo PORTAL (`portalGuests`) e o QUÓRUM (`quorum`). */
+export const WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL = '2.125.0';
+
+/** Por onde o voto chegou: a caixa de tarefas (ou o MCP) de um membro, ou o portal de um convidado. */
+export type WorkflowTaskVoteVia = 'member' | 'portal';
+
+/** Um VOTO numa tarefa com quórum — cada pessoa vota uma vez, e o voto fica com nome e comentário. */
+export interface WorkflowTaskVote {
+  outcome: string;
+  name: string;
+  at: Date;
+  comment: string;
+  via: WorkflowTaskVoteVia;
+}
+
 export type WorkflowTaskStatus = 'open' | 'decided' | 'expired';
 
 /**
@@ -67,8 +82,21 @@ export interface WorkflowTask {
   /** REFERÊNCIA ou texto do escritório, como no passo "Notificar". */
   title: string;
   message: string;
-  /** Quem pode decidir. A consulta da caixa é `array-contains` por aqui. */
+  /** Os MEMBROS que podem decidir. A consulta da caixa é `array-contains` por aqui. */
   assigneeIds: string[];
+  /**
+   * Os CONVIDADOS do portal que podem decidir — os que viam o registro quando a tarefa nasceu. Lista à
+   * parte de `assigneeIds` porque são duas portas: a caixa de tarefas é de membro, e a regra que deixa o
+   * convidado ler a tarefa é outra.
+   */
+  guestIds?: string[];
+  /**
+   * Quantos votos no PRIMEIRO desfecho fecham a tarefa. Ausente ou 1: a primeira decisão fecha, como
+   * sempre foi. "Todos" é gravado já como o número de quem pode votar.
+   */
+  quorum?: number;
+  /** Os votos, por pessoa — só nas tarefas com quórum. */
+  votes?: Record<string, WorkflowTaskVote>;
   outcomes: WorkflowTaskOutcome[];
   status: WorkflowTaskStatus;
   createdAt: Date;
@@ -110,4 +138,48 @@ export const approvalOutcomesOf = (declared: unknown): WorkflowTaskOutcome[] => 
     outcomes.push({ key, label });
   }
   return outcomes.length > 0 ? outcomes : [...DEFAULT_APPROVAL_OUTCOMES];
+};
+
+/** Quem pode votar nesta tarefa: os membros designados e os convidados do portal. */
+export const workflowTaskVoters = (task: Pick<WorkflowTask, 'assigneeIds' | 'guestIds'>): string[] =>
+  [...new Set([...task.assigneeIds, ...(task.guestIds ?? [])])];
+
+/**
+ * O quórum DECLARADO, já como número: vazio ou `any` é 1 (a primeira decisão fecha); `all` é todo mundo
+ * que pode votar; um inteiro é ele. `null` quando não se lê — ou quando pede mais votos do que há pessoas,
+ * o que deixaria a tarefa aberta até o prazo sem que ninguém pudesse fechá-la.
+ */
+export const approvalQuorumOf = (declared: unknown, voters: number): number | null => {
+  const text = typeof declared === 'number' ? String(declared) : typeof declared === 'string' ? declared.trim().toLowerCase() : '';
+  if (text === '' || text === 'any') return 1;
+  const required = text === 'all' ? voters : /^\d{1,3}$/.test(text) ? Number(text) : NaN;
+  return Number.isInteger(required) && required >= 1 && required <= voters ? required : null;
+};
+
+/**
+ * A APURAÇÃO depois de um voto. O quórum conta o PRIMEIRO desfecho (o "aprovar"):
+ * - com quórum 1, o voto decide sozinho, qualquer que seja — a semântica de sempre;
+ * - o primeiro desfecho fecha a tarefa ao atingir o quórum;
+ * - assim que atingi-lo fica IMPOSSÍVEL (os votos que faltam não bastam), a tarefa fecha com o outro
+ *   desfecho mais votado — no empate, o que vem antes na lista. Com "todos", uma recusa já fecha.
+ */
+export const tallyApprovalVotes = (
+  task: Pick<WorkflowTask, 'assigneeIds' | 'guestIds' | 'outcomes' | 'quorum'>,
+  votes: Record<string, Pick<WorkflowTaskVote, 'outcome' | 'at'>>,
+): { closed: false } | { closed: true; outcome: string } => {
+  const cast = Object.values(votes);
+  if (cast.length === 0) return { closed: false };
+  const required = Math.max(1, task.quorum ?? 1);
+  if (required === 1) {
+    const last = cast.reduce((latest, vote) => (vote.at.getTime() >= latest.at.getTime() ? vote : latest));
+    return { closed: true, outcome: last.outcome };
+  }
+  const first = task.outcomes[0]?.key ?? '';
+  const count = (key: string) => cast.filter((vote) => vote.outcome === key).length;
+  if (count(first) >= required) return { closed: true, outcome: first };
+  const remaining = workflowTaskVoters(task).length - cast.length;
+  if (count(first) + remaining >= required) return { closed: false };
+  const others = task.outcomes.slice(1).map((one) => one.key);
+  const winner = others.reduce((best, key) => (count(key) > count(best) ? key : best), others[0] ?? first);
+  return { closed: true, outcome: winner };
 };

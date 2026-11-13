@@ -1,5 +1,6 @@
 import type { StepDefinition, WorkflowStepExecutor } from '../../../domain/engine/StepDefinition';
 import { coreStepMetadata } from '../../../domain/engine/StepDefinition';
+import type { WorkflowResult } from '../../../domain/entities/WorkflowContext';
 import type { IWorkflowTaskRepository } from '../../../domain/repositories/IWorkflowTaskRepository';
 import type { IScreenDefinitionProvider } from '../../../domain/repositories/IScreenDefinitionProvider';
 import type { DispatchNotificationUseCase } from '../../../domain/usecases/DispatchNotificationUseCase';
@@ -9,8 +10,10 @@ import {
   WORKFLOW_TASKS_PAGE_KEY,
   MAX_APPROVAL_DAYS,
   approvalOutcomesOf,
+  approvalQuorumOf,
   workflowTaskId,
 } from '../../../domain/schema/workflowTask';
+import type { ResolvePortalGuestsUseCase } from '../../../domain/usecases/ResolvePortalGuestsUseCase';
 import { eventRecordOf } from './NotifyStep';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -21,6 +24,8 @@ export interface ApprovalStepDeps {
   memberIdsGranting(tenantId: string, permission: string, limit: number): Promise<string[]>;
   dispatch: DispatchNotificationUseCase;
   screens: IScreenDefinitionProvider;
+  /** Quem, do portal, vê o registro — os convidados que a aprovação pelo portal designa. */
+  portalGuests?: ResolvePortalGuestsUseCase;
 }
 
 const textOf = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
@@ -38,7 +43,7 @@ const textOf = (value: unknown): string => (typeof value === 'string' ? value.tr
 export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefinition => ({
   ...coreStepMetadata('approval'),
   createExecutor: (): WorkflowStepExecutor => ({
-    execute: async (inputs, context) => {
+    execute: async (inputs, context): Promise<WorkflowResult> => {
       if (context.canSuspend !== true) {
         return { success: false, message: '@core.automation/step.approval.cannot-wait' };
       }
@@ -53,8 +58,35 @@ export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefiniti
         ...notificationRecipientCandidates(inputs.assigneesFrom),
         ...(permission ? await deps.memberIdsGranting(tenantId, permission, NOTIFICATION_MAX_RECIPIENTS) : []),
       ])].slice(0, NOTIFICATION_MAX_RECIPIENTS);
-      if (assigneeIds.length === 0) {
+
+      const target = await eventRecordOf(deps.screens, tenantId, context.event).catch(() => null);
+
+      /*
+       * Os CONVIDADOS do portal que veem o registro do evento AGORA — a mesma pergunta do aviso ao portal.
+       * Sem registro, ou com um registro fora do portal, não há a quem perguntar: o passo reprova em vez de
+       * criar uma tarefa que ninguém de fora consegue abrir.
+       */
+      let guestIds: string[] = [];
+      if (inputs.portalGuests === true) {
+        if (!target) return { success: false, message: '@core.automation/step.notify.portal.no-record' };
+        if (!deps.portalGuests) return { success: false, message: '@core.automation/step.approval.portal-unavailable' };
+        const seen = await deps.portalGuests.execute(tenantId, target);
+        if (!seen.inPortal) return { success: false, message: '@core.automation/step.notify.portal.not-in-portal' };
+        guestIds = [...new Set(seen.guests.map((guest) => guest.userId))].slice(0, NOTIFICATION_MAX_RECIPIENTS);
+      }
+
+      if (assigneeIds.length === 0 && guestIds.length === 0) {
         return { success: false, message: '@core.automation/step.approval.no-assignee' };
+      }
+
+      const voters = new Set([...assigneeIds, ...guestIds]).size;
+      const quorum = approvalQuorumOf(inputs.quorum, voters);
+      if (quorum === null) {
+        return {
+          success: false,
+          message: '@core.automation/step.approval.quorum-invalid',
+          messageParams: { quorum: String(inputs.quorum ?? ''), voters: String(voters) },
+        };
       }
 
       const now = context.services.now();
@@ -70,7 +102,6 @@ export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefiniti
 
       const stepId = context.stepId ?? 'approval';
       const taskId = workflowTaskId(context.execution.id, stepId);
-      const target = await eventRecordOf(deps.screens, tenantId, context.event).catch(() => null);
       const message = textOf(inputs.message);
 
       await deps.tasks.createIfAbsent({
@@ -82,6 +113,8 @@ export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefiniti
         title,
         message,
         assigneeIds,
+        ...(guestIds.length > 0 ? { guestIds } : {}),
+        ...(quorum > 1 ? { quorum } : {}),
         outcomes,
         status: 'open',
         createdAt: now,
@@ -91,7 +124,7 @@ export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefiniti
 
       // O aviso leva à CAIXA, e não ao registro: é lá que a decisão se toma. A mesma chave faz a nova
       // tentativa do passo não repetir o e-mail.
-      const notified = await deps.dispatch.execute({
+      const notified = assigneeIds.length === 0 ? null : await deps.dispatch.execute({
         tenantId,
         source: 'workflow',
         workflowId: context.execution.workflowDefinitionId,
@@ -114,10 +147,38 @@ export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefiniti
       });
       for (const issue of notified?.issues ?? []) context.logger.warn(issue.message, issue.params);
 
+      // O convidado decide na PÁGINA DO REGISTRO, no portal: o aviso vai pelo canal do portal, que leva o
+      // e-mail e o sino até o registro. Só os designados, entre os que o veem.
+      if (guestIds.length > 0 && target) {
+        const toGuests = await deps.dispatch.execute({
+          tenantId,
+          source: 'workflow',
+          workflowId: context.execution.workflowDefinitionId,
+          executionId: context.execution.id,
+          title,
+          message: message || '@core.automation/task.notify.portal-message',
+          params: {},
+          link: '',
+          target,
+          audience: 'portal',
+          category: 'core.automation/task',
+          dedupKey: `${taskId}:portal`,
+          channels: { audit: false, inApp: true, email: true, push: false },
+          recipientIds: guestIds,
+          recipientPermissions: [],
+        }).catch((error: unknown) => {
+          context.logger.warn('@core.automation/step.approval.notify-failed', {
+            detail: error instanceof Error ? error.message : String(error),
+          });
+          return null;
+        });
+        for (const issue of toGuests?.issues ?? []) context.logger.warn(issue.message, issue.params);
+      }
+
       return {
         success: true,
         message: '@core.automation/step.approval.waiting',
-        messageParams: { count: String(assigneeIds.length) },
+        messageParams: { count: String(voters) },
         outputs: {
           outcome: timeoutOutcome,
           decidedBy: '',
@@ -125,6 +186,7 @@ export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefiniti
           decidedAt: null,
           comment: '',
           taskId,
+          votes: [],
         },
         suspend: { resumeAt, taskId },
       };

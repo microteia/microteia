@@ -8308,8 +8308,26 @@ e um comentário. Ninguém grava `workflow_tasks` pelo cliente; leem o designado
 **Desfechos** declarados são texto do escritório (`approvalOutcomesOf`): a chave sai do texto, sem acento
 e com hífen, e é ela que a automação compara; sem nenhum, `approved`/`rejected` com rótulo traduzido.
 
-**Ainda não**: decisão pelo portal ou pelo MCP, quórum ("todos precisam aprovar"), lembrete periódico e
-delegação. A forma da tarefa já comporta os três primeiros sem mudar o contrato.
+**Pelo portal e com quórum** (kernel ≥ `WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL`, 2.125.0):
+
+- `portalGuests: true` soma aos membros os CONVIDADOS que veem o registro do evento agora
+  (`ResolvePortalGuestsUseCase`, a mesma pergunta do aviso ao portal). Eles ficam em `guestIds`, à parte de
+  `assigneeIds` — a caixa de tarefas continua de membro, e a regra do convidado é outra
+  (`isPortalUser` + uid em `guestIds`). Sem registro, ou fora do portal, o passo falha antes de criar a
+  tarefa. O aviso aos convidados vai pelo canal do portal (`audience: 'portal'`, o registro como alvo).
+- O convidado decide na PÁGINA DO REGISTRO no portal (`PortalRecordTasks`, assinando as tarefas abertas
+  por `guestIds array-contains uid`, índice próprio) pela callable `decidePortalTask`: convite ativo, uid
+  em `guestIds` e — de novo, na hora — ainda vê o registro; o acesso revogado depois não decide. A decisão
+  é a mesma `decideWorkflowTask`, com `via: 'portal'`.
+- `quorum`: vazio ou `any` (a primeira decisão, como sempre), `all` (gravado como o número de quem pode
+  votar) ou um inteiro; acima do número de pessoas, o passo falha (`quorum-invalid`). Com quórum, cada
+  pessoa vota uma vez (`votes.<uid>`: desfecho, nome, data, comentário, via; `already-voted`), e
+  `tallyApprovalVotes` apura na mesma transação: o PRIMEIRO desfecho fecha ao atingir o quórum; assim que
+  atingi-lo fica impossível, fecha com o outro desfecho mais votado (empate: o que vem antes) — com
+  `all`, uma recusa já fecha. O voto que não fecha responde `voted` e NÃO retoma a execução; o que fecha
+  retoma com `votes` (a lista) nas saídas. A caixa esconde a tarefa de quem já votou e mostra o progresso.
+
+**Ainda não**: lembrete periódico e delegação.
 
 ### Esperar um evento (`wait-for`)
 

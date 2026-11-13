@@ -715,6 +715,28 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         type: 'String',
         allowedMappingKinds: ['Literal'],
       },
+      {
+        /**
+         * Os CONVIDADOS do portal que veem o registro do evento também decidem — na página do registro, no
+         * portal. Somam-se aos membros: "o cliente ou o gerente aprova".
+         */
+        id: 'portalGuests',
+        label: '@core.automation/step.approval.label.portal-guests',
+        description: '@core.automation/step.approval.help.portal-guests',
+        required: false,
+        type: 'Boolean',
+        defaultValue: false,
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        /** Quantos votos no PRIMEIRO desfecho fecham a tarefa: vazio (a primeira decisão), `all` ou um número. */
+        id: 'quorum',
+        label: '@core.automation/step.approval.label.quorum',
+        description: '@core.automation/step.approval.help.quorum',
+        required: false,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+      },
     ],
     outputDefinitions: [
       { id: 'outcome', label: '@core.automation/step.approval.output.outcome', type: 'String' },
@@ -723,6 +745,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'decidedAt', label: '@core.automation/step.approval.output.decided-at', type: 'Date' },
       { id: 'comment', label: '@core.automation/step.approval.output.comment', type: 'String' },
       { id: 'taskId', label: '@core.automation/step.approval.output.task-id', type: 'String' },
+      { id: 'votes', label: '@core.automation/step.approval.output.votes', type: 'String' },
     ],
   },
   {

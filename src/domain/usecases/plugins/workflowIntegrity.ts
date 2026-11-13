@@ -59,7 +59,7 @@ import {
 } from '../../schema/workflowClock';
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { hasChangeFilter, WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../schema/workflowChangeFilter';
-import { APPROVAL_STEP_ID, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../schema/workflowTask';
+import { APPROVAL_STEP_ID, WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../schema/workflowTask';
 import { REPORT_FILE_SINCE_KERNEL, REPORT_SNAPSHOTS_SINCE_KERNEL, RUN_REPORT_STEP_ID, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../schema/report/reportStep';
 import { WAIT_FOR_STEP_ID, WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../schema/workflowWait';
 import { WORKFLOW_PAGED_LOOP_SINCE_KERNEL } from '../../schema/workflowLoopQuery';
@@ -378,6 +378,7 @@ const workflowIssues = (
     ...extractFieldsKernelIssues(steps, ref, pkg),
     ...reportFileKernelIssues(steps, ref, pkg),
     ...reportSnapshotKernelIssues(steps, ref, pkg),
+    ...approvalPortalKernelIssues(steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies, packageStepContext(pkg))),
     ...outputRefIssues(steps, ref),
     ...documentStepIssues(steps, ref, pkg),
@@ -767,6 +768,28 @@ const reportFileKernelIssues = (
   return first
     ? [{ ref, message: '@core.marketplace/issue.step.input-kernel', messageParams: { step: first.id, input: 'file', minimum: REPORT_FILE_SINCE_KERNEL } }]
     : [];
+};
+
+/**
+ * A aprovação pelo portal ou com quórum num pacote que admite kernel anterior: lá as duas entradas são
+ * ignoradas — o convidado nunca seria chamado, e a primeira decisão fecharia o que pedia votos.
+ */
+const approvalPortalKernelIssues = (
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  if (rangeExcludesBelow(pkg.manifest?.kernel ?? '', WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL)) return [];
+  return steps.flatMap((step): PackageValidationIssue[] => {
+    if (step.stepDefinitionId !== APPROVAL_STEP_ID) return [];
+    return (['portalGuests', 'quorum'] as const)
+      .filter((input) => step.configuration?.[input] !== undefined)
+      .map((input) => ({
+        ref,
+        message: '@core.marketplace/issue.step.input-kernel',
+        messageParams: { step: step.id, input, minimum: WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL },
+      }));
+  });
 };
 
 /** A foto para a série num pacote que admite kernel anterior: lá o `snapshot` é ignorado, e a série nunca nasce. */

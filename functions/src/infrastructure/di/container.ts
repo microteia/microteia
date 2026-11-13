@@ -1372,6 +1372,7 @@ class DIContainer {
           new FirestoreNotificationDirectory(getDb()).memberIdsGranting(tenantId, permission, limit),
         dispatch: this.getDispatchNotificationUseCase(),
         screens: this.getScreenDefinitionCache(),
+        portalGuests: makeResolvePortalGuestsUseCase(this.getPortalRepository()),
       },
       reportReader: new FirestoreReportDefinitionReader(getDb()),
       reportSnapshots: new FirestoreReportSnapshotRepository(getDb()),

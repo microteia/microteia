@@ -7,6 +7,7 @@ import type {
   PortalMembership,
   PortalRecord,
   PortalRecordAction,
+  PortalTask,
 } from '../domain/entities/Portal';
 
 export interface PortalStoreValue {
@@ -48,6 +49,10 @@ export interface PortalStoreValue {
   getDocumentUrl: (projectionId: string, documentId: string) => Promise<string>;
   /** Avisa o servidor de que o convidado abriu o registro — ver `IPortalRepository.recordView`. */
   recordView: (projectionId: string) => Promise<void>;
+  /** As aprovações abertas em que o convidado decide — ao vivo, para a página de cada registro. */
+  tasks: PortalTask[];
+  /** Vota numa aprovação; `voted` quando a tarefa ainda espera os outros (quórum). */
+  decideTask: (taskId: string, outcome: string, comment: string) => Promise<'decided' | 'voted'>;
   /** Os botões do registro aberto (`portal.actions`) — ver `IPortalRepository.listRecordActions`. */
   listRecordActions: (projectionId: string) => Promise<PortalRecordAction[]>;
   /** Dispara uma ação do escritório no registro aberto; devolve o status e os botões refeitos. */

@@ -12,12 +12,14 @@ import {
   makeListPortalRecordActionsUseCase,
   makeRecordPortalViewUseCase,
   makeRunPortalRecordActionUseCase,
+  makeSubscribePortalTasksUseCase,
+  makeDecidePortalTaskUseCase,
   makeSubmitPortalRecordUseCase,
   makeListPortalCreateTargetsUseCase,
   makeUpdatePortalRecordUseCase,
   makeUploadPortalDocumentUseCase,
 } from '../domain/usecases/portal/PortalUseCases';
-import type { PortalContext, PortalMembership, PortalRecord } from '../domain/entities/Portal';
+import type { PortalContext, PortalMembership, PortalRecord, PortalTask } from '../domain/entities/Portal';
 
 /** A recusa do convite suspenso — o servidor a nomeia, e a casca diz o que fazer em vez de "revogado". */
 const IDENTITY_REQUIRED = '@core.tenant/portal.signin.identity-required';
@@ -73,6 +75,8 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     recordView: makeRecordPortalViewUseCase(portalRepository),
     listActions: makeListPortalRecordActionsUseCase(portalRepository),
     runAction: makeRunPortalRecordActionUseCase(portalRepository),
+    tasks: makeSubscribePortalTasksUseCase(portalRepository),
+    decideTask: makeDecidePortalTaskUseCase(portalRepository),
     linkOptions: makeListPortalLinkOptionsUseCase(portalRepository),
     submit: makeSubmitPortalRecordUseCase(portalRepository),
     createTargets: makeListPortalCreateTargetsUseCase(portalRepository),
@@ -232,6 +236,30 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [tenantId, uc.recordView],
   );
 
+  /*
+   * As aprovações do convidado, AO VIVO: a decisão de outro convidado (ou do escritório) fecha a tarefa, e o
+   * botão some de todas as telas sem recarregar. A leitura que falha mostra nenhuma — a regra é a mesma da
+   * página, e uma pendência que não se consegue ler não se consegue decidir.
+   */
+  const [tasks, setTasks] = useState<PortalTask[]>([]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- outro escritório começa sem pendência nenhuma
+    setTasks([]);
+    if (!tenantId || !userId) return;
+    return uc.tasks.execute(tenantId, userId, setTasks, (err) => {
+      console.error('[PortalStore] tasks error:', err);
+      setTasks([]);
+    });
+  }, [tenantId, userId, uc.tasks]);
+
+  const decideTask = useCallback(
+    (taskId: string, outcome: string, comment: string) => {
+      if (!tenantId) return Promise.reject(new Error('@core.tenant/portal.action.unavailable'));
+      return uc.decideTask.execute(tenantId, taskId, outcome, comment);
+    },
+    [tenantId, uc.decideTask],
+  );
+
   const listRecordActions = useCallback(
     (projectionId: string) => (tenantId ? uc.listActions.execute(tenantId, projectionId, locale) : Promise.resolve([])),
     [tenantId, uc.listActions, locale],
@@ -289,6 +317,8 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
     recordView,
     listRecordActions,
     runRecordAction,
+    tasks,
+    decideTask,
     subscribeChildren,
     listLinkOptions,
     submit,
@@ -299,7 +329,7 @@ export const PortalStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }), [
     memberships, membershipsLoading, membershipsFailed, tenantId, context, contextLoading, error, errorCode,
     retryContext, retryMemberships, recordsByCollection, isCollectionLoading, getDocuments, getDocumentUrl, recordView, subscribeChildren,
-    listRecordActions, runRecordAction, listLinkOptions, submit, listCreateTargets, update, userId, uploadDocument,
+    listRecordActions, runRecordAction, tasks, decideTask, listLinkOptions, submit, listCreateTargets, update, userId, uploadDocument,
   ]);
 
   return <PortalStoreContext.Provider value={value}>{children}</PortalStoreContext.Provider>;

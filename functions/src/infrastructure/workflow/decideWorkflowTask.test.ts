@@ -37,7 +37,7 @@ beforeEach(() => {
   Object.assign(state, {
     task,
     entry,
-    decision: { ok: true, task: { ...task, outcome: 'approved', decidedBy: 'ana', decidedByName: 'Ana', comment: '' } },
+    decision: { ok: true, closed: true, task: { ...task, outcome: 'approved', decidedBy: 'ana', decidedByName: 'Ana', comment: '' } },
     annotate: 'annotated',
     expired: [],
     resumed: [],
@@ -73,5 +73,33 @@ describe('decidir uma tarefa — a mesma porta da caixa e do MCP', () => {
     state.annotate = 'stale';
     expect(await decideWorkflowTask(input)).toMatchObject({ ok: false, error: '@core.automation/task.refused.expired' });
     expect(state.resumed).toEqual([]);
+  });
+
+  it('com quórum, o voto que não fecha conta e NÃO retoma: a execução segue esperando os outros', async () => {
+    state.decision = { ok: true, closed: false, task: { ...task, votes: {} } };
+    expect(await decideWorkflowTask({ ...input, via: 'portal' })).toEqual({ ok: true, pending: true });
+    expect(state.resumed).toEqual([]);
+  });
+
+  it('o voto que fecha retoma com todos os votos nas saídas', async () => {
+    const at = new Date('2026-11-13T12:00:00Z');
+    state.decision = {
+      ok: true,
+      closed: true,
+      task: {
+        ...task, outcome: 'approved', decidedBy: 'ana', decidedByName: 'Ana', comment: '',
+        votes: {
+          ana: { outcome: 'approved', name: 'Ana', at, comment: '', via: 'member' },
+          cliente: { outcome: 'approved', name: 'Cliente', at, comment: 'ok', via: 'portal' },
+        },
+      },
+    };
+    expect(await decideWorkflowTask(input)).toEqual({ ok: true });
+    expect(state.resumed[0]).toMatchObject({
+      outputs: { s1: { outcome: 'approved', votes: [
+        { decidedBy: 'ana', outcome: 'approved', via: 'member' },
+        { decidedBy: 'cliente', outcome: 'approved', comment: 'ok', via: 'portal' },
+      ] } },
+    });
   });
 });

@@ -20,7 +20,7 @@ interface CompleteWorkflowTaskRequest {
  */
 export const completeWorkflowTask = onCall(
   { region: 'southamerica-east1', cors: true, timeoutSeconds: WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS },
-  async (request): Promise<{ status: 'decided' }> => {
+  async (request): Promise<{ status: 'decided' | 'voted' }> => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
@@ -42,6 +42,7 @@ export const completeWorkflowTask = onCall(
       userName: actor?.name ?? '',
     });
     if (!decided.ok) throw new HttpsError(decided.code, decided.error);
-    return { status: 'decided' };
+    // `voted`: o voto contou, e a tarefa segue aberta até o quórum.
+    return { status: decided.pending ? 'voted' : 'decided' };
   },
 );

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.252.0] — 2026-11-13
+
+- Aprovações agora podem ser feitas por clientes e parceiros no portal. Na automação, ligue "Convidados do portal também decidem": quem vê o registro no portal recebe o aviso e decide ali mesmo, na página do registro, com os botões de desfecho e um comentário.
+- Aprovações também podem exigir quórum — por exemplo, "2 de 3 aprovam" ou "todos aprovam". Cada voto fica registrado com nome e comentário, e a caixa de tarefas mostra quantos votos já foram dados.
+
 #### [9.251.0] — 2026-11-13
 
 - Webhooks agora podem se proteger de reenvios. Quando o sistema que chama repete a mesma entrega (o que acontece quando a resposta demora), a automação não roda duas vezes — basta informar o cabeçalho com o id da entrega. Para webhooks assinados, também é possível exigir uma data assinada, o que impede que uma chamada capturada seja repetida depois; a assinatura do Stripe é reconhecida automaticamente.
