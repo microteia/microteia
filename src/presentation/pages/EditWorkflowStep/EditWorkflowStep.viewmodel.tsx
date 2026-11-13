@@ -47,9 +47,11 @@ import type {
   WorkflowStep,
   WorkflowStepErrorPolicy,
   WorkflowSwitchCase,
+  WorkflowParallelBranch,
 } from '../../../domain/entities/Workflow';
 import { MAX_STEP_RETRIES } from '../../../domain/entities/Workflow';
 import { nextSwitchCaseId } from '../../shared/workflowHelpers';
+import { MAX_LOOP_CONCURRENCY, MAX_PARALLEL_BRANCHES, MIN_PARALLEL_BRANCHES, loopConcurrencyOf, nextParallelBranchId } from '../../../domain/schema/workflowParallel';
 import type {
   InputDefinition,
   InputPickerKind,
@@ -276,6 +278,18 @@ export interface EditWorkflowStepViewModel {
   moveSwitchCase: (id: string, direction: -1 | 1) => void;
   setSwitchCaseLabel: (id: string, label: string) => void;
   setSwitchCaseCondition: (id: string, condition: Condition) => void;
+  isParallelStep: boolean;
+  /** Os ramos de um `Parallel`, na ordem declarada — a ordem da junção das saídas e das variáveis. */
+  parallelBranches: (WorkflowParallelBranch & { canMoveUp: boolean; canMoveDown: boolean; canRemove: boolean })[];
+  canAddParallelBranch: boolean;
+  addParallelBranch: () => void;
+  removeParallelBranch: (id: string) => void;
+  moveParallelBranch: (id: string, direction: -1 | 1) => void;
+  setParallelBranchLabel: (id: string, label: string) => void;
+  /** Itens do laço ao mesmo tempo, como texto do campo; 1 é em sequência. Não vale no laço paginado. */
+  loopConcurrency: string;
+  setLoopConcurrency: (value: string) => void;
+  loopConcurrencyMax: number;
   /** A política de falha de um passo do catálogo. Ver `WorkflowStepErrorPolicy`. */
   errorAction: 'fail' | 'continue';
   setErrorAction: (action: 'fail' | 'continue') => void;
@@ -354,15 +368,18 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const isLoopAdd = parts[1] === 'addloop';
   //   "edit-workflow-step:{wfId}:addcase:{switchId}:{caseKey}" → adicionar step num caminho de Switch
   const isCaseAdd = parts[1] === 'addcase';
-  const stepId = isBranchAdd || isLoopAdd || isCaseAdd ? null : (parts[1] ?? null);
+  //   "edit-workflow-step:{wfId}:addlane:{parallelId}:{laneKey}" → adicionar step num ramo de Parallel
+  const isLaneAdd = parts[1] === 'addlane';
+  const stepId = isBranchAdd || isLoopAdd || isCaseAdd || isLaneAdd ? null : (parts[1] ?? null);
   const insertTarget = useMemo<InsertTarget>(
     () => {
       if (isBranchAdd && parts[2] && parts[3]) return { kind: 'branch', conditionId: parts[2], branch: parts[3] as BranchKey };
       if (isLoopAdd && parts[2]) return { kind: 'loop', loopId: parts[2] };
       if (isCaseAdd && parts[2] && parts[3]) return { kind: 'case', switchId: parts[2], caseKey: parts[3] };
+      if (isLaneAdd && parts[2] && parts[3]) return { kind: 'lane', parallelId: parts[2], laneKey: parts[3] };
       return { kind: 'root' };
     },
-    [isBranchAdd, isLoopAdd, isCaseAdd, parts],
+    [isBranchAdd, isLoopAdd, isCaseAdd, isLaneAdd, parts],
   );
 
   const { workflows, updateWorkflowSteps } = useWorkflowStore();
@@ -391,6 +408,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const isConditionStep = editingStep?.type === 'Condition';
   const isLoopStep = editingStep?.type === 'Loop';
   const isSwitchStep = editingStep?.type === 'Switch';
+  const isParallelStep = editingStep?.type === 'Parallel';
 
   const [selectedDefinitionId, setSelectedDefinitionId] = useState('');
   const [stepIdentifier, setStepIdentifier] = useState('');
@@ -405,6 +423,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const [loopQuery, setLoopQuery] = useState<QuerySpec | undefined>(undefined);
   const [loopPageSize, setLoopPageSize] = useState(String(PAGED_LOOP_DEFAULT_PAGE_SIZE));
   const [switchCases, setSwitchCases] = useState<WorkflowSwitchCase[]>([]);
+  const [parallelBranches, setParallelBranches] = useState<WorkflowParallelBranch[]>([]);
+  const [loopConcurrency, setLoopConcurrency] = useState('1');
   const [errorAction, setErrorAction] = useState<'fail' | 'continue'>('fail');
   const [errorRetries, setErrorRetries] = useState(0);
   const [conditionViewMode, setConditionViewModeState] = useState<ConditionViewMode>(loadConditionViewMode);
@@ -454,9 +474,43 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     setLoopQuery(editingStep?.loop?.query?.spec);
     setLoopPageSize(String(editingStep?.loop?.query?.pageSize ?? PAGED_LOOP_DEFAULT_PAGE_SIZE));
     setSwitchCases(editingStep?.switch?.cases ?? []);
+    setParallelBranches(editingStep?.parallel?.branches ?? []);
+    setLoopConcurrency(String(loopConcurrencyOf(editingStep?.loop?.concurrency)));
     setErrorAction(editingStep?.onError?.action === 'continue' ? 'continue' : 'fail');
     setErrorRetries(editingStep?.onError?.retries ?? 0);
   }, [editingStep]);
+
+  const addParallelBranch = useCallback(() => {
+    setParallelBranches((current) => (current.length >= MAX_PARALLEL_BRANCHES
+      ? current
+      : [...current, { id: nextParallelBranchId(current.map((one) => one.id)), steps: [] }]));
+  }, []);
+
+  // Só o ramo VAZIO sai: o ramo com passos levaria os passos junto, e a tela não apaga passo sem perguntar.
+  const removeParallelBranch = useCallback((id: string) => {
+    setParallelBranches((current) => (current.length <= MIN_PARALLEL_BRANCHES
+      ? current
+      : current.filter((one) => one.id !== id || one.steps.length > 0)));
+  }, []);
+
+  const moveParallelBranch = useCallback((id: string, direction: -1 | 1) => {
+    setParallelBranches((current) => {
+      const index = current.findIndex((one) => one.id === id);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }, []);
+
+  const setParallelBranchLabel = useCallback((id: string, value: string) => {
+    setParallelBranches((current) => current.map((one) => {
+      if (one.id !== id) return one;
+      const rest: WorkflowParallelBranch = { id: one.id, steps: one.steps };
+      return value.trim() ? { ...rest, label: value } : rest;
+    }));
+  }, []);
 
   const addSwitchCase = useCallback(() => {
     setSwitchCases((current) => [
@@ -1348,6 +1402,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
   const canSave = useMemo(() => {
     if (isConditionStep) return true;
     if (isSwitchStep) return switchCases.length > 0;
+    if (isParallelStep) return parallelBranches.length >= MIN_PARALLEL_BRANCHES;
     if (isLoopStep) {
       const hasSource = loopMode === 'query' ? !!loopQuery?.table && loopModeError === null : !!configuration.source;
       return hasSource && !!loopItemName.trim() && !!loopOutputName.trim();
@@ -1358,7 +1413,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     return effectiveInputs
       .filter((input) => input.required)
       .every((input) => configuration[input.id] !== undefined);
-  }, [isConditionStep, isSwitchStep, switchCases, isLoopStep, configuration, loopItemName, loopOutputName, loopMode, loopQuery, loopModeError, selectedDefinition, effectiveInputs, stepIdentifierError, placementError]);
+  }, [isConditionStep, isSwitchStep, switchCases, isParallelStep, parallelBranches, isLoopStep, configuration, loopItemName, loopOutputName, loopMode, loopQuery, loopModeError, selectedDefinition, effectiveInputs, stepIdentifierError, placementError]);
 
   const handleSave = useCallback(async () => {
     if (!workflow) return;
@@ -1414,6 +1469,31 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       return;
     }
 
+    // Modo Parallel: edita os ramos (nome, ordem, quantos) preservando os passos de cada um.
+    if (isParallelStep && editingStep && editingStep.parallel) {
+      setIsSaving(true);
+      try {
+        const updated: WorkflowStep = {
+          id: editingStep.id,
+          stepDefinitionId: '',
+          type: 'Parallel',
+          order: editingStep.order,
+          ...(stepLabel.trim() ? { signature: stepLabel.trim() } : {}),
+          configuration: {},
+          enabled,
+          parallel: { branches: parallelBranches },
+        };
+        await updateWorkflowSteps(workflow.id, replaceStepInTree(existingSteps, updated));
+        notify(t('parallel.saved'), 'success');
+        closeTab(tabKey, activePanelId ?? 'main');
+      } catch (error) {
+        notify(t('parallel.save-failed', { detail: String(error) }), 'error');
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
     // Modo Loop: edita a configuração de repetição de um nó de controle já existente,
     // preservando o corpo (loop.body).
     if (isLoopStep && editingStep && editingStep.loop) {
@@ -1438,6 +1518,8 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
             outputName: loopOutputName.trim(),
             body: editingStep.loop.body,
             ...(paged ? { query: paged } : {}),
+            // A concorrência não vale no laço paginado; 1 é o padrão e não é gravado.
+            ...(!paged && loopConcurrencyOf(Number(loopConcurrency)) > 1 ? { concurrency: loopConcurrencyOf(Number(loopConcurrency)) } : {}),
           },
         };
         await updateWorkflowSteps(workflow.id, replaceStepInTree(existingSteps, updated));
@@ -1484,6 +1566,9 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     isConditionStep,
     isSwitchStep,
     switchCases,
+    isParallelStep,
+    parallelBranches,
+    loopConcurrency,
     errorPolicy,
     isLoopStep,
     loopItemName,
@@ -1571,6 +1656,21 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     moveSwitchCase,
     setSwitchCaseLabel,
     setSwitchCaseCondition,
+    isParallelStep: !!isParallelStep,
+    parallelBranches: parallelBranches.map((one, index) => ({
+      ...one,
+      canMoveUp: index > 0,
+      canMoveDown: index < parallelBranches.length - 1,
+      canRemove: one.steps.length === 0 && parallelBranches.length > MIN_PARALLEL_BRANCHES,
+    })),
+    canAddParallelBranch: parallelBranches.length < MAX_PARALLEL_BRANCHES,
+    addParallelBranch,
+    removeParallelBranch,
+    moveParallelBranch,
+    setParallelBranchLabel,
+    loopConcurrency,
+    setLoopConcurrency,
+    loopConcurrencyMax: MAX_LOOP_CONCURRENCY,
     errorAction,
     setErrorAction,
     errorRetries,

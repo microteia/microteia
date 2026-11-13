@@ -8200,6 +8200,35 @@ Excluir um nó Condição remove seus ramos em cascata. `EditWorkflowStep` edita
 - `src/presentation/components/ui/ExpressionEditor/` — editor de expressões com autocomplete segmento-a-segmento (`pathRoot` + `suggestNextSegments`) e validação semântica de caminhos
 - `src/presentation/shared/useSchemaContext.ts` / `useLookupValues.ts` — pontes dos stores para o resolvedor (screens dinâmicas e valores de lookup)
 
+### Parallel — ramos ao mesmo tempo, e a concorrência do laço
+
+`type: 'Parallel'` com `parallel: { branches: [{ id, label?, steps }] }` (2 a 8 ramos) e `loop.concurrency`
+(1 a 10) — `workflowParallel.ts`. O ganho é de TEMPO, nunca de capacidade.
+
+- **Contexto próprio por ramo.** O executor passou a receber o contexto como parâmetro (`executeSteps(…, ctx)`):
+  cada ramo e cada iteração concorrente rodam num `fork` com cópias de `outputs` e `variables`, e o passo
+  corrente (`stepConfiguration`, `stepId`, `input`) é dele. A atribuição de log também é por contexto
+  (`scopes`, um `WeakMap`): a mensagem que um Script emite num ramo vai para o passo certo. Antes, tudo isso
+  era estado da execução — com dois ramos intercalando, um passo leria a configuração do outro depois de um
+  `await`. É o que os testes de `WorkflowExecutor.parallel.test.ts` provam com portões controlados.
+- **Junção na ordem DECLARADA** (`joinBranches`), nunca na de chegada: as saídas dos passos de cada ramo
+  voltam ao contexto de cima (ids de passo são únicos na árvore); a variável mudada por dois ramos fica com
+  a do que vem depois, com aviso `run.parallel.variable-conflict`. A saída do nó é `branches.<ramo>` (a do
+  último passo de cada um).
+- **Falha:** `Promise.allSettled` — um ramo que falha não interrompe os vizinhos (já podem ter gravado); a
+  junção falha nomeando o ramo (`run.parallel.branch-failed`). **"Encerrar"** num ramo encerra a automação
+  depois da junção, com a saída do ramo que encerrou.
+- **Pausa:** o ramo roda com `depth + 1`, e `canSuspend` já é falso fora do nível principal — o passo que
+  pausa falha (`run.delay.nested`) e a validação do pacote o recusa (o percurso já desce nos ramos).
+- **Laço concorrente** (`runConcurrentLoop`): até N itens por vez, cada um num `fork`; a saída mantém a ORDEM
+  DOS ITENS; o item que falha impede os que ainda não começaram; "Encerrar" escolhe o de menor posição — o
+  mesmo que a sequência encontraria. Não vale com `query` (`issue.step.loop-concurrency-query`).
+- **Construtor:** desenho próprio — barra de garfo, raias lado a lado na cor `info` com trilhos laterais e
+  barra de junção — para não ser lido como Condição/Caminhos (que são ALTERNATIVOS). Dentro de um ramo, as
+  saídas disponíveis são as de antes do nó e as do mesmo ramo (`collectPriorStepsForInsert`, alvo `lane`);
+  depois do nó, as de todos os ramos.
+- **Pacote:** kernel ≥ `WORKFLOW_PARALLEL_SINCE_KERNEL` (2.127.0) para o nó e para `concurrency`.
+
 ### Switch — caminhos (nó de controle nativo)
 
 `type: 'Switch'` com `switch: { cases: [{ id, label?, condition, steps }], otherwise }`. O executor

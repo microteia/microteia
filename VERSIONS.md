@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.254.0] — 2026-11-13
+
+- Automações agora podem fazer várias coisas ao mesmo tempo. O novo bloco "Em paralelo" roda dois ou mais ramos juntos e segue quando todos terminam — consultar três serviços de fora passa a levar o tempo do mais lento, e não a soma dos três. No construtor, o bloco aparece com raias lado a lado entre uma barra de início e uma de junção.
+- Repetições também podem processar vários itens de uma vez: informe "Itens ao mesmo tempo" na repetição. O resultado continua na ordem dos itens.
+
 #### [9.253.0] — 2026-11-13
 
 - Aprovações agora podem lembrar quem ainda não decidiu. No passo de aprovação, informe "Lembrar a cada (dias)": membros recebem o lembrete na caixa de tarefas e convidados do portal no próprio registro, até o prazo — e quem já votou não é incomodado.

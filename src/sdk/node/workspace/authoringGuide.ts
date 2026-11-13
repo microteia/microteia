@@ -1,3 +1,4 @@
+import { WORKFLOW_PARALLEL_SINCE_KERNEL } from '../../../domain/schema/workflowParallel';
 import { RECORD_SURFACE_PREFIX, USER_MENU_SURFACE, WORKSPACE_SLOT_SURFACES } from '../../../domain/schema/ui/uiExtensionPoints';
 import { KERNEL_EXTENSION_POINTS } from '../../../domain/schema/extensionPoints';
 import { SCREEN_ICON_KEYS } from '../../../domain/schema/ui/screenIconCatalog';
@@ -328,6 +329,7 @@ const STEP_KINDS: Record<StepType, string> = {
   Script: 'Runs a script, named by `configuration.scriptId` as a `Literal` — a `templateId` of your own package, or `<extension-id>/<source-id>` for a script another extension exports (§3).',
   SubWorkflow: 'Calls another workflow, named by `configuration.targetWorkflowId` as a `Literal` — again a `templateId`, or a qualified reference.',
   Switch: 'A control node: `switch: { cases: [{ id, label?, condition, steps }], otherwise }` takes the FIRST case whose condition holds — only that one — or `otherwise` when none does, and the flow converges after. `stepDefinitionId` is empty.',
+  Parallel: 'A control node: `parallel: { branches: [{ id, label?, steps }] }` (2 to 8 branches) runs EVERY branch at the same time and continues when all finish; it publishes `branches.<id>` with the output of each branch\'s last step. `stepDefinitionId` is empty.',
 };
 
 const describedTable = (header: string, entries: readonly string[], described: Record<string, string>): string => [
@@ -3018,6 +3020,36 @@ Any catalog step (\`type: 'Action'\`) may declare what happens when IT fails:
 \`changeType\`, \`changedFields\`, \`Switch\` and \`onError\` need kernel ${WORKFLOW_FLOW_CONTROL_SINCE_KERNEL} or later. An earlier kernel does
 not refuse them — it ignores them, and the workflow runs differently from what you wrote —, so
 \`validate_plugin\` refuses a package that uses one with a \`kernel\` range starting below that version.
+
+### Branches at the same time — \`Parallel\` and \`loop.concurrency\`
+
+\`\`\`ts
+{ id: 'lookup', stepDefinitionId: '', type: 'Parallel', order: 1, enabled: true, configuration: {},
+  parallel: { branches: [
+    { id: 'r1', label: 'Tax id', steps: [/* http-request to one API */] },
+    { id: 'r2', label: 'Credit', steps: [/* http-request to another */] },
+  ] } }
+// after it: output.<step inside a branch>.…, or output.lookup.branches.r1
+\`\`\`
+
+A **\`Parallel\`** node runs its branches AT THE SAME TIME and continues when every one finishes. It buys time,
+never capability: use it when each branch waits for something outside — an API, an AI model. Three calls of
+3 s take 3 s, not 9.
+
+- **A branch does not see its neighbour.** Each runs in its own context; a step inside a branch reads what
+  came before the node and before it in the same branch — never the other branch, which has no order with it.
+  After the node, the outputs of every step of every branch are available.
+- **Variables:** a variable changed in two branches keeps the value of the branch further down the list, and
+  the run history records the conflict. Keep each branch to its own variables.
+- **Failure:** one failing branch fails the run — after the other branches finish (a step that already wrote
+  is not undone).
+- **\`exit\`** inside a branch ends the workflow after the join.
+- Nothing that **pauses** goes inside (\`delay\`, \`approval\`, \`wait-for\`, a paged loop): \`validate_plugin\` refuses it.
+
+A list loop takes **\`concurrency\`** (1 to 10): that many items run at the same time, each in its own context,
+and the output keeps the ORDER OF THE ITEMS. Not with \`loop.query\` (a paged loop runs a page at a time).
+
+\`Parallel\` and \`loop.concurrency\` need kernel ${WORKFLOW_PARALLEL_SINCE_KERNEL} or later.
 
 ### A workflow that runs on a schedule
 

@@ -44,6 +44,9 @@ const LACUNAS_CONFERIDAS = [
   // Os caminhos são como o autor ORGANIZA a decisão; o modelo de comportamento descreve transições, e
   // cada uma já é o seu próprio guard. Ele nunca precisa de um nó com N saídas.
   'workflow-step\tSwitch',
+  // Os ramos paralelos são como o autor ganha TEMPO; o modelo de comportamento descreve o que acontece, não
+  // quanto demora — nenhuma transição dele pede dois efeitos ao mesmo tempo.
+  'workflow-step\tParallel',
 
   // Os inputs OBRIGATÓRIOS dos passos que o modelo pede e não consegue preencher. `upsert.upsert` é o
   // que mais dói: o efeito diz entidade, campo e valor, e nunca QUAL registro.

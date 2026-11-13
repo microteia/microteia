@@ -82,7 +82,9 @@ export type InsertTarget =
   | { kind: 'branch'; conditionId: string; branch: BranchKey }
   | { kind: 'loop'; loopId: string }
   /** Um caminho de um `Switch`: o id do caso, ou `SWITCH_OTHERWISE` para o "senão". */
-  | { kind: 'case'; switchId: string; caseKey: string };
+  | { kind: 'case'; switchId: string; caseKey: string }
+  /** Um ramo de um nó `Parallel`, pelo id do ramo. */
+  | { kind: 'lane'; parallelId: string; laneKey: string };
 
 /** A chave do "senão" de um `Switch` — reservada: nenhum caso recebe este id (`nextSwitchCaseId`). */
 export const SWITCH_OTHERWISE = 'otherwise';
@@ -99,6 +101,8 @@ export const nextSwitchCaseId = (step: WorkflowStep): string => {
   while (taken.has(`c${index}`)) index += 1;
   return `c${index}`;
 };
+
+export const isParallelStep = (step: WorkflowStep): boolean => step.type === 'Parallel';
 
 export const isConditionStep = (step: WorkflowStep): boolean => step.type === 'Condition';
 
@@ -122,6 +126,9 @@ interface ChildList {
 // Listas-filhas de um nó de controle (vazio para Steps normais). Condition → duas listas;
 // Loop → uma lista.
 const childListsOf = (step: WorkflowStep): ChildList[] => {
+  if (step.type === 'Parallel' && step.parallel) {
+    return step.parallel.branches.map((one) => ({ key: one.id, steps: one.steps }));
+  }
   if (step.type === 'Switch' && step.switch) {
     return [
       ...step.switch.cases.map((one) => ({ key: one.id, steps: one.steps })),
@@ -143,6 +150,13 @@ const childListsOf = (step: WorkflowStep): ChildList[] => {
 
 // Reconstrói um nó de controle com listas-filhas novas (contraparte de childListsOf).
 const withChildLists = (step: WorkflowStep, lists: ChildList[]): WorkflowStep => {
+  if (step.type === 'Parallel' && step.parallel) {
+    const byKey = new Map(lists.map((list) => [list.key, list.steps]));
+    return {
+      ...step,
+      parallel: { branches: step.parallel.branches.map((one) => ({ ...one, steps: byKey.get(one.id) ?? one.steps })) },
+    };
+  }
   if (step.type === 'Switch' && step.switch) {
     const byKey = new Map(lists.map((list) => [list.key, list.steps]));
     return {
@@ -233,6 +247,15 @@ const withSwitchPath = (
   };
 };
 
+/** Reescreve UM ramo de um `Parallel`, pelo id. */
+const withParallelLane = (
+  step: WorkflowStep,
+  laneKey: string,
+  fn: (steps: WorkflowStep[]) => WorkflowStep[],
+): WorkflowStep => (step.parallel
+  ? { ...step, parallel: { branches: step.parallel.branches.map((one) => (one.id === laneKey ? { ...one, steps: fn(one.steps) } : one)) } }
+  : step);
+
 /** Insere um Step no fim do alvo (raiz, um ramo de uma Condição, ou o corpo de um Loop). */
 export const insertStepInto = (
   steps: WorkflowStep[],
@@ -258,6 +281,9 @@ export const insertStepInto = (
     }
     if (target.kind === 'case' && current.id === target.switchId && current.type === 'Switch') {
       return withSwitchPath(current, target.caseKey, (list) => reindex([...[...list].sort(byOrder), step]));
+    }
+    if (target.kind === 'lane' && current.id === target.parallelId && current.type === 'Parallel') {
+      return withParallelLane(current, target.laneKey, (list) => reindex([...[...list].sort(byOrder), step]));
     }
     return mapChildLists(current, (list) => insertStepInto(list, target, step));
   });
@@ -345,6 +371,9 @@ export const insertStepAtIndex = (
     if (target.kind === 'case' && current.id === target.switchId && current.type === 'Switch') {
       return withSwitchPath(current, target.caseKey, (list) => insertAtIndex(list, step, index));
     }
+    if (target.kind === 'lane' && current.id === target.parallelId && current.type === 'Parallel') {
+      return withParallelLane(current, target.laneKey, (list) => insertAtIndex(list, step, index));
+    }
     return mapChildLists(current, (list) => insertStepAtIndex(list, target, step, index));
   });
 };
@@ -361,10 +390,18 @@ export const parseParentKey = (parentKey: string): InsertTarget => {
   if (suffix.startsWith(SWITCH_PATH_PREFIX)) {
     return { kind: 'case', switchId: id, caseKey: suffix.slice(SWITCH_PATH_PREFIX.length) };
   }
+  if (suffix.startsWith(PARALLEL_LANE_PREFIX)) {
+    return { kind: 'lane', parallelId: id, laneKey: suffix.slice(PARALLEL_LANE_PREFIX.length) };
+  }
   return { kind: 'branch', conditionId: id, branch: suffix as BranchKey };
 };
 
 const SWITCH_PATH_PREFIX = 'path.';
+const PARALLEL_LANE_PREFIX = 'lane.';
+
+/** A chave de arrastar de um ramo de `Parallel` — a contraparte de `parseParentKey`. */
+export const parallelLaneKeyOf = (parallelId: string, laneKey: string): string =>
+  `${parallelId}:${PARALLEL_LANE_PREFIX}${laneKey}`;
 
 /** A chave de arrastar de um caminho de `Switch` — a contraparte de `parseParentKey`. */
 export const switchPathKeyOf = (switchId: string, caseKey: string): string =>
@@ -387,6 +424,7 @@ const targetContainerId = (target: InsertTarget): string | null => {
   if (target.kind === 'root') return null;
   if (target.kind === 'branch') return target.conditionId;
   if (target.kind === 'case') return target.switchId;
+  if (target.kind === 'lane') return target.parallelId;
   return target.loopId;
 };
 
@@ -410,6 +448,12 @@ export const moveStepToLocation = (
   return insertStepAtIndex(without, target, moving, index);
 };
 
+/** Os passos de dentro de um `Parallel` que produzem saída — todos, de todos os ramos. */
+const parallelProducers = (step: WorkflowStep): WorkflowStep[] =>
+  (step.parallel?.branches ?? [])
+    .flatMap((one) => flattenSteps(one.steps))
+    .filter((one) => one.type !== 'Condition' && one.type !== 'Switch');
+
 /**
  * Steps que podem produzir outputs disponíveis para um Step-alvo já existente na árvore.
  * Regra (segura): do alvo até a raiz, coleta os irmãos anteriores em cada nível, na ordem de
@@ -431,6 +475,8 @@ export const collectPriorSteps = (rootSteps: WorkflowStep[], targetId: string): 
         return true;
       }
       if (step.type !== 'Condition' && step.type !== 'Switch') precedingHere.push(step);
+      // Depois de um Parallel, TODOS os ramos rodaram: as saídas dos passos de dentro estão disponíveis.
+      if (step.type === 'Parallel') precedingHere.push(...parallelProducers(step));
     }
     return false;
   };
@@ -454,6 +500,13 @@ export const collectPriorStepsForInsert = (
       ? node?.switch?.otherwise ?? []
       : node?.switch?.cases.find((one) => one.id === target.caseKey)?.steps ?? [];
     return [...collectPriorSteps(rootSteps, target.switchId), ...producers(path)];
+  }
+  if (target.kind === 'lane') {
+    // Dentro de um ramo: o que veio antes do nó e o que veio antes NESTE ramo — nunca o ramo vizinho, que
+    // roda ao mesmo tempo e não tem ordem com este.
+    const node = findStepInTree(rootSteps, target.parallelId);
+    const lane = node?.parallel?.branches.find((one) => one.id === target.laneKey)?.steps ?? [];
+    return [...collectPriorSteps(rootSteps, target.parallelId), ...producers(lane)];
   }
   if (target.kind === 'branch') {
     const condition = findStepInTree(rootSteps, target.conditionId);

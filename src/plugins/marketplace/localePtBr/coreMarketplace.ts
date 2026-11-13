@@ -475,6 +475,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'O pacote tem {size} e não caberia no documento da instalação (o limite prático é {limit}). Divida-o — um pacote por idioma, ou um por conjunto de telas.',
   'issue.step.control-incomplete':
     'o passo "{step}" é um nó de controle {type} e não tem `{missing}` — o fluxo não tem sobre o que ramificar.',
+  'issue.step.parallel-branches': 'o passo "{step}" tem mais ramos paralelos que o máximo de {max}.',
+  'issue.step.loop-concurrency-query': 'o passo "{step}" percorre uma consulta em páginas e declara `concurrency` — o laço paginado roda uma página por vez; retire `concurrency`.',
   'issue.step.input-invalid':
     'o passo "{step}" ({definition}) dá à entrada "{input}" um valor que o passo recusa: {reason}',
   'issue.step.input-not-mapping':

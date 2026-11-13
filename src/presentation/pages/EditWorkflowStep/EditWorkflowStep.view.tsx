@@ -364,6 +364,8 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                 ? 'step.edit.condition'
                 : vm.isSwitchStep
                   ? 'step.edit.switch'
+                  : vm.isParallelStep
+                  ? 'step.edit.parallel'
                   : vm.isLoopStep
                   ? 'step.edit.loop'
                   : vm.isDefinitionLocked
@@ -525,6 +527,74 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
             </S.MappingRow>
           </S.Form>
         </S.Content>
+      ) : vm.isParallelStep ? (
+        <S.Content>
+          <S.Form>
+            <InputGroup>
+              <Label>{t('core.ui/field.identifier')}</Label>
+              <Input value={vm.stepIdentifier} readOnly disabled />
+              <S.HelpText>{vm.stepIdentifierHint}</S.HelpText>
+            </InputGroup>
+            <InputGroup>
+              <Label>{t('step.label')}</Label>
+              <Input
+                value={vm.stepLabel}
+                onChange={(e) => vm.setStepLabel(e.target.value)}
+                placeholder={t('step.label.placeholder')}
+              />
+              <S.HelpText>{t('step.label.hint')}</S.HelpText>
+            </InputGroup>
+            <InfoBanner variant="info" message={t('parallel.hint')} />
+            {/* A ORDEM dos ramos é a ordem da junção: a mesma variável mudada em dois ramos fica com o valor
+                do que vem depois. Por isso cada ramo se move. */}
+            {vm.parallelBranches.map((one, index) => (
+              <React.Fragment key={one.id}>
+                <S.StepsDivider />
+                <InputGroup>
+                  <Label>{t('parallel.branch', { index: String(index + 1) })}</Label>
+                  <Input
+                    value={one.label ?? ''}
+                    onChange={(e) => vm.setParallelBranchLabel(one.id, e.target.value)}
+                    placeholder={t('parallel.branch.label.placeholder')}
+                  />
+                </InputGroup>
+                <S.MappingRow>
+                  <S.IconBtn
+                    type="button"
+                    title={t('core.records/action.move-up')}
+                    disabled={!one.canMoveUp}
+                    onClick={() => vm.moveParallelBranch(one.id, -1)}
+                  >
+                    <RiArrowUpLine size={14} />
+                  </S.IconBtn>
+                  <S.IconBtn
+                    type="button"
+                    title={t('core.records/action.move-down')}
+                    disabled={!one.canMoveDown}
+                    onClick={() => vm.moveParallelBranch(one.id, 1)}
+                  >
+                    <RiArrowDownLine size={14} />
+                  </S.IconBtn>
+                  <S.IconBtn
+                    type="button"
+                    title={one.canRemove ? t('parallel.branch.remove') : t('parallel.branch.remove.blocked')}
+                    disabled={!one.canRemove}
+                    onClick={() => vm.removeParallelBranch(one.id)}
+                  >
+                    <RiDeleteBinLine size={14} />
+                  </S.IconBtn>
+                </S.MappingRow>
+              </React.Fragment>
+            ))}
+            <S.StepsDivider />
+            <S.MappingRow>
+              <S.IconBtn type="button" title={t('parallel.branch.add')} onClick={vm.addParallelBranch} disabled={!vm.canAddParallelBranch}>
+                <RiAddLine size={14} />
+              </S.IconBtn>
+              <S.HelpText>{t('parallel.branch.add')}</S.HelpText>
+            </S.MappingRow>
+          </S.Form>
+        </S.Content>
       ) : vm.isLoopStep ? (
         <S.Content>
           <S.Form>
@@ -608,6 +678,19 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
               />
               <S.HelpText>{t('loop.output-name.hint')}</S.HelpText>
             </InputGroup>
+            {vm.loopMode !== 'query' && (
+              <InputGroup>
+                <Label>{t('loop.concurrency')}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={vm.loopConcurrencyMax}
+                  value={vm.loopConcurrency}
+                  onChange={(e) => vm.setLoopConcurrency(e.target.value)}
+                />
+                <S.HelpText>{t('loop.concurrency.hint', { max: String(vm.loopConcurrencyMax) })}</S.HelpText>
+              </InputGroup>
+            )}
             <InfoBanner variant="info" message={t('loop.body.notice')} />
           </S.Form>
         </S.Content>

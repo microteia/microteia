@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.254.0] — 2026-11-13
+
+- feat(workflow): parallel branches. New control node `Parallel` (`parallel: { branches: [{ id, label?, steps }] }`, 2–8 branches) runs every branch at the same time and continues when all finish, publishing `branches.<id>`. Loops take `concurrency` (1–10) to run several items at once; the output keeps item order. Not with `loop.query`.
+- refactor(workflow): the executor now threads the context through `executeSteps(…, ctx)`. Each branch and concurrent iteration runs in a `fork` with its own copies of `outputs`/`variables` and its own current step and log attribution (per-context `scopes`), so interleaved branches never read each other's step configuration. Sequential behaviour is unchanged (all prior engine tests pass).
+- feat(workflow): deterministic join in declared order (`joinBranches`): branch step outputs merge back; a variable changed by two branches keeps the later branch's value with a `run.parallel.variable-conflict` warning; a failed branch fails the node after the others finish (`run.parallel.branch-failed`); `exit` in a branch halts after the join. Pausing steps inside a branch fail (`run.delay.nested`) and are refused in packages.
+- feat(workflow): tree walkers (`stepTree`, `workflowReturn`, `actionReturn`, MCP summary, version diff), package validation (`issue.step.parallel-branches`, `issue.step.loop-concurrency-query`, feature-kernel gate) and the visual builder (fork bar, side-by-side lanes in the `info` colour, join bar; lane insert target). `KERNEL_VERSION` 2.127.0.
+
 #### [9.253.0] — 2026-11-13
 
 - feat(workflow): approval reminders. `approval` takes `remindEveryDays` (1–30): the task stores `remindEveryDays`, `nextReminderAt` (one interval after creation, never at the deadline) and `reminders`. `remindDueApprovals` piggybacks on `runWorkflowClock` (isolated like the HTTP queue): a collection-group query on open tasks with a due `nextReminderAt` (new COLLECTION_GROUP index), a transactional `claimReminder` per reminder, then notifies only pending voters — members to the task list, portal guests to the record — with dedup key `<task>:remind:<n>`. The next reminder counts from now, so a stalled clock never bursts. No new clock entry kind: resume, schedule and date triggers are untouched. `KERNEL_VERSION` 2.126.0.

@@ -92,6 +92,7 @@ const SHARED_FILES = [
   'domain/schema/aiSteps.ts',
   'domain/schema/workflowVersion.ts',
   'domain/schema/workflowLoopQuery.ts',
+  'domain/schema/workflowParallel.ts',
   'domain/schema/dataExtensionPoints.ts',
   'domain/schema/settings.ts',
   'domain/schema/notifications.ts',

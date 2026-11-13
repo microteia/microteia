@@ -163,7 +163,7 @@ const literalText = (mapping: InputMapping | undefined): string | null =>
 export interface AgentStepSummary {
   id: string;
   /** `step` é um passo do catálogo; `condition`, `switch` e `loop` são nós de controle do motor. */
-  kind: 'step' | 'condition' | 'switch' | 'loop';
+  kind: 'step' | 'condition' | 'switch' | 'loop' | 'parallel';
   /** O nome do passo no catálogo. Ausente nos nós de controle, que o `kind` já nomeia. */
   name?: string;
   /** O id do passo no catálogo. Ausente nos nós de controle. */
@@ -180,10 +180,12 @@ export interface AgentStepSummary {
   condition?: Condition;
   whenTrue?: AgentStepSummary[];
   whenFalse?: AgentStepSummary[];
-  loop?: { over: Record<string, unknown>; itemName: string; outputName: string; body: AgentStepSummary[] };
+  loop?: { over: Record<string, unknown>; itemName: string; outputName: string; concurrency?: number; body: AgentStepSummary[] };
   /** Os caminhos de um `switch`, na ordem em que são avaliados: o primeiro que vale é o único que roda. */
   cases?: { id: string; label?: string; condition: Condition; steps: AgentStepSummary[] }[];
   otherwise?: AgentStepSummary[];
+  /** Os ramos de um `parallel`: TODOS rodam ao mesmo tempo, e o fluxo segue quando todos terminam. */
+  branches?: { id: string; label?: string; steps: AgentStepSummary[] }[];
   /** A política de falha declarada no passo — o agente decide por ela se a falha encerra ou segue. */
   onError?: { action?: 'fail' | 'continue'; retries?: number };
 }
@@ -219,6 +221,18 @@ const summarizeStep = (catalog: MessageCatalog, steps: StepCatalog, step: Workfl
       otherwise: summarizeSteps(catalog, steps, step.switch.otherwise),
     };
   }
+  if (step.type === 'Parallel' && step.parallel) {
+    return {
+      id: step.id,
+      kind: 'parallel',
+      ...disabled,
+      branches: step.parallel.branches.map((one) => ({
+        id: one.id,
+        ...(one.label ? { label: one.label } : {}),
+        steps: summarizeSteps(catalog, steps, one.steps),
+      })),
+    };
+  }
   if (step.type === 'Loop' && step.loop) {
     return {
       id: step.id,
@@ -228,6 +242,7 @@ const summarizeStep = (catalog: MessageCatalog, steps: StepCatalog, step: Workfl
         over: describeMapping(step.loop.source),
         itemName: step.loop.itemName,
         outputName: step.loop.outputName,
+        ...(step.loop.concurrency && step.loop.concurrency > 1 ? { concurrency: step.loop.concurrency } : {}),
         body: summarizeSteps(catalog, steps, step.loop.body),
       },
     };

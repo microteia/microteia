@@ -109,6 +109,17 @@ const traverse = (
     let next: PathState[];
     if (step.type === 'Condition' || step.type === 'Switch') {
       next = workflowChildLists(step).flatMap((child) => traverse(child.steps, live, catalog));
+    } else if (step.type === 'Parallel') {
+      // Os ramos rodam TODOS: um encerramento em qualquer um encerra a automação depois da junção. Sem
+      // ele, a saída do nó são os ramos (`branches`), que não respondem a um botão.
+      const inside = (step.parallel?.branches ?? []).flatMap((branch) =>
+        traverse(branch.steps, [{ ending: NOTHING_RAN, halted: false }], catalog));
+      const stoppedInside = inside
+        .filter((state) => state.halted)
+        .flatMap((state) => (ranNothing(state.ending)
+          ? live.map((before) => ({ ending: before.ending, halted: true }))
+          : [state]));
+      next = [{ ending: { kind: 'silent', stepId: step.id, stepDefinitionId: step.type }, halted: false }, ...stoppedInside];
     } else if (step.type === 'Loop') {
       const body = traverse(step.loop?.body ?? [], [{ ending: NOTHING_RAN, halted: false }], catalog);
       const stoppedInside = body

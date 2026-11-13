@@ -54,6 +54,7 @@ const placeSteps = (steps: readonly WorkflowStep[] | undefined, parent = '', int
     placeSteps(step.loop?.body, `${step.id}:body`, into);
     (step.switch?.cases ?? []).forEach((one, at) => placeSteps(one.steps, `${step.id}:case:${at}`, into));
     placeSteps(step.switch?.otherwise, `${step.id}:otherwise`, into);
+    (step.parallel?.branches ?? []).forEach((one) => placeSteps(one.steps, `${step.id}:lane:${one.id}`, into));
   });
   return into;
 };
@@ -67,6 +68,7 @@ const ownPart = (step: WorkflowStep): Record<string, unknown> => {
     ...rest,
     ...(step.loop ? { loop: { ...step.loop, body: undefined } } : {}),
     ...(step.switch ? { switch: { cases: step.switch.cases.map((one) => ({ ...one, steps: undefined })) } } : {}),
+    ...(step.parallel ? { parallel: { branches: step.parallel.branches.map((one) => ({ ...one, steps: undefined })) } } : {}),
   };
 };
 

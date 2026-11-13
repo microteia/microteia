@@ -1,3 +1,4 @@
+import { MAX_PARALLEL_BRANCHES, MIN_PARALLEL_BRANCHES, WORKFLOW_PARALLEL_SINCE_KERNEL } from '../../schema/workflowParallel';
 import type { MarketplacePlugin, WorkflowModuleTemplate } from '../../entities/MarketplacePlugin';
 import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
 import { flattenSteps } from '../../services/stepTree';
@@ -303,6 +304,23 @@ const stepIssues = (
         messageParams: { step: step.id, type: step.type, missing: 'switch' },
       }];
     }
+    if (step.type === 'Parallel' && (step.parallel === undefined || step.parallel.branches.length < MIN_PARALLEL_BRANCHES)) {
+      return [{
+        ref,
+        message: '@core.marketplace/issue.step.control-incomplete',
+        messageParams: { step: step.id, type: step.type, missing: 'parallel' },
+      }];
+    }
+    if (step.type === 'Parallel' && step.parallel && step.parallel.branches.length > MAX_PARALLEL_BRANCHES) {
+      return [{
+        ref,
+        message: '@core.marketplace/issue.step.parallel-branches',
+        messageParams: { step: step.id, max: String(MAX_PARALLEL_BRANCHES) },
+      }];
+    }
+    if (step.type === 'Loop' && step.loop?.query !== undefined && (step.loop.concurrency ?? 1) > 1) {
+      return [{ ref, message: '@core.marketplace/issue.step.loop-concurrency-query', messageParams: { step: step.id } }];
+    }
     if (step.type === 'Loop' && step.loop === undefined) {
       return [{
         ref,
@@ -379,6 +397,7 @@ const workflowIssues = (
     ...delayIssues(workflow, steps, ref, pkg),
     ...pagedLoopIssues(workflow, steps, ref, pkg),
     ...flowControlKernelIssues(workflow, steps, ref, pkg),
+    ...parallelKernelIssues(steps, ref, pkg),
     ...stepDefinitionKernelIssues(steps, ref, pkg),
     ...extractFieldsKernelIssues(steps, ref, pkg),
     ...reportFileKernelIssues(steps, ref, pkg),
@@ -747,6 +766,27 @@ const flowControlKernelIssues = (
     ref,
     message: '@core.marketplace/issue.workflow.feature-kernel',
     messageParams: { feature, minimum: WORKFLOW_FLOW_CONTROL_SINCE_KERNEL },
+  }));
+};
+
+/**
+ * O nó `Parallel` e a concorrência do laço num pacote que admite kernel anterior: lá o nó seria um tipo de
+ * passo desconhecido, e a concorrência seria ignorada — o laço rodaria um item de cada vez, em silêncio.
+ */
+const parallelKernelIssues = (
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  if (rangeExcludesBelow(pkg.manifest?.kernel ?? '', WORKFLOW_PARALLEL_SINCE_KERNEL)) return [];
+  const features = [
+    ...(steps.some((step) => step.type === 'Parallel') ? ['Parallel'] : []),
+    ...(steps.some((step) => (step.loop?.concurrency ?? 1) > 1) ? ['loop.concurrency'] : []),
+  ];
+  return features.map((feature) => ({
+    ref,
+    message: '@core.marketplace/issue.workflow.feature-kernel',
+    messageParams: { feature, minimum: WORKFLOW_PARALLEL_SINCE_KERNEL },
   }));
 };
 

@@ -504,6 +504,84 @@ export const S = {
     border-left: 2px solid ${({ theme }) => theme.colors.border};
   `,
 
+  /*
+   * O nó PARALELO tem desenho próprio, e é de propósito: Condição e Caminhos mostram ramos ALTERNATIVOS (um
+   * roda), este mostra ramos SIMULTÂNEOS (todos rodam). Por isso a cor é outra (`info`, e não a de
+   * verdadeiro/falso), há uma barra de garfo em cima e uma de junção embaixo, e trilhos laterais ligando as
+   * duas — a leitura é "tudo o que está entre as barras acontece ao mesmo tempo".
+   */
+  ParallelBlock: styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: ${({ theme }) => theme.spacing.xs};
+    width: 100%;
+    margin-top: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  ParallelBar: styled.div`
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 14px;
+    border: 2px solid ${({ theme }) => theme.colors.info};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.info};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  `,
+
+  ParallelLanes: styled.div`
+    display: flex;
+    align-items: stretch;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.sm};
+    border-left: 3px solid ${({ theme }) => theme.colors.info};
+    border-right: 3px solid ${({ theme }) => theme.colors.info};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    overflow-x: auto;
+  `,
+
+  ParallelLane: styled.div<{ $dropActive?: boolean }>`
+    flex: 1 1 0;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    padding: ${({ theme }) => theme.spacing.md};
+    border: 1px solid ${({ $dropActive, theme }) => ($dropActive ? theme.colors.primary : theme.colors.border)};
+    border-top: 3px solid ${({ theme }) => theme.colors.info};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    background: ${({ $dropActive, theme }) => ($dropActive ? theme.colors.primaryLight : theme.colors.surface)};
+    transition: border-color ${({ theme }) => theme.transitions.fast}, background ${({ theme }) => theme.transitions.fast};
+  `,
+
+  ParallelLaneLabel: styled.span`
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: ${({ theme }) => theme.colors.info};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  `,
+
+  ParallelListGroup: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    margin-left: ${({ theme }) => theme.spacing.lg};
+    padding-left: ${({ theme }) => theme.spacing.md};
+    border-left: 3px solid ${({ theme }) => theme.colors.info};
+  `,
+
   LoopBlock: styled.div<{ $dropActive?: boolean }>`
     display: flex;
     flex-direction: column;

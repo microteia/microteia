@@ -1,3 +1,4 @@
+import { loopConcurrencyOf, nextParallelBranchId } from '../../../domain/schema/workflowParallel';
 import { pagedLoopPageSize } from '../../../domain/schema/workflowLoopQuery';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
@@ -31,7 +32,7 @@ import { siblingParameterErrors, hasParameterErrorsDeep, sanitizeWorkflowParamet
 import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/workflowEventIcons';
 import { getScreenIconType } from '../../shared/screenIcons';
 import { getStepIcon as getStepIconType } from '../../shared/stepIcons';
-import { RiGitBranchLine, RiLoopLeftLine, RiSignpostLine } from 'react-icons/ri';
+import { RiGitBranchLine, RiGitForkLine, RiLoopLeftLine, RiSignpostLine } from 'react-icons/ri';
 import { useAuthorization } from '../../../stores/useAuthorization';
 import { PERMISSION_AUTOMATION_MANAGE } from '../../../domain/schema/access';
 import { WORKFLOW_CHANGE_TYPES } from '../../../domain/schema/workflowChangeFilter';
@@ -394,6 +395,9 @@ export interface ViewWorkflowViewModel {
   rerunningId: string | null;
   openAddSwitch: (target?: InsertTarget, index?: number) => Promise<void>;
   getSwitchSummary: (step: WorkflowStep) => string;
+  openAddParallel: (target?: InsertTarget, index?: number) => Promise<void>;
+  /** "3 ramos ao mesmo tempo" — o resumo do nó paralelo. */
+  getParallelSummary: (step: WorkflowStep) => string;
   runModalOpen: boolean;
   runModalParameters: WorkflowParameter[];
   openRunModal: () => void;
@@ -571,6 +575,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       if (step.type === 'Condition') return RiGitBranchLine;
       if (step.type === 'Loop') return RiLoopLeftLine;
       if (step.type === 'Switch') return RiSignpostLine;
+      if (step.type === 'Parallel') return RiGitForkLine;
       return getStepIcon(step.stepDefinitionId);
     },
     [getStepIcon],
@@ -1140,6 +1145,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     if (!target || target.kind === 'root') return '';
     if (target.kind === 'loop') return `:addloop:${target.loopId}`;
     if (target.kind === 'case') return `:addcase:${target.switchId}:${target.caseKey}`;
+    if (target.kind === 'lane') return `:addlane:${target.parallelId}:${target.laneKey}`;
     return `:add:${target.conditionId}:${target.branch}`;
   }, []);
 
@@ -1235,6 +1241,29 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     });
   }, [workflow, updateWorkflowSteps, notify, t]);
 
+  // Nasce com DOIS ramos: um paralelo de um ramo só é uma sequência, e a tela teria de explicar por que existe.
+  const openAddParallel = useCallback(async (target?: InsertTarget, index?: number) => {
+    if (!workflow) return;
+    const first = nextParallelBranchId([]);
+    const parallelStep: WorkflowStep = {
+      id: suggestStepIdentifier(workflow.steps, 'paralelo'),
+      stepDefinitionId: '',
+      type: 'Parallel',
+      order: 0,
+      configuration: {},
+      enabled: true,
+      parallel: { branches: [{ id: first, steps: [] }, { id: nextParallelBranchId([first]), steps: [] }] },
+    };
+    const location = target ?? { kind: 'root' };
+    const nextSteps = index !== undefined
+      ? insertStepAtIndex(workflow.steps, location, parallelStep, index)
+      : insertStepInto(workflow.steps, location, parallelStep);
+    await updateWorkflowSteps(workflow.id, nextSteps).catch((error) => {
+      console.error('[ViewWorkflow] openAddParallel:', error);
+      notify(t('parallel.add-failed'), 'error');
+    });
+  }, [workflow, updateWorkflowSteps, notify, t]);
+
   const toggleLoopCollapsed = useCallback((loopId: string) => {
     setCollapsedLoopIds((prev) => {
       const next = new Set(prev);
@@ -1313,6 +1342,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     if (step.type === 'Condition') return t('step.type.condition');
     if (step.type === 'Loop') return t('step.type.loop');
     if (step.type === 'Switch') return t('step.type.switch');
+    if (step.type === 'Parallel') return t('step.type.parallel');
     const definition = getStepDefinition(step.stepDefinitionId);
     if (!definition) return step.stepDefinitionId;
     const categoryLabel = t(STEP_CATEGORY_KEYS[definition.category] ?? definition.category);
@@ -1328,10 +1358,18 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     [t],
   );
 
+  const getParallelSummary = useCallback(
+    (step: WorkflowStep): string => t('parallel.summary', { count: String(step.parallel?.branches.length ?? 0) }),
+    [t],
+  );
+
   const getLoopSummary = useCallback((step: WorkflowStep): string => {
     if (!step.loop) return t('loop.summary');
     if (step.loop.query) return t('loop.summary.query', { size: String(pagedLoopPageSize(step.loop.query.pageSize)) });
-    return t('loop.summary.named', { output: step.loop.outputName });
+    const concurrency = loopConcurrencyOf(step.loop.concurrency);
+    return concurrency > 1
+      ? t('loop.summary.concurrent', { output: step.loop.outputName, concurrency: String(concurrency) })
+      : t('loop.summary.named', { output: step.loop.outputName });
   }, [t]);
 
   const handleStepDragStart = useCallback((event: DragEvent<HTMLElement>, stepId: string, parentKey: string) => {
@@ -1664,6 +1702,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     rerunningId,
     openAddSwitch,
     getSwitchSummary,
+    openAddParallel,
+    getParallelSummary,
     runWorkflowDisabledReason,
     runModalOpen,
     runModalParameters,

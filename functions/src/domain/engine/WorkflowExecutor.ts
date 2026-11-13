@@ -18,6 +18,7 @@ import { matchesChangeFilter } from '../schema/workflowChangeFilter';
 import { MAX_STEP_RETRIES } from '../entities/Workflow';
 import type { WorkflowWait } from '../schema/workflowWait';
 import { pagedLoopPageSize } from '../schema/workflowLoopQuery';
+import { MIN_PARALLEL_BRANCHES, loopConcurrencyOf } from '../schema/workflowParallel';
 import type { PagedLoopState, WorkflowLoopQuery } from '../schema/workflowLoopQuery';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -119,27 +120,37 @@ export const runWorkflow = async ({
     });
   };
 
-  // Step cujo executor está rodando agora — usado para atribuir ao step certo as mensagens
-  // que o próprio código do usuário emite (ex.: log()/console.log dentro de um Script).
-  let currentLogStepId: string | undefined;
-  let currentLogStepDefinitionId: string | undefined;
+  /*
+   * O passo cujo executor está rodando AGORA, por contexto — é a ele que se atribuem as mensagens que o
+   * próprio código do usuário emite (`log()` dentro de um Script). Por contexto, e não uma variável da
+   * execução: dois ramos paralelos rodam passos ao mesmo tempo, e a mensagem de um iria parar no outro.
+   */
+  interface LogScope { stepId?: string; stepDefinitionId?: string }
+  const scopes = new WeakMap<WorkflowContext, LogScope>();
+  const scopeOf = (ctx: WorkflowContext): LogScope => {
+    const found = scopes.get(ctx);
+    if (found) return found;
+    const created: LogScope = {};
+    scopes.set(ctx, created);
+    return created;
+  };
 
   // Logger encaminhado aos steps: além de ir para os logs do Cloud Functions (services.logger),
   // grava a mensagem em execution.logs para que apareça na tela (Execuções e no modal de Run).
-  const captureLogger: WorkflowLogger = {
+  const loggerFor = (scope: LogScope): WorkflowLogger => ({
     info: (message, params) => {
       services.logger.info(message, params);
-      log('INFO', message, currentLogStepId, currentLogStepDefinitionId, undefined, undefined, undefined, params);
+      log('INFO', message, scope.stepId, scope.stepDefinitionId, undefined, undefined, undefined, params);
     },
     warn: (message, params) => {
       services.logger.warn(message, params);
-      log('WARN', message, currentLogStepId, currentLogStepDefinitionId, undefined, undefined, undefined, params);
+      log('WARN', message, scope.stepId, scope.stepDefinitionId, undefined, undefined, undefined, params);
     },
     error: (message, params) => {
       services.logger.error(message, params);
-      log('ERROR', message, currentLogStepId, currentLogStepDefinitionId, undefined, undefined, undefined, params);
+      log('ERROR', message, scope.stepId, scope.stepDefinitionId, undefined, undefined, undefined, params);
     },
-  };
+  });
 
   const finish = (status: WorkflowExecution['status'], outputs: Record<string, unknown>): WorkflowExecution => ({
     id: executionId,
@@ -157,16 +168,40 @@ export const runWorkflow = async ({
     payload: Record<string, unknown>,
     outputs: Record<string, Record<string, unknown>>,
     variables: Record<string, unknown>,
-  ): WorkflowContext => ({
-    event: { ...event, payload },
-    outputs,
-    variables,
-    services,
-    logger: captureLogger,
-    execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
-    ...(definition.parameters?.length ? { parameters: definition.parameters } : {}),
-    ...(actor ? { actor } : {}),
-  });
+  ): WorkflowContext => {
+    const scope: LogScope = {};
+    const built: WorkflowContext = {
+      event: { ...event, payload },
+      outputs,
+      variables,
+      services,
+      logger: loggerFor(scope),
+      execution: { id: executionId, workflowDefinitionId: definition.id, tenantId: definition.tenantId },
+      ...(definition.parameters?.length ? { parameters: definition.parameters } : {}),
+      ...(actor ? { actor } : {}),
+    };
+    scopes.set(built, scope);
+    return built;
+  };
+
+  /**
+   * Um contexto PRÓPRIO para um ramo paralelo (ou uma iteração concorrente): as saídas e as variáveis são
+   * cópias do momento do garfo, e o passo corrente é dele. O que o ramo produz só volta ao contexto de cima
+   * na junção, na ordem declarada — nunca no meio, onde a ordem seria a de quem chegou primeiro.
+   */
+  const fork = (parent: WorkflowContext): WorkflowContext => {
+    const scope: LogScope = {};
+    const child: WorkflowContext = {
+      ...parent,
+      outputs: { ...parent.outputs },
+      variables: { ...parent.variables },
+      logger: loggerFor(scope),
+    };
+    delete child.stepConfiguration;
+    delete child.stepId;
+    scopes.set(child, scope);
+    return child;
+  };
 
   /**
    * A PORTA da execução nova: a condição da automação, os filtros de tela/lista e os parâmetros. Devolve o
@@ -242,12 +277,12 @@ export const runWorkflow = async ({
 
   // Monta context.input a partir do flatten das saídas acumuladas (só Steps já executados) —
   // igual para Steps normais e para nós de controle StepCondition.
-  const applyStepInput = (): void => {
+  const applyStepInput = (ctx: WorkflowContext): void => {
     const flattenedOutputs: Record<string, unknown> = {};
-    for (const stepOutputs of Object.values(context.outputs)) {
+    for (const stepOutputs of Object.values(ctx.outputs)) {
       Object.assign(flattenedOutputs, stepOutputs);
     }
-    context.input = Object.keys(flattenedOutputs).length > 0 ? flattenedOutputs : (toStored(event.payload ?? {}) as Record<string, unknown>);
+    ctx.input = Object.keys(flattenedOutputs).length > 0 ? flattenedOutputs : (toStored(event.payload ?? {}) as Record<string, unknown>);
   };
 
   type StepsRunResult =
@@ -271,6 +306,7 @@ export const runWorkflow = async ({
     branchSteps: WorkflowStep[],
     incomingLastStepId: string | null,
     depth = 0,
+    ctx: WorkflowContext = context,
   ): Promise<StepsRunResult> => {
     let lastStepId = incomingLastStepId;
 
@@ -279,14 +315,14 @@ export const runWorkflow = async ({
       .sort((a, b) => a.order - b.order);
 
     for (const step of ordered) {
-      applyStepInput();
-      currentLogStepId = undefined;
-      currentLogStepDefinitionId = undefined;
+      applyStepInput(ctx);
+      scopeOf(ctx).stepId = undefined;
+      scopeOf(ctx).stepDefinitionId = undefined;
 
       // Passado o orçamento, a execução termina AQUI, gravada e explicada — e não cortada pela
       // plataforma no meio de um passo, sem histórico. Sem orçamento, nada muda.
       if (services.deadlineAt !== undefined && services.now().getTime() >= services.deadlineAt) {
-        log('ERROR', '@core.automation/run.budget-exceeded', step.id, step.stepDefinitionId, context.input);
+        log('ERROR', '@core.automation/run.budget-exceeded', step.id, step.stepDefinitionId, ctx.input);
         return { ok: false };
       }
 
@@ -296,13 +332,13 @@ export const runWorkflow = async ({
           if (!step.condition) {
             throw new Error('@core.automation/run.condition.missing');
           }
-          branchResult = evaluateCondition(step.condition, context);
+          branchResult = evaluateCondition(step.condition, ctx);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           log(
             'ERROR',
             '@core.automation/run.condition.failed',
-            step.id, undefined, context.input, undefined, undefined,
+            step.id, undefined, ctx.input, undefined, undefined,
             { detail: errorMessage },
           );
           return { ok: false };
@@ -316,12 +352,12 @@ export const runWorkflow = async ({
             : '@core.automation/run.condition.false-branch',
           step.id,
           undefined,
-          context.input,
+          ctx.input,
           undefined,
           { result: branchResult },
         );
 
-        const recur = await executeSteps(branch ?? [], lastStepId, depth + 1);
+        const recur = await executeSteps(branch ?? [], lastStepId, depth + 1, ctx);
         if (!recur.ok) {
           return { ok: false };
         }
@@ -334,7 +370,7 @@ export const runWorkflow = async ({
 
       if (step.type === 'Switch') {
         if (!step.switch) {
-          log('ERROR', '@core.automation/run.switch.missing-config', step.id, undefined, context.input);
+          log('ERROR', '@core.automation/run.switch.missing-config', step.id, undefined, ctx.input);
           return { ok: false };
         }
 
@@ -343,13 +379,13 @@ export const runWorkflow = async ({
         // decisão de negócio, e tomá-la por causa de um erro seria agir sobre o que ninguém escolheu.
         let chosen: number;
         try {
-          chosen = step.switch.cases.findIndex((one) => evaluateCondition(one.condition, context));
+          chosen = step.switch.cases.findIndex((one) => evaluateCondition(one.condition, ctx));
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           log(
             'ERROR',
             '@core.automation/run.switch.failed',
-            step.id, undefined, context.input, undefined, undefined,
+            step.id, undefined, ctx.input, undefined, undefined,
             { detail: errorMessage },
           );
           return { ok: false };
@@ -361,13 +397,13 @@ export const runWorkflow = async ({
           picked ? '@core.automation/run.switch.case' : '@core.automation/run.switch.otherwise',
           step.id,
           undefined,
-          context.input,
+          ctx.input,
           undefined,
           { case: picked ? picked.id : null },
           picked ? { case: picked.label || picked.id } : undefined,
         );
 
-        const recur = await executeSteps(picked ? picked.steps : step.switch.otherwise, lastStepId, depth + 1);
+        const recur = await executeSteps(picked ? picked.steps : step.switch.otherwise, lastStepId, depth + 1, ctx);
         if (!recur.ok) {
           return { ok: false };
         }
@@ -378,9 +414,43 @@ export const runWorkflow = async ({
         continue;
       }
 
+      if (step.type === 'Parallel') {
+        const branches = step.parallel?.branches ?? [];
+        if (branches.length < MIN_PARALLEL_BRANCHES) {
+          log('ERROR', '@core.automation/run.parallel.missing-config', step.id, undefined, ctx.input);
+          return { ok: false };
+        }
+        log(
+          'INFO', '@core.automation/run.parallel.start', step.id, undefined, ctx.input, undefined,
+          { branches: branches.length }, { count: String(branches.length) },
+        );
+
+        // Cada ramo no SEU contexto, todos ao mesmo tempo. `allSettled`, e não `all`: um ramo que falha não
+        // interrompe os vizinhos — eles já podem ter gravado algo, e cortar no meio deixaria metade feita sem
+        // registro. A junção espera todos.
+        const forks = branches.map(() => fork(ctx));
+        const settled = await Promise.allSettled(
+          branches.map((branch, index) => executeSteps(branch.steps, null, depth + 1, forks[index])),
+        );
+
+        const joined = joinBranches(step.id, branches, forks, settled, ctx);
+        if (!joined.ok) return { ok: false };
+        ctx.outputs[step.id] = { branches: joined.branchOutputs };
+        log(
+          'SUCCESS', '@core.automation/run.parallel.done', step.id, undefined, ctx.input, undefined,
+          ctx.outputs[step.id], { count: String(branches.length) },
+        );
+        if (joined.halted) {
+          // "Encerrar" num ramo encerra a automação — depois da junção, com a saída do ramo que encerrou.
+          return { ok: true, lastStepId: joined.haltedAt ?? lastStepId, halted: true };
+        }
+        lastStepId = step.id;
+        continue;
+      }
+
       if (step.type === 'Loop') {
         if (!step.loop) {
-          log('ERROR', '@core.automation/run.loop.missing-config', step.id, undefined, context.input);
+          log('ERROR', '@core.automation/run.loop.missing-config', step.id, undefined, ctx.input);
           return { ok: false };
         }
         const { source, itemName, outputName, body } = step.loop;
@@ -394,13 +464,13 @@ export const runWorkflow = async ({
 
         let sourceValue: unknown;
         try {
-          sourceValue = resolveMapping(source, context);
+          sourceValue = resolveMapping(source, ctx);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           log(
             'ERROR',
             '@core.automation/run.loop.failed',
-            step.id, undefined, context.input, undefined, undefined,
+            step.id, undefined, ctx.input, undefined, undefined,
             { detail: errorMessage },
           );
           return { ok: false };
@@ -410,12 +480,20 @@ export const runWorkflow = async ({
         const bodyStepIds = flattenSteps(body).map((bodyStep) => bodyStep.id);
         const results: unknown[] = [];
 
+        const concurrency = loopConcurrencyOf(step.loop.concurrency);
+        if (concurrency > 1 && items.length > 1) {
+          const concurrent = await runConcurrentLoop(step, items, itemName, outputName, body, bodyStepIds, concurrency, depth, ctx);
+          if (!concurrent.ok || concurrent.halted) return concurrent;
+          lastStepId = step.id;
+          continue;
+        }
+
         log(
           'INFO',
           '@core.automation/run.loop.start',
           step.id,
           undefined,
-          context.input,
+          ctx.input,
           undefined,
           { count: items.length },
           { count: String(items.length) },
@@ -423,10 +501,10 @@ export const runWorkflow = async ({
 
         let loopFailed = false;
         for (const item of items) {
-          for (const bodyStepId of bodyStepIds) delete context.outputs[bodyStepId];
-          context.outputs[step.id] = isPlainObject(item) ? { ...item } : { [itemName]: item };
+          for (const bodyStepId of bodyStepIds) delete ctx.outputs[bodyStepId];
+          ctx.outputs[step.id] = isPlainObject(item) ? { ...item } : { [itemName]: item };
 
-          const recur = await executeSteps(body, null, depth + 1);
+          const recur = await executeSteps(body, null, depth + 1, ctx);
           if (!recur.ok) {
             loopFailed = true;
             break;
@@ -434,25 +512,25 @@ export const runWorkflow = async ({
           if (recur.halted) {
             // Encerramento dentro do corpo: não agrega nem limpa as saídas do corpo, porque o
             // retorno do workflow é justamente a saída do Step que rodou antes do encerramento.
-            log('INFO', '@core.automation/run.loop.halted', step.id, undefined, context.input);
+            log('INFO', '@core.automation/run.loop.halted', step.id, undefined, ctx.input);
             return { ok: true, lastStepId: recur.lastStepId ?? lastStepId, halted: true };
           }
-          results.push(recur.lastStepId ? context.outputs[recur.lastStepId] ?? {} : {});
+          results.push(recur.lastStepId ? ctx.outputs[recur.lastStepId] ?? {} : {});
         }
 
-        for (const bodyStepId of bodyStepIds) delete context.outputs[bodyStepId];
+        for (const bodyStepId of bodyStepIds) delete ctx.outputs[bodyStepId];
         if (loopFailed) {
           return { ok: false };
         }
 
         const loopOutputs = { [outputName]: results };
-        context.outputs[step.id] = loopOutputs;
+        ctx.outputs[step.id] = loopOutputs;
         log(
           'SUCCESS',
           '@core.automation/run.loop.done',
           step.id,
           undefined,
-          context.input,
+          ctx.input,
           undefined,
           loopOutputs,
           { count: String(results.length) },
@@ -466,7 +544,7 @@ export const runWorkflow = async ({
         ? null
         : await services.extensionStep(step.stepDefinitionId, definition.tenantId);
       if (extension && !extension.ok) {
-        log('ERROR', extension.error, step.id, step.stepDefinitionId, context.input, undefined, undefined, extension.errorParams);
+        log('ERROR', extension.error, step.id, step.stepDefinitionId, ctx.input, undefined, undefined, extension.errorParams);
         return { ok: false };
       }
       const stepDefinition = registry.resolve(step.stepDefinitionId) ?? (extension?.ok ? extension.definition : undefined);
@@ -481,18 +559,18 @@ export const runWorkflow = async ({
         log(
           'ERROR',
           '@core.automation/run.step.excluded-trigger',
-          step.id, step.stepDefinitionId, context.input, undefined, undefined,
+          step.id, step.stepDefinitionId, ctx.input, undefined, undefined,
           { step: stepDefinition.name, event: definition.eventName },
         );
         return { ok: false };
       }
 
-      context.stepConfiguration = step.configuration;
-      context.stepId = step.id;
-      context.canSuspend = suspendable === true && depth === 0;
+      ctx.stepConfiguration = step.configuration;
+      ctx.stepId = step.id;
+      ctx.canSuspend = suspendable === true && depth === 0;
 
       // Usa resolveInputsSafe para garantir que inputs parciais sejam sempre registrados
-      const resolveResult = resolveInputsSafe(stepDefinition.inputs, step.configuration, context);
+      const resolveResult = resolveInputsSafe(stepDefinition.inputs, step.configuration, ctx);
 
       const continueOnError = step.onError?.action === 'continue';
       const retries = Math.max(0, Math.min(MAX_STEP_RETRIES, Math.trunc(step.onError?.retries ?? 0)));
@@ -504,11 +582,11 @@ export const runWorkflow = async ({
        */
       const failStep = (message: string): boolean => {
         if (!continueOnError) return false;
-        context.outputs[step.id] = { failed: true, error: message };
+        ctx.outputs[step.id] = { failed: true, error: message };
         log(
           'WARN',
           '@core.automation/run.step.continued',
-          step.id, step.stepDefinitionId, context.input, undefined, context.outputs[step.id],
+          step.id, step.stepDefinitionId, ctx.input, undefined, ctx.outputs[step.id],
           { step: stepDefinition.name },
         );
         lastStepId = step.id;
@@ -520,7 +598,7 @@ export const runWorkflow = async ({
         log(
           'ERROR',
           '@core.automation/run.step.input-failed',
-          step.id, step.stepDefinitionId, context.input, resolveResult.inputs, undefined,
+          step.id, step.stepDefinitionId, ctx.input, resolveResult.inputs, undefined,
           { ...resolveResult.errorParams, step: stepDefinition.name, detail: resolveResult.error ?? '' },
         );
         // Entrada que não resolve não melhora tentando de novo: é a configuração, não o mundo.
@@ -530,8 +608,8 @@ export const runWorkflow = async ({
 
       const inputs = resolveResult.inputs;
 
-      currentLogStepId = step.id;
-      currentLogStepDefinitionId = step.stepDefinitionId;
+      scopeOf(ctx).stepId = step.id;
+      scopeOf(ctx).stepDefinitionId = step.stepDefinitionId;
 
       /*
        * Uma TENTATIVA: a falha devolvida e a exceção lançada são a mesma notícia para a política do
@@ -540,7 +618,7 @@ export const runWorkflow = async ({
        */
       const runOnce = async (): Promise<WorkflowResult> => {
         try {
-          return await stepDefinition.createExecutor().execute(inputs, context);
+          return await stepDefinition.createExecutor().execute(inputs, ctx);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           return {
@@ -565,7 +643,7 @@ export const runWorkflow = async ({
           log(
             'WARN',
             '@core.automation/run.step.retrying',
-            step.id, step.stepDefinitionId, context.input, inputs, undefined,
+            step.id, step.stepDefinitionId, ctx.input, inputs, undefined,
             {
               step: stepDefinition.name,
               attempt: String(attempt),
@@ -582,7 +660,7 @@ export const runWorkflow = async ({
           log(
             'ERROR',
             message,
-            step.id, step.stepDefinitionId, context.input, inputs, undefined,
+            step.id, step.stepDefinitionId, ctx.input, inputs, undefined,
             result.messageParams,
           );
           // A saída `error` leva o DETALHE quando há um — é o que um passo seguinte compara —, e a
@@ -591,21 +669,21 @@ export const runWorkflow = async ({
           return { ok: false };
         }
 
-        context.outputs[step.id] = result.outputs ?? {};
+        ctx.outputs[step.id] = result.outputs ?? {};
         log(
           'SUCCESS',
           result.message ?? '@core.automation/run.step.done',
-          step.id, step.stepDefinitionId, context.input, inputs, result.outputs,
+          step.id, step.stepDefinitionId, ctx.input, inputs, result.outputs,
           result.messageParams ?? { name: stepDefinition.name },
         );
 
         if (result.suspend) {
           if (!suspendable) {
-            log('ERROR', '@core.automation/run.delay.not-suspendable', step.id, step.stepDefinitionId, context.input);
+            log('ERROR', '@core.automation/run.delay.not-suspendable', step.id, step.stepDefinitionId, ctx.input);
             return { ok: false };
           }
           if (depth > 0) {
-            log('ERROR', '@core.automation/run.delay.nested', step.id, step.stepDefinitionId, context.input);
+            log('ERROR', '@core.automation/run.delay.nested', step.id, step.stepDefinitionId, ctx.input);
             return { ok: false };
           }
           return {
@@ -630,13 +708,156 @@ export const runWorkflow = async ({
         lastStepId = step.id;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId, context.input, inputs, undefined);
+        log('ERROR', `[Step "${stepDefinition.name}"] ${errorMessage}`, step.id, step.stepDefinitionId, ctx.input, inputs, undefined);
         if (failStep(errorMessage)) continue;
         return { ok: false };
       }
     }
 
     return { ok: true, lastStepId };
+  };
+
+  /**
+   * A JUNÇÃO de ramos que rodaram em contextos próprios — paralelos ou iterações concorrentes —, na ORDEM
+   * DECLARADA, nunca na de chegada: a mesma automação dá sempre o mesmo resultado.
+   *
+   * - a saída de cada passo de um ramo volta ao contexto de cima (os ids de passo são únicos na árvore, e
+   *   nenhum ramo escreve o passo de outro);
+   * - a variável que um ramo mudou volta também; se dois a mudaram, vale a do ramo que vem DEPOIS na
+   *   declaração, e o conflito fica registrado — é quase sempre um engano de quem montou a automação;
+   * - um ramo que falhou (ou estourou) falha a junção inteira, nomeado no histórico.
+   */
+  const joinBranches = (
+    nodeId: string,
+    branches: { id: string; label?: string; steps: WorkflowStep[] }[],
+    forks: WorkflowContext[],
+    settled: PromiseSettledResult<StepsRunResult>[],
+    ctx: WorkflowContext,
+  ): { ok: false } | { ok: true; branchOutputs: Record<string, unknown>; halted: boolean; haltedAt: string | null } => {
+    const base = { ...ctx.variables };
+    const changedBy = new Map<string, string>();
+    const branchOutputs: Record<string, unknown> = {};
+    let failed = false;
+    let halted = false;
+    let haltedAt: string | null = null;
+
+    settled.forEach((result, index) => {
+      const branch = branches[index];
+      const child = forks[index];
+      const name = branch.label || branch.id;
+      if (result.status === 'rejected' || !result.value.ok) {
+        failed = true;
+        const detail = result.status === 'rejected'
+          ? (result.reason instanceof Error ? result.reason.message : String(result.reason))
+          : '';
+        log('ERROR', '@core.automation/run.parallel.branch-failed', nodeId, undefined, ctx.input, undefined, undefined,
+          { branch: name, detail });
+        return;
+      }
+      for (const stepId of flattenSteps(branch.steps).map((one) => one.id)) {
+        if (Object.prototype.hasOwnProperty.call(child.outputs, stepId)) ctx.outputs[stepId] = child.outputs[stepId];
+      }
+      for (const [key, value] of Object.entries(child.variables)) {
+        if (Object.prototype.hasOwnProperty.call(base, key) && Object.is(base[key], value)) continue;
+        const previous = changedBy.get(key);
+        if (previous !== undefined) {
+          log('WARN', '@core.automation/run.parallel.variable-conflict', nodeId, undefined, ctx.input, undefined, undefined,
+            { variable: key, first: previous, second: name });
+        }
+        changedBy.set(key, name);
+        ctx.variables[key] = value;
+      }
+      const last = result.value.lastStepId;
+      branchOutputs[branch.id] = last && Object.prototype.hasOwnProperty.call(child.outputs, last) ? child.outputs[last] : {};
+      if (result.value.halted && !halted) {
+        halted = true;
+        haltedAt = result.value.lastStepId;
+      }
+    });
+
+    return failed ? { ok: false } : { ok: true, branchOutputs, halted, haltedAt };
+  };
+
+  /**
+   * O laço com CONCORRÊNCIA: até `concurrency` itens ao mesmo tempo, cada um no seu contexto. A saída mantém
+   * a ORDEM DOS ITENS (o resultado do terceiro é o terceiro, chegue quando chegar), e a junção das
+   * variáveis também. Um item que falha não deixa começar os que ainda não começaram, e os que estão no
+   * meio terminam; o laço falha. Um "Encerrar" no corpo encerra a automação com o item de MENOR posição
+   * que encerrou — o mesmo que a execução em sequência teria encontrado primeiro.
+   */
+  const runConcurrentLoop = async (
+    step: WorkflowStep,
+    items: unknown[],
+    itemName: string,
+    outputName: string,
+    body: WorkflowStep[],
+    bodyStepIds: string[],
+    concurrency: number,
+    depth: number,
+    ctx: WorkflowContext,
+  ): Promise<StepsRunResult> => {
+    log(
+      'INFO', '@core.automation/run.loop.start-concurrent', step.id, undefined, ctx.input, undefined,
+      { count: items.length, concurrency }, { count: String(items.length), concurrency: String(concurrency) },
+    );
+    const forks: (WorkflowContext | null)[] = items.map(() => null);
+    const runs: (StepsRunResult | null)[] = items.map(() => null);
+    let nextIndex = 0;
+    let stop = false;
+
+    const worker = async (): Promise<void> => {
+      while (!stop && nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        const item = items[index];
+        const iteration = fork(ctx);
+        for (const bodyStepId of bodyStepIds) delete iteration.outputs[bodyStepId];
+        iteration.outputs[step.id] = isPlainObject(item) ? { ...item } : { [itemName]: item };
+        forks[index] = iteration;
+        const recur = await executeSteps(body, null, depth + 1, iteration).catch((error: unknown): StepsRunResult => {
+          log('ERROR', '@core.automation/run.loop.failed', step.id, undefined, ctx.input, undefined, undefined,
+            { detail: error instanceof Error ? error.message : String(error) });
+          return { ok: false };
+        });
+        runs[index] = recur;
+        if (!recur.ok || recur.halted) stop = true;
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+
+    if (runs.some((run) => run !== null && !run.ok)) return { ok: false };
+
+    // Variáveis na ordem dos itens; a última que mudou cada uma vence — como em sequência.
+    const base = { ...ctx.variables };
+    forks.forEach((iteration) => {
+      if (!iteration) return;
+      for (const [key, value] of Object.entries(iteration.variables)) {
+        if (Object.prototype.hasOwnProperty.call(base, key) && Object.is(base[key], value)) continue;
+        ctx.variables[key] = value;
+      }
+    });
+
+    const haltedIndex = runs.findIndex((run) => run?.ok === true && run.halted === true);
+    if (haltedIndex >= 0) {
+      // O retorno é a saída do passo antes do encerramento — ela precisa estar no contexto de cima.
+      const iteration = forks[haltedIndex] as WorkflowContext;
+      for (const bodyStepId of bodyStepIds) {
+        if (Object.prototype.hasOwnProperty.call(iteration.outputs, bodyStepId)) ctx.outputs[bodyStepId] = iteration.outputs[bodyStepId];
+      }
+      log('INFO', '@core.automation/run.loop.halted', step.id, undefined, ctx.input);
+      const halted = runs[haltedIndex] as StepsRunResult & { ok: true };
+      return { ok: true, lastStepId: halted.lastStepId, halted: true };
+    }
+
+    const results = runs.map((run, index) => {
+      const iteration = forks[index];
+      return run && run.ok && run.lastStepId && iteration ? iteration.outputs[run.lastStepId] ?? {} : {};
+    });
+    const loopOutputs = { [outputName]: results };
+    ctx.outputs[step.id] = loopOutputs;
+    log('SUCCESS', '@core.automation/run.loop.done', step.id, undefined, ctx.input, undefined, loopOutputs,
+      { count: String(results.length) });
+    return { ok: true, lastStepId: step.id };
   };
 
   /**

@@ -8,7 +8,7 @@ import type { WorkflowContentOrigin } from '../schema/workflowVersion';
  * Os tipos de passo, como ARRAY — a união sai dele, pela mesma razão de `CUSTOM_FIELD_TYPES`: a
  * tabela de passos do `AUTHORING.md` é derivada daqui, e um passo novo entra nela sozinho.
  */
-export const STEP_TYPES = ['Action', 'Condition', 'Delay', 'Loop', 'Script', 'SubWorkflow', 'Switch'] as const;
+export const STEP_TYPES = ['Action', 'Condition', 'Delay', 'Loop', 'Script', 'SubWorkflow', 'Switch', 'Parallel'] as const;
 
 export type StepType = typeof STEP_TYPES[number];
 
@@ -68,6 +68,12 @@ export interface WorkflowLoopConfig {
    * volta, a execução pausando entre elas. Ver `workflowLoopQuery.ts`.
    */
   query?: WorkflowLoopQuery;
+  /**
+   * Quantos itens rodam AO MESMO TEMPO (1 a `MAX_LOOP_CONCURRENCY`). Ausente ou 1: um de cada vez, como
+   * sempre. Cada item roda num contexto próprio, e a saída do laço mantém a ORDEM dos itens, não a de
+   * chegada. Não vale com `query` (o laço paginado pausa entre páginas). Ver `workflowParallel.ts`.
+   */
+  concurrency?: number;
 }
 
 /**
@@ -95,6 +101,27 @@ export interface WorkflowSwitchCase {
 export interface WorkflowSwitchConfig {
   cases: WorkflowSwitchCase[];
   otherwise: WorkflowStep[];
+}
+
+/**
+ * Um ramo de um nó `Parallel`: uma sequência de passos que roda AO MESMO TEMPO que os ramos vizinhos.
+ *
+ * `id` identifica o ramo dentro do nó — é por ele que o construtor arrasta um passo para dentro dele —, e
+ * não se confunde com o id de passo.
+ */
+export interface WorkflowParallelBranch {
+  id: string;
+  /** O nome que o construtor mostra. Texto do escritório: passa intacto por `useLabel`. */
+  label?: string;
+  steps: WorkflowStep[];
+}
+
+/**
+ * Configuração de um nó de controle `Parallel`: os ramos rodam juntos, e o fluxo segue quando TODOS
+ * terminam. Ver `workflowParallel.ts` para as regras que o tornam seguro.
+ */
+export interface WorkflowParallelConfig {
+  branches: WorkflowParallelBranch[];
 }
 
 /**
@@ -131,6 +158,8 @@ export interface WorkflowStep {
   loop?: WorkflowLoopConfig;
   /** Somente quando type === 'Switch' (nó de controle nativo). Ver WorkflowSwitchConfig. */
   switch?: WorkflowSwitchConfig;
+  /** Somente quando type === 'Parallel' (nó de controle nativo). Ver WorkflowParallelConfig. */
+  parallel?: WorkflowParallelConfig;
   /** Só em passos do catálogo (`type: 'Action'`). Ausente = a falha encerra a execução. */
   onError?: WorkflowStepErrorPolicy;
 }

@@ -476,6 +476,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'The package is {size} and would not fit in the installation document (the practical limit is {limit}). Split it — one package per language, or one per set of screens.',
   'issue.step.control-incomplete':
     'step "{step}" is a {type} control node but has no `{missing}` — the flow has nothing to branch on.',
+  'issue.step.parallel-branches': 'step "{step}" has more parallel branches than the maximum of {max}.',
+  'issue.step.loop-concurrency-query': 'step "{step}" pages through a query and declares `concurrency` — a paged loop runs one page at a time; remove `concurrency`.',
   'issue.step.input-invalid':
     'step "{step}" ({definition}) gives input "{input}" a value the step refuses: {reason}',
   'issue.step.input-not-mapping':

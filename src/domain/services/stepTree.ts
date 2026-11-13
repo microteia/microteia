@@ -25,6 +25,7 @@ export const flattenSteps = (steps: readonly WorkflowStep[] | undefined): Workfl
     ...flattenSteps(step.loop?.body),
     ...(step.switch?.cases ?? []).flatMap((one) => flattenSteps(one.steps)),
     ...flattenSteps(step.switch?.otherwise),
+    ...(step.parallel?.branches ?? []).flatMap((one) => flattenSteps(one.steps)),
   ]);
 
 /**
@@ -55,6 +56,12 @@ export const mapSteps = (
         cases: next.switch.cases.map((one) => ({ ...one, steps: mapSteps(one.steps, fn) })),
         otherwise: mapSteps(next.switch.otherwise, fn),
       },
+    };
+  }
+  if (next.parallel) {
+    next = {
+      ...next,
+      parallel: { branches: next.parallel.branches.map((one) => ({ ...one, steps: mapSteps(one.steps, fn) })) },
     };
   }
   return next;

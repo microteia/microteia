@@ -27,6 +27,7 @@ const NODE_LABEL_REFS: Readonly<Record<string, string>> = {
   Condition: '@core.automation/versions.node.condition',
   Loop: '@core.automation/versions.node.loop',
   Switch: '@core.automation/versions.node.switch',
+  Parallel: '@core.automation/versions.node.parallel',
 };
 
 /**

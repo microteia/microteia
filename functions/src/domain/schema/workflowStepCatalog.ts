@@ -1658,7 +1658,7 @@ export const CORE_STEP_DEFINITION_IDS: readonly string[] = CORE_STEP_CATALOG.map
  * porque quem valida uma declaração precisa saber que esses são a exceção legítima ao "todo
  * passo nomeia uma entrada do catálogo".
  */
-export const CONTROL_STEP_TYPES: readonly string[] = ['Condition', 'Loop', 'Switch'];
+export const CONTROL_STEP_TYPES: readonly string[] = ['Condition', 'Loop', 'Switch', 'Parallel'];
 
 /**
  * O TIPO `Delay` está em `STEP_TYPES` e não é um nó de controle: a espera é o PASSO `delay` do catálogo

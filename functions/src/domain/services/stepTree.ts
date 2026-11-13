@@ -21,6 +21,9 @@ export const flattenSteps = (steps: WorkflowStep[]): WorkflowStep[] => {
       for (const one of step.switch.cases) out.push(...flattenSteps(one.steps));
       out.push(...flattenSteps(step.switch.otherwise));
     }
+    if (step.type === "Parallel" && step.parallel) {
+      for (const one of step.parallel.branches) out.push(...flattenSteps(one.steps));
+    }
   }
   return out;
 };
@@ -58,6 +61,12 @@ export const mapStepTree = (
           cases: mapped.switch.cases.map((one) => ({ ...one, steps: mapStepTree(one.steps, fn) })),
           otherwise: mapStepTree(mapped.switch.otherwise, fn),
         },
+      };
+    }
+    if (mapped.type === "Parallel" && mapped.parallel) {
+      return {
+        ...mapped,
+        parallel: { branches: mapped.parallel.branches.map((one) => ({ ...one, steps: mapStepTree(one.steps, fn) })) },
       };
     }
     return mapped;

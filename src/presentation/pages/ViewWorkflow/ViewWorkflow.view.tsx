@@ -16,6 +16,8 @@ import {
   RiNodeTree,
   RiGitBranchLine,
   RiLoopLeftLine,
+  RiGitForkLine,
+  RiGitMergeLine,
   RiArrowDownSLine,
   RiPlayLine,
   RiSignpostLine,
@@ -26,7 +28,7 @@ import { useViewWorkflowViewModel } from './ViewWorkflow.viewmodel';
 import type { ViewWorkflowViewModel } from './ViewWorkflow.viewmodel';
 import type { WorkflowStep } from '../../../domain/entities/Workflow';
 import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
-import { SWITCH_OTHERWISE, switchPathKeyOf } from '../../shared/workflowHelpers';
+import { SWITCH_OTHERWISE, parallelLaneKeyOf, switchPathKeyOf } from '../../shared/workflowHelpers';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { Button } from '../../components/ui/Button';
 import { InputGroup, Label, Input } from '../../components/ui/Input';
@@ -54,6 +56,8 @@ const loopKeyOf = (loopId: string): string => `${loopId}:body`;
 const loopTarget = (loopId: string): InsertTarget => ({ kind: 'loop', loopId });
 
 const caseTarget = (switchId: string, caseKey: string): InsertTarget => ({ kind: 'case', switchId, caseKey });
+
+const laneTarget = (parallelId: string, laneKey: string): InsertTarget => ({ kind: 'lane', parallelId, laneKey });
 
 /**
  * Os caminhos de um `Switch` como a tela os desenha: cada caso, na ordem em que é avaliado, e o
@@ -88,6 +92,9 @@ const AddControls: React.FC<{ vm: ViewWorkflowViewModel; target: InsertTarget }>
     <S.AddNodeBtn onClick={() => void vm.openAddSwitch(target)} title={t('switch.add')}>
       <RiSignpostLine size={16} />
     </S.AddNodeBtn>
+    <S.AddNodeBtn onClick={() => void vm.openAddParallel(target)} title={t('parallel.add')}>
+      <RiGitForkLine size={16} />
+    </S.AddNodeBtn>
   </S.AddRow>
   );
 };
@@ -114,6 +121,9 @@ const ConnectorInsert: React.FC<{ vm: ViewWorkflowViewModel; parentKey: string; 
         </S.ConnectorBtn>
         <S.ConnectorBtn onClick={() => void vm.openAddSwitch(target, index)} title={t('switch.insert-here')}>
           <RiSignpostLine size={13} />
+        </S.ConnectorBtn>
+        <S.ConnectorBtn onClick={() => void vm.openAddParallel(target, index)} title={t('parallel.insert-here')}>
+          <RiGitForkLine size={13} />
         </S.ConnectorBtn>
       </S.ConnectorActions>
     )}
@@ -152,6 +162,7 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => {
       const isCondition = step.type === 'Condition';
       const isLoop = step.type === 'Loop';
       const isSwitch = step.type === 'Switch';
+      const isParallel = step.type === 'Parallel';
       return (
       <React.Fragment key={step.id}>
         <ConnectorInsert vm={vm} parentKey={parentKey} index={index} target={target} />
@@ -178,7 +189,9 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => {
                 ? vm.getConditionSummary(step)
                 : isLoop
                   ? vm.getLoopSummary(step)
-                  : isSwitch ? vm.getSwitchSummary(step) : vm.getStepTypeLabel(step)}
+                  : isSwitch
+                    ? vm.getSwitchSummary(step)
+                    : isParallel ? vm.getParallelSummary(step) : vm.getStepTypeLabel(step)}
             </S.NodeType>
           </S.NodeBody>
           <S.NodeStatusDot $enabled={step.enabled} title={t(step.enabled ? 'workflow.active' : 'workflow.inactive')} />
@@ -230,6 +243,38 @@ const FlowLevel: React.FC<LevelProps> = ({ vm, steps, parentKey, target }) => {
             ))}
           </S.BranchSplit>
         )}
+        {isParallel && step.parallel && (
+          <S.ParallelBlock>
+            <S.ParallelBar>
+              <RiGitForkLine size={14} />
+              {t('parallel.fork', { count: String(step.parallel.branches.length) })}
+            </S.ParallelBar>
+            <S.ParallelLanes>
+              {step.parallel.branches.map((branch, laneIndex) => (
+                <S.ParallelLane
+                  key={branch.id}
+                  $dropActive={vm.draggingStepId !== null && vm.dropTarget?.parentKey === parallelLaneKeyOf(step.id, branch.id)}
+                  onDragOver={(e) => vm.handleContainerDragOver(e, parallelLaneKeyOf(step.id, branch.id), branch.steps.length)}
+                  onDrop={vm.handleStepDrop}
+                >
+                  <S.ParallelLaneLabel>
+                    {branch.label ?? t('parallel.branch', { index: String(laneIndex + 1) })}
+                  </S.ParallelLaneLabel>
+                  <FlowLevel
+                    vm={vm}
+                    steps={branch.steps}
+                    parentKey={parallelLaneKeyOf(step.id, branch.id)}
+                    target={laneTarget(step.id, branch.id)}
+                  />
+                </S.ParallelLane>
+              ))}
+            </S.ParallelLanes>
+            <S.ParallelBar>
+              <RiGitMergeLine size={14} />
+              {t('parallel.join')}
+            </S.ParallelBar>
+          </S.ParallelBlock>
+        )}
         {isLoop && step.loop && (
           <S.LoopBlock $dropActive={vm.draggingStepId !== null && vm.dropTarget?.parentKey === loopKeyOf(step.id)}>
             <S.LoopHeader onClick={() => vm.toggleLoopCollapsed(step.id)} title={vm.isLoopCollapsed(step.id) ? t('core.ui/condition.expand') : t('core.ui/condition.collapse')}>
@@ -278,6 +323,7 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
       const isCondition = step.type === 'Condition';
       const isLoop = step.type === 'Loop';
       const isSwitch = step.type === 'Switch';
+      const isParallel = step.type === 'Parallel';
       return (
         <React.Fragment key={step.id}>
           <S.StepRow $disabled={!step.enabled}>
@@ -293,7 +339,9 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
                   ? <S.StepDescription>{vm.getLoopSummary(step)}</S.StepDescription>
                   : isSwitch
                     ? <S.StepDescription>{vm.getSwitchSummary(step)}</S.StepDescription>
-                    : definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}
+                    : isParallel
+                      ? <S.StepDescription>{vm.getParallelSummary(step)}</S.StepDescription>
+                      : definition?.description && <S.StepDescription>{definition.description}</S.StepDescription>}
             </S.StepInfo>
             <S.StepActions>
               <S.IconBtn title={t(step.enabled ? 'step.deactivate' : 'step.activate')} onClick={() => void vm.toggleStepEnabled(step)}>
@@ -332,6 +380,16 @@ const ListLevel: React.FC<{ vm: ViewWorkflowViewModel; steps: WorkflowStep[] }> 
               <ListLevel vm={vm} steps={path.steps} />
               <AddControls vm={vm} target={caseTarget(step.id, path.key)} />
             </S.BranchListGroup>
+          ))}
+          {isParallel && step.parallel && step.parallel.branches.map((branch, laneIndex) => (
+            <S.ParallelListGroup key={branch.id}>
+              <S.ParallelLaneLabel>
+                <RiGitForkLine size={12} />
+                {branch.label ?? t('parallel.branch', { index: String(laneIndex + 1) })}
+              </S.ParallelLaneLabel>
+              <ListLevel vm={vm} steps={branch.steps} />
+              <AddControls vm={vm} target={laneTarget(step.id, branch.id)} />
+            </S.ParallelListGroup>
           ))}
           {isLoop && step.loop && (
             <S.LoopListGroup>
