@@ -49,6 +49,9 @@ const PUBLISHED = [
   // dentro do `.json` instalado é forma nova de pacote, e um kernel antigo o procuraria por id.
   'ARTIFACT_REF_SEPARATOR', 'MAX_ARTIFACT_ID_LENGTH', 'artifactRef', 'hasRefSeparator',
   'isArtifactId', 'isArtifactRef', 'parseArtifactRef',
+  // O passo de automação de uma extensão — o conector. MOVE o KERNEL_VERSION (2.122.0): é ponto novo que o
+  // pacote instalado declara, e um kernel anterior não teria o passo.
+  'automationStep',
   'backendFingerprint', 'command', 'compareSemVer', 'contributionKey', 'fieldRulePresetContribution',
   'isApiVersionCompatible', 'isKernelCompatible', 'isMessageRef', 'isTrustedOnlyImplKind',
   'isValidContributionId', 'isValidExtensionPointId', 'isValidMessageKey', 'isValidPermission',
@@ -175,6 +178,7 @@ const PUBLISHED_TYPES = [
   'Contribution', 'CustomFieldMask', 'CustomFieldOption', 'CustomFieldType', 'CustomFieldValue',
   'DiagnosticCode',
   'DiagnosticSeverity', 'EventInputMapping', 'ExpressionInputMapping', 'ExtensionPointDefinition',
+  'ExtensionStepMetadata',
   'FieldAggregation', 'FieldDefinition', 'FieldFileConfig', 'FieldLogic', 'FieldLookupBinding',
   'FieldOrigin', 'FieldRulePreset', 'FieldRulePresetMask', 'FieldRulePresetValidate', 'FieldRules',
   'FirestoreIndexField', 'FirestoreIndexSpec', 'FormatOp', 'FormatRule', 'ImplKind', 'ImplRef',
@@ -271,7 +275,7 @@ describe('a superfície publicada do SDK', () => {
   it('todo construtor de contribuição é chamável', () => {
     for (const name of ['page', 'nav', 'command', 'recordAction', 'settingsSection', 'widgetPage',
       'surfaceTab', 'surfaceTabSpec', 'surfaceWidget', 'surfaceWidgetSpec', 'surfaceSlot',
-      'surfaceSlotSpec', 'menuItem', 'navGroup', 'authProvider', 'pointContribution', 'portalView', 'portalWidgetSpec', 'portalPageSpec', 'notificationCategory']) {
+      'surfaceSlotSpec', 'menuItem', 'navGroup', 'authProvider', 'pointContribution', 'portalView', 'portalWidgetSpec', 'portalPageSpec', 'notificationCategory', 'automationStep']) {
       expect(typeof (sdk as unknown as Record<string, unknown>)[name], name).toBe('function');
     }
   });

@@ -100,6 +100,9 @@ const LACUNAS_CONFERIDAS = [
   // Os TIPOS de aviso. O modelo diz o que acontece no negócio (um prazo vence), não como cada
   // pessoa prefere ser avisada de cada coisa — a categoria é escolha de quem escreve a extensão.
   'extension-point\tnotification.category',
+  // O passo DECLARADO por uma extensão (o conector) é integração empacotada, como o http-request: o
+  // modelo de comportamento descreve estados e transições, não qual sistema de fora um passo chama.
+  'extension-point\tworkflow.step',
 
   // Os artefatos de pacote que o plano nunca preenche.
   'package-artifact\tsummary',

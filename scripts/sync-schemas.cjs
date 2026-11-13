@@ -78,6 +78,7 @@ const SHARED_FILES = [
   'domain/schema/httpConnection.ts',
   'domain/schema/workflowBudget.ts',
   'domain/schema/workflowStepCatalog.ts',
+  'domain/schema/workflowStepContribution.ts',
   'domain/schema/workflowClock.ts',
   'domain/schema/workflowAuditTrigger.ts',
   'domain/schema/auditRetention.ts',

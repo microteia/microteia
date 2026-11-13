@@ -1,3 +1,4 @@
+import { extensionStepIssues } from '../domain/usecases/plugins/extensionStepIntegrity';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 import type { DiagnosticCode, PluginDiagnostic } from '../domain/schema/plugin/diagnostics';
 import { KERNEL_VERSION } from '../domain/schema/plugin/kernelVersion';
@@ -122,5 +123,11 @@ export const validatePluginPackage = (
     message: issue.message,
     messageParams: issue.messageParams,
     ref: issue.ref,
+  })),
+  // O passo que o pacote DECLARA (o conector): o corpo existe, é chamável e não pausa.
+  ...extensionStepIssues(pkg).map((issue) => ({
+    source: 'package' as const,
+    message: issue.message,
+    messageParams: issue.messageParams,
   })),
 ];

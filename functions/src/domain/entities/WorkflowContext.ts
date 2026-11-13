@@ -1,5 +1,6 @@
 import type { BusinessCalendarSet } from '../schema/time/businessDays';
 import type { QuerySpec } from '../schema/querySpec';
+import type { ExtensionStepResolution } from '../services/extensionSteps';
 import type { WorkflowWait } from '../schema/workflowWait';
 import type { InputMapping, WorkflowEvent, WorkflowParameter } from './Workflow';
 import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
@@ -57,6 +58,11 @@ export interface WorkflowServices {
    * Uma PÁGINA de uma consulta, para o `Loop` paginado. Do serviço, e não do executor, porque a consulta
    * é infraestrutura (o banco, a hidratação) e o executor é domínio. Ausente, o laço paginado reprova.
    */
+  /**
+   * O passo que o registro do núcleo não conhece, procurado nas extensões do escritório (o "conector").
+   * `null`: o id nem é de passo de extensão. Ausente, só o núcleo responde.
+   */
+  extensionStep?(stepDefinitionId: string, tenantId: string): Promise<ExtensionStepResolution | null>;
   queryPage?(
     spec: QuerySpec,
     cursor: string | null,

@@ -39,6 +39,8 @@ export const AUTOMATION_MESSAGES: Record<string, string> = {
   'workflow.on-save.created.title': 'Request opened',
   'workflow.on-save.updated.title': 'Request changed',
 
+  'step.review': 'Review a request',
+  'step.review.description': 'Approves or rejects a request and records the note — the review flow of this extension, offered as a step of its own.',
   'workflow.review': 'Review a request',
   'workflow.review.description':
     'Called by the Review button. Receives the decision and the note as parameters, and writes them to the record.',

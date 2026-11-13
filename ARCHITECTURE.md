@@ -9178,6 +9178,42 @@ citava saídas que não existiam mais, sem erro nenhum.
   Vale para a automação e para o script.
 - **Ainda não:** rascunho separado do publicado.
 
+### Passo declarado por extensão — o conector (`workflow.step` com `workflow` | `script`)
+
+Uma extensão declara um PASSO próprio (`automationStep` no SDK; `workflowStepContribution.ts`, compartilhado):
+o corpo é uma automação CHAMADA ou um script do próprio pacote. Até aqui o ponto só aceitava `code` (de
+confiança), o servidor só carregava os plugins compilados nele, e o guia e o MCP prometiam a terceiros o que
+não existia.
+
+- **Nenhum código novo no servidor.** O corpo roda pelos executores que já existem: a automação por
+  "Chamar automação" ESPERANDO (mesmo processo, ator, prazo e profundidade), o script pelo sandbox.
+- **Id qualificado** `<pluginId>/<chave>` (`extensionStepId`): não colide com o núcleo (sem barra) nem com
+  outra extensão; é o mesmo formato das referências entre pacotes.
+- **Entradas e saídas são as do corpo**, nunca declaradas de novo. A entrada de catálogo
+  (`extensionStepCatalogEntry`) reaproveita `from-target-workflow-parameters/outputs` (ou as de script)
+  com `sourceInputId: 'connectorTarget'` e `fixedTarget`; o editor SEMEIA esse alvo (e `waitForResult`) ao
+  escolher o passo, e todo o código que lê o alvo pela configuração funciona sem mudança. A execução IGNORA
+  a entrada semeada (`makeExtensionStepResolver` usa o corpo do pacote): editar o JSON não redireciona o
+  passo. Nome próprio, e não `targetWorkflowId`, para a checagem de referências entre extensões não exigir
+  que o fornecedor exporte o corpo.
+- **Resolução por escritório.** O registro do núcleo é global; o que ele não conhece, o executor procura em
+  `services.extensionStep` (`domain/services/extensionSteps.ts`), sobre `InstalledExtensionCache.extensionSteps`
+  — com motivos distintos para extensão desligada, ausente ou sem o passo (`step.extension.*`). O
+  `getWorkflowStepCatalog` passou a receber `tenantId` e somar os passos das extensões LIGADAS; o
+  `StepCatalogStore` recarrega ao trocar de escritório.
+- **Validação** (`extensionStepIntegrity.ts`, na porta única `validatePluginPackage`): chave, nome, ícone do
+  catálogo de telas, corpo presente no pacote, automação `workflow.called`, corpo que NÃO pausa (delay,
+  aprovação, wait-for, lote paginado — o passo espera no mesmo processo) e kernel ≥
+  `EXTENSION_STEPS_SINCE_KERNEL` (2.122.0). Na automação de pacote, o passo do próprio pacote tem de estar
+  declarado, e o de outra extensão exige a dependência (`issue.step.extension-dependency`).
+- **Ícone:** chave do catálogo de ícones de tela; `getStepIcon` cai nele quando o nome não é dos passos do
+  núcleo.
+- **Ponto no front:** `WORKFLOW_STEP_EXTENSION_POINTS` entra em `KERNEL_EXTENSION_POINTS` (registrado por
+  `core.automation`), senão o host do front recusaria a contribuição como ponto desconhecido.
+- **Exemplo:** `automation-example` declara "Review a request" sobre o `wf-review`.
+- **Ainda não (fase 2):** o pacote declarar as conexões HTTP de que precisa, para a instalação mostrar o que
+  cadastrar.
+
 ### Gatilho de webhook — `webhook.received`
 
 Um sistema de FORA dispara uma automação por HTTP. É o segundo `onRequest` do produto, e a mesma

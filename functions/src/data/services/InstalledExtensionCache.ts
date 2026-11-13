@@ -1,3 +1,5 @@
+import { extensionStepsOf } from '../../domain/schema/workflowStepContribution';
+import type { ExtensionStep } from '../../domain/schema/workflowStepContribution';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { Contribution, QualifiedContribution } from '../../domain/schema/plugin/contribution';
 import { sortContributions } from '../../domain/schema/plugin/contribution';
@@ -51,6 +53,10 @@ interface CacheEntry {
   fieldRulePresets: FieldRulePreset[];
   /** Os provedores de busca externa que as extensões ligadas declaram. */
   lookupProviders: LookupProviderSpec[];
+  /** Os passos de automação que as extensões ligadas declaram — o "conector". */
+  extensionSteps: ExtensionStep[];
+  /** TODAS as instaladas, ligadas ou não: é o que separa "extensão desligada" de "extensão ausente". */
+  installedPluginIds: Set<string>;
   loadedAt: number;
 }
 
@@ -169,6 +175,19 @@ export class InstalledExtensionCache {
     return { fieldRulePresets: entry.fieldRulePresets, lookupProviders: entry.lookupProviders };
   }
 
+  /**
+   * Os passos de automação declarados pelas extensões LIGADAS, e o que é preciso para dizer por que um
+   * passo de extensão não existe: a extensão foi desligada, ou nem está instalada.
+   */
+  async extensionSteps(tenantId: string): Promise<{
+    steps: ExtensionStep[];
+    installed: ReadonlySet<string>;
+    deactivated: ReadonlySet<string>;
+  }> {
+    const entry = await this.load(tenantId);
+    return { steps: entry.extensionSteps, installed: entry.installedPluginIds, deactivated: entry.deactivatedPluginIds };
+  }
+
   invalidate(tenantId: string): void {
     this.entries.delete(tenantId);
   }
@@ -181,6 +200,8 @@ export class InstalledExtensionCache {
 
     const claimedFunctions = new Set<string>();
     const deactivatedPluginIds = new Set<string>();
+    const installedPluginIds = new Set<string>();
+    const extensionSteps: ExtensionStep[] = [];
     const contributions: Contribution[] = [];
     const documentTemplates: QualifiedContribution[] = [];
     const portalViews: PortalViewDescriptor[] = [];
@@ -193,6 +214,7 @@ export class InstalledExtensionCache {
       const data = doc.data();
       // Extensão desativada conta como não instalada — a mesma frase que `isExtensionInstalled` diz,
       // e é ela que faz o interruptor ser um interruptor.
+      installedPluginIds.add(doc.id);
       if (data.active === false) {
         deactivatedPluginIds.add(doc.id);
         continue;
@@ -211,6 +233,7 @@ export class InstalledExtensionCache {
           if (THEME_POINTS.has(contribution?.point)) themes.push({ ...contribution, pluginId: doc.id });
         }
 
+        extensionSteps.push(...extensionStepsOf(doc.id, contributes as Contribution[]));
         portalWidgetSpecs.push(...portalWidgetSpecsOf(doc.id, contributes as Contribution[]));
         portalPageSpecs.push(...portalPageSpecsOf(doc.id, contributes as Contribution[]));
 
@@ -245,6 +268,8 @@ export class InstalledExtensionCache {
         .filter((contribution) => contribution?.point === DATA_EXTERNAL_LOOKUP_POINT)
         .map(lookupProviderOf)
         .filter((provider): provider is LookupProviderSpec => provider !== undefined),
+      extensionSteps,
+      installedPluginIds,
       loadedAt: Date.now(),
     };
     this.entries.set(tenantId, entry);

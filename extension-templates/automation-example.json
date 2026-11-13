@@ -1,8 +1,8 @@
 {
   "manifest": {
     "id": "com.microteia.automation-example",
-    "version": "1.3.0",
-    "kernel": "^2.58.0",
+    "version": "1.4.0",
+    "kernel": "^2.122.0",
     "name": "@com.microteia.automation-example/package.name",
     "description": "@com.microteia.automation-example/package.description",
     "category": "@com.microteia.automation-example/package.category",
@@ -40,6 +40,8 @@
             "workflow.on-save.description": "Fires whenever a request is written. Branches on whether it is new, and records what happened in the audit trail.",
             "workflow.on-save.created.title": "Request opened",
             "workflow.on-save.updated.title": "Request changed",
+            "step.review": "Review a request",
+            "step.review.description": "Approves or rejects a request and records the note — the review flow of this extension, offered as a step of its own.",
             "workflow.review": "Review a request",
             "workflow.review.description": "Called by the Review button. Receives the decision and the note as parameters, and writes them to the record.",
             "workflow.review.done.title": "Request reviewed",
@@ -94,6 +96,8 @@
             "workflow.on-save.description": "Dispara sempre que uma solicitação é gravada. Ramifica conforme ela ser nova ou não, e registra na auditoria o que aconteceu.",
             "workflow.on-save.created.title": "Solicitação aberta",
             "workflow.on-save.updated.title": "Solicitação alterada",
+            "step.review": "Analisar uma solicitação",
+            "step.review.description": "Aprova ou recusa uma solicitação e registra a observação — o fluxo de análise desta extensão, oferecido como um passo próprio.",
             "workflow.review": "Analisar uma solicitação",
             "workflow.review.description": "Chamado pelo botão Analisar. Recebe a decisão e a observação como parâmetros e as grava no registro.",
             "workflow.review.done.title": "Solicitação analisada",
@@ -116,6 +120,21 @@
             "field.openTotal": "Total em aberto",
             "field.openCount": "Solicitações em aberto"
           }
+        }
+      },
+      {
+        "point": "workflow.step",
+        "id": "step-review-request",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "key": "review-request",
+          "name": "@com.microteia.automation-example/step.review",
+          "description": "@com.microteia.automation-example/step.review.description",
+          "icon": "flowChart"
+        },
+        "impl": {
+          "kind": "workflow",
+          "workflowId": "wf-review"
         }
       },
       {

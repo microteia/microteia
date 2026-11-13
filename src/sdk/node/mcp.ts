@@ -1182,8 +1182,9 @@ const PURE_READS: ToolDefinition[] = [
         + `nodes (${CONTROL_STEP_TYPES.join(', ')}), where it stays empty.`,
         `Step types the engine does not run: ${UNIMPLEMENTED_STEP_TYPES.join(', ') || 'none'}. `
         + 'Declaring one is refused by validate_plugin.',
-        'An extension may contribute its own steps to the "workflow.step" point, so a package that '
-        + 'declares a dependency may name an id that is not listed here.',
+        'An extension may declare its own step (`automationStep`): its body is a called workflow or a script '
+        + 'of that package, and its id is "<package id>/<key>". Using one from another extension requires that '
+        + 'extension in `dependencies` — validate_plugin refuses it otherwise.',
       ],
     }),
   },

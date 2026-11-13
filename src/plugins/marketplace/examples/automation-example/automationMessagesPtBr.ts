@@ -35,6 +35,8 @@ const AUTOMATION_PT_BR: Record<string, string> = {
   'workflow.on-save.created.title': 'Solicitação aberta',
   'workflow.on-save.updated.title': 'Solicitação alterada',
 
+  'step.review': 'Analisar uma solicitação',
+  'step.review.description': 'Aprova ou recusa uma solicitação e registra a observação — o fluxo de análise desta extensão, oferecido como um passo próprio.',
   'workflow.review': 'Analisar uma solicitação',
   'workflow.review.description':
     'Chamado pelo botão Analisar. Recebe a decisão e a observação como parâmetros e as grava no registro.',

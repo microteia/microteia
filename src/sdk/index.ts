@@ -507,6 +507,7 @@ export { SETTINGS_OPTIONS_SOURCE_KINDS, SETTINGS_SCOPES } from '../domain/schema
 
 export {
   authProvider,
+  automationStep,
   command,
   menuItem,
   nav,
@@ -530,6 +531,7 @@ export {
 export type { PortalViewMetadata, PortalViewSurface } from '../domain/schema/portalExtensionPoints';
 export type { PortalPageSpecMetadata, PortalWidgetSpecMetadata } from './contributions';
 export type { NotificationCategoryMetadata } from '../domain/schema/notifications';
+export type { ExtensionStepMetadata } from '../domain/schema/workflowStepContribution';
 
 // ─── Validação e serialização ─────────────────────────────────────────────────
 

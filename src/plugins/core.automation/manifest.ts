@@ -1,3 +1,4 @@
+import { WORKFLOW_STEP_EXTENSION_POINTS } from '../../domain/schema/workflowStepContribution';
 import type { PluginRecord } from '../../kernel';
 import { command, lazyView, nav, page, settingsSection, surfaceSlot, surfaceTab } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
@@ -43,7 +44,7 @@ export const coreAutomationPlugin: PluginRecord = {
     // eslint-disable-next-line no-restricted-syntax -- metadado do plugin do NÚCLEO: não é renderizado.
     name: 'Automations',
     dependencies: { 'core.ui': '^1.0.0', 'core.tenant': '^1.0.0' },
-    extensionPoints: NOTIFICATION_EXTENSION_POINTS,
+    extensionPoints: [...NOTIFICATION_EXTENSION_POINTS, ...WORKFLOW_STEP_EXTENSION_POINTS],
     contributes: [
       messageBundleContribution(coreMessage('core.automation', CORE_AUTOMATION_MESSAGES)),
       page({ key: 'workflows', title: '@core.automation/page.workflows', icon: 'flowChart' }, 'WorkflowsView'),

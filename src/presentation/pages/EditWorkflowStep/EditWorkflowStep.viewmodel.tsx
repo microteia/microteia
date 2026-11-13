@@ -1001,6 +1001,14 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
           initialConfig[input.id] = emptyMappingFor(input.allowedMappingKinds[0]);
         }
       });
+      // O passo de EXTENSÃO já sabe o próprio corpo: semeá-lo na entrada do alvo é o que faz as entradas
+      // e as saídas do corpo aparecerem pelo caminho de "Chamar automação" e "Script". A automação-corpo
+      // é sempre esperada — o passo devolve o que ela devolve.
+      const sourceInputId = definition.dynamicInputs?.sourceInputId;
+      if (definition.fixedTarget && sourceInputId) {
+        initialConfig[sourceInputId] = { kind: 'Literal', value: definition.fixedTarget };
+        if (definition.type === 'SubWorkflow') initialConfig.waitForResult = { kind: 'Literal', value: true };
+      }
       setConfiguration(initialConfig);
     } else {
       setConfiguration({});

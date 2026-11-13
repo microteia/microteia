@@ -39,6 +39,7 @@ import {
 
 import { PORTAL_API_VERSION, PORTAL_VIEW_POINT, type PortalViewMetadata } from '../domain/schema/portalExtensionPoints';
 import type { PortalPageSpec, PortalWidgetSpec } from '../domain/schema/ui/portalWidget';
+import { extensionStepContribution, type ExtensionStepMetadata } from '../domain/schema/workflowStepContribution';
 import { notificationCategoryContribution, type NotificationCategoryMetadata } from '../domain/schema/notifications';
 
 const slug = (value: string): string =>
@@ -316,3 +317,12 @@ export const portalPageSpec = (metadata: PortalPageSpecMetadata, spec: PortalPag
 export const notificationCategory = (metadata: NotificationCategoryMetadata): Contribution =>
   notificationCategoryContribution(metadata);
 
+/**
+ * Um PASSO de automação da extensão — o "conector". O corpo é uma automação chamada (`workflowId`) ou um
+ * script (`scriptId`) do próprio pacote; as entradas e as saídas são as dele. O id do passo, para quem o
+ * usa numa automação, é `<id do pacote>/<key>`.
+ */
+export const automationStep = (
+  metadata: ExtensionStepMetadata,
+  body: { workflowId: string } | { scriptId: string },
+): Contribution => extensionStepContribution(metadata, body);

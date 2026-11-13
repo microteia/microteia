@@ -9,7 +9,7 @@ import type { QuerySpec } from '../../../../domain/schema/querySpec';
 import type { UpsertStepConfig } from '../../../../domain/schema/mutationSpec';
 import type { MapStepConfig } from '../../../../domain/schema/mapSpec';
 import type { WorkflowStep } from '../../../../domain/entities/Workflow';
-import { notificationCategory } from '../../../contributionBuilders';
+import { automationStep, notificationCategory } from '../../../contributionBuilders';
 import { automationMessagesContribution } from './automationMessages';
 import { automationPtBrContribution } from './automationMessagesPtBr';
 
@@ -34,6 +34,10 @@ import { automationPtBrContribution } from './automationMessagesPtBr';
  * 6a. The ANSWER a button reads: every flow an action fires ends in a `map` with no name, whose
  *    `status` and `actions` the button applies. Without it the flow runs all the same, and the button
  *    reports that nothing came back.
+ * 8. A STEP of its own (`automationStep`): `wf-review` offered in the step list of any automation as
+ *    "Review a request", with the flow's parameters as its inputs and the flow's answer as its
+ *    outputs. The body is the called flow — no code runs on the server — and its id, for whoever
+ *    uses it, is `com.microteia.automation-example/review-request`.
  * 7. A notification TYPE (`notificationCategory`). A `notify` step that sets
  *    `category: 'com.microteia.automation-example/large-request'` lets each person choose, on the
  *    Notifications page, which channels bring them that type — without muting everything else.
@@ -433,8 +437,8 @@ const ACTIONS: ActionModuleTemplate[] = [
 export const automationExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.automation-example',
-    version: '1.3.0',
-    kernel: '^2.58.0',
+    version: '1.4.0',
+    kernel: '^2.122.0',
     name: message('package.name'),
     description: message('package.description'),
     category: message('package.category'),
@@ -442,6 +446,15 @@ export const automationExamplePlugin: MarketplacePlugin = {
     contributes: [
       automationMessagesContribution(),
       automationPtBrContribution(),
+      automationStep(
+        {
+          key: 'review-request',
+          name: message('step.review'),
+          description: message('step.review.description'),
+          icon: 'flowChart',
+        },
+        { workflowId: 'wf-review' },
+      ),
       notificationCategory({
         key: 'large-request',
         title: message('notification.large-request'),

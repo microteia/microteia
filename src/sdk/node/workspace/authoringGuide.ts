@@ -59,6 +59,7 @@ import { REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
 import { WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../../domain/schema/workflowTask';
 import { WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../../domain/schema/report/reportStep';
 import { WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../../domain/schema/workflowWait';
+import { EXTENSION_STEPS_SINCE_KERNEL } from '../../../domain/schema/workflowStepContribution';
 import {
   PAGED_LOOP_DEFAULT_PAGE_SIZE,
   PAGED_LOOP_MAX_PAGE_SIZE,
@@ -3128,8 +3129,8 @@ member is \`event.sellerId.memberId\`, not \`event.sellerId\`.
 ${describedTable('Step type', STEP_TYPES, STEP_KINDS)}
 
 \`stepDefinitionId\` names an entry of the platform's **step catalog**. These are the ones the kernel
-brings; an extension may contribute more to the \`workflow.step\` point, so a package that declares a
-dependency may name an id that is not listed here.
+brings; an extension may declare more with \`automationStep\` (see "Your own step"), named
+\`<package id>/<key>\` — one from another extension requires it in \`dependencies\`.
 
 ${stepCatalogTable(input.steps)}
 
@@ -3555,6 +3556,35 @@ notified; the first decision resumes the SAME run at once, and the chosen outcom
   event**; the step refuses BEFORE creating the task or notifying anyone where the run cannot wait.
 
 The \`approval\` step needs kernel ${WORKFLOW_APPROVAL_SINCE_KERNEL} or later, and \`validate_plugin\` refuses a package that admits an older one.
+
+### Your own step — \`automationStep\` (a connector)
+
+\`\`\`ts
+// manifest.contributes
+automationStep(
+  { key: 'create-contact', name: '@com.acme.crm/step.create', description: '@com.acme.crm/step.create.description',
+    icon: 'flowChart', category: 'Integration' },
+  { workflowId: 'wf-create-contact' },   // or { scriptId: 'sc-normalize' }
+)
+// in any automation: { stepDefinitionId: 'com.acme.crm/create-contact', type: 'Action', configuration: { 'param.email': … } }
+\`\`\`
+
+A step of your own appears in the step list of every automation of an organization that installed the
+extension. It runs nothing new on the server: its BODY is a called workflow (\`eventName: 'workflow.called'\`)
+or a script of the same package, and the step is that body with a name, an icon and a place in the list.
+
+- **Inputs and outputs are the body's.** The workflow's \`parameters\` (or the script's \`inputParams\`) are
+  the step's inputs, \`param.<key>\` as in "Call workflow"; what the workflow returns (or the script's
+  \`outputParams\`) are its outputs. Nothing is declared twice.
+- **It always waits for the body** — same run, same actor, same time budget, one level of the call depth. So
+  the body **cannot pause**: no \`delay\`, \`approval\`, \`wait-for\` or paged loop inside it.
+- **Integrating with an API** is a body with an \`http-request\` step using a connection by KEY
+  (\`request.connection: 'crm'\`): the organization that installs creates the connection, the package never
+  carries the secret.
+- If the extension is turned off or removed, an automation using the step fails AT the step, naming the
+  extension. Another extension's workflow that uses your step must list you in \`dependencies\`.
+- \`automationStep\` needs kernel ${EXTENSION_STEPS_SINCE_KERNEL} or later: \`validate_plugin\` refuses it in a package
+  whose \`kernel\` range starts below.
 
 ### Waiting for a record — the \`wait-for\` step
 

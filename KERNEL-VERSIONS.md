@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.248.0] — 2026-11-13
+
+- feat(workflow): extension-declared steps ("connectors"). `workflow.step` now accepts `impl.kind: 'workflow' | 'script'` from third parties (`WORKFLOW_STEP_EXTENSION_POINTS`, registered on the front by `core.automation`); the SDK builder is `automationStep(metadata, { workflowId } | { scriptId })`. The body is a called workflow or a sandbox script of the same package — no third-party code on the server. Step id is `<pluginId>/<key>`; inputs and outputs are the body's (catalog entry reuses the `from-target-*` dynamic kinds with `sourceInputId: 'connectorTarget'` and `fixedTarget`, seeded by the editor; execution ignores the seeded value and always runs the package body).
+- feat(workflow): `services.extensionStep` resolves steps the core registry does not know from `InstalledExtensionCache.extensionSteps` (distinct `step.extension.inactive|missing|unknown-step` refusals); the body runs through the call-workflow executor waiting for the result, or the script executor. `getWorkflowStepCatalog` takes `tenantId` and adds the active extensions' steps; the front catalog store reloads per tenant.
+- feat(marketplace): `extensionStepIssues` — valid key, name, screen-catalog icon, body present, workflow body is `workflow.called` and does not pause (delay, approval, wait-for, paged loop), kernel >= 2.122.0. In package workflows, an own extension step must be declared and another extension's requires it in `dependencies` (`issue.step.extension-dependency`).
+- docs: the authoring guide and MCP no longer claim third-party steps that did not exist; they document `automationStep`. `automation-example` 1.4.0 ships a connector step. `KERNEL_VERSION` 2.122.0.
+
 #### [9.247.0] — 2026-11-13
 
 - feat(workflow): version comparison. `diffArtifactVersions` (`domain/services/artifactVersionDiff.ts`) compares a stored version with the current content by the artifact's content keys: top-level fields; steps by id at any depth — added, removed, moved (other parent, or other position among siblings kept under the same parent) and changed with the keys (`condition`, `onError`, each `configuration.<input>`); script source by added/removed lines, compiled output left out. `describeVersionChanges` renders it with a literal label table checked by `verify-messages`. "Compare with current" on workflow and script versions.

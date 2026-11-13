@@ -461,7 +461,15 @@ export const runWorkflow = async ({
         continue;
       }
 
-      const stepDefinition = registry.resolve(step.stepDefinitionId);
+      // O núcleo primeiro; o que ele não conhece pode ser passo de uma extensão do escritório.
+      const extension = registry.resolve(step.stepDefinitionId) || !services.extensionStep
+        ? null
+        : await services.extensionStep(step.stepDefinitionId, definition.tenantId);
+      if (extension && !extension.ok) {
+        log('ERROR', extension.error, step.id, step.stepDefinitionId, context.input, undefined, undefined, extension.errorParams);
+        return { ok: false };
+      }
+      const stepDefinition = registry.resolve(step.stepDefinitionId) ?? (extension?.ok ? extension.definition : undefined);
       if (!stepDefinition) {
         log('ERROR', `StepDefinition desconhecida: "${step.stepDefinitionId}"`, step.id);
         return { ok: false };

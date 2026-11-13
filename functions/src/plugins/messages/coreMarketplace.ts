@@ -503,6 +503,21 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'the workflow is triggered by "{event}", but the screen "{screen}" does not record portal openings — declare `portal: { ..., trackViews: true }` on it. Without that the event is never published, and the workflow would install switched on and never fire.',
   'issue.step.excluded-trigger':
     'step "{step}" ({definition}) cannot be part of a workflow triggered by "{event}" — the step itself declares that it would feed back into that trigger. Remove it, or fire the workflow from another event.',
+  'issue.step.extension-dependency':
+    'step "{step}" uses "{definition}", a step of the extension "{extension}" — declare it in `dependencies`, or the automation installs where the step does not exist and fails at its first run.',
+  'issue.extension-step.kernel':
+    'declares its own automation steps, which only exist from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest.',
+  'issue.extension-step.key': 'the step "{step}" needs a `key` of lowercase letters, digits and hyphens — it becomes part of the step id.',
+  'issue.extension-step.duplicate': 'the step key "{step}" is declared twice.',
+  'issue.extension-step.name': 'the step "{step}" has no `name` — it is what the editor shows in the step list.',
+  'issue.extension-step.icon': 'the step "{step}" uses the icon "{icon}", which is not in the icon catalog.',
+  'issue.extension-step.impl':
+    'the step "{step}" must run an automation (`impl.kind: "workflow"`) or a script (`impl.kind: "script"`) of the package, not "{kind}".',
+  'issue.extension-step.body-missing': 'the step "{step}" runs "{body}", which is not in this package.',
+  'issue.extension-step.body-not-called':
+    'the step "{step}" runs the automation "{body}", which is not triggered as a called workflow — only a called workflow receives parameters and returns a result.',
+  'issue.extension-step.body-pauses':
+    'the step "{step}" runs the automation "{body}", whose step "{pausing}" pauses. The step waits for its body in the same run, and a pause there would fail with the flow running.',
   'issue.step.delay-nested':
     'step "{step}" waits inside a condition branch or a loop body. A wait only pauses at the top level of the workflow — there the flow would stop with an error.',
   'issue.step.delay-in-action':

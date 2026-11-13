@@ -278,6 +278,12 @@ export interface WorkflowStepMetadata {
    * passo em runtime para o que chegou por fora das duas portas.
    */
   excludedTriggers?: readonly string[];
+  /**
+   * O alvo FIXADO por quem declarou o passo — o corpo de um passo de extensão. O editor o semeia na
+   * entrada `dynamicInputs.sourceInputId`, e daí as entradas e as saídas do corpo saem pelo caminho de
+   * sempre. Ver `workflowStepContribution.ts`.
+   */
+  fixedTarget?: string;
 }
 
 /** O passo não pode compor uma automação disparada por `eventName`. */

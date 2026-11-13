@@ -1,6 +1,7 @@
 import type { MarketplacePlugin, WorkflowModuleTemplate } from '../../entities/MarketplacePlugin';
 import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
 import { flattenSteps } from '../../services/stepTree';
+import { extensionStepsOf, parseExtensionStepId } from '../../schema/workflowStepContribution';
 import {
   CONTROL_STEP_TYPES,
   UNIMPLEMENTED_STEP_TYPES,
@@ -255,10 +256,24 @@ const outputRefIssues = (
   return issues;
 };
 
+/** O que um passo de extensão precisa saber do pacote: os passos que ele declara e de quem ele depende. */
+interface PackageStepContext {
+  ownPluginId: string;
+  own: ReadonlySet<string>;
+  dependencies: ReadonlySet<string>;
+}
+
+const packageStepContext = (pkg: MarketplacePlugin): PackageStepContext => ({
+  ownPluginId: pkg.manifest?.id ?? '',
+  own: new Set(extensionStepsOf(pkg.manifest?.id ?? '', pkg.manifest?.contributes).map((one) => one.id)),
+  dependencies: new Set(Object.keys(pkg.manifest?.dependencies ?? {})),
+});
+
 const stepIssues = (
   step: WorkflowStep,
   ref: PackageRef,
   hasDependencies: boolean,
+  pkgSteps: PackageStepContext,
 ): PackageValidationIssue[] => {
   if (UNIMPLEMENTED_STEP_TYPES.includes(step.type)) {
     return [{
@@ -302,9 +317,25 @@ const stepIssues = (
   }
 
   if (!isCoreStepDefinitionId(step.stepDefinitionId)) {
-    // Um passo pode vir de uma extensão que contribui para `workflow.step`, e daqui não há como
-    // resolvê-la. Mas isso exige a `dependency` declarada: sem nenhuma, um id que o kernel não
-    // conhece só pode ser erro de digitação — e é justamente o defeito mais comum.
+    // O passo de EXTENSÃO tem dono no id (`<pluginId>/<chave>`): o do próprio pacote tem de estar entre
+    // os que ele declara; o de outra extensão exige ela nas dependências — sem isso a automação instala
+    // num escritório que não tem o passo e falha na primeira execução.
+    const extension = parseExtensionStepId(step.stepDefinitionId);
+    if (extension && extension.pluginId === pkgSteps.ownPluginId) {
+      return pkgSteps.own.has(step.stepDefinitionId) ? [] : [{
+        ref,
+        message: '@core.marketplace/issue.step.unknown-definition',
+        messageParams: { step: step.id, definition: step.stepDefinitionId },
+      }];
+    }
+    if (extension) {
+      return pkgSteps.dependencies.has(extension.pluginId) ? [] : [{
+        ref,
+        message: '@core.marketplace/issue.step.extension-dependency',
+        messageParams: { step: step.id, definition: step.stepDefinitionId, extension: extension.pluginId },
+      }];
+    }
+    // Sem dono no id, só pode ser erro de digitação — a não ser que o pacote dependa de alguém.
     return hasDependencies ? [] : [{
       ref,
       message: '@core.marketplace/issue.step.unknown-definition',
@@ -346,7 +377,7 @@ const workflowIssues = (
     ...stepDefinitionKernelIssues(steps, ref, pkg),
     ...extractFieldsKernelIssues(steps, ref, pkg),
     ...reportFileKernelIssues(steps, ref, pkg),
-    ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies)),
+    ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies, packageStepContext(pkg))),
     ...outputRefIssues(steps, ref),
     ...documentStepIssues(steps, ref, pkg),
   ];

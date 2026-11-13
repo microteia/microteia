@@ -496,6 +496,21 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'a automação é disparada por "{event}", mas a tela "{screen}" não registra as aberturas no portal — declare `portal: { ..., trackViews: true }` nela. Sem isso o evento nunca é publicado, e a automação instalaria ligada e nunca dispararia.',
   'issue.step.excluded-trigger':
     'o passo "{step}" ({definition}) não pode compor uma automação disparada por "{event}" — o próprio passo declara que realimentaria esse gatilho. Remova-o, ou dispare a automação por outro evento.',
+  'issue.step.extension-dependency':
+    'o passo "{step}" usa "{definition}", um passo da extensão "{extension}" — declare-a em `dependencies`, ou a automação instala onde o passo não existe e falha na primeira execução.',
+  'issue.extension-step.kernel':
+    'declara passos de automação próprios, que só existem a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifesto.',
+  'issue.extension-step.key': 'o passo "{step}" precisa de uma `key` com letras minúsculas, dígitos e hífen — ela vira parte do id do passo.',
+  'issue.extension-step.duplicate': 'a chave de passo "{step}" está declarada duas vezes.',
+  'issue.extension-step.name': 'o passo "{step}" não tem `name` — é o que o editor mostra na lista de passos.',
+  'issue.extension-step.icon': 'o passo "{step}" usa o ícone "{icon}", que não está no catálogo de ícones.',
+  'issue.extension-step.impl':
+    'o passo "{step}" deve executar uma automação (`impl.kind: "workflow"`) ou um script (`impl.kind: "script"`) do pacote, não "{kind}".',
+  'issue.extension-step.body-missing': 'o passo "{step}" executa "{body}", que não está neste pacote.',
+  'issue.extension-step.body-not-called':
+    'o passo "{step}" executa a automação "{body}", que não é disparada como fluxo chamado — só um fluxo chamado recebe parâmetros e devolve resultado.',
+  'issue.extension-step.body-pauses':
+    'o passo "{step}" executa a automação "{body}", cujo passo "{pausing}" pausa. O passo espera o corpo na mesma execução, e uma pausa ali falharia com o fluxo rodando.',
   'issue.step.delay-nested':
     'o passo "{step}" espera dentro de um ramo de condição ou do corpo de uma repetição. A espera só pausa no nível principal da automação — ali o fluxo pararia com erro.',
   'issue.step.delay-in-action':

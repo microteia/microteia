@@ -1,3 +1,5 @@
+import { isScreenIconKey } from '../../domain/schema/ui/screenIconCatalog';
+import { getScreenIconType } from './screenIcons';
 import type { IconType } from 'react-icons';
 import {
   RiCalendarEventLine,
@@ -50,4 +52,10 @@ const STEP_ICONS: Record<string, IconType> = {
   RiTimerFlashLine,
 };
 
-export const getStepIcon = (icon: string): IconType => STEP_ICONS[icon] ?? RiToolsLine;
+/**
+ * O passo do núcleo usa os nomes deste mapa; o de EXTENSÃO declara uma chave do catálogo de ícones de
+ * tela (`isScreenIconKey`, conferido na validação do pacote) — o mesmo vocabulário de todo ícone que um
+ * pacote escreve.
+ */
+export const getStepIcon = (icon: string): IconType =>
+  STEP_ICONS[icon] ?? (isScreenIconKey(icon) ? getScreenIconType(icon) : RiToolsLine);

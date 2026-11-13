@@ -150,6 +150,7 @@ import { FirestoreWorkflowTaskRepository } from '../../data/repositories/Firesto
 import { FirestoreReportDefinitionReader } from '../../data/repositories/FirestoreReportDefinitionReader';
 import { reportTableToPdf } from '../../data/services/document/reportTableToPdf';
 import { makeQueryPage } from '../workflow/query/pagedLoopQuery';
+import { makeExtensionStepResolver } from '../../domain/services/extensionSteps';
 import { FirestoreWorkflowVersionRepository } from '../../data/repositories/FirestoreWorkflowVersionRepository';
 import { entityDateFieldKeys, eventEntity } from '../../domain/schema/eventCatalog';
 import { dateReachedEventName } from '../../domain/schema/workflowClock';
@@ -817,6 +818,10 @@ class DIContainer {
       now: () => new Date(),
       timeZoneOf: tenantTimeZone,
       businessCalendarsOf: (tenantId) => this.getBusinessCalendarLoader().load(tenantId),
+      extensionStep: makeExtensionStepResolver({
+        stepsOf: (tenantId) => this.getInstalledExtensionCache().extensionSteps(tenantId),
+        core: stepRegistry,
+      }),
       queryPage: makeQueryPage({
         queryRepository: new FirestoreWorkflowQueryRepository(getDb()),
         fetcher: new FirestoreWorkflowRecordFetcher(getDb()),

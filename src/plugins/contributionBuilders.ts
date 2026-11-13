@@ -20,6 +20,7 @@ export const lazyView = (
 
 export {
   authProvider,
+  automationStep,
   command,
   menuItem,
   nav,

@@ -2,29 +2,23 @@ import { onCall } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
 import { stepRegistry } from '../../domain/engine/StepRegistry';
 import type { StepDefinition } from '../../domain/engine/StepDefinition';
+import { extensionStepCatalogEntry } from '../../domain/schema/workflowStepContribution';
+import { isOfficeMember } from './shared/requirePermission';
 
-/**
- * Tipo para o catálogo de Steps (sem o createExecutor, que não existe no front-end).
- */
+/** O catálogo como o editor o lê: a entrada, sem o executor (que não existe no front). */
 type StepDefinitionSummary = Omit<StepDefinition, 'createExecutor'>;
 
 /**
- * Cloud Function que retorna o catálogo de Steps disponíveis.
- * Não persiste no Firestore — retorna diretamente do registro em memória.
- * O front-end armazena em um Store para evitar múltiplas chamadas.
+ * O catálogo de passos: os do NÚCLEO, iguais para todo escritório, mais os que as extensões LIGADAS do
+ * escritório declaram — o "conector". Por isso ele é por escritório: a mesma tela, em outro escritório,
+ * oferece outros passos. Sem `tenantId` (ou para quem não é membro), só o núcleo.
  */
 export const getWorkflowStepCatalog = onCall(
-  {
-    region: 'southamerica-east1',
-    cors: true
-  },
-  async () => {
-    // Garante que os steps estão registrados (idempotente)
+  { region: 'southamerica-east1', cors: true },
+  async (request) => {
     await getDI().ensureWorkflowStepsRegistered();
 
-    // Converte cada StepDefinition para StepDefinitionSummary
-    // (remove apenas createExecutor, que não existe no tipo Summary)
-    const steps: StepDefinitionSummary[] = stepRegistry.list().map((def) => ({
+    const core: StepDefinitionSummary[] = stepRegistry.list().map((def) => ({
       id: def.id,
       version: def.version,
       name: def.name,
@@ -39,6 +33,10 @@ export const getWorkflowStepCatalog = onCall(
       dynamicInputs: def.dynamicInputs,
     }));
 
-    return { steps };
-  }
+    const tenantId = typeof request.data?.tenantId === 'string' ? request.data.tenantId : '';
+    if (!tenantId || !request.auth || !(await isOfficeMember(tenantId, request.auth))) return { steps: core };
+
+    const { steps } = await getDI().getInstalledExtensionCache().extensionSteps(tenantId);
+    return { steps: [...core, ...steps.map(extensionStepCatalogEntry)] };
+  },
 );

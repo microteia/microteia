@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.248.0] — 2026-11-13
+
+- Extensões agora podem trazer passos de automação próprios — os "conectores". Uma extensão de CRM, por exemplo, pode oferecer o passo "Criar contato", que aparece na lista de passos de qualquer automação do escritório, com as entradas e saídas certas, sem que ninguém precise montar a chamada à API à mão.
+- Se a extensão de um passo for desligada ou removida, a automação que o usa para nesse passo dizendo qual extensão falta.
+
 #### [9.247.0] — 2026-11-13
 
 - Na aba Versões de uma automação, e nas versões de um script, "Comparar com a atual" mostra o que mudou desde aquela versão: os campos alterados, os passos acrescentados, retirados, movidos ou alterados (com quais configurações) e, no script, quantas linhas de código entraram e saíram. Assim dá para saber o que uma restauração desfaria antes de restaurar.
