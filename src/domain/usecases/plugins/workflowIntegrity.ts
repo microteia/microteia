@@ -59,7 +59,12 @@ import {
 } from '../../schema/workflowClock';
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { hasChangeFilter, WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../schema/workflowChangeFilter';
-import { APPROVAL_STEP_ID, WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../schema/workflowTask';
+import {
+  APPROVAL_STEP_ID,
+  WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL,
+  WORKFLOW_APPROVAL_REMINDER_SINCE_KERNEL,
+  WORKFLOW_APPROVAL_SINCE_KERNEL,
+} from '../../schema/workflowTask';
 import { REPORT_FILE_SINCE_KERNEL, REPORT_SNAPSHOTS_SINCE_KERNEL, RUN_REPORT_STEP_ID, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../schema/report/reportStep';
 import { WAIT_FOR_STEP_ID, WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../schema/workflowWait';
 import { WORKFLOW_PAGED_LOOP_SINCE_KERNEL } from '../../schema/workflowLoopQuery';
@@ -771,26 +776,30 @@ const reportFileKernelIssues = (
 };
 
 /**
- * A aprovação pelo portal ou com quórum num pacote que admite kernel anterior: lá as duas entradas são
- * ignoradas — o convidado nunca seria chamado, e a primeira decisão fecharia o que pedia votos.
+ * A aprovação pelo portal, com quórum ou com lembrete num pacote que admite kernel anterior: lá as entradas
+ * são ignoradas — o convidado nunca seria chamado, a primeira decisão fecharia o que pedia votos, e ninguém
+ * seria lembrado.
  */
+const APPROVAL_INPUTS_SINCE: ReadonlyArray<[input: string, since: string]> = [
+  ['portalGuests', WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL],
+  ['quorum', WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL],
+  ['remindEveryDays', WORKFLOW_APPROVAL_REMINDER_SINCE_KERNEL],
+];
+
 const approvalPortalKernelIssues = (
   steps: WorkflowStep[],
   ref: PackageRef,
   pkg: MarketplacePlugin,
-): PackageValidationIssue[] => {
-  if (rangeExcludesBelow(pkg.manifest?.kernel ?? '', WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL)) return [];
-  return steps.flatMap((step): PackageValidationIssue[] => {
-    if (step.stepDefinitionId !== APPROVAL_STEP_ID) return [];
-    return (['portalGuests', 'quorum'] as const)
-      .filter((input) => step.configuration?.[input] !== undefined)
-      .map((input) => ({
-        ref,
-        message: '@core.marketplace/issue.step.input-kernel',
-        messageParams: { step: step.id, input, minimum: WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL },
-      }));
-  });
-};
+): PackageValidationIssue[] => steps.flatMap((step): PackageValidationIssue[] => {
+  if (step.stepDefinitionId !== APPROVAL_STEP_ID) return [];
+  return APPROVAL_INPUTS_SINCE
+    .filter(([input, since]) => step.configuration?.[input] !== undefined && !rangeExcludesBelow(pkg.manifest?.kernel ?? '', since))
+    .map(([input, since]) => ({
+      ref,
+      message: '@core.marketplace/issue.step.input-kernel',
+      messageParams: { step: step.id, input, minimum: since },
+    }));
+});
 
 /** A foto para a série num pacote que admite kernel anterior: lá o `snapshot` é ignorado, e a série nunca nasce. */
 const reportSnapshotKernelIssues = (

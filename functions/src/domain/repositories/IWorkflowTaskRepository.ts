@@ -33,6 +33,17 @@ export interface IWorkflowTaskRepository {
    * vence, a outra recebe `not-open`.
    */
   decide(tenantId: string, taskId: string, decision: WorkflowTaskDecision): Promise<WorkflowTaskDecisionResult>;
+  /**
+   * As tarefas ABERTAS de todos os escritórios com lembrete vencido, as mais atrasadas primeiro — a varredura
+   * que pega carona no relógio.
+   */
+  dueReminders(now: Date, limit: number): Promise<WorkflowTask[]>;
+  /**
+   * Reserva o lembrete VISTO: move `nextReminderAt` para `next` (ou o encerra) e conta mais um, numa
+   * transação que só vale se a tarefa ainda está aberta com o mesmo `nextReminderAt`. `false` quando outra
+   * volta já o reservou, ou a tarefa fechou — é o que faz cada lembrete sair uma vez só.
+   */
+  claimReminder(task: WorkflowTask, next: Date | null): Promise<boolean>;
   /** Fecha como expirada — só a que ainda está aberta. */
   expire(tenantId: string, taskId: string, at: Date): Promise<void>;
 }

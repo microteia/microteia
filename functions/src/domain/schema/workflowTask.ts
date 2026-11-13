@@ -37,6 +37,12 @@ export const WORKFLOW_APPROVAL_SINCE_KERNEL = '2.110.0';
 /** O kernel que passou a entender a aprovação pelo PORTAL (`portalGuests`) e o QUÓRUM (`quorum`). */
 export const WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL = '2.125.0';
 
+/** O kernel que passou a LEMBRAR quem ainda não decidiu (`remindEveryDays`). */
+export const WORKFLOW_APPROVAL_REMINDER_SINCE_KERNEL = '2.126.0';
+
+/** O maior intervalo entre lembretes. Acima disso já não é lembrete — é um segundo pedido. */
+export const MAX_APPROVAL_REMINDER_DAYS = 30;
+
 /** Por onde o voto chegou: a caixa de tarefas (ou o MCP) de um membro, ou o portal de um convidado. */
 export type WorkflowTaskVoteVia = 'member' | 'portal';
 
@@ -97,6 +103,12 @@ export interface WorkflowTask {
   quorum?: number;
   /** Os votos, por pessoa — só nas tarefas com quórum. */
   votes?: Record<string, WorkflowTaskVote>;
+  /** De quantos em quantos dias quem ainda não decidiu é lembrado. Ausente: só o aviso de quando a tarefa nasceu. */
+  remindEveryDays?: number;
+  /** Quando sai o próximo lembrete; `null` quando não há mais nenhum antes do prazo. */
+  nextReminderAt?: Date | null;
+  /** Quantos lembretes já saíram — é o que faz cada um ser um aviso novo, e não a repetição do anterior. */
+  reminders?: number;
   outcomes: WorkflowTaskOutcome[];
   status: WorkflowTaskStatus;
   createdAt: Date;
@@ -182,4 +194,33 @@ export const tallyApprovalVotes = (
   const others = task.outcomes.slice(1).map((one) => one.key);
   const winner = others.reduce((best, key) => (count(key) > count(best) ? key : best), others[0] ?? first);
   return { closed: true, outcome: winner };
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** O intervalo declarado, em dias inteiros: vazio, zero ou inválido não lembra; acima do teto, o teto. */
+export const approvalRemindEveryOf = (declared: unknown): number | null => {
+  const days = typeof declared === 'number' ? declared : typeof declared === 'string' && declared.trim() !== '' ? Number(declared) : NaN;
+  if (!Number.isFinite(days) || days < 1) return null;
+  return Math.min(Math.floor(days), MAX_APPROVAL_REMINDER_DAYS);
+};
+
+/**
+ * O PRÓXIMO lembrete depois de `from`, ou `null` quando ele cairia no prazo ou depois dele: no prazo a tarefa
+ * fecha sozinha, e o lembrete chegaria junto com o "expirou".
+ */
+export const nextApprovalReminder = (from: Date, everyDays: number, until: Date): Date | null => {
+  const next = new Date(from.getTime() + everyDays * DAY_MS);
+  return next.getTime() < until.getTime() ? next : null;
+};
+
+/** Quem ainda deve a decisão: os designados — membros e convidados — que não votaram. */
+export const pendingTaskVoters = (
+  task: Pick<WorkflowTask, 'assigneeIds' | 'guestIds' | 'votes'>,
+): { members: string[]; guests: string[] } => {
+  const voted = new Set(Object.keys(task.votes ?? {}));
+  return {
+    members: task.assigneeIds.filter((id) => !voted.has(id)),
+    guests: (task.guestIds ?? []).filter((id) => !voted.has(id)),
+  };
 };

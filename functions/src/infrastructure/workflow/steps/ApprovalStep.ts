@@ -11,6 +11,8 @@ import {
   MAX_APPROVAL_DAYS,
   approvalOutcomesOf,
   approvalQuorumOf,
+  approvalRemindEveryOf,
+  nextApprovalReminder,
   workflowTaskId,
 } from '../../../domain/schema/workflowTask';
 import type { ResolvePortalGuestsUseCase } from '../../../domain/usecases/ResolvePortalGuestsUseCase';
@@ -103,6 +105,9 @@ export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefiniti
       const stepId = context.stepId ?? 'approval';
       const taskId = workflowTaskId(context.execution.id, stepId);
       const message = textOf(inputs.message);
+      // O primeiro lembrete sai um intervalo depois do aviso de quando a tarefa nasce — nunca no prazo.
+      const remindEveryDays = approvalRemindEveryOf(inputs.remindEveryDays);
+      const nextReminderAt = remindEveryDays ? nextApprovalReminder(now, remindEveryDays, resumeAt) : null;
 
       await deps.tasks.createIfAbsent({
         id: taskId,
@@ -115,6 +120,7 @@ export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefiniti
         assigneeIds,
         ...(guestIds.length > 0 ? { guestIds } : {}),
         ...(quorum > 1 ? { quorum } : {}),
+        ...(remindEveryDays && nextReminderAt ? { remindEveryDays, nextReminderAt } : {}),
         outcomes,
         status: 'open',
         createdAt: now,

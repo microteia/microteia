@@ -729,6 +729,15 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         allowedMappingKinds: ['Literal'],
       },
       {
+        /** De quantos em quantos dias quem ainda não decidiu é lembrado — até o prazo. Vazio: sem lembrete. */
+        id: 'remindEveryDays',
+        label: '@core.automation/step.approval.label.remind-every-days',
+        description: '@core.automation/step.approval.help.remind-every-days',
+        required: false,
+        type: 'Number',
+        allowedMappingKinds: ['Literal'],
+      },
+      {
         /** Quantos votos no PRIMEIRO desfecho fecham a tarefa: vazio (a primeira decisão), `all` ou um número. */
         id: 'quorum',
         label: '@core.automation/step.approval.label.quorum',

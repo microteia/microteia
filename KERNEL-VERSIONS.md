@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.253.0] — 2026-11-13
+
+- feat(workflow): approval reminders. `approval` takes `remindEveryDays` (1–30): the task stores `remindEveryDays`, `nextReminderAt` (one interval after creation, never at the deadline) and `reminders`. `remindDueApprovals` piggybacks on `runWorkflowClock` (isolated like the HTTP queue): a collection-group query on open tasks with a due `nextReminderAt` (new COLLECTION_GROUP index), a transactional `claimReminder` per reminder, then notifies only pending voters — members to the task list, portal guests to the record — with dedup key `<task>:remind:<n>`. The next reminder counts from now, so a stalled clock never bursts. No new clock entry kind: resume, schedule and date triggers are untouched. `KERNEL_VERSION` 2.126.0.
+
 #### [9.252.0] — 2026-11-13
 
 - feat(workflow): approval by portal guests. `approval` takes `portalGuests: true`: the guests who see the event record now (`ResolvePortalGuestsUseCase`) are stored in `guestIds`, apart from member `assigneeIds`, and notified through the portal channel with the record as target. No record or a record outside the portal fails the step before creating the task.

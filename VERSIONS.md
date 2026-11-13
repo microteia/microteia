@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.253.0] — 2026-11-13
+
+- Aprovações agora podem lembrar quem ainda não decidiu. No passo de aprovação, informe "Lembrar a cada (dias)": membros recebem o lembrete na caixa de tarefas e convidados do portal no próprio registro, até o prazo — e quem já votou não é incomodado.
+
 #### [9.252.0] — 2026-11-13
 
 - Aprovações agora podem ser feitas por clientes e parceiros no portal. Na automação, ligue "Convidados do portal também decidem": quem vê o registro no portal recebe o aviso e decide ali mesmo, na página do registro, com os botões de desfecho e um comentário.

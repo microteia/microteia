@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { approvalOutcomesOf, approvalQuorumOf, DEFAULT_APPROVAL_OUTCOMES, tallyApprovalVotes, workflowTaskId } from './workflowTask';
+import {
+  approvalOutcomesOf, approvalQuorumOf, approvalRemindEveryOf, DEFAULT_APPROVAL_OUTCOMES, nextApprovalReminder,
+  pendingTaskVoters, tallyApprovalVotes, workflowTaskId,
+} from './workflowTask';
 
 describe('approvalOutcomesOf', () => {
   it('sem desfecho declarado, aprovar e recusar', () => {
@@ -74,6 +77,32 @@ describe('quórum de aprovação', () => {
     expect(tallyApprovalVotes(mixed, { m0: { outcome: 'approved', at: at(1) } })).toEqual({ closed: false });
     expect(tallyApprovalVotes(mixed, { m0: { outcome: 'approved', at: at(1) }, g1: { outcome: 'approved', at: at(2) } }))
       .toEqual({ closed: true, outcome: 'approved' });
+  });
+});
+
+describe('lembrete de aprovação', () => {
+  it('o intervalo: vazio, zero ou texto não lembram; acima de 30, 30; fração, para baixo', () => {
+    expect(approvalRemindEveryOf(undefined)).toBeNull();
+    expect(approvalRemindEveryOf('')).toBeNull();
+    expect(approvalRemindEveryOf(0)).toBeNull();
+    expect(approvalRemindEveryOf('dois')).toBeNull();
+    expect(approvalRemindEveryOf(2)).toBe(2);
+    expect(approvalRemindEveryOf('3')).toBe(3);
+    expect(approvalRemindEveryOf(2.7)).toBe(2);
+    expect(approvalRemindEveryOf(90)).toBe(30);
+  });
+
+  it('o próximo lembrete antes do prazo, e nenhum no prazo ou depois', () => {
+    const from = new Date('2026-11-13T12:00:00Z');
+    expect(nextApprovalReminder(from, 2, new Date('2026-11-20T12:00:00Z'))).toEqual(new Date('2026-11-15T12:00:00Z'));
+    expect(nextApprovalReminder(from, 2, new Date('2026-11-15T12:00:00Z'))).toBeNull();
+  });
+
+  it('pendentes: quem ainda não votou, membros e convidados à parte', () => {
+    expect(pendingTaskVoters({
+      assigneeIds: ['ana', 'bia'], guestIds: ['cliente'],
+      votes: { bia: { outcome: 'approved', name: 'Bia', at: new Date(), comment: '', via: 'member' } },
+    })).toEqual({ members: ['ana'], guests: ['cliente'] });
   });
 });
 

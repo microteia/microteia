@@ -59,6 +59,9 @@ export const mapWorkflowTask = (tenantId: string, id: string, data: DocumentData
     ...(Array.isArray(data.guestIds) ? { guestIds: strings(data.guestIds) } : {}),
     ...(typeof data.quorum === 'number' && data.quorum > 1 ? { quorum: data.quorum } : {}),
     ...(data.votes && typeof data.votes === 'object' ? { votes: votesOf(data.votes) } : {}),
+    ...(typeof data.remindEveryDays === 'number' && data.remindEveryDays > 0 ? { remindEveryDays: data.remindEveryDays } : {}),
+    ...(data.nextReminderAt !== undefined ? { nextReminderAt: toDate(data.nextReminderAt) } : {}),
+    ...(typeof data.reminders === 'number' ? { reminders: data.reminders } : {}),
     outcomes: outcomesOf(data.outcomes),
     status: STATUSES.includes(data.status) ? data.status : 'open',
     createdAt: toDate(data.createdAt) ?? new Date(0),
@@ -92,6 +95,9 @@ export class FirestoreWorkflowTaskRepository implements IWorkflowTaskRepository 
         assigneeIds: task.assigneeIds,
         ...(task.guestIds && task.guestIds.length > 0 ? { guestIds: task.guestIds } : {}),
         ...(task.quorum && task.quorum > 1 ? { quorum: task.quorum, votes: {} } : {}),
+        ...(task.remindEveryDays && task.nextReminderAt
+          ? { remindEveryDays: task.remindEveryDays, nextReminderAt: Timestamp.fromDate(task.nextReminderAt), reminders: 0 }
+          : {}),
         outcomes: task.outcomes,
         status: task.status,
         createdAt: Timestamp.fromDate(task.createdAt),
@@ -164,6 +170,36 @@ export class FirestoreWorkflowTaskRepository implements IWorkflowTaskRepository 
           comment: decision.comment,
         },
       };
+    });
+  }
+
+  // Uma consulta de grupo, servida pelo índice `status` + `nextReminderAt` (COLLECTION_GROUP): a tarefa sem
+  // lembrete não tem o campo, e não entra nela.
+  async dueReminders(now: Date, limit: number): Promise<WorkflowTask[]> {
+    const snapshot = await this.db.collectionGroup(WORKFLOW_TASKS_COLLECTION)
+      .where('status', '==', 'open')
+      .where('nextReminderAt', '<=', Timestamp.fromDate(now))
+      .orderBy('nextReminderAt', 'asc')
+      .limit(limit)
+      .get();
+    return snapshot.docs.flatMap((doc) => {
+      const tenantId = doc.ref.parent.parent?.id;
+      return tenantId ? [mapWorkflowTask(tenantId, doc.id, doc.data())] : [];
+    });
+  }
+
+  async claimReminder(task: WorkflowTask, next: Date | null): Promise<boolean> {
+    const ref = this.ref(task.tenantId, task.id);
+    return this.db.runTransaction(async (tx) => {
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists || snapshot.get('status') !== 'open') return false;
+      const stored = toDate(snapshot.get('nextReminderAt'));
+      if (!stored || !task.nextReminderAt || stored.getTime() !== task.nextReminderAt.getTime()) return false;
+      tx.update(ref, {
+        nextReminderAt: next ? Timestamp.fromDate(next) : null,
+        reminders: (typeof snapshot.get('reminders') === 'number' ? snapshot.get('reminders') : 0) + 1,
+      });
+      return true;
     });
   }
 

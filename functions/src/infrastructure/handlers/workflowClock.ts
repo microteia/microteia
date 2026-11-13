@@ -6,6 +6,7 @@ import type { ClockedDefinition } from '../../domain/services/workflowClock';
 import { WORKFLOW_CLOCK_TICK_MINUTES } from '../../domain/schema/workflowClock';
 import { versionArtifactOnWrite, versionWorkflowOnWrite } from '../../domain/services/workflowVersions';
 import { SCRIPT_VERSION_CONTENT_KEYS } from '../../domain/schema/workflowVersion';
+import { remindDueApprovals } from '../../domain/services/approvalReminders';
 
 const REGION = 'southamerica-east1';
 
@@ -21,6 +22,9 @@ const MAX_ROUNDS_PER_TICK = 5;
  * registros; o que sobrar continua vencido e é da execução seguinte, em vez de estourar o timeout no meio.
  */
 const TICK_BUDGET_MS = 150_000;
+
+/** Quantas aprovações vencidas de lembrete uma volta lembra. O resto fica para a próxima. */
+const APPROVAL_REMINDER_SWEEP_LIMIT = 100;
 
 /** Quantos pedidos HTTP vencidos uma volta devolve à fila. O resto fica para a próxima. */
 const HTTP_DISPATCH_SWEEP_LIMIT = 200;
@@ -111,6 +115,19 @@ export const runWorkflowClock = onSchedule(
       if (requeued > 0) console.log(`[workflow-clock] ${requeued} pedido(s) HTTP de volta à fila`);
     } catch (error) {
       console.error('[workflow-clock] Falha ao devolver pedidos HTTP à fila:', error);
+    }
+
+    // O lembrete das aprovações pega a mesma carona, também isolado: um aviso com defeito não pode atrasar
+    // o relógio, e a aprovação que não lembrou continua valendo até o prazo.
+    try {
+      const di = getDI();
+      const reminded = await remindDueApprovals(
+        { tasks: di.getWorkflowTaskRepository(), dispatch: di.getDispatchNotificationUseCase(), now: () => new Date() },
+        APPROVAL_REMINDER_SWEEP_LIMIT,
+      );
+      if (reminded > 0) console.log(`[workflow-clock] ${reminded} aprovação(ões) lembrada(s)`);
+    } catch (error) {
+      console.error('[workflow-clock] Falha ao lembrar aprovações:', error);
     }
 
     const deps = getDI().getWorkflowClockDeps();

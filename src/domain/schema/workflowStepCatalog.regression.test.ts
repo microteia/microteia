@@ -33,7 +33,7 @@ const CONFERIDOS: Record<string, string> = {
   // 9.217.0: o modo assíncrono acrescentou o callback (`targetWorkflowId` + `param.<chave>`) e a saída `dispatchId`.
   'http-request': '1b0d018be3252c',
   // 9.227.0: a tarefa humana — o passo que para a execução até uma pessoa decidir.
-  approval: '173eab027332f3',
+  approval: '0de45de97a2670',
   // 9.228.0: o relatório como passo. 9.239.0: o arquivo em Downloads (`file`) e a tabela legível (`table`).
   'run-report': '16f8d1b852b9e1',
   // 9.230.0: esperar o próximo evento de um registro, com condição e prazo.

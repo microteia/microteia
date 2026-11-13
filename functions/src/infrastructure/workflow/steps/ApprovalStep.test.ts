@@ -20,6 +20,8 @@ const harness = (guests: { inPortal: boolean; ids: string[] } = { inPortal: true
     listOpenForAssignee: async () => [],
     decide: async () => ({ ok: false, reason: 'not-found' }),
     expire: async () => undefined,
+    dueReminders: async () => [],
+    claimReminder: async () => false,
   };
   const dispatch: DispatchNotificationUseCase = {
     execute: async (request) => {
@@ -207,4 +209,29 @@ describe('passo approval', () => {
     expect(run.logs.some((log) => log.message === '@core.automation/step.approval.quorum-invalid')).toBe(true);
     expect(created).toHaveLength(0);
   });
+
+  it('com lembrete, a tarefa nasce com o intervalo e o primeiro lembrete um intervalo depois — nunca no prazo', async () => {
+    const { created, registry } = harness();
+    await runWorkflow({
+      definition: definition([approvalStep({
+        assigneeMembers: { kind: 'Literal', value: ['bia'] },
+        dueInDays: { kind: 'Literal', value: 5 },
+        remindEveryDays: { kind: 'Literal', value: 2 },
+      })]),
+      event, registry, services, suspendable: true,
+    });
+    expect(created[0]).toMatchObject({ remindEveryDays: 2, nextReminderAt: new Date('2026-11-13T12:00:00Z') });
+
+    const tooLate = harness();
+    await runWorkflow({
+      definition: definition([approvalStep({
+        assigneeMembers: { kind: 'Literal', value: ['bia'] },
+        dueInDays: { kind: 'Literal', value: 1 },
+        remindEveryDays: { kind: 'Literal', value: 2 },
+      })]),
+      event, registry: tooLate.registry, services, suspendable: true,
+    });
+    expect(tooLate.created[0].nextReminderAt).toBeUndefined();
+  });
 });
+

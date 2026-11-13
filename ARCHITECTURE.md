@@ -8327,7 +8327,17 @@ e com hífen, e é ela que a automação compara; sem nenhum, `approved`/`reject
   `all`, uma recusa já fecha. O voto que não fecha responde `voted` e NÃO retoma a execução; o que fecha
   retoma com `votes` (a lista) nas saídas. A caixa esconde a tarefa de quem já votou e mostra o progresso.
 
-**Ainda não**: lembrete periódico e delegação.
+**Lembrete** (`remindEveryDays`, kernel ≥ `WORKFLOW_APPROVAL_REMINDER_SINCE_KERNEL`, 2.126.0): a tarefa guarda
+`remindEveryDays`, `nextReminderAt` (um intervalo depois de nascer, e nunca no prazo — `nextApprovalReminder`) e
+`reminders`. A varredura `remindDueApprovals` pega carona no `runWorkflowClock`, isolada num try como a fila
+HTTP: consulta de grupo `status == 'open'` + `nextReminderAt <= agora` (índice COLLECTION_GROUP), RESERVA cada
+lembrete numa transação (`claimReminder`: mesma `nextReminderAt`, ainda aberta) e só então avisa quem ainda
+deve a decisão (`pendingTaskVoters`) — membros pela caixa, convidados pelo registro no portal —, com a chave
+`<tarefa>:remind:<n>`. O próximo conta a partir de agora, não do atrasado: o relógio parado não dispara uma
+rajada. Não é um tipo novo de entrada do relógio de propósito: a retomada, o agendamento e o gatilho de data
+ficam intocados. Testes do repositório real no emulador: `rules-tests/approvalReminders.test.ts`.
+
+**Ainda não**: delegação.
 
 ### Esperar um evento (`wait-for`)
 
@@ -16753,6 +16763,8 @@ Além dos compostos, o arquivo declara catorze `fieldOverrides`:
 | `registrationRefusals` | `expiresAt` | TTL — a recusa de conta nova só serve à tentativa em curso (1 dia); sem índice, porque só é lida pelo id |
 | `http_dispatches` (collectionGroup) | `nextAttemptAt` ASC | `runWorkflowClock` devolve à fila, em todos os escritórios de uma vez, o pedido HTTP assíncrono cuja espera venceu, cuja entrega morreu no meio ou que ninguém pegou |
 | `http_dispatches` | `expiresAt` | TTL — o pedido HTTP assíncrono fica 7 dias depois de criado; o resultado já foi para o callback |
+| `workflow_tasks` (collectionGroup) | `status` ASC, `nextReminderAt` ASC | `runWorkflowClock` acha, em todos os escritórios de uma vez, as aprovações abertas com lembrete vencido |
+| `workflow_tasks` | `guestIds` CONTAINS, `status` ASC, `createdAt` DESC | O portal acompanha as aprovações abertas em que o convidado decide |
 | `report_snapshots` | `report` ASC, `takenAt` DESC | A série de instantâneos de um relatório: as fotos mais recentes dele, até `REPORT_SNAPSHOT_MAX_SERIES` |
 | `webhook_deliveries` (sob `workflow_webhooks/{id}`) | `expiresAt` | TTL — a marca de "esta entrega já chegou" do webhook vale a janela de reenvio (`WEBHOOK_DELIVERY_WINDOW_HOURS`, 24 h); sem índice, porque só é lida pelo id |
 | `report_snapshots` | `expiresAt` | TTL — a foto de um relatório é mantida por 5 anos (`REPORT_SNAPSHOT_RETENTION_YEARS`) |
