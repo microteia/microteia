@@ -1,3 +1,6 @@
+import { diffArtifactVersions } from '../../../domain/services/artifactVersionDiff';
+import { SCRIPT_VERSION_CONTENT_KEYS } from '../../../domain/schema/workflowVersion';
+import { describeVersionChanges } from '../../shared/versionDiffText';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { transpileScriptSource as transpile } from '../../../domain/services/scriptSource';
 import { useScriptStore } from '../../../stores/useScriptStore';
@@ -111,6 +114,10 @@ export interface ViewScriptViewModel {
   versionsError: string | null;
   restoringVersion: number | null;
   restoreVersion: (version: number) => void;
+  /** A versão aberta em comparação com a salva agora, e o que mudou dela para cá. */
+  comparingVersion: number | null;
+  toggleCompareVersion: (version: number) => void;
+  versionChanges: string[];
   openDataFunctionReference: () => void;
   isSaving: boolean;
   canSave: boolean;
@@ -209,6 +216,18 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
       setRestoringVersion(null);
     }
   }, [storedVersions, script, updateScript, notify, t, label]);
+
+  const [comparingVersion, setComparingVersion] = useState<number | null>(null);
+  // Da versão escolhida para a SALVA — o que restaurá-la desfaria. O que está só no editor não entra.
+  const versionChanges = useMemo(() => {
+    const chosen = storedVersions.find((one) => one.version === comparingVersion);
+    if (!chosen || !script) return [];
+    return describeVersionChanges(
+      diffArtifactVersions(SCRIPT_VERSION_CONTENT_KEYS, chosen.content, script as unknown as Record<string, unknown>),
+      label,
+      (stepDefinitionId) => stepDefinitionId,
+    );
+  }, [storedVersions, comparingVersion, script, label]);
 
   const latestStored = storedVersions[0]?.version ?? 0;
   const versions = useMemo(
@@ -471,6 +490,9 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     versionsError,
     restoringVersion,
     restoreVersion: (version) => { void restoreVersion(version); },
+    comparingVersion,
+    toggleCompareVersion: (version) => setComparingVersion((current) => (current === version ? null : version)),
+    versionChanges,
     openDataFunctionReference,
     isSaving,
     canSave,

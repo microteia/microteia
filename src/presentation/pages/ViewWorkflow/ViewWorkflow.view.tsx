@@ -827,15 +827,27 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       <S.FieldHint>{version.origin}</S.FieldHint>
                     </div>
                     {!version.isCurrent && (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        disabled={vm.restoringVersion !== null}
-                        onClick={() => vm.restoreVersion(version.version)}
-                      >
-                        {t('versions.restore')}
-                      </Button>
+                      <S.HeaderActions>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => vm.toggleCompareVersion(version.version)}>
+                          {t(vm.comparingVersion === version.version ? 'versions.compare.close' : 'versions.compare')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          disabled={vm.restoringVersion !== null}
+                          onClick={() => vm.restoreVersion(version.version)}
+                        >
+                          {t('versions.restore')}
+                        </Button>
+                      </S.HeaderActions>
+                    )}
+                    {vm.comparingVersion === version.version && (
+                      <S.VersionChanges>
+                        {vm.versionChanges.length === 0
+                          ? <S.FieldHint>{t('versions.diff.none')}</S.FieldHint>
+                          : vm.versionChanges.map((change) => <S.FieldHint key={change}>{change}</S.FieldHint>)}
+                      </S.VersionChanges>
                     )}
                   </S.VersionRow>
                 ))}

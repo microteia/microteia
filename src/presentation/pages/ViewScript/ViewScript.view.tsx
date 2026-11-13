@@ -324,13 +324,25 @@ const names = r.results.map((item) => item.name);`}</S.Pre>
                         <S.SectionHint>{version.origin}</S.SectionHint>
                       </div>
                       {!version.isCurrent && (
-                        <S.AddBtn
-                          type="button"
-                          disabled={vm.restoringVersion !== null}
-                          onClick={() => vm.restoreVersion(version.version)}
-                        >
-                          {t('versions.restore')}
-                        </S.AddBtn>
+                        <S.VersionActions>
+                          <S.AddBtn type="button" onClick={() => vm.toggleCompareVersion(version.version)}>
+                            {t(vm.comparingVersion === version.version ? 'versions.compare.close' : 'versions.compare')}
+                          </S.AddBtn>
+                          <S.AddBtn
+                            type="button"
+                            disabled={vm.restoringVersion !== null}
+                            onClick={() => vm.restoreVersion(version.version)}
+                          >
+                            {t('versions.restore')}
+                          </S.AddBtn>
+                        </S.VersionActions>
+                      )}
+                      {vm.comparingVersion === version.version && (
+                        <S.VersionChanges>
+                          {vm.versionChanges.length === 0
+                            ? <S.SectionHint>{t('versions.diff.none')}</S.SectionHint>
+                            : vm.versionChanges.map((change) => <S.SectionHint key={change}>{change}</S.SectionHint>)}
+                        </S.VersionChanges>
                       )}
                     </S.VersionRow>
                   ))

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.247.0] — 2026-11-13
+
+- Na aba Versões de uma automação, e nas versões de um script, "Comparar com a atual" mostra o que mudou desde aquela versão: os campos alterados, os passos acrescentados, retirados, movidos ou alterados (com quais configurações) e, no script, quantas linhas de código entraram e saíram. Assim dá para saber o que uma restauração desfaria antes de restaurar.
+
 #### [9.246.0] — 2026-11-13
 
 - O agente de IA conectado pelo MCP agora propõe relatórios a partir de uma descrição (sem salvar nada) e trata as suas aprovações: lista as tarefas que estão esperando a sua decisão e decide uma em seu nome, retomando a automação na hora.

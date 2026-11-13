@@ -1,7 +1,10 @@
 import { pagedLoopPageSize } from '../../../domain/schema/workflowLoopQuery';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
+import { diffArtifactVersions } from '../../../domain/services/artifactVersionDiff';
+import { describeVersionChanges } from '../../shared/versionDiffText';
 import type { ArtifactVersion } from '../../../domain/schema/workflowVersion';
+import { WORKFLOW_VERSION_CONTENT_KEYS } from '../../../domain/schema/workflowVersion';
 import { WEBHOOK_DEFAULT_SIGNATURE_HEADER, WORKFLOW_WEBHOOK_EVENT } from '../../../domain/schema/workflowWebhook';
 import type { WebhookScheme } from '../../../domain/schema/workflowWebhook';
 import type { IssuedWorkflowWebhook } from '../../../domain/repositories/IWorkflowWebhookRepository';
@@ -323,6 +326,10 @@ export interface ViewWorkflowViewModel {
   versionsError: string | null;
   restoringVersion: number | null;
   restoreVersion: (version: number) => void;
+  /** A versão aberta em comparação com a atual, e o que mudou dela para cá. */
+  comparingVersion: number | null;
+  toggleCompareVersion: (version: number) => void;
+  versionChanges: string[];
   /** O gatilho é um webhook de ENTRADA: um sistema de fora dispara a automação por HTTP. */
   isWebhookEvent: boolean;
   /** Emitir e revogar exige a automação salva com o gatilho de webhook, e `automation.manage`. */
@@ -685,6 +692,18 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       setRestoringVersion(null);
     }
   }, [storedVersions, workflow, updateWorkflow, notify, t, label]);
+
+  const [comparingVersion, setComparingVersion] = useState<number | null>(null);
+  // Da versão escolhida para a ATUAL — o que restaurá-la desfaria.
+  const versionChanges = useMemo(() => {
+    const chosen = storedVersions.find((one) => one.version === comparingVersion);
+    if (!chosen || !workflow) return [];
+    return describeVersionChanges(
+      diffArtifactVersions(WORKFLOW_VERSION_CONTENT_KEYS, chosen.content, workflow as unknown as Record<string, unknown>),
+      label,
+      (stepDefinitionId) => label(stepCatalog.find((definition) => definition.id === stepDefinitionId)?.name),
+    );
+  }, [storedVersions, comparingVersion, workflow, label, stepCatalog]);
 
   const versions = useMemo(
     () => storedVersions.map((one) => {
@@ -1549,6 +1568,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     versions,
     versionsError,
     restoringVersion,
+    comparingVersion,
+    toggleCompareVersion: (version) => setComparingVersion((current) => (current === version ? null : version)),
+    versionChanges,
     restoreVersion: (version) => { void restoreVersion(version); },
     canManageWebhook: webhookWorkflowId !== null && can(PERMISSION_AUTOMATION_MANAGE),
     issuedWebhook,

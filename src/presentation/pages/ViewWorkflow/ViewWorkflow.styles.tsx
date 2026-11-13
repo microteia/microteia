@@ -659,8 +659,19 @@ export const S = {
     text-align: center;
   `,
 
+  /** A lista do que mudou ocupa a linha inteira, abaixo do título e dos botões. */
+  VersionChanges: styled.div`
+    flex-basis: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    padding-top: ${({ theme }) => theme.spacing.sm};
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+  `,
+
   VersionRow: styled.div`
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: ${({ theme }) => theme.spacing.md};

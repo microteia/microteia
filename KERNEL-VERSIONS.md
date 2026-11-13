@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.247.0] — 2026-11-13
+
+- feat(workflow): version comparison. `diffArtifactVersions` (`domain/services/artifactVersionDiff.ts`) compares a stored version with the current content by the artifact's content keys: top-level fields; steps by id at any depth — added, removed, moved (other parent, or other position among siblings kept under the same parent) and changed with the keys (`condition`, `onError`, each `configuration.<input>`); script source by added/removed lines, compiled output left out. `describeVersionChanges` renders it with a literal label table checked by `verify-messages`. "Compare with current" on workflow and script versions.
+
 #### [9.246.0] — 2026-11-13
 
 - feat(mcp): `draft_report` (read-only; requires `reports.manage` or `reports.personal` on the grant) through `draftReportForTenant`, now the single path shared with the `draftReport` callable; issues come back resolved, with `blocking`.

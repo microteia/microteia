@@ -9168,7 +9168,15 @@ citava saídas que não existiam mais, sem erro nenhum.
   hora, e a mudança vira aviso. A versão do script é histórico e restauração ("Versões", seção recolhida na
   página do script, lida só quando aberta; a atual é a mais recente guardada, porque o script não grava o
   próprio número).
-- **Ainda não:** diff entre versões e rascunho separado do publicado.
+- **Comparar com a atual** (`diffArtifactVersions`, `domain/services/artifactVersionDiff.ts`): da versão
+  escolhida para a atual — o que restaurá-la desfaria —, pelas chaves de conteúdo do artefato. Os campos do
+  topo; os passos um a um pelo id, em qualquer nível da árvore — acrescentado, retirado, movido (outro pai,
+  ou outra posição entre os irmãos que ficaram no mesmo pai) e alterado, com as chaves (`condition`,
+  `onError`, cada `configuration.<entrada>`). O código do script conta linhas acrescentadas e retiradas; o
+  compilado não entra (é derivado). As frases saem de `describeVersionChanges`
+  (`presentation/shared/versionDiffText.ts`), com tabela literal de nomes que o `verify-messages` confere.
+  Vale para a automação e para o script.
+- **Ainda não:** rascunho separado do publicado.
 
 ### Gatilho de webhook — `webhook.received`
 
