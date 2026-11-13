@@ -5,11 +5,19 @@ import {
   limitsOfBuckets,
   movedDimensions,
   operatorNeedsValue,
+  reportDesignSectionCounts,
   tabularShapeOf,
   uniqueReportKey,
   withGranularity,
 } from './ReportDesign.viewmodel';
-import type { ReportDimension } from '../../../domain/schema/report/reportSpec';
+import type {
+  ReportDimension,
+  ReportHighlight,
+  ReportMeasure,
+  ReportPrompt,
+  ReportRelated,
+} from '../../../domain/schema/report/reportSpec';
+import type { QueryPredicate } from '../../../domain/schema/querySpec';
 
 /**
  * A chave do DOCUMENTO, e o defeito que chegou à tela.
@@ -198,5 +206,46 @@ describe('faixas a partir dos limites', () => {
   it('o campo nasce preenchido com os limites gravados', () => {
     expect(limitsOfBuckets(bucketsFromLimits('30, 60'))).toBe('30, 60');
     expect(limitsOfBuckets(undefined)).toBe('');
+  });
+});
+
+/**
+ * O contador das abas: é ele que diz, sem abrir uma por uma, onde o relatório já declara alguma
+ * coisa — inclusive o que o rascunho da IA acabou de preencher fora da aba em que se está.
+ */
+describe('o contador de cada aba da autoria', () => {
+  const empty = {
+    dimensions: [] as ReportDimension[],
+    measures: [] as ReportMeasure[],
+    highlights: [] as ReportHighlight[],
+    filters: [] as QueryPredicate[],
+    filterExpression: '',
+    related: [] as ReportRelated[],
+    prompts: [] as ReportPrompt[],
+  };
+
+  it('relatório em branco não mostra contador nenhum', () => {
+    expect(Object.values(reportDesignSectionCounts(empty)).every((count) => count === 0)).toBe(true);
+  });
+
+  it('cada aba conta o que ela mesma declara', () => {
+    const counts = reportDesignSectionCounts({
+      ...empty,
+      dimensions: [{} as ReportDimension, {} as ReportDimension],
+      measures: [{} as ReportMeasure],
+      highlights: [{} as ReportHighlight],
+      filters: [{} as QueryPredicate],
+      related: [{} as ReportRelated],
+      prompts: [{} as ReportPrompt],
+    });
+
+    expect(counts.fields).toBe(2);
+    expect(counts.figures).toBe(2);
+    expect(counts.filters).toBe(3);
+  });
+
+  it('o filtro por expressão conta como um filtro — e só se não estiver em branco', () => {
+    expect(reportDesignSectionCounts({ ...empty, filterExpression: '   ' }).filters).toBe(0);
+    expect(reportDesignSectionCounts({ ...empty, filterExpression: 'row.total > 10' }).filters).toBe(1);
   });
 });

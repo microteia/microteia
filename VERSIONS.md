@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.256.0] — 2026-11-13
+
+- A tela de criação de relatórios ficou mais organizada: as configurações agora aparecem em abas no topo — Geral, Campos, Números, Apresentação, Gráfico, Filtros e Acesso —, e a pré-visualização ocupa a largura inteira logo abaixo. Cada aba mostra quantos itens já foram configurados nela.
+- Para conferir o resultado com espaço, oculte as configurações pelo botão no cabeçalho: a pré-visualização passa a ocupar a tela toda. O botão "Pré-visualizar" fica agora ao lado do resultado.
+
 #### [9.255.0] — 2026-11-13
 
 - Aprovações agora podem ser repassadas: na caixa de tarefas, "Repassar" envia a tarefa a outro membro do escritório, com um motivo — por exemplo, férias. Quem recebe é avisado, e o histórico guarda quem repassou para quem.

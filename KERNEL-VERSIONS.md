@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.256.0] — 2026-11-13
+
+- feat(reports/design): the report authoring screen is reorganised into horizontal sub-tabs (General, Fields, Figures, Layout, Chart, Filters, Access) above a full-width preview. The settings panel has a capped height and scrolls on its own, and a header toggle hides tabs and panel so the preview takes the whole screen. Tabs show how many items each section declares. Spec issues stay visible outside the tabs, and the preview action moved from an unlabeled header icon to a labeled button next to the result, with an empty state. No change to the report spec or to what is saved.
+- chore(i18n): new `core.reports` keys `design.tab.*`, `design.settings.show|hide`, `design.preview.title|empty`; `com.microteia.locale-pt-br` 1.207.0.
+
 #### [9.255.0] — 2026-11-13
 
 - feat(workflow): approval delegation. New callable `delegateWorkflowTask` (in `deploy:workflow`): an assignee who has not voted passes the task to another office member with a reason; `delegateTaskAssignees` swaps them in place (the quorum slot is kept) and refuses self, someone who already decides (member or guest) and closed tasks. Stored in `delegations`, published in the step outputs, the receiver is notified, and the task list shows "Delegated to you by …".

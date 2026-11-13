@@ -124,6 +124,26 @@ export interface ReportDesignPrompt {
   periodDefault: string;
 }
 
+/**
+ * As SEÇÕES da autoria, na ordem em que um relatório é pensado: do que ele trata, o que lista, o que
+ * soma, como mostra, que gráfico, o que filtra, e quem abre.
+ *
+ * Eram um rolo só, com a pré-visualização espremida ao lado: quem chegava não sabia onde começava a
+ * pergunta e onde terminava a apresentação, e o resultado ficava fora da tela no exato momento em que
+ * se mexia no que o produz.
+ */
+export const REPORT_DESIGN_SECTIONS = [
+  'general', 'fields', 'figures', 'layout', 'chart', 'filters', 'access',
+] as const;
+export type ReportDesignSection = typeof REPORT_DESIGN_SECTIONS[number];
+
+export interface ReportDesignTab {
+  key: ReportDesignSection;
+  label: string;
+  /** Quantos itens a seção declara — 0 não mostra contador. */
+  count: number;
+}
+
 /** O operador do filtro do leitor, ou o controle de PERÍODO — que é escolhido no mesmo seletor. */
 export type ReportPromptChoice = QueryOperator | typeof REPORT_PROMPT_PERIOD_CONTROL;
 
@@ -252,6 +272,13 @@ interface ReportDraft {
 
 export interface ReportDesignViewModel {
   title: string;
+
+  tabs: ReportDesignTab[];
+  activeTab: ReportDesignSection;
+  setActiveTab: (key: ReportDesignSection) => void;
+  /** Recolher as configurações dá à pré-visualização a altura inteira da tela. */
+  settingsOpen: boolean;
+  toggleSettings: () => void;
   /** Editando um relatório que já existe, em vez de criando. */
   isEditing: boolean;
   editingNotice: string | null;
@@ -486,6 +513,10 @@ export interface ReportDesignViewModel {
     moveUp: string;
     moveDown: string;
     preview: string;
+    previewTitle: string;
+    previewEmpty: string;
+    showSettings: string;
+    hideSettings: string;
     save: string;
     noGranularity: string;
     measureOp: string;
@@ -639,12 +670,30 @@ export const tabularShapeOf = (
 });
 
 /**
+ * Quanto cada seção declara — o contador na aba é o que mostra, sem abrir uma por uma, onde o
+ * relatório já tem coisa (inclusive o que o rascunho da IA acabou de preencher).
+ */
+export const reportDesignSectionCounts = (
+  draft: Pick<ReportDraft, 'dimensions' | 'measures' | 'highlights' | 'filters' | 'filterExpression' | 'related' | 'prompts'>,
+): Record<ReportDesignSection, number> => ({
+  general: 0,
+  fields: draft.dimensions.length,
+  figures: draft.measures.length + draft.highlights.length,
+  layout: 0,
+  chart: 0,
+  // O filtro por expressão é UM filtro, por maior que seja: o contador diz que há o que conferir ali.
+  filters: draft.filters.length + draft.related.length + draft.prompts.length
+    + (draft.filterExpression.trim() === '' ? 0 : 1),
+  access: 0,
+});
+
+/**
  * A chave do DOCUMENTO, única entre os relatórios que já existem.
  *
  * Sem isto, salvar dois relatórios de nome parecido devolvia `artifact.id-taken` — uma recusa
  * correta do repositório e inútil para quem só quis dar o mesmo nome de novo.
  */
-export const uniqueReportKey = (title: string, taken: Set<string>, prefix: string | null = null): string => {
+export const uniqueReportKey =(title: string, taken: Set<string>, prefix: string | null = null): string => {
   const base = withArtifactPrefix(prefix, 'artifact', slug(title.trim().toLowerCase()).slice(0, 60) || 'report');
   let key = base;
   let index = 2;
@@ -853,6 +902,18 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState<ReportDesignSection>('general');
+  const [settingsOpen, setSettingsOpen] = useState(true);
+  const toggleSettings = useCallback(() => setSettingsOpen((open) => !open), []);
+
+  const tabs = useMemo<ReportDesignTab[]>(() => {
+    const counts = reportDesignSectionCounts(draft);
+    return REPORT_DESIGN_SECTIONS.map((key) => ({
+      key,
+      label: t(`design.tab.${key}`),
+      count: counts[key],
+    }));
+  }, [draft, t]);
 
   /** A série é desenhada sobre o esquema com a coleção sintética das fotos do relatório de origem. */
   const seriesSource = useMemo(
@@ -1568,6 +1629,11 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
 
   return {
     title: t('page.design'),
+    tabs,
+    activeTab,
+    setActiveTab,
+    settingsOpen,
+    toggleSettings,
     isEditing: editing !== undefined,
     // Só o de PACOTE: ele explica um bloqueio. Dizer "você está editando" a quem clicou em Editar
     // é ocupar a tela com o que a pessoa acabou de fazer.
@@ -1793,6 +1859,10 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       moveUp: t('design.move-up'),
       moveDown: t('design.move-down'),
       preview: t('design.preview'),
+      previewTitle: t('design.preview.title'),
+      previewEmpty: t('design.preview.empty'),
+      showSettings: t('design.settings.show'),
+      hideSettings: t('design.settings.hide'),
       save: t('design.save'),
       noGranularity: t('design.no-granularity'),
       measureOp: t('design.measure-op'),
