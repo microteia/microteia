@@ -590,8 +590,27 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                           <Input readOnly value={vm.issuedWebhook.url} />
                         </>
                       )}
-                      <Label>{t('webhook.token')}</Label>
+                      <Label>{t(vm.issuedWebhook.scheme === 'hmac' ? 'webhook.secret' : 'webhook.token')}</Label>
                       <Input readOnly value={vm.issuedWebhook.token} />
+                      {vm.issuedWebhook.scheme === 'hmac' && (
+                        <S.FieldHint>{t('webhook.hmac-hint', { header: vm.issuedWebhook.header ?? '' })}</S.FieldHint>
+                      )}
+                    </>
+                  )}
+                  {vm.canManageWebhook && (
+                    <>
+                      <SearchSelect
+                        label={t('webhook.scheme')}
+                        options={vm.webhookSchemeOptions}
+                        value={vm.webhookScheme}
+                        onChange={vm.setWebhookScheme}
+                      />
+                      {vm.webhookScheme === 'hmac' && (
+                        <>
+                          <Label>{t('webhook.header')}</Label>
+                          <Input value={vm.webhookHeader} onChange={(event) => vm.setWebhookHeader(event.target.value)} />
+                        </>
+                      )}
                     </>
                   )}
                   {vm.canManageWebhook && (

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { receiveWebhook } from './workflowWebhooks';
-import type { WebhookReceiveDeps } from './workflowWebhooks';
+import { createHmac } from 'node:crypto';
+import { hashWebhookToken, receiveWebhook } from './workflowWebhooks';
+import type { WebhookCredential, WebhookReceiveDeps, WebhookRequest } from './workflowWebhooks';
 import type { WorkflowDefinition } from '../entities/Workflow';
 
 const NOW = new Date('2026-11-12T12:00:00Z');
@@ -23,10 +24,12 @@ const definition = (overrides: Partial<WorkflowDefinition> = {}): WorkflowDefini
   ...overrides,
 });
 
-const setup = (stored: WorkflowDefinition | null = definition()) => {
+const TOKEN: WebhookCredential = { scheme: 'token', tokenHash: hashWebhookToken('segredo').toString('hex') };
+
+const setup = (stored: WorkflowDefinition | null = definition(), credential: WebhookCredential = TOKEN) => {
   const published: { tenantId: string; workflowId: string; payload: Record<string, unknown> }[] = [];
   const deps: WebhookReceiveDeps = {
-    verifyToken: async (_tenantId, workflowId, token) => workflowId === 'wf' && token === 'segredo',
+    credentialOf: async (_tenantId, workflowId) => (workflowId === 'wf' ? credential : null),
     findDefinition: async () => stored,
     publish: async (tenantId, workflowId, payload) => {
       published.push({ tenantId, workflowId, payload });
@@ -36,9 +39,18 @@ const setup = (stored: WorkflowDefinition | null = definition()) => {
   return { deps, published };
 };
 
-const call = (overrides: Partial<Parameters<typeof receiveWebhook>[0]> = {}) => ({
-  tenantId: 't1', workflowId: 'wf', token: 'segredo', body: { orderId: 'P-10', note: 'urgente' }, ...overrides,
-});
+const call = (overrides: Partial<WebhookRequest> & { token?: string } = {}): WebhookRequest => {
+  const { token = 'segredo', ...rest } = overrides;
+  const body = rest.body ?? { orderId: 'P-10', note: 'urgente' };
+  return {
+    tenantId: 't1',
+    workflowId: 'wf',
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+    rawBody: JSON.stringify(body),
+    ...rest,
+    body,
+  };
+};
 
 describe('receiveWebhook', () => {
   it('publica o corpo como evento dirigido só à automação, e responde 202', async () => {
@@ -68,5 +80,31 @@ describe('receiveWebhook', () => {
     expect(await receiveWebhook(call({ body: { note: 'x' } }), deps))
       .toEqual({ status: 422, reason: 'missing-parameters', missing: ['orderId'] });
     expect(published).toEqual([]);
+  });
+
+  describe('assinatura HMAC', () => {
+    const HMAC: WebhookCredential = { scheme: 'hmac', secret: 'chave-combinada', header: 'x-hub-signature-256' };
+    const signed = (raw: string, format: (digest: Buffer) => string): WebhookRequest => ({
+      tenantId: 't1',
+      workflowId: 'wf',
+      headers: { 'x-hub-signature-256': format(createHmac('sha256', 'chave-combinada').update(raw).digest()) },
+      rawBody: raw,
+      body: JSON.parse(raw),
+    });
+    const raw = JSON.stringify({ orderId: 'P-11' });
+
+    it('aceita a assinatura em hex com prefixo (GitHub) e em base64 (Shopify)', async () => {
+      const { deps } = setup(definition(), HMAC);
+      expect((await receiveWebhook(signed(raw, (d) => `sha256=${d.toString('hex')}`), deps)).status).toBe(202);
+      expect((await receiveWebhook(signed(raw, (d) => d.toString('base64')), deps)).status).toBe(202);
+    });
+
+    it('corpo alterado depois de assinado, ou o token no lugar da assinatura: 401', async () => {
+      const { deps, published } = setup(definition(), HMAC);
+      const tampered = { ...signed(raw, (d) => d.toString('hex')), rawBody: JSON.stringify({ orderId: 'P-99' }) };
+      expect((await receiveWebhook(tampered, deps)).status).toBe(401);
+      expect((await receiveWebhook(call(), deps)).status).toBe(401);
+      expect(published).toEqual([]);
+    });
   });
 });

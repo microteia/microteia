@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.245.0] — 2026-11-13
+
+- feat(workflow/webhook): HMAC-SHA256 signature as an alternative to the bearer token (`scheme: 'hmac'`, header chosen at issue, default `x-signature-256`). The secret (32 bytes, hex) is stored in the clear in `workflow_webhooks/{id}` — verifying needs the key — where no client reads. `authenticateWebhook` signs the RAW body and compares in constant time, accepting hex or base64 with or without `sha256=`. Credential documents without `scheme` are the existing tokens.
+- fix(workflow/webhook): the body ceiling also checks the received raw body — a chunked request carries no `Content-Length` and slipped past it.
+
 #### [9.244.0] — 2026-11-12
 
 - feat(reports): exact totals from the database when the scan stops short. `runWorkflowQuery` reports `pushdown` when every filter went to Firestore (no memory predicate, by-id read, restricted reader or paging); `exactTotalsPlan` accepts the report only when Firestore yields the same number — no `includeWhen`/`related`/`scanLimit`, each measure a `count` or a `sum`/`avg` of a numeric field on the document itself (no hop, not derived), no measure filter, `distinct`, `min` or `max`. `IWorkflowQueryRepository.aggregateByEquality` (`AggregateField.count/sum/average`); `withExactTotals` replaces the totals and recomputes computed measures; groups stay partial. `ReportResult.totalsExact`, the `run-report` step output `totalExact`, and a partial banner that says the total counts every record. Only when the scan is partial: in-memory `sum` accepts numeric strings and Firestore does not, so a complete report never changes number.

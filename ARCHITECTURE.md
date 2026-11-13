@@ -9190,11 +9190,19 @@ pergunta inversa do MCP resolve o portão: o escritório vem da URL e só vale c
   fica é o SHA-256 em `tenants/{t}/workflow_webhooks/{workflowId}`, comparado em tempo constante. Emitir
   de novo troca o hash (invalida o anterior); revogar apaga. A coleção não é lida nem gravada pelo
   cliente — nem pelo dono (`rules-tests/workflowWebhooks.test.ts`) — e é reservada.
+- **Assinatura HMAC** (`scheme: 'hmac'`): a alternativa ao token para o sistema que não manda cabeçalho de
+  autorização, mas assina o que envia (GitHub, Shopify, Stripe). Na emissão escolhe-se o esquema e o
+  cabeçalho (`WEBHOOK_DEFAULT_SIGNATURE_HEADER`); o segredo (32 bytes, hex) fica EM CLARO no mesmo
+  documento — verificar HMAC exige a chave —, na coleção que nenhum cliente lê. `authenticateWebhook`
+  calcula HMAC-SHA256 do CORPO CRU (`rawBody`, nunca o JSON relido) e compara em tempo constante, aceitando
+  hex ou base64, com ou sem `sha256=`. Documento sem `scheme` é o token de antes.
+- **O teto vale sobre o que chegou:** além do `Content-Length`, o tamanho do `rawBody` — o corpo em blocos
+  não traz o cabeçalho.
 - **Fronteira de confiança:** o corpo é dado; nenhum campo dele vira expressão.
-- **Pacote:** o fluxo viaja, o token nunca — cada escritório gera o seu depois de instalar. Exige
+- **Pacote:** o fluxo viaja, a credencial nunca — cada escritório gera a sua depois de instalar. Exige
   `WORKFLOW_WEBHOOK_SINCE_KERNEL` (2.116.0).
-- **Ainda não:** assinatura HMAC do corpo, limite de taxa por automação e resposta síncrona com o
-  retorno da automação.
+- **Ainda não:** proteção contra reenvio (carimbo de tempo assinado), limite de taxa por automação e
+  resposta síncrona com o retorno da automação.
 
 ### Gatilho de Auditoria — `audit.recorded`
 

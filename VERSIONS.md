@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.245.0] — 2026-11-13
+
+- O webhook de entrada aceita também chamadas assinadas: em vez do token, escolha "Assinatura HMAC-SHA256 do corpo" e cole o segredo gerado no sistema de origem (como GitHub, Shopify ou Stripe). A chamada só é aceita se a assinatura conferir com o conteúdo enviado.
+
 #### [9.244.0] — 2026-11-12
 
 - Em relatórios sobre muitos registros, o total agora conta todos eles: quando o relatório passa do limite de leitura, os grupos continuam mostrando a parte lida, mas a contagem, a soma e a média do total passam a ser de todos os registros — e o aviso na tela diz isso. Vale também para os alertas feitos com "Executar relatório".

@@ -24,6 +24,20 @@ export const WORKFLOW_WEBHOOKS_COLLECTION = 'workflow_webhooks';
 export const WEBHOOK_MAX_BODY_BYTES = 256 * 1024;
 
 /**
+ * Como quem chama prova que pode: com o TOKEN no cabeçalho (`Authorization: Bearer`), ou ASSINANDO o
+ * corpo com HMAC-SHA256 e um segredo combinado — o molde de GitHub, Shopify e Stripe. A assinatura é o que
+ * deixa receber de um sistema que não manda cabeçalho de autorização nenhum, mas assina o que envia.
+ */
+export const WEBHOOK_SCHEMES = ['token', 'hmac'] as const;
+export type WebhookScheme = typeof WEBHOOK_SCHEMES[number];
+
+/** O cabeçalho da assinatura quando quem configura não escolhe outro. */
+export const WEBHOOK_DEFAULT_SIGNATURE_HEADER = 'x-signature-256';
+
+/** Nome de cabeçalho HTTP aceitável: letras, dígitos e hífen. É ele que o servidor procura na chamada. */
+export const isWebhookHeaderName = (value: string): boolean => /^[A-Za-z0-9-]{1,64}$/.test(value);
+
+/**
  * Os parâmetros OBRIGATÓRIOS que o corpo não trouxe. Só o primeiro nível: o corpo é DADO de fora, e
  * conferir o que a automação declarou é o que dá a quem chama um 422 com o nome do que faltou, em vez
  * de uma execução que falha três passos depois.

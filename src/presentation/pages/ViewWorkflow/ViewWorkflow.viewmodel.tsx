@@ -2,7 +2,9 @@ import { pagedLoopPageSize } from '../../../domain/schema/workflowLoopQuery';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useInstalledExtensions } from '../../../stores/useInstalledExtensions';
 import type { ArtifactVersion } from '../../../domain/schema/workflowVersion';
-import { WORKFLOW_WEBHOOK_EVENT } from '../../../domain/schema/workflowWebhook';
+import { WEBHOOK_DEFAULT_SIGNATURE_HEADER, WORKFLOW_WEBHOOK_EVENT } from '../../../domain/schema/workflowWebhook';
+import type { WebhookScheme } from '../../../domain/schema/workflowWebhook';
+import type { IssuedWorkflowWebhook } from '../../../domain/repositories/IWorkflowWebhookRepository';
 import { isParameterRootedEvent } from '../../../domain/schema/eventCatalog';
 import type { DragEvent } from 'react';
 import type { IconType } from 'react-icons';
@@ -326,8 +328,14 @@ export interface ViewWorkflowViewModel {
   /** Emitir e revogar exige a automação salva com o gatilho de webhook, e `automation.manage`. */
   canManageWebhook: boolean;
   /** O token recém-emitido — só nesta tela, só agora: o servidor guarda o hash. */
-  issuedWebhook: { token: string; url: string | null } | null;
+  issuedWebhook: IssuedWorkflowWebhook | null;
   webhookBusy: boolean;
+  /** Como o sistema de fora prova que pode: token no cabeçalho, ou assinatura HMAC do corpo. */
+  webhookScheme: WebhookScheme;
+  setWebhookScheme: (value: string) => void;
+  webhookSchemeOptions: { value: string; label: string }[];
+  webhookHeader: string;
+  setWebhookHeader: (value: string) => void;
   issueWebhook: () => void;
   revokeWebhook: () => void;
   /** Os campos de data da tela do gatilho. */
@@ -703,8 +711,17 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     }),
     [storedVersions, currentVersion, eventNameOptions, formatDateTime, t, label, installed],
   );
-  const [issuedWebhook, setIssuedWebhook] = useState<{ token: string; url: string | null } | null>(null);
+  const [issuedWebhook, setIssuedWebhook] = useState<IssuedWorkflowWebhook | null>(null);
   const [webhookBusy, setWebhookBusy] = useState(false);
+  const [webhookScheme, setWebhookScheme] = useState<WebhookScheme>('token');
+  const [webhookHeader, setWebhookHeader] = useState(WEBHOOK_DEFAULT_SIGNATURE_HEADER);
+  const webhookSchemeOptions = useMemo(
+    () => [
+      { value: 'token', label: t('webhook.scheme.token') },
+      { value: 'hmac', label: t('webhook.scheme.hmac') },
+    ],
+    [t],
+  );
   const webhookWorkflowId = workflow?.eventName === WORKFLOW_WEBHOOK_EVENT ? workflow.id : null;
 
   /** Emite ou revoga — e, nos dois casos, o token mostrado antes deixa de valer e sai da tela. */
@@ -713,7 +730,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     setWebhookBusy(true);
     try {
       if (action === 'issue') {
-        setIssuedWebhook(await workflowWebhookRepository.issue(currentTenant.id, webhookWorkflowId));
+        setIssuedWebhook(await workflowWebhookRepository.issue(
+          currentTenant.id,
+          webhookWorkflowId,
+          webhookScheme === 'hmac' ? { scheme: 'hmac', header: webhookHeader.trim() } : { scheme: 'token' },
+        ));
       } else {
         await workflowWebhookRepository.revoke(currentTenant.id, webhookWorkflowId);
         setIssuedWebhook(null);
@@ -724,7 +745,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     } finally {
       setWebhookBusy(false);
     }
-  }, [currentTenant, webhookWorkflowId, workflowWebhookRepository, notify, t, label]);
+  }, [currentTenant, webhookWorkflowId, workflowWebhookRepository, notify, t, label, webhookScheme, webhookHeader]);
 
   // O gatilho que um passo já presente declara incompatível não pode ser escolhido: a troca deixaria
   // gravada uma automação que o motor recusa no primeiro passo proibido.
@@ -1532,6 +1553,11 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     canManageWebhook: webhookWorkflowId !== null && can(PERMISSION_AUTOMATION_MANAGE),
     issuedWebhook,
     webhookBusy,
+    webhookScheme,
+    setWebhookScheme: (value) => setWebhookScheme(value === 'hmac' ? 'hmac' : 'token'),
+    webhookSchemeOptions,
+    webhookHeader,
+    setWebhookHeader,
     issueWebhook: () => { void manageWebhook('issue'); },
     revokeWebhook: () => { void manageWebhook('revoke'); },
     scheduleError,
