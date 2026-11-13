@@ -44,6 +44,19 @@ const mapTask = (tenantId: string, id: string, data: DocumentData): WorkflowTask
           }])),
       }
     : {}),
+  // Só o que a caixa mostra de cada repasse: quem passou a tarefa a quem a recebeu, e por quê.
+  ...(Array.isArray(data.delegations)
+    ? {
+        delegations: (data.delegations as Record<string, unknown>[]).map((one) => ({
+          from: String(one?.from ?? ''),
+          fromName: String(one?.fromName ?? ''),
+          to: String(one?.to ?? ''),
+          toName: String(one?.toName ?? ''),
+          reason: String(one?.reason ?? ''),
+          at: toDate(one?.at) ?? new Date(0),
+        })),
+      }
+    : {}),
   status: data.status === 'decided' || data.status === 'expired' ? data.status : 'open',
   createdAt: toDate(data.createdAt) ?? new Date(0),
   dueAt: toDate(data.dueAt),
@@ -83,5 +96,13 @@ export class FirebaseWorkflowTaskRepository implements IWorkflowTaskRepository {
     >(functions, 'completeWorkflowTask');
     const { data } = await call({ tenantId, taskId, outcome, comment });
     return data.status === 'voted' ? 'voted' : 'decided';
+  }
+
+  async delegateTask(tenantId: string, taskId: string, toUserId: string, reason: string): Promise<void> {
+    const call = httpsCallable<
+      { tenantId: string; taskId: string; toUserId: string; reason: string },
+      { status: string }
+    >(functions, 'delegateWorkflowTask');
+    await call({ tenantId, taskId, toUserId, reason });
   }
 }

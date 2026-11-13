@@ -8366,7 +8366,19 @@ deve a decisão (`pendingTaskVoters`) — membros pela caixa, convidados pelo re
 rajada. Não é um tipo novo de entrada do relógio de propósito: a retomada, o agendamento e o gatilho de data
 ficam intocados. Testes do repositório real no emulador: `rules-tests/approvalReminders.test.ts`.
 
-**Ainda não**: delegação.
+**Repasse e escalonamento** (kernel ≥ `WORKFLOW_APPROVAL_DELEGATION_SINCE_KERNEL`, 2.128.0):
+
+- **Repasse** (callable `delegateWorkflowTask`, botão "Repassar" na caixa): quem está designado e ainda não
+  votou passa a tarefa a outro MEMBRO do escritório, com motivo. `delegateTaskAssignees` troca no MESMO
+  lugar da lista (com quórum, a vaga é a mesma — ninguém ganha voto) e recusa a si mesmo, quem já decide
+  (membro ou convidado) e a tarefa fechada. Fica em `delegations` (de, para, motivo, quando) e sai nas saídas
+  do passo; quem recebe é avisado, e a caixa mostra "Repassada a você por …". Só entre membros: repassar
+  para alguém de fora abriria a decisão a quem o escritório nunca convidou.
+- **Escalonamento** (`escalateAfterDays` + `escalateToPermission`): sem decisão até `escalateAt` (antes do
+  prazo, ou não existe), quem tem a permissão ENTRA na tarefa — soma-se aos designados — e é avisado.
+  `escalateDueApprovals` pega a mesma carona do lembrete no relógio, com consulta de grupo
+  (`status` + `escalateAt`, índice COLLECTION_GROUP) e reserva transacional (`escalate`): uma vez só, e só
+  quem entrou é avisado. O quórum guardado não muda: os novos ampliam quem pode decidir, não o número.
 
 ### Esperar um evento (`wait-for`)
 
@@ -16792,6 +16804,7 @@ Além dos compostos, o arquivo declara catorze `fieldOverrides`:
 | `registrationRefusals` | `expiresAt` | TTL — a recusa de conta nova só serve à tentativa em curso (1 dia); sem índice, porque só é lida pelo id |
 | `http_dispatches` (collectionGroup) | `nextAttemptAt` ASC | `runWorkflowClock` devolve à fila, em todos os escritórios de uma vez, o pedido HTTP assíncrono cuja espera venceu, cuja entrega morreu no meio ou que ninguém pegou |
 | `http_dispatches` | `expiresAt` | TTL — o pedido HTTP assíncrono fica 7 dias depois de criado; o resultado já foi para o callback |
+| `workflow_tasks` (collectionGroup) | `status` ASC, `escalateAt` ASC | `runWorkflowClock` acha, em todos os escritórios de uma vez, as aprovações abertas cujo escalonamento venceu |
 | `workflow_tasks` (collectionGroup) | `status` ASC, `nextReminderAt` ASC | `runWorkflowClock` acha, em todos os escritórios de uma vez, as aprovações abertas com lembrete vencido |
 | `workflow_tasks` | `guestIds` CONTAINS, `status` ASC, `createdAt` DESC | O portal acompanha as aprovações abertas em que o convidado decide |
 | `report_snapshots` | `report` ASC, `takenAt` DESC | A série de instantâneos de um relatório: as fotos mais recentes dele, até `REPORT_SNAPSHOT_MAX_SERIES` |

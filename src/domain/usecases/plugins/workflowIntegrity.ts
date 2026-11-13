@@ -62,6 +62,7 @@ import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { hasChangeFilter, WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../schema/workflowChangeFilter';
 import {
   APPROVAL_STEP_ID,
+  WORKFLOW_APPROVAL_DELEGATION_SINCE_KERNEL,
   WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL,
   WORKFLOW_APPROVAL_REMINDER_SINCE_KERNEL,
   WORKFLOW_APPROVAL_SINCE_KERNEL,
@@ -824,6 +825,8 @@ const APPROVAL_INPUTS_SINCE: ReadonlyArray<[input: string, since: string]> = [
   ['portalGuests', WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL],
   ['quorum', WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL],
   ['remindEveryDays', WORKFLOW_APPROVAL_REMINDER_SINCE_KERNEL],
+  ['escalateAfterDays', WORKFLOW_APPROVAL_DELEGATION_SINCE_KERNEL],
+  ['escalateToPermission', WORKFLOW_APPROVAL_DELEGATION_SINCE_KERNEL],
 ];
 
 const approvalPortalKernelIssues = (

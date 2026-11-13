@@ -12,6 +12,7 @@ import {
   approvalOutcomesOf,
   approvalQuorumOf,
   approvalRemindEveryOf,
+  approvalEscalationAt,
   nextApprovalReminder,
   workflowTaskId,
 } from '../../../domain/schema/workflowTask';
@@ -108,6 +109,10 @@ export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefiniti
       // O primeiro lembrete sai um intervalo depois do aviso de quando a tarefa nasce — nunca no prazo.
       const remindEveryDays = approvalRemindEveryOf(inputs.remindEveryDays);
       const nextReminderAt = remindEveryDays ? nextApprovalReminder(now, remindEveryDays, resumeAt) : null;
+      // O escalonamento: sem decisão até lá, quem tem a permissão passa a decidir também. Sem permissão
+      // declarada, não há para quem subir — o prazo sozinho decide.
+      const escalatePermission = textOf(inputs.escalateToPermission);
+      const escalateAt = escalatePermission ? approvalEscalationAt(now, inputs.escalateAfterDays, resumeAt) : null;
 
       await deps.tasks.createIfAbsent({
         id: taskId,
@@ -121,6 +126,7 @@ export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefiniti
         ...(guestIds.length > 0 ? { guestIds } : {}),
         ...(quorum > 1 ? { quorum } : {}),
         ...(remindEveryDays && nextReminderAt ? { remindEveryDays, nextReminderAt } : {}),
+        ...(escalateAt ? { escalateAt, escalatePermission } : {}),
         outcomes,
         status: 'open',
         createdAt: now,
@@ -193,6 +199,7 @@ export const makeApprovalStepDefinition = (deps: ApprovalStepDeps): StepDefiniti
           comment: '',
           taskId,
           votes: [],
+          delegations: [],
         },
         suspend: { resumeAt, taskId },
       };

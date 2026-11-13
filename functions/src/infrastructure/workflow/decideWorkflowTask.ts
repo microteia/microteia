@@ -84,6 +84,10 @@ export const decideWorkflowTask = async (input: WorkflowTaskDecisionInput): Prom
       }).map(([userId, vote]) => ({
         outcome: vote.outcome, decidedBy: userId, decidedByName: vote.name, decidedAt: vote.at, comment: vote.comment, via: vote.via,
       })),
+      // Quem repassou para quem, e por quê — a decisão de quem recebeu foi tomada no lugar de quem repassou.
+      delegations: (decision.task.delegations ?? []).map((one) => ({
+        from: one.from, fromName: one.fromName, to: one.to, toName: one.toName, reason: one.reason, at: one.at,
+      })),
     },
   };
   if ((await clock.repository.annotateResume(entry, outputs)) === 'stale') {

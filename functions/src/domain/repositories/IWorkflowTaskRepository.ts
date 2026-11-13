@@ -1,4 +1,4 @@
-import type { WorkflowTask, WorkflowTaskVoteVia } from '../schema/workflowTask';
+import type { DelegationRefusal, WorkflowTask, WorkflowTaskDelegation, WorkflowTaskVoteVia } from '../schema/workflowTask';
 
 export interface WorkflowTaskDecision {
   userId: string;
@@ -44,6 +44,21 @@ export interface IWorkflowTaskRepository {
    * volta já o reservou, ou a tarefa fechou — é o que faz cada lembrete sair uma vez só.
    */
   claimReminder(task: WorkflowTask, next: Date | null): Promise<boolean>;
+  /**
+   * REPASSA a tarefa numa transação (`delegateTaskAssignees` lá dentro): quem repassa sai, quem recebe entra
+   * no mesmo lugar, e o repasse fica registrado.
+   */
+  delegate(tenantId: string, taskId: string, delegation: WorkflowTaskDelegation): Promise<
+    { ok: true; task: WorkflowTask } | { ok: false; reason: DelegationRefusal | 'not-found' }
+  >;
+  /** As tarefas ABERTAS de todos os escritórios cujo escalonamento venceu, as mais atrasadas primeiro. */
+  dueEscalations(now: Date, limit: number): Promise<WorkflowTask[]>;
+  /**
+   * SOBE a tarefa vista: acrescenta `add` aos designados e encerra o escalonamento, numa transação que só vale
+   * se ela ainda está aberta com o mesmo `escalateAt`. Devolve quem de fato entrou (`null` quando outra volta
+   * já a escalonou, ou ela fechou).
+   */
+  escalate(task: WorkflowTask, add: string[], at: Date): Promise<string[] | null>;
   /** Fecha como expirada — só a que ainda está aberta. */
   expire(tenantId: string, taskId: string, at: Date): Promise<void>;
 }

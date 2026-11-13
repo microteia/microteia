@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.255.0] — 2026-11-13
+
+- Aprovações agora podem ser repassadas: na caixa de tarefas, "Repassar" envia a tarefa a outro membro do escritório, com um motivo — por exemplo, férias. Quem recebe é avisado, e o histórico guarda quem repassou para quem.
+- Aprovações também podem subir quando ninguém decide: informe "Escalonar após (dias)" e "Escalonar para" no passo de aprovação, e quem tem essa permissão — um gerente, um diretor — passa a decidir também, em vez de a tarefa expirar sem ninguém ver.
+
 #### [9.254.0] — 2026-11-13
 
 - Automações agora podem fazer várias coisas ao mesmo tempo. O novo bloco "Em paralelo" roda dois ou mais ramos juntos e segue quando todos terminam — consultar três serviços de fora passa a levar o tempo do mais lento, e não a soma dos três. No construtor, o bloco aparece com raias lado a lado entre uma barra de início e uma de junção.

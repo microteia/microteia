@@ -43,6 +43,7 @@ const ALL_FUNCTIONS = [
   'runWorkflow',
   'rerunWorkflowExecution',
   'completeWorkflowTask',
+  'delegateWorkflowTask',
   'workflowWebhook',
   'manageWorkflowWebhook',
   'getUserInfo',

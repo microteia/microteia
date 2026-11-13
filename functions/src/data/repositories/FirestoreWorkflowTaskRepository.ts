@@ -5,8 +5,8 @@ import type {
   WorkflowTaskDecision,
   WorkflowTaskDecisionResult,
 } from '../../domain/repositories/IWorkflowTaskRepository';
-import { WORKFLOW_TASKS_COLLECTION, tallyApprovalVotes, workflowTaskVoters } from '../../domain/schema/workflowTask';
-import type { WorkflowTask, WorkflowTaskOutcome, WorkflowTaskStatus, WorkflowTaskVote } from '../../domain/schema/workflowTask';
+import { WORKFLOW_TASKS_COLLECTION, delegateTaskAssignees, tallyApprovalVotes, workflowTaskVoters } from '../../domain/schema/workflowTask';
+import type { WorkflowTask, WorkflowTaskDelegation, WorkflowTaskOutcome, WorkflowTaskStatus, WorkflowTaskVote } from '../../domain/schema/workflowTask';
 
 const toDate = (value: unknown): Date | null => {
   if (value instanceof Timestamp) return value.toDate();
@@ -24,6 +24,21 @@ const outcomesOf = (value: unknown): WorkflowTaskOutcome[] =>
     .map((item) => ({ key: item.key, label: item.label }));
 
 const STATUSES: readonly WorkflowTaskStatus[] = ['open', 'decided', 'expired'];
+
+const delegationsOf = (value: unknown): WorkflowTaskDelegation[] =>
+  (Array.isArray(value) ? value : []).flatMap((raw): WorkflowTaskDelegation[] => {
+    const one = raw as Record<string, unknown> | null;
+    const at = toDate(one?.at);
+    if (!one || typeof one.from !== 'string' || typeof one.to !== 'string' || !at) return [];
+    return [{
+      from: one.from,
+      fromName: typeof one.fromName === 'string' ? one.fromName : '',
+      to: one.to,
+      toName: typeof one.toName === 'string' ? one.toName : '',
+      reason: typeof one.reason === 'string' ? one.reason : '',
+      at,
+    }];
+  });
 
 /** Os votos gravados, lidos com desconfiança: o que não tem forma de voto fica de fora. */
 const votesOf = (value: unknown): Record<string, WorkflowTaskVote> => {
@@ -62,6 +77,10 @@ export const mapWorkflowTask = (tenantId: string, id: string, data: DocumentData
     ...(typeof data.remindEveryDays === 'number' && data.remindEveryDays > 0 ? { remindEveryDays: data.remindEveryDays } : {}),
     ...(data.nextReminderAt !== undefined ? { nextReminderAt: toDate(data.nextReminderAt) } : {}),
     ...(typeof data.reminders === 'number' ? { reminders: data.reminders } : {}),
+    ...(Array.isArray(data.delegations) ? { delegations: delegationsOf(data.delegations) } : {}),
+    ...(data.escalateAt !== undefined ? { escalateAt: toDate(data.escalateAt) } : {}),
+    ...(typeof data.escalatePermission === 'string' ? { escalatePermission: data.escalatePermission } : {}),
+    ...(toDate(data.escalatedAt) ? { escalatedAt: toDate(data.escalatedAt) as Date } : {}),
     outcomes: outcomesOf(data.outcomes),
     status: STATUSES.includes(data.status) ? data.status : 'open',
     createdAt: toDate(data.createdAt) ?? new Date(0),
@@ -97,6 +116,9 @@ export class FirestoreWorkflowTaskRepository implements IWorkflowTaskRepository 
         ...(task.quorum && task.quorum > 1 ? { quorum: task.quorum, votes: {} } : {}),
         ...(task.remindEveryDays && task.nextReminderAt
           ? { remindEveryDays: task.remindEveryDays, nextReminderAt: Timestamp.fromDate(task.nextReminderAt), reminders: 0 }
+          : {}),
+        ...(task.escalateAt && task.escalatePermission
+          ? { escalateAt: Timestamp.fromDate(task.escalateAt), escalatePermission: task.escalatePermission }
           : {}),
         outcomes: task.outcomes,
         status: task.status,
@@ -200,6 +222,60 @@ export class FirestoreWorkflowTaskRepository implements IWorkflowTaskRepository 
         reminders: (typeof snapshot.get('reminders') === 'number' ? snapshot.get('reminders') : 0) + 1,
       });
       return true;
+    });
+  }
+
+  async delegate(
+    tenantId: string,
+    taskId: string,
+    delegation: WorkflowTaskDelegation,
+  ): ReturnType<IWorkflowTaskRepository['delegate']> {
+    const ref = this.ref(tenantId, taskId);
+    return this.db.runTransaction(async (tx) => {
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists) return { ok: false as const, reason: 'not-found' as const };
+      const task = mapWorkflowTask(tenantId, taskId, snapshot.data() as DocumentData);
+      const moved = delegateTaskAssignees(task, delegation.from, delegation.to);
+      if (!moved.ok) return moved;
+      const delegations = [...(task.delegations ?? []), delegation];
+      tx.update(ref, {
+        assigneeIds: moved.assigneeIds,
+        delegations: delegations.map((one) => ({ ...one, at: Timestamp.fromDate(one.at) })),
+      });
+      return { ok: true as const, task: { ...task, assigneeIds: moved.assigneeIds, delegations } };
+    });
+  }
+
+  // Consulta de grupo servida pelo índice `status` + `escalateAt` (COLLECTION_GROUP), como a dos lembretes.
+  async dueEscalations(now: Date, limit: number): Promise<WorkflowTask[]> {
+    const snapshot = await this.db.collectionGroup(WORKFLOW_TASKS_COLLECTION)
+      .where('status', '==', 'open')
+      .where('escalateAt', '<=', Timestamp.fromDate(now))
+      .orderBy('escalateAt', 'asc')
+      .limit(limit)
+      .get();
+    return snapshot.docs.flatMap((doc) => {
+      const tenantId = doc.ref.parent.parent?.id;
+      return tenantId ? [mapWorkflowTask(tenantId, doc.id, doc.data())] : [];
+    });
+  }
+
+  async escalate(task: WorkflowTask, add: string[], at: Date): Promise<string[] | null> {
+    const ref = this.ref(task.tenantId, task.id);
+    return this.db.runTransaction(async (tx) => {
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists || snapshot.get('status') !== 'open') return null;
+      const stored = toDate(snapshot.get('escalateAt'));
+      if (!stored || !task.escalateAt || stored.getTime() !== task.escalateAt.getTime()) return null;
+      const current = strings(snapshot.get('assigneeIds'));
+      const guests = strings(snapshot.get('guestIds'));
+      const added = [...new Set(add)].filter((id) => !current.includes(id) && !guests.includes(id));
+      tx.update(ref, {
+        assigneeIds: [...current, ...added],
+        escalateAt: null,
+        escalatedAt: Timestamp.fromDate(at),
+      });
+      return added;
     });
   }
 

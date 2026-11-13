@@ -37,6 +37,26 @@ export const WORKFLOW_APPROVAL_REMINDER_SINCE_KERNEL = '2.126.0';
 /** O maior intervalo entre lembretes. Acima disso já não é lembrete — é um segundo pedido. */
 export const MAX_APPROVAL_REMINDER_DAYS = 30;
 
+/** O kernel que passou a entender o REPASSE de uma tarefa e o ESCALONAMENTO por prazo (`escalateAfterDays`). */
+export const WORKFLOW_APPROVAL_DELEGATION_SINCE_KERNEL = '2.128.0';
+
+/** O motivo do repasse vai para o histórico e para a saída do passo; um texto sem fim não cabe em nenhum dos dois. */
+export const MAX_DELEGATION_REASON_LENGTH = 500;
+
+/**
+ * Um REPASSE: quem estava designado passou a tarefa a outro membro — férias, outra área. Fica registrado
+ * para sempre, porque a decisão de quem recebeu é tomada no lugar de quem repassou, e isso é o que uma
+ * auditoria pergunta primeiro.
+ */
+export interface WorkflowTaskDelegation {
+  from: string;
+  fromName: string;
+  to: string;
+  toName: string;
+  reason: string;
+  at: Date;
+}
+
 /** Por onde o voto chegou: a caixa de tarefas (ou o MCP) de um membro, ou o portal de um convidado. */
 export type WorkflowTaskVoteVia = 'member' | 'portal';
 
@@ -103,6 +123,16 @@ export interface WorkflowTask {
   nextReminderAt?: Date | null;
   /** Quantos lembretes já saíram — é o que faz cada um ser um aviso novo, e não a repetição do anterior. */
   reminders?: number;
+  /** Os repasses, na ordem em que aconteceram. */
+  delegations?: WorkflowTaskDelegation[];
+  /**
+   * Quando a tarefa SOBE: ninguém decidiu até aqui, e quem tem `escalatePermission` passa a decidir também.
+   * `null` depois de escalonada (ou quando o escalonamento cairia no prazo).
+   */
+  escalateAt?: Date | null;
+  escalatePermission?: string;
+  /** Quando subiu, e quem entrou por isso — o histórico explica de onde veio quem decidiu. */
+  escalatedAt?: Date;
   outcomes: WorkflowTaskOutcome[];
   status: WorkflowTaskStatus;
   createdAt: Date;
@@ -217,4 +247,32 @@ export const pendingTaskVoters = (
     members: task.assigneeIds.filter((id) => !voted.has(id)),
     guests: (task.guestIds ?? []).filter((id) => !voted.has(id)),
   };
+};
+
+export type DelegationRefusal = 'not-assignee' | 'not-open' | 'already-voted' | 'same-person' | 'already-assignee';
+
+/**
+ * O REPASSE, sobre a lista de designados: quem repassa sai, quem recebe entra no MESMO lugar — com quórum,
+ * a vaga é a mesma, e ninguém ganha um voto a mais. Só repassa quem está designado e ainda não votou; não se
+ * repassa para si mesmo nem para quem já decide (somaria dois lugares numa pessoa só).
+ */
+export const delegateTaskAssignees = (
+  task: Pick<WorkflowTask, 'assigneeIds' | 'guestIds' | 'votes' | 'status'>,
+  from: string,
+  to: string,
+): { ok: true; assigneeIds: string[] } | { ok: false; reason: DelegationRefusal } => {
+  if (task.status !== 'open') return { ok: false, reason: 'not-open' };
+  if (!task.assigneeIds.includes(from)) return { ok: false, reason: 'not-assignee' };
+  if (task.votes?.[from]) return { ok: false, reason: 'already-voted' };
+  if (from === to) return { ok: false, reason: 'same-person' };
+  if (task.assigneeIds.includes(to) || (task.guestIds ?? []).includes(to)) return { ok: false, reason: 'already-assignee' };
+  return { ok: true, assigneeIds: task.assigneeIds.map((id) => (id === from ? to : id)) };
+};
+
+/** Quando a tarefa sobe, ou `null` se isso cairia no prazo (no prazo ela fecha sozinha). */
+export const approvalEscalationAt = (from: Date, afterDays: unknown, until: Date): Date | null => {
+  const days = typeof afterDays === 'number' ? afterDays : typeof afterDays === 'string' && afterDays.trim() !== '' ? Number(afterDays) : NaN;
+  if (!Number.isFinite(days) || days <= 0) return null;
+  const at = new Date(from.getTime() + Math.min(days, MAX_APPROVAL_DAYS) * DAY_MS);
+  return at.getTime() < until.getTime() ? at : null;
 };

@@ -22,6 +22,9 @@ const harness = (guests: { inPortal: boolean; ids: string[] } = { inPortal: true
     expire: async () => undefined,
     dueReminders: async () => [],
     claimReminder: async () => false,
+    delegate: async () => ({ ok: false, reason: 'not-found' }),
+    dueEscalations: async () => [],
+    escalate: async () => null,
   };
   const dispatch: DispatchNotificationUseCase = {
     execute: async (request) => {

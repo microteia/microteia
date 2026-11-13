@@ -6,7 +6,9 @@ import type { ClockedDefinition } from '../../domain/services/workflowClock';
 import { WORKFLOW_CLOCK_TICK_MINUTES } from '../../domain/schema/workflowClock';
 import { versionArtifactOnWrite, versionWorkflowOnWrite } from '../../domain/services/workflowVersions';
 import { SCRIPT_VERSION_CONTENT_KEYS } from '../../domain/schema/workflowVersion';
-import { remindDueApprovals } from '../../domain/services/approvalReminders';
+import { escalateDueApprovals, remindDueApprovals } from '../../domain/services/approvalReminders';
+import { FirestoreNotificationDirectory } from '../../data/repositories/FirestoreNotificationRepositories';
+import { getDb } from '../firebase/initFirebase';
 
 const REGION = 'southamerica-east1';
 
@@ -128,6 +130,23 @@ export const runWorkflowClock = onSchedule(
       if (reminded > 0) console.log(`[workflow-clock] ${reminded} aprovação(ões) lembrada(s)`);
     } catch (error) {
       console.error('[workflow-clock] Falha ao lembrar aprovações:', error);
+    }
+    // O escalonamento, na mesma carona e com o mesmo isolamento.
+    try {
+      const di = getDI();
+      const directory = new FirestoreNotificationDirectory(getDb());
+      const escalated = await escalateDueApprovals(
+        {
+          tasks: di.getWorkflowTaskRepository(),
+          dispatch: di.getDispatchNotificationUseCase(),
+          now: () => new Date(),
+          memberIdsGranting: (tenantId, permission, limit) => directory.memberIdsGranting(tenantId, permission, limit),
+        },
+        APPROVAL_REMINDER_SWEEP_LIMIT,
+      );
+      if (escalated > 0) console.log(`[workflow-clock] ${escalated} aprovação(ões) escalonada(s)`);
+    } catch (error) {
+      console.error('[workflow-clock] Falha ao escalonar aprovações:', error);
     }
 
     const deps = getDI().getWorkflowClockDeps();

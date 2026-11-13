@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { remindDueApprovals } from './approvalReminders';
+import { escalateDueApprovals, remindDueApprovals } from './approvalReminders';
 import type { IWorkflowTaskRepository } from '../repositories/IWorkflowTaskRepository';
 import type { DispatchNotificationRequest, DispatchNotificationUseCase } from '../usecases/DispatchNotificationUseCase';
 import type { WorkflowTask } from '../schema/workflowTask';
@@ -75,3 +75,33 @@ describe('lembrete das aprovações', () => {
     expect(claimed.map((one) => one.id)).toEqual(['x_s1', 'z_s1']);
   });
 });
+
+describe('escalonamento das aprovações', () => {
+  const escalating = (over: Partial<WorkflowTask> = {}) => task({ escalateAt: new Date(NOW.getTime() - 60_000), escalatePermission: 'contratos.aprovar', ...over });
+  const setup = (due: WorkflowTask[], added: (string[] | null)[]) => {
+    const sent: DispatchNotificationRequest[] = [];
+    const escalated: { id: string; add: string[] }[] = [];
+    const tasks = {
+      dueEscalations: async () => due,
+      escalate: async (one: WorkflowTask, add: string[]) => { escalated.push({ id: one.id, add }); return added[escalated.length - 1] ?? null; },
+    } as unknown as IWorkflowTaskRepository;
+    const dispatch = { execute: async (request: DispatchNotificationRequest) => { sent.push(request); return { issues: [] }; } } as unknown as DispatchNotificationUseCase;
+    const deps = { tasks, dispatch, now: () => NOW, memberIdsGranting: async (_t: string, permission: string) => (permission === 'contratos.aprovar' ? ['gerente', 'ana'] : []) };
+    return { sent, escalated, deps };
+  };
+
+  it('quem tem a permissão entra na tarefa, e só quem ENTROU é avisado', async () => {
+    const { sent, escalated, deps } = setup([escalating()], [['gerente']]);
+    expect(await escalateDueApprovals(deps, 50)).toBe(1);
+    expect(escalated).toEqual([{ id: 'x_s1', add: ['gerente', 'ana'] }]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ recipientIds: ['gerente'], dedupKey: 'x_s1:escalated', message: '@core.automation/task.escalated.message' });
+  });
+
+  it('escalonada por outra volta (ou fechada) não avisa ninguém', async () => {
+    const { sent, deps } = setup([escalating()], [null]);
+    expect(await escalateDueApprovals(deps, 50)).toBe(0);
+    expect(sent).toEqual([]);
+  });
+});
+

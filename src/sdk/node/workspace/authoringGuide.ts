@@ -3592,6 +3592,10 @@ notified; the first decision resumes the SAME run at once, and the chosen outcom
   to the members ("the client OR the manager approves"). No record, or a record outside the portal, fails the step.
 - **Reminder** (\`remindEveryDays\`, 1–30, kernel 2.126.0+): whoever has not decided yet is reminded every that
   many days until the deadline — members in their task list, portal guests on the record. Never on the deadline itself.
+- **Escalation** (\`escalateAfterDays\` + \`escalateToPermission\`, kernel 2.128.0+): if nobody decides in that
+  many days, the members holding the permission also decide, and are notified — instead of expiring unseen.
+  A member can also **delegate** the task to another member from the task list; the output \`delegations\`
+  records who passed it to whom and why.
 - **Quorum** (\`quorum\`, kernel ${WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL}+): empty for the first decision, \`'all'\`, or a number
   of votes on the FIRST outcome. Each person votes once; the task closes with the first outcome when it reaches
   the quorum, or with the most voted other outcome as soon as reaching it is impossible (with \`'all'\`, one

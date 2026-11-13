@@ -65,3 +65,32 @@ describe('lembrete das aprovações — repositório no Firestore', () => {
     expect(await repo.claimReminder(seen, null)).toBe(false);
   });
 });
+
+describe('repasse e escalonamento — repositório no Firestore', () => {
+  it('o repasse troca o designado e fica registrado; o segundo repasse do mesmo autor é recusado', async () => {
+    const repo = new FirestoreWorkflowTaskRepository(getDb());
+    await repo.createIfAbsent(task('d1', { assigneeIds: ['ana', 'bia'] }));
+    const first = await repo.delegate(TENANT, 'd1', { from: 'ana', fromName: 'Ana', to: 'caio', toName: 'Caio', reason: 'férias', at: NOW });
+    expect(first).toMatchObject({ ok: true, task: { assigneeIds: ['caio', 'bia'] } });
+    expect(await repo.delegate(TENANT, 'd1', { from: 'ana', fromName: 'Ana', to: 'davi', toName: 'Davi', reason: '', at: NOW }))
+      .toEqual({ ok: false, reason: 'not-assignee' });
+    const stored = await repo.findById(TENANT, 'd1');
+    expect(stored?.delegations).toEqual([{ from: 'ana', fromName: 'Ana', to: 'caio', toName: 'Caio', reason: 'férias', at: NOW }]);
+    // Quem recebeu decide; a decisão leva o repasse junto.
+    expect(await repo.decide(TENANT, 'd1', { userId: 'caio', userName: 'Caio', outcome: 'approved', comment: '', at: NOW, via: 'member' }))
+      .toMatchObject({ ok: true, closed: true });
+  });
+
+  it('a consulta traz as escalonáveis vencidas; a reserva acrescenta quem falta, uma vez só', async () => {
+    const repo = new FirestoreWorkflowTaskRepository(getDb());
+    await repo.createIfAbsent(task('e1', { assigneeIds: ['ana'], escalateAt: new Date(NOW.getTime() - 60_000), escalatePermission: 'x.aprovar' }));
+    await repo.createIfAbsent(task('e2', { assigneeIds: ['ana'], escalateAt: new Date(NOW.getTime() + DAY), escalatePermission: 'x.aprovar' }));
+    const due = await repo.dueEscalations(NOW, 10);
+    expect(due.map((one) => one.id)).toEqual(['e1']);
+    expect(await repo.escalate(due[0], ['gerente', 'ana'], NOW)).toEqual(['gerente']);
+    expect(await repo.escalate(due[0], ['gerente'], NOW)).toBeNull();
+    expect(await repo.findById(TENANT, 'e1')).toMatchObject({ assigneeIds: ['ana', 'gerente'], escalateAt: null, escalatedAt: NOW });
+    expect(await repo.dueEscalations(NOW, 10)).toEqual([]);
+  });
+});
+

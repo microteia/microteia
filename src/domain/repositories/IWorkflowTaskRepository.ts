@@ -14,4 +14,6 @@ export interface IWorkflowTaskRepository {
   /** Decide a tarefa no SERVIDOR — é lá que a execução que a esperava é retomada. */
   /** `voted`: o voto contou, e a tarefa segue aberta até o quórum. */
   completeTask(tenantId: string, taskId: string, outcome: string, comment: string): Promise<'decided' | 'voted'>;
+  /** Repassa a tarefa a outro membro, no SERVIDOR — a troca de designado e o registro do repasse são juntos. */
+  delegateTask(tenantId: string, taskId: string, toUserId: string, reason: string): Promise<void>;
 }

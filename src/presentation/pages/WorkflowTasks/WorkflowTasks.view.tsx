@@ -1,10 +1,11 @@
 import React from 'react';
-import { RiCheckboxCircleLine, RiExternalLinkLine } from 'react-icons/ri';
+import { RiCheckboxCircleLine, RiExternalLinkLine, RiShareForwardLine } from 'react-icons/ri';
 import { S } from './WorkflowTasks.styles';
 import { useWorkflowTasksViewModel } from './WorkflowTasks.viewmodel';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { SearchSelect } from '../../components/ui/SearchSelect';
 
 /** A caixa de tarefas: o que as automações pediram a quem está logado, com um botão por desfecho. */
 export const WorkflowTasksView: React.FC = () => {
@@ -31,6 +32,7 @@ export const WorkflowTasksView: React.FC = () => {
           <S.Card key={task.id} $overdue={task.overdue}>
             <S.CardTitle>{task.title}</S.CardTitle>
             {task.message && <S.Message>{task.message}</S.Message>}
+            {task.delegatedNote && <S.Message>{task.delegatedNote}</S.Message>}
             <S.Meta $overdue={task.overdue}>
               <span>{task.createdAt}</span>
               {task.progress && <span>{task.progress}</span>}
@@ -59,7 +61,37 @@ export const WorkflowTasksView: React.FC = () => {
                   <RiExternalLinkLine size={14} />
                 </Button>
               )}
+              {!task.delegating && (
+                <Button variant="ghost" size="sm" disabled={task.deciding} onClick={() => vm.startDelegate(task.id)}>
+                  <RiShareForwardLine size={14} />
+                  {vm.delegateLabel}
+                </Button>
+              )}
             </S.Actions>
+            {task.delegating && (
+              <S.Delegate>
+                <SearchSelect
+                  label={vm.delegateToLabel}
+                  options={vm.delegateOptions}
+                  value={vm.delegateTo}
+                  onChange={vm.setDelegateTo}
+                />
+                <Input
+                  value={vm.delegateReason}
+                  placeholder={vm.delegateReasonPlaceholder}
+                  onChange={(event) => vm.setDelegateReason(event.target.value)}
+                  disabled={task.deciding}
+                />
+                <S.Actions>
+                  <Button size="sm" disabled={!vm.delegateTo || task.deciding} onClick={() => void vm.confirmDelegate()}>
+                    {vm.delegateConfirmLabel}
+                  </Button>
+                  <Button variant="ghost" size="sm" disabled={task.deciding} onClick={vm.cancelDelegate}>
+                    {vm.cancelLabel}
+                  </Button>
+                </S.Actions>
+              </S.Delegate>
+            )}
           </S.Card>
         ))}
       </S.List>

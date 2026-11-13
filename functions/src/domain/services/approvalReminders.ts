@@ -15,6 +15,49 @@ export interface ApprovalReminderDeps {
   now(): Date;
 }
 
+export interface ApprovalEscalationDeps extends ApprovalReminderDeps {
+  /** Os membros com a permissão — a mesma pergunta das Security Rules, com o curinga do dono. */
+  memberIdsGranting(tenantId: string, permission: string, limit: number): Promise<string[]>;
+}
+
+/** Quantos membros uma tarefa ganha ao subir — o mesmo teto dos destinatários de um aviso. */
+const ESCALATION_MAX_MEMBERS = 200;
+
+/**
+ * SOBE as aprovações que ninguém decidiu a tempo: quem tem a permissão declarada no passo passa a decidir
+ * também, e é avisado. Uma vez só por tarefa — a reserva (`escalate`) é a mesma ideia do lembrete, e quem já
+ * estava designado não é avisado de novo. Em vez de expirar em silêncio, a decisão vai a quem responde por ela.
+ */
+export const escalateDueApprovals = async (deps: ApprovalEscalationDeps, limit: number): Promise<number> => {
+  const now = deps.now();
+  let escalated = 0;
+  for (const task of await deps.tasks.dueEscalations(now, limit)) {
+    if (!task.escalateAt || !task.escalatePermission) continue;
+    const candidates = await deps.memberIdsGranting(task.tenantId, task.escalatePermission, ESCALATION_MAX_MEMBERS);
+    const added = await deps.tasks.escalate(task, candidates, now);
+    if (added === null) continue;
+    escalated += 1;
+    if (added.length === 0) continue;
+    await deps.dispatch.execute({
+      tenantId: task.tenantId,
+      source: 'workflow',
+      workflowId: task.workflowDefinitionId,
+      executionId: task.executionId,
+      title: task.title,
+      message: '@core.automation/task.escalated.message',
+      params: {},
+      link: WORKFLOW_TASKS_PAGE_KEY,
+      target: null,
+      category: 'core.automation/task',
+      dedupKey: `${task.id}:escalated`,
+      channels: { audit: false, inApp: true, email: true, push: true },
+      recipientIds: added,
+      recipientPermissions: [],
+    }).catch((error: unknown) => console.error(`[approval-escalation] ${task.tenantId}/${task.id}:`, error));
+  }
+  return escalated;
+};
+
 /**
  * LEMBRA quem ainda não decidiu as aprovações vencidas — a varredura que pega carona no relógio do kernel.
  *

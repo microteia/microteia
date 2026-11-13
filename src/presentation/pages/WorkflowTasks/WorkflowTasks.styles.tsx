@@ -68,6 +68,15 @@ export const S = {
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme, $overdue }) => ($overdue ? theme.colors.danger : theme.colors.textMuted)};
   `,
+  Delegate: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+    border-left: 3px solid ${({ theme }) => theme.colors.info};
+    background: ${({ theme }) => theme.colors.surfaceHover};
+    border-radius: ${({ theme }) => theme.borderRadius.md};
+  `,
   Actions: styled.div`
     display: flex;
     flex-wrap: wrap;

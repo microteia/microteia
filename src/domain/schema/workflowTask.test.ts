@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   approvalOutcomesOf, approvalQuorumOf, approvalRemindEveryOf, DEFAULT_APPROVAL_OUTCOMES, nextApprovalReminder,
-  pendingTaskVoters, tallyApprovalVotes, workflowTaskId,
+  pendingTaskVoters, tallyApprovalVotes, workflowTaskId, delegateTaskAssignees, approvalEscalationAt,
 } from './workflowTask';
 
 describe('approvalOutcomesOf', () => {
@@ -103,6 +103,32 @@ describe('lembrete de aprovação', () => {
       assigneeIds: ['ana', 'bia'], guestIds: ['cliente'],
       votes: { bia: { outcome: 'approved', name: 'Bia', at: new Date(), comment: '', via: 'member' } },
     })).toEqual({ members: ['ana'], guests: ['cliente'] });
+  });
+});
+
+describe('repasse e escalonamento', () => {
+  const task = { assigneeIds: ['ana', 'bia'], guestIds: ['cliente'], votes: {}, status: 'open' as const };
+
+  it('o repasse troca quem repassa por quem recebe, no MESMO lugar', () => {
+    expect(delegateTaskAssignees(task, 'ana', 'caio')).toEqual({ ok: true, assigneeIds: ['caio', 'bia'] });
+  });
+
+  it('recusa quem não está designado, quem já votou, a si mesmo, quem já decide e a tarefa fechada', () => {
+    expect(delegateTaskAssignees(task, 'caio', 'davi')).toEqual({ ok: false, reason: 'not-assignee' });
+    expect(delegateTaskAssignees({ ...task, votes: { ana: { outcome: 'approved', name: 'Ana', at: new Date(), comment: '', via: 'member' } } }, 'ana', 'caio'))
+      .toEqual({ ok: false, reason: 'already-voted' });
+    expect(delegateTaskAssignees(task, 'ana', 'ana')).toEqual({ ok: false, reason: 'same-person' });
+    expect(delegateTaskAssignees(task, 'ana', 'bia')).toEqual({ ok: false, reason: 'already-assignee' });
+    expect(delegateTaskAssignees(task, 'ana', 'cliente')).toEqual({ ok: false, reason: 'already-assignee' });
+    expect(delegateTaskAssignees({ ...task, status: 'decided' }, 'ana', 'caio')).toEqual({ ok: false, reason: 'not-open' });
+  });
+
+  it('o escalonamento cai antes do prazo, ou não existe', () => {
+    const from = new Date('2026-11-13T12:00:00Z');
+    expect(approvalEscalationAt(from, 3, new Date('2026-11-20T12:00:00Z'))).toEqual(new Date('2026-11-16T12:00:00Z'));
+    expect(approvalEscalationAt(from, 7, new Date('2026-11-20T12:00:00Z'))).toBeNull();
+    expect(approvalEscalationAt(from, '', new Date('2026-11-20T12:00:00Z'))).toBeNull();
+    expect(approvalEscalationAt(from, 0, new Date('2026-11-20T12:00:00Z'))).toBeNull();
   });
 });
 

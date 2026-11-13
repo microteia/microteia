@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.255.0] — 2026-11-13
+
+- feat(workflow): approval delegation. New callable `delegateWorkflowTask` (in `deploy:workflow`): an assignee who has not voted passes the task to another office member with a reason; `delegateTaskAssignees` swaps them in place (the quorum slot is kept) and refuses self, someone who already decides (member or guest) and closed tasks. Stored in `delegations`, published in the step outputs, the receiver is notified, and the task list shows "Delegated to you by …".
+- feat(workflow): approval escalation. `approval` takes `escalateAfterDays` + `escalateToPermission`: without a decision by `escalateAt` (before the deadline, or none), members holding the permission join the assignees and are notified. `escalateDueApprovals` piggybacks on `runWorkflowClock` like reminders, with a COLLECTION_GROUP index (`status`, `escalateAt`) and a transactional `escalate` claim — once per task, notifying only who joined. `KERNEL_VERSION` 2.128.0.
+
 #### [9.254.0] — 2026-11-13
 
 - feat(workflow): parallel branches. New control node `Parallel` (`parallel: { branches: [{ id, label?, steps }] }`, 2–8 branches) runs every branch at the same time and continues when all finish, publishing `branches.<id>`. Loops take `concurrency` (1–10) to run several items at once; the output keeps item order. Not with `loop.query`.

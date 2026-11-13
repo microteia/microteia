@@ -729,6 +729,24 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         allowedMappingKinds: ['Literal'],
       },
       {
+        /** Sem decisão em tantos dias, quem tem `escalateToPermission` passa a decidir também. */
+        id: 'escalateAfterDays',
+        label: '@core.automation/step.approval.label.escalate-after-days',
+        description: '@core.automation/step.approval.help.escalate-after-days',
+        required: false,
+        type: 'Number',
+        allowedMappingKinds: ['Literal'],
+      },
+      {
+        id: 'escalateToPermission',
+        label: '@core.automation/step.approval.label.escalate-to-permission',
+        description: '@core.automation/step.approval.help.escalate-to-permission',
+        required: false,
+        type: 'String',
+        picker: 'permission',
+        allowedMappingKinds: ['Literal'],
+      },
+      {
         /** De quantos em quantos dias quem ainda não decidiu é lembrado — até o prazo. Vazio: sem lembrete. */
         id: 'remindEveryDays',
         label: '@core.automation/step.approval.label.remind-every-days',
@@ -755,6 +773,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'comment', label: '@core.automation/step.approval.output.comment', type: 'String' },
       { id: 'taskId', label: '@core.automation/step.approval.output.task-id', type: 'String' },
       { id: 'votes', label: '@core.automation/step.approval.output.votes', type: 'String' },
+      { id: 'delegations', label: '@core.automation/step.approval.output.delegations', type: 'String' },
     ],
   },
   {
