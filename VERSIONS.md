@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.258.0] — 2026-11-13
+
+- As conexões de IA do escritório — OpenAI, Anthropic (Claude), Google (Gemini), Mistral e Cohere — passam a responder em tempo real, à medida que o texto é escrito, e a consultar os dados do escritório durante a resposta. É a base do assistente de IA que chega nas próximas versões; nada muda ainda nas telas.
+
 #### [9.257.0] — 2026-11-13
 
 - Corrigido o erro "A IA retornou uma resposta em formato inválido" ao usar o Claude, a Mistral ou a Cohere na detecção de automação e nas demais tarefas de IA: as instruções da tarefa não chegavam a esses provedores, que respondiam em texto livre.

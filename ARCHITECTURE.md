@@ -10688,6 +10688,39 @@ sentido por vez.
 Adicionar um provedor novo de IA é uma linha de manifest: `container.ts` não muda. Há teste
 provando isso com um plugin de terceiro fictício.
 
+#### `ai.chat` — conversa com ferramentas e em streaming
+
+Ao lado de `ai.completion`, o `core.ai` fornece a capacidade **`ai.chat`**
+(`IAIChatProviderService`, `functions/src/domain/repositories/`): conversa de vários turnos, com
+ferramentas, respondendo em pedaços. É capacidade SEPARADA — e não um método a mais em
+`ai.completion` — porque é outro contrato: um plugin de terceiro pode completar texto sem saber
+conversar, e quem abre uma conversa precisa saber ANTES se a conexão do escritório dá conta
+(`getDI().getAIChatProvider(provider)` devolve `null` quando nenhum plugin atende).
+
+- **Formato neutro.** A mensagem é `ChatMessage { role, parts }`, com partes `text`, `tool_call`,
+  `tool_result` e `opaque`. Cada provedor traduz de e para o dele; o laço que usa a capacidade e a
+  gravação da conversa não sabem qual IA respondeu.
+- **`opaque` existe porque há provedor que exige de volta o que só ele entende.** O raciocínio
+  assinado da Anthropic precisa voltar imediatamente antes do `tool_use` que ele precedeu; a
+  assinatura de pensamento do Gemini 3 volta na `meta` da própria chamada. O kernel guarda e devolve
+  sem olhar dentro, e cada provedor descarta o bloco opaco de OUTRO provedor — a conversa pode trocar
+  de conexão no meio.
+- **O provedor monta a mensagem.** O stream emite `{ type: 'text', delta }` para a tela e, no fim,
+  um único `{ type: 'done', message, stop, usage }` com a mensagem já montada — só o provedor sabe em
+  que ordem os blocos dele precisam voltar. `stop` é `end | tool_use | max_tokens | refused`; uma
+  recusa que corta um `tool_use` no meio não deixa ferramenta nenhuma daquela volta rodar.
+- **`usage.inputTokens` soma o que veio do cache**, porque é isso que mede a janela de contexto.
+- **Um parser de SSE para os cinco** (`data/services/chat/serverSentEvents.ts`), e um POST com teto
+  de tempo (`CHAT_PROVIDER_TIMEOUT_MS`, 5 min) somado ao aborto de quem chamou. Nenhuma chamada de IA
+  tinha timeout antes: um provedor que abria a conexão e parava de mandar segurava a function até o
+  limite dela. A falha do provedor sai como `ChatProviderError(status, detail)`, com a mensagem DELE
+  preservada para chegar ao usuário como parâmetro de uma chave do catálogo.
+- OpenAI e Mistral compartilham `OpenAICompatibleChatService` (Chat Completions); a diferença cabe em
+  três campos. O Gemini recebe o schema em `parametersJsonSchema` — `parameters`, o subconjunto
+  OpenAPI, recusaria o `additionalProperties` que toda ferramenta do agente declara — e a chave no
+  cabeçalho, nunca na URL. A Anthropic usa cache automático (`cache_control` no topo): o laço de
+  ferramentas reenvia a conversa inteira a cada passo.
+
 ### Carga preguiçosa das funções de expressão — não mexa
 
 O índice dos plugins importa os Steps, que importam o `ExpressionEngine`. Registrar as funções no

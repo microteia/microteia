@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.258.0] — 2026-11-13
+
+- feat(functions/ai): new `ai.chat` capability (`IAIChatProviderService`) provided by `core.ai` 1.1.0 for all five providers — multi-turn conversation with tool calling, streamed over SSE. Messages use a provider-neutral `ChatMessage { role, parts }`; `opaque` parts carry provider-only state (Anthropic signed thinking, Gemini thought signatures) back untouched and are dropped by any other provider. The provider assembles the final message and reports `stop` (`end | tool_use | max_tokens | refused`) and `usage` (input tokens include cache reads).
+- feat(functions/ai): shared SSE reader and streaming POST with a 5-minute ceiling combined with the caller's abort signal; AI calls had no timeout before. Provider failures surface as `ChatProviderError(status, detail)` with the provider's own message. Gemini receives the API key in the `x-goog-api-key` header and the schema in `parametersJsonSchema`; Anthropic requests use top-level automatic prompt caching.
+
 #### [9.257.0] — 2026-11-13
 
 - fix(ai/providers): `AnthropicService`, `MistralService` and `CohereService` ignored `AICallOptions`, so `systemPrompt` never reached those providers. Workflow detection, parameter extraction and report drafting put their whole instruction ("answer only with JSON …") in the system prompt, and Claude answered in prose, failing with `ai.invalid-response`. Anthropic now sends `system`; Mistral and Cohere send a `system` message and `response_format: json_object` when JSON is expected.

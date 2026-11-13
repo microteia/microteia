@@ -134,6 +134,7 @@ import type { AddTenantMemberUseCase } from '../../domain/usecases/AddTenantMemb
 import type { RemoveTenantMemberUseCase } from '../../domain/usecases/RemoveTenantMemberUseCase';
 import type { BootstrapUserUseCase } from '../../domain/usecases/BootstrapUserUseCase';
 import type { IAIProviderService } from '../../domain/repositories/IAIProviderService';
+import type { IAIChatProviderService } from '../../domain/repositories/IAIChatProviderService';
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import type { ITenantRepository } from '../../domain/repositories/ITenantRepository';
 import type { ITenantSettingsRepository } from '../../domain/repositories/ITenantSettingsRepository';
@@ -278,6 +279,7 @@ class DIContainer {
   private static instance: DIContainer;
 
   private aiProviders: IAIProviderService[];
+  private aiChatProviders: IAIChatProviderService[];
   private portalRepo?: IPortalRepository;
   private portalIdentityRepo?: IPortalIdentityRepository;
   private portalIdentityConfigRepo?: IPortalIdentityConfigRepository;
@@ -350,6 +352,7 @@ class DIContainer {
 
   private constructor() {
     this.aiProviders = capabilityProvidersOf<IAIProviderService>('ai.completion');
+    this.aiChatProviders = capabilityProvidersOf<IAIChatProviderService>('ai.chat');
   }
 
   static getInstance(): DIContainer {
@@ -374,6 +377,11 @@ class DIContainer {
       this.callAIAnalysisUC = makeCallAIAnalysisUseCase(this.aiProviders);
     }
     return this.callAIAnalysisUC;
+  }
+
+  /** O provedor de conversa da conexão, ou `null` quando nenhum plugin instalado sabe conversar com ela. */
+  getAIChatProvider(provider: string): IAIChatProviderService | null {
+    return this.aiChatProviders.find((candidate) => candidate.canHandle(provider)) ?? null;
   }
 
   getCallAIUseCase(): CallAIUseCase {

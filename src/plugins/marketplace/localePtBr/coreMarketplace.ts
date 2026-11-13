@@ -723,6 +723,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'history.applied': 'Versão {version} aplicada.',
   'history.error.missing': 'O pacote desta versão não está mais no histórico.',
   'capability.ai-completion': 'Geração de texto por IA',
+  'capability.ai-chat': 'Conversa com IA e ferramentas',
   'plugin.capabilities.description':
     'Declara o ponto de extensão onde plugins fornecem implementações de Capabilities.',
   'point.capability.description':

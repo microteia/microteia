@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.207.0",
+    "version": "1.208.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1952,6 +1952,7 @@
             "history.applied": "Versão {version} aplicada.",
             "history.error.missing": "O pacote desta versão não está mais no histórico.",
             "capability.ai-completion": "Geração de texto por IA",
+            "capability.ai-chat": "Conversa com IA e ferramentas",
             "plugin.capabilities.description": "Declara o ponto de extensão onde plugins fornecem implementações de Capabilities.",
             "point.capability.description": "Fornece a implementação de uma Capability (IA, mensageria, pagamentos). Vários plugins podem fornecer a mesma, e o escritório escolhe qual usar.",
             "point.capability.title": "Provedor de uma capacidade",
