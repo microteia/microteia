@@ -15,6 +15,7 @@ import { coreSettingsPlugin } from './core.settings/manifest';
 import { coreI18nPlugin } from './core.i18n/manifest';
 import { coreThemePlugin } from './core.theme/manifest';
 import { coreLicensePlugin } from './core.license/manifest';
+import { coreAssistantPlugin } from './core.assistant/manifest';
 import { BUNDLED_LOCALE_PLUGINS } from './bundledLocales';
 import { BUNDLED_THEME_PLUGINS } from './themes/systemThemes';
 
@@ -40,6 +41,7 @@ export const CORE_PLUGINS: PluginRecord[] = [
   coreI18nPlugin,
   coreThemePlugin,
   coreLicensePlugin,
+  coreAssistantPlugin,
   ...BUNDLED_LOCALE_PLUGINS,
   ...BUNDLED_THEME_PLUGINS,
 ];

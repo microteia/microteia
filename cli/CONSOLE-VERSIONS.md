@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.43.1] — 2026-11-13
+
+- feat(examples): the new first-party extension `com.microteia.assistant` (AI Assistant) travels to `extensions/examples/assistant/` as source, like every catalog extension — the first one whose `manifest.backend` declares a composite index.
+
 #### [2.43.0] — 2026-11-10
 
 - feat(plugin-init): with a terminal, asks the publisher and the prefix right after the namespace, each

@@ -451,6 +451,21 @@ service cloud.firestore {
           && request.resource.data.ownerId == request.auth.uid;
       }
 
+      // As conversas do ASSISTENTE de IA (`domain/schema/assistant/assistantConversation.ts`). Só o dono
+      // lê — a lista pede por `ownerId == uid`, e a regra recusa a consulta que traria a de outro
+      // membro. Ninguém grava pelo cliente: a conversa é conduzida pela function, que é quem chama a
+      // IA, executa as ferramentas e mantém a trava; uma escrita do cliente desmontaria as três.
+      match /assistantConversations/{conversationId} {
+        allow read: if isMember(tenantId) && resource.data.ownerId == request.auth.uid;
+        allow write: if false;
+
+        match /messages/{messageId} {
+          allow read: if isMember(tenantId)
+            && get(/databases/$(database)/documents/tenants/$(tenantId)/assistantConversations/$(conversationId)).data.ownerId == request.auth.uid;
+          allow write: if false;
+        }
+      }
+
       // As FOTOS dos relatórios (a série de instantâneos). Só o servidor lê e grava: a foto foi tirada com a
       // visão da automação, e quem a lê passa pela callable, que cobra a leitura do relatório de origem.
       match /report_snapshots/{snapshotId} {
@@ -798,7 +813,7 @@ service cloud.firestore {
       // coleção restringe quem lê cada registro.
       function isReservedCollection(name) {
         return name in [
-        'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections',
+        'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections', 'assistantConversations',
         'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extension_seeds', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox', 'notification_dispatches', 'notification_contacts',
         'personalReports', 'portalIdentityInvites', 'portalRecords', 'portalTexts', 'portalUsers', 'portal_reprojections', 'report_snapshots', 'reports', 'roles',

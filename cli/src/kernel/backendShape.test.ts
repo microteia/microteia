@@ -19,6 +19,7 @@ import type { BackendClaim, FirestoreIndexSpec } from './backendShape.js';
 import { exportedFunctionNames } from './manifest.js';
 import { firstPartyTemplates } from '../vendor/firstPartyTemplates.js';
 import { AGENT_BACKEND_FUNCTIONS } from '../../../src/domain/schema/agent/agentBackend';
+import { ASSISTANT_BACKEND_FUNCTIONS } from '../../../src/domain/schema/assistant/assistantBackend';
 
 /**
  * A MESMA porta que o `pack` usa. Ler o diretório aqui por conta própria já custou cinco casos
@@ -199,15 +200,17 @@ describe('baseline e reivindicado — as contas do pacote', () => {
   it('as extensões de primeira parte que reivindicam backend são exatamente estas', () => {
     const reivindicacoes = claimsFromTemplates(templates());
 
-    expect(reivindicacoes.map((claim) => claim.pluginId)).toEqual(['com.microteia.agent']);
+    expect(reivindicacoes.map((claim) => claim.pluginId).sort()).toEqual(['com.microteia.agent', 'com.microteia.assistant']);
     // Contra as CONSTANTES do domínio, e não contra uma lista escrita aqui: o `plugin.ts` da extensão
     // escreve os nomes por extenso — como um autor de fora escreveria —, e é esta comparação que
     // impede o manifest e o `functions/index.ts` de divergirem em silêncio.
     expect(reivindicacoes.flatMap((claim) => claim.backend.functions ?? []).sort())
-      .toEqual([...AGENT_BACKEND_FUNCTIONS].sort());
-    // Índice e parâmetro de backend continuam vazios em todas — o dia em que não estiverem é o dia
-    // em que a raiz e a declaração da extensão precisam ser conferidas uma contra a outra.
-    expect(reivindicacoes.flatMap((claim) => claim.backend.indexes ?? [])).toEqual([]);
+      .toEqual([...AGENT_BACKEND_FUNCTIONS, ...ASSISTANT_BACKEND_FUNCTIONS].sort());
+    // O primeiro índice de extensão: a lista de conversas do assistente. Ele está TAMBÉM na raiz, e é
+    // o `pack` que confere as duas pontas — aqui só se afirma qual é, para que um segundo não entre
+    // sem alguém olhar.
+    expect(reivindicacoes.flatMap((claim) => claim.backend.indexes ?? []).map((index) => index.collectionGroup))
+      .toEqual(['assistantConversations']);
     expect(reivindicacoes.flatMap((claim) => claim.backend.parameters ?? [])).toEqual([]);
   });
 

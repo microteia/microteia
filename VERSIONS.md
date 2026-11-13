@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.259.0] — 2026-11-13
+
+- Nova extensão **Assistente de IA** no Marketplace: uma conversa com a conexão de IA do escritório que pesquisa registros, roda relatórios e, se o escritório permitir, cadastra e altera dados — sempre com as permissões de quem pergunta. As respostas chegam enquanto são escritas, e conversas longas são resumidas automaticamente para manter o custo sob controle.
+- Em Configurações, o escritório escolhe o que acontece quando o assistente quer alterar dados: pedir aprovação a cada vez (o padrão), executar direto, ou não permitir.
+- Cada pessoa tem as próprias conversas, e ninguém mais as lê — nem o responsável pelo escritório. A tela do assistente chega na próxima versão.
+
 #### [9.258.0] — 2026-11-13
 
 - As conexões de IA do escritório — OpenAI, Anthropic (Claude), Google (Gemini), Mistral e Cohere — passam a responder em tempo real, à medida que o texto é escrito, e a consultar os dados do escritório durante a resposta. É a base do assistente de IA que chega nas próximas versões; nada muda ainda nas telas.

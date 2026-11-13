@@ -37,3 +37,4 @@ export { CORE_THEME_MESSAGES } from './coreTheme';
 export { CORE_AUTOMATION_MESSAGES } from './coreAutomation';
 export { CORE_DATA_MESSAGES } from './coreData';
 export { CORE_LICENSE_MESSAGES } from './coreLicense';
+export { CORE_ASSISTANT_MESSAGES } from './coreAssistant';

@@ -36,6 +36,7 @@ const EXAMPLES_DIR = 'examples';
 export const EXAMPLE_SOURCES: Record<string, string> = {
   'automation-example': 'examples/automation-example',
   agent: 'agent.ts',
+  assistant: 'assistant.ts',
   brasil: 'brasil.ts',
   calendar: 'calendar.ts',
   'business-days': 'businessDays.ts',

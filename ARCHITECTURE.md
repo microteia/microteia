@@ -95,6 +95,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `UserProfile` | `userProfiles/{uid}` | Não |
 | `AgentGrant` (acesso de agente de IA) | `tenants/{tenantId}/agentGrants/{id}` | Sim (só o HASH do segredo; a escrita é `false` para todo cliente) |
 | `AIConnection` | `tenants/{tenantId}/aiConnections/{id}` | Sim |
+| `AssistantConversation` (conversa do assistente de IA) | `tenants/{tenantId}/assistantConversations/{id}` e `.../messages/{seq}` | Sim (só o dono lê; a escrita é `false` para todo cliente — a function conduz a conversa) |
 | `AIConnectionSecret` | `tenants/{tenantId}/aiConnections/{id}/secrets/current` | Sim (chave de API — nunca trafega para o frontend) |
 | `Tenant` | `tenants/{tenantId}` | — |
 | `TenantMember` | `tenants/{tenantId}/members/{uid}` | Sim (`permissions` e `mfa` são materializados pelo servidor; o cliente não os escreve) |
@@ -909,6 +910,7 @@ regra que tem uma decisão a defender:
 | `screenDeclarations.test.ts` | `authorCanDelete`, `memberWritableFields` e o vocabulário (lista de opções lida por todos, gravada com permissão) |
 | `publicExtensions.test.ts` | o catálogo global: sem código o dono publica já aprovada, com código só o `SYSTEM`; e a regra lê o pacote que ESTÁ SENDO ESCRITO, então acrescentar código a um registro próprio é barrado igual |
 | `agentGrants.test.ts` | a leitura assimétrica do acesso de agente e a escrita fechada para todo cliente — quem escolhe o hash escolhe o token |
+| `assistantConversations.test.ts` | a conversa do assistente lida só pelo dono — nem o dono do escritório —, inclusive a subcoleção de mensagens, e a escrita fechada para todo cliente |
 | `extensionHistory.test.ts` | a subcoleção `versions/{revision}`, que o curinga de registros não alcança, e o `delete` permitido que separa excluir de desinstalar |
 | `recordKeys.test.ts` | a unicidade: `create` liberado e `update` negado é o que faz duas gravações no mesmo instante não passarem as duas |
 | `recordKeyAdoptions.test.ts` | o job da adoção lido por todo membro e escrito por ninguém do cliente — quem escrevesse `adopted` daria por única uma chave com duplicatas embaixo |
@@ -12708,6 +12710,123 @@ produto; onde não sabe, o token continua sendo a saída honesta.
 | `data/services/InstalledExtensionCache.ts` | a pergunta inversa do portão, e os bundles de idioma |
 | `presentation/pages/TenantSettings/AgentTab/` | a aba que emite e revoga |
 | `plugins/marketplace/agent.ts` | a extensão — o interruptor |
+
+---
+
+## Assistente de IA no workspace
+
+Uma conversa com a conexão de IA do escritório, que usa as **ferramentas do acesso de agente** com as
+permissões de quem está logado. O MCP de execução atende um cliente de FORA (Claude, Claude Code); o
+assistente é o mesmo poder DENTRO do produto, sem token nenhum.
+
+### Por que não é um cliente do `agentMcp`
+
+A primeira ideia era emitir, por pessoa, um acesso de agente e fazer a function chamar o próprio
+`agentMcp` por HTTP. Daria **a mesma autorização** — as permissões efetivas seriam
+`grantedPermissions(pessoa)` dos dois jeitos — a um custo maior: um salto HTTP e uma partida a frio por
+ferramenta, um segredo a guardar, girar e revogar, e a tela de acessos cheia de tokens que ninguém
+pediu. Em vez disso, `assistantChat` monta uma `AgentSession` a partir do login do Firebase
+(`requirePermission(tenantId, auth, 'assistant.use')`, que cobra também o segundo fator) e chama
+`runAgentOperation` dentro do processo. Validação de entrada, `permissionCharge`/`authorizeOperation`,
+visibilidade por registro e o carimbo `via: 'agent'` são os mesmos, porque o código é o mesmo.
+
+### O fluxo de uma pergunta
+
+`assistantChat` (`onCall`, `timeoutSeconds: 540`) atende uma pergunta por chamada:
+
+1. Permissão `assistant.use`, portão `claimsFunction(tenantId, 'assistantChat')`, a credencial padrão
+   (`getDefaultCredentials`, que já lança a referência certa quando falta conexão) e o provedor de
+   `ai.chat` dela (`error.provider-unsupported` quando nenhum plugin atende).
+2. Cria a conversa, ou toma a existente numa transação (`acquire`): `status: 'running'` +
+   `leaseUntil`. Outra aba recebe `error.busy`; uma trava vencida (instância morta) não conta.
+3. Compactação, se pedida (`command: 'compact'`) ou se `lastInputTokens` passou de
+   `assistant.contextTokens × ASSISTANT_COMPACT_RATIO`.
+4. `runAssistantTurn` (`domain/services/assistantTurn.ts`, puro, com dependências injetadas) conduz o
+   laço até `ASSISTANT_MAX_STEPS`: stream do provedor → texto em pedaços → ferramentas → resultado ao
+   modelo → repete.
+5. No `finally`, a trava é solta e os contadores gravados — também quando o provedor falha
+   (`ChatProviderError` → `error.provider`, com a mensagem dele como parâmetro).
+
+### Streaming: o canal leva o texto, o Firestore guarda a conversa
+
+- O texto vai por `response.sendChunk` (o streaming das callables, `httpsCallable(...).stream()` na
+  tela), com o protocolo `AssistantStreamChunk` (`domain/schema/assistant/assistantConversation.ts`):
+  `start`, `text`, `tool`, `approval`, `compacting`, `saved`, `notice`. Autenticação, CORS e App Check
+  vêm do callable; um `onRequest` com SSE próprio teria de refazer os três.
+- O Firestore recebe a conversa **nas fronteiras** — a pergunta, cada resposta concluída, cada lote de
+  resultados —, nunca por token: seria uma escrita por pedaço, e o limite de escrita por documento.
+- **Parar é abortar.** O `response.signal` dispara quando o cliente fecha a conexão; o `fetch` do
+  provedor é abortado (para de pagar tokens) e o texto parcial é gravado com `interrupted: true`. Fechar
+  a aba tem o mesmo efeito — o servidor não distingue os dois —, e o parcial reaparece da gravação.
+- Toda mensagem é gravada assim que termina: quem fecha a aba no meio de uma busca longa encontra, ao
+  voltar, tudo o que já tinha acontecido.
+
+### Escrita: `assistant.writeMode`
+
+Ajuste do escritório, declarado pela extensão: `confirm` (padrão), `auto` ou `off`.
+
+- **`confirm`:** uma chamada de ferramenta com `writes: true` ENCERRA a pergunta. O lote inteiro vai
+  para `pendingCalls` (cada uma com `needsApproval`), a conversa fica `awaiting-approval` e a tela
+  recebe `{ t: 'approval' }`. A decisão chega numa chamada nova (`approvals: { [callId]: boolean }`): as
+  aprovadas e as de leitura do mesmo lote rodam, as recusadas voltam ao modelo como resultado com erro
+  (`declined-by-user`). Nenhuma function fica parada esperando um clique que pode não vir.
+- Uma pergunta NOVA com chamadas pendentes conta como recusa delas — a pessoa seguiu adiante.
+- **`off`:** as ferramentas de escrita nem são oferecidas ao modelo.
+- Ferramenta de permissão FIXA que a pessoa não tem também fica de fora (`assistantTools`): cada
+  definição custa contexto em toda chamada. As de coleção ficam — depende da coleção escolhida.
+
+### Contexto e compactação
+
+- O histórico que o modelo vê sai de `toModelHistory` (`domain/services/assistantHistory.ts`): rotula o
+  resumo, **fecha toda chamada sem resultado** (`repairToolPairs` — a instância que morreu entre a
+  resposta e a ferramenta deixaria o histórico recusado por qualquer provedor) e funde falas vizinhas
+  do mesmo papel.
+- A compactação resume a conversa pelo MESMO provedor, sem ferramentas, a partir de uma TRANSCRIÇÃO em
+  texto (`transcriptOf`) — e não da estrutura de mensagens, que nenhum provedor aceitaria com uma
+  chamada esperando aprovação. O resumo é gravado como mensagem `kind: 'summary'` e `contextStart`
+  passa a apontar para ela: dali em diante o modelo vê o resumo e o que veio depois; a tela continua
+  mostrando tudo.
+- `assistant.contextTokens` é ajuste (padrão 64 mil, mínimo 8 mil), não a janela do modelo: a janela é
+  teto técnico, o custo de cada pergunta é decisão do escritório.
+- O prompt de sistema (`assistantPrompt.ts`, em inglês: é para o modelo, como as descrições das
+  ferramentas) traz só a DATA, sem hora — ele é prefixo de cache, e um relógio por minuto o invalidaria.
+  Ele diz para responder no locale da pessoa e para linkar registros como
+  `[rótulo](/microteia/record:<coleção>:<id>)` — o link de registro que o Markdown do produto já abre numa
+  aba (`recordLinkTabKey`).
+
+### Coleção, regras e índice
+
+- `tenants/{t}/assistantConversations/{id}` + `messages/{seq}` (id = `seq` com zeros à esquerda) — coleção
+  reservada. Regra: leitura só do dono (`ownerId == auth.uid`, também na subcoleção, por `get` do pai),
+  escrita `false` para todo cliente. Renomear e apagar passam por `assistantConversation`, que só exige
+  ser dono — quem perdeu `assistant.use` ainda limpa o que é seu.
+- O índice `assistantConversations (ownerId ASC, updatedAt DESC)` — a lista da pessoa, mais recente
+  primeiro — é o **primeiro índice declarado por uma extensão** (`manifest.backend.indexes` do
+  `com.microteia.assistant`), e está também na raiz, como manda "Artefatos de backend por extensão".
+
+### Quem é dono do quê
+
+| Peça | Dono | Por quê |
+|---|---|---|
+| A coleção reservada, a capacidade `ai.chat`, o laço, as duas functions, o painel | **kernel** | mesma divisão de `agentGrants`/`aiConnections`: coleção reservada e ferramentas do agente |
+| A decisão de ter o recurso, `assistant.use`, `assistant.writeMode`, `assistant.contextTokens`, `backend.functions` e o índice | **extensão `com.microteia.assistant`** | instalar põe as functions no ar só naquele escritório; o kernel pergunta "alguma extensão reivindica `assistantChat`?", nunca pelo nome do pacote |
+
+A extensão **não depende** do Acesso de Agente de IA: usa as mesmas ferramentas, mas sem token e sem
+endpoint MCP no ar.
+
+### Arquivos-chave
+
+| Arquivo | O quê |
+|---|---|
+| `domain/schema/assistant/assistantConversation.ts` | formato gravado, protocolo dos pedaços, limites e ajustes |
+| `domain/schema/assistant/assistantBackend.ts` | os nomes das duas functions |
+| `functions/src/domain/services/assistantTurn.ts` | o laço de uma pergunta e o resumo |
+| `functions/src/domain/services/assistantHistory.ts` | o histórico que o modelo vê, e a transcrição |
+| `functions/src/domain/services/assistantPrompt.ts` | o prompt de sistema e o de compactação |
+| `functions/src/infrastructure/handlers/assistantChat.ts` | a callable com streaming |
+| `functions/src/infrastructure/handlers/assistantConversation.ts` | renomear e apagar |
+| `functions/src/data/repositories/FirebaseAssistantConversationRepository.ts` | a trava, as mensagens, a exclusão em cascata |
+| `plugins/marketplace/assistant.ts` | a extensão — o interruptor |
 
 ---
 

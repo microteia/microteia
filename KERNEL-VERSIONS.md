@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.259.0] — 2026-11-13
+
+- feat(functions/assistant): `assistantChat` streaming callable (`onCall` + `sendChunk`, 540 s) runs one question per call against the office default AI connection through `ai.chat`, using the agent tools in-process (`runAgentOperation`) with an `AgentSession` built from the Firebase login — `requirePermission(tenantId, auth, 'assistant.use')`, MFA included — instead of an agent token and an HTTP hop to `agentMcp`. Gated by `claimsFunction(tenantId, 'assistantChat')`.
+- feat(functions/assistant): `runAssistantTurn` drives the tool loop up to `ASSISTANT_MAX_STEPS` (12), persisting each finished message immediately; client abort (`response.signal`) aborts the provider request and stores the partial answer as `interrupted`. Write tools follow the tenant setting `assistant.writeMode` (`confirm` pauses the turn with `pendingCalls` and resumes with `approvals`; `auto`; `off` withholds write tools). Tools with a fixed permission the person lacks are not offered.
+- feat(functions/assistant): automatic compaction when `lastInputTokens` reaches `assistant.contextTokens × 0.75` (default 64k), or on `command: 'compact'`; the summary is a `kind: 'summary'` message and `contextStart` moves to it. Model history closes any tool call left without a result.
+- feat(firestore): reserved collection `tenants/{t}/assistantConversations/{id}` + `messages/{seq}` — owner-only read, client writes denied; `assistantConversation` callable renames/deletes (recursive). New composite index `assistantConversations (ownerId ASC, updatedAt DESC)`, the first index declared in an extension `manifest.backend.indexes`.
+- feat(marketplace): new extension `com.microteia.assistant` 1.0.0 — permission `assistant.use`, settings `assistant.writeMode` / `assistant.contextTokens`, and the claim on `assistantChat` and `assistantConversation`. New kernel message namespace `core.assistant`; `locale-pt-br` 1.209.0.
+
 #### [9.258.0] — 2026-11-13
 
 - feat(functions/ai): new `ai.chat` capability (`IAIChatProviderService`) provided by `core.ai` 1.1.0 for all five providers — multi-turn conversation with tool calling, streamed over SSE. Messages use a provider-neutral `ChatMessage { role, parts }`; `opaque` parts carry provider-only state (Anthropic signed thinking, Gemini thought signatures) back untouched and are dropped by any other provider. The provider assembles the final message and reports `stop` (`end | tool_use | max_tokens | refused`) and `usage` (input tokens include cache reads).

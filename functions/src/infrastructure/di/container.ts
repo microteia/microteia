@@ -110,6 +110,7 @@ import type { IFkNameEnricherService } from '../../domain/repositories/IFkNameEn
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
 import { FirebaseTenantMemberRepository } from '../../data/repositories/FirebaseTenantMemberRepository';
 import { FirebaseAgentGrantRepository } from '../../data/repositories/FirebaseAgentGrantRepository';
+import { FirebaseAssistantConversationRepository } from '../../data/repositories/FirebaseAssistantConversationRepository';
 import { FirebaseAgentAuthRequestRepository } from '../../data/repositories/FirebaseAgentAuthRequestRepository';
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
 import { FirebaseNicknameRepository } from '../../data/repositories/FirebaseNicknameRepository';
@@ -140,6 +141,7 @@ import type { ITenantRepository } from '../../domain/repositories/ITenantReposit
 import type { ITenantSettingsRepository } from '../../domain/repositories/ITenantSettingsRepository';
 import type { ITenantMemberRepository } from '../../domain/repositories/ITenantMemberRepository';
 import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGrantRepository';
+import type { IAssistantConversationRepository } from '../../domain/repositories/IAssistantConversationRepository';
 import type { IAgentAuthRequestRepository } from '../../domain/repositories/IAgentAuthRequestRepository';
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
 import { FirebaseWorkflowDefinitionRepository } from '../../data/repositories/FirebaseWorkflowDefinitionRepository';
@@ -311,6 +313,7 @@ class DIContainer {
   private claimNicknameUC?: ClaimNicknameUseCase;
   private tenantMemberRepo?: ITenantMemberRepository;
   private agentGrantRepo?: IAgentGrantRepository;
+  private assistantConversationRepo?: IAssistantConversationRepository;
 
   private agentAuthRequestRepo?: IAgentAuthRequestRepository;
   private installedExtensionCache?: InstalledExtensionCache;
@@ -698,6 +701,13 @@ class DIContainer {
       this.agentGrantRepo = new FirebaseAgentGrantRepository(getDb());
     }
     return this.agentGrantRepo;
+  }
+
+  getAssistantConversationRepository(): IAssistantConversationRepository {
+    if (!this.assistantConversationRepo) {
+      this.assistantConversationRepo = new FirebaseAssistantConversationRepository(getDb());
+    }
+    return this.assistantConversationRepo;
   }
 
   getAgentAuthRequestRepository(): IAgentAuthRequestRepository {

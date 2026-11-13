@@ -7,6 +7,8 @@ export { createAgentGrant } from './infrastructure/handlers/createAgentGrant';
 export { revokeAgentGrant } from './infrastructure/handlers/revokeAgentGrant';
 export { agentOAuth } from './infrastructure/handlers/agentOAuth';
 export { getAgentAuthRequest, consentAgentAuthRequest } from './infrastructure/handlers/agentOAuthConsent';
+export { assistantChat } from './infrastructure/handlers/assistantChat';
+export { assistantConversation } from './infrastructure/handlers/assistantConversation';
 export { callAIProxy } from './infrastructure/handlers/callAIProxy';
 export { detectWorkflows } from './infrastructure/handlers/detectWorkflows';
 export { runWorkflow } from './infrastructure/handlers/runWorkflow';

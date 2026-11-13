@@ -142,6 +142,8 @@ const SHARED_FILES = [
   'domain/schema/agent/agentWorkflow.ts',
   'domain/schema/agent/agentDocument.ts',
   'domain/schema/agent/index.ts',
+  'domain/schema/assistant/assistantConversation.ts',
+  'domain/schema/assistant/assistantBackend.ts',
   'domain/schema/report/reportSpec.ts',
   'domain/schema/report/reportSnapshot.ts',
   'domain/schema/report/reportCapabilities.ts',
@@ -188,6 +190,7 @@ const SHARED_FILES = [
   // de mantida à mão.
   'plugins/messages/coreAccess.ts',
   'plugins/messages/coreAdmin.ts',
+  'plugins/messages/coreAssistant.ts',
   'plugins/messages/coreAutomation.ts',
   'plugins/messages/coreData.ts',
   'plugins/messages/coreDocuments.ts',

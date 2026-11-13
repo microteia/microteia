@@ -17,6 +17,7 @@ import type { EditWindowSpec } from './editWindow';
 import type { MemberVisibilitySpec } from './memberVisibility';
 import { RECORD_KEYS_COLLECTION, scopeRecordKeys } from './recordKeys';
 import { AGENT_GRANTS_COLLECTION } from './agent/agentGrant';
+import { ASSISTANT_CONVERSATIONS_COLLECTION } from './assistant/assistantConversation';
 import { AGGREGATE_BACKFILL_COLLECTION } from './aggregateBackfill';
 import { RECORD_KEY_ADOPTION_COLLECTION } from './recordKeyAdoption';
 import type { AutoValueSpec, RecordSequenceField } from './recordSequence';
@@ -650,6 +651,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'httpConnections',
   HTTP_DISPATCHES_COLLECTION,
   AGENT_GRANTS_COLLECTION,
+  ASSISTANT_CONVERSATIONS_COLLECTION,
   RECORD_KEYS_COLLECTION,
   NOTIFICATION_INBOX_COLLECTION,
   NOTIFICATION_DISPATCHES_COLLECTION,

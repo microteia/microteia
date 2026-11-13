@@ -14,6 +14,7 @@ import { CORE_I18N } from './coreI18n';
 import { CORE_THEME } from './coreTheme';
 import { CORE_AUTOMATION } from './coreAutomation';
 import { CORE_DATA } from './coreData';
+import { CORE_ASSISTANT } from './coreAssistant';
 
 /**
  * **Português (Brasil)** — o primeiro pacote de tradução, e a prova de que o projeto ficou agnóstico
@@ -52,7 +53,7 @@ const bundle = (namespace: string, messages: Record<string, string>): MessageBun
  *
  * Mudou o conteúdo, a impressão muda; o gate para e cobra o `version` junto.
  */
-export const PT_BR_MESSAGES_FINGERPRINT = '52288a5675aa';
+export const PT_BR_MESSAGES_FINGERPRINT = '0a14fe575ea1';
 
 export const localePtBrPlugin: MarketplacePlugin = {
   summary:
@@ -60,7 +61,7 @@ export const localePtBrPlugin: MarketplacePlugin = {
   workflows: [],
   manifest: {
     id: 'com.microteia.locale-pt-br',
-    version: '1.208.0',
+    version: '1.209.0',
     kernel: '^2.0.0',
     name: 'Português (Brasil)',
     description: 'Tradução da Microteia para português do Brasil.',
@@ -81,6 +82,7 @@ export const localePtBrPlugin: MarketplacePlugin = {
       messageBundleContribution(bundle('core.theme', CORE_THEME)),
       messageBundleContribution(bundle('core.automation', CORE_AUTOMATION)),
       messageBundleContribution(bundle('core.data', CORE_DATA)),
+      messageBundleContribution(bundle('core.assistant', CORE_ASSISTANT)),
     ],
   },
 };

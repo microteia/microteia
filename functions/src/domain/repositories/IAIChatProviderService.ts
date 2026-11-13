@@ -1,26 +1,18 @@
 import type { AICredentials } from '../entities/AICredentials';
+import type { AssistantPart } from '../schema/assistant/assistantConversation';
 
 /**
  * Uma parte de mensagem de conversa, no formato NEUTRO do kernel. Cada provedor traduz de e para o
  * dele — é o que deixa o laço do assistente e a gravação da conversa sem saber qual IA respondeu.
+ * É o mesmo tipo que a conversa grava (`AssistantPart`): a próxima pergunta reenvia o histórico
+ * sem tradução nenhuma.
  *
  * `opaque` existe porque alguns provedores exigem de volta, intacto, um pedaço que só eles entendem:
  * o bloco de raciocínio assinado da Anthropic precisa voltar antes do `tool_use` que ele precedeu,
  * senão a chamada seguinte é recusada. O kernel guarda e devolve sem olhar dentro, e o provedor
  * descarta o que não for dele (`provider`), porque a conversa pode trocar de conexão no meio.
  */
-export type ChatPart =
-  | { type: 'text'; text: string }
-  | {
-      type: 'tool_call';
-      id: string;
-      name: string;
-      input: Record<string, unknown>;
-      /** Dado do provedor que precisa voltar junto com a chamada (a assinatura de pensamento do Gemini). */
-      meta?: Record<string, unknown>;
-    }
-  | { type: 'tool_result'; callId: string; content: string; isError: boolean }
-  | { type: 'opaque'; provider: string; block: Record<string, unknown> };
+export type ChatPart = AssistantPart;
 
 export interface ChatMessage {
   role: 'user' | 'assistant';

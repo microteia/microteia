@@ -4,6 +4,7 @@ import { parseMessageRef } from '../../domain/schema/i18n/messageRef';
 import { DEFAULT_LOCALE, normalizeLocale } from '../../domain/schema/i18n/localeNegotiation';
 import { CORE_ACCESS_MESSAGES } from '../../plugins/messages/coreAccess';
 import { CORE_ADMIN_MESSAGES } from '../../plugins/messages/coreAdmin';
+import { CORE_ASSISTANT_MESSAGES } from '../../plugins/messages/coreAssistant';
 import { CORE_AUTOMATION_MESSAGES } from '../../plugins/messages/coreAutomation';
 import { CORE_DATA_MESSAGES } from '../../plugins/messages/coreData';
 import { CORE_MARKETPLACE_MESSAGES } from '../../plugins/messages/coreMarketplace';
@@ -29,6 +30,7 @@ import { CORE_WORKSPACE_MESSAGES } from '../../plugins/messages/coreWorkspace';
 export const KERNEL_MESSAGE_NAMESPACES: Readonly<Record<string, Record<string, string>>> = {
   'core.access': CORE_ACCESS_MESSAGES,
   'core.admin': CORE_ADMIN_MESSAGES,
+  'core.assistant': CORE_ASSISTANT_MESSAGES,
   'core.automation': CORE_AUTOMATION_MESSAGES,
   'core.data': CORE_DATA_MESSAGES,
   'core.marketplace': CORE_MARKETPLACE_MESSAGES,

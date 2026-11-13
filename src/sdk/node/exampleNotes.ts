@@ -23,6 +23,10 @@ export const EXAMPLE_NOTES: Record<string, string> = {
     + 'two record actions, and the two screens they act on. Read it before writing a workflow, an action or a '
     + 'condition for the first time.',
   agent: 'The smallest first-party extension there is, and the one that shows what `manifest.backend` is FOR: it contributes one settings toggle and claims three Cloud Functions of the platform. Claiming them is what takes them out of the package baseline, so they are deployed only in the projects of offices that installed it — read it when your extension needs a backend artifact that no declaration can replace, and for how a `prerequisites` entry says what only a person can do in the Google console.',
+  assistant: 'A switch for a kernel feature, and the only first-party extension that claims a composite INDEX: '
+    + 'besides two Cloud Functions, `manifest.backend.indexes` declares the index its conversation list needs, so an '
+    + 'office that never installed it does not carry it. It also declares a permission (`access.permission`) and a '
+    + 'settings section with a `select` and a `number` — read it for the full shape of a backend claim.',
   brasil: 'A contribution-only extension: it installs no screen at all. It declares field presets '
     + '(`data.field.preset`) and an external lookup (`data.external.lookup`) — the shape to copy when what you '
     + 'add to the platform is a capability rather than a screen.',

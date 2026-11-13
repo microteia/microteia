@@ -38,6 +38,8 @@ const ALL_FUNCTIONS = [
   'agentOAuth',
   'getAgentAuthRequest',
   'consentAgentAuthRequest',
+  'assistantChat',
+  'assistantConversation',
   'callAIProxy',
   'detectWorkflows',
   'runWorkflow',
