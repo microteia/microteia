@@ -84,6 +84,17 @@ export class FirestoreWorkflowTaskRepository implements IWorkflowTaskRepository 
     return snapshot.exists ? mapWorkflowTask(tenantId, taskId, snapshot.data() as DocumentData) : null;
   }
 
+  // A MESMA consulta da caixa na tela, servida pelo mesmo índice (`assigneeIds` + `status` + `createdAt`).
+  async listOpenForAssignee(tenantId: string, userId: string, limit: number): Promise<WorkflowTask[]> {
+    const snapshot = await this.db.collection('tenants').doc(tenantId).collection(WORKFLOW_TASKS_COLLECTION)
+      .where('assigneeIds', 'array-contains', userId)
+      .where('status', '==', 'open')
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+    return snapshot.docs.map((doc) => mapWorkflowTask(tenantId, doc.id, doc.data()));
+  }
+
   async decide(tenantId: string, taskId: string, decision: WorkflowTaskDecision): Promise<WorkflowTaskDecisionResult> {
     const ref = this.ref(tenantId, taskId);
     return this.db.runTransaction(async (tx): Promise<WorkflowTaskDecisionResult> => {

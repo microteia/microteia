@@ -41,11 +41,14 @@ export const AGENT_OPERATIONS = [
   'list_documents',
   'attach_document',
   'run_report',
+  'draft_report',
   'list_workflows',
   'describe_workflow',
   'run_workflow',
   'get_workflow_run',
   'run_action',
+  'list_tasks',
+  'complete_task',
   'search_audit_log',
   'list_document_templates',
   'get_document_template',
@@ -573,6 +576,20 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     writes: false,
   },
   {
+    name: 'draft_report',
+    description:
+      'Propose a report from a description in plain words, using the office AI over the office screens. '
+      + 'Nothing is saved: the answer is a draft — a title, a report "spec" and the issues the platform '
+      + 'found in it (a blocking issue means it would not run). Show it to the person; saving is done in '
+      + 'the app. Requires the permission to manage reports or to create personal reports.',
+    inputSchema: object(
+      { description: { type: 'string', description: 'What the report should show, in the person\'s words.' } },
+      ['description'],
+    ),
+    permission: { kind: 'delegated' },
+    writes: false,
+  },
+  {
     name: 'list_workflows',
     description:
       'Every automation of the office, with how each one starts: "called" ones are started with '
@@ -674,6 +691,37 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       ['action'],
     ),
     permission: { kind: 'fixed', id: PERMISSION_AUTOMATION_RUN },
+    writes: true,
+  },
+  {
+    name: 'list_tasks',
+    description:
+      'The open approval tasks assigned to the person who issued this access, newest first — what an '
+      + 'automation is waiting for them to decide. Each one carries its "taskId", the possible "outcomes" '
+      + '(key and label) and its due date. Decide one with complete_task.',
+    inputSchema: object(
+      { limit: { type: 'number', description: 'At most this many tasks (default and ceiling: 50).' } },
+      [],
+    ),
+    permission: { kind: 'delegated' },
+    writes: false,
+  },
+  {
+    name: 'complete_task',
+    description:
+      'Decide an approval task assigned to the person who issued this access, and resume the automation '
+      + 'that was waiting for it. "outcome" is one of the task\'s outcome keys (see list_tasks). Only an '
+      + 'assignee can decide — no permission replaces that —, and a task that already expired or was '
+      + 'decided by someone else is refused. Confirm the decision with the person before calling.',
+    inputSchema: object(
+      {
+        taskId: { type: 'string', description: 'The task id, from list_tasks.' },
+        outcome: { type: 'string', description: 'One of the task outcome keys.' },
+        comment: { type: 'string', description: 'Optional note recorded with the decision.' },
+      },
+      ['taskId', 'outcome'],
+    ),
+    permission: { kind: 'delegated' },
     writes: true,
   },
   {

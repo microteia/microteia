@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.246.0] — 2026-11-13
+
+- O agente de IA conectado pelo MCP agora propõe relatórios a partir de uma descrição (sem salvar nada) e trata as suas aprovações: lista as tarefas que estão esperando a sua decisão e decide uma em seu nome, retomando a automação na hora.
+
 #### [9.245.0] — 2026-11-13
 
 - O webhook de entrada aceita também chamadas assinadas: em vez do token, escolha "Assinatura HMAC-SHA256 do corpo" e cole o segredo gerado no sistema de origem (como GitHub, Shopify ou Stripe). A chamada só é aceita se a assinatura conferir com o conteúdo enviado.

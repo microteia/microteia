@@ -17,6 +17,7 @@ const harness = () => {
   const tasks: IWorkflowTaskRepository = {
     createIfAbsent: async (task) => { if (!created.some((one) => one.id === task.id)) created.push(task); },
     findById: async () => null,
+    listOpenForAssignee: async () => [],
     decide: async () => ({ ok: false, reason: 'not-found' }),
     expire: async () => undefined,
   };

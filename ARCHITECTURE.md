@@ -11213,7 +11213,7 @@ A autoria ganhou uma caixa de descrição: a IA do escritório (conexão padrão
   abre um relatório gravado — e diz quantos avisos vieram. A pessoa revisa e salva.
 - O pedido é dado: o prompt de sistema diz ao modelo que a descrição não muda as regras. O que ele devolve
   passa pela validação inteira antes de chegar ao formulário.
-- **Ainda não:** a ferramenta `draft_report` no MCP do escritório.
+- **MCP:** `draft_report` usa a mesma `draftReportForTenant` (`infrastructure/report/draftReportForTenant.ts`).
 
 ### Exportação — CSV, XLSX e impressão (`presentation.export`)
 
@@ -11931,7 +11931,7 @@ O caminho natural seria uma API por extensão instalada. Ele é impossível aqui
 de negócio seria o defeito que este projeto existe para não ter.
 
 A saída não é "uma API flexível o bastante". É que a superfície **não tem nome de negócio nenhum**:
-vinte e três ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
+vinte e seis ferramentas genéricas em que a coleção é ARGUMENTO, mais a descoberta de esquema que diz ao
 agente o que existe naquele escritório. `search_records(collection, …)`, nunca `search_processo`. É
 exatamente a propriedade que `FirebaseRecordRepository` e `RecordStore` já têm — recebem a coleção
 como argumento e servem qualquer uma — levada até a superfície de ferramentas.
@@ -11970,6 +11970,8 @@ dito duas vezes:
 | `delete_record` | `runWorkflowRemove` |
 | `list_documents` / `attach_document` | `agentDocuments.ts` — a subcoleção `documents` e o bucket, no MESMO formato do upload da tela (ver "Anexos pela aba Documentos") |
 | `run_report` | `runReportQuery`, com `reportSourceCollections` para enumerar o que ele alcança |
+| `draft_report` | `draftReportForTenant` — a MESMA função da callable `draftReport` (rascunho; nada é gravado). Cobra `reports.manage` OU `reports.personal` do acesso |
+| `list_tasks` / `complete_task` | `listOpenForAssignee` (a consulta da caixa) e `decideWorkflowTask` — a MESMA decisão da callable `completeWorkflowTask`. Só as tarefas de QUEM emitiu o acesso; quem decide é essa pessoa, conferida na transação |
 | `run_workflow` | `publishEvent` — PUBLICA, não executa |
 | `run_action` | `RunCalledWorkflowUseCase` |
 | `preview_document` / `render_document` | `RenderDocumentUseCase` — `preview` e `execute`, a mesma preparação |
@@ -12468,7 +12470,7 @@ produto; onde não sabe, o token continua sendo a saída honesta.
 | Arquivo | O que é |
 |---|---|
 | `domain/schema/agent/agentGrant.ts` | formato do token, hash, validade, a INTERSEÇÃO (sincronizado) |
-| `domain/schema/agent/agentOps.ts` | as vinte e três ferramentas, os quatro recursos, a regra de cobrança de cada uma, e o texto de API (`accepts`, exemplos, a gramática dos modelos em `DOCUMENT_TEMPLATE_GRAMMAR`) |
+| `domain/schema/agent/agentOps.ts` | as vinte e seis ferramentas, os quatro recursos, a regra de cobrança de cada uma, e o texto de API (`accepts`, exemplos, a gramática dos modelos em `DOCUMENT_TEMPLATE_GRAMMAR`) |
 | `functions/src/infrastructure/agent/agentDocumentTemplates.ts` | os modelos de documento pelo agente: listar, ler, guia, salvar e os gestos da tela de modelos |
 | `domain/schema/document/templatePaths.ts` | a conferência dos caminhos de um modelo contra a tela (sincronizado) |
 | `domain/schema/agent/agentInput.ts` | a conferência dos argumentos contra o esquema publicado (sincronizado) |

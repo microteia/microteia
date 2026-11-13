@@ -29,6 +29,10 @@ import { publishEvent } from '../workflow/publishEvent';
 import { FirestoreWorkflowQueryRepository } from '../../data/services/FirestoreWorkflowQueryRepository';
 import { FirestoreWorkflowRecordFetcher } from '../../data/services/FirestoreWorkflowRecordFetcher';
 import { FirestoreWorkflowMutationRepository } from '../../data/services/FirestoreWorkflowMutationRepository';
+import { PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL } from '../../domain/schema/access/kernelPermissions';
+import { REPORT_DRAFT_MAX_DESCRIPTION } from '../../domain/services/aiReportDraft';
+import { draftReportForTenant } from '../report/draftReportForTenant';
+import { decideWorkflowTask } from '../workflow/decideWorkflowTask';
 import { getDI } from '../di/container';
 import { getDb } from '../firebase/initFirebase';
 import type { AgentSession } from './authenticateAgent';
@@ -380,6 +384,15 @@ export const runAgentOperation = async (
     case 'run_action':
       return runAgentAction(input, session, catalog);
 
+    case 'draft_report':
+      return draftAgentReport(input, session, catalog);
+
+    case 'list_tasks':
+      return listAgentTasks(input, session, catalog);
+
+    case 'complete_task':
+      return completeAgentTask(input, session, catalog);
+
     case 'search_audit_log': {
       const outcome = await searchAuditLog(input, session.tenantId, catalog);
       return outcome.ok ? outcome : refuse(catalog, outcome.error, outcome.params);
@@ -525,6 +538,90 @@ const renderAgentDocument = async (
  * quem se cobra: aquela chama `requirePermission`, que responde pelo conjunto do USUÁRIO, e usá-la
  * aqui faria um relatório ler uma coleção que o teto do token exclui. Mesma pergunta, outro ator.
  */
+/** A caixa do agente: as tarefas abertas de QUEM emitiu o acesso — de ninguém mais. */
+const AGENT_TASKS_LIMIT = 50;
+
+/**
+ * O rascunho de relatório pela MESMA função da tela (`draftReportForTenant`). Autoria: o acesso precisa de
+ * uma das duas permissões de escrever relatório — a do escritório ou a pessoal. Nada é gravado.
+ */
+const draftAgentReport = async (
+  input: Record<string, unknown>,
+  session: AgentSession,
+  catalog: MessageCatalog,
+): Promise<AgentOperationOutcome> => {
+  if (!grants(session.permissions, PERMISSION_REPORTS_MANAGE) && !grants(session.permissions, PERMISSION_REPORTS_PERSONAL)) {
+    return refuse(catalog, '@core.access/permission.denied', { permission: PERMISSION_REPORTS_MANAGE });
+  }
+  const description = asText(input.description).trim();
+  if (description === '') return refuse(catalog, '@core.automation/handler.params.missing');
+  if (description.length > REPORT_DRAFT_MAX_DESCRIPTION) {
+    return refuse(catalog, '@core.reports/draft.too-long', { max: String(REPORT_DRAFT_MAX_DESCRIPTION) });
+  }
+  const outcome = await draftReportForTenant(session.tenantId, description);
+  if (!outcome.ok) return refuse(catalog, outcome.error, outcome.errorParams);
+  return {
+    ok: true,
+    value: {
+      title: outcome.draft.title,
+      spec: outcome.draft.spec,
+      issues: outcome.draft.issues.map((issue) => ({
+        field: issue.field,
+        blocking: issue.severity !== 'warning',
+        message: agentText(catalog, issue.error, issue.errorParams).text,
+      })),
+    },
+  };
+};
+
+const listAgentTasks = async (
+  input: Record<string, unknown>,
+  session: AgentSession,
+  catalog: MessageCatalog,
+): Promise<AgentOperationOutcome> => {
+  const asked = Number(input.limit);
+  const limit = Number.isFinite(asked) && asked >= 1 ? Math.min(Math.trunc(asked), AGENT_TASKS_LIMIT) : AGENT_TASKS_LIMIT;
+  const tasks = await getDI().getWorkflowTaskRepository().listOpenForAssignee(session.tenantId, session.userId, limit);
+  return {
+    ok: true,
+    value: {
+      tasks: tasks.map((task) => ({
+        taskId: task.id,
+        title: resolveLabel(catalog, task.title),
+        message: resolveLabel(catalog, task.message),
+        outcomes: task.outcomes.map((outcome) => ({ key: outcome.key, label: resolveLabel(catalog, outcome.label) })),
+        createdAt: task.createdAt.toISOString(),
+        dueAt: task.dueAt ? task.dueAt.toISOString() : null,
+        ...(task.target ? { target: task.target } : {}),
+      })),
+    },
+  };
+};
+
+/**
+ * Decide em nome de quem emitiu o acesso, pela MESMA função da caixa (`decideWorkflowTask`): ela confere,
+ * na transação, que essa pessoa está designada — o agente não decide tarefa de ninguém mais.
+ */
+const completeAgentTask = async (
+  input: Record<string, unknown>,
+  session: AgentSession,
+  catalog: MessageCatalog,
+): Promise<AgentOperationOutcome> => {
+  const taskId = asText(input.taskId);
+  const outcome = asText(input.outcome);
+  if (taskId === '' || outcome === '') return refuse(catalog, '@core.automation/handler.params.missing');
+  const actor = await identifyActor(session.userId, 'agent', session.permissions);
+  const decided = await decideWorkflowTask({
+    tenantId: session.tenantId,
+    taskId,
+    outcome,
+    comment: asText(input.comment),
+    userId: session.userId,
+    userName: actor?.name ?? '',
+  });
+  return decided.ok ? { ok: true, value: { status: 'decided', taskId } } : refuse(catalog, decided.error);
+};
+
 /**
  * O relatório que o agente pediu, pelo MESMO endereço que `office/reports` lista: a chave, e o id do
  * documento como reserva. Lia só pelo id, e o relatório instalado por extensão — cujo id não é a

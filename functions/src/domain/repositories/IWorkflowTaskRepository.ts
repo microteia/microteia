@@ -22,6 +22,8 @@ export interface IWorkflowTaskRepository {
    */
   createIfAbsent(task: WorkflowTask): Promise<void>;
   findById(tenantId: string, taskId: string): Promise<WorkflowTask | null>;
+  /** As tarefas ABERTAS em que a pessoa está designada, as mais novas primeiro — a caixa dela. */
+  listOpenForAssignee(tenantId: string, userId: string, limit: number): Promise<WorkflowTask[]>;
   /**
    * Grava a decisão NUMA transação, conferindo ali dentro que a tarefa está aberta, que quem decide está
    * entre os designados e que o desfecho é um dos dela. Duas pessoas que decidem juntas: uma vence, a

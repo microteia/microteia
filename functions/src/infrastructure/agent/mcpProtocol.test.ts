@@ -33,11 +33,14 @@ describe('a superfície publicada', () => {
       'list_documents',
       'attach_document',
       'run_report',
+      'draft_report',
       'list_workflows',
       'describe_workflow',
       'run_workflow',
       'get_workflow_run',
       'run_action',
+      'list_tasks',
+      'complete_task',
       'search_audit_log',
       'list_document_templates',
       'get_document_template',
@@ -107,7 +110,7 @@ describe('a superfície publicada', () => {
   // como leitura faria um acesso somente-leitura poder mudar dado por via indireta.
   // `render_document` grava porque anexa um arquivo novo a cada chamada; `preview_document` não, e é
   // por isso que são duas — a mesma geração com cobranças diferentes.
-  it('as que gravam são exatamente estas nove', () => {
+  it('as que gravam são exatamente estas dez', () => {
     expect(AGENT_TOOLS.filter((tool) => tool.writes).map((tool) => tool.name)).toEqual([
       'create_record',
       'update_record',
@@ -115,6 +118,7 @@ describe('a superfície publicada', () => {
       'attach_document',
       'run_workflow',
       'run_action',
+      'complete_task',
       'save_document_template',
       'change_document_template',
       'render_document',

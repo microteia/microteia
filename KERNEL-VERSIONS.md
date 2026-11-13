@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.246.0] — 2026-11-13
+
+- feat(mcp): `draft_report` (read-only; requires `reports.manage` or `reports.personal` on the grant) through `draftReportForTenant`, now the single path shared with the `draftReport` callable; issues come back resolved, with `blocking`.
+- feat(mcp): `list_tasks` (open tasks assigned to the grant owner, via the inbox query and its index) and `complete_task` (writes) through `decideWorkflowTask`, extracted from `completeWorkflowTask` so both doors share the same order: continuation exists, transactional decision (assignee checked there), guarded annotation, resume through the clock door. Covered by `decideWorkflowTask.test.ts`.
+
 #### [9.245.0] — 2026-11-13
 
 - feat(workflow/webhook): HMAC-SHA256 signature as an alternative to the bearer token (`scheme: 'hmac'`, header chosen at issue, default `x-signature-256`). The secret (32 bytes, hex) is stored in the clear in `workflow_webhooks/{id}` — verifying needs the key — where no client reads. `authenticateWebhook` signs the RAW body and compares in constant time, accepting hex or base64 with or without `sha256=`. Credential documents without `scheme` are the existing tokens.
