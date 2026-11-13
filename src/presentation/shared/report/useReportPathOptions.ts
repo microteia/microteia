@@ -3,6 +3,7 @@ import { useLabel } from '../i18n/useT';
 import { useSchemaContext } from '../useSchemaContext';
 import { filterFieldOf } from './reportFilterFields';
 import type { FieldDefinition } from '../../../domain/entities/entitySchemas';
+import type { SchemaContext } from '../../../domain/schema/pathResolver';
 
 export interface ReportPathOption {
   value: string;
@@ -43,8 +44,9 @@ const optionOf = (
  * ninguém a achar "a cidade do cliente". Quem precisa de mais escreve o caminho — o validador aceita
  * a mesma profundidade que o resto do produto.
  */
-export const useReportPathOptions = (table: string): ReportPathOption[] => {
-  const ctx = useSchemaContext();
+export const useReportPathOptions = (table: string, schema?: SchemaContext): ReportPathOption[] => {
+  const base = useSchemaContext();
+  const ctx = schema ?? base;
   const label = useLabel();
 
   return useMemo(() => {

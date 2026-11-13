@@ -580,6 +580,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'issue.screen.reserved-prefix':
     'screen "{screen}" would emit "{prefix}.saved", a name reserved by the automation engine — declare another `eventPrefix`.',
   'issue.report.invalid': 'The report "{name}" cannot be run as it is — {field}: {detail}',
+  'issue.report.snapshot': 'The report "{name}" reads a snapshot series, which is data of the organization — a package cannot carry one.',
   'issue.report.requires': 'The report "{name}" declares a `requires` that omits what it uses: {capability}. The list is derived from the spec — leave it out.',
   'issue.aggregation.invalid': 'The field "{field}" of screen "{screen}" cannot aggregate as declared — {detail}',
   'issue.aggregation.kernel': 'The field "{field}" of screen "{screen}" uses the "{op}" aggregation, which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of leaving the field empty.',

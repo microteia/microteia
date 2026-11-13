@@ -15,6 +15,9 @@ import { makeRunReportStepDefinition } from './RunReportStep';
 import type { RunReportFileDeps } from './RunReportStep';
 import type { DownloadFileInput } from '../../../domain/repositories/IDownloadWriter';
 import { buildMessageCatalog } from '../../../domain/schema/i18n/messages';
+import type { IReportSnapshotRepository } from '../../../domain/repositories/IReportSnapshotRepository';
+import { reportSnapshotDefinition } from '../../../domain/schema/report/reportSnapshot';
+import type { ReportSnapshot } from '../../../domain/schema/report/reportSnapshot';
 
 const lancamentos: SchemaScreen = {
   id: 'lancamentos',
@@ -211,3 +214,54 @@ describe('passo run-report — o arquivo em Downloads', () => {
   });
 });
 
+
+describe('passo run-report — o instantâneo para a série', () => {
+  const saved: { tenantId: string; snapshot: Omit<ReportSnapshot, 'id'> }[] = [];
+  const snapshots: IReportSnapshotRepository = {
+    save: async (tenantId, snapshot) => { saved.push({ tenantId, snapshot }); return 'snap1'; },
+    series: async () => [],
+  };
+  const withSnapshots = (reports: StoredReport[] = [{ id: 'doc1', key: 'receita', title: 'Receita', spec }]) =>
+    makeRunReportStepDefinition({
+      reports: reader(reports),
+      query: { queryRepository: new FakeQueryRepository(rows), fetcher: new FakeFetcher(), screenProvider: fakeScreenProvider([lancamentos]) },
+      snapshots,
+    }).createExecutor();
+
+  it('guarda os grupos, os totais e a definição, com a data e a validade, e publica o id da foto', async () => {
+    saved.length = 0;
+    const result = await withSnapshots().execute({ report: 'receita', snapshot: true }, context());
+    expect(result).toMatchObject({ success: true, outputs: { snapshotId: 'snap1', total: 350 } });
+    expect(saved).toHaveLength(1);
+    expect(saved[0].tenantId).toBe('t1');
+    expect(saved[0].snapshot).toMatchObject({
+      report: 'receita',
+      takenAt: new Date('2026-05-05T12:00:00.000Z'),
+      expiresAt: new Date('2031-05-05T12:00:00.000Z'),
+      rows: [{ situacao: 'aberto', total: 50, count: 1 }, { situacao: 'pago', total: 300, count: 2 }],
+      totals: { total: 350 },
+      count: 3,
+      complete: true,
+      truncated: false,
+      takenBy: null,
+      definition: reportSnapshotDefinition(spec),
+    });
+  });
+
+  it('sem pedir, não guarda nada', async () => {
+    saved.length = 0;
+    const result = await withSnapshots().execute({ report: 'receita' }, context());
+    expect(result.success).toBe(true);
+    expect(saved).toHaveLength(0);
+  });
+
+  it('recusa a lista simples, e recusa sem onde guardar — antes de executar o relatório', async () => {
+    saved.length = 0;
+    const lista: ReportSpec = { ...spec, shape: { kind: 'tabular', columns: ['situacao'] } };
+    const tabular = await withSnapshots([{ id: 'd', key: 'lista', title: 'Lista', spec: lista }]).execute({ report: 'lista', snapshot: true }, context());
+    expect(tabular).toMatchObject({ success: false, message: '@core.reports/snapshot.tabular' });
+    const semRepositorio = await step().execute({ report: 'receita', snapshot: true }, context());
+    expect(semRepositorio).toMatchObject({ success: false, message: '@core.reports/snapshot.unavailable' });
+    expect(saved).toHaveLength(0);
+  });
+});

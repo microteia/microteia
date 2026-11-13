@@ -1,3 +1,4 @@
+import { REPORT_SNAPSHOT_DATASET_KIND } from '../../schema/report/reportSpec';
 import type {
   ActionModuleTemplate,
   MarketplacePlugin,
@@ -423,6 +424,11 @@ const packageReportIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
         },
       })),
     ...underDeclaredCapabilities(report),
+    // A série de instantâneos lê as fotos que o ESCRITÓRIO tirou de um relatório dele — dado do tenant,
+    // não do pacote. E a chave da origem não seria reescrita na instalação como a coleção é.
+    ...(report.spec?.dataset?.kind === REPORT_SNAPSHOT_DATASET_KIND
+      ? [{ message: '@core.marketplace/issue.report.snapshot', messageParams: { name: report.templateId } }]
+      : []),
   ]);
 
 /**

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useCustomFieldListing } from '../../hooks/useCustomFieldListing';
-import { useSchemaContext } from '../useSchemaContext';
+import { useReportSchema } from './useReportSchema';
 import { fieldAtPath } from './reportFilterFields';
 import { useLabel, useT } from '../i18n/useT';
 import type { FieldDefinition } from '../../../domain/entities/entitySchemas';
@@ -20,7 +20,7 @@ import type { ReportSpec } from '../../../domain/schema/report/reportSpec';
  * texto, e nenhuma opção do escritório o descreve.
  */
 export const useReportGroupLabels = (spec: ReportSpec): ((entry: ReportGroupKey | undefined) => string) => {
-  const ctx = useSchemaContext();
+  const { ctx, table } = useReportSchema(spec);
   const t = useT('core.reports');
   const label = useLabel();
   const emptyLabel = t('group.empty');
@@ -29,11 +29,11 @@ export const useReportGroupLabels = (spec: ReportSpec): ((entry: ReportGroupKey 
   const fieldByDimension = useMemo(() => {
     const byDimension = new Map<string, FieldDefinition>();
     for (const dimension of spec.dataset.dimensions ?? []) {
-      const field = fieldAtPath(ctx, spec.dataset.table, dimension.path);
+      const field = fieldAtPath(ctx, table, dimension.path);
       if (field) byDimension.set(dimension.key, field);
     }
     return byDimension;
-  }, [ctx, spec]);
+  }, [ctx, spec, table]);
 
   const fields = useMemo(() => [...fieldByDimension.values()], [fieldByDimension]);
   const listing = useCustomFieldListing(fields);

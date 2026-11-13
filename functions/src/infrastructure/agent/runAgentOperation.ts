@@ -3,7 +3,9 @@ import type { QueryPredicate, QuerySpec } from '../../domain/schema/querySpec';
 import { QUERY_OPERATORS_WITHOUT_VALUE } from '../../domain/schema/querySpec';
 import { PERSONAL_REPORTS_COLLECTION } from '../../domain/schema/report/personalReport';
 import type { ReportSpec } from '../../domain/schema/report/reportSpec';
-import { reportRequiredPermissions } from '../../domain/schema/report/reportSpec';
+import { isSnapshotReport, reportAccessPermissions } from '../../domain/schema/report/reportSnapshot';
+import { FirestoreReportDefinitionReader } from '../../data/repositories/FirestoreReportDefinitionReader';
+import { FirestoreReportSnapshotRepository } from '../../data/repositories/FirestoreReportSnapshotRepository';
 import { grants } from '../../domain/schema/access/memberPermissions';
 import { WORKFLOW_CALLED_EVENT } from '../../domain/schema/eventCatalog';
 import type { RuleIssue } from '../../domain/schema/fieldRules';
@@ -532,7 +534,7 @@ const renderAgentDocument = async (
 /**
  * O relatório, com a leitura cobrada do ACESSO e não do usuário.
  *
- * A lista é `reportRequiredPermissions` — a mesma que `requireReportAccess` cobra, então o que é
+ * A lista é `reportAccessPermissions` — a mesma que `requireReportAccess` cobra, então o que é
  * exigido nunca divergirá: a permissão própria do relatório e as coleções, inclusive as alcançadas
  * por referência. O que muda é de
  * quem se cobra: aquela chama `requirePermission`, que responde pelo conjunto do USUÁRIO, e usá-la
@@ -658,7 +660,12 @@ const runAgentReport = async (
   const spec = (found as { spec?: ReportSpec }).spec;
   if (!spec) return refuse(catalog, '@core.reports/handler.spec.missing');
 
-  for (const permission of reportRequiredPermissions(spec, schema)) {
+  // A série cobra a leitura do relatório de ORIGEM; sem ele, recusa — falha fechada.
+  const reports = new FirestoreReportDefinitionReader(getDb());
+  const source = isSnapshotReport(spec) ? (await reports.find(session.tenantId, spec.dataset.table))?.spec : undefined;
+  const required = reportAccessPermissions(spec, schema, source);
+  if (required === null) return refuse(catalog, '@core.reports/snapshot.source-missing', { report: spec.dataset.table });
+  for (const permission of required) {
     if (!grants(session.permissions, permission)) {
       return refuse(catalog, '@core.access/permission.denied', { permission });
     }
@@ -686,7 +693,10 @@ const runAgentReport = async (
   }
 
   const { context } = await agentRun(session, 'run_report');
-  const outcome = await runReportQuery({ spec, context, deps: queryDeps(), prompts });
+  const outcome = await runReportQuery({
+    spec, context, deps: queryDeps(), prompts,
+    series: { reports, snapshots: new FirestoreReportSnapshotRepository(getDb()) },
+  });
   return outcome.ok
     ? { ok: true, value: outcome.value }
     : refuse(catalog, outcome.error, outcome.errorParams);

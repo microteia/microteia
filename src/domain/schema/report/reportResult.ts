@@ -81,6 +81,17 @@ export interface ReportResult {
   totalsExact?: boolean;
   /** Houve mais grupos ou colunas do que o teto de retorno. */
   completeGroups: boolean;
+  /**
+   * Só no relatório de uma série de INSTANTÂNEOS: quantas fotos, de quando a quando, e se a definição do
+   * relatório de origem mudou no meio da série. Ver `reportSnapshot.ts`.
+   */
+  series?: {
+    snapshots: number;
+    first: string | null;
+    last: string | null;
+    definitionChanged: boolean;
+    partial: boolean;
+  };
   /** Reservado para o executor paginado — ver "O executor vai mudar" no plano. */
   cursor?: string;
   generatedAt: string;

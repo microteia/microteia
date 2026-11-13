@@ -148,6 +148,7 @@ import { dateReachedOnSave } from '../../domain/services/workflowClock';
 import { resumeWorkflowExecution } from '../../domain/services/workflowSuspension';
 import { FirestoreWorkflowTaskRepository } from '../../data/repositories/FirestoreWorkflowTaskRepository';
 import { FirestoreReportDefinitionReader } from '../../data/repositories/FirestoreReportDefinitionReader';
+import { FirestoreReportSnapshotRepository } from '../../data/repositories/FirestoreReportSnapshotRepository';
 import { reportTableToPdf } from '../../data/services/document/reportTableToPdf';
 import { makeQueryPage } from '../workflow/query/pagedLoopQuery';
 import { makeExtensionStepResolver } from '../../domain/services/extensionSteps';
@@ -1373,6 +1374,7 @@ class DIContainer {
         screens: this.getScreenDefinitionCache(),
       },
       reportReader: new FirestoreReportDefinitionReader(getDb()),
+      reportSnapshots: new FirestoreReportSnapshotRepository(getDb()),
       reportFile: {
         sources: this.getRecordSearchDeps().repository,
         catalog: (tenantId) => this.getRecordSearchDeps().catalog(tenantId),

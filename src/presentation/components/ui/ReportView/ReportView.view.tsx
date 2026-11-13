@@ -115,6 +115,8 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey, view 
 
       {vm.error && <InfoBanner message={vm.error} variant="warning" />}
       {vm.partial && <InfoBanner message={vm.partial} variant="warning" />}
+      {vm.series && <InfoBanner message={vm.series} variant="info" />}
+      {vm.seriesPartial && <InfoBanner message={vm.seriesPartial} variant="warning" />}
       {vm.warnings.map((warning) => (
         <InfoBanner key={warning} message={warning} variant="info" />
       ))}

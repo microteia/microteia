@@ -13,6 +13,7 @@ import type { ReportSpec } from '../../domain/schema/report/reportSpec';
 import { reportRequiredPermissions } from '../../domain/schema/report/reportSpec';
 import { requireReportAccess, runReportQuery } from './runReportQuery';
 import { REPORT_MAX_SCAN } from './reportLimits';
+import type { ReportSnapshot } from '../../domain/schema/report/reportSnapshot';
 
 const permissionsByUser: Record<string, string[]> = {};
 
@@ -1028,5 +1029,84 @@ describe('runReportQuery — o total respondido pelo banco quando a varredura n�
     expect(repo.aggregated).toBe(0);
     expect(outcome.ok && outcome.value.complete).toBe(false);
     expect(outcome.ok && outcome.value.totalsExact).toBeFalsy();
+  });
+});
+
+describe('runReportQuery — a série de instantâneos', () => {
+  const day = (d: number) => new Date(Date.UTC(2026, 10, d, 8));
+  const photo = (id: string, takenAt: Date, rows: Record<string, unknown>[], definition = 'v1'): ReportSnapshot => ({
+    id, report: 'situacao', takenAt, definition, rows, totals: {}, count: 0, complete: true, truncated: false,
+    takenBy: null, expiresAt: day(30),
+  });
+  const series = (snapshots: ReportSnapshot[], source: ReportSpec | null = spec) => ({
+    reports: { find: async (_t: string, key: string) => (source && key === 'situacao' ? { id: 'r1', key, title: 'Por situação', spec: source } : null) },
+    snapshots: {
+      save: async () => 'x',
+      series: async (_t: string, key: string) => (key === 'situacao' ? snapshots : []),
+    },
+  });
+  // A série: o total em aberto por SEMANA — a data da foto como dimensão, a medida da origem como linha.
+  const seriesSpec: ReportSpec = {
+    v: 1,
+    dataset: {
+      kind: 'snapshot',
+      table: 'situacao',
+      where: [{ path: 'situacao', op: 'eq', value: { kind: 'Literal', value: 'aberto' } }],
+      dimensions: [{ key: 'semana', path: 'takenAt', granularity: 'day' }],
+      measures: [{ key: 'emAberto', op: 'sum', path: 'total' }],
+    },
+    shape: { kind: 'summary', groupBy: [{ dimension: 'semana' }], values: ['emAberto'] },
+  };
+
+  it('cada foto vira linhas, e o agregador de sempre monta a série — com a data da foto como dimensão', async () => {
+    const outcome = await runReportQuery({
+      spec: seriesSpec, context: context(), deps: deps([]),
+      series: series([
+        photo('a', day(2), [{ situacao: 'aberto', total: 50, count: 1 }, { situacao: 'pago', total: 300, count: 2 }]),
+        photo('b', day(9), [{ situacao: 'aberto', total: 80, count: 2 }]),
+      ]),
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.value.rows.map((row) => [row.keys[0].key, row.values.emAberto])).toEqual([['2026-11-02', 50], ['2026-11-09', 80]]);
+    expect(outcome.value.series).toEqual({
+      snapshots: 2, first: day(2).toISOString(), last: day(9).toISOString(), definitionChanged: false, partial: false,
+    });
+    expect(outcome.issues.map((issue) => issue.error)).not.toContain('@core.reports/snapshot.definition-changed');
+  });
+
+  it('a definição da origem mudou no meio da série: avisa, e não recusa', async () => {
+    const outcome = await runReportQuery({
+      spec: seriesSpec, context: context(), deps: deps([]),
+      series: series([photo('a', day(2), [], 'v1'), photo('b', day(9), [], 'v2')]),
+    });
+    expect(outcome.ok && outcome.issues.map((issue) => issue.error)).toContain('@core.reports/snapshot.definition-changed');
+  });
+
+  it('sem fotos ainda, a série existe e está vazia — não é erro', async () => {
+    const outcome = await runReportQuery({ spec: seriesSpec, context: context(), deps: deps([]), series: series([]) });
+    expect(outcome.ok && outcome.value.series?.snapshots).toBe(0);
+  });
+
+  it('recusa a série sem origem, a série de série e o executor sem acesso às fotos', async () => {
+    const semOrigem = await runReportQuery({ spec: seriesSpec, context: context(), deps: deps([]), series: series([], null) });
+    expect(semOrigem).toMatchObject({ ok: false, error: '@core.reports/snapshot.source-missing' });
+    const deSerie = await runReportQuery({ spec: seriesSpec, context: context(), deps: deps([]), series: series([], seriesSpec) });
+    expect(deSerie).toMatchObject({ ok: false, error: '@core.reports/snapshot.of-series' });
+    const semFotos = await runReportQuery({ spec: seriesSpec, context: context(), deps: deps([]) });
+    expect(semFotos).toMatchObject({ ok: false, error: '@core.reports/snapshot.unavailable' });
+  });
+
+  it('quem lê a série precisa poder ler o relatório de ORIGEM; sem a origem, recusa fechado', async () => {
+    const schema = await fakeScreenProvider([personsScreen, lancamentosScreen]).getSchemaContext('t1');
+    const reader = series([]).reports;
+    const error = await denied(requireReportAccess(seriesSpec, schema, 't1', { uid: 'ana', token: {} }, reader));
+    expect(error.code).toBe('permission-denied');
+
+    permissionsByUser.ana = ['lancamentos.read'];
+    await expect(requireReportAccess(seriesSpec, schema, 't1', { uid: 'ana', token: {} }, reader)).resolves.toEqual(['lancamentos.read']);
+
+    const semLeitor = await denied(requireReportAccess(seriesSpec, schema, 't1', { uid: 'ana', token: {} }));
+    expect(semLeitor.code).toBe('permission-denied');
   });
 });

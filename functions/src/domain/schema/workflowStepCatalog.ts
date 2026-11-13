@@ -1099,6 +1099,19 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
         },
       },
       {
+        /**
+         * Guarda a FOTO do resultado para a série — o relatório de instantâneos (`dataset.kind: 'snapshot'`)
+         * lê as fotos como linhas. Ver `reportSnapshot.ts`.
+         */
+        id: 'snapshot',
+        label: '@core.automation/step.run-report.label.snapshot',
+        description: '@core.automation/step.run-report.help.snapshot',
+        required: false,
+        type: 'Boolean',
+        defaultValue: false,
+        allowedMappingKinds: ['Literal'],
+      },
+      {
         /** As respostas em BLOCO; os `param.<chave>` declarados um a um vencem chave por chave. */
         id: 'prompts',
         label: '@core.automation/step.run-report.label.prompts',
@@ -1124,6 +1137,7 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'fileId', label: '@core.automation/step.run-report.output.file-id', type: 'String' },
       { id: 'fileName', label: '@core.automation/step.run-report.output.file-name', type: 'String' },
       { id: 'fileUrl', label: '@core.automation/step.run-report.output.file-url', type: 'String' },
+      { id: 'snapshotId', label: '@core.automation/step.run-report.output.snapshot-id', type: 'String' },
     ],
     dynamicInputs: { kind: 'from-target-report-prompts', sourceInputId: 'report' },
   },

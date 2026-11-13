@@ -1,3 +1,4 @@
+import { HttpsError } from 'firebase-functions/v2/https';
 import { requirePermission } from '../handlers/shared/requirePermission';
 import { exactTotalsPlan, withExactTotals } from '../../domain/schema/report/reportExactTotals';
 import { keepByRelated, relatedParentIds, relatedQuery } from '../../domain/schema/report/reportRelated';
@@ -11,6 +12,18 @@ import type { SchemaContext } from '../../domain/schema/pathResolver';
 import { resolveQueryTable } from '../../domain/schema/querySpec';
 import type { QueryPredicate, QuerySpec } from '../../domain/schema/querySpec';
 import type { ResolvedPredicate } from '../../domain/schema/predicateMatch';
+import { matchesResolvedPredicates } from '../../domain/schema/predicateMatch';
+import {
+  REPORT_SNAPSHOT_MAX_SERIES,
+  isSnapshotReport,
+  reportAccessPermissions,
+  reportSeriesInfo,
+  snapshotReportView,
+  snapshotSchemaContext,
+  snapshotSeriesRows,
+} from '../../domain/schema/report/reportSnapshot';
+import type { IReportDefinitionReader } from '../../domain/repositories/IReportDefinitionReader';
+import type { IReportSnapshotRepository } from '../../domain/repositories/IReportSnapshotRepository';
 import { aggregateReportRows, drillReportRows } from '../../domain/schema/report/aggregateRows';
 import type { ReportDrillResult, ReportDrillTarget } from '../../domain/schema/report/aggregateRows';
 import { filterReportRows, filterRowsByExpression } from '../../domain/schema/report/reportRowFilter';
@@ -20,7 +33,6 @@ import {
   buildReportQuery,
   isAggregateMeasure,
   reportDrillEnabled,
-  reportRequiredPermissions,
 } from '../../domain/schema/report/reportSpec';
 import type { ReportPrompt, ReportSpec } from '../../domain/schema/report/reportSpec';
 import {
@@ -68,9 +80,16 @@ export const requireReportAccess = async (
   ctx: SchemaContext,
   tenantId: string,
   caller: CallerAuth,
+  reports?: IReportDefinitionReader,
 ): Promise<string[]> => {
+  // A série cobra as permissões do relatório de ORIGEM. Sem como lê-lo, recusa: falha fechada.
+  const source = isSnapshotReport(spec) && reports ? (await reports.find(tenantId, spec.dataset.table))?.spec : undefined;
+  const required = reportAccessPermissions(spec, ctx, source);
+  if (required === null) {
+    throw new HttpsError('permission-denied', '@core.reports/snapshot.source-missing', { messageParams: { report: spec.dataset.table } });
+  }
   let granted: string[] = [];
-  for (const permission of reportRequiredPermissions(spec, ctx)) {
+  for (const permission of required) {
     granted = await requirePermission(tenantId, caller, permission);
   }
   return granted;
@@ -173,6 +192,13 @@ export interface RunReportInput {
    * o total não contou.
    */
   drill?: ReportDrillTarget;
+  /** De onde vem a série de um relatório de instantâneos. Sem isto, o relatório da série é recusado. */
+  series?: ReportSeriesDeps;
+}
+
+export interface ReportSeriesDeps {
+  reports: IReportDefinitionReader;
+  snapshots: IReportSnapshotRepository;
 }
 
 /**
@@ -183,14 +209,35 @@ export interface RunReportInput {
  * deixa um executor paginado de amanhã reusá-la sem mudar a forma da resposta.
  */
 export const runReportQuery = async ({
-  spec,
+  spec: requested,
   context,
   deps,
   prompts,
   drill,
+  series: seriesDeps,
 }: RunReportInput): Promise<ReportOutcome> => {
   const tenantId = context.execution.tenantId;
-  const schema = await deps.screenProvider.getSchemaContext(tenantId);
+  const baseSchema = await deps.screenProvider.getSchemaContext(tenantId);
+
+  /*
+   * A SÉRIE de instantâneos: a partir daqui ela é um relatório de coleção — a coleção sintética das fotos
+   * do relatório de origem —, e tudo o que segue (validação, filtros, dimensões calculadas, agregação) é o
+   * caminho de sempre. Só a leitura muda: as fotos vêm do repositório, e os filtros são aplicados em memória.
+   */
+  let spec = requested;
+  let schema = baseSchema;
+  let snapshots: Awaited<ReturnType<IReportSnapshotRepository['series']>> | null = null;
+  if (isSnapshotReport(requested)) {
+    if (!seriesDeps) return { ok: false, error: '@core.reports/snapshot.unavailable' };
+    const source = await seriesDeps.reports.find(tenantId, requested.dataset.table);
+    if (!source) {
+      return { ok: false, error: '@core.reports/snapshot.source-missing', errorParams: { report: requested.dataset.table } };
+    }
+    if (isSnapshotReport(source.spec)) return { ok: false, error: '@core.reports/snapshot.of-series' };
+    schema = snapshotSchemaContext(baseSchema, requested.dataset.table, source.spec, source.title);
+    spec = snapshotReportView(requested);
+    snapshots = await seriesDeps.snapshots.series(tenantId, source.key, REPORT_SNAPSHOT_MAX_SERIES);
+  }
 
   const issues = validateReportSpec(spec, { schema, scanCeiling: REPORT_MAX_SCAN });
   if (hasBlockingReportIssue(issues)) {
@@ -220,11 +267,16 @@ export const runReportQuery = async ({
 
   // Os dois tetos são o MESMO número: quem corta o resultado é a agregação, não a consulta. Cortar
   // antes de agregar somaria as primeiras cem linhas e chamaria isso de total.
-  const outcome = await runWorkflowQuery(query, context, deps, {
-    maxScan: REPORT_MAX_SCAN,
-    maxResults: REPORT_MAX_SCAN,
-  });
+  const outcome: { ok: true; value: WorkflowQueryResult } | { ok: false; error: string; errorParams?: Record<string, string> } = snapshots
+    ? seriesScan(snapshots, query, context)
+    : await runWorkflowQuery(query, context, deps, {
+      maxScan: REPORT_MAX_SCAN,
+      maxResults: REPORT_MAX_SCAN,
+    });
   if (!outcome.ok) return { ok: false, error: outcome.error, errorParams: outcome.errorParams, issues };
+  if (snapshots && reportSeriesInfo(snapshots).definitionChanged) {
+    issues.push({ field: 'dataset.table', error: '@core.reports/snapshot.definition-changed', severity: 'warning' });
+  }
 
   /*
    * O filtro por EXPRESSÃO, aplicado entre a varredura e a agregação.
@@ -326,7 +378,29 @@ export const runReportQuery = async ({
           }),
         }
       : {}),
-    value: await withTotalsFromDatabase(aggregated, spec, schema, outcome.value, tenantId, deps),
+    value: snapshots
+      ? { ...aggregated, series: reportSeriesInfo(snapshots) }
+      : await withTotalsFromDatabase(aggregated, spec, schema, outcome.value, tenantId, deps),
+  };
+};
+
+/**
+ * A "varredura" da série: as linhas de cada foto, com os filtros fixos e os do leitor aplicados em memória —
+ * a série inteira já é pequena (`REPORT_SNAPSHOT_MAX_SERIES` fotos de no máximo
+ * `REPORT_SNAPSHOT_MAX_GROUPS` grupos). Completa quando não ficou foto mais antiga para trás.
+ */
+const seriesScan = (
+  snapshots: Parameters<typeof snapshotSeriesRows>[0],
+  query: QuerySpec,
+  context: WorkflowContext,
+): { ok: true; value: WorkflowQueryResult } => {
+  const rows = snapshotSeriesRows(snapshots);
+  const filters = resolvedFilters(query.where ?? [], context);
+  const results = rows.filter((row) => matchesResolvedPredicates(row, filters));
+  const complete = snapshots.length < REPORT_SNAPSHOT_MAX_SERIES;
+  return {
+    ok: true,
+    value: { count: results.length, results, first: results[0] ?? null, scanned: rows.length, complete, hasMore: !complete, cursor: null },
   };
 };
 

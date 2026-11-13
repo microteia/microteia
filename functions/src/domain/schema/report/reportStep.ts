@@ -41,6 +41,9 @@ export type ReportFileFormat = typeof REPORT_FILE_FORMATS[number];
 export const isReportFileFormat = (value: unknown): value is ReportFileFormat =>
   typeof value === 'string' && (REPORT_FILE_FORMATS as readonly string[]).includes(value);
 
+/** O kernel a partir do qual o passo guarda a FOTO do resultado (`snapshot`). Ver `reportSnapshot.ts`. */
+export { REPORT_SNAPSHOTS_SINCE_KERNEL } from './reportSnapshot';
+
 /** O endereço da aba do relatório — o mesmo `rep:` que o ⌘K e o painel usam. */
 export const reportTabLink = (key: string): string => `rep:${key}`;
 
@@ -76,7 +79,11 @@ export interface RunReportStepOutputs {
  * saem CRUAS (a opção `pending`, o id do cliente): traduzi-las é da tela de quem lê, e o aviso leva ao
  * relatório pelo `link` exatamente por isso.
  */
-export const runReportStepOutputs = (spec: ReportSpec, result: ReportResult): RunReportStepOutputs => {
+export const runReportStepOutputs = (
+  spec: ReportSpec,
+  result: ReportResult,
+  maxRows: number = RUN_REPORT_MAX_ROWS,
+): RunReportStepOutputs => {
   const totals = result.totals?.values ?? {};
   const firstMeasure = (spec.dataset.measures ?? []).find(isAggregateMeasure)?.key
     ?? (spec.dataset.measures ?? [])[0]?.key;
@@ -98,8 +105,8 @@ export const runReportStepOutputs = (spec: ReportSpec, result: ReportResult): Ru
     totals: { ...totals },
     count: result.totals?.count ?? leaves.length,
     groups: leaves.length,
-    rows: leaves.slice(0, RUN_REPORT_MAX_ROWS),
-    rowsTruncated: leaves.length > RUN_REPORT_MAX_ROWS,
+    rows: leaves.slice(0, maxRows),
+    rowsTruncated: leaves.length > maxRows,
     complete: result.complete && result.completeGroups,
     totalExact: result.totals !== null && (result.complete || result.totalsExact === true),
     scanned: result.scanned,

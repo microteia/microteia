@@ -26,6 +26,13 @@ import type { SchemaContext } from '../../../domain/schema/pathResolver';
 import { reportFileText } from '../../../domain/services/reportFileText';
 import type { ReportFileTextSources } from '../../../domain/services/reportFileText';
 import { runReportQuery } from '../../report/runReportQuery';
+import type { IReportSnapshotRepository } from '../../../domain/repositories/IReportSnapshotRepository';
+import {
+  REPORT_SNAPSHOT_RETENTION_YEARS,
+  reportSnapshotDefinition,
+  snapshotRefusal,
+  snapshotRowsOf,
+} from '../../../domain/schema/report/reportSnapshot';
 import type { WorkflowQueryDeps } from '../query/runWorkflowQuery';
 
 /**
@@ -45,6 +52,8 @@ export interface RunReportStepDeps {
   reports: IReportDefinitionReader;
   query: WorkflowQueryDeps;
   file?: RunReportFileDeps;
+  /** Onde a foto é guardada (`snapshot`) e de onde a série é lida. Sem isto, os dois são recusados. */
+  snapshots?: IReportSnapshotRepository;
 }
 
 const WORKFLOW_ACTOR = 'workflow-engine';
@@ -104,7 +113,20 @@ export const makeRunReportStepDefinition = (deps: RunReportStepDeps): StepDefini
         if (!unanswered(value)) prompts[key.slice(PARAM_PREFIX.length)] = value;
       }
 
-      const outcome = await runReportQuery({ spec: report.spec, context, deps: deps.query, prompts });
+      const snapshot = inputs.snapshot === true;
+      if (snapshot) {
+        const refusal = snapshotRefusal(report.spec);
+        if (refusal) return { success: false, message: refusal };
+        if (!deps.snapshots) return { success: false, message: '@core.reports/snapshot.unavailable' };
+      }
+
+      const outcome = await runReportQuery({
+        spec: report.spec,
+        context,
+        deps: deps.query,
+        prompts,
+        ...(deps.snapshots ? { series: { reports: deps.reports, snapshots: deps.snapshots } } : {}),
+      });
       if (!outcome.ok) return { success: false, message: outcome.error, messageParams: outcome.errorParams };
 
       // O que degradou sem impedir: o mesmo aviso que a tela mostraria em cima do relatório.
@@ -119,6 +141,9 @@ export const makeRunReportStepDefinition = (deps: RunReportStepDeps): StepDefini
       const schema = await deps.query.screenProvider.getSchemaContext(context.execution.tenantId);
       const file = await writeReportFile(deps.file, context, schema, report, outcome.value, isReportFileFormat(format) ? format : null);
       if (file && 'error' in file) return { success: false, message: file.error };
+      const snapshotId = snapshot && deps.snapshots
+        ? await saveSnapshot(deps.snapshots, context, report, outcome.value)
+        : null;
       const params = {
         name: report.title,
         count: String(outputs.count),
@@ -134,11 +159,42 @@ export const makeRunReportStepDefinition = (deps: RunReportStepDeps): StepDefini
           name: report.title,
           link: reportTabLink(report.key),
           ...(file ? { table: file.table, fileId: file.id, fileName: file.name, fileUrl: file.url } : {}),
+          ...(snapshotId ? { snapshotId } : {}),
         },
       };
     },
   }),
 });
+
+/**
+ * A FOTO do resultado, para a série: os grupos do nível mais fundo (até o teto), os totais e a definição
+ * do relatório naquele momento — é ela que avisa quando a série atravessa uma mudança do relatório.
+ */
+const saveSnapshot = async (
+  snapshots: IReportSnapshotRepository,
+  context: WorkflowContext,
+  report: StoredReport,
+  result: ReportResult,
+): Promise<string> => {
+  const all = runReportStepOutputs(report.spec, result, Number.POSITIVE_INFINITY);
+  const { rows, truncated } = snapshotRowsOf(all.rows);
+  const takenAt = context.services.now();
+  const expiresAt = new Date(takenAt);
+  expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + REPORT_SNAPSHOT_RETENTION_YEARS);
+  const author = authorOf(context);
+  return snapshots.save(context.execution.tenantId, {
+    report: report.key,
+    takenAt,
+    definition: reportSnapshotDefinition(report.spec),
+    rows,
+    totals: all.totals,
+    count: all.count,
+    complete: all.complete,
+    truncated,
+    takenBy: author.via === 'automation' ? null : author.uid,
+    expiresAt,
+  });
+};
 
 type WrittenFile = { table: ReportCsvTable; id: string; name: string; url: string };
 

@@ -53,6 +53,14 @@ import type {
   ReportTabularShape,
 } from '../../../domain/schema/report/reportSpec';
 import { hasBlockingReportIssue, validateReportSpec } from '../../../domain/schema/report/validateReportSpec';
+import {
+  REPORT_SNAPSHOT_DATASET_KIND,
+  isSnapshotReport,
+  snapshotRefusal,
+  snapshotSchemaContext,
+  snapshotReportView,
+  snapshotSeriesTable,
+} from '../../../domain/schema/report/reportSnapshot';
 import type { ReportResult } from '../../../domain/schema/report/reportResult';
 import { NUMERIC_AGGREGATION_OPS, type NumericAggregationOp } from '../../../domain/schema/fieldRules';
 import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/autocompleteHelpers';
@@ -666,7 +674,8 @@ const groupDimensionsOf = (spec: ReportSpec): string[] => {
  * para os dois: o rascunho proposto passa pelo MESMO caminho de quem abre um relatório gravado.
  */
 const draftFromSpec = (spec: ReportSpec, title: string): ReportDraft => ({
-  table: spec.dataset.table,
+  // A série de instantâneos é editada como a coleção sintética das fotos — é por ela que os campos aparecem.
+  table: isSnapshotReport(spec) ? snapshotSeriesTable(spec.dataset.table) : spec.dataset.table,
   title,
   dimensions: spec.dataset.dimensions ?? [],
   measures: spec.dataset.measures ?? [],
@@ -765,12 +774,27 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     [editing, canManageReports, canPersonalReports, t],
   );
 
+  /**
+   * As fontes de uma SÉRIE: os relatórios do escritório que podem ser fotografados — resumo ou matriz,
+   * nunca um pessoal (fica fora das automações, que são quem tira as fotos), nunca o próprio.
+   */
+  const snapshotSources = useMemo(
+    () => reports.filter((report) => !report.ownerId && snapshotRefusal(report.spec) === null && report.key !== editing?.key),
+    [reports, editing],
+  );
+
   const tableOptions = useMemo(
-    () => dynamicScreens.map((screen) => ({
-      value: screenDataCollection(screen),
-      label: label(screen.titlePlural || screen.titleSingular),
-    })),
-    [dynamicScreens, label],
+    () => [
+      ...dynamicScreens.map((screen) => ({
+        value: screenDataCollection(screen),
+        label: label(screen.titlePlural || screen.titleSingular),
+      })),
+      ...snapshotSources.map((report) => ({
+        value: snapshotSeriesTable(report.key),
+        label: t('design.source.snapshot', { name: label(report.title) }),
+      })),
+    ],
+    [dynamicScreens, snapshotSources, label, t],
   );
 
   /** O rascunho SEMEADO: o relatório carregado, ou um em branco sobre a primeira coleção. */
@@ -830,7 +854,18 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const pathOptions = useReportPathOptions(draft.table);
+  /** A série é desenhada sobre o esquema com a coleção sintética das fotos do relatório de origem. */
+  const seriesSource = useMemo(
+    () => snapshotSources.find((report) => snapshotSeriesTable(report.key) === draft.table) ?? null,
+    [snapshotSources, draft.table],
+  );
+  const designSchema = useMemo(
+    () => (seriesSource
+      ? snapshotSchemaContext(schema, seriesSource.key, seriesSource.spec, seriesSource.title)
+      : schema),
+    [seriesSource, schema],
+  );
+  const pathOptions = useReportPathOptions(draft.table, designSchema);
   const valueLabel = useReportValueLabel(pathOptions);
 
   /** O campo do caminho escolhido — é ele que decide o CONTROLE com que o valor é informado. */
@@ -1419,10 +1454,14 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     return {
       v: REPORT_SPEC_VERSION,
       dataset: {
-        // `kind` é o discriminante de onde as linhas vêm: um relatório que não seja de coleção não é
-        // editado aqui, mas perder o discriminante o transformaria em outro relatório.
-        ...(original?.dataset.kind ? { kind: original.dataset.kind } : {}),
-        table: draft.table,
+        // `kind` é o discriminante de onde as linhas vêm. A série é escolhida na lista de fontes, e o
+        // discriminante de outro tipo que esta tela não conhece é levado como estava.
+        ...(seriesSource
+          ? { kind: REPORT_SNAPSHOT_DATASET_KIND, table: seriesSource.key }
+          : {
+              ...(original?.dataset.kind && original.dataset.kind !== REPORT_SNAPSHOT_DATASET_KIND ? { kind: original.dataset.kind } : {}),
+              table: draft.table,
+            }),
         ...(draft.filters.length > 0 ? { where: draft.filters } : {}),
         // Chave AUSENTE quando não há expressão, nunca vazia: o `spec` é gravado verbatim, e uma
         // string vazia ali seria uma capacidade declarada que o relatório não usa.
@@ -1439,9 +1478,9 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       ...(Object.keys(access).length > 0 ? { access } : {}),
       ...(original?.schedule ? { schedule: original.schedule } : {}),
     };
-  }, [draft, editing]);
+  }, [draft, editing, seriesSource]);
 
-  const issues = useMemo(() => validateReportSpec(spec, { schema }), [spec, schema]);
+  const issues = useMemo(() => validateReportSpec(snapshotReportView(spec), { schema: designSchema }), [spec, designSchema]);
 
   const errors = useMemo(
     () => issues

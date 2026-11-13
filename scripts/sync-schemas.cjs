@@ -142,6 +142,7 @@ const SHARED_FILES = [
   'domain/schema/agent/agentDocument.ts',
   'domain/schema/agent/index.ts',
   'domain/schema/report/reportSpec.ts',
+  'domain/schema/report/reportSnapshot.ts',
   'domain/schema/report/reportCapabilities.ts',
   'domain/schema/report/reportBuckets.ts',
   'domain/schema/report/reportChartSplit.ts',

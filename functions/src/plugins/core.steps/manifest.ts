@@ -47,6 +47,7 @@ const factories: Record<string, StepFactory> = {
     reports: deps.reportReader,
     query: queryDepsOf(deps),
     ...(deps.reportFile ? { file: deps.reportFile } : {}),
+    ...(deps.reportSnapshots ? { snapshots: deps.reportSnapshots } : {}),
   }),
   RenderDocument: (deps) => makeRenderDocumentStepDefinition(deps.renderDocumentUseCase),
   ShareDocuments: (deps) => makeShareDocumentsStepDefinition(deps.shareRecordDocumentsUseCase),

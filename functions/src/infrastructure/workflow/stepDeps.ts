@@ -1,3 +1,4 @@
+import type { IReportSnapshotRepository } from '../../domain/repositories/IReportSnapshotRepository';
 import type { IWorkflowQueryRepository } from '../../domain/repositories/IWorkflowQueryRepository';
 import type { IWorkflowRecordFetcher } from '../../domain/repositories/IWorkflowRecordFetcher';
 import type { IWorkflowMutationRepository } from '../../domain/repositories/IWorkflowMutationRepository';
@@ -45,6 +46,8 @@ export interface RegisterStepsDeps {
   reportReader: IReportDefinitionReader;
   /** O texto legível e o arquivo do mesmo passo. */
   reportFile?: RunReportFileDeps;
+  /** As fotos dos relatórios — o `snapshot` do mesmo passo e a série que ele lê. */
+  reportSnapshots?: IReportSnapshotRepository;
 }
 
 /**

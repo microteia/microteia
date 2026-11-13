@@ -11255,6 +11255,39 @@ execução custa leituras.
 - **Compartilhar com o escritório** (quem tem `reports.manage`): um lote cria `reports/<chave>` e apaga o
   pessoal — nunca nos dois lugares, nem em nenhum. Chave tomada é recusa.
 
+### Série de instantâneos (`dataset.kind: 'snapshot'`, `report_snapshots`)
+
+O relatório responde "como está agora": o registro é sobrescrito, e o "aberto" de ontem deixa de existir. A
+série guarda FOTOS do resultado de um relatório, tiradas por automação, e as lê como fonte de outro relatório
+(`reportSnapshot.ts`, compartilhado).
+
+- **Tirar a foto:** o passo `run-report` com `snapshot: true` grava em `tenants/{id}/report_snapshots` os grupos
+  do nível mais fundo (até `REPORT_SNAPSHOT_MAX_GROUPS`, com `truncated`), os totais, `count`, `complete`,
+  `takenBy` (a pessoa por trás da automação, ou `null`), `expiresAt` (5 anos, TTL) e a `definition` — impressão
+  do que define o NÚMERO (tabela, filtros, dimensões, medidas; nunca a apresentação). Só resumo e matriz
+  (`snapshotRefusal`): a lista guardaria registros, e série de série é eco. Publica `snapshotId`. Não há
+  agendador novo: é o motor de automação, como a assinatura.
+- **Ler a série:** `dataset.kind: 'snapshot'`, `dataset.table` = a CHAVE do relatório de origem. A série é
+  vista como relatório de COLEÇÃO sobre uma coleção sintética (`snapshotSchemaScreen` / `snapshotReportView`):
+  `takenAt` (data), as dimensões da origem (a que é campo herda a definição dele — opções, referência — para o
+  grupo aparecer pelo rótulo), as medidas (número) e `count`. Daí em diante é o caminho de sempre: validação,
+  filtros (aplicados em memória), dimensões calculadas, agregador, gráficos. `ReportResult.series` diz quantas
+  fotos, de quando a quando, se a `definition` mudou no meio (aviso `snapshot.definition-changed`) e se alguma
+  foto foi parcial. Não é retroativa: a tela diz que a série começa na primeira foto.
+- **Quem lê** (`reportAccessPermissions`): quem pode ler o relatório de ORIGEM — a foto foi tirada com a visão da
+  automação — mais a permissão própria da série. Sem a origem, `null`: falha fechada no servidor
+  (`requireReportAccess` recebe o leitor de relatórios), no MCP e na lista/⌘K. A origem é sempre um relatório
+  do escritório (o pessoal não serve de origem nem empresta permissões).
+- **Regras:** `report_snapshots` é só do servidor (leitura e escrita negadas ao navegador); nome reservado nas
+  duas listas. Testes: `rules-tests/reportSnapshots.test.ts` (regras e o repositório real no emulador).
+- **Fora:** detalhamento (a linha é uma foto, `reportDrillEnabled` falso), relacionados (`snapshot.related`) e
+  pacote (`issue.report.snapshot` — a série é dado do escritório, e a chave da origem não seria reescrita na
+  instalação). O rascunho por IA não propõe série (`dataset.snapshot: null` na gramática).
+- **Tela:** o designer oferece "Instantâneos de …" na lista de fontes (resumo e matriz do escritório) e desenha
+  sobre o esquema sintético; `useReportSchema` dá a rótulos, células e filtros o esquema certo.
+- **Capacidade** `dataset.snapshot`; kernel ≥ `REPORT_SNAPSHOTS_SINCE_KERNEL` (2.124.0) para a entrada `snapshot`
+  do passo num pacote.
+
 ### "Descreva o relatório" — rascunho por IA (`draftReport`)
 
 A autoria ganhou uma caixa de descrição: a IA do escritório (conexão padrão de `core.ai`) PROPÕE um
@@ -16692,6 +16725,8 @@ Além dos compostos, o arquivo declara catorze `fieldOverrides`:
 | `registrationRefusals` | `expiresAt` | TTL — a recusa de conta nova só serve à tentativa em curso (1 dia); sem índice, porque só é lida pelo id |
 | `http_dispatches` (collectionGroup) | `nextAttemptAt` ASC | `runWorkflowClock` devolve à fila, em todos os escritórios de uma vez, o pedido HTTP assíncrono cuja espera venceu, cuja entrega morreu no meio ou que ninguém pegou |
 | `http_dispatches` | `expiresAt` | TTL — o pedido HTTP assíncrono fica 7 dias depois de criado; o resultado já foi para o callback |
+| `report_snapshots` | `report` ASC, `takenAt` DESC | A série de instantâneos de um relatório: as fotos mais recentes dele, até `REPORT_SNAPSHOT_MAX_SERIES` |
+| `report_snapshots` | `expiresAt` | TTL — a foto de um relatório é mantida por 5 anos (`REPORT_SNAPSHOT_RETENTION_YEARS`) |
 
 ---
 

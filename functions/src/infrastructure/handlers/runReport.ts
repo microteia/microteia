@@ -13,6 +13,9 @@ import type { ReportResult } from '../../domain/schema/report/reportResult';
 import type { ReportDrillResult, ReportDrillTarget } from '../../domain/schema/report/aggregateRows';
 import type { ReportSpecIssue } from '../../domain/schema/report/validateReportSpec';
 import { requireReportAccess, runReportQuery } from '../report/runReportQuery';
+import type { ReportSeriesDeps } from '../report/runReportQuery';
+import { FirestoreReportDefinitionReader } from '../../data/repositories/FirestoreReportDefinitionReader';
+import { FirestoreReportSnapshotRepository } from '../../data/repositories/FirestoreReportSnapshotRepository';
 import { PERSONAL_REPORTS_COLLECTION } from '../../domain/schema/report/personalReport';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 import { tenantBusinessCalendars } from '../settings/tenantBusinessCalendars';
@@ -110,7 +113,12 @@ export const runReport = onCall(
     // O conjunto CONCEDIDO volta da mesma leitura que autorizou: é ele que o `hasPermission` de um
     // filtro por expressão consulta. Com o ator vazio, a pergunta respondia NÃO a tudo — e num filtro
     // de linha isso não é um botão que some, é uma linha que sai da conta.
-    const permissions = await requireReportAccess(spec, schema, tenantId, request.auth);
+    // A série de instantâneos cobra a leitura do relatório de ORIGEM, e é dele que as fotos vêm.
+    const series: ReportSeriesDeps = {
+      reports: new FirestoreReportDefinitionReader(db),
+      snapshots: new FirestoreReportSnapshotRepository(db),
+    };
+    const permissions = await requireReportAccess(spec, schema, tenantId, request.auth, series.reports);
 
     const logs: string[] = [];
     const logger: WorkflowLogger = {
@@ -138,7 +146,7 @@ export const runReport = onCall(
       input: prompts ?? {},
     };
 
-    const outcome = await runReportQuery({ spec, context, deps, prompts, drill });
+    const outcome = await runReportQuery({ spec, context, deps, prompts, drill, series });
 
     return outcome.ok
       ? { result: outcome.value, issues: outcome.issues, error: null, ...(outcome.drill ? { drill: outcome.drill } : {}) }

@@ -20,6 +20,7 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'dataset.dimension.expression',
   'dataset.includeWhen',
   'dataset.related',
+  'dataset.snapshot',
   'dimension.buckets',
   'dimension.granularity',
   'dimension.others',

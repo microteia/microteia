@@ -8,7 +8,7 @@ import { useLabel, useT } from '../../shared/i18n/useT';
 import { useExtensionName } from '../../shared/extensions/useExtensionName';
 import type { FilterDef, FilterToken } from '../../components/ui/CompositeFilter';
 import { PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL } from '../../../domain/schema/access';
-import { reportRequiredPermissions } from '../../../domain/schema/report/reportSpec';
+import { reportAccessPermissions, snapshotSourceSpec } from '../../../domain/schema/report/reportSnapshot';
 import { buildReportDesignTabKey, buildReportTabKey } from '../../../shared/constants/reportKeys';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
 
@@ -109,7 +109,10 @@ export const useReportsViewModel = (): ReportsViewModel => {
   const visible = useMemo(
     () => reports
       .filter((report) => report.enabled !== false)
-      .filter((report) => canAll(reportRequiredPermissions(report.spec, schema)))
+      .filter((report) => {
+        const permissions = reportAccessPermissions(report.spec, schema, snapshotSourceSpec(report.spec, reports));
+        return permissions !== null && canAll(permissions);
+      })
       .map((report) => ({
         id: report.key,
         documentId: report.id,

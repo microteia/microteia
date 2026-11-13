@@ -85,6 +85,9 @@ export const REPORT_DRAFT_TEACHING: Readonly<Record<string, string | null>> = {
   'presentation.prompt.required':
     '"required": true on a prompt makes the reader answer before it runs.',
   'presentation.drilldown': null,
+  // A série de instantâneos depende de uma automação que tire as fotos: o rascunho descreve uma pergunta
+  // sobre os registros, e propor uma série sem fotos seria um relatório vazio.
+  'dataset.snapshot': null,
   'export.csv': null,
   'export.filename': null,
   'export.pdf': null,

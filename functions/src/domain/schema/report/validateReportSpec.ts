@@ -29,6 +29,7 @@ import {
   isAggregateMeasure,
   isComputedDimension,
   REPORT_DATASET_KINDS,
+  REPORT_SNAPSHOT_DATASET_KIND,
   REPORT_HIGHLIGHT_OPS,
   REPORT_HIGHLIGHT_TONES,
   REPORT_SHAPE_KINDS,
@@ -112,6 +113,10 @@ export const validateReportSpecShape = (
       error: '@core.reports/dataset.kind.unsupported',
       errorParams: { kind: datasetKind },
     });
+  }
+  // A linha da série é uma foto: não há registro de outra coleção apontando para ela.
+  if (datasetKind === REPORT_SNAPSHOT_DATASET_KIND && (spec.dataset.related ?? []).length > 0) {
+    issues.push({ field: 'dataset.related', error: '@core.reports/snapshot.related' });
   }
 
   /*

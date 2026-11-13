@@ -5,6 +5,7 @@ import { useWorkspace } from '../../../../stores/useWorkspace';
 import type { ReportDefinition } from '../../../../domain/entities/Report';
 import type { ReportResult } from '../../../../domain/schema/report/reportResult';
 import type { ReportPrompt, ReportSpec } from '../../../../domain/schema/report/reportSpec';
+import { useReportSchema } from '../../../shared/report/useReportSchema';
 import { useReportPathOptions } from '../../../shared/report/useReportPathOptions';
 import { filterLiteralOf, filterTextOf, filterValueOf } from '../../../shared/report/reportFilterFields';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities/entitySchemas';
@@ -54,6 +55,9 @@ export interface ReportViewViewModel {
   warnings: string[];
   /** O aviso de resultado PARCIAL — presente só quando ele é parcial de fato. */
   partial: string | null;
+  /** Na série de instantâneos: quantas fotos e de quando a quando — ou que ainda não há nenhuma. */
+  series: string | null;
+  seriesPartial: string | null;
   meta: string | null;
   run: () => Promise<void>;
 
@@ -167,7 +171,8 @@ export const useReportViewViewModel = (
       .filter((prompt) => !Object.prototype.hasOwnProperty.call(fixed, prompt.key)),
     [spec, fixed],
   );
-  const pathOptions = useReportPathOptions(spec?.dataset.table ?? '');
+  const reportSchema = useReportSchema(spec);
+  const pathOptions = useReportPathOptions(reportSchema.table, reportSchema.ctx);
 
   const fieldByPath = useCallback(
     (path: string): FieldDefinition | undefined =>
@@ -324,6 +329,20 @@ export const useReportViewViewModel = (
       })
     : (result && !result.completeGroups ? t('result.partial-groups') : null);
 
+  // A série de instantâneos diz de onde vem o número: quantas fotos, de quando a quando — e que cada uma
+  // reflete a visão da automação que a tirou, não a de quem lê agora.
+  const seriesInfo = result?.series;
+  const series = seriesInfo
+    ? (seriesInfo.snapshots === 0 || !seriesInfo.first || !seriesInfo.last
+      ? t('series.empty')
+      : t('series.summary', {
+          count: formatters.formatNumber(seriesInfo.snapshots, { maximumFractionDigits: 0 }),
+          first: formatters.formatDate(seriesInfo.first),
+          last: formatters.formatDate(seriesInfo.last),
+        }))
+    : null;
+  const seriesPartial = seriesInfo?.partial ? t('series.partial') : null;
+
   const groupLabel = useReportGroupLabels(spec ?? EMPTY_SPEC);
 
   const drill = useCallback(async (target: ReportDrillTarget) => {
@@ -365,6 +384,8 @@ export const useReportViewViewModel = (
     error,
     warnings,
     partial,
+    series,
+    seriesPartial,
     meta: result ? t('result.meta', {
       count: formatters.formatNumber(result.scanned, { maximumFractionDigits: 0 }),
       at: formatters.formatDateTime(result.generatedAt),

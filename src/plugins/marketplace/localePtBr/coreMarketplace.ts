@@ -579,6 +579,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.screen.reserved-prefix':
     'a tela "{screen}" emitiria "{prefix}.saved", um nome reservado pelo motor de automações — declare outro `eventPrefix`.',
   'issue.report.invalid': 'O relatório "{name}" não pode ser executado como está — {field}: {detail}',
+  'issue.report.snapshot': 'O relatório "{name}" lê uma série de instantâneos, que é dado do escritório — um pacote não a carrega.',
   'issue.report.requires': 'O relatório "{name}" declara um `requires` que omite o que ele usa: {capability}. A lista é derivada do spec — não a escreva.',
   'issue.aggregation.invalid': 'O campo "{field}" da tela "{screen}" não pode agregar como foi declarado — {detail}',
   'issue.aggregation.kernel': 'O campo "{field}" da tela "{screen}" usa a agregação "{op}", que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de deixar o campo vazio.',

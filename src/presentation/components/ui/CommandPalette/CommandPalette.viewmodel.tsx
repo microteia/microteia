@@ -6,7 +6,7 @@ import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore';
 import { useReportDefinitions } from '../../../../stores/useReportDefinitions';
 import { useSchemaContext } from '../../../shared/useSchemaContext';
-import { reportRequiredPermissions } from '../../../../domain/schema/report/reportSpec';
+import { reportAccessPermissions, snapshotSourceSpec } from '../../../../domain/schema/report/reportSnapshot';
 import { useTheme } from '../../../../stores/useTheme';
 import { useAuth } from '../../../../stores/useAuth';
 import { useAuthorization } from '../../../../stores/useAuthorization';
@@ -59,13 +59,13 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
    * de hidratação a cada letra digitada, e ele não tem como pendurar um hook.
    */
   const paletteReports = useMemo(
-    () => reports.map((report) => ({
-      key: report.key,
-      title: report.title,
-      covers: report.spec.dataset.table,
-      permissions: reportRequiredPermissions(report.spec, schema),
-      enabled: report.enabled,
-    })),
+    () => reports.flatMap((report) => {
+      // A série cobra as permissões da ORIGEM; sem origem, não há o que oferecer.
+      const permissions = reportAccessPermissions(report.spec, schema, snapshotSourceSpec(report.spec, reports));
+      return permissions
+        ? [{ key: report.key, title: report.title, covers: report.spec.dataset.table, permissions, enabled: report.enabled }]
+        : [];
+    }),
     [reports, schema],
   );
 

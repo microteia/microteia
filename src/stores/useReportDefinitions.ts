@@ -30,3 +30,6 @@ export const useReportDefinitions = (): ReportDefinitionStoreState => {
   if (!ctx) throw new Error('useReportDefinitions must be used within ReportDefinitionStoreProvider');
   return ctx;
 };
+
+/** O store QUANDO ele pode não existir — um relatório desenhado fora da pilha do escritório (testes, portal). */
+export const useOptionalReportDefinitions = (): ReportDefinitionStoreState | null => useContext(ReportDefinitionContext);

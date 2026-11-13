@@ -60,7 +60,7 @@ import {
 import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { hasChangeFilter, WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../schema/workflowChangeFilter';
 import { APPROVAL_STEP_ID, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../schema/workflowTask';
-import { REPORT_FILE_SINCE_KERNEL, RUN_REPORT_STEP_ID, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../schema/report/reportStep';
+import { REPORT_FILE_SINCE_KERNEL, REPORT_SNAPSHOTS_SINCE_KERNEL, RUN_REPORT_STEP_ID, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../schema/report/reportStep';
 import { WAIT_FOR_STEP_ID, WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../schema/workflowWait';
 import { WORKFLOW_PAGED_LOOP_SINCE_KERNEL } from '../../schema/workflowLoopQuery';
 import { WORKFLOW_WEBHOOK_EVENT, WORKFLOW_WEBHOOK_SINCE_KERNEL } from '../../schema/workflowWebhook';
@@ -377,6 +377,7 @@ const workflowIssues = (
     ...stepDefinitionKernelIssues(steps, ref, pkg),
     ...extractFieldsKernelIssues(steps, ref, pkg),
     ...reportFileKernelIssues(steps, ref, pkg),
+    ...reportSnapshotKernelIssues(steps, ref, pkg),
     ...steps.flatMap((step) => stepIssues(step, ref, hasDependencies, packageStepContext(pkg))),
     ...outputRefIssues(steps, ref),
     ...documentStepIssues(steps, ref, pkg),
@@ -765,6 +766,19 @@ const reportFileKernelIssues = (
   const first = steps.find((step) => step.stepDefinitionId === RUN_REPORT_STEP_ID && step.configuration?.file !== undefined);
   return first
     ? [{ ref, message: '@core.marketplace/issue.step.input-kernel', messageParams: { step: first.id, input: 'file', minimum: REPORT_FILE_SINCE_KERNEL } }]
+    : [];
+};
+
+/** A foto para a série num pacote que admite kernel anterior: lá o `snapshot` é ignorado, e a série nunca nasce. */
+const reportSnapshotKernelIssues = (
+  steps: WorkflowStep[],
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  if (rangeExcludesBelow(pkg.manifest?.kernel ?? '', REPORT_SNAPSHOTS_SINCE_KERNEL)) return [];
+  const first = steps.find((step) => step.stepDefinitionId === RUN_REPORT_STEP_ID && step.configuration?.snapshot !== undefined);
+  return first
+    ? [{ ref, message: '@core.marketplace/issue.step.input-kernel', messageParams: { step: first.id, input: 'snapshot', minimum: REPORT_SNAPSHOTS_SINCE_KERNEL } }]
     : [];
 };
 

@@ -33,7 +33,10 @@ export const REPORT_SPEC_VERSION = 1;
  */
 export type ReportDatasetKind = string;
 
-export const REPORT_DATASET_KINDS: readonly ReportDatasetKind[] = ['collection'];
+/** A série de INSTANTÂNEOS de outro relatório — `table` é a chave dele. Ver `reportSnapshot.ts`. */
+export const REPORT_SNAPSHOT_DATASET_KIND = 'snapshot';
+
+export const REPORT_DATASET_KINDS: readonly ReportDatasetKind[] = ['collection', REPORT_SNAPSHOT_DATASET_KIND];
 
 export const DEFAULT_REPORT_DATASET_KIND = 'collection';
 
@@ -589,4 +592,5 @@ export const reportRequiredPermissions = (spec: ReportSpec, ctx: SchemaContext):
 
 /** O detalhamento vale para este relatório? Ligado salvo quando o spec o desliga explicitamente. */
 export const reportDrillEnabled = (spec: ReportSpec): boolean =>
-  spec.presentation?.drillDown?.enabled !== false;
+  // A linha da série é uma FOTO, não um registro: não há o que abrir atrás dela.
+  spec.dataset.kind !== REPORT_SNAPSHOT_DATASET_KIND && spec.presentation?.drillDown?.enabled !== false;

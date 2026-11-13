@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { PERSONAL_REPORTS_COLLECTION } from './report/personalReport';
+import { REPORT_SNAPSHOTS_COLLECTION } from './report/reportSnapshot';
 import type { CustomFieldType, FieldDefinition, FieldOrigin } from '../entities/entitySchemas';
 import { HTTP_DISPATCHES_COLLECTION } from './httpRequestSpec';
 import type { EntityKey, EntityMetadata, NativeFieldSpec, NativeFieldType } from './entityRegistry';
@@ -640,6 +641,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'lookupDefinitions',
   'reports',
   PERSONAL_REPORTS_COLLECTION,
+  REPORT_SNAPSHOTS_COLLECTION,
   'documentTemplates',
   'downloads',
   'tagDefinitions',

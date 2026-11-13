@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useLabel, useLocaleFormat } from '../i18n/useT';
-import { useSchemaContext } from '../useSchemaContext';
+import { useReportSchema } from './useReportSchema';
 import { fieldAtPath } from './reportFilterFields';
 import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
 import type { SchemaContext, SchemaScreen } from '../../../domain/schema/pathResolver';
@@ -42,27 +42,27 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const useReportCellText = (
   spec: ReportSpec,
 ): ((record: Record<string, unknown>, dimension: ReportDimension) => string) => {
-  const ctx = useSchemaContext();
+  const { ctx, table } = useReportSchema(spec);
   const label = useLabel();
   const { formatDate } = useLocaleFormat();
 
   const titleFieldByDimension = useMemo(() => {
     const byDimension = new Map<string, string>();
     for (const dimension of spec.dataset.dimensions ?? []) {
-      const field = fieldAtPath(ctx, spec.dataset.table, dimension.path);
+      const field = fieldAtPath(ctx, table, dimension.path);
       if (!field?.refEntity) continue;
       byDimension.set(dimension.key, referencedScreen(ctx, field.refEntity)?.titleFieldKey ?? '');
     }
     return byDimension;
-  }, [ctx, spec]);
+  }, [ctx, spec, table]);
 
   const dateDimensions = useMemo(() => {
     const keys = new Set<string>();
     for (const dimension of spec.dataset.dimensions ?? []) {
-      if (fieldAtPath(ctx, spec.dataset.table, dimension.path)?.type === 'date') keys.add(dimension.key);
+      if (fieldAtPath(ctx, table, dimension.path)?.type === 'date') keys.add(dimension.key);
     }
     return keys;
-  }, [ctx, spec]);
+  }, [ctx, spec, table]);
 
   return useCallback((record, dimension) => {
     const raw = getValueAtPath(record, parsePath(dimension.path));

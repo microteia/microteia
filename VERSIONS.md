@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.250.0] — 2026-11-13
+
+- Relatórios agora podem ter memória. Uma automação pode guardar um instantâneo do resultado de um relatório — por exemplo, toda segunda-feira — e um novo relatório mostra a evolução desses instantâneos ao longo do tempo, como "chamados abertos por prioridade, semana a semana". Basta ligar "Guardar instantâneo" no passo "Executar relatório" e escolher "Instantâneos de…" ao criar o relatório da série.
+
 #### [9.249.0] — 2026-11-13
 
 - Extensões que se integram a outros sistemas agora dizem, já na instalação, quais credenciais de integração precisam. A tela de Extensões aponta a credencial que falta, a que está sem segredo ou a que não libera o endereço necessário, e o botão "Configurar" abre o cadastro já preenchido — basta revisar e informar o segredo.

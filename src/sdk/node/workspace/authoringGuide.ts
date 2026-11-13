@@ -57,7 +57,7 @@ import { MAX_STEP_RETRIES, STEP_TYPES } from '../../../domain/entities/Workflow'
 import { WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../../domain/schema/workflowChangeFilter';
 import { REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
 import { WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../../domain/schema/workflowTask';
-import { WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../../domain/schema/report/reportStep';
+import { REPORT_SNAPSHOTS_SINCE_KERNEL, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../../domain/schema/report/reportStep';
 import { WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../../domain/schema/workflowWait';
 import { EXTENSION_STEPS_SINCE_KERNEL } from '../../../domain/schema/workflowStepContribution';
 import { DECLARED_CONNECTIONS_SINCE_KERNEL } from '../../../domain/schema/httpConnectionRequirement';
@@ -399,7 +399,7 @@ const STEP_CATALOG_NOTES: Record<string, string> = {
   'ai-extract-parameters': 'Asks a model to pull data out of a free text: the parameters of a target workflow (`targetWorkflowId`), or the `fields` declared on the step itself (`key: what it is`, one per line). Ending a field with `[a|b|c]` CLASSIFIES: the answer comes out exactly as listed, or empty, and `matched.<key>` says which. Publishes `params`, `params.<key>` and `filled`.',
   'wait-for': 'Stops the run until the next `eventName` (a record\'s `.saved`/`.deleted`) of `recordId` arrives — only one that satisfies `until` (an expression on `event.<field>`), when given — or until `timeoutInDays`. Publishes `matched`, `timedOut`, `record`, `eventId`, `arrivedAt`. Top level only, and only in a run started by an event.',
   'ai-generate': 'Writes a text with the organization\'s AI from `prompt` (an expression can bring the record in) and optional `instructions`. Publishes `text`, cut at `maxCharacters` (default 2000, max 20000), and `truncated`.',
-  'run-report': 'Runs one of the organization\'s reports by its key (`report`), answering its filters with `param.<key>` or `prompts`. Publishes `total` (first measure), `totals.<measure>`, `count`, `groups`, `rows` (raw keys, capped), `complete`, `link` (`rep:<key>`) and `table` (header and rows as the organization reads them: option labels, record titles, numbers). With `file` (`xlsx`, `pdf` or `csv`) it also writes the report to Downloads and publishes `fileId`, `fileName`, `fileUrl`.',
+  'run-report': 'Runs one of the organization\'s reports by its key (`report`), answering its filters with `param.<key>` or `prompts`. Publishes `total` (first measure), `totals.<measure>`, `count`, `groups`, `rows` (raw keys, capped), `complete`, `link` (`rep:<key>`) and `table` (header and rows as the organization reads them: option labels, record titles, numbers). With `file` (`xlsx`, `pdf` or `csv`) it also writes the report to Downloads and publishes `fileId`, `fileName`, `fileUrl`. With `snapshot: true` (kernel 2.124.0+) it stores the result for a snapshot series and publishes `snapshotId`.',
   query: 'Asks the database. Publishes `count`, `results`, `first`, plus `first.<projection>`.',
   upsert: 'Writes one record. An `id` in the object means update, no `id` means insert — or, with `matchPrimaryKey: true`, update the record that holds the same `primary` key.',
   remove: 'Deletes one record.',
@@ -3662,6 +3662,11 @@ and publishes the NUMBERS: \`total\` (the first aggregate measure), \`totals.<me
   the rows: the report screen translates each key and checks the reader's permissions.
 - **Schedule + run-report + notify** is a report subscription; a \`Condition\` on \`totals.<measure>\` before
   the \`notify\` is an alert. That is what the report screen's **Subscribe** writes — there is no second scheduler.
+- **\`snapshot: true\`** (kernel ${REPORT_SNAPSHOTS_SINCE_KERNEL}+) also stores the result — groups and totals, never
+  records — with the date it was taken, and publishes \`snapshotId\`. A report with \`dataset.kind: 'snapshot'\`
+  and \`dataset.table: '<source report key>'\` reads those snapshots as rows (\`takenAt\`, the source's
+  dimensions and measures, \`count\`): a weekly schedule plus a series report is "open tickets per week". Summary
+  and matrix reports only; the series starts at the first snapshot, and a package cannot ship a series report.
 
 The \`run-report\` step needs kernel ${WORKFLOW_RUN_REPORT_SINCE_KERNEL} or later, and \`validate_plugin\` refuses a package that admits an older one.
 

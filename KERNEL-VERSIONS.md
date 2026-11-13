@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.250.0] — 2026-11-13
+
+- feat(reports): report snapshot series. The `run-report` step takes `snapshot: true` and stores the result in `tenants/{id}/report_snapshots` — deepest-level groups (up to 500, `truncated`), totals, `count`, `complete`, `takenBy`, a `definition` fingerprint of what defines the number, and `expiresAt` (5-year TTL) — publishing `snapshotId`. Summary and matrix only (`snapshotRefusal`).
+- feat(reports): `dataset.kind: 'snapshot'` with `dataset.table` = the source report key reads the series. It is validated, filtered (in memory), aggregated and charted as a collection report over a synthetic collection (`snapshotSchemaScreen`, `snapshotReportView`): `takenAt`, the source dimensions (plain field dimensions inherit the field definition), the source measures and `count`. `ReportResult.series` carries count, first/last date, `definitionChanged` (warning `snapshot.definition-changed`) and `partial`. Capability `dataset.snapshot`; drill-down and `related` are off for series; packages cannot ship a series report (`issue.report.snapshot`).
+- feat(reports): access to a series is the SOURCE report's permissions plus the series' own (`reportAccessPermissions`); no source fails closed — `requireReportAccess` takes the report reader, and the MCP, list and command palette apply the same rule. `report_snapshots` is server-only in the rules and reserved; index `report` ASC + `takenAt` DESC, TTL on `expiresAt`.
+- feat(reports): the designer offers "Snapshots of …" as a source and designs over the synthetic schema; `useReportSchema` gives labels, cells and filters the right schema. `KERNEL_VERSION` 2.124.0.
+
 #### [9.249.0] — 2026-11-13
 
 - feat(marketplace): extension-declared integration credentials. New point `http.connection` (`HTTP_CONNECTION_EXTENSION_POINTS`, owner `core.automation`, metadata only); SDK builder `httpConnection({ key, name, description?, scheme, paramName?, hosts })`. Installing creates nothing — the secret and the trust in the domains stay with the organization.
