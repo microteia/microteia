@@ -3,6 +3,8 @@ import {
   EMPTY_MAILBOX_SETTINGS,
   MAIL_FILTER_MAX_TERMS,
   forwardingConfirmationOf,
+  mailFilterWithoutSettings,
+  resolveMailFilter,
   mailInboundTokenOf,
   hasMailFilter,
   mailAddressOf,
@@ -153,5 +155,34 @@ describe('encaminhamento — endereço e confirmação', () => {
 
   it('a caixa de encaminhamento não cobra servidor, usuário nem intervalo', () => {
     expect(mailboxSettingsIssue({ ...EMPTY_MAILBOX_SETTINGS, name: 'Intimações', source: 'forward' })).toBeNull();
+  });
+});
+
+describe('filtro que lê configuração do escritório', () => {
+  const filter = { from: ['*.jus.br'], fromSetting: 'push.allowedSenders', subject: ['intimação'], subjectSetting: 'push.allowedSubjects' };
+
+  it('a lista preenchida substitui os termos declarados; vazia ou ausente, eles valem', () => {
+    expect(resolveMailFilter(filter, { 'push.allowedSenders': ['tjba.jus.br', ' '], 'push.allowedSubjects': [] })).toEqual({
+      from: ['tjba.jus.br'], subject: ['intimação'], hasAttachments: null,
+    });
+    expect(resolveMailFilter(filter, {})?.from).toEqual(['*.jus.br']);
+  });
+
+  it('o motor confere só o que não depende de configuração', () => {
+    expect(mailFilterWithoutSettings({ ...filter, hasAttachments: true })).toEqual({ from: null, subject: null, hasAttachments: true });
+    expect(mailFilterWithoutSettings({ from: ['a.com'] })).toEqual({ from: ['a.com'], subject: null, hasAttachments: null });
+  });
+
+  it('só citar a configuração já é filtro, e a chave precisa ser uma chave', () => {
+    expect(hasMailFilter({ fromSetting: 'push.allowedSenders' })).toBe(true);
+    expect(mailFilterIssue({ fromSetting: 'push allowed' })).toBe('@core.automation/mail.filter.setting-invalid');
+    expect(mailFilterIssue({ fromSetting: 'push.allowedSenders' })).toBeNull();
+  });
+
+  it('a janela da primeira leitura vai de 0 a 30 dias, inteiros', () => {
+    const base = { ...EMPTY_MAILBOX_SETTINGS, name: 'x', imap: { host: 'imap.x.com', port: 993, secure: true, username: 'u', folder: 'INBOX' } };
+    expect(mailboxSettingsIssue({ ...base, backfillDays: 3 })).toBeNull();
+    expect(mailboxSettingsIssue({ ...base, backfillDays: 31 })).toBe('@core.automation/mailbox.issue.backfill');
+    expect(mailboxSettingsIssue({ ...base, backfillDays: 1.5 })).toBe('@core.automation/mailbox.issue.backfill');
   });
 });

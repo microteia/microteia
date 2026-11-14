@@ -16,6 +16,7 @@ import {
 } from '../../domain/schema/mailbox';
 import type { MailboxListing, MailboxSettings, MailboxView } from '../../domain/schema/mailbox';
 import { mailInboundConfig } from '../settings/mailInbound';
+import { officeSettingValues } from '../settings/officeSettings';
 import { inboundSignatureIssue, receiveInboundMail } from '../../domain/services/mailInbound';
 import { parseMailSource } from '../../data/services/mailParsing';
 import { runMailboxPollRound } from '../../domain/services/mailboxPolling';
@@ -42,6 +43,7 @@ const roundDeps = (): MailboxRoundDeps => {
     password: (tenantId, id) => repository.password(tenantId, id),
     deliver: (tenantId, delivery) => repository.deliver(tenantId, delivery),
     now: () => new Date(),
+    officeValues: officeSettingValues,
     listDue: (now, limit) => repository.listDue(now, limit),
     claim: (ref, now, leaseUntil) => repository.claim(ref, now, leaseUntil),
     release: (ref, outcome) => repository.release(ref, outcome),
@@ -113,6 +115,7 @@ const settingsFrom = (input: Partial<MailboxSettings> | undefined): MailboxSetti
       folder: textField(imap.folder, 255) || EMPTY_MAILBOX_SETTINGS.imap.folder,
     },
     pollEveryMinutes: typeof input?.pollEveryMinutes === 'number' ? input.pollEveryMinutes : EMPTY_MAILBOX_SETTINGS.pollEveryMinutes,
+    backfillDays: typeof input?.backfillDays === 'number' ? input.backfillDays : 0,
     subscriptions: [...new Set((Array.isArray(input?.subscriptions) ? input.subscriptions : []).filter((id): id is string => typeof id === 'string' && id !== ''))],
     enabled: input?.enabled !== false,
   };
@@ -300,6 +303,7 @@ export const mailInbound = onRequest(
           recordInbound: (ref, update) => repository.recordInbound(ref, update),
           parse: parseMailSource,
           now: () => new Date(),
+          officeValues: officeSettingValues,
         },
       );
       response.status(202).json({ outcome });

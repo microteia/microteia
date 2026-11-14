@@ -9461,6 +9461,21 @@ link —, nunca para automação. O primeiro e-mail de verdade a apaga.
 A caixa de encaminhamento não entra na fila de leitura (`nextPollAt: null`), não tem senha nem teste de
 conexão, e a saúde dela é "último e-mail recebido".
 
+**O filtro que o escritório ajusta — `fromSetting`, `subjectSetting`.** A atualização de uma extensão
+reescreve a automação inteira (a edição à mão fica só no histórico de versões), então uma lista que o
+escritório precisa ajustar não pode morar no `mailFilter` do pacote. O filtro cita a CHAVE de uma
+configuração de lista do escritório (que a própria extensão declara em `settingsSection`): preenchida, ela
+SUBSTITUI `from`/`subject`; vazia, valem os termos do pacote. Quem resolve é a entrega
+(`withResolvedFilters`, uma leitura de `settings/tenant` por caixa, só quando algum filtro cita
+configuração — `officeSettingValues`, com o mesmo cache de 60 s de `officeSetting`). O motor, que admite a
+execução sem ler configuração, reconfere só as dimensões que não dependem dela (`mailFilterWithoutSettings`).
+Exige `MAIL_FILTER_SETTINGS_SINCE_KERNEL` (2.132.0).
+
+**A janela da primeira leitura — `backfillDays`.** Zero (o padrão) é a regra de antes: a primeira leitura
+só marca o ponto. De 1 a 30, ela entrega também os últimos N dias (`SEARCH SINCE`), e depois segue pelo
+UID. É a virada de outra fonte sem buraco; o que a caixa já entregou não volta, pela marca de
+`mail_messages`. Vale também depois de trocar conta, pasta ou automações — o ponto é zerado ali.
+
 **Pacote.** A automação viaja com `mailFilter` e `subscribable`; a caixa nunca. Exige `MAIL_RECEIVED_SINCE_KERNEL`
 (2.131.0), e o filtro é conferido por `mailFilterIssue` no portão do pacote.
 

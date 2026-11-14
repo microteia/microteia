@@ -15,7 +15,7 @@ import { toStored } from '../schema/storedReference';
 import { flattenSteps } from '../services/stepTree';
 import { isStepExcludedFromTrigger } from '../schema/workflowStepCatalog';
 import { matchesChangeFilter } from '../schema/workflowChangeFilter';
-import { MAIL_RECEIVED_EVENT, matchesMailFilter } from '../schema/mailbox';
+import { MAIL_RECEIVED_EVENT, mailFilterWithoutSettings, matchesMailFilter } from '../schema/mailbox';
 import type { MailFilterSubject } from '../schema/mailbox';
 import { MAX_STEP_RETRIES } from '../entities/Workflow';
 import type { WorkflowWait } from '../schema/workflowWait';
@@ -250,7 +250,7 @@ export const runWorkflow = async ({
 
     // A leitura da caixa já escolheu as automações pelo filtro; conferir de novo cobre a que mudou o
     // filtro entre a leitura e a execução, e a mensagem republicada à mão.
-    if (event.name === MAIL_RECEIVED_EVENT && !matchesMailFilter(definition.mailFilter, mailFilterSubjectOf(event.payload))) {
+    if (event.name === MAIL_RECEIVED_EVENT && !matchesMailFilter(mailFilterWithoutSettings(definition.mailFilter), mailFilterSubjectOf(event.payload))) {
       log('INFO', '@core.automation/run.skipped.mail-mismatch');
       return { refused: 'SUCCESS', skipped: 'mail' };
     }

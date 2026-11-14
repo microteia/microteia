@@ -618,6 +618,15 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     />
                   </InputGroup>
                   <InputGroup>
+                    <Label>{t('trigger.mail.from-setting')}</Label>
+                    <Input
+                      value={vm.formData.mailFromSetting}
+                      onChange={(event) => vm.setFormData({ mailFromSetting: event.target.value })}
+                      placeholder={t('trigger.mail.setting.placeholder')}
+                    />
+                    <S.FieldHint>{t('trigger.mail.from-setting.hint')}</S.FieldHint>
+                  </InputGroup>
+                  <InputGroup>
                     <TagInput
                       label={t('trigger.mail.subject')}
                       hint={t('trigger.mail.subject.hint')}
@@ -625,6 +634,15 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       onChange={(mailSubject) => vm.setFormData({ mailSubject })}
                       placeholder={t('trigger.mail.any')}
                     />
+                  </InputGroup>
+                  <InputGroup>
+                    <Label>{t('trigger.mail.subject-setting')}</Label>
+                    <Input
+                      value={vm.formData.mailSubjectSetting}
+                      onChange={(event) => vm.setFormData({ mailSubjectSetting: event.target.value })}
+                      placeholder={t('trigger.mail.setting.placeholder')}
+                    />
+                    <S.FieldHint>{t('trigger.mail.subject-setting.hint')}</S.FieldHint>
                   </InputGroup>
                   <InputGroup>
                     <Label>{t('trigger.mail.attachments')}</Label>

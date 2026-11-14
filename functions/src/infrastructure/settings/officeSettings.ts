@@ -25,3 +25,9 @@ const officeValues = async (tenantId: string): Promise<Record<string, unknown>> 
  */
 export const officeSetting = async (tenantId: string, property: SettingsProperty): Promise<unknown> =>
   resolveSetting(property, { tenant: await officeValues(tenantId), user: {} }).value;
+
+/**
+ * Os valores CRUS do escritório (`settings/tenant.values`), para quem lê uma configuração que não declara —
+ * o filtro de e-mail cita a chave de uma extensão, e o núcleo não tem a `SettingsProperty` dela.
+ */
+export const officeSettingValues = (tenantId: string): Promise<Record<string, unknown>> => officeValues(tenantId);

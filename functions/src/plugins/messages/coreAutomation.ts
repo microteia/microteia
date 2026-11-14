@@ -2085,4 +2085,13 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'mailbox.forward.confirmation-link': 'Your e-mail service asked to confirm forwarding.',
   'mailbox.forward.confirmation-open': 'Open confirmation link',
   'mailbox.issue.forwarding-unavailable': 'Forwarding is not set up on this installation.',
+  'mail.filter.setting-invalid': 'The setting key must be a key like "extension.listName", without spaces.',
+  'mailbox.issue.backfill': 'The first-read window must be a whole number of days between 0 and {days}.',
+  'mailbox.field.backfill': 'On the first read, also fetch the last (days)',
+  'mailbox.field.backfill.hint': '0: only what arrives from now on. Use a few days when switching from another way of receiving e-mail, so nothing in between is lost; what this mailbox already delivered is never delivered again.',
+  'trigger.mail.from-setting': 'Senders from an organization setting',
+  'trigger.mail.from-setting.hint': 'Key of a list setting (e.g. "push.allowedSenders"). When the organization fills it in, it replaces the senders above; when empty, the senders above apply. Updates of the extension never overwrite it.',
+  'trigger.mail.subject-setting': 'Subject terms from an organization setting',
+  'trigger.mail.subject-setting.hint': 'Same as above, for the subject terms.',
+  'trigger.mail.setting.placeholder': 'No setting',
 };

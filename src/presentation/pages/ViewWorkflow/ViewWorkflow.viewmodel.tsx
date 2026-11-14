@@ -174,6 +174,9 @@ export interface WorkflowFormData {
   /** Só no gatilho de e-mail: os termos do filtro (ver `MailFilter`). */
   mailFrom: string[];
   mailSubject: string[];
+  /** A configuração do escritório que substitui os termos, quando preenchida. Vazio = só os termos. */
+  mailFromSetting: string;
+  mailSubjectSetting: string;
   /** Vazio = tanto faz. */
   mailAttachments: '' | 'with' | 'without';
   subscribable: boolean;
@@ -197,6 +200,8 @@ const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   changedFields: w?.changedFields ?? [],
   mailFrom: w?.mailFilter?.from ?? [],
   mailSubject: w?.mailFilter?.subject ?? [],
+  mailFromSetting: w?.mailFilter?.fromSetting ?? '',
+  mailSubjectSetting: w?.mailFilter?.subjectSetting ?? '',
   mailAttachments: w?.mailFilter?.hasAttachments === true ? 'with' : w?.mailFilter?.hasAttachments === false ? 'without' : '',
   subscribable: w?.subscribable === true,
 });
@@ -207,6 +212,8 @@ const mailFilterOf = (form: WorkflowFormData): MailFilter | null => {
     from: form.mailFrom,
     subject: form.mailSubject,
     hasAttachments: form.mailAttachments === 'with' ? true : form.mailAttachments === 'without' ? false : null,
+    fromSetting: form.mailFromSetting.trim() || null,
+    subjectSetting: form.mailSubjectSetting.trim() || null,
   };
   return hasMailFilter(filter) ? filter : null;
 };
@@ -1481,9 +1488,14 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   );
   const mailFilterError = useMemo(() => {
     if (!isMailEvent) return null;
-    const issue = mailFilterIssue({ from: formData.mailFrom, subject: formData.mailSubject });
+    const issue = mailFilterIssue({
+      from: formData.mailFrom,
+      subject: formData.mailSubject,
+      fromSetting: formData.mailFromSetting.trim() || null,
+      subjectSetting: formData.mailSubjectSetting.trim() || null,
+    });
     return issue ? label(issue, { max: String(MAIL_FILTER_MAX_TERMS) }) : null;
-  }, [isMailEvent, formData.mailFrom, formData.mailSubject, label]);
+  }, [isMailEvent, formData.mailFrom, formData.mailSubject, formData.mailFromSetting, formData.mailSubjectSetting, label]);
   const isSenderTermValid = useCallback(
     (term: string) => mailFilterIssue({ from: [term] }) === null,
     [],
