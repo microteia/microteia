@@ -19,6 +19,7 @@ import {
   MAILBOX_FAILURE_REASONS,
   MAIL_INBOUND_TOKEN_LENGTH,
   isPolledMailbox,
+  mailboxKeepsCursor,
 } from '../../domain/schema/mailbox';
 import type { ForwardingConfirmation, MailboxHealth, MailboxSettings } from '../../domain/schema/mailbox';
 import { workflowEventDocument, workflowEventsRef } from '../services/workflowEventDocument';
@@ -98,13 +99,6 @@ const mapMailbox = (tenantId: string, snap: DocumentSnapshot): StoredMailbox => 
   };
 };
 
-/** A conta lida — o que, se muda, faz os UIDs gravados não dizerem mais nada. */
-const accountOf = (settings: MailboxSettings): string =>
-  JSON.stringify([settings.imap.host.trim().toLowerCase(), settings.imap.port, settings.imap.username.trim().toLowerCase(), settings.imap.folder]);
-
-const sameSubscriptions = (a: string[], b: string[]): boolean =>
-  a.length === b.length && [...a].sort().every((id, index) => id === [...b].sort()[index]);
-
 export class FirestoreMailboxRepository implements IMailboxRepository {
   constructor(private readonly db: Firestore) {}
 
@@ -136,9 +130,7 @@ export class FirestoreMailboxRepository implements IMailboxRepository {
     await this.db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       const previous = snap.exists ? settingsOf(snap.data() ?? {}) : null;
-      const keepsCursor = previous !== null
-        && accountOf(previous) === accountOf(input.settings)
-        && sameSubscriptions(previous.subscriptions, input.settings.subscriptions);
+      const keepsCursor = previous !== null && mailboxKeepsCursor(previous, input.settings);
       const hasPassword = input.password !== null || (snap.exists && snap.data()?.hasPassword === true);
       const polled = isPolledMailbox(input.settings.source);
       const currentToken = typeof snap.data()?.inboundToken === 'string' ? (snap.data()?.inboundToken as string) : null;

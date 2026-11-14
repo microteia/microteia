@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   EMPTY_MAILBOX_SETTINGS,
+  MAILBOX_MAX_BACKFILL_DAYS,
   MAIL_FILTER_MAX_TERMS,
+  MAIL_MESSAGE_RETENTION_DAYS,
+  mailboxKeepsCursor,
   forwardingConfirmationOf,
   mailFilterWithoutSettings,
   resolveMailFilter,
@@ -184,5 +187,38 @@ describe('filtro que lê configuração do escritório', () => {
     expect(mailboxSettingsIssue({ ...base, backfillDays: 3 })).toBeNull();
     expect(mailboxSettingsIssue({ ...base, backfillDays: 31 })).toBe('@core.automation/mailbox.issue.backfill');
     expect(mailboxSettingsIssue({ ...base, backfillDays: 1.5 })).toBe('@core.automation/mailbox.issue.backfill');
+  });
+});
+
+describe('mailboxKeepsCursor — o ponto de leitura ao salvar', () => {
+  const caixa: MailboxSettings = {
+    ...EMPTY_MAILBOX_SETTINGS,
+    name: 'Escritório',
+    imap: { ...EMPTY_MAILBOX_SETTINGS.imap, host: 'imap.exemplo.com', username: 'caixa@exemplo.com' },
+    subscriptions: ['wf-a', 'wf-b'],
+  };
+
+  it('mantém o ponto quando nada que o invalida mudou', () => {
+    expect(mailboxKeepsCursor(caixa, { ...caixa, name: 'Outro nome', pollEveryMinutes: 15 })).toBe(true);
+    expect(mailboxKeepsCursor(caixa, { ...caixa, subscriptions: ['wf-b', 'wf-a'] })).toBe(true);
+  });
+
+  it('zera o ponto quando muda a conta ou as automações', () => {
+    expect(mailboxKeepsCursor(caixa, { ...caixa, imap: { ...caixa.imap, folder: 'Intimações' } })).toBe(false);
+    expect(mailboxKeepsCursor(caixa, { ...caixa, subscriptions: ['wf-a'] })).toBe(false);
+  });
+
+  it('zera o ponto quando a janela de dias muda para mais que zero: é o pedido de buscar para trás', () => {
+    expect(mailboxKeepsCursor(caixa, { ...caixa, backfillDays: 3 })).toBe(false);
+    expect(mailboxKeepsCursor({ ...caixa, backfillDays: 3 }, { ...caixa, backfillDays: 7 })).toBe(false);
+  });
+
+  it('mantém o ponto quando a janela fica igual ou vai a zero — zerar perderia o que chegou desde a última leitura', () => {
+    expect(mailboxKeepsCursor({ ...caixa, backfillDays: 3 }, { ...caixa, backfillDays: 3 })).toBe(true);
+    expect(mailboxKeepsCursor({ ...caixa, backfillDays: 3 }, { ...caixa, backfillDays: 0 })).toBe(true);
+  });
+
+  it('a marca do que foi entregue dura mais que a janela maior, com a folga do SINCE por dia', () => {
+    expect(MAIL_MESSAGE_RETENTION_DAYS).toBeGreaterThanOrEqual(MAILBOX_MAX_BACKFILL_DAYS + 2);
   });
 });
