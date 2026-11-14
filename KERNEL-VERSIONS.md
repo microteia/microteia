@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.262.1] — 2026-11-14
+
+- fix(deps/functions): `nodemailer` 7.0.13 → 10.5.0 for the office SMTP transport (`SmtpEmailTransport`). Every 7.x release is affected by published advisories — SMTP command and header injection via CRLF, address-parser denial of service, allow-list bypass of recipient domains, and TLS servername reuse across pooled transports. Version 10 ships its own type declarations, so `@types/nodemailer` is gone. The transport options and the `List-Unsubscribe` header are unchanged.
+
 #### [9.262.0] — 2026-11-14
 
 - feat(workflow/mail): new trigger `mail.received` (`domain/schema/mailbox.ts`, shared). A workflow declares `mailFilter` (`from`: address, domain incl. subdomains, or `*.domain`; `subject` terms, case- and accent-insensitive; `hasAttachments`) and `subscribable`; the kernel, not the workflow, reads the mailbox. The engine re-checks the filter (`run.skipped.mail-mismatch`). Package gate: `MAIL_RECEIVED_SINCE_KERNEL` and `mailFilterIssue`. KERNEL_VERSION 2.131.0.
