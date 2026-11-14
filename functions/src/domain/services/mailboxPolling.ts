@@ -9,6 +9,7 @@ import {
   MAIL_RECEIVED_EVENT,
   MAIL_TEXT_MAX_CHARS,
   mailMessageExpiresAt,
+  isPolledMailbox,
   mailServerPrefilter,
   matchesMailFilter,
 } from '../schema/mailbox';
@@ -134,6 +135,9 @@ export const pollMailbox = async (mailbox: StoredMailbox, deps: PollMailboxDeps)
     newlyFailing: wasHealthy,
   });
 
+  if (!isPolledMailbox(mailbox.settings.source)) {
+    return { ...idle(null), outcome: { cursor: null, nextPollAt: null, health: mailbox.health } };
+  }
   if (!mailbox.settings.enabled) return idle(mailbox.cursor);
   const targets = subscribedWorkflows(mailbox, await deps.mailWorkflows(mailbox.tenantId));
   if (targets.length === 0) return idle(null);
@@ -207,13 +211,35 @@ const deliverEnvelope = async (
   if (!targets.some((workflow) => matchesMailFilter(workflow.mailFilter, envelope))) return 'ignored';
 
   const mail = await session.fetch(envelope.uid);
-  // O corpo inteiro diz mais que o cabeçalho (os anexos, sobretudo): quem recebe é decidido de novo.
+  return deliverParsedMail(mailbox, targets, mail, deps, {
+    fallbackId: `uid:${uidValidity}:${envelope.uid}`,
+    source: { kind: 'imap', folder: mailbox.settings.imap.folder, uidValidity, uid: envelope.uid },
+  });
+};
+
+/** De onde a mensagem veio — o que permite buscá-la de novo (o anexo, mais tarde) e auditar a entrega. */
+export type MailDeliverySource =
+  | { kind: 'imap'; folder: string; uidValidity: string; uid: number }
+  | { kind: 'forward'; recipient: string };
+
+/**
+ * Entrega UMA mensagem já baixada às automações que a querem — a mesma porta para a lida por IMAP e para a
+ * encaminhada. O corpo inteiro diz mais que o cabeçalho (os anexos, sobretudo): quem recebe é decidido aqui.
+ * `fallbackId` identifica a mensagem sem `Message-ID`, que é rara e fora da norma.
+ */
+export const deliverParsedMail = async (
+  mailbox: StoredMailbox,
+  targets: WorkflowDefinition[],
+  mail: ParsedMail,
+  deps: Pick<PollMailboxDeps, 'deliver' | 'now'>,
+  origin: { fallbackId: string; source: MailDeliverySource },
+): Promise<'delivered' | 'duplicate' | 'ignored'> => {
   const subject = { from: mail.from, subject: mail.subject, attachmentCount: mail.attachments.length };
   const wanted = targets.filter((workflow) => matchesMailFilter(workflow.mailFilter, subject));
   if (wanted.length === 0) return 'ignored';
 
   const receivedAt = deps.now();
-  const key = mailMessageKey(mailbox.id, mail.messageId || envelope.messageId, `uid:${uidValidity}:${envelope.uid}`);
+  const key = mailMessageKey(mailbox.id, mail.messageId, origin.fallbackId);
   const payload = mailEventPayload(key, mailbox, mail, receivedAt);
   return deps.deliver(mailbox.tenantId, {
     key,
@@ -225,7 +251,7 @@ const deliverEnvelope = async (
       subject: payload.subject,
       date: payload.date,
       workflowIds: wanted.map((workflow) => workflow.id),
-      source: { folder: mailbox.settings.imap.folder, uidValidity, uid: envelope.uid },
+      source: origin.source,
       receivedAt,
       expiresAt: mailMessageExpiresAt(receivedAt),
     },

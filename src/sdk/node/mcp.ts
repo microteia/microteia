@@ -1251,8 +1251,9 @@ const PURE_READS: ToolDefinition[] = [
         {
           eventName: MAIL_RECEIVED_EVENT,
           fires: 'an e-mail arrives in a mailbox connected to the workflow and matches its `mailFilter` (senders, subject '
-            + `terms, attachments) — mailboxes are read every ${MAILBOX_POLL_TICK_MINUTES} minutes at most, never `
-            + 'retroactively. Only office mailboxes feed it, unless the workflow sets `subscribable: true`, which lets each '
+            + `terms, attachments) — a mailbox read over IMAP is checked every ${MAILBOX_POLL_TICK_MINUTES} minutes at most, `
+            + 'a forwarding mailbox delivers as the message arrives, and neither ever delivers what came before it was '
+            + 'connected. Only office mailboxes feed it, unless the workflow sets `subscribable: true`, which lets each '
             + `member connect their own (requires kernel ${MAIL_RECEIVED_SINCE_KERNEL} or later)`,
           eventPayload: `the message: "id", ${MAIL_EVENT_FIELDS.map((field) => `"${field.key}"`).join(', ')}; each `
             + 'attachment is { name, contentType, size }, and the body is cut at a ceiling (`truncated`)',

@@ -96,6 +96,30 @@ export const S = {
     overflow-wrap: anywhere;
   `,
 
+  AddressRow: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    min-width: 0;
+  `,
+
+  Confirmation: styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.sm};
+    border-radius: ${({ theme }) => theme.borderRadius.sm};
+    border: 1px solid ${({ theme }) => theme.colors.warning};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  ConfirmationLink: styled.a`
+    color: ${({ theme }) => theme.colors.primary};
+    font-weight: 600;
+  `,
+
   CardStatus: styled.div<{ $tone: MailboxTone }>`
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme, $tone }) => ($tone === 'failing' ? theme.colors.danger : theme.colors.textSecondary)};

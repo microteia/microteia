@@ -3003,9 +3003,10 @@ each step's catalog entry lists the triggers it refuses in \`excludedTriggers\`.
 ### Receiving e-mail — \`mail.received\` and \`mailFilter\`
 
 \`mail.received\` (requires kernel ${MAIL_RECEIVED_SINCE_KERNEL} or later) runs when an e-mail arrives in a mailbox
-connected to the workflow. The workflow never reads a mailbox: the KERNEL does, every
-${MAILBOX_POLL_TICK_MINUTES} minutes at most, and keeps where it stopped. The workflow only declares what it
-wants:
+connected to the workflow. The workflow never reads a mailbox: the KERNEL does — over IMAP every
+${MAILBOX_POLL_TICK_MINUTES} minutes at most, keeping where it stopped, or as the message arrives when the
+person forwards to an address of the platform. The workflow only declares what it wants, and is the same
+for both:
 
 \`\`\`ts
 workflows: [{

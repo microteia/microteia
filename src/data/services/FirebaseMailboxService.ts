@@ -1,7 +1,7 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../infrastructure/firebase/config';
 import type { IMailboxService, SaveMailboxInput } from '../../domain/repositories/IMailboxService';
-import type { MailboxSettings, MailboxView } from '../../domain/schema/mailbox';
+import type { MailboxListing, MailboxSettings } from '../../domain/schema/mailbox';
 
 interface ManageMailboxPayload {
   tenantId: string;
@@ -12,13 +12,13 @@ interface ManageMailboxPayload {
   password?: string;
 }
 
-type ManageMailboxResult = MailboxView[] | { id: string } | { ok: true };
+type ManageMailboxResult = MailboxListing | { id: string } | { ok: true };
 
 const manage = httpsCallable<ManageMailboxPayload, ManageMailboxResult>(functions, 'manageMailbox');
 
 export class FirebaseMailboxService implements IMailboxService {
-  async list(tenantId: string): Promise<MailboxView[]> {
-    return (await manage({ tenantId, op: 'list' })).data as MailboxView[];
+  async list(tenantId: string): Promise<MailboxListing> {
+    return (await manage({ tenantId, op: 'list' })).data as MailboxListing;
   }
 
   async save(tenantId: string, input: SaveMailboxInput): Promise<string> {
