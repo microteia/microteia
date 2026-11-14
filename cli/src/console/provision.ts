@@ -640,9 +640,13 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     // monta. Subir sem isso deployaria o `custom/` da montagem anterior — ou nenhum.
     if (toDeploy.some((name) => office.all.includes(name))) {
       await gatherCustomFunctions(root, install, manifest.functions);
-      info('  installing function dependencies…');
-      await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: join(install, 'functions') });
     }
+    // SEMPRE, e não só quando há function do escritório na fila: o `firebase` carrega o `index.js`
+    // inteiro para analisar a base, e o `unpack` preserva `node_modules` como cache. Um kernel que
+    // ganhou dependência nova, aplicado só com `provision`, falhava em TODA function com "Cannot find
+    // module" — inclusive nas que não usam a dependência. Com tudo em dia, o install leva segundos.
+    info('  installing function dependencies…');
+    await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: join(install, 'functions') });
 
     // A extensão que mudou de região deixa a cópia antiga para trás igual ao kernel, e ali o efeito
     // é o mesmo: deploy recusado em toda tentativa, e gatilho disparando em duas regiões.

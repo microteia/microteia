@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.264.2] — 2026-11-14
+
+- Corrigido: ao atualizar a plataforma, publicar as funções das extensões falhava em todas elas quando a versão nova trazia um componente novo de servidor.
+
 #### [9.264.1] — 2026-11-14
 
 - Corrigido o Assistente de IA, que mostrava um erro do provedor logo depois de você aprovar uma alteração em um registro. A alteração já era feita, mas a resposta do assistente não chegava. Agora ele confirma o que fez normalmente.
