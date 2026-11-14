@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.43.4] — 2026-11-14
+
+- fix(console/provision): the installation-gate check reads an extension id passed through a `const` declared in the same file (`const PLUGIN_ID = '…'; forInstalledExtension(PLUGIN_ID, …)`), for `forInstalledExtension`, `forEachInstalledOffice`, `requireInstalledExtension` and the `forAnyInstalledExtension([...])` list. Only a string literal was read, so a correctly gated trigger was refused with "no installation gate" and its extension stayed "backend pending" (Pushes do Tribunal 2.0.0, `parsePushEmail`). An id that still cannot be read (imported from another file, a `let`, two `const`s with different values) is still refused, now with a message saying the gate is there and its id is unreadable.
+
 #### [2.43.3] — 2026-11-14
 
 - fix(console/provision): run `npm install` in `install/functions` before deploying any function, not only when an office function is queued. `unpack` keeps `functions/node_modules` as a cache, and `firebase` loads the whole `index.js` to analyse the codebase, so a kernel that gained a dependency (9.262.0: `imapflow`, `mailparser`) applied with `provision` alone failed every function with "Cannot find module". With dependencies up to date the install takes seconds.
