@@ -12,7 +12,7 @@ import type {
 } from '../schema/assistant/assistantConversation';
 import { ASSISTANT_TOOL_RESULT_MAX_CHARS } from '../schema/assistant/assistantConversation';
 import { COMPACTION_REQUEST, COMPACTION_SYSTEM_PROMPT } from './assistantPrompt';
-import { mergeConsecutive, transcriptOf } from './assistantHistory';
+import { toModelMessages, transcriptOf } from './assistantHistory';
 
 /** O que a pessoa recusou volta ao modelo como resultado com erro — ele precisa saber que não rodou. */
 const DECLINED_RESULT = JSON.stringify({ declined: true, reason: 'declined-by-user' });
@@ -123,7 +123,7 @@ export const runAssistantTurn = async (
     let streamed = '';
     let done: Extract<ChatEvent, { type: 'done' }> | null = null;
     try {
-      for await (const event of deps.chat({ system: deps.system, messages: mergeConsecutive(history), tools: deps.tools }, deps.signal)) {
+      for await (const event of deps.chat({ system: deps.system, messages: toModelMessages(history), tools: deps.tools }, deps.signal)) {
         if (event.type === 'text') {
           streamed += event.delta;
           deps.emit({ t: 'text', d: event.delta });

@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.264.1] — 2026-11-14
+
+- fix(assistant): tool-call pairing moved from history load (`toModelHistory`) to request time (`toModelMessages` / `pairToolResults`). Resuming an approved write loaded a history ending on the pending call, closed it with a synthetic `{"interrupted":true}` result, and then appended the real one — the provider got two results for one call id and OpenAI rejected the follow-up request ("messages with role 'tool' must be a response to a preceding message with 'tool_calls'") after the write had already run. Each call now gets exactly one result, placed before any user text; a result whose call was compacted away is sent as text instead of being dropped, so the model does not repeat an approved write.
+
 #### [9.264.0] — 2026-11-14
 
 - feat(workflow/mail): `MailFilter.fromSetting` / `subjectSetting` name an office list setting (`settings/tenant.values[key]`) that REPLACES `from` / `subject` when filled; empty, the declared terms apply. Package-owned filters stay adjustable by the office across updates. Resolved at delivery (`withResolvedFilters`, one settings read per mailbox and only when a filter cites a setting, via `officeSettingValues`); the engine re-check drops setting-backed dimensions (`mailFilterWithoutSettings`). Package gate: `MAIL_FILTER_SETTINGS_SINCE_KERNEL`. KERNEL_VERSION 2.132.0.

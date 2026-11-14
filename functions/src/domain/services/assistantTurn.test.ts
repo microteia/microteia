@@ -3,7 +3,7 @@ import type { ChatEvent, ChatMessage, ChatRequest } from '../repositories/IAICha
 import type { AssistantMessageRecord, AssistantStreamChunk } from '../schema/assistant/assistantConversation';
 import type { AssistantTurnDeps } from './assistantTurn';
 import { runAssistantTurn, summarizeConversation } from './assistantTurn';
-import { mergeConsecutive, repairToolPairs, toModelHistory, transcriptOf } from './assistantHistory';
+import { mergeConsecutive, pairToolResults, toModelHistory, toModelMessages, transcriptOf } from './assistantHistory';
 import { assistantSystemPrompt } from './assistantPrompt';
 
 type Done = Extract<ChatEvent, { type: 'done' }>;
@@ -137,6 +137,22 @@ describe('runAssistantTurn', () => {
     expect(h.chunks).toContainEqual({ t: 'tool', id: 'n', name: 'create_record', phase: 'end', ok: false });
   });
 
+  it('a retomada de uma escrita aprovada manda um único resultado — o verdadeiro', async () => {
+    const h = harness([reply('Apelido trocado.')]);
+    const records: AssistantMessageRecord[] = [
+      { seq: 0, role: 'user', kind: 'message', parts: [{ type: 'text', text: 'Amorlinda' }], createdAt: 0 },
+      { seq: 1, role: 'assistant', kind: 'message', parts: [{ type: 'tool_call', id: 'u', name: 'create_record', input: {} }], createdAt: 0 },
+    ];
+    await runAssistantTurn(h.deps, {
+      history: toModelHistory(records),
+      resume: { pending: [{ id: 'u', name: 'create_record', input: {}, needsApproval: true }], approvals: { u: true } },
+    });
+    expect(h.requests[0].messages[2]).toEqual({
+      role: 'user',
+      parts: [{ type: 'tool_result', callId: 'u', content: '{"ok":"create_record"}', isError: false }],
+    });
+  });
+
   it('para no teto de passos e avisa', async () => {
     const h = harness(
       [callTool('1', 'search_records'), callTool('2', 'search_records'), callTool('3', 'search_records')],
@@ -211,17 +227,30 @@ describe('runAssistantTurn', () => {
 });
 
 describe('histórico do modelo', () => {
-  it('fecha a chamada sem resultado e rotula o resumo', () => {
+  it('rotula o resumo e não fecha o par na carga', () => {
     const records: AssistantMessageRecord[] = [
       { seq: 4, role: 'user', kind: 'summary', parts: [{ type: 'text', text: 'Resumo.' }], createdAt: 0 },
       { seq: 5, role: 'assistant', kind: 'message', parts: [{ type: 'tool_call', id: 'z', name: 'get_record', input: {} }], createdAt: 0 },
     ];
     const history = toModelHistory(records);
     expect(history[0].parts[0]).toEqual({ type: 'text', text: '[Summary of the earlier part of this conversation]\nResumo.' });
-    expect(history[2]).toEqual({
+    expect(history).toHaveLength(2);
+  });
+
+  it('fecha no envio a chamada sem resultado, à frente do texto da pergunta nova', () => {
+    const messages = toModelMessages([
+      { role: 'assistant', parts: [{ type: 'tool_call', id: 'z', name: 'get_record', input: {} }] },
+      { role: 'user', parts: [{ type: 'text', text: 'e aí?' }] },
+    ]);
+    expect(messages[1]).toEqual({
       role: 'user',
-      parts: [{ type: 'tool_result', callId: 'z', content: '{"interrupted":true}', isError: true }],
+      parts: [
+        { type: 'tool_result', callId: 'z', content: '{"interrupted":true}', isError: true },
+        { type: 'text', text: 'e aí?' },
+      ],
     });
+    expect(toModelMessages([{ role: 'assistant', parts: [{ type: 'tool_call', id: 'y', name: 'x', input: {} }] }])[1].parts)
+      .toEqual([{ type: 'tool_result', callId: 'y', content: '{"interrupted":true}', isError: true }]);
   });
 
   it('não duplica o resultado que já existe', () => {
@@ -229,7 +258,18 @@ describe('histórico do modelo', () => {
       { role: 'assistant', parts: [{ type: 'tool_call', id: 'a', name: 'x', input: {} }] },
       { role: 'user', parts: [{ type: 'tool_result', callId: 'a', content: '1', isError: false }] },
     ];
-    expect(repairToolPairs(messages)).toEqual(messages);
+    expect(pairToolResults(messages)).toEqual(messages);
+    expect(pairToolResults([messages[0], { role: 'user', parts: [...messages[1].parts, ...messages[1].parts] }])).toEqual(messages);
+  });
+
+  it('resultado sem chamada à frente vira texto, para o modelo não repetir a escrita', () => {
+    const messages = pairToolResults([
+      { role: 'user', parts: [{ type: 'text', text: 'Resumo.' }, { type: 'tool_result', callId: 'w', content: '{"ok":1}', isError: false }] },
+    ]);
+    expect(messages[0].parts).toEqual([
+      { type: 'text', text: 'Resumo.' },
+      { type: 'text', text: '[Result of an earlier tool call]\n{"ok":1}' },
+    ]);
   });
 
   it('descarta mensagem vazia ao fundir', () => {

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.264.1] — 2026-11-14
+
+- Corrigido o Assistente de IA, que mostrava um erro do provedor logo depois de você aprovar uma alteração em um registro. A alteração já era feita, mas a resposta do assistente não chegava. Agora ele confirma o que fez normalmente.
+
 #### [9.264.0] — 2026-11-14
 
 - As automações de e-mail que vêm em extensões podem usar uma lista de remetentes e de assuntos configurada pelo escritório. Ajuste a lista em Configurações, e a atualização da extensão nunca a desfaz.
