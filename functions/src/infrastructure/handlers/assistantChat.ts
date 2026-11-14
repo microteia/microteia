@@ -9,7 +9,6 @@ import type {
   AssistantStreamChunk,
   AssistantTurnRequest,
   AssistantTurnResult,
-  AssistantWriteMode,
 } from '../../domain/schema/assistant/assistantConversation';
 import {
   ASSISTANT_COMPACT_RATIO,
@@ -25,8 +24,8 @@ import {
 } from '../../domain/schema/assistant/assistantConversation';
 import { ASSISTANT_CHAT_FUNCTION } from '../../domain/schema/assistant/assistantBackend';
 import type { AgentToolDefinition } from '../../domain/schema/agent/agentOps';
-import { AGENT_TOOLS, agentToolByName } from '../../domain/schema/agent/agentOps';
-import { grants } from '../../domain/schema/access/memberPermissions';
+import { agentToolByName } from '../../domain/schema/agent/agentOps';
+import { assistantTools, toolNeedsApproval } from '../../domain/services/assistantTools';
 import { runAssistantTurn, summarizeConversation } from '../../domain/services/assistantTurn';
 import { toModelHistory } from '../../domain/services/assistantHistory';
 import { assistantSystemPrompt } from '../../domain/services/assistantPrompt';
@@ -40,16 +39,6 @@ import { agentLocale } from '../agent/agentLocale';
 import { tenantTimeZone } from '../settings/tenantTimeZone';
 
 const REGION = 'southamerica-east1';
-
-/**
- * As ferramentas que o modelo recebe. Fora as de escrita quando o escritório desligou a escrita, e
- * fora as de permissão FIXA que a pessoa não tem — cada definição custa contexto em toda chamada, e
- * oferecer uma ferramenta que certamente recusa só ensina o modelo a tentar. As de coleção ficam: se
- * a pessoa pode ou não, depende da coleção que o modelo escolher, e a recusa explica.
- */
-export const assistantTools = (permissions: string[], writeMode: AssistantWriteMode): AgentToolDefinition[] =>
-  AGENT_TOOLS.filter((tool) => !(tool.writes && writeMode === 'off'))
-    .filter((tool) => tool.permission.kind !== 'fixed' || grants(permissions, tool.permission.id));
 
 const asChatTool = (tool: AgentToolDefinition): ChatTool => ({
   name: tool.name,
@@ -230,7 +219,7 @@ export const assistantChat = onCall(
             writeMode,
           }),
           tools: assistantTools(permissions, writeMode).map(asChatTool),
-          needsApproval: (name) => writeMode === 'confirm' && agentToolByName(name)?.writes === true,
+          needsApproval: (name) => toolNeedsApproval(agentToolByName(name), writeMode),
           runTool: async (name, toolInput) => {
             try {
               const result = await runAgentOperation(name, toolInput, session, catalog);

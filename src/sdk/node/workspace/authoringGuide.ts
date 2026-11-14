@@ -40,7 +40,7 @@ import {
 } from '../../../domain/services/recordListQuery';
 import { RECORD_WINDOW_DEFAULT } from '../../../domain/repositories/IRecordRepository';
 import { CARD_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/cardTemplate';
-import { NAV_FILTER_PRESENCE_SINCE_KERNEL } from '../../../domain/schema/ui/uiExtensionPoints';
+import { NAV_FILTER_PRESENCE_SINCE_KERNEL, SLOT_DOCK_SINCE_KERNEL } from '../../../domain/schema/ui/uiExtensionPoints';
 import { PORTAL_DETAIL_ONLY_NODE_TYPES, PORTAL_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/portalTemplate';
 import {
   PORTAL_PAGE_SPEC_SINCE_KERNEL,
@@ -704,6 +704,24 @@ Nothing else runs — which is why the menu is open to a package that ships no J
 Both are toggled and ordered by the organization, from Settings, under the region's own key
 (\`<surface>.slots\`, \`<surface>.items\`). Declare \`order\` and \`defaultEnabled\` and you have said
 where it starts; where it ends up is theirs to decide.
+
+### The right-hand dock, and slots that wait for a function
+
+\`${WORKSPACE_SLOT_SURFACES.dockRight}\` is a region unlike the others. They draw a ROW of small pieces; the dock
+shows ONE slot at a time, at full height, pinned to the right of the tabs — the place for what goes
+along with the work instead of being the work: a conversation, notes, help. The shell puts one button per
+dock slot in the top bar (with its \`title\` and \`icon\`), \`Cmd/Ctrl+J\` toggles the last one used, the
+person drags the edge to resize it, and with more than one slot the dock header becomes a row of tabs.
+Once opened, a slot stays MOUNTED while the dock is closed — keep live state in it without fear of losing it.
+It is the same \`ui.slot\`: \`surfaceSlot\` / \`surfaceSlotSpec\` with \`surface: '${WORKSPACE_SLOT_SURFACES.dockRight}'\`.
+
+\`requiresFunction\` (any region) names a Cloud Function the slot cannot work without. The slot appears only
+when an installed extension claims that function in \`manifest.backend.functions\` AND its backend is
+applied in the project — so a panel that talks to your function is never shown with nothing behind it.
+Name the FUNCTION, not your package id: a fork of your package keeps working.
+
+Both need \`kernel: "^${SLOT_DOCK_SINCE_KERNEL}"\` (or later). An older kernel would install the package and show
+nothing, so validation refuses the range below it.
 
 ### A tab inside a record — including another extension's
 

@@ -3,6 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { ExternalMarkdownLink, MarkdownLink } from '../MarkdownLink';
+import { CopyButton } from '../CopyButton';
+import { S } from './MarkdownContent.styles';
 
 const components = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -13,6 +15,26 @@ const untrustedComponents = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   a: (props: any) => <ExternalMarkdownLink href={props.href}>{props.children}</ExternalMarkdownLink>,
 };
+
+interface HastNode {
+  type?: string;
+  value?: string;
+  children?: HastNode[];
+}
+
+/** O texto de um nó da árvore do Markdown — o que o bloco de código mostra, sem marcação. */
+const textOf = (node: HastNode | undefined): string =>
+  !node ? '' : node.type === 'text' ? node.value ?? '' : (node.children ?? []).map(textOf).join('');
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CopyablePre = (props: any) => (
+  <S.CodeBlock>
+    <pre>{props.children}</pre>
+    <S.CopyCorner>
+      <CopyButton text={textOf(props.node as HastNode).replace(/\n$/, '')} size={13} />
+    </S.CopyCorner>
+  </S.CodeBlock>
+);
 
 /**
  * Sem HTML e sem imagem no texto que não é do escritório. O HTML cru desenharia o que o pacote quisesse —
@@ -34,16 +56,24 @@ export interface MarkdownContentProps {
    * imagem continuam barrados, mas o link para um registro é justamente o que a resposta quer dar.
    */
   internalLinks?: boolean;
+  /** Um botão de copiar em cada bloco de código — o comando, a consulta ou o trecho que a pessoa vai colar. */
+  copyableCode?: boolean;
 }
 
-export const MarkdownContent: React.FC<MarkdownContentProps> = ({ children, untrusted, internalLinks }) => (
+const withCopy = <T extends object>(base: T): T & { pre: typeof CopyablePre } => ({ ...base, pre: CopyablePre });
+const copyableComponents = withCopy(components);
+const copyableUntrustedComponents = withCopy(untrustedComponents);
+
+export const MarkdownContent: React.FC<MarkdownContentProps> = ({ children, untrusted, internalLinks, copyableCode }) => (
   untrusted ? (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       skipHtml
       disallowedElements={UNTRUSTED_DISALLOWED}
       unwrapDisallowed
-      components={internalLinks ? components : untrustedComponents}
+      components={internalLinks
+        ? (copyableCode ? copyableComponents : components)
+        : (copyableCode ? copyableUntrustedComponents : untrustedComponents)}
     >
       {children}
     </ReactMarkdown>

@@ -1,5 +1,7 @@
 import type { PluginRecord } from '../../kernel';
-import { lazyView, surfaceSlot } from '../contributionBuilders';
+import { command, lazyView, surfaceSlot } from '../contributionBuilders';
+import { AssistantCommandProvider } from '../../presentation/components/assistant/AssistantCommandProvider';
+import { ASSISTANT_DOCK_PANEL_KEY } from '../../presentation/components/assistant/assistantItems';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
 import { WORKSPACE_SLOT_SURFACES } from '../../domain/schema/ui/uiExtensionPoints';
 import { ASSISTANT_USE_PERMISSION } from '../../domain/schema/assistant/assistantConversation';
@@ -19,6 +21,7 @@ export const coreAssistantPlugin: PluginRecord = {
       () => import('../../presentation/components/assistant/AssistantPanel/AssistantPanel.view'),
       'AssistantPanelView',
     ),
+    AssistantCommandProvider,
   },
   manifest: {
     id: 'core.assistant',
@@ -31,13 +34,14 @@ export const coreAssistantPlugin: PluginRecord = {
       messageBundleContribution(coreMessage('core.assistant', CORE_ASSISTANT_MESSAGES)),
       surfaceSlot({
         surface: WORKSPACE_SLOT_SURFACES.dockRight,
-        key: 'assistant',
+        key: ASSISTANT_DOCK_PANEL_KEY,
         title: '@core.assistant/panel.title',
         icon: 'sparkling',
         order: 10,
         requiredPermissions: [ASSISTANT_USE_PERMISSION],
         requiresFunction: ASSISTANT_CHAT_FUNCTION,
       }, 'AssistantPanelView'),
+      command('assistant', { group: '@core.workspace/command.group.panels' }, 'AssistantCommandProvider'),
     ],
   },
 };

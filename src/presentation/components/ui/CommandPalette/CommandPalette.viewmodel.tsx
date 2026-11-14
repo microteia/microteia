@@ -13,6 +13,8 @@ import { useAuthorization } from '../../../../stores/useAuthorization';
 import { useCommandProviders, usePageContributions } from '../../../shared/useUiContributions';
 import { navigablePages as selectNavigablePages } from '../../../shared/resolveUiContributions';
 import { useLabel, useT } from '../../../shared/i18n/useT';
+import { useWorkspaceDock } from '../../../../stores/useWorkspaceDock';
+import { useDockPanels } from '../../../shared/useDockPanels';
 import type { CommandPaletteItem } from './providers/ICommandPaletteProvider';
 import { useServerRecordSearch } from '../../../shared/useServerRecordSearch';
 import { isOwnedByParentScreen, screenDataCollection, screenReadPermission } from '../../../../domain/services/screenDataCollection';
@@ -113,6 +115,13 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
     return outside.length > 0 ? [...allRecords, ...outside] : allRecords;
   }, [allRecords, serverSearch.results]);
 
+  const { open: openDock } = useWorkspaceDock();
+  const visibleDockPanels = useDockPanels();
+  const dockPanels = useMemo(
+    () => visibleDockPanels.map((panel) => ({ key: panel.key, title: panel.title, icon: panel.icon })),
+    [visibleDockPanels],
+  );
+
   const appContext = useMemo(
     () => ({
       openTab,
@@ -131,8 +140,10 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       navigablePages,
       t,
       label,
+      dockPanels,
+      openDock,
     }),
-    [openTab, close, records, serverSearch.matches, screenDefinitions, workflows, paletteReports, themeId, themes, setTheme, signOut, userRole, can, navigablePages, t, label],
+    [openTab, close, records, serverSearch.matches, screenDefinitions, workflows, paletteReports, themeId, themes, setTheme, signOut, userRole, can, navigablePages, t, label, dockPanels, openDock],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {

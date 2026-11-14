@@ -2065,6 +2065,17 @@ interface MicroteiaCommandContext {
    * that installed you, and an extension that compared against one was reading a name it invented.
    */
   can: (permission: string) => boolean;
+  /**
+   * The panels of the right-hand dock ('dock.right') this person can open now - already filtered by
+   * permission and by requiresFunction. The title is resolved. Each one already has an 'Open <title>'
+   * command; offer a more specific one when your panel can start somewhere.
+   */
+  dockPanels: Array<{ key: string; title: string; icon?: string }>;
+  /**
+   * Opens a dock panel by its slot key. 'intent' is a request to a panel that listens for one (the
+   * kernel's AI Assistant takes 'new-conversation'); a panel that does not listen simply opens.
+   */
+  openDock: (key: string, intent?: string) => void;
 }
 
 interface MicroteiaCommandProvider {

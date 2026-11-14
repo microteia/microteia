@@ -12823,7 +12823,9 @@ Ajuste do escritório, declarado pela extensão: `confirm` (padrão), `auto` ou 
 - **Aprovação:** com a conversa em `awaiting-approval`, o painel mostra as chamadas de escrita e os
   botões Aprovar/Recusar, que mandam `approvals` numa chamada nova.
 - **Comandos de barra:** `/new` (e `/clear`), `/compact`, `/help` — tratados na tela; só o `/compact`
-  vai ao servidor (`command: 'compact'`).
+  vai ao servidor (`command: 'compact'`). No ⌘K, "Nova conversa com o assistente de IA"
+  (`AssistantCommandProvider`) abre o painel com a intenção `new-conversation`.
+- **Blocos de código com botão de copiar** (`MarkdownContent copyableCode`, que reusa o `CopyButton`).
 - **Parar** aborta o `AbortSignal` do `httpsCallable(...).stream()`; o segmento ainda aberto sai do
   rascunho, porque o servidor o grava como interrompido e ele volta pelo snapshot.
 
@@ -15334,7 +15336,17 @@ lugar do que acompanha o trabalho em vez de ser o trabalho: uma conversa, notas,
   alguma extensão instalada reivindica aquela Cloud Function e o backend dela está no ar
   (`backendFunctionAvailability`, a mesma conta que a aba de agentes fazia só para o `agentMcp`). Pelo
   NOME da function, nunca pelo id da extensão. A filtragem — configuração, permissão e function — é
-  uma só (`useVisibleSlots`), usada pela fileira e pelo dock.
+  uma só (`filterVisibleSlots`, pura e testada, atrás de `useVisibleSlots`), usada pela fileira, pelo
+  dock e pelo ⌘K.
+- **Portão do pacote:** `dock.right` ou `requiresFunction` num pacote que admite kernel anterior a
+  `SLOT_DOCK_SINCE_KERNEL` (2.129.0) é recusado (`issue.package.slot.kernel`, `slotKernelGate.ts`): lá
+  ele instalaria e não mostraria nada, sem erro em lugar nenhum.
+- **No ⌘K, todo painel ganha "Abrir <painel>"** (`DockCommandProvider`, em `core.workspace`), e o
+  contexto dos provedores traz `dockPanels` e `openDock(key, intent?)` — também para o provedor de
+  uma extensão (kernel 2.130.0, documentado em `extensionTypeDefs.ts`).
+- **Intenção:** `open(key, intent)` entrega um pedido ao painel — o ⌘K manda `new-conversation` ao
+  assistente. O painel o ASSINA (`subscribeIntent`, num efeito), como evento externo; se ele ainda não
+  montou, o pedido fica guardado e é entregue na assinatura.
 
 ### Nada de mecanismo novo: a configuração é a que já existia
 

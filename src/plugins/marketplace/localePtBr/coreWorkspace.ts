@@ -63,6 +63,8 @@ export const CORE_WORKSPACE: Record<string, string> = {
 
   'command.group.navigation': 'Navegação',
   'command.group.system': 'Sistema',
+  'command.group.panels': 'Painéis',
+  'command.dock.open': 'Abrir {title}',
   'login.field.email.placeholder': 'seu@email.com',
   'profile.account': 'Conta',
   'profile.birth-date': 'Data de Nascimento',

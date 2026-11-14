@@ -51,7 +51,7 @@ export const AssistantMessage: React.FC<{ item: AssistantItem; labels: Assistant
       return (
         <div>
           <S.Answer $streaming={item.streaming}>
-            <MarkdownContent untrusted internalLinks>{item.markdown}</MarkdownContent>
+            <MarkdownContent untrusted internalLinks copyableCode>{item.markdown}</MarkdownContent>
           </S.Answer>
           {item.interrupted && <S.Note>{labels.interrupted}</S.Note>}
         </div>
@@ -78,7 +78,7 @@ export const AssistantMessage: React.FC<{ item: AssistantItem; labels: Assistant
           </S.Summary>
           <S.SummaryBody>
             <S.Answer $streaming={false}>
-              <MarkdownContent untrusted internalLinks>{item.markdown}</MarkdownContent>
+              <MarkdownContent untrusted internalLinks copyableCode>{item.markdown}</MarkdownContent>
             </S.Answer>
           </S.SummaryBody>
         </S.Collapsible>

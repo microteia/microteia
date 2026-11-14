@@ -64,6 +64,8 @@ export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
 
   'command.group.navigation': 'Navigation',
   'command.group.system': 'System',
+  'command.group.panels': 'Panels',
+  'command.dock.open': 'Open {title}',
   'login.field.email.placeholder': 'you@email.com',
   'profile.account': 'Account',
   'profile.birth-date': 'Date of Birth',

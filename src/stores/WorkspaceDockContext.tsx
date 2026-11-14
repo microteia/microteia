@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   WORKSPACE_DOCK_DEFAULT_WIDTH,
   WorkspaceDockContext,
@@ -46,15 +46,38 @@ export const WorkspaceDockProvider: React.FC<{ children: React.ReactNode }> = ({
   const [everOpened, setEverOpened] = useState(false);
   const [lastKey, setLastKey] = useState<string | null>(stored.lastKey);
   const [width, setWidthState] = useState(stored.width);
+  const intentHandlersRef = useRef(new Map<string, Set<(intent: string) => void>>());
+  const pendingIntentsRef = useRef(new Map<string, string>());
 
-  const open = useCallback((key: string) => {
+  const deliverIntent = useCallback((key: string, intent: string) => {
+    const handlers = intentHandlersRef.current.get(key);
+    if (handlers && handlers.size > 0) handlers.forEach((handler) => handler(intent));
+    else pendingIntentsRef.current.set(key, intent);
+  }, []);
+
+  const subscribeIntent = useCallback((key: string, handler: (intent: string) => void) => {
+    const handlers = intentHandlersRef.current.get(key) ?? new Set<(intent: string) => void>();
+    handlers.add(handler);
+    intentHandlersRef.current.set(key, handlers);
+    const pending = pendingIntentsRef.current.get(key);
+    if (pending !== undefined) {
+      pendingIntentsRef.current.delete(key);
+      handler(pending);
+    }
+    return () => {
+      handlers.delete(handler);
+    };
+  }, []);
+
+  const open = useCallback((key: string, intent?: string) => {
     setOpenKey(key);
     setEverOpened(true);
     if (key) {
       setLastKey(key);
       writeStored({ lastKey: key, width });
+      if (intent) deliverIntent(key, intent);
     }
-  }, [width]);
+  }, [width, deliverIntent]);
 
   const close = useCallback(() => setOpenKey(null), []);
 
@@ -89,8 +112,8 @@ export const WorkspaceDockProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [toggle]);
 
   const value = useMemo<WorkspaceDockContextValue>(
-    () => ({ openKey, everOpened, width, open, toggle, close, setWidth }),
-    [openKey, everOpened, width, open, toggle, close, setWidth],
+    () => ({ openKey, everOpened, width, open, subscribeIntent, toggle, close, setWidth }),
+    [openKey, everOpened, width, open, subscribeIntent, toggle, close, setWidth],
   );
 
   return <WorkspaceDockContext.Provider value={value}>{children}</WorkspaceDockContext.Provider>;

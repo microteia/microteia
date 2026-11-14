@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDI } from '../../../../infrastructure/di/useDI';
 import { useAuth } from '../../../../stores/useAuth';
 import { useTenant } from '../../../../stores/useTenant';
+import { useWorkspaceDock } from '../../../../stores/useWorkspaceDock';
 import { useLabel, useT } from '../../../shared/i18n/useT';
 import { useSettingValue } from '../../../shared/settings/useSettingValue';
 import { errorParamsOf } from '../../../../domain/errors/LocalizedError';
@@ -20,6 +21,8 @@ import {
   makeSubscribeToAssistantMessagesUseCase,
 } from '../../../../domain/usecases/assistant/AssistantUseCases';
 import {
+  ASSISTANT_DOCK_PANEL_KEY,
+  ASSISTANT_NEW_CONVERSATION_INTENT,
   ASSISTANT_SLASH_COMMANDS,
   EMPTY_DRAFT,
   applyAssistantChunk,
@@ -103,6 +106,7 @@ export const useAssistantPanelViewModel = (): AssistantPanelViewModel => {
   const t = useT('core.assistant');
   const label = useLabel();
   const writeMode = useSettingValue(ASSISTANT_WRITE_MODE_SETTING);
+  const { subscribeIntent } = useWorkspaceDock();
 
   const tenantId = currentTenant?.id ?? '';
   const userId = user?.id ?? '';
@@ -244,6 +248,14 @@ export const useAssistantPanelViewModel = (): AssistantPanelViewModel => {
     setSelection(null);
     resetView();
   }, [busy, resetView]);
+
+  // O pedido que chega do ⌘K ("nova conversa") — assinado como evento externo, e não lido no render.
+  useEffect(
+    () => subscribeIntent(ASSISTANT_DOCK_PANEL_KEY, (intent) => {
+      if (intent === ASSISTANT_NEW_CONVERSATION_INTENT) newConversation();
+    }),
+    [subscribeIntent, newConversation],
+  );
 
   const selectConversation = useCallback((id: string) => {
     if (busy) return;

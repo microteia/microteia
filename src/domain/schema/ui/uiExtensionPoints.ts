@@ -358,6 +358,13 @@ export const WORKSPACE_SLOT_SURFACES = {
 } as const;
 
 /**
+ * Desde quando o kernel desenha o dock (`dock.right`) e respeita `requiresFunction` num trecho. Um
+ * kernel anterior INSTALA o pacote e simplesmente não mostra nada — o trecho num nome que nenhuma
+ * região desenha, ou visível sem a function no ar. Por isso o portão do pacote exige a faixa.
+ */
+export const SLOT_DOCK_SINCE_KERNEL = '2.129.0';
+
+/**
  * As regiões da TELA DE ENTRADA. Estão separadas das do workspace porque vivem sob outra regra: ali
  * não há escritório, não há configuração e não há permissão — o que aparece é o que foi declarado, e
  * um trecho não pode depender de nada que só exista depois de alguém entrar.

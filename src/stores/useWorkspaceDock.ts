@@ -16,7 +16,12 @@ export interface WorkspaceDockContextValue {
    */
   everOpened: boolean;
   width: number;
-  open: (key: string) => void;
+  /**
+   * Abre o painel. `intent` é um pedido ao PAINEL — "comece uma conversa nova" —, entregue a quem o
+   * assina em `subscribeIntent`; se o painel ainda não montou, fica guardado até ele assinar.
+   */
+  open: (key: string, intent?: string) => void;
+  subscribeIntent: (key: string, handler: (intent: string) => void) => () => void;
   /** Sem chave: fecha se aberto, ou reabre o último. Com chave: abre aquele, ou fecha se já é ele. */
   toggle: (key?: string) => void;
   close: () => void;

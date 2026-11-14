@@ -442,6 +442,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'O item de menu "{id}" filtra "{key}" por estar vazio, mas uma caixa de seleção nunca está vazia: desmarcada é "false". Filtre com { key: "{key}", values: ["false"] }.',
   'issue.package.nav.filter.kernel':
     'O item de menu "{id}" abre a lista filtrada por campo vazio ou preenchido ({ key, empty }), o que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel mais antigo recusa o filtro.',
+  'issue.package.slot.kernel':
+    'O trecho "{id}" usa o painel à direita (dock.right) ou requiresFunction, que só existem a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest. Um kernel anterior instalaria o pacote e não mostraria nada.',
   'issue.package.nav.filter.target':
     'O item de menu "{id}" ({where}) declara um filtro, mas não abre a lista de uma tela: o filtro só vale para screen ou screenSourceId.',
   'issue.package.nav.filter.value':

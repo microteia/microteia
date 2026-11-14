@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.261.0] — 2026-11-13
+
+- O assistente de IA agora também abre pela busca rápida (Ctrl+K / ⌘K): digite "assistente" para abrir o painel ou começar uma conversa nova direto dali.
+- Os trechos de código nas respostas do assistente ganharam um botão de copiar.
+
 #### [9.260.0] — 2026-11-13
 
 - Chegou a tela do **Assistente de IA**: um painel fixado à direita do espaço de trabalho, aberto pelo botão na barra do topo ou pelo atalho Ctrl+J (⌘J no Mac). Pergunte em linguagem comum: a resposta aparece enquanto é escrita, com listas, tabelas e links que abrem o registro citado.

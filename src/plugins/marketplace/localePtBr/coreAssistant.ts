@@ -38,6 +38,8 @@ export const CORE_ASSISTANT: Record<string, string> = {
   'composer.send': 'Enviar',
   'composer.stop': 'Parar',
   'command.new': 'Começar uma nova conversa',
+  'command.palette.new': 'Nova conversa com o assistente de IA',
+  'command.palette.new.keywords': 'chat, ia, assistente, nova, conversa, perguntar',
   'command.compact': 'Resumir esta conversa para liberar espaço',
   'command.help': 'Mostrar os comandos disponíveis',
   'command.unknown': 'Comando desconhecido: /{command}. Digite /help para ver os comandos.',

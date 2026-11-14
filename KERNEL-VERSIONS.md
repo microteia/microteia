@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.261.0] — 2026-11-13
+
+- feat(ui/command-palette): the provider context gains `dockPanels` (the dock panels this person can open, filtered by permission and `requiresFunction`) and `openDock(key, intent?)`, also for extension providers (`MicroteiaCommandContext` in the type defs). `DockCommandProvider` (`core.workspace`) adds "Open <panel>" for every dock panel. KERNEL_VERSION 2.130.0.
+- feat(ui/dock): `open(key, intent)` hands a request to the panel, which subscribes with `subscribeIntent(key, handler)`; an intent sent before the panel mounts is kept and delivered on subscription. The assistant takes `new-conversation` from its palette command (`AssistantCommandProvider`).
+- feat(sdk/validate): `slotKernelIssues` refuses `dock.right` or `requiresFunction` in a package whose kernel range admits versions below `SLOT_DOCK_SINCE_KERNEL` (2.129.0), where it would install and show nothing (`issue.package.slot.kernel`). The authoring guide documents the dock and `requiresFunction`.
+- feat(ui/markdown): `MarkdownContent copyableCode` adds a copy button to every code block (reusing `CopyButton`); the assistant answers use it.
+- test: `backendFunctionAvailability`, `filterVisibleSlots` (extracted from `useVisibleSlots`), `assistantTools`/`toolNeedsApproval` (extracted from the handler into `domain/services/assistantTools.ts`) and `slotKernelIssues`.
+
 #### [9.260.0] — 2026-11-13
 
 - feat(ui/shell): new workspace region `dock.right` (`WORKSPACE_SLOT_SURFACES.dockRight`) — a panel pinned to the right of the tabs showing one slot at a time at full height (`WorkspaceDock`), with one toggle per panel in the top bar, `Cmd/Ctrl+J` to toggle the last one, drag-to-resize (320–760 px) and panels kept mounted after the first open. It is `ui.slot`, not a new extension point. KERNEL_VERSION 2.129.0.

@@ -21,6 +21,23 @@ export const useBackendFunctionReady = (): ((functionName: string | undefined) =
 };
 
 /**
+ * O filtro em si, sem hook: a ordem da configuração, só os ligados, só os permitidos, só os que têm
+ * a function no ar. Separado para ser testável sem montar provedor nenhum.
+ */
+export const filterVisibleSlots = (
+  entries: ReadonlyArray<{ key: string; enabled: boolean }>,
+  byKey: ReadonlyMap<string, SurfaceSlotDescriptor>,
+  canAny: ((permissions: string[]) => boolean) | null,
+  functionReady: (functionName: string | undefined) => boolean,
+): SurfaceSlotDescriptor[] =>
+  entries
+    .filter((entry) => entry.enabled)
+    .map((entry) => byKey.get(entry.key))
+    .filter((slot): slot is SurfaceSlotDescriptor => !!slot)
+    .filter((slot) => !slot.requiredPermissions?.length || (!!canAny && canAny(slot.requiredPermissions)))
+    .filter((slot) => functionReady(slot.requiresFunction));
+
+/**
  * Os trechos de uma região que esta pessoa pode ver AGORA: ligados na configuração, permitidos pela
  * autorização e com a function de que dependem no ar. É a mesma conta para a fileira de trechos e
  * para o dock — duas cópias dela divergiriam exatamente no filtro novo.
@@ -34,13 +51,7 @@ export const useVisibleSlots = (surface: string): SurfaceSlotDescriptor[] => {
   const byKey = useMemo(() => new Map(registered.map((slot) => [slot.key, slot])), [registered]);
 
   return useMemo(
-    () => entries
-      .filter((entry) => entry.enabled)
-      .map((entry) => byKey.get(entry.key))
-      .filter((slot): slot is SurfaceSlotDescriptor => !!slot)
-      .filter((slot) => !slot.requiredPermissions?.length
-        || (!!authorization && authorization.canAny(slot.requiredPermissions)))
-      .filter((slot) => functionReady(slot.requiresFunction)),
+    () => filterVisibleSlots(entries, byKey, authorization ? authorization.canAny : null, functionReady),
     [entries, byKey, authorization, functionReady],
   );
 };

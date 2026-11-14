@@ -5,6 +5,12 @@ import type {
   AssistantStreamChunk,
 } from '../../../domain/schema/assistant/assistantConversation';
 
+/** A chave do trecho do assistente no dock — a mesma do manifest e do provedor do ⌘K. */
+export const ASSISTANT_DOCK_PANEL_KEY = 'assistant';
+
+/** O pedido que o ⌘K manda ao painel para começar uma conversa nova. */
+export const ASSISTANT_NEW_CONVERSATION_INTENT = 'new-conversation';
+
 export type AssistantToolStatus = 'running' | 'done' | 'failed' | 'declined' | 'awaiting';
 
 /** O que a conversa mostra, já desmontado em itens de tela. */

@@ -45,6 +45,8 @@ export const CORE_ASSISTANT_MESSAGES: Record<string, string> = {
   'composer.send': 'Send',
   'composer.stop': 'Stop',
   'command.new': 'Start a new conversation',
+  'command.palette.new': 'New AI assistant conversation',
+  'command.palette.new.keywords': 'chat, ai, assistant, new, conversation, ask',
   'command.compact': 'Summarize this conversation to free space',
   'command.help': 'Show the available commands',
   'command.unknown': 'Unknown command: /{command}. Type /help to see the commands.',

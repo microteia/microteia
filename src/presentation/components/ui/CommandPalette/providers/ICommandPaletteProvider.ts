@@ -71,6 +71,10 @@ export interface CommandPaletteAppContext {
    * digita, e era isso que deixava a tela de uma extensão fora do ⌘K.
    */
   label: (value: string | null | undefined, params?: Record<string, unknown>) => string;
+  /** Os painéis do dock que esta pessoa pode abrir, com o título já resolvido. */
+  dockPanels: Array<{ key: string; title: string; icon?: string }>;
+  /** Abre um painel do dock — com um pedido a ele, se houver (ver `useWorkspaceDock().open`). */
+  openDock: (key: string, intent?: string) => void;
 }
 
 export interface ICommandPaletteProvider {

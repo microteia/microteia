@@ -10,6 +10,7 @@ import { workflowStepIssues } from '../domain/usecases/plugins/workflowIntegrity
 import type { NavTargetOwner } from '../domain/usecases/plugins/navTargets';
 import { navTargetIssues } from '../domain/usecases/plugins/navTargets';
 import { navFilterIssues } from '../domain/usecases/plugins/navFilters';
+import { slotKernelIssues } from '../domain/usecases/plugins/slotKernelGate';
 import { messageRefIssues } from '../domain/usecases/plugins/messageRefs';
 
 /**
@@ -106,6 +107,12 @@ export const validatePluginPackage = (
   // O filtro com que o atalho abre a lista. Uma chave que a lista não reconhece abria a lista inteira,
   // e o selo voltava a contar um recorte que o clique não mostrava.
   ...navFilterIssues(pkg).map((issue) => ({
+    source: 'package' as const,
+    message: issue.message,
+    messageParams: issue.messageParams,
+  })),
+  // O dock e o portão por function num pacote que admite kernel anterior: lá instalaria e não apareceria.
+  ...slotKernelIssues(pkg).map((issue) => ({
     source: 'package' as const,
     message: issue.message,
     messageParams: issue.messageParams,

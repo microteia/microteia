@@ -443,6 +443,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'Menu item "{id}" filters "{key}" by whether it is empty, but a checkbox is never empty: unchecked is "false". Filter it with { key: "{key}", values: ["false"] }.',
   'issue.package.nav.filter.kernel':
     'Menu item "{id}" opens the list filtered by an empty or filled field ({ key, empty }), which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest. An older kernel refuses the filter.',
+  'issue.package.slot.kernel':
+    'Slot "{id}" uses the right-hand dock (dock.right) or requiresFunction, which only exist from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest. An older kernel would install the package and show nothing.',
   'issue.package.nav.filter.target':
     'Menu item "{id}" ({where}) declares a filter, but opens no screen list: a filter only applies to screen or screenSourceId.',
   'issue.package.nav.filter.value':
