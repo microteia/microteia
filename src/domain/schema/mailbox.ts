@@ -39,8 +39,16 @@ export const MAIL_MESSAGES_COLLECTION = 'mail_messages';
 /** A página das caixas — de todo membro com `mailboxes.connect`, e não só de quem monta automação. */
 export const MAILBOXES_PAGE_KEY = 'mailboxes';
 
-/** Por quanto tempo a mensagem entregue fica guardada (TTL em `expiresAt`). */
-export const MAIL_MESSAGE_RETENTION_DAYS = 30;
+/** Até quantos dias para trás a leitura busca quando a janela é aberta (`backfillDays`). */
+export const MAILBOX_MAX_BACKFILL_DAYS = 30;
+
+/**
+ * Por quanto tempo a mensagem entregue fica guardada (TTL em `expiresAt`). É a marca que impede a janela de
+ * dias de entregar de novo o que já foi entregue, e por isso dura MAIS que a janela maior: o `SINCE` do IMAP
+ * é por dia, sem hora nem fuso, e a janela cheia alcança a mensagem de 30 dias e meio — cuja marca, com a
+ * mesma duração, já teria expirado.
+ */
+export const MAIL_MESSAGE_RETENTION_DAYS = MAILBOX_MAX_BACKFILL_DAYS + 2;
 
 /** O tique da função que lê as caixas; abaixo disso o intervalo seria uma promessa que ninguém cumpre. */
 export const MAILBOX_POLL_TICK_MINUTES = 5;
@@ -201,8 +209,6 @@ export const EMPTY_MAILBOX_SETTINGS: MailboxSettings = {
   subscriptions: [],
   enabled: true,
 };
-
-export const MAILBOX_MAX_BACKFILL_DAYS = 30;
 
 export const MAILBOX_FAILURE_REASONS = ['auth', 'connection', 'folder', 'read'] as const;
 export type MailboxFailureReason = typeof MAILBOX_FAILURE_REASONS[number];
@@ -435,6 +441,28 @@ export interface MailEventPayload {
   truncated: boolean;
   attachments: Array<{ name: string; contentType: string; size: number }>;
 }
+
+/** A conta lida — o que, se muda, faz os UIDs gravados não dizerem mais nada. */
+const mailboxAccountOf = (settings: MailboxSettings): string =>
+  JSON.stringify([settings.imap.host.trim().toLowerCase(), settings.imap.port, settings.imap.username.trim().toLowerCase(), settings.imap.folder]);
+
+const sameSubscriptions = (a: readonly string[], b: readonly string[]): boolean => {
+  const left = [...a].sort();
+  const right = [...b].sort();
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+};
+
+/**
+ * Salvar a caixa mantém o ponto de leitura? Não, quando muda a conta (os UIDs gravados não dizem mais nada),
+ * quando mudam as automações (a assinatura nova começa do zero) e quando a janela de dias muda para um valor
+ * maior que zero — é o pedido de buscar para trás, e sem zerar o ponto ele só valeria na primeira leitura, que
+ * já passou: a caixa salva com 3 dias continuava sem ler nada do que tinha chegado antes. Baixar a janela para
+ * zero mantém o ponto: zerá-lo marcaria o agora, e o que chegou desde a última leitura se perderia.
+ */
+export const mailboxKeepsCursor = (previous: MailboxSettings, next: MailboxSettings): boolean =>
+  mailboxAccountOf(previous) === mailboxAccountOf(next)
+  && sameSubscriptions(previous.subscriptions, next.subscriptions)
+  && (next.backfillDays <= 0 || next.backfillDays === previous.backfillDays);
 
 /** O "agora" do evento e a retenção são de quem chama: o módulo é puro. */
 export const mailMessageExpiresAt = (receivedAt: Date): Date =>

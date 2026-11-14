@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.264.5] — 2026-11-14
+
+- fix(mail): saving a mailbox with a different `backfillDays` > 0 now resets the read cursor, so the next IMAP read looks back that many days. It used to apply only to the very first read: a mailbox already reading had no way to fetch what arrived before it was connected, and the form field looked like it did nothing. Lowering it to 0 keeps the cursor (resetting would mark "now" and drop what arrived since the last read). The rule moved from `FirestoreMailboxRepository` to `mailboxKeepsCursor` in the shared schema.
+- fix(mail): `MAIL_MESSAGE_RETENTION_DAYS` is now `MAILBOX_MAX_BACKFILL_DAYS + 2` (32, was 30). IMAP `SINCE` is per day with no time zone, so a full 30-day window could reach a message whose delivery mark had already expired and deliver it again.
+- fix(mailboxes): the mailbox card shows when the last e-mail was delivered (`health.lastDeliveredAt`) instead of the count of the last check, which read "0 delivered" on almost every check. New message `mailbox.status.ok-none`; locale pt-BR 1.214.1.
+
 #### [9.264.4] — 2026-11-14
 
 - fix(sdk/build): the `required-unsent` action warning only fires for an action some screen of the package wires as a button (`cardActionIds` / `viewActionIds`, screen patches included). An action no screen lists is run from view code with `runAction({ params })`, where the required parameter arrives in `params`; it was reported as "every run is refused before the first step" for a button that does not exist. Authoring-only: `KERNEL_VERSION` unchanged.

@@ -220,7 +220,9 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
         : !mailbox.health.lastPolledAt
           ? t(polled ? 'mailbox.status.pending' : 'mailbox.status.forward-pending')
           : polled
-            ? t('mailbox.status.ok', { when: lastAt, count: String(mailbox.health.lastDelivered) })
+            ? mailbox.health.lastDeliveredAt
+              ? t('mailbox.status.ok', { when: lastAt, delivered: formatDateTime(mailbox.health.lastDeliveredAt) })
+              : t('mailbox.status.ok-none', { when: lastAt })
             : t('mailbox.status.forward-ok', { when: lastAt });
     const pending = mailbox.forwardingConfirmation;
     return {

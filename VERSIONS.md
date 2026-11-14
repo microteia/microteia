@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.264.5] — 2026-11-14
+
+- Em **Caixas de e-mail**, o cartão da caixa passa a mostrar quando chegou o último e-mail entregue às automações, e não mais quantos chegaram na última verificação — que quase sempre aparecia como zero.
+- Mudar o número de dias da busca para trás de uma caixa já ligada agora busca de novo esses dias na leitura seguinte, sem repetir o que já foi entregue. Antes, ele só valia na primeira leitura da caixa.
+
 #### [9.264.4] — 2026-11-14
 
 - Quem cria extensões deixa de receber um aviso falso sobre ações que são acionadas pelas próprias telas da extensão, e não por um botão.
