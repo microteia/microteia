@@ -10,8 +10,10 @@ import {
   MAIL_TEXT_MAX_CHARS,
   mailMessageExpiresAt,
   isPolledMailbox,
+  mailFilterUsesSettings,
   mailServerPrefilter,
   matchesMailFilter,
+  resolveMailFilter,
 } from '../schema/mailbox';
 import type { MailEventPayload, MailboxFailureReason, MailboxHealth } from '../schema/mailbox';
 
@@ -31,7 +33,23 @@ export interface PollMailboxDeps {
   password: (tenantId: string, id: string) => Promise<string | null>;
   deliver: (tenantId: string, delivery: MailDelivery) => Promise<'delivered' | 'duplicate'>;
   now: () => Date;
+  /** Os valores de configuração do escritório — só lidos quando algum filtro cita uma configuração. */
+  officeValues?: (tenantId: string) => Promise<Record<string, unknown>>;
 }
+
+/**
+ * As automações com o filtro já resolvido contra as configurações do escritório (`fromSetting`,
+ * `subjectSetting`). Uma leitura só por caixa, e nenhuma quando nenhum filtro cita configuração.
+ */
+export const withResolvedFilters = async (
+  tenantId: string,
+  workflows: WorkflowDefinition[],
+  officeValues: ((tenantId: string) => Promise<Record<string, unknown>>) | undefined,
+): Promise<WorkflowDefinition[]> => {
+  if (!workflows.some((workflow) => mailFilterUsesSettings(workflow.mailFilter))) return workflows;
+  const values = officeValues ? await officeValues(tenantId) : {};
+  return workflows.map((workflow) => ({ ...workflow, mailFilter: resolveMailFilter(workflow.mailFilter, values) }));
+};
 
 /**
  * As automações que esta caixa alimenta: as assinadas, ligadas, de e-mail — e, na caixa de um MEMBRO,
@@ -139,8 +157,9 @@ export const pollMailbox = async (mailbox: StoredMailbox, deps: PollMailboxDeps)
     return { ...idle(null), outcome: { cursor: null, nextPollAt: null, health: mailbox.health } };
   }
   if (!mailbox.settings.enabled) return idle(mailbox.cursor);
-  const targets = subscribedWorkflows(mailbox, await deps.mailWorkflows(mailbox.tenantId));
-  if (targets.length === 0) return idle(null);
+  const subscribed = subscribedWorkflows(mailbox, await deps.mailWorkflows(mailbox.tenantId));
+  if (subscribed.length === 0) return idle(null);
+  const targets = await withResolvedFilters(mailbox.tenantId, subscribed, deps.officeValues);
 
   const password = await deps.password(mailbox.tenantId, mailbox.id);
   if (!password) return failure('auth', 'no password', mailbox.cursor);
@@ -157,20 +176,25 @@ export const pollMailbox = async (mailbox: StoredMailbox, deps: PollMailboxDeps)
   let duplicates = 0;
   try {
     const { status } = session;
-    if (!cursor) {
+    const backfillDays = mailbox.settings.backfillDays;
+    if (!cursor && backfillDays <= 0) {
       return idle({ uidValidity: status.uidValidity, lastUid: status.uidNext - 1 });
     }
 
     const prefilter = mailServerPrefilter(targets.map((workflow) => workflow.mailFilter));
-    const resync = cursor.uidValidity !== status.uidValidity;
-    const since = new Date(Date.parse(mailbox.health.lastPolledAt ?? now.toISOString()) - RESYNC_MARGIN_MS);
-    const envelopes = resync
+    // Três começos: a primeira leitura com janela (os últimos N dias), o servidor que renumerou (desde a
+    // última leitura menos a folga) e o comum (depois do último UID).
+    const resync = !cursor || cursor.uidValidity !== status.uidValidity;
+    const since = !cursor
+      ? new Date(now.getTime() - backfillDays * 24 * 60 * MINUTE_MS)
+      : new Date(Date.parse(mailbox.health.lastPolledAt ?? now.toISOString()) - RESYNC_MARGIN_MS);
+    const envelopes = resync || !cursor
       ? await session.listSince(since, prefilter, MAILBOX_MAX_MESSAGES_PER_POLL + 1)
       : await session.listAfter(cursor.lastUid, prefilter, MAILBOX_MAX_MESSAGES_PER_POLL + 1);
     const saturated = envelopes.length > MAILBOX_MAX_MESSAGES_PER_POLL;
     const batch = envelopes.slice(0, MAILBOX_MAX_MESSAGES_PER_POLL);
 
-    let lastUid = resync ? 0 : cursor.lastUid;
+    let lastUid = resync || !cursor ? 0 : cursor.lastUid;
     for (const envelope of batch) {
       const result = await deliverEnvelope(mailbox, targets, envelope, session, deps, status.uidValidity);
       if (result === 'delivered') delivered += 1;

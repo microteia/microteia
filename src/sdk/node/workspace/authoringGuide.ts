@@ -84,6 +84,7 @@ import {
   MAILBOX_POLL_TICK_MINUTES,
   MAIL_EVENT_FIELDS,
   MAIL_FILTER_MAX_TERMS,
+  MAIL_FILTER_SETTINGS_SINCE_KERNEL,
   MAIL_RECEIVED_SINCE_KERNEL,
 } from '../../../domain/schema/mailbox';
 import {
@@ -3022,6 +3023,10 @@ workflows: [{
 - **\`mailFilter\`** — between lists AND, inside a list OR, empty list = no restriction. A sender is a full address,
   a domain (\`example.gov\` or \`@example.gov\`, subdomains included) or a subdomain wildcard (\`*.example.gov\`).
   Subject terms match anywhere, ignoring case and accents. At most ${MAIL_FILTER_MAX_TERMS} terms per list.
+- **\`fromSetting\` / \`subjectSetting\`** (kernel ${MAIL_FILTER_SETTINGS_SINCE_KERNEL} or later) — the key of a list
+  setting your extension declares (\`settingsSection\`, a \`stringList\` property). When the organization fills it
+  in, it REPLACES \`from\` / \`subject\`; when it is empty, your terms apply. Use it for any list the organization
+  should adjust: an update of your package rewrites the whole workflow, an organization setting it never touches.
 - **\`subscribable\`** — without it, only the organization's own mailboxes can feed the workflow. With it, each
   member may connect their personal mailbox to it. Set it only on a workflow that is safe to receive anyone's e-mail.
 - The payload is the message: ${MAIL_EVENT_FIELDS.map((field) => `\`event.${field.key}\``).join(', ')}, and

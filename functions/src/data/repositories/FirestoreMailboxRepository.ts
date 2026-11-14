@@ -58,6 +58,7 @@ const settingsOf = (data: DocumentData): MailboxSettings => {
       folder: text(imap.folder) || EMPTY_IMAP_SETTINGS.folder,
     },
     pollEveryMinutes: typeof data.pollEveryMinutes === 'number' ? data.pollEveryMinutes : MAILBOX_DEFAULT_POLL_MINUTES,
+    backfillDays: typeof data.backfillDays === 'number' ? data.backfillDays : 0,
     subscriptions: Array.isArray(data.subscriptions) ? data.subscriptions.filter((id): id is string => typeof id === 'string') : [],
     enabled: data.enabled !== false,
   };

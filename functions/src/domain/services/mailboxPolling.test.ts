@@ -239,6 +239,29 @@ describe('pollMailbox', () => {
     expect(result.outcome.nextPollAt).toBeNull();
   });
 
+  it('a primeira leitura com janela entrega os últimos dias e continua do maior UID', async () => {
+    const delivered: MailDelivery[] = [];
+    const calls = { listed: [] as Array<{ kind: string; prefilter: MailServerPrefilter }>, fetched: [] as number[] };
+    const box = mailbox({ cursor: null, settings: { ...mailbox().settings, backfillDays: 3 } });
+    const session = fakeSession([envelope(7, 'a@tjba.jus.br', 'x'), envelope(8, 'promo@loja.com', 'y')], { uidValidity: 'v1', uidNext: 9 }, calls);
+    const result = await pollMailbox(box, deps(session, [court], delivered));
+    expect(calls.listed[0].kind).toBe('since');
+    expect(delivered).toHaveLength(1);
+    expect(result.outcome.cursor).toEqual({ uidValidity: 'v1', lastUid: 8 });
+  });
+
+  it('o filtro que cita configuração do escritório usa a lista dela', async () => {
+    const delivered: MailDelivery[] = [];
+    const fromSetting = workflow('court', { from: ['*.jus.br'], fromSetting: 'push.allowedSenders' });
+    const session = fakeSession([envelope(11, 'a@tjba.jus.br', 'x'), envelope(12, 'b@trt5.jus.br', 'y')]);
+    const result = await pollMailbox(mailbox(), {
+      ...deps(session, [fromSetting], delivered),
+      officeValues: async () => ({ 'push.allowedSenders': ['trt5.jus.br'] }),
+    });
+    expect(result.delivered).toBe(1);
+    expect(delivered[0].record.from).toBe('b@trt5.jus.br');
+  });
+
   it('caixa desligada não conecta e mantém o ponto', async () => {
     let opened = false;
     const box = mailbox({ settings: { ...mailbox().settings, enabled: false } });

@@ -153,6 +153,16 @@ export const MailboxesView: React.FC = () => {
                     onChange={(event) => vm.setText('pollEveryMinutes', event.target.value)}
                   />
                 </S.Field>
+                <S.Field>
+                  <S.Label htmlFor="mailbox-backfill">{t('mailbox.field.backfill')}</S.Label>
+                  <Input
+                    id="mailbox-backfill"
+                    type="number"
+                    value={vm.form.backfillDays}
+                    onChange={(event) => vm.setText('backfillDays', event.target.value)}
+                  />
+                  <S.Hint>{t('mailbox.field.backfill.hint')}</S.Hint>
+                </S.Field>
               </S.Grid>
             )}
 

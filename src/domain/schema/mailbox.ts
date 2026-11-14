@@ -18,6 +18,9 @@ export const MAIL_RECEIVED_EVENT = 'mail.received';
 /** O kernel a partir do qual o gatilho existe. Num kernel anterior a automação instala e nunca dispara. */
 export const MAIL_RECEIVED_SINCE_KERNEL = '2.131.0';
 
+/** O kernel que entende o filtro apontando para uma configuração do escritório (`fromSetting`, `subjectSetting`). */
+export const MAIL_FILTER_SETTINGS_SINCE_KERNEL = '2.132.0';
+
 /**
  * As caixas: `tenants/{t}/mailboxes/{id}`. Nenhum cliente lê nem grava — nem o dono: a callable
  * `manageMailbox` é a porta, porque o mesmo documento guarda o ponto de leitura e o prazo da próxima
@@ -149,6 +152,14 @@ export interface MailFilter {
   subject?: string[] | null;
   /** `true`: só com anexo. `false`: só sem. Ausente: tanto faz. */
   hasAttachments?: boolean | null;
+  /**
+   * A chave de uma configuração do ESCRITÓRIO (lista de texto) cujos valores SUBSTITUEM `from` quando
+   * preenchida; vazia, vale `from`. É o que deixa o escritório ajustar os remetentes de uma automação que
+   * veio numa extensão: a atualização reescreve a automação inteira, e a configuração é do escritório.
+   */
+  fromSetting?: string | null;
+  /** O mesmo, para `subject`. */
+  subjectSetting?: string | null;
 }
 
 export interface ImapSettings {
@@ -170,6 +181,12 @@ export interface MailboxSettings {
   source: MailboxSource;
   imap: ImapSettings;
   pollEveryMinutes: number;
+  /**
+   * Na PRIMEIRA leitura (e depois de trocar a conta, a pasta ou as automações), buscar também os últimos N
+   * dias. Zero: só o que chegar daqui em diante. É a virada de outra fonte sem buraco: o que já tinha sido
+   * entregue por esta caixa não é entregue de novo.
+   */
+  backfillDays: number;
   /** As automações (`mail.received`) que recebem o que chega nesta caixa. */
   subscriptions: string[];
   enabled: boolean;
@@ -180,9 +197,12 @@ export const EMPTY_MAILBOX_SETTINGS: MailboxSettings = {
   source: 'imap',
   imap: EMPTY_IMAP_SETTINGS,
   pollEveryMinutes: MAILBOX_DEFAULT_POLL_MINUTES,
+  backfillDays: 0,
   subscriptions: [],
   enabled: true,
 };
+
+export const MAILBOX_MAX_BACKFILL_DAYS = 30;
 
 export const MAILBOX_FAILURE_REASONS = ['auth', 'connection', 'folder', 'read'] as const;
 export type MailboxFailureReason = typeof MAILBOX_FAILURE_REASONS[number];
@@ -222,10 +242,52 @@ const normalizeText = (value: string): string =>
 const cleanTerms = (terms: readonly string[] | null | undefined): string[] =>
   (terms ?? []).map((term) => (typeof term === 'string' ? term.trim() : '')).filter((term) => term !== '');
 
+const SETTING_KEY_PATTERN = /^[a-z][a-zA-Z0-9._-]{0,99}$/;
+
+const settingList = (values: Record<string, unknown>, key: string | null | undefined): string[] => {
+  if (!key) return [];
+  const value = values[key];
+  return Array.isArray(value) ? cleanTerms(value.filter((one): one is string => typeof one === 'string')) : [];
+};
+
+/** O filtro cita alguma configuração do escritório. */
+export const mailFilterUsesSettings = (filter: MailFilter | null | undefined): boolean =>
+  !!filter && (!!filter.fromSetting || !!filter.subjectSetting);
+
+/**
+ * O filtro com as configurações do escritório aplicadas: a lista preenchida substitui os termos declarados;
+ * vazia, eles valem. `values` são os valores do escritório (`settings/tenant.values`).
+ */
+export const resolveMailFilter = (filter: MailFilter | null | undefined, values: Record<string, unknown>): MailFilter | null => {
+  if (!filter) return null;
+  const from = settingList(values, filter.fromSetting);
+  const subject = settingList(values, filter.subjectSetting);
+  return {
+    from: from.length > 0 ? from : filter.from ?? null,
+    subject: subject.length > 0 ? subject : filter.subject ?? null,
+    hasAttachments: filter.hasAttachments ?? null,
+  };
+};
+
+/**
+ * O filtro SEM as dimensões que dependem de configuração — o que o motor confere de novo, sem ler
+ * configuração nenhuma. A leitura da caixa já resolveu o filtro inteiro; aqui não dá para saber qual lista
+ * valia, e conferir os termos declarados recusaria o que a configuração deixou passar.
+ */
+export const mailFilterWithoutSettings = (filter: MailFilter | null | undefined): MailFilter | null => {
+  if (!filter) return null;
+  return {
+    from: filter.fromSetting ? null : filter.from ?? null,
+    subject: filter.subjectSetting ? null : filter.subject ?? null,
+    hasAttachments: filter.hasAttachments ?? null,
+  };
+};
+
 /** O filtro declara algo? Ausente e vazio são a mesma resposta: todo e-mail passa. */
 export const hasMailFilter = (filter: MailFilter | null | undefined): boolean =>
   !!filter
-  && (cleanTerms(filter.from).length > 0 || cleanTerms(filter.subject).length > 0 || typeof filter.hasAttachments === 'boolean');
+  && (cleanTerms(filter.from).length > 0 || cleanTerms(filter.subject).length > 0 || typeof filter.hasAttachments === 'boolean'
+    || mailFilterUsesSettings(filter));
 
 /**
  * O endereço puro de um remetente: `"Tribunal" <intimacao@tjba.jus.br>` → `intimacao@tjba.jus.br`.
@@ -293,6 +355,11 @@ export const mailFilterIssue = (filter: MailFilter | null | undefined): string |
   if (cleanTerms(filter.from).some((term) => /\s/.test(term) || term === '*' || term === '*.')) {
     return '@core.automation/mail.filter.sender-invalid';
   }
+  for (const key of [filter.fromSetting, filter.subjectSetting]) {
+    if (key !== undefined && key !== null && key !== '' && (typeof key !== 'string' || !SETTING_KEY_PATTERN.test(key))) {
+      return '@core.automation/mail.filter.setting-invalid';
+    }
+  }
   return null;
 };
 
@@ -332,6 +399,9 @@ export const mailboxSettingsIssue = (settings: MailboxSettings): string | null =
   if (!settings.name.trim()) return '@core.automation/mailbox.issue.name';
   if (!MAILBOX_SOURCES.includes(settings.source)) return '@core.automation/mailbox.issue.source';
   if (!isPolledMailbox(settings.source)) return null;
+  if (!Number.isInteger(settings.backfillDays) || settings.backfillDays < 0 || settings.backfillDays > MAILBOX_MAX_BACKFILL_DAYS) {
+    return '@core.automation/mailbox.issue.backfill';
+  }
   if (!settings.imap.host.trim() || /\s/.test(settings.imap.host.trim())) return '@core.automation/mailbox.issue.host';
   if (!isPositiveInteger(settings.imap.port) || settings.imap.port > 65535) return '@core.automation/mailbox.issue.port';
   if (!settings.imap.username.trim()) return '@core.automation/mailbox.issue.username';

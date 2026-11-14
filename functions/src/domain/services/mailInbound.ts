@@ -8,7 +8,7 @@ import {
   mailInboundTokenOf,
 } from '../schema/mailbox';
 import type { ForwardingConfirmation, MailboxHealth } from '../schema/mailbox';
-import { deliverParsedMail, subscribedWorkflows } from './mailboxPolling';
+import { deliverParsedMail, subscribedWorkflows, withResolvedFilters } from './mailboxPolling';
 
 export type InboundSignatureIssue = 'missing' | 'stale' | 'invalid';
 
@@ -49,6 +49,7 @@ export interface ReceiveInboundDeps {
   ) => Promise<void>;
   parse: (raw: Buffer) => Promise<ParsedMail>;
   now: () => Date;
+  officeValues?: (tenantId: string) => Promise<Record<string, unknown>>;
 }
 
 /**
@@ -76,7 +77,11 @@ export const receiveInboundMail = async (
   }
   if (!mailbox.settings.enabled) return 'disabled';
 
-  const targets = subscribedWorkflows(mailbox, await deps.mailWorkflows(mailbox.tenantId));
+  const targets = await withResolvedFilters(
+    mailbox.tenantId,
+    subscribedWorkflows(mailbox, await deps.mailWorkflows(mailbox.tenantId)),
+    deps.officeValues,
+  );
   const result = await deliverParsedMail(mailbox, targets, mail, deps, {
     fallbackId: `raw:${createHash('sha256').update(input.raw).digest('hex')}`,
     source: { kind: 'forward', recipient: input.recipient },

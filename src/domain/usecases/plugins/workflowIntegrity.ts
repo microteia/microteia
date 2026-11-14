@@ -48,7 +48,13 @@ import {
   splitEntityEventName,
 } from '../../schema/eventCatalog';
 import { WORKFLOW_AUDIT_EVENT, WORKFLOW_AUDIT_SINCE_KERNEL } from '../../schema/workflowAuditTrigger';
-import { MAIL_RECEIVED_EVENT, MAIL_RECEIVED_SINCE_KERNEL, mailFilterIssue } from '../../schema/mailbox';
+import {
+  MAIL_FILTER_SETTINGS_SINCE_KERNEL,
+  MAIL_RECEIVED_EVENT,
+  MAIL_RECEIVED_SINCE_KERNEL,
+  mailFilterIssue,
+  mailFilterUsesSettings,
+} from '../../schema/mailbox';
 import type { PackageRef, PackageValidationIssue } from './pluginReferences';
 import {
   WORKFLOW_SCHEDULE_EVENT,
@@ -766,6 +772,13 @@ const mailTriggerIssues = (
           messageParams: { event: workflow.eventName, minimum: MAIL_RECEIVED_SINCE_KERNEL },
         }]),
     ...(filterIssue ? [{ ref, message: filterIssue }] : []),
+    ...(mailFilterUsesSettings(workflow.mailFilter) && !rangeExcludesBelow(pkg.manifest?.kernel ?? '', MAIL_FILTER_SETTINGS_SINCE_KERNEL)
+      ? [{
+          ref,
+          message: '@core.marketplace/issue.workflow.feature-kernel',
+          messageParams: { feature: 'mailFilter.fromSetting/subjectSetting', minimum: MAIL_FILTER_SETTINGS_SINCE_KERNEL },
+        }]
+      : []),
   ];
 };
 

@@ -11,6 +11,7 @@ import { PERMISSION_MAILBOXES_MANAGE } from '../../../domain/schema/access';
 import {
   DEFAULT_IMAP_FOLDER,
   EMPTY_MAILBOX_SETTINGS,
+  MAILBOX_MAX_BACKFILL_DAYS,
   MAILBOX_MAX_POLL_MINUTES,
   MAILBOX_MIN_POLL_MINUTES,
   MAIL_RECEIVED_EVENT,
@@ -35,12 +36,13 @@ export interface MailboxForm {
   folder: string;
   password: string;
   pollEveryMinutes: string;
+  backfillDays: string;
   subscriptions: string[];
   enabled: boolean;
   scope: MailboxScope;
 }
 
-export type MailboxTextField = 'name' | 'host' | 'port' | 'username' | 'folder' | 'password' | 'pollEveryMinutes';
+export type MailboxTextField = 'name' | 'host' | 'port' | 'username' | 'folder' | 'password' | 'pollEveryMinutes' | 'backfillDays';
 
 export interface MailboxCard {
   mailbox: MailboxView;
@@ -104,6 +106,7 @@ const EMPTY_FORM: MailboxForm = {
   folder: DEFAULT_IMAP_FOLDER,
   password: '',
   pollEveryMinutes: String(EMPTY_MAILBOX_SETTINGS.pollEveryMinutes),
+  backfillDays: '0',
   subscriptions: [],
   enabled: true,
   scope: 'own',
@@ -119,6 +122,7 @@ const formOf = (mailbox: MailboxView): MailboxForm => ({
   folder: mailbox.imap.folder,
   password: '',
   pollEveryMinutes: String(mailbox.pollEveryMinutes),
+  backfillDays: String(mailbox.backfillDays),
   subscriptions: mailbox.subscriptions,
   enabled: mailbox.enabled,
   scope: mailbox.ownerId === null ? 'office' : 'own',
@@ -135,6 +139,7 @@ const settingsOf = (form: MailboxForm): MailboxSettings => ({
     folder: form.folder.trim() || DEFAULT_IMAP_FOLDER,
   },
   pollEveryMinutes: Number(form.pollEveryMinutes),
+  backfillDays: Number(form.backfillDays),
   subscriptions: form.subscriptions,
   enabled: form.enabled,
 });
@@ -274,7 +279,7 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
   }, []);
   const touched = form.name !== '' || form.host !== '' || editing !== null;
   const issue = found && touched
-    ? label(found, { min: String(MAILBOX_MIN_POLL_MINUTES), max: String(MAILBOX_MAX_POLL_MINUTES) })
+    ? label(found, { min: String(MAILBOX_MIN_POLL_MINUTES), max: String(MAILBOX_MAX_POLL_MINUTES), days: String(MAILBOX_MAX_BACKFILL_DAYS) })
     : null;
 
   const openNew = useCallback((scope: MailboxScope) => {

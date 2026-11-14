@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.264.0] — 2026-11-14
+
+- As automações de e-mail que vêm em extensões podem usar uma lista de remetentes e de assuntos configurada pelo escritório. Ajuste a lista em Configurações, e a atualização da extensão nunca a desfaz.
+- Ao conectar uma caixa por IMAP, dá para pedir que a primeira leitura traga também os e-mails dos últimos dias (até 30). Assim, ao trocar a forma de receber e-mails, nada do intervalo se perde, e o que já foi entregue não se repete.
+
 #### [9.263.0] — 2026-11-14
 
 - As caixas de e-mail ganharam uma segunda forma de receber: **encaminhar para um endereço da plataforma**. Ao salvar a caixa, ela recebe um endereço próprio; basta criar no seu e-mail uma regra de encaminhamento (por exemplo, só as mensagens do tribunal) apontando para ele. Não é preciso senha nenhuma, funciona com Gmail, Outlook ou qualquer outro serviço, e só chega o que a sua regra escolher enviar.

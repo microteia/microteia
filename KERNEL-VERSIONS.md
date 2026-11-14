@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.264.0] — 2026-11-14
+
+- feat(workflow/mail): `MailFilter.fromSetting` / `subjectSetting` name an office list setting (`settings/tenant.values[key]`) that REPLACES `from` / `subject` when filled; empty, the declared terms apply. Package-owned filters stay adjustable by the office across updates. Resolved at delivery (`withResolvedFilters`, one settings read per mailbox and only when a filter cites a setting, via `officeSettingValues`); the engine re-check drops setting-backed dimensions (`mailFilterWithoutSettings`). Package gate: `MAIL_FILTER_SETTINGS_SINCE_KERNEL`. KERNEL_VERSION 2.132.0.
+- feat(mail/imap): `MailboxSettings.backfillDays` (0–30, default 0). A first read (or one after the cursor was reset) with a window lists `SINCE now − N days`, delivers, then continues by UID; already-delivered messages stay deduplicated by the `mail_messages` mark.
+- chore(locale-pt-br): 1.214.0.
+
 #### [9.263.0] — 2026-11-14
 
 - feat(mail/forward): second mailbox source `forward`. Saving one generates a 24-char address code once (never rotated — it would break the person's forwarding rule), indexed at root `mail_inbound_addresses/{code}` → `{tenantId, mailboxId}` in the same transaction. Forward mailboxes have no password, no connection test and `nextPollAt: null` (out of the poll queue); a mailbox switched from IMAP to forward leaves the queue on its next release.

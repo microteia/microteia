@@ -2082,4 +2082,13 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'mailbox.forward.confirmation-link': 'Seu serviço de e-mail pediu para confirmar o encaminhamento.',
   'mailbox.forward.confirmation-open': 'Abrir link de confirmação',
   'mailbox.issue.forwarding-unavailable': 'O encaminhamento não está configurado nesta instalação.',
+  'mail.filter.setting-invalid': 'A chave da configuração deve ser uma chave como "extensao.nomeDaLista", sem espaços.',
+  'mailbox.issue.backfill': 'A janela da primeira leitura deve ser um número inteiro de dias entre 0 e {days}.',
+  'mailbox.field.backfill': 'Na primeira leitura, buscar também os últimos (dias)',
+  'mailbox.field.backfill.hint': '0: só o que chegar daqui em diante. Use alguns dias ao trocar de outra forma de receber e-mail, para não perder o que chegou no meio; o que esta caixa já entregou nunca é entregue de novo.',
+  'trigger.mail.from-setting': 'Remetentes de uma configuração do escritório',
+  'trigger.mail.from-setting.hint': 'Chave de uma configuração de lista (ex.: "push.allowedSenders"). Quando o escritório a preenche, ela substitui os remetentes acima; vazia, valem os de cima. Atualizações da extensão nunca a sobrescrevem.',
+  'trigger.mail.subject-setting': 'Termos de assunto de uma configuração do escritório',
+  'trigger.mail.subject-setting.hint': 'O mesmo, para os termos de assunto.',
+  'trigger.mail.setting.placeholder': 'Nenhuma configuração',
 };
