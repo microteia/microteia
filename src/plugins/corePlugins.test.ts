@@ -40,7 +40,7 @@ const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   'marketplace', 'plugin-author', 'plugin-author:', 'rep:', 'report-design', 'report-design:',
   'reports', 'settings', 'translations',
   'license', 'document-templates', 'downloads', 'settings:', 'notifications',
-  'workflow-tasks',
+  'workflow-tasks', 'mailboxes',
 ].sort();
 
 describe('core plugins — carga', () => {
@@ -123,7 +123,7 @@ describe('core plugins — paridade com o registro anterior', () => {
       // A caixa de tarefas é de todo membro, e fica no alto: é o que está esperando a pessoa.
       [null, ['workflow-tasks', 'reports', 'downloads']],
       [CUSTOMIZATION_NAV_GROUP, ['screen-builder', 'document-templates', 'marketplace']],
-      [AUTOMATION_NAV_GROUP, ['workflows', 'scripts', 'actions', 'data-processor']],
+      [AUTOMATION_NAV_GROUP, ['workflows', 'scripts', 'actions', 'data-processor', 'mailboxes']],
       [ADMIN_NAV_GROUP, ['tenant-settings', 'settings', 'translations', 'audit-logs', 'access-management']],
     ]);
   });
@@ -190,7 +190,7 @@ describe('core plugins — remoção limpa (critério de aceite da Etapa 2)', ()
     const pages = host.contributions.query(UI_PAGE_POINT);
 
     expect(resolvePageContribution(pages, 'audit-logs')).toBeDefined();
-    expect(host.contributions.query(UI_NAV_POINT).length).toBe(15);
+    expect(host.contributions.query(UI_NAV_POINT).length).toBe(16);
   });
 
   it('remover core.ui derruba todos os módulos de UI, porque ninguém declara os pontos', () => {

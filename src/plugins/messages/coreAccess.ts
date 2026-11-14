@@ -451,4 +451,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'mfa.audit.policy-changed.title': 'Two-step verification rule changed',
   'mfa.audit.policy-changed.text': 'Now required from members with these profiles: {roles}; or with these permissions: {permissions}. Asked again every {minutes} minutes.',
   'mfa.audit.policy-changed.everyone.text': 'Now required from every member. Asked again every {minutes} minutes.',
+  'permission.mailboxes.connect': 'Connect own e-mail mailbox',
+  'permission.mailboxes.connect.description': 'Connect your own mailbox to the automations the organization made available to members, and choose which ones receive your e-mail.',
+  'permission.mailboxes.manage': 'Manage e-mail mailboxes',
+  'permission.mailboxes.manage.description': 'See, configure and disconnect the mailboxes of the organization and of every member, and connect them to any e-mail automation. Passwords are never shown.',
+  'resource.mailboxes': 'E-mail mailboxes',
 };

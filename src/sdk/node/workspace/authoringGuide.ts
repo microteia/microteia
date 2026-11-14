@@ -81,6 +81,12 @@ import { PORTAL_DOCUMENT_SHARING_SINCE_KERNEL, isStepExcludedFromTrigger } from 
 import { CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL, CHILD_RECORD_EVENTS_SINCE_KERNEL } from '../../../domain/schema/eventCatalog';
 import { WORKFLOW_AUDIT_EVENT, WORKFLOW_AUDIT_SINCE_KERNEL } from '../../../domain/schema/workflowAuditTrigger';
 import {
+  MAILBOX_POLL_TICK_MINUTES,
+  MAIL_EVENT_FIELDS,
+  MAIL_FILTER_MAX_TERMS,
+  MAIL_RECEIVED_SINCE_KERNEL,
+} from '../../../domain/schema/mailbox';
+import {
   AUDIT_ARCHIVE_MAX_YEARS,
   AUDIT_RETENTION_MAX_DAYS,
   DEFAULT_AUDIT_ARCHIVE_YEARS,
@@ -2993,6 +2999,36 @@ one that reacts to an entry of the organization's Audit trail (\`event.severity\
 or an automation writes to the trail never does, which is what keeps the trigger from feeding itself.
 Steps that would write back to the trail (${excludedStepList(input.steps, WORKFLOW_AUDIT_EVENT)}) are refused in that workflow —
 each step's catalog entry lists the triggers it refuses in \`excludedTriggers\`.
+
+### Receiving e-mail — \`mail.received\` and \`mailFilter\`
+
+\`mail.received\` (requires kernel ${MAIL_RECEIVED_SINCE_KERNEL} or later) runs when an e-mail arrives in a mailbox
+connected to the workflow. The workflow never reads a mailbox: the KERNEL does, every
+${MAILBOX_POLL_TICK_MINUTES} minutes at most, and keeps where it stopped. The workflow only declares what it
+wants:
+
+\`\`\`ts
+workflows: [{
+  templateId: 'wf-intake',
+  eventName: 'mail.received',
+  mailFilter: { from: ['*.example.gov', 'notices@example.com'], subject: ['notice', 'summons'], hasAttachments: null },
+  subscribable: true,
+  condition: { kind: 'AlwaysTrue' },
+  steps: [/* event.from, event.subject, event.text, event.attachments… */],
+}]
+\`\`\`
+
+- **\`mailFilter\`** — between lists AND, inside a list OR, empty list = no restriction. A sender is a full address,
+  a domain (\`example.gov\` or \`@example.gov\`, subdomains included) or a subdomain wildcard (\`*.example.gov\`).
+  Subject terms match anywhere, ignoring case and accents. At most ${MAIL_FILTER_MAX_TERMS} terms per list.
+- **\`subscribable\`** — without it, only the organization's own mailboxes can feed the workflow. With it, each
+  member may connect their personal mailbox to it. Set it only on a workflow that is safe to receive anyone's e-mail.
+- The payload is the message: ${MAIL_EVENT_FIELDS.map((field) => `\`event.${field.key}\``).join(', ')}, and
+  \`event.id\`. Each attachment is \`{ name, contentType, size }\`; the bodies are cut at a ceiling, and
+  \`event.truncated\` says so.
+- The package carries the workflow, never a mailbox: the organization connects mailboxes after installing, in
+  **E-mail mailboxes**. The first read never delivers what was already in the mailbox, and the same message is
+  delivered at most once to each workflow, even if several mailboxes or reads see it.
 
 ### Narrowing a save — \`changeType\` and \`changedFields\`
 

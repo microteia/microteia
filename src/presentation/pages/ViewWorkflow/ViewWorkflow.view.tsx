@@ -30,6 +30,8 @@ import type { WorkflowStep } from '../../../domain/entities/Workflow';
 import type { InsertTarget, BranchKey } from '../../shared/workflowHelpers';
 import { SWITCH_OTHERWISE, parallelLaneKeyOf, switchPathKeyOf } from '../../shared/workflowHelpers';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
+import { TagInput } from '../../components/ui/TagInput';
+import { Checkbox } from '../../components/ui/Checkbox';
 import { Button } from '../../components/ui/Button';
 import { InputGroup, Label, Input } from '../../components/ui/Input';
 import { LabelInput } from '../../components/ui/LabelInput';
@@ -463,6 +465,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 (vm.isCalledEvent && vm.hasParameterErrors) ||
                 (vm.isScheduleEvent && !!vm.scheduleError) ||
                 (vm.isDateReachedEvent && !!vm.dateReachedError) ||
+                (vm.isMailEvent && !!vm.mailFilterError) ||
                 !!vm.triggerStepsError
               }
               title={t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
@@ -598,6 +601,49 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                       placeholder={t('trigger.change.fields.any')}
                     />
                     <S.FieldHint>{t('trigger.change.fields.hint')}</S.FieldHint>
+                  </InputGroup>
+                </>
+              )}
+
+              {vm.isMailEvent && (
+                <>
+                  <InputGroup>
+                    <TagInput
+                      label={t('trigger.mail.from')}
+                      hint={t('trigger.mail.from.hint')}
+                      value={vm.formData.mailFrom}
+                      onChange={(mailFrom) => vm.setFormData({ mailFrom })}
+                      validator={vm.isSenderTermValid}
+                      placeholder={t('trigger.mail.any')}
+                    />
+                  </InputGroup>
+                  <InputGroup>
+                    <TagInput
+                      label={t('trigger.mail.subject')}
+                      hint={t('trigger.mail.subject.hint')}
+                      value={vm.formData.mailSubject}
+                      onChange={(mailSubject) => vm.setFormData({ mailSubject })}
+                      placeholder={t('trigger.mail.any')}
+                    />
+                  </InputGroup>
+                  <InputGroup>
+                    <Label>{t('trigger.mail.attachments')}</Label>
+                    <SearchSelect
+                      options={vm.mailAttachmentOptions}
+                      value={vm.formData.mailAttachments}
+                      onChange={(value) => vm.setFormData({
+                        mailAttachments: value === 'with' || value === 'without' ? value : '',
+                      })}
+                    />
+                  </InputGroup>
+                  {vm.mailFilterError && <S.FieldError>{vm.mailFilterError}</S.FieldError>}
+                  <InputGroup>
+                    <Checkbox
+                      checked={vm.formData.subscribable}
+                      onChange={(subscribable) => vm.setFormData({ subscribable })}
+                      label={t('trigger.mail.subscribable')}
+                    />
+                    <S.FieldHint>{t('trigger.mail.subscribable.hint')}</S.FieldHint>
                   </InputGroup>
                 </>
               )}

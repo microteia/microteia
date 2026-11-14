@@ -22,6 +22,8 @@ import { pruneUndefined } from '../utils/pruneUndefined';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { WorkflowDefinition, WorkflowParameter, WorkflowStep } from '../../domain/entities/Workflow';
 import type { WorkflowDateReached, WorkflowSchedule } from '../../domain/schema/workflowClock';
+import type { WorkflowChangeType } from '../../domain/schema/workflowChangeFilter';
+import type { MailFilter } from '../../domain/schema/mailbox';
 
 import { LocalizedError } from '../../domain/errors/LocalizedError';
 
@@ -43,6 +45,10 @@ const mapDefinition = (id: string, d: Record<string, unknown>, tenantId: string)
   parameters: (d.parameters as WorkflowParameter[] | undefined) ?? undefined,
   schedule: (d.schedule as WorkflowSchedule | undefined) ?? undefined,
   dateReached: (d.dateReached as WorkflowDateReached | undefined) ?? undefined,
+  changeType: (d.changeType as WorkflowChangeType | null | undefined) ?? null,
+  changedFields: Array.isArray(d.changedFields) ? (d.changedFields as string[]) : null,
+  mailFilter: (d.mailFilter as MailFilter | null | undefined) ?? null,
+  subscribable: d.subscribable === true,
   ownerPluginId: (d.ownerPluginId as string | undefined) ?? undefined,
   ownerPluginIds: (d.ownerPluginIds as string[] | undefined) ?? undefined,
   sourceId: (d.sourceId as string | undefined) ?? undefined,

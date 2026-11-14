@@ -272,6 +272,10 @@ import { SafeHttpClient } from '../http/SafeHttpClient';
 import { FirestoreHttpCredentialRepository } from '../../data/repositories/FirestoreHttpCredentialRepository';
 import { FirestoreHttpDispatchRepository } from '../../data/repositories/FirestoreHttpDispatchRepository';
 import type { IHttpDispatchRepository } from '../../domain/repositories/IHttpDispatchRepository';
+import { FirestoreMailboxRepository } from '../../data/repositories/FirestoreMailboxRepository';
+import type { IMailboxRepository } from '../../domain/repositories/IMailboxRepository';
+import { ImapMailReader } from '../../data/services/ImapMailReader';
+import type { IMailReader } from '../../domain/repositories/IMailReader';
 import type { HttpDeliveryDeps } from '../../domain/services/httpDelivery';
 import { makeDeliverHttpDispatchUseCase, type DeliverHttpDispatchUseCase } from '../../domain/usecases/DeliverHttpDispatchUseCase';
 import { officeSetting } from '../settings/officeSettings';
@@ -290,6 +294,8 @@ class DIContainer {
   private projectPortalRecordUC?: ProjectPortalRecordUseCase;
   private httpDeliveryDeps?: HttpDeliveryDeps;
   private httpDispatchRepository?: IHttpDispatchRepository;
+  private mailboxRepository?: IMailboxRepository;
+  private mailReader?: IMailReader;
   private deliverHttpDispatchUC?: DeliverHttpDispatchUseCase;
   private aiConnectionRepo?: IAIConnectionRepository;
   private permissionCatalogCache?: PermissionCatalogCache;
@@ -1420,6 +1426,16 @@ class DIContainer {
       };
     }
     return this.httpDeliveryDeps;
+  }
+
+  getMailboxRepository(): IMailboxRepository {
+    if (!this.mailboxRepository) this.mailboxRepository = new FirestoreMailboxRepository(getDb());
+    return this.mailboxRepository;
+  }
+
+  getMailReader(): IMailReader {
+    if (!this.mailReader) this.mailReader = new ImapMailReader();
+    return this.mailReader;
   }
 
   getHttpDispatchRepository(): IHttpDispatchRepository {

@@ -728,6 +728,19 @@ service cloud.firestore {
         }
       }
 
+      // As caixas de e-mail e o que elas entregaram. Ninguém lê nem grava pelo cliente — nem o dono: a
+      // porta é a callable `manageMailbox`, porque o documento guarda o ponto de leitura e o prazo da próxima,
+      // que o navegador não pode escrever; e a senha mora em `secrets/`.
+      match /mailboxes/{mailboxId} {
+        allow read, write: if false;
+        match /secrets/{secretId} {
+          allow read, write: if false;
+        }
+      }
+      match /mail_messages/{messageId} {
+        allow read, write: if false;
+      }
+
       // ─── Listas de opções declaradas pelo tenant ─────────────────────────────
       // O gêmeo, do lado do Firestore, do LOOKUP_REGISTRY de código. O id do documento É o nome da
       // coleção onde as opções ficam, e é este `exists()` que autoriza a escrita nela lá embaixo.
@@ -822,7 +835,7 @@ service cloud.firestore {
         // escritórios, e liberar o nome deixaria uma tela nova nascer por cima deles.
         'tagDefinitions', 'plugin_installations',
         'recordKeys', 'record_key_adoptions', 'recordSequences', 'record_imports', 'record_search_jobs',
-        'httpConnections', 'http_dispatches', 'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_clock',
+        'httpConnections', 'http_dispatches', 'mailboxes', 'mail_messages', 'screenDefinitions', 'scripts', 'secrets', 'settings', 'tags', 'tenant', 'workflow_clock',
         'workflow_definitions', 'workflow_events', 'workflow_executions', 'workflow_tasks', 'workflow_trigger_marks', 'workflow_webhooks'
         ];
       }

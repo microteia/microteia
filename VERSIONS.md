@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.262.0] — 2026-11-14
+
+- Chegaram as **Caixas de e-mail**: conecte uma caixa (Gmail, Outlook ou qualquer servidor IMAP, com senha de app) e escolha quais automações recebem o que chega nela. Cada pessoa conecta a própria caixa, e o escritório pode ter caixas compartilhadas.
+- Novo gatilho de automação **Ao receber e-mail**, com filtro por remetente (endereço, domínio ou todos os subdomínios, como *.jus.br), por palavras no assunto e por anexo. O mesmo e-mail pode passar por várias automações, e cada uma o recebe uma única vez.
+- A caixa é lida só para leitura: nada é marcado como lido, movido ou apagado, e só são copiados os e-mails que alguma automação escolhida quer — daqui em diante, nunca o histórico.
+- Quem administra as automações decide quais delas os membros podem ligar à própria caixa. Quando uma caixa para de ser lida (senha trocada, servidor fora), a tela mostra o motivo e a Auditoria registra o aviso.
+- Corrigido: o filtro "só na criação" ou "quando estes campos mudarem" das automações de gravação não era respeitado — a automação rodava a cada salvamento — e se perdia ao salvar a automação de novo.
+
 #### [9.261.0] — 2026-11-13
 
 - O assistente de IA agora também abre pela busca rápida (Ctrl+K / ⌘K): digite "assistente" para abrir o painel ou começar uma conversa nova direto dali.

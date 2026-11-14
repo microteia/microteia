@@ -18,6 +18,7 @@ import { FirebaseAuditLogService } from '../../data/services/FirebaseAuditLogSer
 import { FirebaseNotificationInboxRepository } from '../../data/repositories/FirebaseNotificationInboxRepository';
 import { BrowserDevicePushService } from '../../data/services/BrowserDevicePushService';
 import { FirebaseNotificationEmailService } from '../../data/services/FirebaseNotificationEmailService';
+import { FirebaseMailboxService } from '../../data/services/FirebaseMailboxService';
 import { FirebaseNotificationSmsService } from '../../data/services/FirebaseNotificationSmsService';
 import { FirebaseNotificationOptOutService } from '../../data/services/FirebaseNotificationOptOutService';
 import { FirebaseScreenDefinitionRepository } from '../../data/repositories/FirebaseScreenDefinitionRepository';
@@ -90,6 +91,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     notificationInboxRepository: new FirebaseNotificationInboxRepository(),
     devicePushService:        new BrowserDevicePushService(),
     notificationEmailService: new FirebaseNotificationEmailService(),
+    mailboxService: new FirebaseMailboxService(),
     notificationSmsService:   new FirebaseNotificationSmsService(),
     notificationOptOutService: new FirebaseNotificationOptOutService(),
     screenDefinitionRepository: new FirebaseScreenDefinitionRepository(),

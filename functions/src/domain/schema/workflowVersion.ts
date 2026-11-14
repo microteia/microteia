@@ -37,6 +37,8 @@ export const WORKFLOW_VERSION_CONTENT_KEYS = [
   'dateReached',
   'changeType',
   'changedFields',
+  'mailFilter',
+  'subscribable',
   'condition',
   'steps',
 ] as const;

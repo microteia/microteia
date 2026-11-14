@@ -18,6 +18,17 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.262.0] — 2026-11-14
+
+- feat(workflow/mail): new trigger `mail.received` (`domain/schema/mailbox.ts`, shared). A workflow declares `mailFilter` (`from`: address, domain incl. subdomains, or `*.domain`; `subject` terms, case- and accent-insensitive; `hasAttachments`) and `subscribable`; the kernel, not the workflow, reads the mailbox. The engine re-checks the filter (`run.skipped.mail-mismatch`). Package gate: `MAIL_RECEIVED_SINCE_KERNEL` and `mailFilterIssue`. KERNEL_VERSION 2.131.0.
+- feat(functions/mail): `pollMailboxes` (`onSchedule`, every 5 min, 540 s, 1 GiB) reads due mailboxes of every tenant through a collection-group query on `mailboxes.nextPollAt`, claims each in a transaction (`leaseUntil`, 10 min) and polls it over IMAP read-only (`EXAMINE`, `imapflow` + `mailparser`). The first poll marks `uidNext - 1` and delivers nothing; a server-side `SEARCH` prefilter applies only when every subscribed workflow narrows the same dimension; bodies are fetched only for messages some workflow wants; the cursor advances only over delivered messages; a `UIDVALIDITY` change resyncs by `SINCE`. At most 50 messages per poll.
+- feat(functions/mail): delivery is one transaction — `mail_messages/{sha256(mailbox + Message-ID)}` (TTL 30 days) plus one `workflow_events` doc per workflow with id `mail_<hash>_<workflowId>` and `target`; an existing mark returns `duplicate` and publishes nothing. Undelivered mail is never stored. The transition to failure writes a CRITICAL audit entry; `health` keeps the classified failure (`auth`, `connection`, `folder`, `read`).
+- feat(functions/mail): `manageMailbox` callable (`list`, `save`, `remove`, `test`) is the only door: `mailboxes.connect` for one's own mailbox, `mailboxes.manage` (requires connect) for office and members' mailboxes. A member mailbox may only subscribe `subscribable` workflows; others' mailboxes answer `not-found`; the password goes into `mailboxes/{id}/secrets/current` and never comes back; `test` uses the stored credential only. New deploy group `deploy:mail`.
+- feat(ui/mail): page "E-mail mailboxes" (`mailboxes`, nav in the automation group, `mailboxes.connect`) and the trigger editor for `mailFilter`/`subscribable` in the workflow editor.
+- feat(rules): `mailboxes`, `mailboxes/*/secrets` and `mail_messages` are closed to every client and reserved on both ends; new field overrides `mailboxes.nextPollAt` (collection group) and TTL on `mail_messages.expiresAt` — run `deploy:rules` and `deploy:indexes`.
+- fix(workflow): both workflow definition mappers (web and functions) dropped `changeType`/`changedFields` since they were introduced, so the engine ran save-triggered workflows on every save and the editor wiped the filter on the next save. They now read both, plus `mailFilter` and `subscribable`.
+- chore(locale-pt-br): 1.212.0 with the new keys.
+
 #### [9.261.0] — 2026-11-13
 
 - feat(ui/command-palette): the provider context gains `dockPanels` (the dock panels this person can open, filtered by permission and `requiresFunction`) and `openDock(key, intent?)`, also for extension providers (`MicroteiaCommandContext` in the type defs). `DockCommandProvider` (`core.workspace`) adds "Open <panel>" for every dock panel. KERNEL_VERSION 2.130.0.

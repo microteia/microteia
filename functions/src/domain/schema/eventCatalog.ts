@@ -13,6 +13,7 @@ import { isEntityCollection, resolveEntity } from './screenEntity';
 import { isLookupCollection as isBuiltinLookupCollection } from './lookupRegistry';
 import { DATE_REACHED_ACTION, WORKFLOW_SCHEDULE_EVENT } from './workflowClock';
 import { AUDIT_EVENT_FIELDS, WORKFLOW_AUDIT_EVENT } from './workflowAuditTrigger';
+import { MAIL_EVENT_FIELDS, MAIL_RECEIVED_EVENT } from './mailbox';
 
 export const WORKFLOW_CALLED_EVENT = 'workflow.called';
 
@@ -357,6 +358,17 @@ const auditEntry: WorkflowEventCatalogEntry = {
   root: { kind: 'fields', fields: AUDIT_EVENT_FIELDS, hasOld: false },
 };
 
+/**
+ * O e-mail que chegou numa caixa ligada à automação. O payload é a mensagem — remetente, assunto, corpo
+ * e a lista de anexos —, mais de qual caixa ela veio e de quem é a caixa.
+ */
+const mailEntry: WorkflowEventCatalogEntry = {
+  name: MAIL_RECEIVED_EVENT,
+  label: '@core.automation/event.mail-received',
+  fields: [ID_FIELD, ...flattenNativeFields(MAIL_EVENT_FIELDS)],
+  root: { kind: 'fields', fields: MAIL_EVENT_FIELDS, hasOld: false },
+};
+
 export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   ...orderedEntities.map((entity) => entityEntry(entity, 'saved')),
   lookupEntry('saved'),
@@ -366,6 +378,7 @@ export const WORKFLOW_EVENT_CATALOG: WorkflowEventCatalogEntry[] = [
   webhookEntry,
   scheduleEntry,
   auditEntry,
+  mailEntry,
 ];
 
 const WORKFLOW_PARAM_TYPE_MAP: Record<Exclude<WorkflowParameter['type'], 'EntityReference' | 'Object'>, NativeFieldType> = {

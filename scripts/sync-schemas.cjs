@@ -89,6 +89,7 @@ const SHARED_FILES = [
   'domain/schema/workflowTask.ts',
   'domain/schema/workflowWait.ts',
   'domain/schema/workflowWebhook.ts',
+  'domain/schema/mailbox.ts',
   'domain/schema/aiSteps.ts',
   'domain/schema/workflowVersion.ts',
   'domain/schema/workflowLoopQuery.ts',
