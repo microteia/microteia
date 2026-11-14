@@ -9,6 +9,7 @@
 // GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import { MAILBOXES_COLLECTION, MAIL_MESSAGES_COLLECTION } from './mailbox';
 import { PERSONAL_REPORTS_COLLECTION } from './report/personalReport';
 import { REPORT_SNAPSHOTS_COLLECTION } from './report/reportSnapshot';
 import type { CustomFieldType, FieldDefinition, FieldOrigin } from '../entities/entitySchemas';
@@ -656,6 +657,8 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'settings',
   'httpConnections',
   HTTP_DISPATCHES_COLLECTION,
+  MAILBOXES_COLLECTION,
+  MAIL_MESSAGES_COLLECTION,
   AGENT_GRANTS_COLLECTION,
   ASSISTANT_CONVERSATIONS_COLLECTION,
   RECORD_KEYS_COLLECTION,

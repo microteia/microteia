@@ -36,6 +36,7 @@ import {
   WORKFLOW_CALLED_EVENT,
 } from '../../domain/schema/eventCatalog';
 import { AUDIT_EVENT_FIELDS, WORKFLOW_AUDIT_EVENT } from '../../domain/schema/workflowAuditTrigger';
+import { MAILBOX_POLL_TICK_MINUTES, MAIL_EVENT_FIELDS, MAIL_RECEIVED_EVENT, MAIL_RECEIVED_SINCE_KERNEL } from '../../domain/schema/mailbox';
 import { WORKFLOW_WEBHOOK_EVENT } from '../../domain/schema/workflowWebhook';
 import { PORTAL_VIEW_REPEAT_MINUTES } from '../../domain/schema/portal';
 import {
@@ -1246,6 +1247,15 @@ const PURE_READS: ToolDefinition[] = [
           fires: 'an entry of the organization\'s Audit trail that a PERSON caused — never one the kernel or an '
             + 'automation wrote',
           eventPayload: `the entry: "id", ${AUDIT_EVENT_FIELDS.map((field) => `"${field.key}"`).join(', ')}`,
+        },
+        {
+          eventName: MAIL_RECEIVED_EVENT,
+          fires: 'an e-mail arrives in a mailbox connected to the workflow and matches its `mailFilter` (senders, subject '
+            + `terms, attachments) — mailboxes are read every ${MAILBOX_POLL_TICK_MINUTES} minutes at most, never `
+            + 'retroactively. Only office mailboxes feed it, unless the workflow sets `subscribable: true`, which lets each '
+            + `member connect their own (requires kernel ${MAIL_RECEIVED_SINCE_KERNEL} or later)`,
+          eventPayload: `the message: "id", ${MAIL_EVENT_FIELDS.map((field) => `"${field.key}"`).join(', ')}; each `
+            + 'attachment is { name, contentType, size }, and the body is cut at a ceiling (`truncated`)',
         },
         {
           eventName: WORKFLOW_SCHEDULE_EVENT,

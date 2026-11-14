@@ -97,6 +97,8 @@ npm run verify          # typecheck + lint + verify-schemas
 | `AIConnection` | `tenants/{tenantId}/aiConnections/{id}` | Sim |
 | `AssistantConversation` (conversa do assistente de IA) | `tenants/{tenantId}/assistantConversations/{id}` e `.../messages/{seq}` | Sim (só o dono lê; a escrita é `false` para todo cliente — a function conduz a conversa) |
 | `AIConnectionSecret` | `tenants/{tenantId}/aiConnections/{id}/secrets/current` | Sim (chave de API — nunca trafega para o frontend) |
+| Caixa de e-mail (configuração, ponto de leitura, saúde) | `tenants/{tenantId}/mailboxes/{id}` (+ `secrets/current` com a senha) | Sim (só servidor — `manageMailbox` é a porta; ver "Caixas de e-mail") |
+| Mensagem entregue a alguma automação (a marca de "já entregue") | `tenants/{tenantId}/mail_messages/{hash}` — TTL em `expiresAt` | Sim (só servidor) |
 | `Tenant` | `tenants/{tenantId}` | — |
 | `TenantMember` | `tenants/{tenantId}/members/{uid}` | Sim (`permissions` e `mfa` são materializados pelo servidor; o cliente não os escreve) |
 | Política de segundo fator do escritório (EV-07) | `memberMfaPolicies/{tenantId}` | Não (raiz; só servidor — `manageMemberMfa` é a porta) |
@@ -9355,6 +9357,92 @@ pergunta inversa do MCP resolve o portão: o escritório vem da URL e só vale c
     `WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS` (5 min) — uma chamada capturada não é repetida depois.
 - **Ainda não:** limite de taxa por automação e resposta síncrona com o retorno da automação.
 
+### Caixas de e-mail — o gatilho `mail.received`
+
+Ler e-mail era assunto de UMA extensão de escritório: Gmail `users.watch` → Pub/Sub → `history.list` desde o
+`historyId`, com o escopo `gmail.readonly`. Três problemas, nenhum de negócio: o escopo é **restrito** (app
+externo exige verificação e avaliação de segurança anual, e o OAuth client é da instalação — cada escritório
+passaria por ela); a leitura só servia ao Gmail; e a conexão era do escritório, nunca de um membro.
+
+**A automação não lê caixa — declara o que quer.** O ponto de leitura (o UID do IMAP, o `historyId`) é da
+CAIXA: se cada automação guardasse o seu, duas automações na mesma caixa leriam tudo duas vezes. É o modelo
+dos iPaaS (gatilho com filtro) e dos ERPs (caixa + roteamento), e nenhum deles lê e-mail com um passo no meio
+do fluxo. Por isso é GATILHO, e não passo:
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| a caixa | `tenants/{t}/mailboxes/{id}` + `secrets/current` | conta IMAP, intervalo, automações assinadas, ponto de leitura (`cursor`), próximo prazo (`nextPollAt`), saúde |
+| o filtro | `WorkflowDefinition.mailFilter` | remetentes (endereço, domínio com subdomínios, `*.dominio`), termos de assunto (sem maiúscula nem acento), anexo — entre listas E, dentro da lista OU |
+| a marca | `WorkflowDefinition.subscribable` | a caixa de um MEMBRO só alimenta automação marcada; a do escritório, qualquer uma |
+| a leitura | `pollMailboxes` (`onSchedule`, a cada `MAILBOX_POLL_TICK_MINUTES`) | as caixas vencidas de todos os escritórios, numa consulta de grupo |
+| a entrega | `mail_messages/{hash}` + um evento por automação | a mensagem que alguma automação quer, uma vez por caixa e por automação |
+
+**Fonte única** — `domain/schema/mailbox.ts` (sincronizado): o evento, os limites, `matchesMailFilter` (a MESMA
+conta na leitura e no motor), `mailFilterIssue` (editor, validação de pacote, callable), `mailServerPrefilter`
+e `mailboxSettingsIssue`.
+
+**Por que fora do `runWorkflowClock`.** A leitura é rede de OUTRA empresa: segundos por caixa, às vezes um
+timeout. Ela não pode atrasar um disparo de horário nem disputar o orçamento dele. É uma function própria,
+com o mesmo desenho do relógio: não conhece escritório, pergunta quem venceu
+(`collectionGroup('mailboxes').where('nextPollAt', '<=', agora)`), toma cada caixa numa transação (`claim`,
+com `leaseUntil` de 10 min, maior que o timeout — a execução que morre solta a caixa sozinha) e devolve com
+`release`.
+
+**A leitura** (`pollMailbox`, `domain/services/mailboxPolling.ts`, testada sem IMAP nem Firestore):
+
+- **Nunca retroativa.** A primeira leitura marca o ponto (`uidNext - 1`) e não entrega nada. Ligar uma caixa
+  não despeja anos de histórico numa automação. Mudar a conta, a pasta ou as assinaturas zera o ponto.
+- **Sem assinatura, não conecta** — e zera o ponto, pela mesma razão.
+- **Só baixa o que alguma automação quer.** A peneira do servidor (`SEARCH FROM`/`SUBJECT`) vale só quando
+  TODAS as assinadas restringem a mesma dimensão; o cabeçalho decide; o corpo, baixado, decide de novo (anexo
+  de verdade, sem a imagem da assinatura). O que nenhuma automação quis não é gravado — a caixa é de uma
+  pessoa, e o escritório recebe só o que ela escolheu entregar.
+- **Só leitura.** A pasta é aberta com `EXAMINE`: nada é marcado como lido, movido ou apagado.
+- **O ponto avança só sobre o entregue.** A falha no meio recomeça da mensagem que falhou; acima de
+  `MAILBOX_MAX_MESSAGES_PER_POLL` a volta seguinte começa na hora.
+- **`UIDVALIDITY` mudou** (o servidor renumerou): recomeça por `SINCE` a última leitura menos um dia, e a marca
+  de `mail_messages` impede a entrega repetida.
+
+**Exatamente uma vez por automação.** `deliver` é uma transação: a marca `mail_messages/{sha256(caixa +
+Message-ID)}` é criada, e com ela um evento por automação com id fixo `mail_<hash>_<automação>` e `target`. A
+marca existente responde `duplicate` e não publica nada. O motor confere o filtro de novo
+(`run.skipped.mail-mismatch`) — a automação que mudou de filtro entre a leitura e a execução não roda à toa.
+
+**Quem vê o quê.** Nenhum cliente lê `mailboxes` nem `mail_messages` — nem o dono da caixa. A callable
+`manageMailbox` (`list`/`save`/`remove`/`test`) é a porta: `mailboxes.connect` vê e configura a própria;
+`mailboxes.manage` (que requer a outra), todas e as do escritório. A caixa de outra pessoa responde
+`not-found`, como a que não existe. A senha entra e nunca sai; o `test` usa a GRAVADA — um teste com servidor
+e senha livres seria um sondador de credenciais pago pela instalação. A execução continua sem ator; o payload
+carrega `mailboxOwnerId`.
+
+**Saúde.** Cada leitura grava `health` (última leitura, quantas entregou, a falha classificada: `auth`,
+`connection`, `folder`, `read`). A PASSAGEM para falha grava um log `CRITICAL` na Auditoria — uma caixa com a
+senha errada não avisa a cada 15 minutos.
+
+**A senha** fica em `secrets/current`, em claro, fechada por regra — o mesmo padrão das credenciais HTTP, de
+IA e do SMTP. Cifrá-la com chave do Secret Manager exige que o Console saiba provisionar segredo no projeto do
+escritório, e fica como item à parte, para todos os segredos do kernel de uma vez.
+
+**IMAP hoje.** Senha de app vale para Gmail pessoal com verificação em duas etapas; Workspace pode bloqueá-la,
+e o Microsoft 365 só aceita OAuth no IMAP. Para esses, o próximo passo é o endereço de encaminhamento
+(`mailInbound`, MIME assinado, agnóstico de provedor) e a fonte declarada por extensão.
+
+**Pacote.** A automação viaja com `mailFilter` e `subscribable`; a caixa nunca. Exige `MAIL_RECEIVED_SINCE_KERNEL`
+(2.131.0), e o filtro é conferido por `mailFilterIssue` no portão do pacote.
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/mailbox.ts` | contrato, filtro, limites (sincronizado) |
+| `functions/src/domain/services/mailboxPolling.ts` | `pollMailbox` e `runMailboxPollRound` |
+| `functions/src/data/services/ImapMailReader.ts` | a leitura IMAP (`imapflow` + `mailparser`) |
+| `functions/src/data/repositories/FirestoreMailboxRepository.ts` | caixa, segredo, `claim`/`release`, a entrega transacional |
+| `functions/src/infrastructure/handlers/mailboxes.ts` | `pollMailboxes` e `manageMailbox` (grupo `deploy:mail`) |
+| `presentation/pages/Mailboxes/` | a página "Caixas de e-mail" |
+
+O filtro de mudança (`changeType`/`changedFields`) também passou a valer de fato: os dois repositórios de
+automação (front e functions) não o liam do documento desde que ele nasceu, então o motor rodava a automação a
+cada salvamento e o editor o apagava ao salvar de novo. O mapeamento agora lê os dois e os campos de e-mail.
+
 ### Gatilho de Auditoria — `audit.recorded`
 
 Uma automação pode reagir a cada log gravado na Auditoria do escritório e decidir pelo conteúdo dele —
@@ -17000,7 +17088,7 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara catorze `fieldOverrides`:
+Além dos compostos, o arquivo declara dezesseis `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
@@ -17023,6 +17111,8 @@ Além dos compostos, o arquivo declara catorze `fieldOverrides`:
 | `report_snapshots` | `report` ASC, `takenAt` DESC | A série de instantâneos de um relatório: as fotos mais recentes dele, até `REPORT_SNAPSHOT_MAX_SERIES` |
 | `webhook_deliveries` (sob `workflow_webhooks/{id}`) | `expiresAt` | TTL — a marca de "esta entrega já chegou" do webhook vale a janela de reenvio (`WEBHOOK_DELIVERY_WINDOW_HOURS`, 24 h); sem índice, porque só é lida pelo id |
 | `report_snapshots` | `expiresAt` | TTL — a foto de um relatório é mantida por 5 anos (`REPORT_SNAPSHOT_RETENTION_YEARS`) |
+| `mailboxes` (collectionGroup) | `nextPollAt` ASC | `pollMailboxes` pergunta, em todos os escritórios de uma vez, quais caixas de e-mail estão na hora de ler |
+| `mail_messages` | `expiresAt` | TTL — a marca de "esta mensagem já foi entregue" vale `MAIL_MESSAGE_RETENTION_DAYS` (30 dias); sem índice, porque só é lida pelo id |
 
 ---
 

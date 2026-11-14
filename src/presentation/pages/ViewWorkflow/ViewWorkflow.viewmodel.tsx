@@ -7,6 +7,8 @@ import { describeVersionChanges } from '../../shared/versionDiffText';
 import type { ArtifactVersion } from '../../../domain/schema/workflowVersion';
 import { WORKFLOW_VERSION_CONTENT_KEYS } from '../../../domain/schema/workflowVersion';
 import { WEBHOOK_DEFAULT_SIGNATURE_HEADER, WORKFLOW_WEBHOOK_EVENT } from '../../../domain/schema/workflowWebhook';
+import { MAIL_FILTER_MAX_TERMS, MAIL_RECEIVED_EVENT, hasMailFilter, mailFilterIssue } from '../../../domain/schema/mailbox';
+import type { MailFilter } from '../../../domain/schema/mailbox';
 import type { WebhookScheme } from '../../../domain/schema/workflowWebhook';
 import type { IssuedWorkflowWebhook } from '../../../domain/repositories/IWorkflowWebhookRepository';
 import { isParameterRootedEvent } from '../../../domain/schema/eventCatalog';
@@ -169,6 +171,12 @@ export interface WorkflowFormData {
   /** Vazio = criação e alteração. Só nos gatilhos de registro salvo. */
   changeType: WorkflowChangeType | '';
   changedFields: string[];
+  /** Só no gatilho de e-mail: os termos do filtro (ver `MailFilter`). */
+  mailFrom: string[];
+  mailSubject: string[];
+  /** Vazio = tanto faz. */
+  mailAttachments: '' | 'with' | 'without';
+  subscribable: boolean;
 }
 
 const sanitizeParameters = sanitizeWorkflowParameters;
@@ -187,7 +195,21 @@ const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   dateAt: w?.dateReached?.at ?? DEFAULT_DATE_REACHED_AT,
   changeType: w?.changeType ?? '',
   changedFields: w?.changedFields ?? [],
+  mailFrom: w?.mailFilter?.from ?? [],
+  mailSubject: w?.mailFilter?.subject ?? [],
+  mailAttachments: w?.mailFilter?.hasAttachments === true ? 'with' : w?.mailFilter?.hasAttachments === false ? 'without' : '',
+  subscribable: w?.subscribable === true,
 });
+
+/** O filtro do gatilho de e-mail como a automação o grava; sem termo nenhum, não há filtro. */
+const mailFilterOf = (form: WorkflowFormData): MailFilter | null => {
+  const filter: MailFilter = {
+    from: form.mailFrom,
+    subject: form.mailSubject,
+    hasAttachments: form.mailAttachments === 'with' ? true : form.mailAttachments === 'without' ? false : null,
+  };
+  return hasMailFilter(filter) ? filter : null;
+};
 
 /** O gatilho de registro SALVO — o único que carrega `changeType` e `old`, e onde o filtro de mudança vale. */
 const isSavedEventName = (eventName: string): boolean => eventName.endsWith('.saved');
@@ -385,6 +407,11 @@ export interface ViewWorkflowViewModel {
   runWorkflowDisabledReason: string | null;
   /** O gatilho escolhido é de registro salvo: só nele o filtro de mudança aparece. */
   isSavedEvent: boolean;
+  /** O gatilho é "Ao receber e-mail": o filtro de remetente/assunto/anexo e a marca de assinável aparecem. */
+  isMailEvent: boolean;
+  mailAttachmentOptions: { value: string; label: string }[];
+  mailFilterError: string | null;
+  isSenderTermValid: (term: string) => boolean;
   changeTypeOptions: { value: string; label: string }[];
   changedFieldOptions: { value: string; label: string }[];
   /** Quem administra a automação pode refazer uma execução encerrada. */
@@ -971,6 +998,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       const savedTrigger = isSavedEventName(formData.eventName);
       const changeType = savedTrigger && formData.changeType ? formData.changeType : null;
       const changedFields = savedTrigger ? formData.changedFields : [];
+      // O mesmo vale para o filtro de e-mail e a marca de assinável: só no gatilho de e-mail.
+      const mailTrigger = formData.eventName === MAIL_RECEIVED_EVENT;
+      const mailFilter = mailTrigger ? mailFilterOf(formData) : null;
+      const subscribable = mailTrigger && formData.subscribable;
 
       if (isNew) {
         const createData: Record<string, unknown> = {
@@ -992,6 +1023,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (dateReached) createData.dateReached = dateReached;
         if (changeType) createData.changeType = changeType;
         if (changedFields.length > 0) createData.changedFields = changedFields;
+        if (mailFilter) createData.mailFilter = mailFilter;
+        if (subscribable) createData.subscribable = true;
 
         const chosenId = withArtifactPrefix(
           artifactPrefix,
@@ -1014,6 +1047,8 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (dateReached) updateData.dateReached = dateReached;
         updateData.changeType = changeType;
         updateData.changedFields = changedFields;
+        updateData.mailFilter = mailFilter;
+        updateData.subscribable = subscribable;
 
         await updateWorkflow(workflow.id, updateData as Parameters<typeof updateWorkflow>[1]);
         notify(t('workflow.saved'), 'success');
@@ -1434,6 +1469,25 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   }, []);
 
   const isSavedEvent = isSavedEventName(formData.eventName);
+  const isMailEvent = formData.eventName === MAIL_RECEIVED_EVENT;
+
+  const mailAttachmentOptions = useMemo(
+    () => [
+      { value: '', label: t('trigger.mail.attachments.any') },
+      { value: 'with', label: t('trigger.mail.attachments.with') },
+      { value: 'without', label: t('trigger.mail.attachments.without') },
+    ],
+    [t],
+  );
+  const mailFilterError = useMemo(() => {
+    if (!isMailEvent) return null;
+    const issue = mailFilterIssue({ from: formData.mailFrom, subject: formData.mailSubject });
+    return issue ? label(issue, { max: String(MAIL_FILTER_MAX_TERMS) }) : null;
+  }, [isMailEvent, formData.mailFrom, formData.mailSubject, label]);
+  const isSenderTermValid = useCallback(
+    (term: string) => mailFilterIssue({ from: [term] }) === null,
+    [],
+  );
 
   const changeTypeOptions = useMemo(
     () => [
@@ -1694,6 +1748,10 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     handleSaveCondition,
     canRunWorkflow,
     isSavedEvent,
+    isMailEvent,
+    mailAttachmentOptions,
+    mailFilterError,
+    isSenderTermValid,
     changeTypeOptions,
     changedFieldOptions,
     canRerun,

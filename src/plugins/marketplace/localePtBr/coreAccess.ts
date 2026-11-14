@@ -446,4 +446,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'mfa.audit.policy-changed.title': 'Regra da verificação em duas etapas alterada',
   'mfa.audit.policy-changed.text': 'Passou a ser exigida de quem tem estes perfis: {roles}; ou estas permissões: {permissions}. Pedida de novo a cada {minutes} minutos.',
   'mfa.audit.policy-changed.everyone.text': 'Passou a ser exigida de todos os membros. Pedida de novo a cada {minutes} minutos.',
+  'permission.mailboxes.connect': 'Conectar a própria caixa de e-mail',
+  'permission.mailboxes.connect.description': 'Conectar a própria caixa às automações que o escritório disponibilizou aos membros, e escolher quais recebem o seu e-mail.',
+  'permission.mailboxes.manage': 'Gerenciar caixas de e-mail',
+  'permission.mailboxes.manage.description': 'Ver, configurar e desconectar as caixas do escritório e de todos os membros, e ligá-las a qualquer automação de e-mail. As senhas nunca são mostradas.',
+  'resource.mailboxes': 'Caixas de e-mail',
 };

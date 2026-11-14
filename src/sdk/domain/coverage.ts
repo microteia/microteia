@@ -192,6 +192,9 @@ const EVENT_GAP_NOTES: Record<string, string> = {
     + 'declare what happens to them',
   'audit.recorded': 'fires when a person causes an Audit trail entry. A rule like "a critical deletion alerts the '
     + 'owner" has no trigger in the model — it speaks of record states, not of the trail that watches them',
+  'mail.received': 'fires when an e-mail that matches the workflow\'s `mailFilter` arrives in a mailbox connected to '
+    + 'it. A rule like "an e-mail from the court opens a task" has no trigger in the model — mailboxes are connected by '
+    + 'the office and its members after installing, and the model describes records, not inboxes',
 };
 
 const eventItems = (): CoverageItem[] => WORKFLOW_EVENT_CATALOG.map((entry) => {
@@ -444,6 +447,8 @@ const WORKFLOW_REACH: Record<keyof WorkflowModuleTemplate, string | null> = {
   dateReached: 'trigger "date-reached" — its field, offset and time',
   changeType: null,
   changedFields: null,
+  mailFilter: null,
+  subscribable: null,
   steps: 'the guard, the state write and the effects, in order — and, on a user-action flow, the map that answers '
     + 'the button',
   condition: 'the `from` of the transition',
@@ -459,6 +464,10 @@ const WORKFLOW_NOTES: Record<string, string> = {
     + 'which the guard already writes, so the model never needs it',
   changedFields: 'narrows a save trigger to a change of the named fields. Same reason as changeType: the transition '
     + 'guard compares the state field, and that IS the field that changed',
+  mailFilter: 'what an email-triggered flow wants to receive. Email arrives from a mailbox the office or a member '
+    + 'connects, which the domain model does not describe',
+  subscribable: 'lets a member connect their own mailbox to an email-triggered flow — a decision of the office, not '
+    + 'of the model',
   ownerPluginIds: 'the refcount of extensions sharing the flow, set by the installation',
   sourceId: 'the universal identity of the flow — how an update recognises it across offices',
   sourceRev: 'the origin revision, stamped at packaging so an update only rewrites what is genuinely newer',

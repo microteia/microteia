@@ -33,6 +33,7 @@ export const KERNEL_PAGES: PageAddress[] = [
   { key: 'downloads' },
   { key: 'notifications' },
   { key: 'workflow-tasks' },
+  { key: 'mailboxes' },
   { key: 'workflows' },
   { key: 'new-workflow' },
   { key: '', keyPrefix: 'new-workflow:clone:' },

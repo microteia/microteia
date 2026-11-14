@@ -15,6 +15,8 @@ import { toStored } from '../schema/storedReference';
 import { flattenSteps } from '../services/stepTree';
 import { isStepExcludedFromTrigger } from '../schema/workflowStepCatalog';
 import { matchesChangeFilter } from '../schema/workflowChangeFilter';
+import { MAIL_RECEIVED_EVENT, matchesMailFilter } from '../schema/mailbox';
+import type { MailFilterSubject } from '../schema/mailbox';
 import { MAX_STEP_RETRIES } from '../entities/Workflow';
 import type { WorkflowWait } from '../schema/workflowWait';
 import { pagedLoopPageSize } from '../schema/workflowLoopQuery';
@@ -51,7 +53,13 @@ export interface WorkflowResume extends Omit<WorkflowSuspension, 'resumeAt' | 't
  * de tela ou de lista. O status continua `SUCCESS` — para um gatilho, "não era comigo" não é erro —, e
  * é esta marca que deixa o chamador distinguir "não rodou" de "rodou e não devolveu nada".
  */
-export type WorkflowSkip = 'condition' | 'screen' | 'lookup' | 'change';
+const mailFilterSubjectOf = (payload: Record<string, unknown>): MailFilterSubject => ({
+  from: typeof payload.from === 'string' ? payload.from : '',
+  subject: typeof payload.subject === 'string' ? payload.subject : '',
+  attachmentCount: Array.isArray(payload.attachments) ? payload.attachments.length : 0,
+});
+
+export type WorkflowSkip = 'condition' | 'screen' | 'lookup' | 'change' | 'mail';
 
 /**
  * A espera entre duas tentativas de um passo: 1s, 2s, 3s. Curta de propósito — a tentativa roda
@@ -238,6 +246,13 @@ export const runWorkflow = async ({
     if (!matchesChangeFilter(definition, event.payload)) {
       log('INFO', '@core.automation/run.skipped.change-mismatch');
       return { refused: 'SUCCESS', skipped: 'change' };
+    }
+
+    // A leitura da caixa já escolheu as automações pelo filtro; conferir de novo cobre a que mudou o
+    // filtro entre a leitura e a execução, e a mensagem republicada à mão.
+    if (event.name === MAIL_RECEIVED_EVENT && !matchesMailFilter(definition.mailFilter, mailFilterSubjectOf(event.payload))) {
+      log('INFO', '@core.automation/run.skipped.mail-mismatch');
+      return { refused: 'SUCCESS', skipped: 'mail' };
     }
 
     const requiredIssues = collectRequiredIssues(definition.parameters, event.payload);

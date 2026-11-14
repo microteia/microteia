@@ -2,6 +2,7 @@ import type { FieldRules } from '../schema/fieldRules';
 import type { WorkflowLoopQuery } from '../schema/workflowLoopQuery';
 import type { WorkflowDateReached, WorkflowSchedule } from '../schema/workflowClock';
 import type { WorkflowChangeFilter } from '../schema/workflowChangeFilter';
+import type { MailFilter } from '../schema/mailbox';
 import type { WorkflowContentOrigin } from '../schema/workflowVersion';
 
 /**
@@ -263,6 +264,17 @@ export interface WorkflowDefinition extends WorkflowChangeFilter {
    * deslocamento e a que hora. Ver "Gatilhos temporais" no ARCHITECTURE.md.
    */
   dateReached?: WorkflowDateReached;
+  /**
+   * Só relevante quando eventName é "mail.received": o que a automação quer receber. A caixa lê; a
+   * automação só filtra. Ver "Caixas de e-mail" no ARCHITECTURE.md.
+   */
+  mailFilter?: MailFilter | null;
+  /**
+   * Só relevante quando eventName é "mail.received": o MEMBRO pode ligar a própria caixa a esta
+   * automação. Sem a marca, só uma caixa do escritório a alimenta — a automação é de quem a escreveu, e
+   * nem toda está pronta para receber o e-mail pessoal de qualquer um.
+   */
+  subscribable?: boolean | null;
   // Presente quando o workflow foi materializado pela instalação de um plugin do Marketplace.
   // É a marca que a desinstalação usa para remover exatamente os artefatos daquele plugin, e o
   // sinal de que o registro é gerenciado (o usuário não deve editá-lo à mão). Ver "Fatia vertical

@@ -55,6 +55,17 @@ export const PERMISSION_AI_MANAGE = 'ai.manage';
  * chave, e quem a cadastra é outra pessoa.
  */
 export const PERMISSION_INTEGRATIONS_MANAGE = 'integrations.manage';
+/**
+ * Ligar a PRÓPRIA caixa de e-mail às automações que o escritório marcou como assináveis. Separada de
+ * `mailboxes.manage` porque é um gesto sobre o que é da pessoa: ela entrega ao escritório o e-mail que
+ * escolher, e não ganha com isso acesso à caixa de ninguém.
+ */
+export const PERMISSION_MAILBOXES_CONNECT = 'mailboxes.connect';
+/**
+ * As caixas do ESCRITÓRIO e as de todos os membros — ver, configurar, desligar. Quem a tem decide o que
+ * uma caixa compartilhada (`intimacoes@`) alimenta, inclusive automações não marcadas como assináveis.
+ */
+export const PERMISSION_MAILBOXES_MANAGE = 'mailboxes.manage';
 export const PERMISSION_AGENT_MANAGE = 'agent.manage';
 export const PERMISSION_TRANSLATIONS_MANAGE = 'translations.manage';
 export const PERMISSION_DATA_PROCESSOR_USE = 'data-processor.use';
@@ -186,6 +197,18 @@ export const KERNEL_PERMISSIONS: AccessPermission[] = [
     description: '@core.access/permission.integrations.manage.description',
   },
   {
+    id: PERMISSION_MAILBOXES_CONNECT,
+    name: '@core.access/permission.mailboxes.connect',
+    description: '@core.access/permission.mailboxes.connect.description',
+  },
+  {
+    // Quem administra as caixas de todos faz, na própria, o que qualquer membro faz.
+    id: PERMISSION_MAILBOXES_MANAGE,
+    name: '@core.access/permission.mailboxes.manage',
+    description: '@core.access/permission.mailboxes.manage.description',
+    requires: [PERMISSION_MAILBOXES_CONNECT],
+  },
+  {
     id: PERMISSION_AGENT_MANAGE,
     name: '@core.access/permission.agent.manage',
     description: '@core.access/permission.agent.manage.description',
@@ -279,6 +302,7 @@ export const KERNEL_PERMISSION_RESOURCES: PermissionResource[] = [
   { id: 'agent', name: '@core.access/resource.agent' },
   { id: 'ai', name: '@core.access/resource.ai' },
   { id: 'integrations', name: '@core.access/resource.integrations' },
+  { id: 'mailboxes', name: '@core.access/resource.mailboxes' },
   { id: 'translations', name: '@core.access/resource.translations' },
   { id: 'data-processor', name: '@core.access/resource.data-processor' },
   { id: 'document-types', name: '@core.access/resource.document-types' },

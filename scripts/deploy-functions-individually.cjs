@@ -92,6 +92,8 @@ const ALL_FUNCTIONS = [
   'versionScript',
   'runWorkflowClock',
   'onHttpDispatchWritten',
+  'pollMailboxes',
+  'manageMailbox',
   'testHttpRequest',
   'getWorkflowStepCatalog',
   'publishWorkflowEventOnEntityChange',

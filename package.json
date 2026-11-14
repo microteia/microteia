@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/microteia/microteia.git"
   },
-  "version": "9.261.0",
+  "version": "9.262.0",
   "type": "module",
   "bin": {
     "microteia": "cli/lib/index.js"
@@ -59,6 +59,7 @@
     "deploy:assistant": "npm run build:functions && firebase deploy --only functions:assistantChat,functions:assistantConversation --project ${TARGET:-dev}",
     "deploy:marketplace": "npm run build:functions && firebase deploy --only functions:countExtensionInstalls,functions:aggregateExtensionRatings,functions:seedExtensionRecords --project ${TARGET:-dev}",
     "deploy:util": "npm run build:functions && firebase deploy --only functions:callAIProxy,functions:logClientError --project ${TARGET:-dev}",
+    "deploy:mail": "npm run build:functions && firebase deploy --only functions:pollMailboxes,functions:manageMailbox --project ${TARGET:-dev}",
     "deploy:notifications": "npm run build:functions && firebase deploy --only functions:manageNotificationEmail,functions:manageNotificationSms,functions:notificationOptOut,functions:getWebPushPublicKey --project ${TARGET:-dev}",
     "deploy:functions": "npm run build:functions && firebase deploy --only functions --project ${TARGET:-dev}",
     "deploy:functions:individual": "node scripts/deploy-functions-individually.cjs"

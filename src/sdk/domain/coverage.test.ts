@@ -67,6 +67,7 @@ const LACUNAS_CONFERIDAS = [
   // O gatilho de auditoria: "quando uma exclusão crítica é registrada, avise o responsável". O modelo
   // fala de estados de registro, não da trilha que os observa.
   'workflow-event\taudit.recorded',
+  'workflow-event\tmail.received',
 
   // Todos os pontos de contribuição menos um. O modelo alcança `access.permission` e nada mais —
   // tudo que uma regra precise além de dado e passagem está fora deste vocabulário. A lista é
@@ -166,6 +167,8 @@ const LACUNAS_CONFERIDAS = [
   // que mudou — o modelo não tem o que pedir aqui.
   'workflow-property\tchangeType',
   'workflow-property\tchangedFields',
+  'workflow-property\tmailFilter',
+  'workflow-property\tsubscribable',
   'workflow-property\townerPluginIds',
   'workflow-property\tsourceId',
   'workflow-property\tsourceRev',

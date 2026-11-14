@@ -3,7 +3,8 @@ import { HTTP_CONNECTION_EXTENSION_POINTS } from '../../domain/schema/httpConnec
 import type { PluginRecord } from '../../kernel';
 import { command, lazyView, nav, page, settingsSection, surfaceSlot, surfaceTab } from '../contributionBuilders';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
-import { PERMISSION_AUTOMATION_MANAGE, PERMISSION_INTEGRATIONS_MANAGE, PERMISSION_SETTINGS_MANAGE } from '../../domain/schema/access';
+import { PERMISSION_AUTOMATION_MANAGE, PERMISSION_INTEGRATIONS_MANAGE, PERMISSION_MAILBOXES_CONNECT, PERMISSION_SETTINGS_MANAGE } from '../../domain/schema/access';
+import { MAILBOXES_PAGE_KEY } from '../../domain/schema/mailbox';
 import { AUTOMATION_NAV_GROUP, WORKSPACE_SLOT_SURFACES } from '../../domain/schema/ui/uiExtensionPoints';
 import {
   NOTIFICATION_EXTENSION_POINTS,
@@ -36,6 +37,7 @@ export const coreAutomationPlugin: PluginRecord = {
     WorkflowTasksView: lazyView(() => import('../../presentation/pages/WorkflowTasks/WorkflowTasks.view'), 'WorkflowTasksView'),
     NotificationsView: lazyView(() => import('../../presentation/pages/Notifications/Notifications.view'), 'NotificationsView'),
     NotificationEmailTabView: lazyView(() => import('../../presentation/pages/TenantSettings/EmailTab/EmailTab.view'), 'EmailTabView'),
+    MailboxesView: lazyView(() => import('../../presentation/pages/Mailboxes/Mailboxes.view'), 'MailboxesView'),
     IntegrationsTabView: lazyView(() => import('../../presentation/pages/TenantSettings/IntegrationsTab/IntegrationsTab.view'), 'IntegrationsTabView'),
   },
   manifest: {
@@ -163,6 +165,10 @@ export const coreAutomationPlugin: PluginRecord = {
         order: 33,
         requiredPermissions: [PERMISSION_INTEGRATIONS_MANAGE],
       }, 'IntegrationsTabView'),
+      // A caixa é de QUEM a conecta: o item fica no grupo de automação, mas a permissão é a de ligar a própria
+      // caixa — não a de montar automação.
+      page({ key: MAILBOXES_PAGE_KEY, title: '@core.automation/page.mailboxes', icon: 'inbox' }, 'MailboxesView'),
+      nav({ key: MAILBOXES_PAGE_KEY, label: '@core.automation/page.mailboxes', icon: 'inbox', order: 110, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_MAILBOXES_CONNECT] }),
       nav({ key: 'workflows', label: '@core.automation/page.workflows', icon: 'flowChart', order: 106, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),
       nav({ key: 'scripts', label: '@core.automation/page.scripts', icon: 'codeBox', order: 107, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),
       nav({ key: 'actions', label: '@core.automation/page.actions', icon: 'cursor', order: 108, group: AUTOMATION_NAV_GROUP, requiredPermissions: [PERMISSION_AUTOMATION_MANAGE] }),

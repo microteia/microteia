@@ -18,7 +18,7 @@ const toDate = (value: unknown): Date => (value instanceof Timestamp ? value.toD
 const ownedBy = (owners: string[] | null | undefined, pluginId: string): boolean =>
   Array.isArray(owners) && owners.includes(pluginId);
 
-const mapWorkflowDefinition = (id: string, tenantId: string, data: DocumentData): WorkflowDefinition => ({
+export const mapWorkflowDefinition = (id: string, tenantId: string, data: DocumentData): WorkflowDefinition => ({
   id,
   tenantId,
   name: data.name,
@@ -29,6 +29,10 @@ const mapWorkflowDefinition = (id: string, tenantId: string, data: DocumentData)
   parameters: data.parameters ?? undefined,
   schedule: data.schedule ?? undefined,
   dateReached: data.dateReached ?? undefined,
+  changeType: data.changeType ?? null,
+  changedFields: Array.isArray(data.changedFields) ? data.changedFields : null,
+  mailFilter: data.mailFilter ?? null,
+  subscribable: data.subscribable === true,
   enabled: data.enabled ?? false,
   version: data.version ?? 1,
   condition: data.condition ?? { kind: 'AlwaysTrue' },

@@ -17,6 +17,8 @@ const FIELD_LABEL_REFS: Readonly<Record<string, string>> = {
   dateReached: '@core.automation/versions.field.date-reached',
   changeType: '@core.automation/versions.field.change-type',
   changedFields: '@core.automation/versions.field.changed-fields',
+  mailFilter: '@core.automation/versions.field.mail-filter',
+  subscribable: '@core.automation/versions.field.subscribable',
   condition: '@core.automation/versions.field.condition',
   inputParams: '@core.automation/versions.field.input-params',
   outputParams: '@core.automation/versions.field.output-params',
