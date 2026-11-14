@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.262.1] — 2026-11-14
+
+- Atualização de segurança no envio de e-mails do escritório: o componente que entrega os avisos por e-mail foi trocado pela versão mais recente, que corrige falhas conhecidas.
+
 #### [9.262.0] — 2026-11-14
 
 - Chegaram as **Caixas de e-mail**: conecte uma caixa (Gmail, Outlook ou qualquer servidor IMAP, com senha de app) e escolha quais automações recebem o que chega nela. Cada pessoa conecta a própria caixa, e o escritório pode ter caixas compartilhadas.
