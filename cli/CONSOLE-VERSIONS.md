@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.43.3] — 2026-11-14
+
+- fix(console/provision): run `npm install` in `install/functions` before deploying any function, not only when an office function is queued. `unpack` keeps `functions/node_modules` as a cache, and `firebase` loads the whole `index.js` to analyse the codebase, so a kernel that gained a dependency (9.262.0: `imapflow`, `mailparser`) applied with `provision` alone failed every function with "Cannot find module". With dependencies up to date the install takes seconds.
+
 #### [2.43.2] — 2026-11-14
 
 - feat(kernel/manifest): optional prerequisite `mail-inbound` — how to put an inbound mail provider in front of a domain and set `MAIL_INBOUND_DOMAIN` / `MAIL_INBOUND_SECRET`, and the contract of the `mailInbound` endpoint (raw RFC 822 body, envelope recipient, timestamp and HMAC-SHA256 signature headers). Both parameters are optional; the parameter list check now expects them.
