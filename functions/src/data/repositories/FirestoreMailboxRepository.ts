@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { Timestamp } from 'firebase-admin/firestore';
 import type { DocumentData, DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
 import type {
@@ -16,11 +17,29 @@ import {
   MAIL_MESSAGES_COLLECTION,
   MAIL_RECEIVED_EVENT,
   MAILBOX_FAILURE_REASONS,
+  MAIL_INBOUND_TOKEN_LENGTH,
+  isPolledMailbox,
 } from '../../domain/schema/mailbox';
-import type { MailboxHealth, MailboxSettings } from '../../domain/schema/mailbox';
+import type { ForwardingConfirmation, MailboxHealth, MailboxSettings } from '../../domain/schema/mailbox';
 import { workflowEventDocument, workflowEventsRef } from '../services/workflowEventDocument';
 
 const SECRET_DOC = 'current';
+
+/**
+ * O índice código → caixa, na RAIZ: a mensagem encaminhada chega sem escritório nenhum, só com o endereço, e
+ * uma consulta de grupo por `inboundToken` pediria índice e leria a coleção de todo escritório. Só o servidor.
+ */
+const INBOUND_ADDRESSES = 'mail_inbound_addresses';
+
+const TOKEN_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
+const newInboundToken = (): string =>
+  Array.from({ length: MAIL_INBOUND_TOKEN_LENGTH }, () => TOKEN_ALPHABET[randomInt(TOKEN_ALPHABET.length)]).join('');
+
+const confirmationOf = (value: unknown): ForwardingConfirmation | null => {
+  const confirmation = value as Record<string, unknown> | null | undefined;
+  if (!confirmation || typeof confirmation.receivedAt !== 'string') return null;
+  return { code: text(confirmation.code), url: text(confirmation.url), receivedAt: confirmation.receivedAt };
+};
 
 const toDate = (value: unknown): Date | null => (value instanceof Timestamp ? value.toDate() : null);
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
@@ -73,6 +92,8 @@ const mapMailbox = (tenantId: string, snap: DocumentSnapshot): StoredMailbox => 
     cursor: cursorOf(data.cursor),
     nextPollAt: toDate(data.nextPollAt),
     health: healthOf(data.health),
+    inboundToken: typeof data.inboundToken === 'string' && data.inboundToken ? data.inboundToken : null,
+    forwardingConfirmation: confirmationOf(data.forwardingConfirmation),
   };
 };
 
@@ -118,13 +139,24 @@ export class FirestoreMailboxRepository implements IMailboxRepository {
         && accountOf(previous) === accountOf(input.settings)
         && sameSubscriptions(previous.subscriptions, input.settings.subscriptions);
       const hasPassword = input.password !== null || (snap.exists && snap.data()?.hasPassword === true);
+      const polled = isPolledMailbox(input.settings.source);
+      const currentToken = typeof snap.data()?.inboundToken === 'string' ? (snap.data()?.inboundToken as string) : null;
+      // O código nasce uma vez e não muda ao salvar: trocá-lo quebraria a regra de encaminhamento que a pessoa
+      // já criou no Gmail. Sai só quando a caixa deixa de ser de encaminhamento.
+      const inboundToken = polled ? null : currentToken ?? newInboundToken();
+      if (inboundToken && inboundToken !== currentToken) {
+        tx.create(this.db.collection(INBOUND_ADDRESSES).doc(inboundToken), { tenantId: input.tenantId, mailboxId: ref.id });
+      }
+      if (currentToken && currentToken !== inboundToken) tx.delete(this.db.collection(INBOUND_ADDRESSES).doc(currentToken));
 
       tx.set(ref, {
         ...input.settings,
         ownerId: snap.exists ? (snap.data()?.ownerId ?? null) : input.ownerId,
         hasPassword,
-        // Salvar põe a caixa na fila da próxima volta: quem acabou de configurar quer ver o resultado.
-        nextPollAt: now,
+        inboundToken,
+        // Salvar põe a caixa lida na fila da próxima volta: quem acabou de configurar quer ver o resultado. A de
+        // encaminhamento não entra na fila — ela recebe, não é lida.
+        nextPollAt: polled ? now : null,
         leaseUntil: null,
         ...(keepsCursor ? {} : { cursor: null }),
         ...(snap.exists ? {} : { createdAt: now, createdBy: input.actorId, health: { lastPolledAt: null, lastDeliveredAt: null, lastDelivered: 0, failure: null } }),
@@ -138,10 +170,36 @@ export class FirestoreMailboxRepository implements IMailboxRepository {
 
   async remove(tenantId: string, id: string): Promise<void> {
     const ref = this.mailboxes(tenantId).doc(id);
-    const batch = this.db.batch();
-    batch.delete(ref.collection('secrets').doc(SECRET_DOC));
-    batch.delete(ref);
-    await batch.commit();
+    await this.db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const token = snap.data()?.inboundToken;
+      if (typeof token === 'string' && token) tx.delete(this.db.collection(INBOUND_ADDRESSES).doc(token));
+      tx.delete(ref.collection('secrets').doc(SECRET_DOC));
+      tx.delete(ref);
+    });
+  }
+
+  async findByInboundToken(token: string): Promise<MailboxRef | null> {
+    const snap = await this.db.collection(INBOUND_ADDRESSES).doc(token).get();
+    const data = snap.data();
+    return typeof data?.tenantId === 'string' && typeof data?.mailboxId === 'string'
+      ? { tenantId: data.tenantId, id: data.mailboxId }
+      : null;
+  }
+
+  async recordInbound(
+    ref: MailboxRef,
+    update: { health?: MailboxHealth; forwardingConfirmation?: ForwardingConfirmation | null },
+  ): Promise<void> {
+    const docRef = this.mailboxes(ref.tenantId).doc(ref.id);
+    await this.db.runTransaction(async (tx) => {
+      const snap = await tx.get(docRef);
+      if (!snap.exists) return;
+      tx.update(docRef, {
+        ...(update.health ? { health: update.health } : {}),
+        ...(update.forwardingConfirmation !== undefined ? { forwardingConfirmation: update.forwardingConfirmation } : {}),
+      });
+    });
   }
 
   async password(tenantId: string, id: string): Promise<string | null> {
@@ -185,7 +243,7 @@ export class FirestoreMailboxRepository implements IMailboxRepository {
       if (!snap.exists) return;
       tx.update(docRef, {
         cursor: outcome.cursor,
-        nextPollAt: Timestamp.fromDate(outcome.nextPollAt),
+        nextPollAt: outcome.nextPollAt ? Timestamp.fromDate(outcome.nextPollAt) : null,
         health: outcome.health,
         leaseUntil: null,
       });

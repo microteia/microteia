@@ -94,6 +94,7 @@ const ALL_FUNCTIONS = [
   'onHttpDispatchWritten',
   'pollMailboxes',
   'manageMailbox',
+  'mailInbound',
   'testHttpRequest',
   'getWorkflowStepCatalog',
   'publishWorkflowEventOnEntityChange',

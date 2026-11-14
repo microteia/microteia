@@ -99,6 +99,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `AIConnectionSecret` | `tenants/{tenantId}/aiConnections/{id}/secrets/current` | Sim (chave de API — nunca trafega para o frontend) |
 | Caixa de e-mail (configuração, ponto de leitura, saúde) | `tenants/{tenantId}/mailboxes/{id}` (+ `secrets/current` com a senha) | Sim (só servidor — `manageMailbox` é a porta; ver "Caixas de e-mail") |
 | Mensagem entregue a alguma automação (a marca de "já entregue") | `tenants/{tenantId}/mail_messages/{hash}` — TTL em `expiresAt` | Sim (só servidor) |
+| Endereço de encaminhamento → caixa (o índice que a mensagem encaminhada usa para achar o escritório) | `mail_inbound_addresses/{código}` | Não (raiz; só servidor) |
 | `Tenant` | `tenants/{tenantId}` | — |
 | `TenantMember` | `tenants/{tenantId}/members/{uid}` | Sim (`permissions` e `mfa` são materializados pelo servidor; o cliente não os escreve) |
 | Política de segundo fator do escritório (EV-07) | `memberMfaPolicies/{tenantId}` | Não (raiz; só servidor — `manageMemberMfa` é a porta) |
@@ -9423,9 +9424,42 @@ senha errada não avisa a cada 15 minutos.
 IA e do SMTP. Cifrá-la com chave do Secret Manager exige que o Console saiba provisionar segredo no projeto do
 escritório, e fica como item à parte, para todos os segredos do kernel de uma vez.
 
-**IMAP hoje.** Senha de app vale para Gmail pessoal com verificação em duas etapas; Workspace pode bloqueá-la,
-e o Microsoft 365 só aceita OAuth no IMAP. Para esses, o próximo passo é o endereço de encaminhamento
-(`mailInbound`, MIME assinado, agnóstico de provedor) e a fonte declarada por extensão.
+**Duas fontes, uma entrega.** Senha de app vale para Gmail pessoal com verificação em duas etapas; Workspace
+pode bloqueá-la, e o Microsoft 365 só aceita OAuth no IMAP. Daí a segunda fonte, `forward`: a pessoa cria no
+próprio e-mail uma regra de ENCAMINHAMENTO para um endereço da instalação. Nenhuma senha guardada, nenhuma
+permissão sobre a caixa, qualquer provedor — e só chega o que a regra dela escolheu. As duas fontes terminam
+na MESMA função, `deliverParsedMail`, sobre a MESMA forma de mensagem (`parseMailSource`): o e-mail rende o
+mesmo payload, a mesma marca e a mesma regra de quem recebe, venha por onde vier.
+
+#### O encaminhamento — `mailInbound`
+
+O kernel não conhece provedor de recepção nenhum. Ele conhece a mensagem crua (RFC 822) e uma assinatura; o
+provedor (Cloudflare Email Workers, Postmark, Mailgun, SES…) é escolha de quem mantém a instalação, que põe
+um adaptador na frente do domínio.
+
+| Peça | O quê |
+|---|---|
+| `MAIL_INBOUND_DOMAIN`, `MAIL_INBOUND_SECRET` | parâmetros OPCIONAIS da instalação (`infrastructure/settings/mailInbound.ts`). Vazios, a fonte não é oferecida e nada mais muda; o Console os documenta no pré-requisito `mail-inbound` |
+| o endereço | `<código>@<domínio>`: 24 caracteres aleatórios, gerados uma vez ao salvar a caixa e nunca trocados (quebraria a regra que a pessoa criou). `+etiqueta` é aceita |
+| `mail_inbound_addresses/{código}` | o índice código → `{tenantId, mailboxId}`, na RAIZ: a mensagem chega sem escritório, e uma consulta de grupo leria a coleção de todos. Mantido na mesma transação que grava a caixa |
+| `POST …/mailInbound` | corpo = a mensagem crua; `x-microteia-recipient` (o destinatário do ENVELOPE — o `To:` é o endereço da pessoa), `x-microteia-timestamp`, `x-microteia-signature` |
+
+**A assinatura** é HMAC-SHA256 de `<timestamp>.<destinatário>.<corpo>` (`inboundSignatureIssue`). O
+destinatário entra na conta porque é ele que escolhe a caixa: sem isso, uma mensagem capturada seria
+reenviada para OUTRA caixa. Data fora de 5 min é recusada, como no webhook.
+
+**As respostas.** 401 para assinatura ruim, 413 acima de `MAIL_INBOUND_MAX_BYTES` (20 MB), 404 com a
+recepção desligada, e **202 para toda mensagem assinada** — entregue, ignorada ou para endereço que não
+existe: o provedor repete o que recebe erro, e um 404 ensinaria quais endereços existem. Erro de verdade é
+500, e o reenvio é seguro (a marca de `mail_messages`; sem `Message-ID`, a identidade é o hash do corpo).
+
+**A confirmação do Gmail.** O Gmail só encaminha depois que o destino confirma, e quem recebe a confirmação é
+o próprio endereço da caixa. `forwardingConfirmationOf` a reconhece (`forwarding-noreply@google.com`, o código
+do assunto, o link do corpo) e ela vai para `forwardingConfirmation` da caixa — a tela mostra o código e o
+link —, nunca para automação. O primeiro e-mail de verdade a apaga.
+
+A caixa de encaminhamento não entra na fila de leitura (`nextPollAt: null`), não tem senha nem teste de
+conexão, e a saúde dela é "último e-mail recebido".
 
 **Pacote.** A automação viaja com `mailFilter` e `subscribable`; a caixa nunca. Exige `MAIL_RECEIVED_SINCE_KERNEL`
 (2.131.0), e o filtro é conferido por `mailFilterIssue` no portão do pacote.
@@ -9434,9 +9468,12 @@ e o Microsoft 365 só aceita OAuth no IMAP. Para esses, o próximo passo é o en
 |---|---|
 | `domain/schema/mailbox.ts` | contrato, filtro, limites (sincronizado) |
 | `functions/src/domain/services/mailboxPolling.ts` | `pollMailbox` e `runMailboxPollRound` |
-| `functions/src/data/services/ImapMailReader.ts` | a leitura IMAP (`imapflow` + `mailparser`) |
+| `functions/src/data/services/ImapMailReader.ts` | a leitura IMAP (`imapflow`) |
+| `functions/src/data/services/mailParsing.ts` | a mensagem crua → `ParsedMail` (`mailparser`; o texto do HTML aninhado vem de `html-to-text`) |
+| `functions/src/domain/services/mailInbound.ts` | a assinatura e a decisão de quem recebe o encaminhado |
+| `functions/src/infrastructure/settings/mailInbound.ts` | os dois parâmetros da instalação |
 | `functions/src/data/repositories/FirestoreMailboxRepository.ts` | caixa, segredo, `claim`/`release`, a entrega transacional |
-| `functions/src/infrastructure/handlers/mailboxes.ts` | `pollMailboxes` e `manageMailbox` (grupo `deploy:mail`) |
+| `functions/src/infrastructure/handlers/mailboxes.ts` | `pollMailboxes`, `manageMailbox` e `mailInbound` (grupo `deploy:mail`) |
 | `presentation/pages/Mailboxes/` | a página "Caixas de e-mail" |
 
 O filtro de mudança (`changeType`/`changedFields`) também passou a valer de fato: os dois repositórios de

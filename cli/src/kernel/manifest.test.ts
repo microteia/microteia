@@ -75,7 +75,7 @@ describe('pré-requisitos manuais', () => {
   it('o que sobrou é do kernel de verdade — o que toda instalação precisa', () => {
     expect(MANUAL_PREREQUISITES.map((prerequisite) => prerequisite.id)).toEqual([
       'billing', 'app-engine', 'firestore-location', 'storage-bucket', 'auth-provider',
-      'functions-invoker', 'portal-identity-signing', 'audit-archive-bucket',
+      'functions-invoker', 'portal-identity-signing', 'mail-inbound', 'audit-archive-bucket',
     ]);
   });
 
@@ -195,12 +195,17 @@ describe('parâmetros do backend', () => {
    * `AUDIT_ARCHIVE_BUCKET`: o bucket com retenção bloqueada do arquivo da Auditoria. Só quem precisa
    * guardar a trilha como prova o cria.
    *
+   * `MAIL_INBOUND_DOMAIN` e `MAIL_INBOUND_SECRET`: a recepção de e-mail encaminhado. Só quem põe um
+   * provedor de recepção na frente do domínio os preenche; sem eles, a caixa lida por IMAP continua.
+   *
    * `SELF_SERVICE_TENANTS` saiu daqui: se a conta nova ganha escritório é decisão do `SYSTEM`, em Gestão
    * de Acessos (`system/registration`), e não de quem instala — no `.env`, mudar exigia redeploy.
    */
   it('o kernel não declara parâmetro de backend obrigatório — e os opcionais são estes', () => {
     expect(declared()).toEqual([
       { name: 'AUDIT_ARCHIVE_BUCKET', required: false },
+      { name: 'MAIL_INBOUND_DOMAIN', required: false },
+      { name: 'MAIL_INBOUND_SECRET', required: false },
     ]);
   });
 

@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.43.2] — 2026-11-14
+
+- feat(kernel/manifest): optional prerequisite `mail-inbound` — how to put an inbound mail provider in front of a domain and set `MAIL_INBOUND_DOMAIN` / `MAIL_INBOUND_SECRET`, and the contract of the `mailInbound` endpoint (raw RFC 822 body, envelope recipient, timestamp and HMAC-SHA256 signature headers). Both parameters are optional; the parameter list check now expects them.
+
 #### [2.43.1] — 2026-11-13
 
 - feat(examples): the new first-party extension `com.microteia.assistant` (AI Assistant) travels to `extensions/examples/assistant/` as source, like every catalog extension — the first one whose `manifest.backend` declares a composite index.

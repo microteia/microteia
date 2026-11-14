@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.212.0",
+    "version": "1.213.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -5483,7 +5483,21 @@
             "mailbox.issue.password": "Informe a senha de app.",
             "mailbox.issue.too-many-subscriptions": "Uma caixa alimenta no máximo 20 automações.",
             "mailbox.issue.subscription-invalid": "Uma das automações escolhidas não existe ou não é disparada por e-mail.",
-            "mailbox.issue.subscription-not-subscribable": "Uma das automações escolhidas não aceita caixas pessoais."
+            "mailbox.issue.subscription-not-subscribable": "Uma das automações escolhidas não aceita caixas pessoais.",
+            "mailbox.field.source": "Como o e-mail chega",
+            "mailbox.source.imap": "Ler a caixa (IMAP)",
+            "mailbox.source.imap.hint": "A plataforma verifica a caixa de tempos em tempos com uma senha de app.",
+            "mailbox.source.forward": "Encaminhar para um endereço da plataforma",
+            "mailbox.source.forward.hint": "Depois de salvar, a caixa ganha um endereço. Crie no seu e-mail uma regra de encaminhamento (por exemplo, só as mensagens do tribunal) apontando para ele. Nenhuma senha é guardada e funciona com qualquer provedor.",
+            "mailbox.source.forward.unavailable": "O encaminhamento não está configurado nesta instalação; peça a quem a mantém para configurar o domínio de recebimento.",
+            "mailbox.privacy.forward": "Só chega aqui o que a sua regra de encaminhamento enviar, e só são guardados os e-mails que alguma automação escolhida quer.",
+            "mailbox.status.forward-pending": "Aguardando o primeiro e-mail encaminhado.",
+            "mailbox.status.forward-ok": "Último e-mail recebido {when}",
+            "mailbox.forward.unavailable": "Endereço de encaminhamento indisponível nesta instalação",
+            "mailbox.forward.confirmation": "Seu serviço de e-mail pediu para confirmar o encaminhamento. Código de confirmação: {code}",
+            "mailbox.forward.confirmation-link": "Seu serviço de e-mail pediu para confirmar o encaminhamento.",
+            "mailbox.forward.confirmation-open": "Abrir link de confirmação",
+            "mailbox.issue.forwarding-unavailable": "O encaminhamento não está configurado nesta instalação."
           }
         }
       },

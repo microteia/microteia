@@ -1,7 +1,6 @@
 import { ImapFlow } from 'imapflow';
 import type { FetchMessageObject, ImapFlowError, MessageStructureObject, SearchObject } from 'imapflow';
-import { simpleParser } from 'mailparser';
-import type { AddressObject, EmailAddress } from 'mailparser';
+import { parseMailSource } from './mailParsing';
 import type { IMailReader, MailEnvelope, MailReadSession, ParsedMail } from '../../domain/repositories/IMailReader';
 import { MailReadError } from '../../domain/repositories/IMailReader';
 import { DEFAULT_IMAP_FOLDER } from '../../domain/schema/mailbox';
@@ -16,9 +15,6 @@ const SOCKET_TIMEOUT_MS = 60_000;
  * dele o fim da mensagem (quase sempre anexo) não chega; o texto, que vem antes, chega inteiro.
  */
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
-
-/** O HTML acima disso não é convertido em texto — a conversão é a parte cara do parse. */
-const MAX_HTML_TO_TEXT = 2 * 1024 * 1024;
 
 const classify = (error: unknown, fallback: MailboxFailureReason): MailReadError => {
   if (error instanceof MailReadError) return error;
@@ -64,14 +60,6 @@ const envelopeOf = (message: FetchMessageObject): MailEnvelope => {
   };
 };
 
-const addressesOf = (value: AddressObject | AddressObject[] | undefined): EmailAddress[] =>
-  (Array.isArray(value) ? value : value ? [value] : [])
-    .flatMap((header) => header.value)
-    .flatMap((address) => (address.group ? address.group : [address]));
-
-const emailsOf = (value: AddressObject | AddressObject[] | undefined): string[] =>
-  addressesOf(value).map((address) => address.address ?? '').filter((address) => address !== '');
-
 class ImapReadSession implements MailReadSession {
   constructor(
     private readonly client: ImapFlow,
@@ -115,33 +103,7 @@ class ImapReadSession implements MailReadSession {
     }
     if (!source) throw new MailReadError('read', `message ${uid} has no content`);
 
-    const parsed = await simpleParser(source, {
-      skipImageLinks: true,
-      skipTextToHtml: true,
-      maxHtmlLengthToParse: MAX_HTML_TO_TEXT,
-    });
-    const sender = addressesOf(parsed.from)[0];
-    return {
-      messageId: parsed.messageId ?? '',
-      from: sender?.address ?? '',
-      fromName: sender?.name ?? '',
-      to: emailsOf(parsed.to),
-      cc: emailsOf(parsed.cc),
-      replyTo: emailsOf(parsed.replyTo)[0] ?? '',
-      subject: parsed.subject ?? '',
-      date: parsed.date ?? null,
-      text: parsed.text ?? '',
-      html: typeof parsed.html === 'string' ? parsed.html : '',
-      // A imagem embutida no corpo (a da assinatura) não é anexo para quem lê o e-mail, e não pode
-      // satisfazer um filtro "com anexo".
-      attachments: parsed.attachments
-        .filter((attachment) => !attachment.related)
-        .map((attachment) => ({
-          name: attachment.filename ?? '',
-          contentType: attachment.contentType,
-          size: attachment.size,
-        })),
-    };
+    return parseMailSource(source);
   }
 
   async close(): Promise<void> {

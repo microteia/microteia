@@ -79,7 +79,7 @@ export {
 export { onWorkflowEventCreated } from './infrastructure/handlers/onWorkflowEventCreated';
 export { syncWorkflowClock, runWorkflowClock, versionWorkflowDefinition, versionScript } from './infrastructure/handlers/workflowClock';
 export { onHttpDispatchWritten } from './infrastructure/handlers/httpDispatch';
-export { pollMailboxes, manageMailbox } from './infrastructure/handlers/mailboxes';
+export { pollMailboxes, manageMailbox, mailInbound } from './infrastructure/handlers/mailboxes';
 export { testHttpRequest } from './infrastructure/handlers/testHttpRequest';
 export { getWorkflowStepCatalog } from './infrastructure/handlers/getWorkflowStepCatalog';
 export { publishWorkflowEventOnEntityChange } from './infrastructure/handlers/publishWorkflowEventOnEntityChange';

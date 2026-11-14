@@ -14,9 +14,11 @@ import {
   MAILBOX_MAX_POLL_MINUTES,
   MAILBOX_MIN_POLL_MINUTES,
   MAIL_RECEIVED_EVENT,
+  isPolledMailbox,
   mailboxSettingsIssue,
 } from '../../../domain/schema/mailbox';
-import type { MailboxSettings, MailboxView } from '../../../domain/schema/mailbox';
+import type { MailboxSettings, MailboxSource, MailboxView } from '../../../domain/schema/mailbox';
+import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import { makeManageMailboxUseCase } from '../../../domain/usecases/mailboxes/ManageMailboxUseCase';
 import type { MultiSearchSelectOption } from '../../components/ui/MultiSearchSelect';
 
@@ -25,6 +27,7 @@ export type MailboxTone = 'ok' | 'failing' | 'pending' | 'off';
 
 export interface MailboxForm {
   name: string;
+  source: MailboxSource;
   host: string;
   port: string;
   secure: boolean;
@@ -41,7 +44,13 @@ export type MailboxTextField = 'name' | 'host' | 'port' | 'username' | 'folder' 
 
 export interface MailboxCard {
   mailbox: MailboxView;
+  /** A conta lida (IMAP) ou o endereço para onde encaminhar. */
   account: string;
+  /** O endereço, para copiar — só na caixa de encaminhamento. */
+  address: string | null;
+  /** A confirmação de encaminhamento pendente, já em frase. */
+  confirmation: { text: string; url: string } | null;
+  canTest: boolean;
   owner: string | null;
   tone: MailboxTone;
   status: string;
@@ -59,6 +68,9 @@ export interface MailboxesViewModel {
   sections: MailboxSection[];
   canManage: boolean;
   noSubscribableWorkflows: boolean;
+  forwardingAvailable: boolean;
+  sourceOptions: SearchSelectOption[];
+  isPolled: boolean;
   modalOpen: boolean;
   editing: MailboxView | null;
   form: MailboxForm;
@@ -71,6 +83,7 @@ export interface MailboxesViewModel {
   openEdit: (mailbox: MailboxView) => void;
   closeModal: () => void;
   setText: (field: MailboxTextField, value: string) => void;
+  setSource: (value: string) => void;
   setSecure: (value: boolean) => void;
   setEnabled: (value: boolean) => void;
   setSubscriptions: (values: string[]) => void;
@@ -83,6 +96,7 @@ export interface MailboxesViewModel {
 
 const EMPTY_FORM: MailboxForm = {
   name: '',
+  source: 'imap',
   host: '',
   port: String(EMPTY_MAILBOX_SETTINGS.imap.port),
   secure: EMPTY_MAILBOX_SETTINGS.imap.secure,
@@ -97,6 +111,7 @@ const EMPTY_FORM: MailboxForm = {
 
 const formOf = (mailbox: MailboxView): MailboxForm => ({
   name: mailbox.name,
+  source: mailbox.source,
   host: mailbox.imap.host,
   port: String(mailbox.imap.port),
   secure: mailbox.imap.secure,
@@ -111,7 +126,7 @@ const formOf = (mailbox: MailboxView): MailboxForm => ({
 
 const settingsOf = (form: MailboxForm): MailboxSettings => ({
   name: form.name.trim(),
-  source: 'imap',
+  source: form.source,
   imap: {
     host: form.host.trim(),
     port: Number(form.port),
@@ -141,6 +156,7 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
   const canManage = can(PERMISSION_MAILBOXES_MANAGE);
 
   const [mailboxes, setMailboxes] = useState<MailboxView[]>([]);
+  const [forwardingAvailable, setForwardingAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<MailboxView | null>(null);
@@ -163,7 +179,11 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
     if (!tenantId) return;
     let cancelled = false;
     uc.list(tenantId)
-      .then((loaded) => { if (!cancelled) setMailboxes(loaded); })
+      .then((loaded) => {
+        if (cancelled) return;
+        setMailboxes(loaded.mailboxes);
+        setForwardingAvailable(loaded.forwardingAvailable);
+      })
       .catch((error) => { if (!cancelled) fail(error); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -185,17 +205,34 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
 
   const cardOf = useCallback((mailbox: MailboxView): MailboxCard => {
     const failure = mailbox.health.failure;
+    const polled = isPolledMailbox(mailbox.source);
     const tone: MailboxTone = !mailbox.enabled ? 'off' : failure ? 'failing' : mailbox.health.lastPolledAt ? 'ok' : 'pending';
+    const lastAt = mailbox.health.lastPolledAt ? formatDateTime(mailbox.health.lastPolledAt) : '';
     const status = tone === 'off'
       ? t('mailbox.status.off')
       : failure
         ? label(`@core.automation/mailbox.failure.${failure.reason}`, { name: mailbox.name, detail: failure.message })
-        : mailbox.health.lastPolledAt
-          ? t('mailbox.status.ok', { when: formatDateTime(mailbox.health.lastPolledAt), count: String(mailbox.health.lastDelivered) })
-          : t('mailbox.status.pending');
+        : !mailbox.health.lastPolledAt
+          ? t(polled ? 'mailbox.status.pending' : 'mailbox.status.forward-pending')
+          : polled
+            ? t('mailbox.status.ok', { when: lastAt, count: String(mailbox.health.lastDelivered) })
+            : t('mailbox.status.forward-ok', { when: lastAt });
+    const pending = mailbox.forwardingConfirmation;
     return {
       mailbox,
-      account: `${mailbox.imap.username} · ${mailbox.imap.host} · ${mailbox.imap.folder}`,
+      account: polled
+        ? `${mailbox.imap.username} · ${mailbox.imap.host} · ${mailbox.imap.folder}`
+        : mailbox.address ?? t('mailbox.forward.unavailable'),
+      address: polled ? null : mailbox.address,
+      confirmation: pending
+        ? {
+            text: pending.code
+              ? t('mailbox.forward.confirmation', { code: pending.code })
+              : t('mailbox.forward.confirmation-link'),
+            url: pending.url,
+          }
+        : null,
+      canTest: polled,
       owner: mailbox.ownerName,
       tone,
       status,
@@ -217,12 +254,24 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
   }, [mailboxes, userId, canManage, cardOf, t]);
 
   const settings = useMemo(() => settingsOf(form), [form]);
+  const isPolled = isPolledMailbox(form.source);
   const found = useMemo(() => {
     const settingsIssue = mailboxSettingsIssue(settings);
     if (settingsIssue) return settingsIssue;
-    if (!editing && !form.password) return '@core.automation/mailbox.issue.password';
+    if (isPolled && !form.password && !editing?.hasPassword) return '@core.automation/mailbox.issue.password';
+    if (!isPolled && !forwardingAvailable) return '@core.automation/mailbox.issue.forwarding-unavailable';
     return null;
-  }, [settings, editing, form.password]);
+  }, [settings, editing, form.password, isPolled, forwardingAvailable]);
+
+  // A fonte de encaminhamento só é oferecida quando a instalação recebe e-mail; a caixa que já é de
+  // encaminhamento continua mostrando a dela, para a tela não mentir sobre o que está gravado.
+  const sourceOptions = useMemo<SearchSelectOption[]>(() => [
+    { value: 'imap', label: t('mailbox.source.imap') },
+    ...(forwardingAvailable || form.source === 'forward' ? [{ value: 'forward', label: t('mailbox.source.forward') }] : []),
+  ], [forwardingAvailable, form.source, t]);
+  const setSource = useCallback((value: string) => {
+    setForm((current) => ({ ...current, source: value === 'forward' ? 'forward' : 'imap' }));
+  }, []);
   const touched = form.name !== '' || form.host !== '' || editing !== null;
   const issue = found && touched
     ? label(found, { min: String(MAILBOX_MIN_POLL_MINUTES), max: String(MAILBOX_MAX_POLL_MINUTES) })
@@ -303,6 +352,9 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
     sections,
     canManage,
     noSubscribableWorkflows: !mailWorkflows.some((workflow) => workflow.subscribable === true),
+    forwardingAvailable,
+    sourceOptions,
+    isPolled,
     modalOpen,
     editing,
     form,
@@ -315,6 +367,7 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
     openEdit,
     closeModal,
     setText,
+    setSource,
     setSecure,
     setEnabled,
     setSubscriptions,

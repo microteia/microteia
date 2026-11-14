@@ -1,4 +1,4 @@
-import type { MailEventPayload, MailboxHealth, MailboxSettings } from '../schema/mailbox';
+import type { ForwardingConfirmation, MailEventPayload, MailboxHealth, MailboxSettings } from '../schema/mailbox';
 
 /**
  * Onde a leitura parou. `uidValidity` é o que o IMAP promete manter enquanto os UIDs valem: mudou, os
@@ -22,12 +22,16 @@ export interface StoredMailbox extends MailboxRef {
   cursor: MailboxCursor | null;
   nextPollAt: Date | null;
   health: MailboxHealth;
+  /** O código do endereço de encaminhamento — só na caixa `forward`. */
+  inboundToken: string | null;
+  forwardingConfirmation: ForwardingConfirmation | null;
 }
 
 /** O que uma leitura deixa gravado: onde parou, quando ler de novo, e como foi. */
 export interface MailboxPollOutcome {
   cursor: MailboxCursor | null;
-  nextPollAt: Date;
+  /** `null`: a caixa sai da fila de leitura (deixou de ser lida — virou de encaminhamento). */
+  nextPollAt: Date | null;
   health: MailboxHealth;
 }
 
@@ -57,6 +61,10 @@ export interface IMailboxRepository {
     now: Date;
   }): Promise<string>;
   remove(tenantId: string, id: string): Promise<void>;
+  /** A caixa de encaminhamento dona do código, em qualquer escritório. */
+  findByInboundToken(token: string): Promise<MailboxRef | null>;
+  /** O que o encaminhamento deixa na caixa: como foi a última entrega, ou a confirmação do Gmail. */
+  recordInbound(ref: MailboxRef, update: { health?: MailboxHealth; forwardingConfirmation?: ForwardingConfirmation | null }): Promise<void>;
   password(tenantId: string, id: string): Promise<string | null>;
   /** As caixas vencidas de TODOS os escritórios — uma consulta de grupo de coleção. */
   listDue(now: Date, limit: number): Promise<MailboxRef[]>;

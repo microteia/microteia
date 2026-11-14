@@ -55,3 +55,13 @@ describe('mail_messages', () => {
     }
   });
 });
+
+describe('mail_inbound_addresses', () => {
+  it('o índice de endereço de encaminhamento → caixa é só do servidor', async () => {
+    for (const uid of ['membro', 'gestor', 'dono']) {
+      const db = asUser(env, uid);
+      await assertFails(getDoc(doc(db, 'mail_inbound_addresses/abcdefghijklmnopqrstuvwx')));
+      await assertFails(setDoc(doc(db, 'mail_inbound_addresses/abcdefghijklmnopqrstuvwx'), { tenantId: TENANT, mailboxId: 'box' }));
+    }
+  });
+});

@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.263.0] — 2026-11-14
+
+- As caixas de e-mail ganharam uma segunda forma de receber: **encaminhar para um endereço da plataforma**. Ao salvar a caixa, ela recebe um endereço próprio; basta criar no seu e-mail uma regra de encaminhamento (por exemplo, só as mensagens do tribunal) apontando para ele. Não é preciso senha nenhuma, funciona com Gmail, Outlook ou qualquer outro serviço, e só chega o que a sua regra escolher enviar.
+- Quando o Gmail pede para confirmar o encaminhamento, o código e o link de confirmação aparecem na própria caixa, na tela "Caixas de e-mail".
+- O endereço de encaminhamento tem um botão de copiar, e a caixa mostra quando chegou o último e-mail.
+- Corrigido: e-mails institucionais com logotipo no corpo chegavam às automações sem o texto da mensagem.
+
 #### [9.262.1] — 2026-11-14
 
 - Atualização de segurança no envio de e-mails do escritório: o componente que entrega os avisos por e-mail foi trocado pela versão mais recente, que corrige falhas conhecidas.

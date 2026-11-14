@@ -65,8 +65,82 @@ export const MAIL_HTML_MAX_CHARS = 200_000;
 export const MAIL_FILTER_MAX_TERMS = 30;
 export const MAIL_FILTER_MAX_TERM_LENGTH = 200;
 
-export const MAILBOX_SOURCES = ['imap'] as const;
+/**
+ * De onde a caixa recebe:
+ * - `imap`: o kernel LÊ a caixa, de tempos em tempos, com uma senha de app;
+ * - `forward`: a pessoa ENCAMINHA para um endereço da instalação (uma regra no Gmail/Outlook), e o
+ *   provedor de recepção entrega a mensagem ao kernel. Nenhuma permissão sobre a caixa, nenhuma senha
+ *   guardada, qualquer provedor — e só chega o que a regra da pessoa escolheu encaminhar.
+ */
+export const MAILBOX_SOURCES = ['imap', 'forward'] as const;
 export type MailboxSource = typeof MAILBOX_SOURCES[number];
+
+/** A caixa que o kernel LÊ (e por isso tem prazo, ponto de leitura e senha). */
+export const isPolledMailbox = (source: MailboxSource): boolean => source === 'imap';
+
+/**
+ * O teto do que o provedor de recepção entrega por mensagem. É o corpo de UMA chamada HTTP, e o limite da
+ * plataforma é 32 MB: acima deste, a resposta é 413 e o provedor devolve a mensagem a quem encaminhou.
+ */
+export const MAIL_INBOUND_MAX_BYTES = 20 * 1024 * 1024;
+
+/**
+ * A folga da data ASSINADA pelo provedor. Fora dela a chamada é uma cópia velha e é recusada — a mesma
+ * conta do webhook (`WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS`).
+ */
+export const MAIL_INBOUND_TIMESTAMP_TOLERANCE_SECONDS = 300;
+
+/** Os cabeçalhos que o adaptador do provedor envia junto com a mensagem crua (RFC 822). */
+export const MAIL_INBOUND_HEADERS = {
+  /** O destinatário do ENVELOPE (`RCPT TO`) — o endereço da caixa. O `To:` da mensagem é o da pessoa. */
+  recipient: 'x-microteia-recipient',
+  /** Segundos desde 1970, assinados junto. */
+  timestamp: 'x-microteia-timestamp',
+  /** HMAC-SHA256 em hexadecimal de `<timestamp>.<recipient>.<corpo>`, com o segredo da instalação. */
+  signature: 'x-microteia-signature',
+} as const;
+
+/** O tamanho do código do endereço de encaminhamento: aleatório, e é ele que prova de qual caixa é a mensagem. */
+export const MAIL_INBOUND_TOKEN_LENGTH = 24;
+const INBOUND_TOKEN_PATTERN = new RegExp(`^[a-z0-9]{${MAIL_INBOUND_TOKEN_LENGTH}}$`);
+
+export const mailInboundAddress = (token: string, domain: string): string => `${token}@${domain}`;
+
+/**
+ * O código da caixa a partir do destinatário do envelope: `<código>@<domínio da instalação>`, com ou sem
+ * `+etiqueta`. `null` para qualquer outra coisa — inclusive um domínio que não é o da instalação.
+ */
+export const mailInboundTokenOf = (recipient: string, domain: string): string | null => {
+  const address = mailAddressOf(recipient);
+  const at = address.lastIndexOf('@');
+  if (at <= 0 || address.slice(at + 1) !== domain.trim().toLowerCase()) return null;
+  const token = address.slice(0, at).split('+')[0];
+  return INBOUND_TOKEN_PATTERN.test(token) ? token : null;
+};
+
+/**
+ * O Gmail só passa a encaminhar depois que o endereço de destino CONFIRMA — e quem recebe a confirmação é
+ * o próprio endereço da caixa. A mensagem é reconhecida aqui e o código e o link vão para a tela da caixa,
+ * em vez de virarem e-mail para automação.
+ */
+export const GMAIL_FORWARDING_SENDER = 'forwarding-noreply@google.com';
+
+export interface ForwardingConfirmation {
+  code: string;
+  url: string;
+  receivedAt: string;
+}
+
+export const forwardingConfirmationOf = (
+  message: { from: string; subject: string; text: string },
+  receivedAt: Date,
+): ForwardingConfirmation | null => {
+  if (mailAddressOf(message.from) !== GMAIL_FORWARDING_SENDER) return null;
+  const code = /\(#(\d{6,12})\)/.exec(message.subject)?.[1] ?? /\b(\d{8,12})\b/.exec(message.text)?.[1] ?? '';
+  const url = /https:\/\/mail(?:-settings)?\.google\.com\/[^\s"<>]+/.exec(message.text)?.[0] ?? '';
+  if (!code && !url) return null;
+  return { code, url, receivedAt: receivedAt.toISOString() };
+};
 
 /**
  * O que a automação quer receber. Entre as listas vale E; dentro de uma lista, OU. Lista vazia ou
@@ -136,6 +210,16 @@ export interface MailboxView extends MailboxSettings {
   hasPassword: boolean;
   nextPollAt: string | null;
   health: MailboxHealth;
+  /** O endereço para onde encaminhar — só na caixa `forward`, e só com a recepção configurada. */
+  address: string | null;
+  /** A confirmação de encaminhamento do Gmail que chegou e ainda não foi substituída por e-mail de verdade. */
+  forwardingConfirmation: ForwardingConfirmation | null;
+}
+
+/** O que a tela das caixas recebe: as caixas e se a instalação sabe receber por encaminhamento. */
+export interface MailboxListing {
+  mailboxes: MailboxView[];
+  forwardingAvailable: boolean;
 }
 
 const normalizeText = (value: string): string =>
@@ -253,6 +337,7 @@ const isPositiveInteger = (value: unknown): value is number => typeof value === 
 export const mailboxSettingsIssue = (settings: MailboxSettings): string | null => {
   if (!settings.name.trim()) return '@core.automation/mailbox.issue.name';
   if (!MAILBOX_SOURCES.includes(settings.source)) return '@core.automation/mailbox.issue.source';
+  if (!isPolledMailbox(settings.source)) return null;
   if (!settings.imap.host.trim() || /\s/.test(settings.imap.host.trim())) return '@core.automation/mailbox.issue.host';
   if (!isPositiveInteger(settings.imap.port) || settings.imap.port > 65535) return '@core.automation/mailbox.issue.port';
   if (!settings.imap.username.trim()) return '@core.automation/mailbox.issue.username';

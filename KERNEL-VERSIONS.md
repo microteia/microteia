@@ -18,6 +18,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.263.0] — 2026-11-14
+
+- feat(mail/forward): second mailbox source `forward`. Saving one generates a 24-char address code once (never rotated — it would break the person's forwarding rule), indexed at root `mail_inbound_addresses/{code}` → `{tenantId, mailboxId}` in the same transaction. Forward mailboxes have no password, no connection test and `nextPollAt: null` (out of the poll queue); a mailbox switched from IMAP to forward leaves the queue on its next release.
+- feat(functions/mail): `mailInbound` (`onRequest`, 120 s, 1 GiB) takes the raw RFC 822 message from any inbound provider adapter with `x-microteia-recipient` (envelope recipient), `x-microteia-timestamp` and `x-microteia-signature` = hex HMAC-SHA256 of `<timestamp>.<recipient>.<body>` (5 min tolerance). 401 bad/stale signature, 413 above 20 MB, 404 when not configured, 202 for every signed message (unknown recipients included — no address enumeration, no endless retries), 500 on internal error (retry-safe through the `mail_messages` mark; messages without `Message-ID` are keyed by the body hash).
+- feat(functions/mail): optional installation parameters `MAIL_INBOUND_DOMAIN` and `MAIL_INBOUND_SECRET` (`functions/.env.example`); `manageMailbox list` now returns `{ mailboxes, forwardingAvailable }` and each view carries `address` and `forwardingConfirmation`.
+- feat(mail/forward): Gmail's forwarding confirmation (`forwarding-noreply@google.com`) is recognised and stored on the mailbox (code from the subject, link from the body) instead of reaching any workflow; the first real message clears it.
+- refactor(functions/mail): IMAP and forward share `parseMailSource` (`data/services/mailParsing.ts`) and `deliverParsedMail`, so the same message yields the same payload, mark and recipients whichever way it arrived.
+- fix(functions/mail): `mailparser` only derives `text` from top-level HTML; inside `multipart/related` (any e-mail with an inline logo) `event.text` was empty. It now falls back to `html-to-text` (direct dependency, same version mailparser uses).
+- chore(locale-pt-br): 1.213.0. Console 2.43.2 documents the `mail-inbound` prerequisite.
+
 #### [9.262.1] — 2026-11-14
 
 - fix(deps/functions): `nodemailer` 7.0.13 → 10.5.0 for the office SMTP transport (`SmtpEmailTransport`). Every 7.x release is affected by published advisories — SMTP command and header injection via CRLF, address-parser denial of service, allow-list bypass of recipient domains, and TLS servername reuse across pooled transports. Version 10 ships its own type declarations, so `@types/nodemailer` is gone. The transport options and the `List-Unsubscribe` header are unchanged.

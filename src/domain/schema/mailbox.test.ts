@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   EMPTY_MAILBOX_SETTINGS,
   MAIL_FILTER_MAX_TERMS,
+  forwardingConfirmationOf,
+  mailInboundTokenOf,
   hasMailFilter,
   mailAddressOf,
   mailFilterIssue,
@@ -119,5 +121,37 @@ describe('mailboxSettingsIssue', () => {
     expect(mailboxSettingsIssue({ ...valid, imap: { ...valid.imap, username: '' } })).toBe('@core.automation/mailbox.issue.username');
     expect(mailboxSettingsIssue({ ...valid, pollEveryMinutes: 1 })).toBe('@core.automation/mailbox.issue.interval');
     expect(mailboxSettingsIssue({ ...valid, pollEveryMinutes: 7.5 })).toBe('@core.automation/mailbox.issue.interval');
+  });
+});
+
+describe('encaminhamento — endereço e confirmação', () => {
+  const token = 'abcdefghijklmnopqrstuvwx';
+
+  it('lê o código do destinatário do envelope, com ou sem etiqueta, só no domínio da instalação', () => {
+    expect(mailInboundTokenOf(`${token}@in.example.com`, 'in.example.com')).toBe(token);
+    expect(mailInboundTokenOf(`<${token.toUpperCase()}+gmail@IN.example.com>`, 'in.example.com')).toBe(token);
+    expect(mailInboundTokenOf(`${token}@outro.com`, 'in.example.com')).toBeNull();
+    expect(mailInboundTokenOf('curto@in.example.com', 'in.example.com')).toBeNull();
+  });
+
+  it('reconhece a confirmação de encaminhamento do Gmail, com o código e o link', () => {
+    const confirmation = forwardingConfirmationOf({
+      from: 'Equipe do Gmail <forwarding-noreply@google.com>',
+      subject: '(#123456789) Confirmação de encaminhamento do Gmail - Receber e-mails de pessoa@gmail.com',
+      text: 'Para permitir, clique em https://mail-settings.google.com/mail/vf-%5BABC%5D-xyz?param=1 e pronto.',
+    }, new Date('2026-11-14T10:00:00.000Z'));
+    expect(confirmation).toEqual({
+      code: '123456789',
+      url: 'https://mail-settings.google.com/mail/vf-%5BABC%5D-xyz?param=1',
+      receivedAt: '2026-11-14T10:00:00.000Z',
+    });
+  });
+
+  it('não confunde e-mail comum com a confirmação', () => {
+    expect(forwardingConfirmationOf({ from: 'a@tjba.jus.br', subject: '(#123456789)', text: '' }, new Date())).toBeNull();
+  });
+
+  it('a caixa de encaminhamento não cobra servidor, usuário nem intervalo', () => {
+    expect(mailboxSettingsIssue({ ...EMPTY_MAILBOX_SETTINGS, name: 'Intimações', source: 'forward' })).toBeNull();
   });
 });

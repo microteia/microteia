@@ -8,6 +8,8 @@ import { Checkbox } from '../../components/ui/Checkbox';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { Spinner } from '../../components/ui/Spinner';
 import { InfoBanner } from '../../components/ui/InfoBanner';
+import { SearchSelect } from '../../components/ui/SearchSelect';
+import { CopyButton } from '../../components/ui/CopyButton';
 import { useT } from '../../shared/i18n/useT';
 import { useMailboxesViewModel } from './Mailboxes.viewmodel';
 import { S } from './Mailboxes.styles';
@@ -45,22 +47,37 @@ export const MailboxesView: React.FC = () => {
                   <S.Dot $tone={card.tone} />
                   <S.CardBody>
                     <S.CardName>{card.mailbox.name}</S.CardName>
-                    <S.CardMeta>{card.account}</S.CardMeta>
+                    <S.AddressRow>
+                      <S.CardMeta>{card.account}</S.CardMeta>
+                      {card.address && <CopyButton text={card.address} size={14} />}
+                    </S.AddressRow>
                     {card.owner && <S.CardMeta>{t('mailbox.owner', { name: card.owner })}</S.CardMeta>}
                     <S.CardMeta>{t('mailbox.feeds', { workflows: card.subscriptions })}</S.CardMeta>
                     <S.CardStatus $tone={card.tone}>{card.status}</S.CardStatus>
+                    {card.confirmation && (
+                      <S.Confirmation>
+                        {card.confirmation.text}
+                        {card.confirmation.url && (
+                          <S.ConfirmationLink href={card.confirmation.url} target="_blank" rel="noopener noreferrer">
+                            {t('mailbox.forward.confirmation-open')}
+                          </S.ConfirmationLink>
+                        )}
+                      </S.Confirmation>
+                    )}
                   </S.CardBody>
                   <S.Actions>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void vm.test(card.mailbox)}
-                      disabled={vm.testingId !== null}
-                      $isLoading={vm.testingId === card.mailbox.id}
-                      title={t('mailbox.test')}
-                    >
-                      <RiPlugLine size={16} />
-                    </Button>
+                    {card.canTest && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void vm.test(card.mailbox)}
+                        disabled={vm.testingId !== null}
+                        $isLoading={vm.testingId === card.mailbox.id}
+                        title={t('mailbox.test')}
+                      >
+                        <RiPlugLine size={16} />
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => vm.openEdit(card.mailbox)} title={t('core.ui/action.edit')}>
                       <RiEditLine size={16} />
                     </Button>
@@ -83,52 +100,61 @@ export const MailboxesView: React.FC = () => {
               <Input id="mailbox-name" value={vm.form.name} onChange={(event) => vm.setText('name', event.target.value)} />
             </S.Field>
 
-            <S.Grid>
-              <S.Field>
-                <S.Label htmlFor="mailbox-host">{t('mailbox.field.host')}</S.Label>
-                <Input id="mailbox-host" value={vm.form.host} onChange={(event) => vm.setText('host', event.target.value)} />
-                <S.Hint>{t('mailbox.field.host.hint')}</S.Hint>
-              </S.Field>
-              <S.Field>
-                <S.Label htmlFor="mailbox-port">{t('mailbox.field.port')}</S.Label>
-                <Input id="mailbox-port" type="number" value={vm.form.port} onChange={(event) => vm.setText('port', event.target.value)} />
-                <Checkbox checked={vm.form.secure} onChange={vm.setSecure} label={t('mailbox.field.secure')} />
-              </S.Field>
-              <S.Field>
-                <S.Label htmlFor="mailbox-username">{t('mailbox.field.username')}</S.Label>
-                <Input
-                  id="mailbox-username"
-                  autoComplete="off"
-                  value={vm.form.username}
-                  onChange={(event) => vm.setText('username', event.target.value)}
-                />
-              </S.Field>
-              <S.Field>
-                <S.Label htmlFor="mailbox-password">{t('mailbox.field.password')}</S.Label>
-                <Input
-                  id="mailbox-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={vm.form.password}
-                  onChange={(event) => vm.setText('password', event.target.value)}
-                  placeholder={vm.editing?.hasPassword ? t('mailbox.field.password.kept') : ''}
-                />
-                <S.Hint>{t('mailbox.field.password.hint')}</S.Hint>
-              </S.Field>
-              <S.Field>
-                <S.Label htmlFor="mailbox-folder">{t('mailbox.field.folder')}</S.Label>
-                <Input id="mailbox-folder" value={vm.form.folder} onChange={(event) => vm.setText('folder', event.target.value)} />
-              </S.Field>
-              <S.Field>
-                <S.Label htmlFor="mailbox-interval">{t('mailbox.field.interval')}</S.Label>
-                <Input
-                  id="mailbox-interval"
-                  type="number"
-                  value={vm.form.pollEveryMinutes}
-                  onChange={(event) => vm.setText('pollEveryMinutes', event.target.value)}
-                />
-              </S.Field>
-            </S.Grid>
+            <S.Field>
+              <S.Label>{t('mailbox.field.source')}</S.Label>
+              <SearchSelect options={vm.sourceOptions} value={vm.form.source} onChange={vm.setSource} />
+              <S.Hint>{t(vm.isPolled ? 'mailbox.source.imap.hint' : 'mailbox.source.forward.hint')}</S.Hint>
+              {!vm.forwardingAvailable && <S.Hint>{t('mailbox.source.forward.unavailable')}</S.Hint>}
+            </S.Field>
+
+            {vm.isPolled && (
+              <S.Grid>
+                <S.Field>
+                  <S.Label htmlFor="mailbox-host">{t('mailbox.field.host')}</S.Label>
+                  <Input id="mailbox-host" value={vm.form.host} onChange={(event) => vm.setText('host', event.target.value)} />
+                  <S.Hint>{t('mailbox.field.host.hint')}</S.Hint>
+                </S.Field>
+                <S.Field>
+                  <S.Label htmlFor="mailbox-port">{t('mailbox.field.port')}</S.Label>
+                  <Input id="mailbox-port" type="number" value={vm.form.port} onChange={(event) => vm.setText('port', event.target.value)} />
+                  <Checkbox checked={vm.form.secure} onChange={vm.setSecure} label={t('mailbox.field.secure')} />
+                </S.Field>
+                <S.Field>
+                  <S.Label htmlFor="mailbox-username">{t('mailbox.field.username')}</S.Label>
+                  <Input
+                    id="mailbox-username"
+                    autoComplete="off"
+                    value={vm.form.username}
+                    onChange={(event) => vm.setText('username', event.target.value)}
+                  />
+                </S.Field>
+                <S.Field>
+                  <S.Label htmlFor="mailbox-password">{t('mailbox.field.password')}</S.Label>
+                  <Input
+                    id="mailbox-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={vm.form.password}
+                    onChange={(event) => vm.setText('password', event.target.value)}
+                    placeholder={vm.editing?.hasPassword ? t('mailbox.field.password.kept') : ''}
+                  />
+                  <S.Hint>{t('mailbox.field.password.hint')}</S.Hint>
+                </S.Field>
+                <S.Field>
+                  <S.Label htmlFor="mailbox-folder">{t('mailbox.field.folder')}</S.Label>
+                  <Input id="mailbox-folder" value={vm.form.folder} onChange={(event) => vm.setText('folder', event.target.value)} />
+                </S.Field>
+                <S.Field>
+                  <S.Label htmlFor="mailbox-interval">{t('mailbox.field.interval')}</S.Label>
+                  <Input
+                    id="mailbox-interval"
+                    type="number"
+                    value={vm.form.pollEveryMinutes}
+                    onChange={(event) => vm.setText('pollEveryMinutes', event.target.value)}
+                  />
+                </S.Field>
+              </S.Grid>
+            )}
 
             <S.Field>
               <S.Label>{t('mailbox.field.subscriptions')}</S.Label>
@@ -143,7 +169,7 @@ export const MailboxesView: React.FC = () => {
 
             <Checkbox checked={vm.form.enabled} onChange={vm.setEnabled} label={t('mailbox.field.enabled')} />
 
-            <InfoBanner variant="info" message={t('mailbox.privacy')} />
+            <InfoBanner variant="info" message={t(vm.isPolled ? 'mailbox.privacy' : 'mailbox.privacy.forward')} />
 
             {vm.issue && <S.Issue>{vm.issue}</S.Issue>}
 

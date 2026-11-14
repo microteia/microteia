@@ -35,6 +35,8 @@ const mailbox = (extra: Partial<StoredMailbox> = {}): StoredMailbox => ({
   cursor: { uidValidity: 'v1', lastUid: 10 },
   nextPollAt: NOW,
   health: { lastPolledAt: '2026-11-14T11:45:00.000Z', lastDeliveredAt: null, lastDelivered: 0, failure: null },
+  inboundToken: null,
+  forwardingConfirmation: null,
   ...extra,
 });
 
@@ -156,7 +158,7 @@ describe('pollMailbox', () => {
     expect(delivered[0].key).toBe(key);
     expect(delivered[0].events[0].id).toBe(mailEventId(key, 'court'));
     expect(result.outcome.cursor).toEqual({ uidValidity: 'v1', lastUid: 13 });
-    expect(result.outcome.nextPollAt.getTime()).toBe(NOW.getTime() + 15 * 60_000);
+    expect(result.outcome.nextPollAt?.getTime()).toBe(NOW.getTime() + 15 * 60_000);
   });
 
   it('pede ao servidor só a dimensão que todas as automações restringem', async () => {
@@ -227,6 +229,14 @@ describe('pollMailbox', () => {
     const result = await pollMailbox(mailbox(), deps(async () => { throw new MailReadError('auth', 'invalid credentials'); }, [court]));
     expect(result.outcome.health.failure?.reason).toBe('auth');
     expect(result.outcome.cursor).toEqual({ uidValidity: 'v1', lastUid: 10 });
+  });
+
+  it('a caixa que virou de encaminhamento sai da fila de leitura sem conectar', async () => {
+    let opened = false;
+    const box = mailbox({ settings: { ...mailbox().settings, source: 'forward' } });
+    const result = await pollMailbox(box, { ...deps(fakeSession([]), [court]), reader: { open: async () => { opened = true; return fakeSession([]); } } });
+    expect(opened).toBe(false);
+    expect(result.outcome.nextPollAt).toBeNull();
   });
 
   it('caixa desligada não conecta e mantém o ponto', async () => {
