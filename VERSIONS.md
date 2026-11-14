@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.260.0] — 2026-11-13
+
+- Chegou a tela do **Assistente de IA**: um painel fixado à direita do espaço de trabalho, aberto pelo botão na barra do topo ou pelo atalho Ctrl+J (⌘J no Mac). Pergunte em linguagem comum: a resposta aparece enquanto é escrita, com listas, tabelas e links que abrem o registro citado.
+- Cada consulta que o assistente faz aparece como um cartão, com o que ele pesquisou e se deu certo. Quando ele quer alterar dados, mostra exatamente o que vai fazer e espera você aprovar ou recusar.
+- Suas conversas ficam guardadas: retome qualquer uma pela lista no topo do painel, renomeie ou exclua. O botão de parar interrompe uma resposta no meio, e os comandos /new, /compact e /help começam uma conversa nova, resumem a atual ou mostram a ajuda.
+- O painel pode ser alargado arrastando a borda e continua aberto enquanto você navega entre as abas.
+
 #### [9.259.0] — 2026-11-13
 
 - Nova extensão **Assistente de IA** no Marketplace: uma conversa com a conexão de IA do escritório que pesquisa registros, roda relatórios e, se o escritório permitir, cadastra e altera dados — sempre com as permissões de quem pergunta. As respostas chegam enquanto são escritas, e conversas longas são resumidas automaticamente para manter o custo sob controle.

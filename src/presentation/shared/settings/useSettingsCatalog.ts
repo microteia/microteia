@@ -104,7 +104,7 @@ const asWidgetMetadata = (metadata: Record<string, unknown>): UiWidgetMetadata |
  * e por isso passam pelo mesmo leitor. O que os separa é onde são renderizados, não o que declaram;
  * dois leitores idênticos só garantiriam que uma checagem nova entrasse em um deles.
  */
-const asSurfaceItem = (metadata: Record<string, unknown>): UiTabMetadata | null => {
+const asSurfaceItem = (metadata: Record<string, unknown>): (UiTabMetadata & Pick<UiSlotMetadata, 'requiresFunction'>) | null => {
   const { surface, key, title } = metadata;
   if (typeof surface !== 'string' || typeof key !== 'string' || typeof title !== 'string') return null;
   return {
@@ -116,6 +116,9 @@ const asSurfaceItem = (metadata: Record<string, unknown>): UiTabMetadata | null 
     defaultEnabled: typeof metadata.defaultEnabled === 'boolean' ? metadata.defaultEnabled : undefined,
     order: typeof metadata.order === 'number' ? metadata.order : undefined,
     requiredPermissions: asPermissionList(metadata.requiredPermissions),
+    requiresFunction: typeof metadata.requiresFunction === 'string' && metadata.requiresFunction
+      ? metadata.requiresFunction
+      : undefined,
   };
 };
 

@@ -111,16 +111,20 @@ describe('as regiões do shell', () => {
    * pela qual a extensão do Painel não declara widget nenhum. A lista é fechada de propósito — o
    * próximo trecho do núcleo tem de passar por aqui e explicar por que é capacidade, e não marca.
    */
-  it('só o sino vem ocupado pelo núcleo, e no plugin dono do passo que o alimenta', () => {
+  it('só o sino e o assistente vêm ocupados pelo núcleo, cada um no plugin dono do que o alimenta', () => {
     const { host } = loadedHost();
     const occupied = host.contributions.query(UI_SLOT_POINT).map((contribution) => ({
       pluginId: contribution.pluginId,
       surface: (contribution.metadata as { surface?: string }).surface,
       key: (contribution.metadata as { key?: string }).key,
     }));
-    expect(occupied).toEqual([
+    // O assistente é o segundo, e pelo mesmo critério: é capacidade do núcleo (coleção reservada,
+    // ferramentas do agente), e só aparece onde uma extensão instalada põe a function dele no ar.
+    expect(occupied).toHaveLength(2);
+    expect(occupied).toEqual(expect.arrayContaining([
       { pluginId: 'core.automation', surface: WORKSPACE_SLOT_SURFACES.topBarRight, key: 'notifications' },
-    ]);
+      { pluginId: 'core.assistant', surface: WORKSPACE_SLOT_SURFACES.dockRight, key: 'assistant' },
+    ]));
   });
 
   it('são um nome só, declarado num lugar só', () => {

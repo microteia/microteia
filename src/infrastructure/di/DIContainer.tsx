@@ -46,6 +46,7 @@ import { FirebaseDownloadRepository } from '../../data/repositories/FirebaseDown
 import { FirebasePortalRepository } from '../../data/repositories/FirebasePortalRepository';
 import { FirebaseRoleRepository } from '../../data/repositories/FirebaseRoleRepository';
 import { FirebaseAgentGrantRepository } from '../../data/repositories/FirebaseAgentGrantRepository';
+import { FirebaseAssistantRepository } from '../../data/repositories/FirebaseAssistantRepository';
 import { FirebaseAgentAuthRequestRepository } from '../../data/repositories/FirebaseAgentAuthRequestRepository';
 import { FirebaseTenantExtensionRepository } from '../../data/repositories/FirebaseTenantExtensionRepository';
 import { FirebaseInstalledExtensionRepository } from '../../data/repositories/FirebaseInstalledExtensionRepository';
@@ -116,6 +117,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     downloadRepository:       new FirebaseDownloadRepository(),
     roleRepository:           new FirebaseRoleRepository(),
     agentGrantRepository:     new FirebaseAgentGrantRepository(),
+    assistantRepository:      new FirebaseAssistantRepository(),
     agentAuthRequestRepository: new FirebaseAgentAuthRequestRepository(),
     tenantExtensionRepository: new FirebaseTenantExtensionRepository(),
     installedExtensionRepository: new FirebaseInstalledExtensionRepository(),

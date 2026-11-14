@@ -28,16 +28,22 @@ export interface MarkdownContentProps {
    * externo. Ausente, o Markdown do escritório — com HTML, como o editor de notas o grava.
    */
   untrusted?: boolean;
+  /**
+   * Com `untrusted`: os links do PRÓPRIO app (`/microteia/...`) abrem a aba, como no Markdown do
+   * escritório. É o caso do texto escrito por uma IA para quem está dentro do escritório — o HTML e a
+   * imagem continuam barrados, mas o link para um registro é justamente o que a resposta quer dar.
+   */
+  internalLinks?: boolean;
 }
 
-export const MarkdownContent: React.FC<MarkdownContentProps> = ({ children, untrusted }) => (
+export const MarkdownContent: React.FC<MarkdownContentProps> = ({ children, untrusted, internalLinks }) => (
   untrusted ? (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       skipHtml
       disallowedElements={UNTRUSTED_DISALLOWED}
       unwrapDisallowed
-      components={untrustedComponents}
+      components={internalLinks ? components : untrustedComponents}
     >
       {children}
     </ReactMarkdown>

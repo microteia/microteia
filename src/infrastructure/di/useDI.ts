@@ -62,6 +62,7 @@ import type { IAppliedBackendRepository } from '../../domain/repositories/IAppli
 import type { IInstalledCatalogSourceRepository } from '../../domain/repositories/IInstalledCatalogSourceRepository';
 import type { IAgentAuthRequestRepository } from '../../domain/repositories/IAgentAuthRequestRepository';
 import type { IAgentGrantRepository } from '../../domain/repositories/IAgentGrantRepository';
+import type { IAssistantRepository } from '../../domain/repositories/IAssistantRepository';
 import type { IPortalRepository } from '../../domain/repositories/IPortalRepository';
 
 export interface DIContainer {
@@ -116,6 +117,7 @@ export interface DIContainer {
   downloadRepository: IDownloadRepository;
   roleRepository: IRoleRepository;
   agentGrantRepository: IAgentGrantRepository;
+  assistantRepository: IAssistantRepository;
   agentAuthRequestRepository: IAgentAuthRequestRepository;
   tenantExtensionRepository: ITenantExtensionRepository;
   installedExtensionRepository: IInstalledExtensionRepository;

@@ -12804,6 +12804,29 @@ Ajuste do escritório, declarado pela extensão: `confirm` (padrão), `auto` ou 
   primeiro — é o **primeiro índice declarado por uma extensão** (`manifest.backend.indexes` do
   `com.microteia.assistant`), e está também na raiz, como manda "Artefatos de backend por extensão".
 
+### O painel
+
+`core.assistant` contribui o trecho `assistant` em `dock.right`, com `requiredPermissions:
+['assistant.use']` e `requiresFunction: 'assistantChat'` — sem a extensão, nem o botão aparece. A View
+(`components/assistant/AssistantPanel`) é carregada sob demanda.
+
+- **Leitura:** `onSnapshot` das conversas da pessoa (`ownerId ==` + `updatedAt desc`, a consulta que a
+  regra exige) e das últimas mensagens da conversa aberta. **Escrita:** só pelas duas callables.
+- **O stream vira um RASCUNHO** (`assistantItems.ts`, puro e testado): o texto em segmentos, que ganham
+  o `seq` no pedaço `saved` e saem da tela quando o snapshot entrega aquela mensagem — sem isso, a
+  resposta piscaria entre o `saved` e o snapshot. Os pedaços de texto são agrupados por
+  `requestAnimationFrame`: a tela redesenha uma vez por quadro, não por token.
+- **A resposta é Markdown** pelo `MarkdownContent` em modo `untrusted` + `internalLinks`: sem HTML e
+  sem imagem (texto escrito por um modelo), mas com o link de registro do app abrindo a aba.
+- **Cada ferramenta é um cartão** recolhível com o rótulo traduzido (`core.assistant/tool.<nome>`), o
+  estado (em andamento, concluída, falhou, recusada, aguardando aprovação) e os argumentos.
+- **Aprovação:** com a conversa em `awaiting-approval`, o painel mostra as chamadas de escrita e os
+  botões Aprovar/Recusar, que mandam `approvals` numa chamada nova.
+- **Comandos de barra:** `/new` (e `/clear`), `/compact`, `/help` — tratados na tela; só o `/compact`
+  vai ao servidor (`command: 'compact'`).
+- **Parar** aborta o `AbortSignal` do `httpsCallable(...).stream()`; o segmento ainda aberto sai do
+  rascunho, porque o servidor o grava como interrompido e ele volta pelo snapshot.
+
 ### Quem é dono do quê
 
 | Peça | Dono | Por quê |
@@ -12826,6 +12849,8 @@ endpoint MCP no ar.
 | `functions/src/infrastructure/handlers/assistantChat.ts` | a callable com streaming |
 | `functions/src/infrastructure/handlers/assistantConversation.ts` | renomear e apagar |
 | `functions/src/data/repositories/FirebaseAssistantConversationRepository.ts` | a trava, as mensagens, a exclusão em cascata |
+| `presentation/components/assistant/` | o painel, o editor da pergunta, a mensagem e o rascunho do stream |
+| `presentation/components/layout/WorkspaceDock/` | o dock — a região `dock.right` |
 | `plugins/marketplace/assistant.ts` | a extensão — o interruptor |
 
 ---
@@ -15269,7 +15294,7 @@ situação só para filtrar, cópia do que a data já diz e que pode divergir de
 
 ### A região é um NOME, e os nomes moram numa constante
 
-`<SlotSurface surface="top-bar.right" />` renderiza o que estiver registrado naquele nome. Os seis
+`<SlotSurface surface="top-bar.right" />` renderiza o que estiver registrado naquele nome. Os sete
 nomes vivem em `WORKSPACE_SLOT_SURFACES` (`domain/schema/ui/uiExtensionPoints.ts`), e não soltos em
 cada componente, porque são **contrato**: é por esse nome que uma extensão alcança o alto da tela, e
 um nome digitado errado nos dois lados não falha em lugar nenhum — simplesmente não aparece.
@@ -15279,13 +15304,37 @@ um nome digitado errado nos dois lados não falha em lugar nenhum — simplesmen
 | `sidebar.header` / `sidebar.footer` | barra lateral, abaixo do logotipo e acima do usuário |
 | `top-bar.left` / `top-bar.right` | barra do alto, ao lado do escritório e dos atalhos com selo |
 | `status-bar.left` / `status-bar.right` | barra de status, ao lado do plano e da versão |
+| `dock.right` | o **dock**: painel fixado à direita das abas, um trecho por vez, na altura toda |
 
 **Região vazia não desenha nada — nem um espaço.** É a regra, não a exceção: quase toda instalação
 não contribui trecho nenhum, e um vazio visível somaria seis buracos ao shell de todo mundo.
 
-**O núcleo declara as seis e não ocupa nenhuma** (há teste). Um trecho nosso ali seria vocabulário
-nosso no shell de todo escritório — a mesma razão pela qual a extensão do Painel não declara widget
-algum.
+**O núcleo ocupa só duas** (há teste, com a lista fechada): o sino (`core.automation`, em
+`top-bar.right`) e o assistente de IA (`core.assistant`, em `dock.right`). Um trecho nosso a mais seria
+vocabulário nosso no shell de todo escritório — a mesma razão pela qual a extensão do Painel não
+declara widget algum —, e os dois que existem são capacidade do núcleo que só aparece onde há o que
+mostrar.
+
+### O dock (`dock.right`) — kernel 2.129.0
+
+As outras regiões desenham uma FILEIRA de trechos pequenos; o dock mostra **um trecho por vez, na
+altura toda**, à direita das abas (`WorkspaceDock`, depois de `WorkspaceArea` no `WorkspaceShell`). É o
+lugar do que acompanha o trabalho em vez de ser o trabalho: uma conversa, notas, ajuda.
+
+- **Não é um ponto de extensão novo.** É `ui.slot` com a superfície `dock.right` — o trecho já declara
+  título, ícone, ordem e permissão, e já resolve código, fonte de extensão e Widget DSL. Um ponto
+  `ui.dock` repetiria tudo isso para acrescentar nada.
+- **O shell põe um botão por painel** na barra do topo (`WorkspaceDockToggles`), e `⌘J`/`Ctrl+J`
+  alterna o último usado (`WorkspaceDockProvider`, no molde do `⌘K` da paleta). Com mais de um painel,
+  o cabeçalho do dock vira uma faixa de abas.
+- **Depois de aberto, o painel continua montado**, escondido quando o dock fecha (`everOpened`): uma
+  conversa em andamento não pode morrer porque alguém fechou o painel. A largura (arrastável, de 320 a
+  760 px) e o último painel ficam no navegador — conveniência de quem usa, não dado.
+- **`requiresFunction`** (novo em `UiSlotMetadata`, vale para QUALQUER região): o trecho só aparece quando
+  alguma extensão instalada reivindica aquela Cloud Function e o backend dela está no ar
+  (`backendFunctionAvailability`, a mesma conta que a aba de agentes fazia só para o `agentMcp`). Pelo
+  NOME da function, nunca pelo id da extensão. A filtragem — configuração, permissão e function — é
+  uma só (`useVisibleSlots`), usada pela fileira e pelo dock.
 
 ### Nada de mecanismo novo: a configuração é a que já existia
 

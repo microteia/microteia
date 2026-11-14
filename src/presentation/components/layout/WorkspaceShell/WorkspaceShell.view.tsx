@@ -9,6 +9,8 @@ import { TopBar } from '../TopBar';
 import { WorkspaceStatusBar } from '../WorkspaceStatusBar';
 import { CommandPalette } from '../../ui/CommandPalette';
 import { RecordDialogOutlet } from '../RecordDialogOutlet';
+import { WorkspaceDock } from '../WorkspaceDock';
+import { WorkspaceDockProvider } from '../../../../stores/WorkspaceDockContext';
 import { useWorkspaceShellViewModel } from './WorkspaceShell.viewmodel';
 import { S } from './WorkspaceShell.styles';
 
@@ -21,34 +23,38 @@ export const WorkspaceShell: React.FC = () => {
   const { initError } = useTenant();
 
   return (
-    <S.Shell>
-      <S.Root>
-        <WorkspaceSidebar />
+    <WorkspaceDockProvider>
+      <S.Shell>
+        <S.Root>
+          <WorkspaceSidebar />
 
-        <S.WorkspaceArea>
-          <TopBar />
-          {initError ? (
-            <S.ErrorBanner>
-              <S.ErrorTitle>{t('error.db-connect')}</S.ErrorTitle>
-              <S.ErrorDetail>
-                {initError.includes('permission') || initError.includes('insufficient')
-                  ? t('error.firestore-rules')
-                  : initError}
-              </S.ErrorDetail>
-            </S.ErrorBanner>
-          ) : (
-            <S.PanelArea>
-              <WorkspacePanelNode node={layout} />
-            </S.PanelArea>
-          )}
-        </S.WorkspaceArea>
+          <S.WorkspaceArea>
+            <TopBar />
+            {initError ? (
+              <S.ErrorBanner>
+                <S.ErrorTitle>{t('error.db-connect')}</S.ErrorTitle>
+                <S.ErrorDetail>
+                  {initError.includes('permission') || initError.includes('insufficient')
+                    ? t('error.firestore-rules')
+                    : initError}
+                </S.ErrorDetail>
+              </S.ErrorBanner>
+            ) : (
+              <S.PanelArea>
+                <WorkspacePanelNode node={layout} />
+              </S.PanelArea>
+            )}
+          </S.WorkspaceArea>
 
-        <NotificationBanner />
-        {isCommandPaletteOpen && <CommandPalette />}
-        <RecordDialogOutlet />
-      </S.Root>
+          <WorkspaceDock />
 
-      <WorkspaceStatusBar />
-    </S.Shell>
+          <NotificationBanner />
+          {isCommandPaletteOpen && <CommandPalette />}
+          <RecordDialogOutlet />
+        </S.Root>
+
+        <WorkspaceStatusBar />
+      </S.Shell>
+    </WorkspaceDockProvider>
   );
 };

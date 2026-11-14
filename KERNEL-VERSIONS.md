@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.260.0] — 2026-11-13
+
+- feat(ui/shell): new workspace region `dock.right` (`WORKSPACE_SLOT_SURFACES.dockRight`) — a panel pinned to the right of the tabs showing one slot at a time at full height (`WorkspaceDock`), with one toggle per panel in the top bar, `Cmd/Ctrl+J` to toggle the last one, drag-to-resize (320–760 px) and panels kept mounted after the first open. It is `ui.slot`, not a new extension point. KERNEL_VERSION 2.129.0.
+- feat(ui/slots): `UiSlotMetadata.requiresFunction` — a slot in any region appears only when an installed extension claims that Cloud Function and its backend is applied (`backendFunctionAvailability`, generalized from `agentAvailability`). Slot filtering (settings, permission, function) is a single `useVisibleSlots`.
+- feat(assistant): the assistant panel (`core.assistant` slot in `dock.right`, gated by `assistant.use` and `assistantChat`): conversation list and messages via `onSnapshot`, turns via `httpsCallable(...).stream()` with abort, a pure stream draft (`assistantItems.ts`) that keeps saved segments until the snapshot delivers them and batches text per animation frame, tool cards with translated labels and status, the approval card for `assistant.writeMode = confirm`, `/new` `/compact` `/help`, rename and delete.
+- feat(ui/markdown): `MarkdownContent` gains `internalLinks` for `untrusted` text — HTML and images stay blocked, links to the app (`/microteia/...`) open the tab. The assistant system prompt now links records as `/microteia/record:<collection>:<id>`.
+
 #### [9.259.0] — 2026-11-13
 
 - feat(functions/assistant): `assistantChat` streaming callable (`onCall` + `sendChunk`, 540 s) runs one question per call against the office default AI connection through `ai.chat`, using the agent tools in-process (`runAgentOperation`) with an `AgentSession` built from the Firebase login — `requirePermission(tenantId, auth, 'assistant.use')`, MFA included — instead of an agent token and an HTTP hop to `agentMcp`. Gated by `claimsFunction(tenantId, 'assistantChat')`.

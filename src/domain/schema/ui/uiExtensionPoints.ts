@@ -283,6 +283,14 @@ export interface UiSlotMetadata {
   order?: number;
   /** Ver `UiPageMetadata.requiredPermissions`. */
   requiredPermissions?: string[];
+  /**
+   * A Cloud Function sem a qual o trecho não tem o que fazer. Ele só aparece quando alguma extensão
+   * instalada a reivindica E o backend dela já está no ar — o mesmo critério da aba de agentes.
+   *
+   * Pelo NOME da function, e não pelo id da extensão: um trecho do núcleo que depende de um recurso
+   * ligado por extensão não pode nomear o pacote, e um pacote bifurcado continua funcionando.
+   */
+  requiresFunction?: string;
 }
 
 /**
@@ -340,6 +348,13 @@ export const WORKSPACE_SLOT_SURFACES = {
   topBarRight: 'top-bar.right',
   statusBarLeft: 'status-bar.left',
   statusBarRight: 'status-bar.right',
+  /**
+   * O painel FIXADO à direita do espaço de trabalho — ao lado das abas, não dentro delas. Ao contrário
+   * das outras regiões, que desenham uma fileira de trechos pequenos, esta mostra UM trecho por vez,
+   * na altura toda, e o shell põe um botão para cada um na barra do topo. É o lugar do que acompanha
+   * o trabalho em vez de ser o trabalho: uma conversa, notas, ajuda.
+   */
+  dockRight: 'dock.right',
 } as const;
 
 /**
