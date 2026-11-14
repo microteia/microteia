@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.264.4] — 2026-11-14
+
+- fix(sdk/build): the `required-unsent` action warning only fires for an action some screen of the package wires as a button (`cardActionIds` / `viewActionIds`, screen patches included). An action no screen lists is run from view code with `runAction({ params })`, where the required parameter arrives in `params`; it was reported as "every run is refused before the first step" for a button that does not exist. Authoring-only: `KERNEL_VERSION` unchanged.
+
 #### [9.264.3] — 2026-11-14
 
 - fix(console/provision): the installation-gate check accepts an extension id held in a same-file `const` (Console 2.43.4). No kernel change; the package is rebuilt so the history keeps one entry per package version.

@@ -25,6 +25,11 @@ import { packageText } from './messages';
  *
  * Só a ação que aponta para um fluxo DESTE pacote é conferida: o fluxo de outra extensão não está em
  * mãos, e o que não se lê não se afirma.
+ *
+ * `required-unsent` só vale para a ação que alguma tela do pacote põe como BOTÃO (`cardActionIds` /
+ * `viewActionIds`). A que nenhuma tela lista é chamada por código — `runAction({ params })` numa view —,
+ * e ali o parâmetro chega pelo `params`. Avisá-la acusava um botão que não existe: foi o caso do
+ * "Finalizar Todos" dos Pushes, que a listagem chama com a lista montada pelos filtros.
  */
 export type ActionReturnFindingKind = 'no-return' | 'defaults-without-prompt' | 'required-unsent';
 
@@ -52,6 +57,8 @@ export const actionReturnReport = (pkg: MarketplacePlugin): ActionReturnFinding[
   const describe = packageText(pkg);
   const workflows = new Map(pkg.workflows.map((workflow) => [workflow.templateId, workflow]));
   const findings: ActionReturnFinding[] = [];
+  const buttons = new Set([...(pkg.screens ?? []), ...(pkg.screenPatches ?? [])]
+    .flatMap((screen) => [...(screen.cardActionIds ?? []), ...(screen.viewActionIds ?? [])]));
 
   for (const action of pkg.actions ?? []) {
     if (action.command || !action.workflowId || parseArtifactRef(action.workflowId)) continue;
@@ -89,7 +96,7 @@ export const actionReturnReport = (pkg: MarketplacePlugin): ActionReturnFinding[
       .filter((parameter) => parameter.required && !system.has(parameter.key))
       .filter((parameter) => parameter.defaultValue === undefined || parameter.defaultValue === null || parameter.defaultValue === '')
       .map((parameter) => parameter.key);
-    if (unsent.length > 0) {
+    if (unsent.length > 0 && buttons.has(action.templateId)) {
       findings.push({
         ...head,
         kind: 'required-unsent',

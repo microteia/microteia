@@ -26,11 +26,16 @@ const button = (overrides: Partial<Action> = {}): Action => ({
   order: 0, enabled: true, danger: false, ...overrides,
 } as Action);
 
-const pkg = (workflow: Workflow, action: Action): MarketplacePlugin => ({
+/** A tela que põe a ação como botão — sem ela, a ação só é chamada por código. */
+const screen = (cardActionIds: string[]) =>
+  ({ key: 'items', cardActionIds }) as unknown as NonNullable<MarketplacePlugin['screens']>[number];
+
+const pkg = (workflow: Workflow, action: Action, wiredAs: string[] = [action.templateId]): MarketplacePlugin => ({
   summary: '',
   manifest: { id: 'com.example.approvals', version: '1.0.0', kernel: '^2.0.0', name: 'Approvals' },
   workflows: [workflow],
   actions: [action],
+  screens: [screen(wiredAs)],
 });
 
 describe('o contrato entre a action e o fluxo que ela dispara', () => {
@@ -63,6 +68,24 @@ describe('o contrato entre a action e o fluxo que ela dispara', () => {
     expect(findings.map((one) => one.kind)).toEqual(['required-unsent']);
     expect(findings[0].detail).toContain('"reason"');
     expect(findings[0].detail).not.toContain('"channel"');
+  });
+
+  /**
+   * A ação que nenhuma tela põe como botão é chamada por código, com `runAction({ params })` — o
+   * "Finalizar Todos" dos Pushes manda a lista que a listagem montou. Não há botão sem formulário ali.
+   */
+  it('a ação que nenhuma tela põe como botão não é acusada de não mandar o parâmetro', () => {
+    const parameters: Workflow['parameters'] = [{ key: 'items', label: 'Items', type: 'String', required: true }];
+    expect(actionReturnReport(pkg(flow([save, answer], parameters), button(), []))).toEqual([]);
+  });
+
+  it('a ação pendurada por um complemento de tela continua sendo botão', () => {
+    const parameters: Workflow['parameters'] = [{ key: 'items', label: 'Items', type: 'String', required: true }];
+    const plugin: MarketplacePlugin = {
+      ...pkg(flow([save, answer], parameters), button(), []),
+      screenPatches: [{ target: 'persons', fields: [], viewActionIds: ['act-approve'] }],
+    };
+    expect(actionReturnReport(plugin).map((one) => one.kind)).toEqual(['required-unsent']);
   });
 
   it('com promptParameters, os parâmetros são do formulário e não há o que avisar', () => {
