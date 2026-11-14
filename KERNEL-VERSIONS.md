@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.264.3] — 2026-11-14
+
+- fix(console/provision): the installation-gate check accepts an extension id held in a same-file `const` (Console 2.43.4). No kernel change; the package is rebuilt so the history keeps one entry per package version.
+
 #### [9.264.2] — 2026-11-14
 
 - fix(console/provision): the Console installs function dependencies before every provision deploy (Console 2.43.3). No kernel change; the package is rebuilt so the history keeps one entry per package version.

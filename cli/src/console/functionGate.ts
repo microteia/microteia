@@ -164,6 +164,56 @@ const callArguments = (source: string, open: number): string => {
   return source.slice(open + 1);
 };
 
+const IDENTIFIER = String.raw`[A-Za-z_$][\w$]*`;
+
+/** `$` é o único caractere de identificador que significa algo numa expressão regular. */
+const literally = (name: string): string => name.replace(/\$/g, '\\$');
+
+/**
+ * O valor de `const NOME = 'id'` naquele arquivo, ou `null` quando não há como afirmá-lo.
+ *
+ * Só `const`: um `let` pode ser reatribuído antes da chamada, e o valor lido aqui deixaria de ser o que
+ * a guarda recebe. Duas declarações com valores diferentes (escopos distintos) também são `null` — o
+ * texto não diz qual delas chega à chamada, e a verificação erra para o lado alto.
+ */
+const constantValue = (name: string, source: string): string | null => {
+  const values = new Set([...source.matchAll(new RegExp(
+    String.raw`\bconst\s+${literally(name)}\s*(?::[^=;\n]*)?=\s*['"]([^'"]*)['"]`,
+    'g',
+  ))].map((match) => match[1]));
+  return values.size === 1 ? [...values][0] : null;
+};
+
+/**
+ * O id que uma guarda recebeu: a string escrita ali, ou a constante que a guarda nomeia.
+ *
+ * A constante é a forma natural de quem escreve mais de um handler — `const PLUGIN_ID = '…'` no topo e
+ * `forInstalledExtension(PLUGIN_ID, …)` em cada um. Só a string era lida, e a Pushes do Tribunal, que
+ * tinha o portão, foi recusada no `provision` com "no installation gate".
+ *
+ * `unresolved` é o nome que não deu para resolver (importado de outro arquivo, por exemplo). A guarda
+ * continua sem id — um id que não se lê é um id que não se confere —, mas a mensagem passa a dizer a
+ * verdade: o portão existe, o que falta é poder ler o que ele recebe.
+ */
+interface GuardArgument {
+  id: string | null;
+  unresolved?: string;
+}
+
+const guardArgumentPattern = (guard: string): string =>
+  String.raw`\b${guard}\s*\(\s*(?:['"]([^'"]*)['"]|(${IDENTIFIER})\s*[,)])`;
+
+const guardArgument = (match: RegExpMatchArray | null, source: string): GuardArgument | null => {
+  if (match === null) return null;
+  if (match[1] !== undefined) return { id: match[1] };
+  const id = constantValue(match[2], source);
+  return id === null ? { id: null, unresolved: match[2] } : { id };
+};
+
+/** A guarda procurada no ARQUIVO inteiro — o alcance do laço por escritório e da guarda de callable. */
+const guardInFile = (guard: string, source: string): GuardArgument | null =>
+  guardArgument(source.match(new RegExp(guardArgumentPattern(guard))), source);
+
 /**
  * O id que o portão daquele gatilho recebeu, ou `null` quando não há portão.
  *
@@ -171,19 +221,39 @@ const callArguments = (source: string, open: number): string => {
  * `const gated = forInstalledExtension('id', handler)` ao lado é código correto e comum quando o handler
  * cresce. Recusá-lo seria a verificação errando contra quem fez certo.
  */
-const gatedFor = (args: string, source: string): string | null => {
-  const direct = args.match(new RegExp(String.raw`\b${GATE}\s*\(\s*['"]([^'"]*)['"]`));
-  if (direct !== null) return direct[1];
+const gatedFor = (args: string, source: string): GuardArgument | null => {
+  const direct = guardArgument(args.match(new RegExp(guardArgumentPattern(GATE))), source);
+  if (direct !== null) return direct;
 
-  for (const token of new Set(args.match(/[A-Za-z_$][\w$]*/g) ?? [])) {
-    const indirect = source.match(new RegExp(
-      String.raw`(?:const|let|var)\s+${token}\s*(?::[^=;\n]*)?=\s*${GATE}\s*\(\s*['"]([^'"]*)['"]`,
-    ));
-    if (indirect !== null) return indirect[1];
+  for (const token of new Set(args.match(new RegExp(IDENTIFIER, 'g')) ?? [])) {
+    const indirect = guardArgument(source.match(new RegExp(
+      String.raw`(?:const|let|var)\s+${literally(token)}\s*(?::[^=;\n]*)?=\s*${guardArgumentPattern(GATE)}`,
+    )), source);
+    if (indirect !== null) return indirect;
   }
 
   return null;
 };
+
+/** O que a declaração carrega sobre a guarda — o id lido e, quando não deu para ler, o nome passado. */
+const guardFields = (
+  guard: GuardArgument | null,
+): Pick<TriggerDeclaration, 'gatedFor' | 'unresolvedId'> => ({
+  gatedFor: guard?.id ?? null,
+  ...(guard?.unresolved !== undefined ? { unresolvedId: guard.unresolved } : {}),
+});
+
+const idsOf = (guard: GuardArgument | null): string[] =>
+  (guard === null || guard.id === null ? [] : [guard.id]);
+
+/**
+ * A recusa de uma guarda que EXISTE mas recebeu um nome sem valor legível. Dizer "no installation gate"
+ * a quem escreveu o portão é o que manda o autor procurar o defeito no lugar errado.
+ */
+const unreadableGuard = (label: string, name: string, guard: string, unresolved: string): string =>
+  `${label} passes ${unresolved} to ${guard} in "${name}", and its value cannot be read from this file — `
+  + `write the extension's id there as a string literal, or declare const ${unresolved} = '<id>' in the `
+  + 'same file. An id the Console cannot read is an id it cannot check, so the function is held back';
 
 /**
  * Todos os ids que as guardas daquele gatilho recebem.
@@ -197,10 +267,16 @@ const guardedIds = (args: string, source: string): string[] => {
 
   const any = args.match(new RegExp(String.raw`\b${ANY_GATE}\s*\(\s*\[([^\]]*)\]`));
   if (any !== null) {
-    for (const id of any[1].matchAll(/['"]([^'"]+)['"]/g)) found.add(id[1]);
+    for (const element of any[1].split(',').map((item) => item.trim())) {
+      const literal = element.match(/^['"]([^'"]+)['"]$/);
+      const id = literal !== null
+        ? literal[1]
+        : new RegExp(`^${IDENTIFIER}$`).test(element) ? constantValue(element, source) : null;
+      if (id !== null) found.add(id);
+    }
   }
 
-  const single = gatedFor(args, source);
+  const single = gatedFor(args, source)?.id ?? null;
   if (single !== null) found.add(single);
 
   return [...found];
@@ -213,6 +289,8 @@ export interface TriggerDeclaration {
   trigger: string;
   /** O id que `forInstalledExtension` recebeu, ou `null` quando o portão não está lá. */
   gatedFor: string | null;
+  /** O nome que a guarda recebeu e cujo valor não se lê neste arquivo — o portão existe, o id não. */
+  unresolvedId?: string;
   /** Todos os ids que as guardas daquele gatilho recebem — a comum guarda mais de um. */
   guards: string[];
 }
@@ -243,7 +321,7 @@ export const triggerDeclarations = (rawSource: string): TriggerDeclaration[] => 
     return {
       name: declaration.name,
       trigger: declaration.trigger,
-      gatedFor: gatedFor(args, source),
+      ...guardFields(gatedFor(args, source)),
       guards: guardedIds(args, source),
     };
   });
@@ -263,13 +341,13 @@ export const triggerDeclarations = (rawSource: string): TriggerDeclaration[] => 
  */
 export const unscopedDeclarations = (rawSource: string): TriggerDeclaration[] => {
   const source = withoutComments(rawSource);
-  const loop = source.match(new RegExp(String.raw`\b${OFFICE_LOOP}\s*\(\s*['"]([^'"]*)['"]`));
+  const loop = guardInFile(OFFICE_LOOP, source);
 
   return declarationsOf(source, UNSCOPED_TRIGGER_CONSTRUCTORS).map((declaration) => ({
     name: declaration.name,
     trigger: declaration.trigger,
-    gatedFor: loop === null ? null : loop[1],
-    guards: loop === null ? [] : [loop[1]],
+    ...guardFields(loop),
+    guards: idsOf(loop),
   }));
 };
 
@@ -282,13 +360,13 @@ export const unscopedDeclarations = (rawSource: string): TriggerDeclaration[] =>
  */
 export const callableDeclarations = (rawSource: string): TriggerDeclaration[] => {
   const source = withoutComments(rawSource);
-  const guard = source.match(new RegExp(String.raw`\b${CALLABLE_GUARD}\s*\(\s*['"]([^'"]*)['"]`));
+  const guard = guardInFile(CALLABLE_GUARD, source);
 
   return declarationsOf(source, ['onCall']).map((declaration) => ({
     name: declaration.name,
     trigger: declaration.trigger,
-    gatedFor: guard === null ? null : guard[1],
-    guards: guard === null ? [] : [guard[1]],
+    ...guardFields(guard),
+    guards: idsOf(guard),
   }));
 };
 
@@ -356,7 +434,9 @@ export const ungatedTriggerProblems = (subjects: GateSubject[]): GateProblem[] =
     .filter((trigger) => trigger.gatedFor === null)
     .map((trigger) => ({
       name: trigger.name,
-      message: `${subject.label} exports "${trigger.name}", a ${trigger.trigger} trigger with no `
+      message: trigger.unresolvedId !== undefined
+        ? unreadableGuard(subject.label, trigger.name, GATE, trigger.unresolvedId)
+        : `${subject.label} exports "${trigger.name}", a ${trigger.trigger} trigger with no `
         + `installation gate — wrap its handler in ${GATE}('<this extension's id>', …) or it fires for `
         + 'every office in the project, including the ones that never installed the extension',
     })));
@@ -376,7 +456,9 @@ export const unscopedTriggerProblems = (subjects: GateSubject[]): GateProblem[] 
     .filter((trigger) => trigger.gatedFor === null)
     .map((trigger) => ({
       name: trigger.name,
-      message: `${subject.label} exports "${trigger.name}", a ${trigger.trigger} function whose `
+      message: trigger.unresolvedId !== undefined
+        ? unreadableGuard(subject.label, trigger.name, OFFICE_LOOP, trigger.unresolvedId)
+        : `${subject.label} exports "${trigger.name}", a ${trigger.trigger} function whose `
         + `event carries no {tenantId} — ${GATE} cannot gate it (it fails closed, so the function would `
         + `never run at all). Loop with ${OFFICE_LOOP}('<this extension's id>', …) inside the handler, or `
         + 'it acts on every office in the project, including the ones that never installed the extension',
@@ -446,7 +528,9 @@ export const unguardedCallableProblems = (subjects: GateSubject[]): GateProblem[
     .filter((callable) => callable.gatedFor === null)
     .map((callable) => ({
       name: callable.name,
-      message: `${subject.label} exports "${callable.name}", a callable with no installation `
+      message: callable.unresolvedId !== undefined
+        ? unreadableGuard(subject.label, callable.name, CALLABLE_GUARD, callable.unresolvedId)
+        : `${subject.label} exports "${callable.name}", a callable with no installation `
         + `check — call ${CALLABLE_GUARD}('<this extension's id>', tenantId, request) before you read the `
         + 'payload. The deploy makes every callable publicly invocable, so it answers any signed-in user '
         + 'of this project, from any office, whether or not they installed the extension',

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.264.3] — 2026-11-14
+
+- Corrigido: uma extensão com funções de servidor corretamente protegidas podia ficar com o backend pendente para sempre, recusada por uma falha na conferência da instalação.
+
 #### [9.264.2] — 2026-11-14
 
 - Corrigido: ao atualizar a plataforma, publicar as funções das extensões falhava em todas elas quando a versão nova trazia um componente novo de servidor.

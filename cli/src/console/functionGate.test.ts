@@ -179,6 +179,59 @@ export const acmeOnSave = onDocumentWritten({ document: 'tenants/{tenantId}/x/{i
     expect(triggerDeclarations(source)[0].gatedFor).toBe('com.a.b');
   });
 
+  /**
+   * A forma em que a Pushes do Tribunal foi escrita, e recusada no `provision` com "no installation
+   * gate" — o portão estava lá, só que recebendo o id por uma constante.
+   */
+  it('lê o id passado por uma constante declarada no mesmo arquivo', () => {
+    const source = `const PLUGIN_ID = 'com.microteia.push';
+
+export const parsePushEmail = onDocumentCreated(
+  { document: 'tenants/{tenantId}/pushes/{pushId}' },
+  forInstalledExtension(PLUGIN_ID, async (event) => {}),
+);`;
+
+    expect(triggerDeclarations(source)).toEqual([
+      { name: 'parsePushEmail', trigger: 'onDocumentCreated', gatedFor: 'com.microteia.push', guards: ['com.microteia.push'] },
+    ]);
+  });
+
+  it('lê a constante também quando o portão está num identificador ao lado', () => {
+    const source = `export const PLUGIN_ID: string = "com.acme.crm";
+const gated = forInstalledExtension(PLUGIN_ID, async (event) => {});
+export const acmeOnSave = onDocumentWritten(o, gated);`;
+
+    expect(triggerDeclarations(source)[0].gatedFor).toBe('com.acme.crm');
+  });
+
+  /**
+   * O que não se lê não se confere — mas o portão EXISTE, e a declaração guarda o nome para que a
+   * mensagem diga isso em vez de acusar a falta dele.
+   */
+  it('não inventa id para a constante importada de outro arquivo, e guarda o nome dela', () => {
+    const source = `import { PLUGIN_ID } from './ids';
+export const x = onDocumentWritten(o, forInstalledExtension(PLUGIN_ID, h));`;
+
+    expect(triggerDeclarations(source)).toEqual([
+      { name: 'x', trigger: 'onDocumentWritten', gatedFor: null, unresolvedId: 'PLUGIN_ID', guards: [] },
+    ]);
+  });
+
+  it('não escolhe entre duas constantes de mesmo nome com valores diferentes', () => {
+    const source = `function a() { const ID = 'com.a.one'; }
+function b() { const ID = 'com.a.two'; }
+export const x = onDocumentWritten(o, forInstalledExtension(ID, h));`;
+
+    expect(triggerDeclarations(source)[0].gatedFor).toBeNull();
+  });
+
+  it('não aceita let, que pode ser reatribuído antes da chamada', () => {
+    const source = `let ID = 'com.a.b';
+export const x = onDocumentWritten(o, forInstalledExtension(ID, h));`;
+
+    expect(triggerDeclarations(source)[0].gatedFor).toBeNull();
+  });
+
   it('lê os dois gatilhos de um arquivo que declara dois', () => {
     const source = `export const first = onDocumentCreated(o, forInstalledExtension('com.a.b', h));
 export const second = onDocumentDeleted(o, h);`;
@@ -203,6 +256,21 @@ describe('o gatilho de extensão sem portão', () => {
 
   it('não reclama do que está com o portão', () => {
     expect(ungatedTriggerProblems([subject({ triggers: [trigger()] })])).toEqual([]);
+  });
+
+  /**
+   * O portão está lá; o que falta é ler o id que ele recebe. Dizer "no installation gate" mandaria o
+   * autor procurar o defeito onde ele não está.
+   */
+  it('com o id ilegível, diz que o portão existe e o que fazer com o id', () => {
+    const problems = ungatedTriggerProblems([
+      subject({ triggers: [trigger({ gatedFor: null, unresolvedId: 'PLUGIN_ID', guards: [] })] }),
+    ]);
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0].message).toContain('passes PLUGIN_ID to forInstalledExtension in "acmeOnSave"');
+    expect(problems[0].message).toContain("const PLUGIN_ID = '<id>'");
+    expect(problems[0].message).not.toContain('no installation gate');
   });
 
   /**
@@ -325,6 +393,15 @@ describe('as functions sem escritório no evento', () => {
 
 export const acmeNightly = onSchedule({ schedule: 'every day 03:00' }, async () => {
   await syncOffice('x');
+});`;
+
+    expect(unscopedDeclarations(source)[0].gatedFor).toBe('com.acme.crm');
+  });
+
+  it('lê o laço que recebe o id por uma constante do arquivo', () => {
+    const source = `const PLUGIN_ID = 'com.acme.crm';
+export const acmeNightly = onSchedule(opts, async () => {
+  await forEachInstalledOffice(PLUGIN_ID, async (office) => { console.log(office); });
 });`;
 
     expect(unscopedDeclarations(source)[0].gatedFor).toBe('com.acme.crm');
@@ -483,6 +560,12 @@ describe('o gatilho da function comum que declara quem serve', () => {
     const source = "export const x = onDocumentWritten(o, forAnyInstalledExtension(['com.a.b', 'com.c.d'], h));";
     expect(triggerDeclarations(source)[0].guards).toEqual(['com.a.b', 'com.c.d']);
   });
+
+  it('lê na lista também os ids passados por constantes do arquivo', () => {
+    const source = `const CRM = 'com.a.b';
+export const x = onDocumentWritten(o, forAnyInstalledExtension([CRM, "com.c.d"], h));`;
+    expect(triggerDeclarations(source)[0].guards).toEqual(['com.a.b', 'com.c.d']);
+  });
 });
 
 /**
@@ -584,6 +667,15 @@ export const acmeQuote = onCall({ region: 'southamerica-east1', cors: true }, as
 };
 
 export const acmeQuote = onCall({ cors: true }, guarded);`;
+
+    expect(callableDeclarations(source)[0].gatedFor).toBe('com.acme.crm');
+  });
+
+  it('lê a guarda que recebe o id por uma constante do arquivo', () => {
+    const source = `const PLUGIN_ID = 'com.acme.crm';
+export const acmeQuote = onCall(opts, async (request) => {
+  await requireInstalledExtension(PLUGIN_ID, request.data.tenantId, request);
+});`;
 
     expect(callableDeclarations(source)[0].gatedFor).toBe('com.acme.crm');
   });
