@@ -335,7 +335,7 @@ and the built package can be validated in a second:
 \`create\` already generates \`<folder>/plugin.test.ts\`, which validates the *built* package with the
 platform's own validation. Extend it as the extension grows: a test per screen field that must stay
 translatable, per message key a view reads, per rule a function enforces. Pure logic you write for a
-view or a Cloud Function belongs in its own test.
+view, a script or a Cloud Function belongs in its own test.
 
 A test exists so the next change fails **here**, in a second, instead of in someone's organization.
 That is the whole reason this directory is TypeScript and not hand-written JSON.
@@ -398,7 +398,8 @@ time it keeps state of its own or derives a value.
 Whatever can be **wrong** — a sort order, a total, a window of dates, which records count — goes in a
 file of its own in the list, importing nothing, with a test beside it. A Cloud Function divides the same
 way: the handler refuses the unauthenticated call and shapes the answer, and the decision it exists to
-make sits in a plain function \`npm test\` can call. Logic reachable only by rendering a component or by
+make sits in a plain function \`npm test\` can call. So does a sandbox script: the rule goes in a file
+that uses no sandbox global, and \`sourceFile\` lists it before the file that calls \`main()\`. Logic reachable only by rendering a component or by
 deploying a function is logic first tried in someone's organization. \`AUTHORING.md\` §7 has the shapes.
 
 **Code does not run until a human trusts it.** A package carrying \`views\` or \`startup\` installs

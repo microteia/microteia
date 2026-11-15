@@ -2635,7 +2635,7 @@ migrations: [{
   id: 'fill-invoice-number',       // permanent identity — this, not the version, is what is recorded as applied
   version: '1.2.0',
   name: label('migration.fill-number'),
-  sourceTs: MIGRATION_SOURCE,      // TypeScript with no import/export/require
+  sourceFile: './scripts/fill-invoice-number.migration.ts',   // or a list, merged as in §10
   phase: 'after',                  // 'before' only when the old field must still exist
   runOnInstall: false,
   required: true,
@@ -3949,8 +3949,10 @@ they return.
 
 ### Scripts
 
-A script is TypeScript with **no \`import\`, \`export\` or \`require\`**, running in a QuickJS sandbox on
-the server. The convention is a \`main\` that returns the outputs:
+A script is TypeScript running in a QuickJS sandbox on the server, and the sandbox resolves **no
+module**: what reaches it has no \`import\`, \`export\` or \`require\` (the words in a comment or a string
+are fine). You may still write it in several files — see "A script in several files" below. The
+convention is a \`main\` that returns the outputs:
 
 \`\`\`ts
 async function main() {
@@ -3980,7 +3982,7 @@ budget per run is **25 queries, 25 mutations and 10 seconds**; a script that nee
 Cloud Function (§14), not a script.
 
 Keep each script in a file of its own — \`<name>.script.ts\`, or \`<name>.migration.ts\` for a
-migration — and bring it into \`plugin.ts\` with \`?raw\`, as a view is. \`tsc\` checks it against
+migration — and point at it with \`sourceFile\`, as a view is. \`tsc\` checks it against
 \`microteia-sandbox.d.ts\`, which declares exactly the globals above: a misspelled \`query\` field, or
 \`query()\` read as an array, is a red line in the editor and not a failed run on the server.
 
@@ -3989,25 +3991,57 @@ migration — and bring it into \`plugin.ts\` with \`?raw\`, as a view is. \`tsc
 those documents directly — no scan, no index, no 300-record ceiling — and any other filter in the same
 \`where\` is checked against what was read. An id that does not exist is simply absent from \`results\`.
 
-**A script travels with both \`sourceTs\` and \`compiledJs\`,** and the compiler does not fill the second
-in for you: the sandbox never transpiles, on purpose. Produce it with the same transpiler the platform
-uses — \`sucrase\` is already a devDependency of this workspace:
+**A script travels with both \`sourceTs\` and \`compiledJs\`, and the compiler fills both** from
+\`sourceFile\`, with the platform's own transpiler — the sandbox never transpiles, on purpose. A script
+the transpiler would refuse when the organization saves it is refused by \`build\` instead:
 
 \`\`\`ts
-import { transpileScriptSource } from '@microteia/sdk/node';
-
-const source = /* your script, from a \`?raw\` import or a real file */;
-const compiled = transpileScriptSource(source);
-if ('error' in compiled) throw new Error(compiled.error);
-
 scripts: [{
   templateId: 'scr-close-invoices',
   name: label('script.close'),
-  sourceTs: source,
-  compiledJs: compiled.compiledJs,
+  sourceFile: './scripts/close-invoices.script.ts',
   inputParams: [], outputParams: [{ key: 'closed', label: label('script.closed'), type: 'Number' }],
 }]
 \`\`\`
+
+A migration is written the same way — \`sourceFile\` in place of \`sourceTs\` — and travels with
+\`sourceTs\` only, because the organization transpiles it when it runs.
+
+#### A script in several files
+
+Whatever can be **wrong** in a script — a reconciliation, a total, which records count — belongs in a
+file of its own that uses no sandbox global, with a test beside it, exactly like the rule of a view.
+\`sourceFile\` takes a list, and the compiler merges it into the one text the sandbox runs:
+
+\`\`\`ts
+// scripts/reconcile.ts — no sandbox global, so "npm test" can call it
+export function reconcile(expected: number, found: number): boolean { return expected === found; }
+
+// scripts/reconcile.test.ts
+it('accepts matching totals', () => expect(reconcile(3, 3)).toBe(true));
+
+// scripts/check.script.ts — the file that runs
+import { reconcile } from './reconcile';
+async function main() { return { ok: reconcile(Number(input.expected), Number(input.found)) }; }
+main()
+
+// plugin.ts
+scripts: [{ templateId: 'check', /* ... */ sourceFile: ['./scripts/reconcile.ts', './scripts/check.script.ts'] }]
+\`\`\`
+
+The merge drops the imports between listed files and the \`export\` in front of each declaration —
+both exist for \`tsc\` and for the test, not for the sandbox. Four rules, each refused by \`build\`:
+
+- **The file that calls \`main()\` goes last.** The text runs in list order, and a call placed before a
+  later file's \`const\` would reach it before it exists.
+- **Only listed files are imported.** An import of a package, or of a file left out of the list, is
+  refused: nothing would resolve it on the server. \`import type\` is fine — it vanishes.
+- **One scope.** A top-level name declared in two files of the list is refused; outside a module, a
+  second \`function\` of the same name would replace the first in silence.
+- **No \`export default\`.** A script exports nothing.
+
+The merged text — with a \`// --- <file> ---\` line where each file starts — is what the organization's
+administrator sees. \`examples/library-example\` is a script split exactly this way.
 
 Declaring \`outputParams\` is what lets later steps read the result by name.
 

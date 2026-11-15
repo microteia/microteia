@@ -67,6 +67,9 @@ const PUBLISHED = [
   'validateBackendRequirement', 'validateContribution', 'validateExtensionPoint',
   'validateMigrations', 'validatePackage', 'validatePermissions', 'validatePluginManifest',
   'validatePluginPackage', 'widgetChildren', 'widgetPage', 'mergeViewSources',
+  // A fusão de SCRIPT, irmã da de view. Não move o `KERNEL_VERSION`: o pacote instalado continua
+  // carregando um `sourceTs` por script — a lista existe só na autoria.
+  'mergeScriptSources',
   // RELATÓRIOS. Sai no barril inteiro porque o autor escreve o `ReportSpec` à mão e precisa do
   // vocabulário fechado (as dobras, os baldes, as marcas de gráfico) e do validador — o mesmo que o
   // portão do pacote roda. MOVE o `KERNEL_VERSION`: um ponto de extensão novo e um artefato novo no
@@ -176,7 +179,7 @@ const PUBLISHED_TYPES = [
   'AccessPermission', 'AccessRequirement', 'CatalogPermission', 'CrudAction', 'DeclaredPermission', 'DeclaredRequirement', 'ParsedAccessPermission', 'PermissionCatalog', 'PermissionResource', 'ResolvedPermissions', 'ResourceLabel',
   'ActionDefinition', 'ActionLocalCommand', 'ActionModuleTemplate', 'ActionOutcome', 'AggregationOp',
   'ArtifactRef',
-  'AuthoredPlugin',
+  'AuthoredMigration', 'AuthoredPlugin', 'AuthoredScript', 'AuthoredScriptCode',
   'AuthoredView', 'BackendPrerequisite', 'CapabilityProvision', 'CapabilityRequirement', 'Condition',
   'Contribution', 'CustomFieldMask', 'CustomFieldOption', 'CustomFieldType', 'CustomFieldValue',
   'DiagnosticCode',

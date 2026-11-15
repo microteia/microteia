@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.267.0] — 2026-11-15
+
+- feat(sdk): `scripts[]` and `migrations[]` accept `sourceFile` (a path or a list) and `sourceTs` as a list, merged by `mergeScriptParts` into the one text the sandbox runs. The merge drops imports between listed files and the `export` in front of declarations, refuses any other import (`import type` is erased), refuses `export default`, and refuses a top-level call (`main()`) outside the last file. Without it, the logic that can be wrong in a script had no way out to a pure file with a test beside it, which is what `AGENTS.md` asks for. `mergeScriptSources` joins the barrel for sources that arrive as text (`?raw`).
+- feat(sdk/compile): the compiler now fills a script's `compiledJs` with `transpileScriptSource`, and transpiles every migration at build time. A hand-written `compiledJs` is still accepted beside a single-text `sourceTs`, unchanged byte for byte; beside a merged or file source it is refused. A migration the organization would refuse when it runs is now refused by `build`.
+- fix(scripts): the module guard no longer matches the words `import`/`export` inside comments, strings, templates or regex literals (`domain/services/scriptModuleSyntax.ts`). It refused `// export the totals` or `log('import ok')` with "scripts cannot use import, export or require", leaving the author nothing to remove.
+- fix(sdk/merge): `function` declarations now count as top-level names in the collision check of both merges. Outside an ES module a second `function` of the same name silently replaces the first.
+- docs(sdk): AUTHORING.md §10 gains "A script in several files"; `library-example` 1.1.0 splits `normalize-code` into a pure rule with its test.
+- No `KERNEL_VERSION` change: the installed package still carries one `sourceTs` per script.
+
 #### [9.266.1] — 2026-11-15
 
 - feat(integrations): reference Cloudflare Email Worker for forwarded e-mail (`integrations/cloudflare-email-worker/worker.js`). Every `<NAME>_URL` + `<NAME>_SECRET` pair is an installation, tried in name order until one does not answer `unknown-recipient`; non-mailbox addresses go to `FALLBACK_TO` or are rejected; 413 rejects, 5xx throws so the sender retries. `scripts/cloudflareEmailWorker.test.ts` runs it and checks its signature with `inboundSignatureIssue` and its headers and address format against `MAIL_INBOUND_HEADERS` and `MAIL_INBOUND_TOKEN_LENGTH`, so the pasted copy cannot drift from `mailInbound`.
