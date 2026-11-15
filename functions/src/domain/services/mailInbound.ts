@@ -49,6 +49,7 @@ export interface ReceiveInboundDeps {
   ) => Promise<void>;
   parse: (raw: Buffer) => Promise<ParsedMail>;
   now: () => Date;
+  storeRaw?: (tenantId: string, key: string, raw: Buffer) => Promise<string>;
   officeValues?: (tenantId: string) => Promise<Record<string, unknown>>;
 }
 
@@ -82,7 +83,7 @@ export const receiveInboundMail = async (
     subscribedWorkflows(mailbox, await deps.mailWorkflows(mailbox.tenantId)),
     deps.officeValues,
   );
-  const result = await deliverParsedMail(mailbox, targets, mail, deps, {
+  const result = await deliverParsedMail(mailbox, targets, mail, input.raw, deps, {
     fallbackId: `raw:${createHash('sha256').update(input.raw).digest('hex')}`,
     source: { kind: 'forward', recipient: input.recipient },
   });

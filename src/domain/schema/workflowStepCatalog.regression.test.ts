@@ -40,6 +40,9 @@ const CONFERIDOS: Record<string, string> = {
   'wait-for': '197d258050dfe2',
   // 9.234.0: escrever um texto com a IA do escritório.
   'ai-generate': '14ad08654df165',
+  // 9.265.0: os passos de e-mail — salvar o anexo e buscar na caixa.
+  'save-mail-attachment': '1b45cb7334269f',
+  'mail-search': '1373c7d7ffa275',
 };
 
 /**

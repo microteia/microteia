@@ -1,7 +1,7 @@
 import { ImapFlow } from 'imapflow';
 import type { FetchMessageObject, ImapFlowError, MessageStructureObject, SearchObject } from 'imapflow';
 import { parseMailSource } from './mailParsing';
-import type { IMailReader, MailEnvelope, MailReadSession, ParsedMail } from '../../domain/repositories/IMailReader';
+import type { FetchedMail, IMailReader, MailEnvelope, MailReadSession } from '../../domain/repositories/IMailReader';
 import { MailReadError } from '../../domain/repositories/IMailReader';
 import { DEFAULT_IMAP_FOLDER } from '../../domain/schema/mailbox';
 import type { ImapSettings, MailServerPrefilter, MailboxFailureReason } from '../../domain/schema/mailbox';
@@ -51,11 +51,14 @@ const countNamedParts = (node: MessageStructureObject | undefined): number => {
 
 const envelopeOf = (message: FetchMessageObject): MailEnvelope => {
   const sender = message.envelope?.from?.[0];
+  const date = message.envelope?.date ? new Date(message.envelope.date) : null;
   return {
     uid: message.uid,
     messageId: message.envelope?.messageId ?? '',
     from: sender?.address ?? '',
+    fromName: sender?.name ?? '',
     subject: message.envelope?.subject ?? '',
+    date: date && !Number.isNaN(date.getTime()) ? date : null,
     attachmentCount: countNamedParts(message.bodyStructure),
   };
 };
@@ -77,10 +80,16 @@ class ImapReadSession implements MailReadSession {
     return this.list({ ...prefilterQuery(prefilter), since }, () => true, limit);
   }
 
-  private async list(query: SearchObject, keep: (uid: number) => boolean, limit: number): Promise<MailEnvelope[]> {
+  async listRecent(since: Date, prefilter: MailServerPrefilter, limit: number): Promise<MailEnvelope[]> {
+    const envelopes = await this.list({ ...prefilterQuery(prefilter), since }, () => true, limit, true);
+    return envelopes.reverse();
+  }
+
+  private async list(query: SearchObject, keep: (uid: number) => boolean, limit: number, newest = false): Promise<MailEnvelope[]> {
     let uids: number[];
     try {
-      uids = ((await this.client.search(query, { uid: true })) || []).filter(keep).sort((a, b) => a - b).slice(0, limit);
+      const found = ((await this.client.search(query, { uid: true })) || []).filter(keep).sort((a, b) => a - b);
+      uids = newest ? found.slice(-limit) : found.slice(0, limit);
     } catch (error) {
       throw classify(error, 'read');
     }
@@ -93,7 +102,7 @@ class ImapReadSession implements MailReadSession {
     }
   }
 
-  async fetch(uid: number): Promise<ParsedMail> {
+  async fetch(uid: number): Promise<FetchedMail> {
     let source: Buffer | undefined;
     try {
       const message = await this.client.fetchOne(String(uid), { uid: true, source: { maxLength: MAX_SOURCE_BYTES } }, { uid: true });
@@ -103,7 +112,7 @@ class ImapReadSession implements MailReadSession {
     }
     if (!source) throw new MailReadError('read', `message ${uid} has no content`);
 
-    return parseMailSource(source);
+    return { mail: await parseMailSource(source), raw: source };
   }
 
   async close(): Promise<void> {

@@ -10,6 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { WORKFLOW_AUDIT_EVENT } from './workflowAuditTrigger';
+import { MAIL_SEARCH_DEFAULT_DAYS, MAIL_SEARCH_MAX_RESULTS, MAIL_SEARCH_STEP_ID, SAVE_MAIL_ATTACHMENT_STEP_ID } from './mailbox';
 import { HTTP_REQUEST_STEP_ID } from './httpRequestSpec';
 import type { FieldRules } from './fieldRules';
 import { RUN_REPORT_STEP_ID } from './report/reportStep';
@@ -1438,6 +1439,137 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'matched', label: '@core.automation/step.share-documents.output.matched', type: 'Number' },
       { id: 'changed', label: '@core.automation/step.share-documents.output.changed', type: 'Number' },
       { id: 'shared', label: '@core.automation/step.share-documents.output.shared', type: 'Boolean' },
+    ],
+  },
+  {
+    /**
+     * Gravar na aba Documentos de um registro os anexos do e-mail que disparou a automação — tirados da
+     * mensagem GUARDADA na entrega (`.eml`, pelo prazo da marca), e não da caixa. Vale igual para IMAP e
+     * encaminhamento. Grava a cada execução, e por isso não é reexecutado em lote.
+     */
+    id: SAVE_MAIL_ATTACHMENT_STEP_ID,
+    version: 1,
+    name: '@core.automation/step.save-mail-attachment.name',
+    description: '@core.automation/step.save-mail-attachment.description',
+    icon: 'RiAttachment2',
+    category: 'Data',
+    type: 'Action',
+    configurable: true,
+    appendsEachRun: true,
+    inputs: [
+      {
+        id: 'message',
+        label: '@core.automation/step.save-mail-attachment.label.message',
+        description: '@core.automation/step.save-mail-attachment.help.message',
+        required: true,
+        type: 'String',
+        defaultValue: '',
+      },
+      {
+        id: 'collection',
+        label: '@core.automation/step.save-mail-attachment.label.collection',
+        required: true,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'documents-collection',
+      },
+      {
+        id: 'recordId',
+        label: '@core.automation/step.save-mail-attachment.label.record',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'nameContains',
+        label: '@core.automation/step.save-mail-attachment.label.name-contains',
+        description: '@core.automation/step.save-mail-attachment.help.name-contains',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'contentType',
+        label: '@core.automation/step.save-mail-attachment.label.content-type',
+        description: '@core.automation/step.save-mail-attachment.help.content-type',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'documentType',
+        label: '@core.automation/step.save-mail-attachment.label.document-type',
+        required: false,
+        type: 'String',
+        options: { kind: 'Lookup', lookup: 'documentTypes' },
+      },
+    ],
+    outputDefinitions: [
+      { id: 'count', label: '@core.automation/step.save-mail-attachment.output.count', type: 'Number' },
+      { id: 'documents', label: '@core.automation/step.save-mail-attachment.output.documents', type: 'String' },
+      { id: 'tooLarge', label: '@core.automation/step.save-mail-attachment.output.too-large', type: 'String' },
+    ],
+  },
+  {
+    /**
+     * Consultar, sob demanda, uma caixa de e-mail lida por IMAP — as mensagens mais recentes por remetente,
+     * assunto e dias. Só a caixa do escritório, ou a de um membro que ele mesmo ligou a esta automação (a regra
+     * do gatilho). Buscar não é receber: o ponto de leitura não se move, e nada é marcado na caixa.
+     */
+    id: MAIL_SEARCH_STEP_ID,
+    version: 1,
+    name: '@core.automation/step.mail-search.name',
+    description: '@core.automation/step.mail-search.description',
+    icon: 'RiMailDownloadLine',
+    category: 'Integration',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'mailbox',
+        label: '@core.automation/step.mail-search.label.mailbox',
+        description: '@core.automation/step.mail-search.help.mailbox',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'from',
+        label: '@core.automation/step.mail-search.label.from',
+        description: '@core.automation/step.mail-search.help.from',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'subject',
+        label: '@core.automation/step.mail-search.label.subject',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'days',
+        label: '@core.automation/step.mail-search.label.days',
+        required: false,
+        type: 'Number',
+        defaultValue: MAIL_SEARCH_DEFAULT_DAYS,
+      },
+      {
+        id: 'limit',
+        label: '@core.automation/step.mail-search.label.limit',
+        description: '@core.automation/step.mail-search.help.limit',
+        required: false,
+        type: 'Number',
+        defaultValue: MAIL_SEARCH_MAX_RESULTS,
+      },
+      {
+        id: 'includeBody',
+        label: '@core.automation/step.mail-search.label.include-body',
+        description: '@core.automation/step.mail-search.help.include-body',
+        required: false,
+        type: 'Boolean',
+        defaultValue: false,
+      },
+    ],
+    outputDefinitions: [
+      { id: 'count', label: '@core.automation/step.mail-search.output.count', type: 'Number' },
+      { id: 'messages', label: '@core.automation/step.mail-search.output.messages', type: 'String' },
+      { id: 'first', label: '@core.automation/step.mail-search.output.first', type: 'String' },
     ],
   },
   {

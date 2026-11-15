@@ -1,6 +1,8 @@
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
+import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getDI } from '../di/container';
+import { getBucket } from '../firebase/initFirebase';
 import { grantedPermissions, requireAnyPermission } from './shared/requirePermission';
 import { PERMISSION_MAILBOXES_CONNECT, PERMISSION_MAILBOXES_MANAGE, grants } from '../../domain/schema/access';
 import {
@@ -9,8 +11,10 @@ import {
   MAILBOX_SOURCES,
   MAIL_INBOUND_HEADERS,
   MAIL_INBOUND_MAX_BYTES,
+  MAIL_MESSAGES_COLLECTION,
   MAIL_RECEIVED_EVENT,
   isPolledMailbox,
+  mailRawStoragePath,
   mailInboundAddress,
   mailboxSettingsIssue,
 } from '../../domain/schema/mailbox';
@@ -44,6 +48,7 @@ const roundDeps = (): MailboxRoundDeps => {
     deliver: (tenantId, delivery) => repository.deliver(tenantId, delivery),
     now: () => new Date(),
     officeValues: officeSettingValues,
+    storeRaw: (tenantId, key, raw) => di.getMailRawStore().save(tenantId, key, raw),
     listDue: (now, limit) => repository.listDue(now, limit),
     claim: (ref, now, leaseUntil) => repository.claim(ref, now, leaseUntil),
     release: (ref, outcome) => repository.release(ref, outcome),
@@ -304,12 +309,32 @@ export const mailInbound = onRequest(
           parse: parseMailSource,
           now: () => new Date(),
           officeValues: officeSettingValues,
+          storeRaw: (tenantId, key, raw) => di.getMailRawStore().save(tenantId, key, raw),
         },
       );
       response.status(202).json({ outcome });
     } catch (error) {
       console.error('[mail-inbound] Falha ao receber mensagem encaminhada:', error);
       response.status(500).json({ error: 'internal' });
+    }
+  },
+);
+
+/**
+ * A mensagem guardada sai do bucket quando a marca dela sai do Firestore — o TTL de `mail_messages` apaga o
+ * documento e não sabe que existe um arquivo. Só apaga o caminho EXATO daquela mensagem: o caminho vem do
+ * documento, e um documento com o caminho errado não pode levar consigo o arquivo de outro lugar.
+ */
+export const onMailMessageDeleted = onDocumentDeleted(
+  { document: `tenants/{tenantId}/${MAIL_MESSAGES_COLLECTION}/{key}`, region: REGION },
+  async (event) => {
+    const { tenantId, key } = event.params;
+    const path = event.data?.data()?.rawStoragePath;
+    if (path !== mailRawStoragePath(tenantId, key)) return;
+    try {
+      await getBucket().file(path).delete({ ignoreNotFound: true });
+    } catch (error) {
+      console.error(`[mailboxes] Falha ao apagar a mensagem guardada ${key} do escritório ${tenantId}:`, error);
     }
   },
 );

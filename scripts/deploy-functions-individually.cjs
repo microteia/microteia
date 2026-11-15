@@ -95,6 +95,7 @@ const ALL_FUNCTIONS = [
   'pollMailboxes',
   'manageMailbox',
   'mailInbound',
+  'onMailMessageDeleted',
   'testHttpRequest',
   'getWorkflowStepCatalog',
   'publishWorkflowEventOnEntityChange',

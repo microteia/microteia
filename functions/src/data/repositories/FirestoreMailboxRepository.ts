@@ -172,6 +172,16 @@ export class FirestoreMailboxRepository implements IMailboxRepository {
     });
   }
 
+  async getMessage(tenantId: string, key: string): Promise<{ mailboxId: string; rawStoragePath: string | null } | null> {
+    const snap = await this.db.collection('tenants').doc(tenantId).collection(MAIL_MESSAGES_COLLECTION).doc(key).get();
+    const data = snap.data();
+    if (!data) return null;
+    return {
+      mailboxId: text(data.mailboxId),
+      rawStoragePath: typeof data.rawStoragePath === 'string' && data.rawStoragePath ? data.rawStoragePath : null,
+    };
+  }
+
   async findByInboundToken(token: string): Promise<MailboxRef | null> {
     const snap = await this.db.collection(INBOUND_ADDRESSES).doc(token).get();
     const data = snap.data();

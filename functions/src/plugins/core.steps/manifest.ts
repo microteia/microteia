@@ -1,3 +1,4 @@
+import { MAIL_SEARCH_STEP_ID, SAVE_MAIL_ATTACHMENT_STEP_ID } from '../../domain/schema/mailbox';
 import type { PluginRecord } from '../../kernel';
 import { mutationDepsOf, queryDepsOf } from '../../infrastructure/workflow/stepDeps';
 import type { StepFactory } from '../workflowExtensionPoints';
@@ -16,6 +17,7 @@ import { makeRegisterAuditStepDefinition } from '../../infrastructure/workflow/s
 import { makeSetVariableStepDefinition } from '../../infrastructure/workflow/steps/SetVariableStep';
 import { makeRenderDocumentStepDefinition } from '../../infrastructure/workflow/steps/RenderDocumentStep';
 import { makeShareDocumentsStepDefinition } from '../../infrastructure/workflow/steps/ShareDocumentsStep';
+import { makeMailSearchStepDefinition, makeSaveMailAttachmentStepDefinition } from '../../infrastructure/workflow/steps/MailSteps';
 import { makePortalInviteStepDefinition, makePortalRevokeStepDefinition } from '../../infrastructure/workflow/steps/PortalAccessSteps';
 import { makeHttpRequestStepDefinition } from '../../infrastructure/workflow/steps/HttpRequestStep';
 import { makeApprovalStepDefinition } from '../../infrastructure/workflow/steps/ApprovalStep';
@@ -51,6 +53,8 @@ const factories: Record<string, StepFactory> = {
   }),
   RenderDocument: (deps) => makeRenderDocumentStepDefinition(deps.renderDocumentUseCase),
   ShareDocuments: (deps) => makeShareDocumentsStepDefinition(deps.shareRecordDocumentsUseCase),
+  SaveMailAttachment: (deps) => makeSaveMailAttachmentStepDefinition(() => deps.mail.saveAttachment),
+  MailSearch: (deps) => makeMailSearchStepDefinition(() => deps.mail.search),
   PortalInvite: (deps) => makePortalInviteStepDefinition(deps.portalAccess),
   PortalRevoke: (deps) => makePortalRevokeStepDefinition(deps.portalAccess),
   HttpRequest: (deps) => makeHttpRequestStepDefinition(deps.http),
@@ -83,6 +87,8 @@ export const coreStepsPlugin: PluginRecord = {
       workflowStep({ stepDefinitionId: 'remove', name: '@core.automation/step.remove.name', category: 'Data' }, 'Remove'),
       workflowStep({ stepDefinitionId: 'render-document', name: '@core.automation/step.render-document.name', category: 'Data' }, 'RenderDocument'),
       workflowStep({ stepDefinitionId: 'share-documents', name: '@core.automation/step.share-documents.name', category: 'Data' }, 'ShareDocuments'),
+      workflowStep({ stepDefinitionId: SAVE_MAIL_ATTACHMENT_STEP_ID, name: '@core.automation/step.save-mail-attachment.name', category: 'Data' }, 'SaveMailAttachment'),
+      workflowStep({ stepDefinitionId: MAIL_SEARCH_STEP_ID, name: '@core.automation/step.mail-search.name', category: 'Integration' }, 'MailSearch'),
       workflowStep({ stepDefinitionId: 'portal-invite', name: '@core.automation/step.portal-invite.name', category: 'Data' }, 'PortalInvite'),
       workflowStep({ stepDefinitionId: 'portal-revoke', name: '@core.automation/step.portal-revoke.name', category: 'Data' }, 'PortalRevoke'),
       workflowStep({ stepDefinitionId: 'http-request', name: '@core.automation/step.http.name', category: 'Integration' }, 'HttpRequest'),

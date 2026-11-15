@@ -276,6 +276,10 @@ import { FirestoreMailboxRepository } from '../../data/repositories/FirestoreMai
 import type { IMailboxRepository } from '../../domain/repositories/IMailboxRepository';
 import { ImapMailReader } from '../../data/services/ImapMailReader';
 import type { IMailReader } from '../../domain/repositories/IMailReader';
+import { StorageMailRawStore } from '../../data/services/StorageMailRawStore';
+import type { IMailRawStore } from '../../domain/repositories/IMailRawStore';
+import { makeSaveMailAttachmentUseCase } from '../../domain/usecases/SaveMailAttachmentUseCase';
+import { parseMailAttachments } from '../../data/services/mailParsing';
 import type { HttpDeliveryDeps } from '../../domain/services/httpDelivery';
 import { makeDeliverHttpDispatchUseCase, type DeliverHttpDispatchUseCase } from '../../domain/usecases/DeliverHttpDispatchUseCase';
 import { officeSetting } from '../settings/officeSettings';
@@ -296,6 +300,7 @@ class DIContainer {
   private httpDispatchRepository?: IHttpDispatchRepository;
   private mailboxRepository?: IMailboxRepository;
   private mailReader?: IMailReader;
+  private mailRawStore?: IMailRawStore;
   private deliverHttpDispatchUC?: DeliverHttpDispatchUseCase;
   private aiConnectionRepo?: IAIConnectionRepository;
   private permissionCatalogCache?: PermissionCatalogCache;
@@ -1409,6 +1414,27 @@ class DIContainer {
           downloadPolicyOf(await this.getTenantSettingsRepository().getTenantValues(tenantId)),
         renderPdf: reportTableToPdf,
       },
+      mail: {
+        search: {
+          getMailbox: (tenantId, id) => this.getMailboxRepository().get(tenantId, id),
+          password: (tenantId, id) => this.getMailboxRepository().password(tenantId, id),
+          reader: this.getMailReader(),
+          now: () => new Date(),
+        },
+        saveAttachment: makeSaveMailAttachmentUseCase({
+          messages: this.getMailboxRepository(),
+          raw: this.getMailRawStore(),
+          attachments: parseMailAttachments,
+          screens: this.getScreenDefinitionCache(),
+          records: new WorkflowDocumentRecordReader(
+            new FirestoreWorkflowRecordFetcher(getDb()),
+            this.getScreenDefinitionCache(),
+            new FirestoreWorkflowQueryRepository(getDb()),
+          ),
+          writer: this.getRecordDocumentWriter(),
+          timeZoneOf: (tenantId) => tenantTimeZone(tenantId),
+        }),
+      },
     });
     this.workflowStepsRegistered = true;
   }
@@ -1436,6 +1462,11 @@ class DIContainer {
   getMailReader(): IMailReader {
     if (!this.mailReader) this.mailReader = new ImapMailReader();
     return this.mailReader;
+  }
+
+  getMailRawStore(): IMailRawStore {
+    if (!this.mailRawStore) this.mailRawStore = new StorageMailRawStore();
+    return this.mailRawStore;
   }
 
   getHttpDispatchRepository(): IHttpDispatchRepository {

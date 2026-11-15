@@ -58,6 +58,10 @@ const fakeSession = (
     calls.listed.push({ kind: 'since', prefilter });
     return messages.slice(0, limit);
   },
+  listRecent: async (_since, prefilter, limit) => {
+    calls.listed.push({ kind: 'recent', prefilter });
+    return [...messages].reverse().slice(0, limit);
+  },
   fetch: async (uid) => {
     calls.fetched.push(uid);
     const message = messages.find((one) => one.uid === uid)!;
@@ -74,13 +78,13 @@ const fakeSession = (
       html: '',
       attachments: Array.from({ length: message.attachments ?? 0 }, (_, i) => ({ name: `a${i}.pdf`, contentType: 'application/pdf', size: 1 })),
     };
-    return parsed;
+    return { mail: parsed, raw: Buffer.from(`raw ${uid}`) };
   },
   close: async () => undefined,
 });
 
 const envelope = (uid: number, from: string, subject: string, attachments = 0): StoredMessage => ({
-  uid, messageId: `<m${uid}@x>`, from, subject, attachmentCount: attachments, attachments,
+  uid, messageId: `<m${uid}@x>`, from, fromName: '', subject, date: NOW, attachmentCount: attachments, attachments,
 });
 
 const deps = (
@@ -159,6 +163,20 @@ describe('pollMailbox', () => {
     expect(delivered[0].events[0].id).toBe(mailEventId(key, 'court'));
     expect(result.outcome.cursor).toEqual({ uidValidity: 'v1', lastUid: 13 });
     expect(result.outcome.nextPollAt?.getTime()).toBe(NOW.getTime() + 15 * 60_000);
+  });
+
+  it('guarda a mensagem entregue ANTES de publicar, e o caminho vai na marca', async () => {
+    const order: string[] = [];
+    const stored: Array<{ key: string; raw: string }> = [];
+    const session = fakeSession([envelope(11, 'a@tjba.jus.br', 'x'), envelope(12, 'promo@loja.com', 'y')], { uidValidity: 'v1', uidNext: 13 });
+    const base = deps(session, [court]);
+    await pollMailbox(mailbox(), {
+      ...base,
+      storeRaw: async (_tenantId, key, raw) => { order.push('store'); stored.push({ key, raw: raw.toString() }); return `path/${key}`; },
+      deliver: async (tenantId, delivery) => { order.push('deliver'); expect(delivery.record.rawStoragePath).toBe(`path/${delivery.key}`); return base.deliver(tenantId, delivery); },
+    });
+    expect(order).toEqual(['store', 'deliver']);
+    expect(stored).toEqual([{ key: mailMessageKey('box', '<m11@x>', ''), raw: 'raw 11' }]);
   });
 
   it('pede ao servidor só a dimensão que todas as automações restringem', async () => {
