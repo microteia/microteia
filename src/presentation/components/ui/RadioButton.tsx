@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import React from 'react';
+import React, { useId } from 'react';
 
 interface RadioOption {
   label: string;
@@ -86,13 +86,17 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
   options,
   direction = 'vertical',
 }) => {
+  // O navegador agrupa rádios pelo `name` no documento inteiro, não por componente: duas instâncias
+  // com o mesmo nome (um construtor de condição por caminho do Switch) viravam um grupo só, e marcar
+  // uma desmarcava a outra.
+  const groupName = `${name}-${useId()}`;
   return (
     <StyledRadioGroup $direction={direction}>
       {options.map((option) => (
         <StyledRadioLabel key={option.value}>
           <StyledRadioInput
             type="radio"
-            name={name}
+            name={groupName}
             value={option.value}
             checked={value === option.value}
             onChange={() => onChange(option.value)}

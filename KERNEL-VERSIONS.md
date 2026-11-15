@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.264.6] — 2026-11-14
+
+- fix(ui/radio): `RadioGroup` scopes the native `name` per instance (`${name}-${useId()}`). Browsers group radios by `name` across the whole document, so the fixed `execution-mode` of `ConditionBuilder` turned every Switch path's "When to run" into one group: checking one path unchecked the others, and the selection vanished.
+
 #### [9.264.5] — 2026-11-14
 
 - fix(mail): saving a mailbox with a different `backfillDays` > 0 now resets the read cursor, so the next IMAP read looks back that many days. It used to apply only to the very first read: a mailbox already reading had no way to fetch what arrived before it was connected, and the form field looked like it did nothing. Lowering it to 0 keeps the cursor (resetting would mark "now" and drop what arrived since the last read). The rule moved from `FirestoreMailboxRepository` to `mailboxKeepsCursor` in the shared schema.

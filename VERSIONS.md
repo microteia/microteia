@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.264.6] — 2026-11-14
+
+- Na edição de uma automação, cada caminho de uma decisão volta a guardar a própria escolha em "Quando executar esta automação?". Antes, marcar a opção em um caminho desmarcava a dos outros, e a seleção parecia sumir.
+
 #### [9.264.5] — 2026-11-14
 
 - Em **Caixas de e-mail**, o cartão da caixa passa a mostrar quando chegou o último e-mail entregue às automações, e não mais quantos chegaram na última verificação — que quase sempre aparecia como zero.
