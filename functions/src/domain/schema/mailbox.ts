@@ -282,6 +282,11 @@ export interface MailboxView extends MailboxSettings {
   address: string | null;
   /** A confirmação de encaminhamento do Gmail que chegou e ainda não foi substituída por e-mail de verdade. */
   forwardingConfirmation: ForwardingConfirmation | null;
+  /**
+   * A regra a criar no serviço de e-mail da pessoa — só na caixa `forward`. Calculada no servidor: o membro
+   * que configura a própria caixa pode não ter permissão de ler as automações que ela alimenta.
+   */
+  forwardingRule: ForwardingRule | null;
 }
 
 /** O que a tela das caixas recebe: as caixas e se a instalação sabe receber por encaminhamento. */
@@ -444,6 +449,72 @@ export const mailServerPrefilter = (filters: ReadonlyArray<MailFilter | null | u
     if (terms.length <= MAIL_FILTER_MAX_TERMS) return { kind: 'subject', terms };
   }
   return { kind: 'all' };
+};
+
+/**
+ * A regra que a pessoa cria no PRÓPRIO serviço de e-mail para encaminhar só o que as automações querem.
+ * Sai dos filtros delas, e por isso nenhum termo é escrito aqui. Encaminhar além disso não quebra nada — a
+ * automação confere de novo —, mas leva à plataforma e-mail que ninguém pediu.
+ */
+export interface ForwardingRule {
+  /** Trechos do endereço do remetente (`exemplo.com`, `alguem@exemplo.com`). Vazio: qualquer remetente. */
+  senders: string[];
+  /** Trechos do assunto. Vazio: qualquer assunto. */
+  subjects: string[];
+  /** A busca do Gmail que acha o que as automações querem; o filtro do Gmail nasce dela. Null: qualquer e-mail. */
+  gmailQuery: string | null;
+}
+
+const uniqueTerms = (terms: string[]): string[] => {
+  const seen = new Set<string>();
+  return terms.filter((term) => {
+    const key = term.toLowerCase();
+    if (term === '' || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const gmailTerm = (term: string): string => (/[\s(){}"]/.test(term) ? `"${term.replace(/"/g, '')}"` : term);
+
+const gmailAny = (operator: string, terms: string[]): string =>
+  terms.length === 1 ? `${operator}:${gmailTerm(terms[0])}` : `${operator}:(${terms.map(gmailTerm).join(' OR ')})`;
+
+/** O remetente como trecho de endereço, em minúsculas: o endereço não distingue caixa, e o grupo repetido sai uma vez. */
+const ruleSenders = (filter: MailFilter | null | undefined): string[] =>
+  cleanTerms(filter?.from).map((term) => serverSenderTerm(term).toLowerCase()).filter((term) => term !== '');
+
+const gmailClause = (filter: MailFilter): string => {
+  const senders = uniqueTerms(ruleSenders(filter));
+  const subjects = uniqueTerms(cleanTerms(filter.subject));
+  return [
+    ...(senders.length > 0 ? [gmailAny('from', senders)] : []),
+    ...(subjects.length > 0 ? [gmailAny('subject', subjects)] : []),
+    ...(filter.hasAttachments === true ? ['has:attachment'] : filter.hasAttachments === false ? ['-has:attachment'] : []),
+  ].join(' ');
+};
+
+/**
+ * `filters` são os filtros JÁ resolvidos (configurações do escritório aplicadas) das automações que a caixa
+ * alimenta. Basta UMA aceitar qualquer e-mail para a regra aceitar qualquer e-mail: encaminhar menos que
+ * isso esconderia dela o que ela quer.
+ *
+ * As listas de remetentes e assuntos são para os serviços cuja regra não tem "ou" entre grupos (Outlook):
+ * a união das listas, e só quando TODAS as automações restringem aquela dimensão.
+ */
+export const forwardingRuleOf = (filters: ReadonlyArray<MailFilter | null | undefined>): ForwardingRule => {
+  const clauses = filters.map((filter) => (filter ? gmailClause(filter) : ''));
+  if (clauses.length === 0 || clauses.some((clause) => clause === '')) return { senders: [], subjects: [], gmailQuery: null };
+  const unionOf = (pick: (filter: MailFilter | null | undefined) => string[]): string[] => {
+    const lists = filters.map(pick);
+    return lists.every((list) => list.length > 0) ? uniqueTerms(lists.flat()) : [];
+  };
+  const distinct = [...new Set(clauses)];
+  return {
+    senders: unionOf(ruleSenders),
+    subjects: unionOf((filter) => cleanTerms(filter?.subject)),
+    gmailQuery: distinct.length === 1 ? distinct[0] : distinct.map((clause) => `(${clause})`).join(' OR '),
+  };
 };
 
 const isPositiveInteger = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0;

@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.266.0] — 2026-11-15
+
+- A caixa de e-mail por encaminhamento agora ensina a configurar: um passo a passo para Gmail, Outlook e outros serviços aparece no cartão da caixa enquanto o primeiro e-mail não chega, e pode ser reaberto a qualquer momento.
+- No Gmail, a busca que monta o filtro de encaminhamento vem pronta para copiar, já com os remetentes e assuntos que as automações da caixa aceitam.
+- O botão de copiar o endereço de encaminhamento passou a aparecer ao lado do endereço.
+
 #### [9.265.1] — 2026-11-14
 
 - Quando o escritório ainda não tem uma inteligência artificial configurada, o Assistente de IA passa a explicar o que fazer e oferece um atalho direto para as Conexões de IA. Quem não gerencia a IA do escritório é orientado a pedir a configuração a quem gerencia.
