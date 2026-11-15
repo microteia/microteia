@@ -85,6 +85,39 @@ export const backendFingerprint = (backend?: PluginBackendRequirement, sourceHas
   ...(sourceHash !== undefined ? { code: sourceHash } : {}),
 });
 
+/** O que o projeto roda para uma extensão — a entrada de `backend_state/applied` que a régua lê. */
+export interface AppliedBackendFingerprint {
+  pluginId: string;
+  fingerprint: string;
+}
+
+/** O que a régua lê de um pacote. Estrutural, para valer igual no navegador e no servidor. */
+export interface BackendDeclaringPackage {
+  manifest: { id: string; backend?: PluginBackendRequirement };
+  backendSource?: { hash: string } | null;
+}
+
+/**
+ * O backend que a cópia exige AGORA já está no ar? Duas fontes respondem, e basta uma: o carimbo da
+ * própria cópia (`copyFingerprint`) e o que o PROJETO tem aplicado — a function é do projeto, então a
+ * cópia que chegou depois do último `provision` exigindo exatamente o que ele pôs no ar não está
+ * pendente de nada.
+ *
+ * Mora no módulo compartilhado porque são dois os que perguntam: a tela de Extensões, para manter a
+ * extensão fora do boot, e a publicação no catálogo, para recusar o que quem instala receberia
+ * pendente. Uma régua em cada lado divergiria justamente no caso que ninguém testa à mão.
+ */
+export const isBackendRequirementApplied = (
+  pkg: BackendDeclaringPackage,
+  copyFingerprint: unknown,
+  projectApplied: readonly AppliedBackendFingerprint[],
+): boolean => {
+  if (!hasBackendRequirement(pkg.manifest.backend)) return true;
+  const declared = backendFingerprint(pkg.manifest.backend, pkg.backendSource?.hash);
+  if (copyFingerprint === declared) return true;
+  return projectApplied.some((entry) => entry.pluginId === pkg.manifest.id && entry.fingerprint === declared);
+};
+
 /**
  * POR QUE a extensão ficou pendente na última execução do Console — gravado por ele no documento da
  * instalação, ao lado do carimbo.

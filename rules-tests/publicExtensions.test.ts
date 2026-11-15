@@ -1,19 +1,15 @@
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { OTHER_TENANT, TENANT, asAnonymous, asUser, seed, testEnv } from './helpers';
 
 /**
- * `public_extensions/{domain}` — o catálogo que todo escritório vê, e a única divisão que o define:
- * o que é DECLARAÇÃO o dono publica sozinho; o que traz CÓDIGO só a equipe global publica.
+ * `public_extensions/{domain}` — o catálogo que todo escritório vê.
  *
- * A assimetria não é hierarquia, é consequência. Uma extensão sem código instala telas, automações e
- * relatórios — dado que o kernel interpreta. Uma com código roda no navegador de cada membro de cada
- * escritório que a instalar, com acesso ao que aquela pessoa vê. Deixar isso entrar por autosserviço
- * seria dar a qualquer admin de qualquer escritório uma porta para o navegador de todos os outros.
- *
- * A regra lê o pacote que ESTÁ SENDO ESCRITO (`request.resource`), nunca o que já estava: quem tenta
- * acrescentar código a um registro seu é barrado do mesmo jeito que quem tenta publicá-lo assim.
+ * Publicar não é escrita do cliente: é a callable `publishExtension`, que lê a cópia INSTALADA no
+ * escritório dono e só a publica completa, gravando a prova (`proof`). Se o cliente pudesse escrever
+ * aqui — inclusive o SYSTEM —, a prova seria uma afirmação de quem escreve, e o catálogo deixaria de
+ * garantir que o que oferece instala. Pelo navegador sobra só a moderação do SYSTEM: o `status`.
  */
 let env: RulesTestEnvironment;
 
@@ -77,44 +73,15 @@ describe('leitura', () => {
   });
 });
 
-describe('publicar sem código', () => {
-  it('o admin do escritório dono publica, já aprovada', async () => {
-    await assertSucceeds(setDoc(published('admin'), record()));
+describe('publicar pelo navegador', () => {
+  it('o admin do escritório dono não publica direto — a porta é a callable', async () => {
+    await assertFails(setDoc(published('admin'), record()));
   });
 
-  it('e não pode publicá-la como pendente — o estado da fila não é dele', async () => {
-    await assertFails(setDoc(published('admin'), record({ status: 'pending' })));
-  });
-
-  it('quem não tem extensions.manage no escritório dono não publica', async () => {
-    await assertFails(setDoc(published('membro'), record()));
-  });
-
-  it('nem quem administra OUTRO escritório em nome deste', async () => {
-    await assertFails(setDoc(published('deFora'), record()));
-  });
-});
-
-describe('publicar COM código', () => {
-  it('o admin do escritório dono não publica, em status nenhum', async () => {
-    await assertFails(setDoc(published('admin'), record({ package: withCode, hasCode: true })));
-    await assertFails(setDoc(published('admin'), record({ package: withCode, hasCode: true, status: 'pending' })));
-  });
-
-  it('o SYSTEM publica', async () => {
-    await assertSucceeds(setDoc(published('sistema'), record({ package: withCode, hasCode: true })));
-  });
-
-  it('o dono não acrescenta código a um registro que já é seu', async () => {
-    await seed(env, { root: { [`public_extensions/${DOMAIN}`]: record() } });
-    await assertFails(setDoc(published('admin'), record({ package: withCode, hasCode: true })));
-  });
-
-  // A fonte de Cloud Function roda no servidor de cada projeto que a aprovar: quem a põe no catálogo é
-  // a equipe global, como a view — inclusive quando o pacote não tem view nenhuma.
-  it('fonte de servidor também é código: o dono não publica, o SYSTEM publica', async () => {
-    await assertFails(setDoc(published('admin'), record({ package: withServerCode, hasCode: true })));
-    await assertSucceeds(setDoc(published('sistema'), record({ package: withServerCode, hasCode: true })));
+  it('nem o SYSTEM, com ou sem código', async () => {
+    await assertFails(setDoc(published('sistema'), record()));
+    await assertFails(setDoc(published('sistema'), record({ package: withCode, hasCode: true })));
+    await assertFails(setDoc(published('sistema'), record({ package: withServerCode, hasCode: true })));
   });
 });
 
@@ -123,21 +90,31 @@ describe('republicar e moderar', () => {
     await seed(env, { root: { [`public_extensions/${DOMAIN}`]: record() } });
   });
 
-  it('o dono republica a própria extensão', async () => {
-    await assertSucceeds(setDoc(published('admin'), record({ version: '1.1.0' })));
+  it('o dono não republica por cima do próprio registro', async () => {
+    await assertFails(setDoc(published('admin'), record({ version: '1.1.0' })));
   });
 
-  it('o dono não entrega o domínio a outro escritório', async () => {
-    await assertFails(setDoc(published('admin'), record({ ownerTenantId: OTHER_TENANT })));
+  it('o SYSTEM obsoleta e reaprova, mexendo só no status', async () => {
+    await assertSucceeds(updateDoc(published('sistema'), { status: 'deprecated' }));
+    await assertSucceeds(updateDoc(published('sistema'), { status: 'approved' }));
   });
 
-  it('quem administra outro escritório não republica por cima do domínio alheio', async () => {
-    await assertFails(setDoc(published('deFora'), record({ ownerTenantId: OTHER_TENANT })));
+  it('o dono não obsoleta', async () => {
+    await assertFails(updateDoc(published('admin'), { status: 'deprecated' }));
   });
 
-  it('obsoletar é do SYSTEM, não do dono', async () => {
-    await assertFails(setDoc(published('admin'), record({ status: 'deprecated' })));
-    await assertSucceeds(setDoc(published('sistema'), record({ status: 'deprecated' })));
+  it('o SYSTEM não devolve à fila legada nem inventa status', async () => {
+    await assertFails(updateDoc(published('sistema'), { status: 'pending' }));
+    await assertFails(updateDoc(published('sistema'), { status: 'whatever' }));
+  });
+
+  // A prova é o que o catálogo garante: escrita pela tela, ela seria só a palavra de quem escreveu.
+  it('nem o SYSTEM troca o pacote ou escreve a prova pela tela', async () => {
+    await assertFails(updateDoc(published('sistema'), { package: withCode }));
+    await assertFails(updateDoc(published('sistema'), {
+      proof: { tenantId: TENANT, version: '1.0.0', revision: 'x', provenBy: 'sistema', provenAt: new Date() },
+    }));
+    await assertFails(updateDoc(published('sistema'), { status: 'approved', ownerTenantId: OTHER_TENANT }));
   });
 
   it('retirar do catálogo é do SYSTEM, não do dono', async () => {

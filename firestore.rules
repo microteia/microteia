@@ -1314,45 +1314,29 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Catálogo global de extensões publicadas pelos escritórios (modelo npm/VS Code). É a FRONTEIRA
-    // de integridade da publicação — o app não usa Cloud Function aqui. É ESTE o catálogo da tela de
-    // Extensões. Ver "Como uma extensão chega ao catálogo" no ARCHITECTURE.md.
+    // Catálogo global de extensões publicadas pelos escritórios (modelo npm/VS Code). É ESTE o
+    // catálogo da tela de Extensões. Ver "Como uma extensão chega ao catálogo" no ARCHITECTURE.md.
     // - Qualquer autenticado lê.
-    // - Publicar (create/update): o dono publica o que NÃO traz código, sempre 'approved'; com código,
-    //   só SYSTEM. create só existe quando o doc não existe → domínio único global.
-    // - Trocar de dono, aprovar e obsoletar: só SYSTEM.
-    // - Apagar: só SYSTEM (o dono usa 'deprecated', não apaga do catálogo).
+    // - Publicar NÃO é escrita do cliente: é a callable `publishExtension`, que lê a cópia INSTALADA
+    //   no escritório e só a publica completa (backend no ar, dado migrado, código revisado,
+    //   dependência alcançável), gravando `proof`. Se o cliente pudesse escrever aqui, a prova seria
+    //   uma afirmação dele — e o catálogo deixaria de garantir que o que oferece instala.
+    //   As regras de quem publica (código só SYSTEM, domínio do escritório dono) moram na callable.
+    // - Aprovar e obsoletar: só SYSTEM, e só o `status` — nem ele reescreve pacote ou prova pela tela.
+    // - Apagar: só SYSTEM.
     match /public_extensions/{domain} {
-      // `backendSource` conta como código, e é o mais pesado dos dois: a fonte de Cloud Function que
-      // viaja no pacote roda no SERVIDOR de cada projeto que a aprovar. A aprovação por hash no Console
-      // continua valendo na instalação; esta trava é a de quem PÕE no catálogo.
-      function pkgHasCode() {
-        return (('views' in request.resource.data.package)
-            && request.resource.data.package.views.size() > 0)
-          || ('backendSource' in request.resource.data.package);
-      }
-      // Extensão COM código roda no navegador de todo membro de todo escritório que a instalar: quem a
-      // põe no catálogo é só a equipe global. Sem código o pacote é declaração, e quem administra o
-      // escritório DONO publica direto — já aprovada, porque não há terceiro a quem consultar.
-      function ownerPublishing() {
-        return !pkgHasCode() && request.resource.data.status == 'approved';
-      }
       allow read: if request.auth != null;
-      allow create: if isSystemAdmin()
-        || (can(request.resource.data.ownerTenantId, 'extensions.manage') && ownerPublishing());
-      // Republicar = upsert: um identificador tem UM registro público, e o dono sobrescreve os
-      // próprios dados. Trocar de dono, aprovar, obsoletar e publicar código são do SYSTEM.
+      allow create: if false;
       allow update: if isSystemAdmin()
-        || (can(resource.data.ownerTenantId, 'extensions.manage')
-            && request.resource.data.ownerTenantId == resource.data.ownerTenantId
-            && ownerPublishing());
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['approved', 'deprecated'];
       allow delete: if isSystemAdmin();
     }
 
     // ─── Reputação de extensão — instalações e estrelas ────────────────────────
     // O agregado é escrito SÓ pelo Admin SDK (countExtensionInstalls, aggregateExtensionRatings). Ele
-    // não mora em `public_extensions` porque o dono reescreve aquele documento a cada republicação, e
-    // um número que o autor pode gravar não diz nada a quem lê.
+    // não mora em `public_extensions` porque a publicação reescreve aquele documento inteiro a cada
+    // versão, e um contador que vai junto com o pacote do autor não diz nada a quem lê.
     match /extension_stats/{pluginId} {
       allow read: if request.auth != null;
       allow write: if false;
@@ -1389,7 +1373,7 @@ service cloud.firestore {
 
     // ─── Publicador verificado ─────────────────────────────────────────────────
     // Id = o escritório que publica. A verificação é do PUBLICADOR, e não da versão: republicar não a
-    // apaga, e o dono não a concede a si mesmo — o nome que ele grava em `public_extensions` é livre,
+    // apaga, e o dono não a concede a si mesmo — o nome com que ele publica em `public_extensions` é livre,
     // e o selo existe justamente para não depender dele.
     match /extension_publishers/{tenantId} {
       allow read: if request.auth != null;

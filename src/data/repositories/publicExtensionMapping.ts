@@ -1,21 +1,20 @@
-import { pruneUndefined } from '../utils/pruneUndefined';
 import type { PublicExtension, PublicExtensionStatus } from '../../domain/entities/PublicExtension';
 import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
-import type { PublishPublicExtensionInput } from '../../domain/repositories/IPublicExtensionRepository';
+import type { PublicationProof } from '../../domain/schema/plugin/publicationProof';
 import { toDateValueOrNow as toDate } from '../utils/toDateValue';
 
-/** Corpo do documento `public_extensions/{domain}` a partir do input de publicação (sem publishedAt,
- *  que o repositório acrescenta com serverTimestamp). Só o `package` passa por pruneUndefined. */
-export const publicExtensionDataFromInput = (input: PublishPublicExtensionInput): Record<string, unknown> => ({
-  package: pruneUndefined(input.package),
-  ownerTenantId: input.ownerTenantId,
-  ownerName: input.ownerName,
-  ownerPhotoURL: input.ownerPhotoURL ?? null,
-  version: input.version,
-  status: input.status,
-  hasCode: input.hasCode,
-  publishedBy: input.publishedBy,
-});
+const proofFromDoc = (value: unknown): PublicationProof | null => {
+  if (typeof value !== 'object' || value === null) return null;
+  const proof = value as Record<string, unknown>;
+  if (typeof proof.tenantId !== 'string') return null;
+  return {
+    tenantId: proof.tenantId,
+    version: typeof proof.version === 'string' ? proof.version : '',
+    revision: typeof proof.revision === 'string' ? proof.revision : '',
+    provenBy: typeof proof.provenBy === 'string' ? proof.provenBy : '',
+    provenAt: toDate(proof.provenAt),
+  };
+};
 
 export const publicExtensionFromDoc = (domain: string, d: Record<string, unknown>): PublicExtension => ({
   domain,
@@ -28,4 +27,5 @@ export const publicExtensionFromDoc = (domain: string, d: Record<string, unknown
   hasCode: Boolean(d.hasCode),
   publishedAt: toDate(d.publishedAt),
   publishedBy: (d.publishedBy as string | undefined) ?? '',
+  proof: proofFromDoc(d.proof),
 });

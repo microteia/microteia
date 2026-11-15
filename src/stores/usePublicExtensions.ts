@@ -2,17 +2,16 @@ import { createContext, useContext } from 'react';
 import type { PublicExtension } from '../domain/entities/PublicExtension';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 import type { ExtensionStats } from '../domain/entities/ExtensionReputation';
-
-export type PublishPublicResult =
-  | { ok: true }
-  /** `error` é uma REFERÊNCIA de mensagem; `errorParams` traz os valores que a frase interpola. */
-  | { ok: false; error: string; errorParams?: Record<string, string> };
+import type { PublishExtensionOptions, PublishExtensionOutcome } from '../domain/repositories/IPublicExtensionRepository';
 
 export interface PublicExtensionStoreValue {
   publicExtensions: PublicExtension[];
   isLoading: boolean;
-  /** Publica no catálogo global; republicar exige versão maior, e código exige SYSTEM. */
-  publish: (pkg: MarketplacePlugin) => Promise<PublishPublicResult>;
+  /**
+   * Leva ao catálogo a cópia INSTALADA da extensão (`pkg` é ela), só quando está completa. Recusa é
+   * exceção com referência de mensagem; a que aceita consentimento é `DependencyRangeRefusal`.
+   */
+  publish: (pkg: MarketplacePlugin, options?: PublishExtensionOptions) => Promise<PublishExtensionOutcome>;
   approve: (domain: string) => Promise<void>;
   deprecate: (domain: string) => Promise<void>;
   unpublish: (domain: string) => Promise<void>;

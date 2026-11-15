@@ -243,6 +243,20 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.publish.needs-version':
     'Suba a versão desta extensão para levar as mudanças ao catálogo: quem já a instalou só recebe a '
     + 'atualização quando a versão sobe.',
+  'extension.publish.needs-install':
+    'Instale a versão {version} neste escritório antes de publicá-la: o catálogo só recebe o que está '
+    + 'instalado por completo no escritório que publica.',
+  'extension.publish.needs-active':
+    'Ative esta extensão no escritório antes de publicá-la: o catálogo só recebe o que está funcionando aqui.',
+  'extension.publish.needs-pendencies':
+    'Resolva aqui as pendências desta extensão antes de publicá-la — todo escritório que a instalasse do '
+    + 'catálogo as herdaria.',
+  'extension.prove': 'Comprovar no catálogo que a versão {version} está instalada por completo aqui',
+  'extension.publish-range.title': 'Publicar esta versão mesmo assim?',
+  'extension.publish-range.message':
+    '{detail} Publicar agora deixa aquela extensão sem poder ser instalada do catálogo até ser republicada '
+    + 'aceitando esta versão.',
+  'extension.publish-range.confirm': 'Publicar mesmo assim',
   'extension.approve': 'Aprovar publicação',
   'extension.reject': 'Recusar publicação',
   'extension.deprecate': 'Marcar como obsoleta',
@@ -272,8 +286,9 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'Ela vai para Minhas Extensões, pronta para ser instalada aqui. Nenhum outro escritório a vê, e '
     + 'você pode publicá-la no catálogo depois.',
   'import.scope.public.hint':
-    'Ela vai para Minhas Extensões e, ao mesmo tempo, para o catálogo que todos os escritórios navegam, '
-    + 'onde qualquer um pode instalá-la. Retirá-la do catálogo depois é só com um administrador do sistema.',
+    'Ela vai para Minhas Extensões, é instalada aqui e depois vai para o catálogo que todos os escritórios '
+    + 'navegam, onde qualquer um pode instalá-la — o catálogo só recebe o que está instalado por completo. '
+    + 'Retirá-la do catálogo depois é só com um administrador do sistema.',
   'import.code-requires-system':
     'Esta extensão traz tela em código, e código roda no navegador de cada membro de cada escritório que '
     + 'a instalar — só um administrador do sistema a publica no catálogo. Importar a mantém neste escritório.',
@@ -306,6 +321,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.updated': 'Extensão atualizada.',
   'extension.removed': 'Extensão excluída da sua área privada.',
   'extension.published': 'Publicada no catálogo.',
+  'extension.proved': 'Instalação comprovada: a versão do catálogo agora traz a garantia.',
   'extension.publish-failed': 'Não foi possível publicar: {detail}',
   'extension.approved': 'Extensão aprovada.',
   'extension.deprecated': 'Extensão marcada como obsoleta.',
@@ -703,6 +719,26 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'A versão {version} não é maior que a publicada ({published}). Suba a versão: quem já instalou esta '
     + 'extensão só recebe a atualização quando ela sobe.',
   'publish.no-tenant': 'Sem escritório ou usuário.',
+  'publish.invalid-request': 'O pedido de publicação está incompleto.',
+  'publish.failed': 'Não foi possível concluir a publicação.',
+  'publish.not-installed':
+    'Esta extensão não está instalada neste escritório. O catálogo só recebe uma versão instalada por '
+    + 'completo no escritório que a publica.',
+  'publish.builtin-copy':
+    'A cópia instalada aqui é a que vem com a aplicação. Instale o pacote de Minhas Extensões e publique de novo.',
+  'publish.inactive': 'A extensão está desativada neste escritório. Ative-a e publique de novo.',
+  'publish.backend-pending':
+    'O backend desta extensão ainda não está no ar neste projeto. Rode "microteia provision" e publique de novo.',
+  'publish.migration-pending':
+    'Esta extensão ainda deve uma atualização de dados neste escritório. Rode-a e publique de novo.',
+  'publish.code-not-trusted':
+    'O código desta extensão não foi revisado neste escritório. Revise e confie nele, e publique de novo.',
+  'publish.dependency-not-installed': 'Ela depende de "{dependency}", que não está instalada neste escritório.',
+  'publish.dependency-not-in-catalog':
+    'Ela depende de "{dependency}" {range}, e o catálogo não tem versão dela nessa faixa. Publique a dependência primeiro.',
+  'publish.dependent-out-of-range':
+    'A extensão "{dependent}" do catálogo aceita esta na faixa {range}, e esta versão é a {version}.',
+  'publish.already-published': 'O catálogo já tem exatamente esta versão, com a instalação comprovada.',
   'lifecycle.already-installed': 'O plugin "{id}" já está instalado (versão {version}). Use atualizar.',
   'lifecycle.invalid-version': 'Versão "{version}" não é um semver válido.',
   'lifecycle.not-installed': 'O plugin não está instalado neste escritório.',

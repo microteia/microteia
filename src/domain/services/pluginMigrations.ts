@@ -1,6 +1,6 @@
 import type { AppliedMigration, ExtensionMigrationState } from '../entities/ExtensionMigration';
 import type { MigrationPhase, PluginMigration } from '../schema/plugin/migration';
-import { isMigrationRequired, migrationPhaseOf, migrationRunsOnInstall, sortMigrations } from '../schema/plugin/migration';
+import { hasBlockingMigrationsAmong, migrationPhaseOf, migrationRunsOnInstall, sortMigrations } from '../schema/plugin/migration';
 
 /**
  * Regras PURAS da fila de migração: recebem a fila declarada e o que o escritório já aplicou, e
@@ -60,7 +60,7 @@ export const pendingPluginMigrations = (
 export const hasBlockingMigrations = (
   migrations: PluginMigration[] | undefined,
   state: ExtensionMigrationState | null | undefined,
-): boolean => pendingPluginMigrations(migrations, state).some(isMigrationRequired);
+): boolean => hasBlockingMigrationsAmong(migrations, appliedMigrationIds(state));
 
 /**
  * A reserva de execução pode ser tomada: não há nenhuma, ou a que existe começou antes do corte de

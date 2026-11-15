@@ -84,6 +84,11 @@ import type {
 } from '../../domain/usecases/PortalAccessUseCases';
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseExtensionStatsRepository } from '../../data/repositories/FirebaseExtensionStatsRepository';
+import { FirebaseExtensionPublicationRepository } from '../../data/repositories/FirebaseExtensionPublicationRepository';
+import {
+  makePublishExtensionUseCase,
+  type PublishExtensionUseCase,
+} from '../../domain/usecases/PublishExtensionUseCase';
 import {
   makeRecountExtensionInstallsUseCase,
   makeRecountExtensionRatingsUseCase,
@@ -900,6 +905,14 @@ class DIContainer {
       now: () => new Date(),
       audit: this.getCreateAuditLogUseCase(),
       logger: { error: (message: string) => console.error(`[mfa] ${message}`) },
+    });
+  }
+
+  getPublishExtensionUseCase(): PublishExtensionUseCase {
+    return makePublishExtensionUseCase({
+      publications: new FirebaseExtensionPublicationRepository(getDb()),
+      sha256: (text) => createHash('sha256').update(text, 'utf8').digest('hex'),
+      now: () => new Date(),
     });
   }
 

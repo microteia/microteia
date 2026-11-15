@@ -1,16 +1,18 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { PublicExtensionStoreContext, type PublishPublicResult } from './usePublicExtensions';
+import { PublicExtensionStoreContext } from './usePublicExtensions';
 import { useTenant } from './useTenant';
 import { useAuth } from './useAuth';
 import { useDI } from '../infrastructure/di/useDI';
-import { extensionHasCode, publishRefusal } from '../domain/usecases/plugins/publicExtension';
+import { dependentRefIssues } from '../domain/usecases/plugins/crossExtensionRefs';
+import { LocalizedError } from '../domain/errors/LocalizedError';
+import type { PublishExtensionOptions, PublishExtensionOutcome } from '../domain/repositories/IPublicExtensionRepository';
 import type { PublicExtension } from '../domain/entities/PublicExtension';
 import type { MarketplacePlugin } from '../domain/entities/MarketplacePlugin';
 import type { ExtensionStats } from '../domain/entities/ExtensionReputation';
 
 export const PublicExtensionStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentTenant } = useTenant();
-  const { user, userRole } = useAuth();
+  const { user } = useAuth();
   const { publicExtensionRepository, extensionReputationRepository } = useDI();
 
   const [publicExtensions, setPublicExtensions] = useState<PublicExtension[]>([]);
@@ -65,43 +67,28 @@ export const PublicExtensionStoreProvider: React.FC<{ children: React.ReactNode 
     [publicExtensions],
   );
 
-  const publish = useCallback(async (pkg: MarketplacePlugin): Promise<PublishPublicResult> => {
-    if (!currentTenant || !user) {
-      return { ok: false, error: '@core.marketplace/publish.no-tenant' };
-    }
-    const domain = pkg.manifest.id;
-    const version = pkg.manifest.version;
-
-    // Upsert: um identificador tem UM registro público. Republicar sobrescreve os dados da mesma
-    // extensão (não cria um novo registro), e por isso exige versão maior — quem já instalou só
-    // recebe a cópia nova quando a versão sobe.
-    const published = publicExtensions.find((p) => p.domain === domain);
-    const refusal = publishRefusal({
+  /**
+   * O pacote é o da cópia INSTALADA, e só serve ao portão de cá: quem publica é a callable, que lê a
+   * cópia do escritório e nunca o que o navegador manda.
+   *
+   * O portão de cá é o que o servidor não confere — a referência a artefato e o prefixo de evento que
+   * uma extensão do catálogo usa desta, e que esta versão deixou de trazer. É a mesma recusa da
+   * instalação: publicada assim, quem instalasse as duas do catálogo seria recusado na segunda.
+   */
+  const publish = useCallback(async (pkg: MarketplacePlugin, options?: PublishExtensionOptions): Promise<PublishExtensionOutcome> => {
+    if (!currentTenant) throw new LocalizedError('@core.marketplace/publish.no-tenant');
+    const id = pkg.manifest.id;
+    const previous = publicExtensions.find((entry) => entry.domain === id);
+    const [broken] = dependentRefIssues(
       pkg,
-      isSystem: userRole === 'SYSTEM',
-      ownerTenantId: currentTenant.id,
-      published,
-    });
-    if (refusal) {
-      return {
-        ok: false,
-        error: `@core.marketplace/publish.${refusal}`,
-        errorParams: { version, published: published?.version ?? '' },
-      };
-    }
-
-    await publicExtensionRepository.publish({
-      package: pkg,
-      ownerTenantId: currentTenant.id,
-      ownerName: user.displayName,
-      ownerPhotoURL: user.photoURL,
-      version,
-      status: 'approved',
-      hasCode: extensionHasCode(pkg),
-      publishedBy: user.id,
-    });
-    return { ok: true };
-  }, [currentTenant, user, userRole, publicExtensions, publicExtensionRepository]);
+      publicExtensions
+        .filter((entry) => entry.domain !== id && entry.status === 'approved')
+        .map((entry) => ({ id: entry.domain, package: entry.package })),
+      previous?.package,
+    );
+    if (broken) throw new LocalizedError(broken.message, broken.messageParams);
+    return publicExtensionRepository.publish(currentTenant.id, id, options);
+  }, [currentTenant, publicExtensions, publicExtensionRepository]);
 
   const approve = useCallback((domain: string) => publicExtensionRepository.setStatus(domain, 'approved'), [publicExtensionRepository]);
   const deprecate = useCallback((domain: string) => publicExtensionRepository.setStatus(domain, 'deprecated'), [publicExtensionRepository]);

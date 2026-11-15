@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.268.0] — 2026-11-15
+
+- feat(marketplace/publish): publishing to `public_extensions` is now the `publishExtension` callable (group `deploy:marketplace`), and it publishes the copy INSTALLED in the publishing organization — it takes no package. It refuses a copy that is not installed, deactivated or first-party (`builtin`), whose backend is not applied in the project, that owes a required migration, whose host code is not trusted, or whose dependencies are not reachable by whoever installs from the catalog (kernel `core.*`, built-in, or approved in the catalog within the declared range). Before, the catalog accepted a version that came up nowhere, and every organization that installed it inherited a pending item it had no way to resolve.
+- feat(marketplace/publish): the catalog entry carries `proof: { tenantId, version, revision, provenBy, provenAt }`, `revision` being the `contentFingerprint` of the package. An entry published before the rule stays installable; when the owner's installed copy is identical, the same callable proves it without a new version (`kind: 'prove'`).
+- feat(marketplace/publish): a version that leaves an approved catalog extension outside its declared range is refused with `details.issues`, and published only with `acceptDependentRanges` — refusing always would deadlock two extensions upgrading together. The browser maps it to `DependencyRangeRefusal` and asks in the install dialog. Broken artifact references and event prefixes against the catalog are checked in the store with `dependentRefIssues`.
+- feat(schema/plugin): `publicationProof.ts` (synced to `functions/`) holds the shared rule — `publishRefusal`, `publicationProofIssues`, `catalogDependentIssues`, `publicationKind`, `packageHasCode`. `isBackendRequirementApplied` (`backendRequirement.ts`) and `hasBlockingMigrationsAmong` (`migration.ts`) now back both the Extensions screen and the callable.
+- fix(rules): `public_extensions` no longer accepts client writes: `create` is denied to everyone, and `SYSTEM` may only change `status` to `approved` or `deprecated`. A proof written by a client would be the client's word. Requires `npm run deploy:rules` together with the function deploy.
+
 #### [9.267.0] — 2026-11-15
 
 - feat(sdk): `scripts[]` and `migrations[]` accept `sourceFile` (a path or a list) and `sourceTs` as a list, merged by `mergeScriptParts` into the one text the sandbox runs. The merge drops imports between listed files and the `export` in front of declarations, refuses any other import (`import type` is erased), refuses `export default`, and refuses a top-level call (`main()`) outside the last file. Without it, the logic that can be wrong in a script had no way out to a pure file with a test beside it, which is what `AGENTS.md` asks for. `mergeScriptSources` joins the barrel for sources that arrive as text (`?raw`).

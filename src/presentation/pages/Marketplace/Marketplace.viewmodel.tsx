@@ -108,11 +108,29 @@ export type InstallAction = 'install' | 'update';
 /**
  * O que há para levar ao catálogo global a partir da cópia PRIVADA desta extensão.
  *
- * `needs-version` é o caso que não pode ser silencioso: o pacote privado mudou, mas a versão dele não
- * subiu — e quem já instalou a extensão só recebe a cópia nova quando a versão sobe. Sem este estado
- * a tela ou publicaria um pacote que ninguém receberia, ou faria o botão sumir sem dizer por quê.
+ * O catálogo só recebe o que está instalado por completo neste escritório (`publicationProof`), e cada
+ * estado `needs-*` diz o que falta em vez de fazer o botão sumir:
+ *
+ * - `needs-version` — o pacote privado mudou e a versão não subiu: quem já instalou só recebe a cópia
+ *   nova quando a versão sobe;
+ * - `needs-install` — a versão privada ainda não está instalada aqui (ou a instalada é outra);
+ * - `needs-active` — está instalada, mas desligada;
+ * - `needs-pendencies` — instalada e ligada, mas sem carregar, com backend, migração ou código pendente.
+ *
+ * `prove` é a entrada publicada ANTES da regra, idêntica à instalada aqui: comprovar só acrescenta a
+ * prova, sem pedir versão nova para um pacote que não mudou.
  */
-export type PublishAction = 'publish' | 'republish' | 'needs-version';
+export type PublishAction =
+  | 'publish'
+  | 'republish'
+  | 'prove'
+  | 'needs-version'
+  | 'needs-install'
+  | 'needs-active'
+  | 'needs-pendencies';
+
+/** As pendências que um escritório que instalasse do catálogo herdaria — as que impedem publicar. */
+const PUBLISH_BLOCKING_PENDENCIES: ReadonlySet<ExtensionPendency> = new Set(['load-failed', 'backend', 'migration', 'code-review']);
 
 /** Uma extensão consolidada: a mesma identidade (id/domínio) aparece uma única vez, reunindo todos os
  *  seus papéis — autoria privada, cópia instalada no escritório e presença no catálogo público —, com
@@ -181,6 +199,8 @@ export interface ExtensionRow {
    * o botão que insistia em aparecer era a própria pergunta "republicar o quê?".
    */
   publish: PublishAction | null;
+  /** O gesto de publicação existe, mas ainda não pode acontecer — o botão diz o que falta. */
+  publishBlocked: boolean;
   canDownload: boolean;
   canUninstall: boolean;
   canDelete: boolean;
@@ -391,6 +411,8 @@ export interface MarketplaceViewModel {
    * consentimento: a frase inteira, com cada extensão que sai do ar. `null` quando não há o que perguntar.
    */
   rangeConfirmMessage: string | null;
+  /** O gesto que espera o consentimento: aplicar no escritório, ou levar ao catálogo. */
+  rangeConfirmKind: RangeConfirmKind;
   confirmRange: () => Promise<void>;
   cancelRange: () => void;
   /**
@@ -444,6 +466,11 @@ export interface MarketplaceViewModel {
    */
   importInstall: boolean;
   setImportInstall: (install: boolean) => void;
+  /**
+   * Levar ao catálogo obriga a instalar aqui: o catálogo só recebe o que está instalado por completo
+   * no escritório que publica. A caixa fica marcada e travada, em vez de oferecer um gesto que falha.
+   */
+  importInstallLocked: boolean;
   confirmImport: () => Promise<void>;
   cancelImport: () => void;
   edit: (id: string) => void;
@@ -522,8 +549,12 @@ const matchesTokens = (
     }
   });
 
+/** O gesto recusado por faixa de versão — instalar aqui ou publicar no catálogo. */
+export type RangeConfirmKind = 'install' | 'publish';
+
 /** A aplicação recusada por faixa, guardando o gesto que a repete já com o consentimento. */
 interface PendingRangeConfirm {
+  kind: RangeConfirmKind;
   id: string;
   issues: readonly LocalizedIssue[];
   retry: () => Promise<void>;
@@ -774,7 +805,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         notify(successMessage, 'success');
       } catch (err) {
         if (retry && err instanceof DependencyRangeRefusal) {
-          setRangeConfirm({ id, issues: err.issues, retry, successMessage });
+          setRangeConfirm({ kind: 'install', id, issues: err.issues, retry, successMessage });
           return;
         }
         console.error('[marketplace] extension operation failed:', err);
@@ -896,24 +927,35 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   );
 
   /**
-   * O que a cópia privada tem a levar ao catálogo. Reusa a MESMA recusa que o store aplica ao
-   * publicar: um botão oferecido aqui e recusado lá seria a tela mentindo sobre o que sabe.
+   * O que a cópia privada tem a levar ao catálogo. Reusa a MESMA régua da callable que publica
+   * (`publishRefusal` e as pendências que `publicationProof` recusa): um botão oferecido aqui e
+   * recusado lá seria a tela mentindo sobre o que sabe.
    */
   const publishActionOf = useCallback(
-    (priv: TenantExtension | undefined, pub: PublicExtension | undefined): PublishAction | null => {
+    (
+      priv: TenantExtension | undefined,
+      pub: PublicExtension | undefined,
+      inst: InstalledExtension | undefined,
+      pendencies: readonly ExtensionPendency[],
+    ): PublishAction | null => {
       if (!priv || !currentTenant) return null;
+      const identical = pub !== undefined && packageFingerprint(priv.package) === packageFingerprint(pub.package);
+      if (identical && pub.proof) return null;
       const refusal = publishRefusal({
         pkg: priv.package,
         isSystem: canModerate,
         ownerTenantId: currentTenant.id,
         published: pub,
       });
-      if (refusal === null) return pub ? 'republish' : 'publish';
-      // Versão não maior só é um AVISO quando há mesmo o que levar: publicada e idêntica não pede
-      // versão nova, pede silêncio. Só esta recusa sobrevive à checagem — ela é a única que o autor
-      // resolve daqui, subindo a versão do próprio pacote.
-      if (refusal !== 'version-not-greater' || !pub) return null;
-      return packageFingerprint(priv.package) === packageFingerprint(pub.package) ? null : 'needs-version';
+      // Versão não maior é o estado normal de quem só COMPROVA: o pacote é o mesmo que está lá. Fora
+      // disso, ela é o único aviso que o autor resolve daqui, subindo a versão do próprio pacote.
+      if (refusal !== null && refusal !== 'version-not-greater') return null;
+      if (refusal === 'version-not-greater' && !identical) return 'needs-version';
+      if (!inst || packageFingerprint(inst.package) !== packageFingerprint(priv.package)) return 'needs-install';
+      if (!inst.active) return 'needs-active';
+      if (pendencies.some((pendency) => PUBLISH_BLOCKING_PENDENCIES.has(pendency))) return 'needs-pendencies';
+      if (identical) return 'prove';
+      return pub ? 'republish' : 'publish';
     },
     [currentTenant, canModerate],
   );
@@ -995,6 +1037,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canToggleActive: false,
         published: false,
         publish: null,
+        publishBlocked: false,
         canDownload: true,
         canUninstall: false,
         canDelete: false,
@@ -1062,6 +1105,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
       });
       const reputation = reputationOf(id);
 
+      const publishAction = publishActionOf(priv, pub, inst ?? undefined, pendenciesOf(id));
+
       const statusBadge: StatusBadge | null = publicStatus === 'approved' ? 'published'
         : publicStatus === 'pending' ? 'pending'
           : publicStatus === 'deprecated' ? 'deprecated'
@@ -1098,7 +1143,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         active: inst?.active ?? false,
         canToggleActive: installed_,
         published: publicStatus !== null,
-        publish: publishActionOf(priv, pub),
+        publish: publishAction,
+        publishBlocked: publishAction !== null && publishAction.startsWith('needs-'),
         // Baixa quem tem a FONTE: o que foi montado aqui, e o embutido — que é nosso, e é o pacote que
         // o `npm run build:extensions` gera para levar a extensão a um escritório que não roda este
         // bundle. A importada e a cópia instalada vinda do catálogo não: a fonte delas é de outro.
@@ -1261,28 +1307,38 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   }, [extensions, downloadPackage]);
 
   /**
-   * Leva ao catálogo global o pacote que já está no escritório. A recusa vem do store como REFERÊNCIA
-   * de mensagem com os valores que ela interpola — e é por isso que o `label` recebe os dois: a de
-   * versão não maior só ensina o que fazer se disser qual versão está publicada.
+   * Leva ao catálogo global a versão INSTALADA neste escritório — `pkg` é ela, e só serve ao portão do
+   * store: quem publica é o servidor, que lê a cópia instalada. A recusa chega como REFERÊNCIA de
+   * mensagem com os valores que ela interpola; a única que aceita consentimento (dependente do catálogo
+   * fora da faixa) abre o mesmo diálogo da instalação.
    */
   const publishPackage = useCallback(async (id: string, pkg: MarketplacePlugin) => {
     setBusyId(id);
     try {
-      const result = await publishPublic(pkg);
-      if (!result.ok) notify(t('extension.publish-failed', { detail: label(result.error, result.errorParams) }), 'error');
-      else notify(t('extension.published'), 'success');
+      const outcome = await publishPublic(pkg);
+      notify(t(outcome.kind === 'prove' ? 'extension.proved' : 'extension.published'), 'success');
     } catch (err) {
+      if (err instanceof DependencyRangeRefusal) {
+        setRangeConfirm({
+          kind: 'publish',
+          id,
+          issues: err.issues,
+          retry: async () => { await publishPublic(pkg, { acceptDependentRanges: true }); },
+          successMessage: t('extension.published'),
+        });
+        return;
+      }
       notify(t('extension.publish-failed', wrappedErrorParams(err)), 'error');
     } finally {
       setBusyId(null);
     }
-  }, [publishPublic, notify, t, label]);
+  }, [publishPublic, notify, t]);
 
   const publish = useCallback(async (id: string) => {
-    const ext = extensions.find((e) => e.id === id);
-    if (!ext) return;
-    await publishPackage(id, ext.package);
-  }, [extensions, publishPackage]);
+    const copy = installed.find((extension) => extension.id === id) ?? extensions.find((extension) => extension.id === id);
+    if (!copy) return;
+    await publishPackage(id, copy.package);
+  }, [installed, extensions, publishPackage]);
 
   const install = useCallback((id: string) => {
     const inst = installed.find((e) => e.id === id);
@@ -1347,7 +1403,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const rangeConfirmMessage = useMemo(
     () => (rangeConfirm === null
       ? null
-      : t('extension.range.message', {
+      : t(rangeConfirm.kind === 'publish' ? 'extension.publish-range.message' : 'extension.range.message', {
         detail: rangeConfirm.issues.map((issue) => label(issue.message, issue.messageParams)).join(' '),
       })),
     [rangeConfirm, t, label],
@@ -1630,7 +1686,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
       setBusyId(null);
     }
     if (!imported) return;
-    if (importInstall) {
+    if (importInstall || importScope === 'public') {
       const current = installed.find((extension) => extension.id === imported.id);
       // Reimportar o MESMO pacote que já está no ar não tem o que aplicar: reinstalá-lo só
       // reconvergiria os artefatos para o estado em que eles já estão.
@@ -1694,8 +1750,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     importTarget,
     importScope,
     setImportScope,
-    importInstall,
+    importInstall: importInstall || importScope === 'public',
     setImportInstall,
+    importInstallLocked: importScope === 'public',
     confirmImport,
     cancelImport,
     edit,
@@ -1709,6 +1766,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     confirmRemove,
     cancelRemove,
     rangeConfirmMessage,
+    rangeConfirmKind: rangeConfirm?.kind ?? 'install',
     confirmRange,
     cancelRange,
     approve,
