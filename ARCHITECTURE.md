@@ -9461,6 +9461,19 @@ link —, nunca para automação. O primeiro e-mail de verdade a apaga.
 A caixa de encaminhamento não entra na fila de leitura (`nextPollAt: null`), não tem senha nem teste de
 conexão, e a saúde dela é "último e-mail recebido".
 
+**O guia no cartão — `forwardingRule`.** A regra de encaminhamento quem cria é a pessoa, no serviço DELA, e
+o primeiro tropeço foi um filtro do Gmail que mandava o que a automação recusa (`ignored`). Por isso o cartão
+da caixa traz um passo a passo por serviço (`Mailboxes/ForwardingGuide`), aberto enquanto nada chegou ou a
+confirmação espera, com os termos prontos para copiar. Os termos saem de `forwardingRuleOf`, sobre os filtros
+das automações que a caixa alimenta, pela MESMA resolução da entrega (`subscribedWorkflows` +
+`withResolvedFilters`): nenhum termo é escrito no kernel, e a regra não diverge do que a entrega aceita.
+São calculados em `manageMailbox` (`MailboxView.forwardingRule`), não na tela, porque o membro que configura
+a própria caixa pode não ter permissão de ler as automações. Basta uma automação aceitar qualquer e-mail para
+a regra aceitar qualquer e-mail (`gmailQuery: null`).
+
+A configuração de quem mantém a instalação — domínio, provedor, adaptador — não tem tela: é feita uma vez,
+fora do app, e está documentada no portal de documentação, com o adaptador de referência para o Cloudflare.
+
 **O filtro que o escritório ajusta — `fromSetting`, `subjectSetting`.** A atualização de uma extensão
 reescreve a automação inteira (a edição à mão fica só no histórico de versões), então uma lista que o
 escritório precisa ajustar não pode morar no `mailFilter` do pacote. O filtro cita a CHAVE de uma

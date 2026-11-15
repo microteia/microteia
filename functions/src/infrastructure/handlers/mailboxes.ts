@@ -13,17 +13,18 @@ import {
   MAIL_INBOUND_MAX_BYTES,
   MAIL_MESSAGES_COLLECTION,
   MAIL_RECEIVED_EVENT,
+  forwardingRuleOf,
   isPolledMailbox,
   mailRawStoragePath,
   mailInboundAddress,
   mailboxSettingsIssue,
 } from '../../domain/schema/mailbox';
-import type { MailboxListing, MailboxSettings, MailboxView } from '../../domain/schema/mailbox';
+import type { ForwardingRule, MailboxListing, MailboxSettings, MailboxView } from '../../domain/schema/mailbox';
 import { mailInboundConfig } from '../settings/mailInbound';
 import { officeSettingValues } from '../settings/officeSettings';
 import { inboundSignatureIssue, receiveInboundMail } from '../../domain/services/mailInbound';
 import { parseMailSource } from '../../data/services/mailParsing';
-import { runMailboxPollRound } from '../../domain/services/mailboxPolling';
+import { runMailboxPollRound, subscribedWorkflows, withResolvedFilters } from '../../domain/services/mailboxPolling';
 import type { MailboxRoundDeps } from '../../domain/services/mailboxPolling';
 import type { StoredMailbox } from '../../domain/repositories/IMailboxRepository';
 import { MailReadError } from '../../domain/repositories/IMailReader';
@@ -131,6 +132,7 @@ const viewOf = async (
   mailbox: StoredMailbox,
   names: Map<string, string>,
   inboundDomain: string | null,
+  forwardingRule: ForwardingRule | null,
 ): Promise<MailboxView> => {
   if (mailbox.ownerId && !names.has(mailbox.ownerId)) {
     names.set(mailbox.ownerId, (await getDI().getTenantMemberRepository().getMember(tenantId, mailbox.ownerId))?.displayName ?? '');
@@ -145,7 +147,25 @@ const viewOf = async (
     health: mailbox.health,
     address: mailbox.inboundToken && inboundDomain ? mailInboundAddress(mailbox.inboundToken, inboundDomain) : null,
     forwardingConfirmation: mailbox.forwardingConfirmation,
+    forwardingRule,
   };
+};
+
+/**
+ * A regra de encaminhamento de cada caixa `forward`: o que as automações que ela alimenta querem, pela MESMA
+ * resolução da entrega (`subscribedWorkflows` + `withResolvedFilters`). Uma regra que divergisse da entrega
+ * encaminharia e-mail que a automação recusa — foi o primeiro tropeço de quem configurou.
+ */
+const forwardingRules = async (tenantId: string, mailboxes: StoredMailbox[]): Promise<Map<string, ForwardingRule>> => {
+  const rules = new Map<string, ForwardingRule>();
+  const forwarded = mailboxes.filter((mailbox) => !isPolledMailbox(mailbox.settings.source));
+  if (forwarded.length === 0) return rules;
+  const workflows = await getDI().getWorkflowDefinitionRepository().findEnabledByEvent(tenantId, MAIL_RECEIVED_EVENT);
+  for (const mailbox of forwarded) {
+    const targets = await withResolvedFilters(tenantId, subscribedWorkflows(mailbox, workflows), officeSettingValues);
+    rules.set(mailbox.id, forwardingRuleOf(targets.map((workflow) => workflow.mailFilter)));
+  }
+  return rules;
 };
 
 /**
@@ -197,8 +217,10 @@ export const manageMailbox = onCall(
         const inbound = mailInboundConfig();
         const all = await repository.listForTenant(tenantId);
         const visible = all.filter((mailbox) => canManage || mailbox.ownerId === userId);
+        const rules = await forwardingRules(tenantId, visible);
         return {
-          mailboxes: await Promise.all(visible.map((mailbox) => viewOf(tenantId, mailbox, names, inbound?.domain ?? null))),
+          mailboxes: await Promise.all(visible.map((mailbox) =>
+            viewOf(tenantId, mailbox, names, inbound?.domain ?? null, rules.get(mailbox.id) ?? null))),
           forwardingAvailable: inbound !== null,
         };
       }

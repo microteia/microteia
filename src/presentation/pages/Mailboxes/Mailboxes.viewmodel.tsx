@@ -18,7 +18,7 @@ import {
   isPolledMailbox,
   mailboxSettingsIssue,
 } from '../../../domain/schema/mailbox';
-import type { MailboxSettings, MailboxSource, MailboxView } from '../../../domain/schema/mailbox';
+import type { ForwardingRule, MailboxSettings, MailboxSource, MailboxView } from '../../../domain/schema/mailbox';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import { makeManageMailboxUseCase } from '../../../domain/usecases/mailboxes/ManageMailboxUseCase';
 import type { MultiSearchSelectOption } from '../../components/ui/MultiSearchSelect';
@@ -52,6 +52,9 @@ export interface MailboxCard {
   address: string | null;
   /** A confirmação de encaminhamento pendente, já em frase. */
   confirmation: { text: string; url: string } | null;
+  /** O passo a passo do encaminhamento — só na caixa `forward` com endereço. */
+  guide: { address: string; rule: ForwardingRule | null } | null;
+  guideOpen: boolean;
   canTest: boolean;
   owner: string | null;
   tone: MailboxTone;
@@ -91,6 +94,7 @@ export interface MailboxesViewModel {
   setSubscriptions: (values: string[]) => void;
   save: () => Promise<void>;
   test: (mailbox: MailboxView) => Promise<void>;
+  toggleGuide: (card: MailboxCard) => void;
   askDelete: (mailbox: MailboxView) => void;
   cancelDelete: () => void;
   confirmDelete: () => Promise<void>;
@@ -169,6 +173,8 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
   const [saving, setSaving] = useState(false);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<MailboxView | null>(null);
+  // Só o que a pessoa abriu ou fechou: sem isso, o guia segue o estado da caixa.
+  const [guideToggles, setGuideToggles] = useState<Record<string, boolean>>({});
 
   const fail = useCallback((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
@@ -225,6 +231,9 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
               : t('mailbox.status.ok-none', { when: lastAt })
             : t('mailbox.status.forward-ok', { when: lastAt });
     const pending = mailbox.forwardingConfirmation;
+    // Aberto enquanto o encaminhamento não está de pé — nada chegou ainda, ou a confirmação espera. Depois,
+    // fecha sozinho e fica a um clique.
+    const settingUp = !mailbox.health.lastPolledAt || pending !== null;
     return {
       mailbox,
       account: polled
@@ -239,6 +248,8 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
             url: pending.url,
           }
         : null,
+      guide: !polled && mailbox.address ? { address: mailbox.address, rule: mailbox.forwardingRule } : null,
+      guideOpen: !polled && mailbox.address !== null && (guideToggles[mailbox.id] ?? settingUp),
       canTest: polled,
       owner: mailbox.ownerName,
       tone,
@@ -247,7 +258,11 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
         ? mailbox.subscriptions.map(workflowName).join(', ')
         : t('mailbox.no-subscriptions'),
     };
-  }, [t, label, formatDateTime, workflowName]);
+  }, [t, label, formatDateTime, workflowName, guideToggles]);
+
+  const toggleGuide = useCallback((card: MailboxCard) => {
+    setGuideToggles((current) => ({ ...current, [card.mailbox.id]: !card.guideOpen }));
+  }, []);
 
   const sections = useMemo<MailboxSection[]>(() => {
     const own = mailboxes.filter((mailbox) => mailbox.ownerId === userId).map(cardOf);
@@ -380,6 +395,7 @@ export const useMailboxesViewModel = (): MailboxesViewModel => {
     setSubscriptions,
     save,
     test,
+    toggleGuide,
     askDelete,
     cancelDelete,
     confirmDelete,

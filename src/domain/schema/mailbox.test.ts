@@ -6,6 +6,7 @@ import {
   MAIL_MESSAGE_RETENTION_DAYS,
   mailboxKeepsCursor,
   forwardingConfirmationOf,
+  forwardingRuleOf,
   mailFilterWithoutSettings,
   resolveMailFilter,
   mailInboundTokenOf,
@@ -220,5 +221,38 @@ describe('mailboxKeepsCursor — o ponto de leitura ao salvar', () => {
 
   it('a marca do que foi entregue dura mais que a janela maior, com a folga do SINCE por dia', () => {
     expect(MAIL_MESSAGE_RETENTION_DAYS).toBeGreaterThanOrEqual(MAILBOX_MAX_BACKFILL_DAYS + 2);
+  });
+});
+
+describe('forwardingRuleOf', () => {
+  it('uma automação: a busca do Gmail com remetentes e assunto, sem o curinga que o Gmail não entende', () => {
+    expect(forwardingRuleOf([{ from: ['*.example.com', '@example.org', 'alguem@example.net'], subject: ['Aviso de prazo'] }])).toEqual({
+      senders: ['example.com', 'example.org', 'alguem@example.net'],
+      subjects: ['Aviso de prazo'],
+      gmailQuery: 'from:(example.com OR example.org OR alguem@example.net) subject:"Aviso de prazo"',
+    });
+  });
+
+  it('duas automações: grupos ligados por OR; as listas só unem a dimensão que todas restringem', () => {
+    const rule = forwardingRuleOf([
+      { from: ['example.com'], hasAttachments: true },
+      { from: ['example.org'], subject: ['Pedido'] },
+    ]);
+    expect(rule.gmailQuery).toBe('(from:example.com has:attachment) OR (from:example.org subject:Pedido)');
+    expect(rule.senders).toEqual(['example.com', 'example.org']);
+    expect(rule.subjects).toEqual([]);
+  });
+
+  it('basta uma automação aceitar tudo para a regra aceitar tudo; sem automação, também', () => {
+    const everything = { senders: [], subjects: [], gmailQuery: null };
+    expect(forwardingRuleOf([{ from: ['example.com'] }, null])).toEqual(everything);
+    expect(forwardingRuleOf([{ from: [], subject: [] }])).toEqual(everything);
+    expect(forwardingRuleOf([])).toEqual(everything);
+  });
+
+  it('a mesma automação duas vezes não repete o grupo, e termos repetidos saem uma vez', () => {
+    const rule = forwardingRuleOf([{ from: ['Example.com', 'example.com'] }, { from: ['example.com'] }]);
+    expect(rule.gmailQuery).toBe('from:example.com');
+    expect(rule.senders).toEqual(['example.com']);
   });
 });

@@ -120,6 +120,20 @@ export const S = {
     font-weight: 600;
   `,
 
+  GuideToggle: styled.button`
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.xs};
+    padding: 0;
+    border: none;
+    background: none;
+    color: ${({ theme }) => theme.colors.primary};
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-weight: 600;
+    cursor: pointer;
+  `,
+
   CardStatus: styled.div<{ $tone: MailboxTone }>`
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme, $tone }) => ($tone === 'failing' ? theme.colors.danger : theme.colors.textSecondary)};

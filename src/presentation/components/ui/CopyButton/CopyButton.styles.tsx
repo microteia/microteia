@@ -1,15 +1,17 @@
 import styled from 'styled-components';
 
 export const S = {
-  Button: styled.button<{ $copied: boolean }>`
-    position: absolute;
+  Button: styled.button<{ $copied: boolean; $inline: boolean }>`
+    position: ${({ $inline }) => ($inline ? 'static' : 'absolute')};
     top: 10px;
     right: 10px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
+    width: ${({ $inline }) => ($inline ? '24px' : '30px')};
+    height: ${({ $inline }) => ($inline ? '24px' : '30px')};
+    cursor: pointer;
     border-radius: ${({ theme }) => theme.borderRadius.md};
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};

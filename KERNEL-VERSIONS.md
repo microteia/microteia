@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.266.0] — 2026-11-15
+
+- feat(mailboxes): forwarding mailboxes carry a step-by-step guide on their card (Gmail, Outlook, other services), open while nothing has arrived yet or a confirmation is pending, and one click away afterwards.
+- feat(mailboxes): `MailboxView.forwardingRule` — the senders, subjects and a ready Gmail search derived from the resolved filters of the automations the mailbox feeds, computed by `manageMailbox` with the same resolution the delivery uses (`subscribedWorkflows` + `withResolvedFilters`). Server-side because a member configuring their own mailbox may not be allowed to read those automations. `forwardingRuleOf` in `domain/schema/mailbox.ts`.
+- fix(ui/CopyButton): `inline` mode. The button was absolutely positioned for code blocks, so next to the forwarding address it landed in the corner of an unrelated ancestor and did not show.
+- feat(locale-pt-br): 1.216.0 with the guide's translations.
+
 #### [9.265.1] — 2026-11-14
 
 - fix(assistant/panel): a turn refused for lack of an AI connection (`ai.no-default-connection`, `ai.default-key-missing`, `ai.connection-not-found`, `error.provider-unsupported`) now says where to fix it — `panel.ai-setup` with an "Open AI connections" shortcut to `tenant-settings:ai` for `ai.manage`, `panel.ai-setup.ask` otherwise — as the Data Processor and Report Design already did.

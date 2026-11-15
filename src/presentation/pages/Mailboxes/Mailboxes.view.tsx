@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiAddLine, RiDeleteBinLine, RiEditLine, RiPlugLine } from 'react-icons/ri';
+import { RiAddLine, RiArrowDownSLine, RiArrowUpSLine, RiDeleteBinLine, RiEditLine, RiPlugLine } from 'react-icons/ri';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
@@ -11,6 +11,7 @@ import { InfoBanner } from '../../components/ui/InfoBanner';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { CopyButton } from '../../components/ui/CopyButton';
 import { useT } from '../../shared/i18n/useT';
+import { ForwardingGuide } from './ForwardingGuide';
 import { useMailboxesViewModel } from './Mailboxes.viewmodel';
 import { S } from './Mailboxes.styles';
 
@@ -49,7 +50,7 @@ export const MailboxesView: React.FC = () => {
                     <S.CardName>{card.mailbox.name}</S.CardName>
                     <S.AddressRow>
                       <S.CardMeta>{card.account}</S.CardMeta>
-                      {card.address && <CopyButton text={card.address} size={14} />}
+                      {card.address && <CopyButton text={card.address} size={14} inline />}
                     </S.AddressRow>
                     {card.owner && <S.CardMeta>{t('mailbox.owner', { name: card.owner })}</S.CardMeta>}
                     <S.CardMeta>{t('mailbox.feeds', { workflows: card.subscriptions })}</S.CardMeta>
@@ -64,6 +65,13 @@ export const MailboxesView: React.FC = () => {
                         )}
                       </S.Confirmation>
                     )}
+                    {card.guide && (
+                      <S.GuideToggle type="button" onClick={() => vm.toggleGuide(card)} aria-expanded={card.guideOpen}>
+                        {card.guideOpen ? <RiArrowUpSLine size={14} /> : <RiArrowDownSLine size={14} />}
+                        {t(card.guideOpen ? 'mailbox.guide.hide' : 'mailbox.guide.show')}
+                      </S.GuideToggle>
+                    )}
+                    {card.guide && card.guideOpen && <ForwardingGuide address={card.guide.address} rule={card.guide.rule} />}
                   </S.CardBody>
                   <S.Actions>
                     {card.canTest && (
