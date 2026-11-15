@@ -245,20 +245,15 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
     detail:
       'E-mail mailboxes can be read over IMAP with nothing to set up here. The other kind — the person '
       + 'forwards to an address of the platform, with no password stored and any provider — needs a domain '
-      + 'that RECEIVES mail (for example in.<your-domain>) and an inbound mail provider in front of it '
-      + '(Cloudflare Email Routing with an Email Worker, Postmark, Mailgun, Amazon SES…). Choose a long random '
-      + 'secret, write MAIL_INBOUND_DOMAIN=<domain> and MAIL_INBOUND_SECRET=<secret> in .env.<projectId> and run '
-      + 'microteia deploy --only functions (provision does not carry the platform\'s own settings). Then make the '
-      + 'provider POST every message to https://<region>-<projectId>.cloudfunctions.net/mailInbound with the '
-      + 'raw message (RFC 822) as the body and three headers: x-microteia-recipient (the ENVELOPE recipient, '
-      + 'RCPT TO — not the To: header, which is the person\'s own address), x-microteia-timestamp (seconds since '
-      + '1970) and x-microteia-signature (hex HMAC-SHA256 of "<timestamp>.<recipient>." followed by the raw '
-      + 'body, keyed with the secret). The endpoint answers 202 to every signed message, 401 to a bad or stale '
-      + 'signature and 413 above 20 MB; on any other error it answers 500 and the provider may retry — a '
-      + 'message is never delivered twice. When the person\'s mail service asks the destination to confirm '
-      + 'forwarding, the confirmation arrives at the mailbox address and its code and link appear on the '
-      + 'mailbox in the app. Without these '
-      + 'two settings nothing changes for anyone.',
+      + 'that RECEIVES mail and an inbound mail provider in front of it that POSTs every message, raw and '
+      + 'signed, to https://<region>-<projectId>.cloudfunctions.net/mailInbound. Choose a long random secret, '
+      + 'write MAIL_INBOUND_DOMAIN=<domain> and MAIL_INBOUND_SECRET=<secret> in .env.<projectId> and run '
+      + 'microteia deploy --only functions (provision does not carry the platform\'s own settings). With '
+      + 'Cloudflare Email Routing, the reference Email Worker in integrations/cloudflare-email-worker of the '
+      + 'Microteia repository does the rest; note that Cloudflare runs a catch-all rule only on the zone\'s '
+      + 'apex domain, not on a subdomain. The step-by-step guide, the request contract for any other '
+      + 'provider and how to read the Worker log are at https://doc.microteia.com/forwarded-email. Without '
+      + 'these two settings nothing changes for anyone.',
     optional: true,
   },
   {

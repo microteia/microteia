@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.43.5] — 2026-11-15
+
+- docs(console/prerequisites): `mail-inbound` points to the forwarding guide at doc.microteia.com/forwarded-email and to the reference Cloudflare Email Worker in `integrations/cloudflare-email-worker`, and warns that Cloudflare runs a catch-all rule only on the zone's apex domain. It suggested `in.<your-domain>`, a subdomain, where the random mailbox addresses can never be routed; the request contract it spelled out now lives in the guide, next to the Worker that implements it.
+
 #### [2.43.4] — 2026-11-14
 
 - fix(console/provision): the installation-gate check reads an extension id passed through a `const` declared in the same file (`const PLUGIN_ID = '…'; forInstalledExtension(PLUGIN_ID, …)`), for `forInstalledExtension`, `forEachInstalledOffice`, `requireInstalledExtension` and the `forAnyInstalledExtension([...])` list. Only a string literal was read, so a correctly gated trigger was refused with "no installation gate" and its extension stayed "backend pending" (Pushes do Tribunal 2.0.0, `parsePushEmail`). An id that still cannot be read (imported from another file, a `let`, two `const`s with different values) is still refused, now with a message saying the gate is there and its id is unreadable.

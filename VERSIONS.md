@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.266.1] — 2026-11-15
+
+- Quem mantém a instalação passa a ter um roteiro pronto para ligar o recebimento de e-mails encaminhados, com o programa de recepção para o Cloudflare já incluído.
+
 #### [9.266.0] — 2026-11-15
 
 - A caixa de e-mail por encaminhamento agora ensina a configurar: um passo a passo para Gmail, Outlook e outros serviços aparece no cartão da caixa enquanto o primeiro e-mail não chega, e pode ser reaberto a qualquer momento.
