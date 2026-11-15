@@ -90,6 +90,16 @@ export const migrationPhaseOf = (migration: PluginMigration): MigrationPhase =>
 
 export const isMigrationRequired = (migration: PluginMigration): boolean => migration.required !== false;
 
+/**
+ * Falta migração OBRIGATÓRIA, dado o conjunto de ids já aplicados. Mora aqui, e não só no serviço da
+ * fila, porque o servidor também precisa da resposta: publicar no catálogo recusa a extensão que ainda
+ * deve dados no escritório que a publica, e uma régua lá e outra aqui divergiriam em silêncio.
+ */
+export const hasBlockingMigrationsAmong = (
+  migrations: readonly PluginMigration[] | null | undefined,
+  appliedIds: ReadonlySet<string>,
+): boolean => (migrations ?? []).some((migration) => isMigrationRequired(migration) && !appliedIds.has(migration.id));
+
 export const migrationRunsOnInstall = (migration: PluginMigration): boolean => migration.runOnInstall === true;
 
 export const migrationMaxRounds = (migration: PluginMigration): number =>

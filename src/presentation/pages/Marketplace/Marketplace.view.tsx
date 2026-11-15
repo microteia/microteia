@@ -42,7 +42,7 @@ import { RadioGroup } from '../../components/ui/RadioButton';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import { useMarketplaceViewModel } from './Marketplace.viewmodel';
-import type { Author, ExtensionRow, HistoryPanel, MarketplaceFilter, PublishAction, RatingSummary, StatusBadge } from './Marketplace.viewmodel';
+import type { Author, ExtensionRow, HistoryPanel, MarketplaceFilter, PublishAction, RangeConfirmKind, RatingSummary, StatusBadge } from './Marketplace.viewmodel';
 import type { StarKind } from '../../../domain/usecases/plugins/extensionReputation';
 import { S } from './Marketplace.styles';
 
@@ -63,7 +63,17 @@ const FILTERS: { key: MarketplaceFilter; labelKey: string }[] = [
 const PUBLISH_TITLE: Record<PublishAction, string> = {
   publish: 'extension.publish',
   republish: 'extension.republish',
+  prove: 'extension.prove',
   'needs-version': 'extension.publish.needs-version',
+  'needs-install': 'extension.publish.needs-install',
+  'needs-active': 'extension.publish.needs-active',
+  'needs-pendencies': 'extension.publish.needs-pendencies',
+};
+
+/** O diálogo de faixa serve a dois gestos, e cada um diz o próprio nome. */
+const RANGE_DIALOG: Record<RangeConfirmKind, { title: string; confirm: string }> = {
+  install: { title: 'extension.range.title', confirm: 'extension.range.confirm' },
+  publish: { title: 'extension.publish-range.title', confirm: 'extension.publish-range.confirm' },
 };
 
 const STATUS_LABEL: Record<StatusBadge, { labelKey: string; tone: Tone }> = {
@@ -373,7 +383,7 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
       {row.publish && (
         <S.ActionButton
           title={t(PUBLISH_TITLE[row.publish], { version: row.version })}
-          disabled={busy || row.publish === 'needs-version'}
+          disabled={busy || row.publishBlocked}
           onClick={() => void vm.publish(row.id)}
         >
           <RiGlobalLine size={17} />
@@ -574,9 +584,9 @@ export const MarketplaceView: React.FC = () => {
 
       <ConfirmModal
         isOpen={vm.rangeConfirmMessage !== null}
-        title={t('extension.range.title')}
+        title={t(RANGE_DIALOG[vm.rangeConfirmKind].title)}
         message={vm.rangeConfirmMessage ?? ''}
-        confirmLabel={t('extension.range.confirm')}
+        confirmLabel={t(RANGE_DIALOG[vm.rangeConfirmKind].confirm)}
         cancelLabel={t('core.ui/action.cancel')}
         variant="danger"
         onConfirm={vm.confirmRange}
@@ -695,6 +705,7 @@ export const MarketplaceView: React.FC = () => {
           <S.ImportInstall>
             <Checkbox
               checked={vm.importInstall}
+              disabled={vm.importInstallLocked}
               onChange={vm.setImportInstall}
               label={vm.importTarget.installedVersion === null
                 ? t('import.install')

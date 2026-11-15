@@ -1,6 +1,6 @@
 import type { ExtensionBackendPending, InstalledExtension } from '../../entities/InstalledExtension';
 import type { AppliedBackend } from '../../entities/AppliedBackend';
-import { backendFingerprint, hasBackendRequirement } from '../../schema/plugin/backendRequirement';
+import { backendFingerprint, hasBackendRequirement, isBackendRequirementApplied } from '../../schema/plugin/backendRequirement';
 
 /**
  * Uma extensão pode exigir do projeto Firebase o que nenhuma declaração de dados alcança: Cloud
@@ -33,14 +33,11 @@ const declaredFingerprint = (extension: InstalledExtension): string =>
 export const isExtensionBackendApplied = (
   extension: InstalledExtension,
   projectApplied: AppliedBackend | null,
-): boolean => {
-  if (!extensionNeedsBackend(extension)) return true;
-  const declared = declaredFingerprint(extension);
-  if (extension.backendState?.fingerprint === declared) return true;
-  return (projectApplied?.extensions ?? []).some(
-    (entry) => entry.pluginId === extension.package.manifest.id && entry.fingerprint === declared,
-  );
-};
+): boolean => isBackendRequirementApplied(
+  extension.package,
+  extension.backendState?.fingerprint,
+  projectApplied?.extensions ?? [],
+);
 
 /** Instalada, ativa, exigindo backend e ainda sem ele — o que a tela de Extensões precisa mostrar. */
 export const isExtensionBackendPending = (

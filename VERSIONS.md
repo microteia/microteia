@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.268.0] — 2026-11-15
+
+- O catálogo de extensões passou a garantir a instalação: uma extensão só vai para o catálogo depois de instalada e funcionando por completo no escritório que a publica, com tudo o que precisa já no ar. Quem a instala do catálogo não encontra mais pendências que não teria como resolver.
+- O botão de publicar agora diz o que falta antes de liberar o envio: instalar esta versão aqui, ativá-la ou resolver as pendências dela.
+- Extensões publicadas antes desta regra podem ser comprovadas pelo escritório que as publicou, sem precisar de uma versão nova.
+- Ao importar uma extensão já direto para o catálogo, ela é instalada no escritório antes de ser publicada.
+
 #### [9.267.0] — 2026-11-15
 
 - Quem escreve extensões pode dividir um script em vários arquivos e testar separadamente a parte que faz as contas, antes de instalar qualquer coisa.

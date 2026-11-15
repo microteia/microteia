@@ -108,3 +108,4 @@ export { onNoteChange } from './infrastructure/handlers/workflow/onNoteChange';
 export { onDocumentChange } from './infrastructure/handlers/workflow/onDocumentChange';
 export { getExpressionFunctions } from './infrastructure/handlers/getExpressionFunctions';
 export { countExtensionInstalls, aggregateExtensionRatings } from './infrastructure/handlers/extensionStats';
+export { publishExtension } from './infrastructure/handlers/publishExtension';

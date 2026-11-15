@@ -10504,7 +10504,7 @@ O percurso tem dois passos, e o primeiro é sempre o mesmo:
 | Passo | Onde grava | Quem vê |
 |---|---|---|
 | **Importar** (`.json`) ou autorar | `tenants/{id}/extensions` | só o escritório, na aba "Minhas" |
-| **Publicar** | `public_extensions/{domain}` | todo escritório autenticado, na aba "Catálogo" |
+| **Publicar** | `public_extensions/{domain}`, só pela callable `publishExtension` | todo escritório autenticado, na aba "Catálogo" |
 
 Importar não põe no ar: a cópia privada é de AUTORIA, e só a instalada contribui. Como importar e
 esquecer de instalar era o caminho comum, o modal de importação traz **"Instalar neste escritório"**
@@ -10548,29 +10548,34 @@ falhe deixa a extensão importada em vez de perder o gesto inteiro.
   outros.
 - **Com fonte de Cloud Function** (`backendSource`, desde a 9.207.0) é código também, e com alcance
   maior: roda no SERVIDOR de cada projeto que a aprovar. Mesma regra, mesma função — `extensionHasCode`
-  conta as duas, e `pkgHasCode()` nas Rules também. A aprovação por hash no Console (ver "A fonte das
+  conta as duas (`packageHasCode`, em `schema/plugin/publicationProof.ts`). A aprovação por hash no Console (ver "A fonte das
   functions viaja no pacote") continua valendo na instalação: esta trava é a de quem PÕE no catálogo,
   aquela é a de quem PÕE NO AR, e nenhuma substitui a outra.
 
 Publicar é, portanto, gesto de quem já poderia aprovar: **toda publicação nova nasce `approved`**.
 O status `pending` é legado — veio de quando o admin do escritório enfileirava código para curadoria —
-e o `SYSTEM` ainda aprova ou rejeita o que ficou na fila. As Rules cobram a mesma divisão
-(`rules-tests/publicExtensions.test.ts`), e `canPublishPublicly` existe para a tela não OFERECER o que
-seria recusado lá.
+e o `SYSTEM` ainda aprova ou rejeita o que ficou na fila. Quem cobra a divisão é a callable
+`publishExtension` (ver abaixo), e `canPublishPublicly` existe para a tela não OFERECER o que seria
+recusado lá.
 
 **Republicar exige subir a versão — e essa é a regra que não pode ser silenciosa.** Um escritório que
 já instalou a extensão só recebe a cópia nova quando a versão sobe (`updateSourceOf`). Publicar por
 cima da mesma versão gravaria um pacote que ninguém jamais receberia. `publishRefusal`
-(`domain/usecases/plugins/publicExtension.ts`, puro e testado) é a porta única dos quatro motivos de
-recusa — versão inválida, código sem SYSTEM, domínio de outro escritório, versão não maior — e é a
-MESMA função que o store aplica ao publicar e que a linha usa para decidir o que oferecer:
+(`domain/schema/plugin/publicationProof.ts`, compartilhado com `functions/`, puro e testado) é a porta
+única dos quatro motivos de recusa — versão inválida, código sem SYSTEM, domínio de outro escritório,
+versão não maior — e é a MESMA função que a callable aplica ao publicar e que a linha usa para decidir o
+que oferecer:
 
 | `PublishAction` | Quando | O que a linha faz |
 |---|---|---|
-| `publish` | nunca publicada | botão ativo |
-| `republish` | o pacote privado difere do publicado E a versão é maior | botão ativo, dizendo a versão |
+| `publish` | nunca publicada, instalada e completa aqui | botão ativo |
+| `republish` | o pacote privado difere do publicado, a versão é maior, e ESTA versão está instalada e completa | botão ativo, dizendo a versão |
+| `prove` | o catálogo tem exatamente o pacote instalado aqui, publicado antes da prova existir | botão ativo, "Comprovar" |
 | `needs-version` | difere, mas a versão não subiu | botão **desabilitado**, dizendo que falta subir |
-| `null` | publicada e IDÊNTICA, ou sem permissão | nada |
+| `needs-install` | a versão privada não é a que está instalada aqui | **desabilitado**, mandando instalar |
+| `needs-active` | instalada, mas desligada | **desabilitado**, mandando ligar |
+| `needs-pendencies` | instalada e ligada, com `load-failed`, `backend`, `migration` ou `code-review` | **desabilitado**, mandando resolver |
+| `null` | publicada, IDÊNTICA e comprovada, ou sem permissão | nada |
 
 O `null` é o que a tela ganhou: enquanto "Republicar" aparecia logo depois de publicar, o botão era a
 própria pergunta *republicar o quê?*. Um gesto que não tem efeito não deve estar na tela, e um que
@@ -10579,6 +10584,58 @@ não pode acontecer ainda deve dizer o que falta em vez de sumir.
 **Instalar do catálogo copia o pacote para o escritório** (`source: 'public'`), como qualquer outra
 instalação: o catálogo é origem, não vínculo. Retirar do catálogo (`delete`) é do `SYSTEM`, e não
 afeta quem já instalou.
+
+### A publicação é prova de instalação — `publishExtension`
+
+O catálogo é um lugar de onde se instala **sem intervenção de ninguém**, e é isso que o separa de um
+depósito de arquivos. Até a 9.267.0 a publicação era uma escrita do navegador guardada pelas Rules, e
+nada impedia que fosse ao catálogo uma versão que não subia em escritório nenhum: com a dependência
+fora do catálogo, com o backend esperando um `provision`, com migração devida ou código que ninguém
+executou. Quem instalava herdava o problema sem ter como resolvê-lo.
+
+**A regra:** a versão que vai ao catálogo é a que está INSTALADA, completa, no escritório que a publica.
+A callable `publishExtension({ tenantId, pluginId, acceptDependentRanges })` não recebe pacote: ela lê
+`tenants/{id}/installed_extensions/{pluginId}` e publica exatamente aquela cópia. O que vai ao catálogo
+é, por construção, o que está no ar em algum lugar — e a prova não é uma afirmação de quem publica.
+
+`publicationProofIssues` (`schema/plugin/publicationProof.ts`, compartilhado) recusa, na ordem:
+
+| Motivo | Por quê |
+|---|---|
+| `not-installed`, `inactive` | ninguém provou que ela sobe |
+| `builtin-copy` | a de primeira parte viaja no bundle, não no catálogo |
+| `backend-pending` | todo escritório que a instalasse esperaria um `provision` — a régua é `isBackendRequirementApplied`, a mesma da tela |
+| `migration-pending` | a extensão está fora do boot aqui mesmo — `hasBlockingMigrationsAmong`, a mesma da fila |
+| `code-not-trusted` | ninguém executou o código que rodaria no navegador dos outros |
+| `dependency-not-installed`, `dependency-not-in-catalog` | a dependência tem de ser alcançável por quem instala: do kernel (`core.*`), embutida, ou no catálogo, aprovada, numa versão dentro da faixa |
+
+Antes deles vêm os quatro de `publishRefusal` (quem e qual versão), e depois um único que aceita
+consentimento: `catalogDependentIssues`, a extensão do catálogo que esta versão deixa fora da faixa
+declarada. Recusar sempre travaria a saída — `com.a` 0.2 recusada pela faixa de `com.b` 0.1, e `com.b`
+0.2 recusada porque o catálogo só tem `com.a` 0.1 —, então a tela pergunta, no mesmo diálogo da
+instalação (`DependencyRangeRefusal`), e repete com `acceptDependentRanges`.
+
+**O que o servidor não vê, a tela cobra.** `load-failed` é diagnóstico do runtime, e a linha não oferece
+o gesto enquanto houver essa pendência (`needs-pendencies`). A referência a artefato e o prefixo de
+evento que uma extensão do catálogo usa desta, e que esta versão deixou de trazer, são cobrados no store
+por `dependentRefIssues` contra o catálogo — a mesma recusa da instalação. Conexão HTTP não configurada
+(`connection`) não impede: é configuração de cada escritório, que nenhuma prova faz por ele.
+
+**A prova** é `public_extensions/{domain}.proof = { tenantId, version, revision, provenBy, provenAt }`,
+com `revision = contentFingerprint(pacote)`. A entrada anterior à regra não tem prova e continua
+instalável; quando o pacote instalado no escritório dono é idêntico ao publicado, a mesma callable
+**comprova** (`prove`) sem exigir versão nova — só acrescenta `proof`.
+
+**As Rules fecharam a escrita do cliente:** `create` é falso para todos, e o `SYSTEM` só altera
+`status` (`approved` ou `deprecated`). Nem ele escreve pacote ou prova pela tela — a garantia seria a
+palavra de quem escreveu. A importação com "no catálogo, para todos" passou a instalar obrigatoriamente
+(a caixa fica marcada e travada), porque publicar sem instalar é a recusa `not-installed`.
+
+Arquivos: `domain/schema/plugin/publicationProof.ts` ·
+`functions/src/domain/usecases/PublishExtensionUseCase.ts` ·
+`functions/src/data/repositories/FirebaseExtensionPublicationRepository.ts` ·
+`functions/src/infrastructure/handlers/publishExtension.ts` (grupo `deploy:marketplace`) ·
+`firestore.rules` · `rules-tests/publicExtensions.test.ts`.
 
 ### Reputação no catálogo — imagem, instalações, estrelas e publicador verificado
 

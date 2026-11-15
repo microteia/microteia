@@ -30,6 +30,7 @@ const publishedAs = (version: string, ownerTenantId = 't1'): PublicExtension => 
   hasCode: false,
   publishedAt: new Date(),
   publishedBy: 'u1',
+  proof: null,
 });
 
 describe('publicExtension helpers', () => {

@@ -244,6 +244,20 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.publish.needs-version':
     'Raise the version of this extension to send the changes to the catalog: organizations that already '
     + 'installed it only receive an update when the version rises.',
+  'extension.publish.needs-install':
+    'Install version {version} in this organization before publishing it: the catalog only takes what is '
+    + 'installed completely in the organization that publishes it.',
+  'extension.publish.needs-active':
+    'Activate this extension in the organization before publishing it: the catalog only takes what is running here.',
+  'extension.publish.needs-pendencies':
+    'Resolve the pending items of this extension here before publishing it — every organization that installed '
+    + 'it from the catalog would inherit them.',
+  'extension.prove': 'Prove in the catalog that version {version} is installed completely here',
+  'extension.publish-range.title': 'Publish this version anyway?',
+  'extension.publish-range.message':
+    '{detail} Publishing it now leaves that extension impossible to install from the catalog until it is '
+    + 'republished accepting this version.',
+  'extension.publish-range.confirm': 'Publish anyway',
   'extension.approve': 'Approve publication',
   'extension.reject': 'Reject publication',
   'extension.deprecate': 'Mark as deprecated',
@@ -273,8 +287,9 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'It goes to My Extensions, ready to be installed here. No other organization sees it, and you can '
     + 'publish it to the catalog later.',
   'import.scope.public.hint':
-    'It goes to My Extensions and, at the same time, to the catalog every organization browses, where '
-    + 'anyone can install it. Only a system administrator takes it out of the catalog afterwards.',
+    'It goes to My Extensions, is installed here and then goes to the catalog every organization browses, '
+    + 'where anyone can install it — the catalog only takes what is installed completely. Only a system '
+    + 'administrator takes it out of the catalog afterwards.',
   'import.code-requires-system':
     'This extension brings a screen in code, and code runs in the browser of every member of every '
     + 'organization that installs it — only a system administrator publishes it to the catalog. '
@@ -308,6 +323,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.updated': 'Extension updated.',
   'extension.removed': 'Extension deleted from your private area.',
   'extension.published': 'Published to the catalog.',
+  'extension.proved': 'Installation proven: the version in the catalog now carries the guarantee.',
   'extension.publish-failed': 'Could not publish: {detail}',
   'extension.approved': 'Extension approved.',
   'extension.deprecated': 'Extension marked as deprecated.',
@@ -704,6 +720,27 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'Version {version} is not greater than the published one ({published}). Raise it: organizations that '
     + 'already installed this extension only receive an update when the version rises.',
   'publish.no-tenant': 'No organization or user.',
+  'publish.invalid-request': 'The publication request is incomplete.',
+  'publish.failed': 'The publication could not be completed.',
+  'publish.not-installed':
+    'This extension is not installed in this organization. The catalog only takes a version installed '
+    + 'completely in the organization that publishes it.',
+  'publish.builtin-copy':
+    'The copy installed here is the one that comes with the application. Install the package from My '
+    + 'Extensions and publish again.',
+  'publish.inactive': 'The extension is deactivated in this organization. Activate it and publish again.',
+  'publish.backend-pending':
+    'The backend of this extension is not running in this project yet. Run "microteia provision" and publish again.',
+  'publish.migration-pending':
+    'This extension still owes a data update in this organization. Run it and publish again.',
+  'publish.code-not-trusted':
+    'The code of this extension has not been reviewed in this organization. Review and trust it, then publish again.',
+  'publish.dependency-not-installed': 'It depends on "{dependency}", which is not installed in this organization.',
+  'publish.dependency-not-in-catalog':
+    'It depends on "{dependency}" {range}, and the catalog has no version of it in that range. Publish the dependency first.',
+  'publish.dependent-out-of-range':
+    'Extension "{dependent}" in the catalog accepts this one in {range}, and this version is {version}.',
+  'publish.already-published': 'The catalog already has exactly this version, with its installation proven.',
   'lifecycle.already-installed': 'Plugin "{id}" is already installed (version {version}). Use update.',
   'lifecycle.invalid-version': 'Version "{version}" is not a valid semver.',
   'lifecycle.not-installed': 'The plugin is not installed in this organization.',

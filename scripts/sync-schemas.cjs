@@ -61,6 +61,7 @@ const SHARED_FILES = [
   'domain/schema/portalRole.ts',
   'domain/schema/actionScope.ts',
   'domain/schema/plugin/codeTrust.ts',
+  'domain/schema/plugin/publicationProof.ts',
   'domain/schema/aggregationSpec.ts',
   'domain/schema/aggregateBackfill.ts',
   'domain/schema/lookupSeed.ts',

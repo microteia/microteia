@@ -3,19 +3,40 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
-  serverTimestamp,
-  setDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { db } from '../../infrastructure/firebase/config';
-import { publicExtensionDataFromInput, publicExtensionFromDoc } from './publicExtensionMapping';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../infrastructure/firebase/config';
+import { publicExtensionFromDoc } from './publicExtensionMapping';
+import { DependencyRangeRefusal } from '../../domain/usecases/plugins/crossExtensionRefs';
 import type {
   IPublicExtensionRepository,
-  PublishPublicExtensionInput,
+  PublishExtensionOptions,
+  PublishExtensionOutcome,
 } from '../../domain/repositories/IPublicExtensionRepository';
 import type { PublicExtension, PublicExtensionStatus } from '../../domain/entities/PublicExtension';
+import type { LocalizedIssue } from '../../domain/usecases/plugins/pluginReferences';
 
 const publicRef = () => collection(db, 'public_extensions');
+
+/**
+ * As dependentes que a versão deixaria fora da faixa chegam como `details.issues` da callable. Viram a
+ * MESMA recusa que a instalação usa para perguntar — e por isso a tela de Extensões as mostra no mesmo
+ * diálogo, sem um segundo caminho de consentimento.
+ */
+const consentIssuesOf = (error: unknown): LocalizedIssue[] | null => {
+  const details = (error as { details?: unknown } | null)?.details;
+  const issues = (details as { issues?: unknown } | null | undefined)?.issues;
+  if (!Array.isArray(issues) || issues.length === 0) return null;
+  return issues.flatMap((issue): LocalizedIssue[] => {
+    const entry = issue as { message?: unknown; messageParams?: unknown };
+    if (typeof entry.message !== 'string') return [];
+    const params = entry.messageParams;
+    return [typeof params === 'object' && params !== null
+      ? { message: entry.message, messageParams: params as Record<string, string> }
+      : { message: entry.message }];
+  });
+};
 
 export class FirebasePublicExtensionRepository implements IPublicExtensionRepository {
   subscribe(onChange: (items: PublicExtension[]) => void): () => void {
@@ -26,11 +47,18 @@ export class FirebasePublicExtensionRepository implements IPublicExtensionReposi
     );
   }
 
-  async publish(input: PublishPublicExtensionInput): Promise<void> {
-    await setDoc(doc(publicRef(), input.package.manifest.id), {
-      ...publicExtensionDataFromInput(input),
-      publishedAt: serverTimestamp(),
-    });
+  async publish(tenantId: string, pluginId: string, options?: PublishExtensionOptions): Promise<PublishExtensionOutcome> {
+    const call = httpsCallable<
+      { tenantId: string; pluginId: string; acceptDependentRanges: boolean },
+      PublishExtensionOutcome
+    >(functions, 'publishExtension');
+    try {
+      return (await call({ tenantId, pluginId, acceptDependentRanges: options?.acceptDependentRanges === true })).data;
+    } catch (error) {
+      const issues = consentIssuesOf(error);
+      if (issues) throw new DependencyRangeRefusal(issues);
+      throw error;
+    }
   }
 
   async setStatus(domain: string, status: PublicExtensionStatus): Promise<void> {
