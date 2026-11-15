@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.266.1] — 2026-11-15
+
+- feat(integrations): reference Cloudflare Email Worker for forwarded e-mail (`integrations/cloudflare-email-worker/worker.js`). Every `<NAME>_URL` + `<NAME>_SECRET` pair is an installation, tried in name order until one does not answer `unknown-recipient`; non-mailbox addresses go to `FALLBACK_TO` or are rejected; 413 rejects, 5xx throws so the sender retries. `scripts/cloudflareEmailWorker.test.ts` runs it and checks its signature with `inboundSignatureIssue` and its headers and address format against `MAIL_INBOUND_HEADERS` and `MAIL_INBOUND_TOKEN_LENGTH`, so the pasted copy cannot drift from `mailInbound`.
+
 #### [9.266.0] — 2026-11-15
 
 - feat(mailboxes): forwarding mailboxes carry a step-by-step guide on their card (Gmail, Outlook, other services), open while nothing has arrived yet or a confirmation is pending, and one click away afterwards.
