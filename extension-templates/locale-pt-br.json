@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.215.0",
+    "version": "1.215.1",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -5621,6 +5621,9 @@
             "panel.delete.message": "A conversa e todas as mensagens dela serão excluídas. Não há como desfazer.",
             "panel.delete.confirm": "Excluir",
             "panel.action-failed": "Não foi possível concluir a ação: {detail}",
+            "panel.ai-setup": "O assistente precisa de uma conexão de IA para responder: {detail} Cadastre uma conexão em Conexões de IA e marque-a como padrão.",
+            "panel.ai-setup.ask": "O assistente precisa de uma conexão de IA para responder: {detail} Peça a quem gerencia a IA do escritório que cadastre uma conexão padrão.",
+            "panel.ai-setup.open": "Abrir Conexões de IA →",
             "panel.empty.title": "Como posso ajudar?",
             "panel.empty.hint": "Pergunte sobre os registros deste escritório, ou peça para o assistente fazer algo por você. Digite / para ver os comandos.",
             "panel.read-only": "Neste escritório o assistente só pode consultar dados — ele não altera nada.",

@@ -119,6 +119,22 @@ export const S = {
     padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.sm} 0;
   `,
 
+  LinkButton: styled.button`
+    align-self: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    color: ${({ theme }) => theme.colors.primary};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  `,
+
   Empty: styled.div`
     margin: auto 0;
     text-align: center;

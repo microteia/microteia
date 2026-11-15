@@ -18,12 +18,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.265.1] — 2026-11-14
+
+- fix(assistant/panel): a turn refused for lack of an AI connection (`ai.no-default-connection`, `ai.default-key-missing`, `ai.connection-not-found`, `error.provider-unsupported`) now says where to fix it — `panel.ai-setup` with an "Open AI connections" shortcut to `tenant-settings:ai` for `ai.manage`, `panel.ai-setup.ask` otherwise — as the Data Processor and Report Design already did.
+- chore(locale-pt-br): 1.215.1.
+
 #### [9.265.0] — 2026-11-14
 
 - feat(workflow/mail): step `save-mail-attachment` (`core.steps`) saves the attachments of a delivered e-mail to a record's Documents tab — `message` (the `mail_messages` key, `event.id`), `collection` (`documents-collection` picker), `recordId`, optional `nameContains` / `contentType` / `documentType`. `SaveMailAttachmentUseCase` mirrors `AttachDownloadToRecordUseCase` (screen exists, `hasDocuments`, record exists) and writes through `IRecordDocumentWriter`; none matching is success with `count` 0, oversized ones go to `tooLarge`. `appendsEachRun`.
 - feat(workflow/mail): step `mail-search` searches an IMAP mailbox on demand, newest first (`MailReadSession.listRecent`), by `from` / `subject` / `days` (1–30) — office mailboxes, or a member's mailbox subscribed by this very workflow (`mailboxSearchableBy`); unknown and forbidden answer alike. Read-only (`EXAMINE`), cursor untouched. Output bounded for the 1 MB execution document: 50 headers, or 20 with `includeBody` (text cut at 10,000 chars, no HTML). Package gate `MAIL_STEPS_SINCE_KERNEL`. KERNEL_VERSION 2.133.0.
 - feat(functions/mail): every delivered message is stored raw at `tenants/{t}/mail_messages/{key}/message.eml` (`StorageMailRawStore`) BEFORE the delivery transaction, and the path rides on the mark (`rawStoragePath`); `onMailMessageDeleted` deletes the file when the 32-day TTL removes the mark (exact-path guard). `MailReadSession.fetch` now returns `{ mail, raw }`; envelopes carry `fromName` and `date`. `storage.rules` reserves `mail_messages` (no SDK access, owner included) — run `deploy:rules` and `deploy:mail`.
-- fix(assistant/panel): a turn refused for lack of an AI connection (`ai.no-default-connection`, `ai.default-key-missing`, `ai.connection-not-found`, `error.provider-unsupported`) now says where to fix it — `panel.ai-setup` with an "Open AI connections" shortcut to `tenant-settings:ai` for `ai.manage`, `panel.ai-setup.ask` otherwise — as the Data Processor and Report Design already did.
 - chore(locale-pt-br): 1.215.0.
 
 #### [9.264.6] — 2026-11-14
