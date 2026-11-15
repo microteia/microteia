@@ -552,7 +552,13 @@ export {
   serializePackage,
 } from '../domain/usecases/plugins/packageSerialization';
 
-export type { AuthoredPlugin, AuthoredView } from './authoring';
+export type {
+  AuthoredMigration,
+  AuthoredPlugin,
+  AuthoredScript,
+  AuthoredScriptCode,
+  AuthoredView,
+} from './authoring';
 
 /**
  * A fusão de uma view escrita em várias partes. O autor não a chama — ele declara a lista em
@@ -561,6 +567,12 @@ export type { AuthoredPlugin, AuthoredView } from './authoring';
  * no pacote são exatamente essas.
  */
 export { mergeViewSources } from './mergeSources';
+
+/**
+ * A mesma coisa para um script de SANDBOX: o autor lista os arquivos em `sourceFile` e o compilador
+ * funde; um exemplo de primeira parte, que recebe a fonte como texto, chama esta.
+ */
+export { mergeScriptSources } from './mergeSources';
 
 export type { SdkIssue } from './validate';
 export { validatePluginPackage } from './validate';

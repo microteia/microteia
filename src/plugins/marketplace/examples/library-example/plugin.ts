@@ -9,7 +9,9 @@ import {
   accessResourceContribution,
 } from '../../../../domain/schema/access/extensionPoints';
 import { transpileScriptSource } from '../../../../domain/services/scriptSource';
+import { mergeScriptSources } from '../../../../sdk/mergeSources';
 import NORMALIZE_CODE from './scripts/normalize-code.script.ts?raw';
+import NORMALIZE_RULE from './scripts/normalizeCode.ts?raw';
 import { libraryMessagesContribution } from './libraryMessages';
 import { libraryPtBrContribution } from './libraryMessagesPtBr';
 
@@ -83,15 +85,27 @@ const compiled = (name: string, sourceTs: string): string => {
   return result.compiledJs;
 };
 
+/**
+ * The script in two files: the rule, which a test calls, and the script that runs it. Written outside
+ * Microteia, you would not call `mergeScriptSources` nor `compiled` — you would declare
+ * `sourceFile: ['./scripts/normalizeCode.ts', './scripts/normalize-code.script.ts']` and the compiler
+ * would merge the list and fill `compiledJs`. Here the sources arrive as TEXT (`?raw`), so the merge is
+ * the call. The order is the contract: the file that calls `main()` goes last.
+ */
+const NORMALIZE_SOURCE = mergeScriptSources({
+  'scripts/normalizeCode.ts': NORMALIZE_RULE,
+  'scripts/normalize-code.script.ts': NORMALIZE_CODE,
+});
+
 const SCRIPTS: ScriptModuleTemplate[] = [
   {
     templateId: 'normalize-code',
     sourceId: 'microteia:library-example:normalize-code',
-    sourceRev: 1,
+    sourceRev: 2,
     name: message('script.normalize'),
     description: message('script.normalize.description'),
-    sourceTs: NORMALIZE_CODE,
-    compiledJs: compiled('normalize-code', NORMALIZE_CODE),
+    sourceTs: NORMALIZE_SOURCE,
+    compiledJs: compiled('normalize-code', NORMALIZE_SOURCE),
     inputParams: [
       { key: 'code', label: message('script.normalize.in.code'), type: 'String', required: true },
     ],
@@ -141,7 +155,7 @@ const WORKFLOWS: WorkflowModuleTemplate[] = [
 export const libraryExamplePlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.library-example',
-    version: '1.0.0',
+    version: '1.1.0',
     kernel: '^2.0.0',
     name: message('package.name'),
     description: message('package.description'),

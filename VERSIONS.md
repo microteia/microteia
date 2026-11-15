@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.267.0] — 2026-11-15
+
+- Quem escreve extensões pode dividir um script em vários arquivos e testar separadamente a parte que faz as contas, antes de instalar qualquer coisa.
+- Um script deixou de ser recusado só porque um comentário ou um texto dentro dele menciona as palavras "import" ou "export".
+
 #### [9.266.1] — 2026-11-15
 
 - Quem mantém a instalação passa a ter um roteiro pronto para ligar o recebimento de e-mails encaminhados, com o programa de recepção para o Cloudflare já incluído.

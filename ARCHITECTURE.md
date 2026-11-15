@@ -4843,13 +4843,52 @@ convida a cometer — importar o `?raw` da view e deixar o do viewmodel fora da 
 Uma fonte com valor ÚNICO (string, seja caminho ou texto) continua passando verbatim, sem nada disso: é
 o caminho que sempre existiu, e nenhum pacote muda de resultado por causa desta capacidade.
 
+#### Um SCRIPT de sandbox em vários arquivos — a mesma fusão, outro destino
+
+`scripts[]` e `migrations[]` aceitam `sourceFile` (caminho ou lista) e `sourceTs` como lista, pelas
+mesmas regras da view — e pelo mesmo motivo: sem isso a decisão que pode estar errada (uma conferência,
+um total) não tinha como sair do script para um arquivo puro com teste ao lado, que é o que o
+`AGENTS.md` pede de quem escreve. `mergeScriptParts` (compilador) e `mergeScriptSources` (catálogo
+embutido, `?raw`) moram em `src/sdk/mergeSources.ts`, ao lado da fusão de view.
+
+O destino não é um módulo — o QuickJS não resolve import, e a gravação recusa `import`/`export` —, e é
+daí que vêm as diferenças:
+
+| O quê | Por quê |
+|---|---|
+| Tira o `export` das declarações e apaga `export { … }` | O auxiliar exporta para o `tsc` e para o teste dele; no sandbox, a palavra é recusa |
+| Recusa import de qualquer coisa fora da lista (`import type` passa, apagado) | Não há resolvedor de módulo no servidor |
+| Recusa `export default` | Script não exporta nada |
+| O ÚLTIMO arquivo é o que roda; uma chamada solta (`main()`) antes dele é recusa | O texto roda na ordem da lista, e a chamada adiantada alcançaria o `const` de um arquivo seguinte antes de ele existir |
+| Confere o texto fundido com a mesma trava da gravação | Uma fusão que deixasse sintaxe de módulo só falharia no escritório |
+
+**O compilador passa a preencher `compiledJs`**, com `transpileScriptSource`. De uma fusão o autor nunca
+vê o texto final, então não teria como transpilá-lo; e escrever o `compiledJs` à mão continua aceito só
+ao lado de um `sourceTs` de texto único — a forma que já existia passa byte a byte. A migração viaja só
+com `sourceTs` (o escritório transpila ao rodar), e o build a transpila mesmo assim, para recusar no
+terminal o que a gravação recusaria no escritório.
+
+`function` passou a contar como nome de topo na conferência de colisão das DUAS fusões: fora de um
+módulo ES, duas `function` de mesmo nome não são erro — a segunda substitui a primeira em silêncio —, e
+é a forma em que um script é escrito.
+
+Não move o `KERNEL_VERSION`: o pacote instalado continua carregando um `sourceTs` por script.
+
+**A trava de módulos deixou de olhar comentário e literal.** Ela testava a PALAVRA `import`/`export` no
+texto cru, e recusava um comentário que mencionasse "export" ou um `log('import ok')` com a mensagem de
+"não use módulos" — sem módulo nenhum para tirar. Agora ela apaga comentários, strings, templates e
+regex antes (`domain/services/scriptModuleSyntax.ts`, sem dependência para poder entrar no barril do
+SDK) e só reconhece a palavra-chave. É heurística de propósito: a trava existe para a mensagem
+explicável, não para conter — quem contém é o QuickJS —, e o erro dela só pode ir para o lado de deixar
+passar o que o sandbox recusaria depois.
+
 **A configuração é o ponto frágil, e são quatro arquivos que precisam concordar:**
 
 | Arquivo | Papel |
 |---|---|
 | `tsconfig.extsrc.json` | INCLUI `src/plugins/marketplace/views`; mapeia `@microteia/*`, `react` e `styled-components` para `sdk/types/microteia-host.d.ts` |
 | `tsconfig.extbackend.json` | INCLUI `src/plugins/marketplace/examples/*/functions`; mapeia `microteia-functions/office` para `sdk/types/microteia-office.d.ts`. É a fonte de BACKEND de um exemplo, que roda em Node contra `firebase-functions` — outro ambiente, outro projeto. `skipLibCheck: true`, e pelo INVERSO da razão do `extsrc`: ali a biblioteca é o nosso contrato, aqui é a árvore de terceiro que o `firebase-functions` arrasta |
-| `tsconfig.extscripts.json` | INCLUI `src/plugins/marketplace/examples/*/scripts`; traz `sdk/types/microteia-sandbox.d.ts` por `files` e roda com `moduleDetection: "force"`. É o SCRIPT de um exemplo (`.script.ts`, `.migration.ts`), que roda no sandbox e não importa nada: sem os globais declarados cada `query` era erro, e sem o `force` dois `main` colidiam no escopo global. Antes dele nenhum projeto checava esses arquivos — foi assim que a migração de exemplo leu `query().rows` |
+| `tsconfig.extscripts.json` | INCLUI `src/plugins/marketplace/examples/*/scripts`; traz `sdk/types/microteia-sandbox.d.ts` por `files` e roda com `moduleDetection: "force"`. É o SCRIPT de um exemplo (`.script.ts`, `.migration.ts`) e os auxiliares que a fusão junta a ele; roda no sandbox, que não resolve import: sem os globais declarados cada `query` era erro, e sem o `force` dois `main` colidiam no escopo global. Antes dele nenhum projeto checava esses arquivos — foi assim que a migração de exemplo leu `query().rows` |
 | `tsconfig.app.json` | EXCLUI o mesmo diretório — senão o build do app tenta resolver `@microteia/ui` de verdade e quebra |
 | `tsconfig.json` (raiz) | REFERENCIA `tsconfig.extsrc.json`, `tsconfig.extbackend.json` e `tsconfig.extscripts.json`. O editor só acha um projeto chamado `tsconfig.json` ou referenciado por ele: sem isso o VSCode abria as fontes de extensão num projeto inferido e acusava erro em todo import de `@microteia/*` que o gate aprovava. Referenciados, rodam também no `tsc -b --force` |
 | `eslint.config.js` | as regras de Hooks e do React Compiler valem; a checagem de literal de i18n não, porque o vocabulário é do domínio da extensão |
@@ -13461,7 +13500,8 @@ payload e não lê Script nenhum do Firestore. Três consequências, e as três 
   reusa, edita ou vê na lista de Scripts, e refcontá-la entre extensões não teria sentido. O que ela
   compartilha com o Script é o EXECUTOR — e a regra de transpilação, que é literalmente a mesma
   função (`domain/services/scriptSource.ts`: sem `import`/`export`/`require`, transpilado no cliente,
-  nunca no servidor).
+  nunca no servidor). Na AUTORIA ela pode ser escrita em vários arquivos (`sourceFile` em lista), que o
+  compilador funde antes — ver "Um SCRIPT de sandbox em vários arquivos".
 
 ### O lote, e as duas propriedades que ele obriga
 

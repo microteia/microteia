@@ -2,11 +2,13 @@ import { readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { transform } from 'sucrase';
-import type { MarketplacePlugin } from '../../domain/entities/MarketplacePlugin';
+import type { MarketplacePlugin, ScriptModuleTemplate } from '../../domain/entities/MarketplacePlugin';
+import type { PluginMigration } from '../../domain/schema/plugin/migration';
 import { serializePackage } from '../../domain/usecases/plugins/packageSerialization';
-import type { AuthoredPlugin, AuthoredView } from '../authoring';
+import type { AuthoredMigration, AuthoredPlugin, AuthoredScript, AuthoredScriptCode, AuthoredView } from '../authoring';
 import type { SourcePart } from '../mergeSources';
-import { mergeSources, rawPart } from '../mergeSources';
+import { mergeScriptParts, mergeSources, rawPart } from '../mergeSources';
+import { transpileScriptSource } from '../../domain/services/scriptSource';
 import type { SdkIssue } from '../validate';
 import { validatePluginPackage } from '../validate';
 import { attachBackendSource } from './backendSource';
@@ -177,6 +179,70 @@ const viewSource = (view: AuthoredView, baseDir: string): string => {
 };
 
 /**
+ * A fonte de um script de sandbox, e se ela é o texto do autor intacto. Só o texto intacto admite um
+ * `compiledJs` escrito à mão: de uma fusão, o autor nunca viu o texto que precisaria transpilar.
+ */
+const scriptCode = (code: AuthoredScriptCode, baseDir: string, what: string): { text: string; verbatim: boolean } => {
+  if (code.sourceFile !== undefined && code.sourceTs !== undefined) {
+    throw new Error(`${what} declares both "sourceTs" and "sourceFile" — keep one.`);
+  }
+  const listed = code.sourceFile ?? code.sourceTs;
+  if (listed === undefined) throw new Error(`${what} has neither "sourceTs" nor "sourceFile".`);
+  if (Array.isArray(listed) && listed.length === 0) throw new Error(`${what}: the source list is empty.`);
+  if (code.sourceFile !== undefined) {
+    if (typeof code.sourceFile === 'string') {
+      return { text: readSource(baseDir, code.sourceFile, what).text, verbatim: false };
+    }
+    const parts = code.sourceFile.map((one) => readSource(baseDir, one, what));
+    return { text: mergeScriptParts(parts, what, { resolveRelative }), verbatim: false };
+  }
+  if (typeof code.sourceTs === 'string') return { text: code.sourceTs, verbatim: true };
+  return { text: mergeScriptParts((code.sourceTs as string[]).map(rawPart), what), verbatim: false };
+};
+
+/** As chaves que a gravação devolve, na forma que um terminal consegue ler. */
+const SCRIPT_ERRORS: Record<string, string> = {
+  '@core.automation/script.error.no-modules':
+    'uses import, export or require, which the sandbox cannot resolve. To split a script into files,'
+    + ' list them in "sourceFile" and let the compiler merge them.',
+  '@core.automation/script.error.empty': 'is empty.',
+};
+
+/**
+ * Transpila com o MESMO transpilador da gravação, e recusa aqui o que a gravação recusaria — o caso
+ * da migração é o que mais pede isso: ela só é transpilada no escritório, na hora de rodar.
+ */
+const compileScript = (text: string, what: string): string => {
+  const result = transpileScriptSource(text);
+  if ('error' in result) throw new Error(`${what} ${SCRIPT_ERRORS[result.error] ?? `does not compile — ${result.error}`}`);
+  return result.compiledJs;
+};
+
+const inlineScript = (script: AuthoredScript, baseDir: string): ScriptModuleTemplate => {
+  const what = `Script "${script.templateId}"`;
+  const { text, verbatim } = scriptCode(script, baseDir, what);
+  if (script.compiledJs !== undefined && !verbatim) {
+    throw new Error(`${what} declares "compiledJs" beside a merged or file source — drop it, the compiler produces it.`);
+  }
+  const rest: Record<string, unknown> = { ...script };
+  delete rest.sourceFile;
+  return {
+    ...rest,
+    sourceTs: text,
+    compiledJs: script.compiledJs ?? compileScript(text, what),
+  } as ScriptModuleTemplate;
+};
+
+const inlineMigration = (migration: AuthoredMigration, baseDir: string): PluginMigration => {
+  const what = `Migration "${migration.id}"`;
+  const { text } = scriptCode(migration, baseDir, what);
+  compileScript(text, what);
+  const rest: Record<string, unknown> = { ...migration };
+  delete rest.sourceFile;
+  return { ...rest, sourceTs: text } as PluginMigration;
+};
+
+/**
  * Resolve `sourceFile`/`startupFile` para o conteúdo, deixando o pacote na forma que a plataforma
  * instala. Declarar os dois para o mesmo artefato é erro, não precedência: um pacote em que a fonte
  * inline e o arquivo divergem instala uma das duas e o autor nunca sabe qual.
@@ -196,6 +262,9 @@ export const inlineAuthoredCode = (plugin: AuthoredPlugin, baseDir: string): Mar
     ? authoredSource(baseDir, plugin.startupFile, 'Startup')
     : plugin.startup !== undefined ? inlineSource(plugin.startup, 'Startup') : undefined;
 
+  const scripts = plugin.scripts?.map((script) => inlineScript(script, baseDir));
+  const migrations = plugin.migrations?.map((migration) => inlineMigration(migration, baseDir));
+
   const rest: Record<string, unknown> = { ...plugin };
   delete rest.startupFile;
 
@@ -203,6 +272,8 @@ export const inlineAuthoredCode = (plugin: AuthoredPlugin, baseDir: string): Mar
     ...rest,
     ...(views ? { views } : {}),
     ...(startup !== undefined ? { startup } : {}),
+    ...(scripts ? { scripts } : {}),
+    ...(migrations ? { migrations } : {}),
   } as MarketplacePlugin;
 };
 

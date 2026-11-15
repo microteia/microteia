@@ -297,3 +297,132 @@ describe('a fonte composta que chega como texto', () => {
     expect(built.startup).not.toContain("from './helpers'");
   });
 });
+
+/**
+ * Um script de sandbox não importa nada — e era por isso que a decisão que pode estar errada não tinha
+ * como sair dele para um arquivo puro, com teste ao lado. A lista em `sourceFile` é a mesma comodidade
+ * de autoria da view, com o destino diferente: o texto fundido não pode ter `import` nem `export`.
+ */
+describe('a fonte composta de um script de sandbox', () => {
+  const directories: string[] = [];
+
+  const workspace = (files: Record<string, string>): string => {
+    const directory = mkdtempSync(join(tmpdir(), 'microteia-script-'));
+    directories.push(directory);
+    for (const [name, content] of Object.entries(files)) {
+      mkdirSync(dirname(join(directory, name)), { recursive: true });
+      writeFileSync(join(directory, name), content, 'utf8');
+    }
+    return directory;
+  };
+
+  afterEach(() => {
+    for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
+  });
+
+  const RULE = '// A pure check: it imports nothing, so a test can call it.\n'
+    + 'export interface Totals { expected: number; found: number }\n\n'
+    + 'export function reconcile(totals: Totals): boolean {\n'
+    + '  return totals.expected === totals.found;\n'
+    + '}\n';
+
+  const MAIN = "import { reconcile } from './reconcile';\n"
+    + "import type { Totals } from './reconcile';\n\n"
+    + 'async function main() {\n'
+    + '  const totals: Totals = { expected: Number(input.expected), found: Number(input.found) };\n'
+    + '  return { ok: reconcile(totals) };\n'
+    + '}\n\n'
+    + 'main()\n';
+
+  const FILES = { 'scripts/reconcile.ts': RULE, 'scripts/check.script.ts': MAIN };
+  const LIST = ['./scripts/reconcile.ts', './scripts/check.script.ts'];
+
+  const build = (files: Record<string, string>, script: Record<string, unknown>, migration?: Record<string, unknown>) => {
+    const pluginTs = `export default {\n`
+      + `  manifest: { id: 'com.example.script' },\n  workflows: [],\n`
+      + `  scripts: [${JSON.stringify({ templateId: 'check', name: 'n', inputParams: [], outputParams: [], ...script })}],\n`
+      + (migration ? `  migrations: [${JSON.stringify(migration)}],\n` : '')
+      + `};\n`;
+    const directory = workspace({ ...files, 'plugin.ts': pluginTs });
+    return buildPlugin({ entry: join(directory, 'plugin.ts') }).package;
+  };
+
+  it('funde a lista num texto sem import nem export, e o compilador preenche o `compiledJs`', () => {
+    const [script] = build(FILES, { sourceFile: LIST }).scripts ?? [];
+    expect(script.sourceTs).toContain('function reconcile(totals: Totals)');
+    expect(script.sourceTs).toContain('async function main()');
+    expect(script.sourceTs).not.toMatch(/^\s*(import|export)\b/m);
+    expect(script.sourceTs).toContain('// --- ./scripts/reconcile.ts ---');
+    expect(script.compiledJs).toContain('function reconcile(totals)');
+    expect(script.compiledJs).not.toContain('Totals');
+  });
+
+  it('o texto fundido RODA, com o auxiliar declarado antes do `main()`', () => {
+    const [script] = build(FILES, { sourceFile: LIST }).scripts ?? [];
+    const run = new Function('input', script.compiledJs.replace(/main\(\)\s*;?\s*$/, 'return main();')) as (input: unknown) => Promise<unknown>;
+    return expect(run({ expected: 3, found: 3 })).resolves.toEqual({ ok: true });
+  });
+
+  it('um arquivo só preenche o `compiledJs` do mesmo jeito', () => {
+    const single = 'async function main() { return 1; }\nmain()\n';
+    const [script] = build({ 'scripts/one.script.ts': single }, { sourceFile: './scripts/one.script.ts' }).scripts ?? [];
+    expect(script.sourceTs).toBe(single);
+    expect(script.compiledJs).toContain('async function main()');
+  });
+
+  it('a forma antiga — `sourceTs` e `compiledJs` à mão — passa intacta', () => {
+    const [script] = build({}, { sourceTs: 'main()', compiledJs: 'whatever()' }).scripts ?? [];
+    expect(script).toMatchObject({ sourceTs: 'main()', compiledJs: 'whatever()' });
+  });
+
+  it('recusa `compiledJs` escrito à mão ao lado de uma fusão', () => {
+    expect(() => build(FILES, { sourceFile: LIST, compiledJs: 'x()' })).toThrow(/drop it, the compiler produces it/);
+  });
+
+  it('recusa o import de qualquer coisa que não seja um arquivo da lista', () => {
+    const files = { ...FILES, 'scripts/check.script.ts': `import { sum } from 'lodash';\n${MAIN}` };
+    expect(() => build(files, { sourceFile: LIST })).toThrow(/imports "lodash".*no module\s+resolver/s);
+  });
+
+  it('recusa o import relativo de um arquivo que ficou fora da lista', () => {
+    expect(() => build(FILES, { sourceFile: ['./scripts/check.script.ts'] })).toThrow(/not one of the merged files/);
+  });
+
+  it('recusa um `export default` — script não exporta nada', () => {
+    const files = { ...FILES, 'scripts/reconcile.ts': `${RULE}export default reconcile;\n` };
+    expect(() => build(files, { sourceFile: LIST })).toThrow(/has a default export/);
+  });
+
+  it('recusa o `main()` fora do último arquivo, que rodaria antes das declarações seguintes', () => {
+    expect(() => build(FILES, { sourceFile: [...LIST].reverse() })).toThrow(/goes last/);
+  });
+
+  it('recusa a mesma `function` declarada em dois arquivos — fora de módulo, a segunda venceria calada', () => {
+    const files = { ...FILES, 'scripts/check.script.ts': `${MAIN}function reconcile() { return false; }\n` };
+    expect(() => build(files, { sourceFile: LIST })).toThrow(/"reconcile" is declared in both/);
+  });
+
+  it('recusa o script de texto único que ainda usa módulo, com a saída indicada', () => {
+    expect(() => build({}, { sourceTs: MAIN })).toThrow(/list them in "sourceFile"/);
+  });
+
+  it('funde a lista que chega como TEXTO, como no catálogo embutido', () => {
+    const [script] = build({}, { sourceTs: [RULE, MAIN] }).scripts ?? [];
+    expect(script.sourceTs).toContain('function reconcile');
+    expect(script.sourceTs).not.toContain("from './reconcile'");
+  });
+
+  it('vale igual para a migração, que viaja só com `sourceTs`', () => {
+    const migration = { id: 'fill', version: '1.1.0', name: 'n', sourceFile: LIST };
+    const [built] = build({ ...FILES, 'scripts/one.script.ts': 'main()\n' }, { sourceFile: './scripts/one.script.ts' }, migration).migrations ?? [];
+    expect(built.sourceTs).toContain('function reconcile');
+    expect(built).not.toHaveProperty('sourceFile');
+    expect(built).not.toHaveProperty('compiledJs');
+  });
+
+  it('recusa no build a migração que a gravação recusaria no escritório', () => {
+    const migration = { id: 'fill', version: '1.1.0', name: 'n', sourceTs: "import x from 'y';\nmain()" };
+    expect(() => build({ 'scripts/one.script.ts': 'main()\n' }, { sourceFile: './scripts/one.script.ts' }, migration))
+      .toThrow(/Migration "fill" uses import/);
+  });
+});
