@@ -3,6 +3,9 @@ import { useDI } from '../../../../infrastructure/di/useDI';
 import { useAuth } from '../../../../stores/useAuth';
 import { useTenant } from '../../../../stores/useTenant';
 import { useWorkspaceDock } from '../../../../stores/useWorkspaceDock';
+import { useWorkspace } from '../../../../stores/useWorkspace';
+import { useAuthorization } from '../../../../stores/useAuthorization';
+import { PERMISSION_AI_MANAGE } from '../../../../domain/schema/access';
 import { useLabel, useT } from '../../../shared/i18n/useT';
 import { useSettingValue } from '../../../shared/settings/useSettingValue';
 import { errorParamsOf } from '../../../../domain/errors/LocalizedError';
@@ -56,6 +59,8 @@ export interface AssistantPanelViewModel {
   labels: AssistantMessageLabels;
   notices: string[];
   error: string | null;
+  /** Atalho para Conexões de IA quando o erro é falta de conexão — `null` para quem não gerencia a IA. */
+  openAISettings: (() => void) | null;
   busy: boolean;
   compacting: boolean;
   showThinking: boolean;
@@ -91,6 +96,24 @@ const STICK_THRESHOLD_PX = 48;
 
 const TOOL_KEY_PREFIX = 'core.assistant/tool.';
 
+/**
+ * As recusas que só se resolvem cadastrando (ou corrigindo) a conexão de IA do escritório. O motivo
+ * sozinho não diz onde ir; com elas, a tela aponta o caminho — como já fazem o Processador de Dados e
+ * o Desenho de Relatório.
+ */
+const AI_SETUP_FAILURES: ReadonlySet<string> = new Set([
+  '@core.automation/ai.no-default-connection',
+  '@core.automation/ai.default-key-missing',
+  '@core.automation/ai.connection-not-found',
+  '@core.assistant/error.provider-unsupported',
+]);
+
+interface PanelError {
+  text: string;
+  /** A falha pede uma conexão de IA: a tela mostra o caminho até ela. */
+  setup: boolean;
+}
+
 const prettyInput = (input: Record<string, unknown>): string => {
   try {
     return JSON.stringify(input, null, 2);
@@ -107,6 +130,9 @@ export const useAssistantPanelViewModel = (): AssistantPanelViewModel => {
   const label = useLabel();
   const writeMode = useSettingValue(ASSISTANT_WRITE_MODE_SETTING);
   const { subscribeIntent } = useWorkspaceDock();
+  const { openTab } = useWorkspace();
+  const { can } = useAuthorization();
+  const canManageAI = can(PERMISSION_AI_MANAGE);
 
   const tenantId = currentTenant?.id ?? '';
   const userId = user?.id ?? '';
@@ -127,7 +153,7 @@ export const useAssistantPanelViewModel = (): AssistantPanelViewModel => {
   const [busy, setBusy] = useState(false);
   const [compacting, setCompacting] = useState(false);
   const [notices, setNotices] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PanelError | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [renameState, setRenameState] = useState<{ open: boolean; value: string }>({ open: false, value: '' });
   const [deleteState, setDeleteState] = useState<{ open: boolean; deleting: boolean }>({ open: false, deleting: false });
@@ -203,12 +229,13 @@ export const useAssistantPanelViewModel = (): AssistantPanelViewModel => {
     }
   }, [flushText, label, tenantId]);
 
-  const describeFailure = useCallback((failure: unknown): string => {
+  const describeFailure = useCallback((failure: unknown): PanelError => {
     const message = failure instanceof Error ? failure.message : String(failure);
-    return message.startsWith('@')
-      ? label(message, errorParamsOf(failure))
-      : t('panel.action-failed', { detail: message });
-  }, [label, t]);
+    if (!message.startsWith('@')) return { text: t('panel.action-failed', { detail: message }), setup: false };
+    const detail = label(message, errorParamsOf(failure));
+    if (!AI_SETUP_FAILURES.has(message)) return { text: detail, setup: false };
+    return { text: t(canManageAI ? 'panel.ai-setup' : 'panel.ai-setup.ask', { detail }), setup: true };
+  }, [label, t, canManageAI]);
 
   const runTurn = useCallback(async (request: Omit<AssistantTurnRequest, 'tenantId'>, pendingUser: string | null) => {
     if (!tenantId || abortRef.current) return;
@@ -375,6 +402,8 @@ export const useAssistantPanelViewModel = (): AssistantPanelViewModel => {
     }
   }, [selectedId, uc, tenantId, resetView, describeFailure]);
 
+  const openAISettings = useCallback(() => openTab('tenant-settings:ai'), [openTab]);
+
   const commands = useMemo<AssistantComposerCommand[]>(
     () => ASSISTANT_SLASH_COMMANDS.map((name) => ({ name, description: t(`command.${name}`) })),
     [t],
@@ -393,7 +422,8 @@ export const useAssistantPanelViewModel = (): AssistantPanelViewModel => {
     items,
     labels,
     notices,
-    error,
+    error: error?.text ?? null,
+    openAISettings: error?.setup && canManageAI ? openAISettings : null,
     busy,
     compacting,
     showThinking,

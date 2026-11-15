@@ -11,12 +11,15 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.265.1] — 2026-11-14
+
+- Quando o escritório ainda não tem uma inteligência artificial configurada, o Assistente de IA passa a explicar o que fazer e oferece um atalho direto para as Conexões de IA. Quem não gerencia a IA do escritório é orientado a pedir a configuração a quem gerencia.
+
 #### [9.265.0] — 2026-11-14
 
 - Novo passo de automação **Salvar anexo do e-mail**: grava os anexos do e-mail recebido na aba Documentos de um registro — por exemplo, o PDF da decisão que chega com a intimação, direto no processo. Dá para escolher só os anexos de um tipo (PDF) ou cujo nome contenha um texto.
 - Novo passo **Buscar e-mails**: consulta uma caixa de e-mail pelos remetentes, assuntos e últimos dias, e entrega as mensagens aos passos seguintes. Só as caixas do escritório podem ser consultadas, ou a caixa de um membro que ele mesmo ligou àquela automação.
 - Os e-mails entregues às automações passam a ficar guardados por 32 dias, só para que os anexos possam ser salvos depois. Ninguém os abre pela tela, e eles são apagados sozinhos no fim do prazo.
-- Quando o escritório ainda não tem uma inteligência artificial configurada, o Assistente de IA passa a explicar o que fazer e oferece um atalho direto para as Conexões de IA. Quem não gerencia a IA do escritório é orientado a pedir a configuração a quem gerencia.
 
 #### [9.264.6] — 2026-11-14
 

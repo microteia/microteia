@@ -56,6 +56,9 @@ export const AssistantPanelView: React.FC = () => {
         <S.Banners>
           {vm.readOnly && <InfoBanner variant="info" message={t('panel.read-only')} />}
           {vm.error && <InfoBanner variant="warning" message={vm.error} />}
+          {vm.openAISettings && (
+            <S.LinkButton onClick={vm.openAISettings}>{t('panel.ai-setup.open')}</S.LinkButton>
+          )}
         </S.Banners>
       )}
 
