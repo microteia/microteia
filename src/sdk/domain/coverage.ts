@@ -83,6 +83,10 @@ const stepReach = (): Map<string, string> => {
 
 /** O que cada passo NÃO alcançado faz, e o que custa o modelo não poder pedi-lo. */
 const STEP_GAP_NOTES: Record<string, string> = {
+  'save-mail-attachment': 'stores an attachment of the received e-mail on a record. The model has no e-mail trigger, so it has '
+    + 'no message to take an attachment from',
+  'mail-search': 'searches a connected mailbox on demand. Mailboxes are connected by the office after installing, and the '
+    + 'model describes records, not inboxes',
   query: 'reads other records. It is the missing half of every rule that compares one record with the rest — the guard '
     + 'that needs other records is refused precisely because the model cannot ask for this step',
   map: 'reshapes a list before writing it. Without it the model can say "create a record", never "create one per child"',

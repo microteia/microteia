@@ -36,6 +36,8 @@ const LACUNAS_CONFERIDAS = [
   // Um relatório é LEITURA do que o modelo já descreve; o comportamento não pergunta números a si mesmo.
   'workflow-step\trun-report',
   'workflow-step\tshare-documents',
+  'workflow-step\tsave-mail-attachment',
+  'workflow-step\tmail-search',
   'workflow-step\tportal-invite',
   'workflow-step\tportal-revoke',
   // Chamar uma API de fora não é regra de negócio que o modelo descreva: é integração, e quem a

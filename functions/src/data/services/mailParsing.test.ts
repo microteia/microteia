@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMailSource } from './mailParsing';
+import { parseMailAttachments, parseMailSource } from './mailParsing';
 
 const RAW = [
   'From: "Tribunal de Justiça" <intimacao@tjba.jus.br>',
@@ -51,5 +51,13 @@ describe('parseMailSource', () => {
     expect(mail.html).toContain('0001234-56.2026.8.05.0001');
     expect(mail.text).toContain('0001234-56.2026.8.05.0001');
     expect(mail.attachments).toEqual([{ name: 'decisao.pdf', contentType: 'application/pdf', size: 9 }]);
+  });
+});
+
+describe('parseMailAttachments', () => {
+  it('devolve o conteúdo de cada anexo, sem a imagem embutida no corpo', async () => {
+    const attachments = await parseMailAttachments(Buffer.from(RAW));
+    expect(attachments.map((attachment) => attachment.name)).toEqual(['decisao.pdf']);
+    expect(attachments[0].content.toString()).toBe('%PDF-1.4\n');
   });
 });

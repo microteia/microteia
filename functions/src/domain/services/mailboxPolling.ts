@@ -35,6 +35,8 @@ export interface PollMailboxDeps {
   now: () => Date;
   /** Os valores de configuração do escritório — só lidos quando algum filtro cita uma configuração. */
   officeValues?: (tenantId: string) => Promise<Record<string, unknown>>;
+  /** Guarda a mensagem entregue (`.eml`) e devolve o caminho. Ausente: nada é guardado (testes). */
+  storeRaw?: (tenantId: string, key: string, raw: Buffer) => Promise<string>;
 }
 
 /**
@@ -234,8 +236,8 @@ const deliverEnvelope = async (
 ): Promise<'delivered' | 'duplicate' | 'ignored'> => {
   if (!targets.some((workflow) => matchesMailFilter(workflow.mailFilter, envelope))) return 'ignored';
 
-  const mail = await session.fetch(envelope.uid);
-  return deliverParsedMail(mailbox, targets, mail, deps, {
+  const { mail, raw } = await session.fetch(envelope.uid);
+  return deliverParsedMail(mailbox, targets, mail, raw, deps, {
     fallbackId: `uid:${uidValidity}:${envelope.uid}`,
     source: { kind: 'imap', folder: mailbox.settings.imap.folder, uidValidity, uid: envelope.uid },
   });
@@ -255,7 +257,8 @@ export const deliverParsedMail = async (
   mailbox: StoredMailbox,
   targets: WorkflowDefinition[],
   mail: ParsedMail,
-  deps: Pick<PollMailboxDeps, 'deliver' | 'now'>,
+  raw: Buffer,
+  deps: Pick<PollMailboxDeps, 'deliver' | 'now' | 'storeRaw'>,
   origin: { fallbackId: string; source: MailDeliverySource },
 ): Promise<'delivered' | 'duplicate' | 'ignored'> => {
   const subject = { from: mail.from, subject: mail.subject, attachmentCount: mail.attachments.length };
@@ -265,6 +268,9 @@ export const deliverParsedMail = async (
   const receivedAt = deps.now();
   const key = mailMessageKey(mailbox.id, mail.messageId, origin.fallbackId);
   const payload = mailEventPayload(key, mailbox, mail, receivedAt);
+  // ANTES da entrega: o evento acorda a automação na hora, e o passo que salva o anexo lê este arquivo. O
+  // caminho é fixo pela chave, então a mensagem repetida só regrava o mesmo conteúdo.
+  const rawStoragePath = deps.storeRaw ? await deps.storeRaw(mailbox.tenantId, key, raw) : null;
   return deps.deliver(mailbox.tenantId, {
     key,
     record: {
@@ -276,6 +282,7 @@ export const deliverParsedMail = async (
       date: payload.date,
       workflowIds: wanted.map((workflow) => workflow.id),
       source: origin.source,
+      rawStoragePath,
       receivedAt,
       expiresAt: mailMessageExpiresAt(receivedAt),
     },

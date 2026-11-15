@@ -51,3 +51,21 @@ export const parseMailSource = async (source: Buffer): Promise<ParsedMail> => {
       })),
   };
 };
+
+/**
+ * Os ANEXOS da mensagem crua, com o conteúdo — o que o passo "Salvar anexo do e-mail" grava no registro. A
+ * imagem embutida no corpo fica de fora pela mesma razão de `parseMailSource`.
+ */
+export const parseMailAttachments = async (
+  source: Buffer,
+): Promise<Array<{ name: string; contentType: string; size: number; content: Buffer }>> => {
+  const parsed = await simpleParser(source, { skipImageLinks: true, skipTextToHtml: true, skipHtmlToText: true });
+  return parsed.attachments
+    .filter((attachment) => !attachment.related)
+    .map((attachment) => ({
+      name: attachment.filename ?? '',
+      contentType: attachment.contentType,
+      size: attachment.size,
+      content: attachment.content,
+    }));
+};

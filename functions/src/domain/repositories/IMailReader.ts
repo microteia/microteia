@@ -5,8 +5,16 @@ export interface MailEnvelope {
   uid: number;
   messageId: string;
   from: string;
+  fromName: string;
   subject: string;
+  date: Date | null;
   attachmentCount: number;
+}
+
+/** Uma mensagem baixada: lida, e a cópia crua (RFC 822) que é guardada para o anexo. */
+export interface FetchedMail {
+  mail: ParsedMail;
+  raw: Buffer;
 }
 
 export interface ParsedMail {
@@ -35,7 +43,9 @@ export interface MailReadSession {
   listAfter(afterUid: number, prefilter: MailServerPrefilter, limit: number): Promise<MailEnvelope[]>;
   /** Os cabeçalhos chegados desde `since`, em ordem crescente — o reinício quando os UIDs mudaram. */
   listSince(since: Date, prefilter: MailServerPrefilter, limit: number): Promise<MailEnvelope[]>;
-  fetch(uid: number): Promise<ParsedMail>;
+  /** Os cabeçalhos chegados desde `since`, os MAIS RECENTES primeiro, até `limit` — a busca sob demanda. */
+  listRecent(since: Date, prefilter: MailServerPrefilter, limit: number): Promise<MailEnvelope[]>;
+  fetch(uid: number): Promise<FetchedMail>;
   close(): Promise<void>;
 }
 

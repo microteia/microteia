@@ -117,8 +117,11 @@ service firebase.storage {
     //
     // `branding` guarda o LOGO do escritório (regra própria abaixo): pelo curinga, qualquer membro o
     // trocaria — e o logo vai no topo do portal e de todo e-mail que o escritório envia.
+    //
+    // `mail_messages` é a mensagem de e-mail entregue, guardada inteira para o passo que salva o anexo:
+    // só o servidor lê — ela pode ser de uma caixa pessoal.
     function isReservedStoragePath(collection) {
-      return collection in ['logs', 'downloads', 'portalUploads', 'branding'];
+      return collection in ['logs', 'downloads', 'portalUploads', 'branding', 'mail_messages'];
     }
 
     //

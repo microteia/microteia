@@ -110,3 +110,20 @@ describe('logo do escritório', () => {
     await assertFails(uploadString(ref(storageOf('editor'), `tenants/${TENANT}/branding/x/y.png`), 'png', 'raw', { contentType: 'image/png' }));
   });
 });
+
+describe('mensagens de e-mail guardadas', () => {
+  const RAW = `tenants/${TENANT}/mail_messages/abc123/message.eml`;
+
+  // A mensagem pode ser da caixa pessoal de um membro: nem o dono do escritório, com o curinga, a lê pelo
+  // SDK. Quem a lê é o passo que salva o anexo, no servidor.
+  it('ninguém lê, envia nem apaga pelo SDK — nem o dono', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await uploadString(ref(context.storage() as unknown as FirebaseStorage, RAW), 'From: a@b.com');
+    });
+    for (const uid of ['dono', 'editor']) {
+      await assertFails(getMetadata(ref(storageOf(uid), RAW)));
+      await assertFails(uploadString(ref(storageOf(uid), `tenants/${TENANT}/mail_messages/outra/message.eml`), 'x'));
+      await assertFails(deleteObject(ref(storageOf(uid), RAW)));
+    }
+  });
+});

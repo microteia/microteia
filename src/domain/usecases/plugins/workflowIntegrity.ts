@@ -52,6 +52,9 @@ import {
   MAIL_FILTER_SETTINGS_SINCE_KERNEL,
   MAIL_RECEIVED_EVENT,
   MAIL_RECEIVED_SINCE_KERNEL,
+  MAIL_SEARCH_STEP_ID,
+  MAIL_STEPS_SINCE_KERNEL,
+  SAVE_MAIL_ATTACHMENT_STEP_ID,
   mailFilterIssue,
   mailFilterUsesSettings,
 } from '../../schema/mailbox';
@@ -839,6 +842,8 @@ const parallelKernelIssues = (
 const STEP_DEFINITION_SINCE_KERNEL: Readonly<Record<string, string>> = {
   [RUN_REPORT_STEP_ID]: WORKFLOW_RUN_REPORT_SINCE_KERNEL,
   [AI_GENERATE_STEP_ID]: AI_DATA_STEPS_SINCE_KERNEL,
+  [MAIL_SEARCH_STEP_ID]: MAIL_STEPS_SINCE_KERNEL,
+  [SAVE_MAIL_ATTACHMENT_STEP_ID]: MAIL_STEPS_SINCE_KERNEL,
 };
 
 /** "Executar relatório" com arquivo num pacote que admite kernel anterior: lá o `file` é ignorado em silêncio. */

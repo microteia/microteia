@@ -36,6 +36,48 @@ export const MAILBOXES_COLLECTION = 'mailboxes';
  */
 export const MAIL_MESSAGES_COLLECTION = 'mail_messages';
 
+/**
+ * Os passos "Buscar e-mails" e "Salvar anexo do e-mail", e o kernel a partir do qual existem. Um pacote que
+ * admite kernel anterior instalaria um fluxo que reprova no passo.
+ */
+export const MAIL_SEARCH_STEP_ID = 'mail-search';
+export const SAVE_MAIL_ATTACHMENT_STEP_ID = 'save-mail-attachment';
+export const MAIL_STEPS_SINCE_KERNEL = '2.133.0';
+
+/** Até quantas mensagens a busca devolve, e até quantos dias para trás ela olha. */
+export const MAIL_SEARCH_MAX_RESULTS = 50;
+export const MAIL_SEARCH_DEFAULT_DAYS = 7;
+
+/**
+ * Com o corpo, a busca devolve menos e mais curto: as saídas de um passo ficam gravadas na execução, que é um
+ * documento de 1 MB, e 50 corpos de e-mail inteiros a estourariam. O HTML não vem — para ler, o texto basta.
+ */
+export const MAIL_SEARCH_MAX_RESULTS_WITH_BODY = 20;
+export const MAIL_SEARCH_BODY_MAX_CHARS = 10_000;
+
+/**
+ * A mensagem ENTREGUE guardada inteira (`.eml`), pelo mesmo prazo da marca: é dela que o passo "Salvar anexo
+ * do e-mail" tira o arquivo. Guardar é o que faz o passo valer para as duas fontes — a encaminhada não fica em
+ * caixa nenhuma, e a lida por IMAP pode ter a senha trocada ou a caixa removida. Só o que alguma automação
+ * quis é guardado. A pasta é reservada no `storage.rules`: nenhum cliente a lê.
+ */
+export const MAIL_RAW_STORAGE_FOLDER = MAIL_MESSAGES_COLLECTION;
+
+export const mailRawStoragePath = (tenantId: string, key: string): string =>
+  `tenants/${tenantId}/${MAIL_RAW_STORAGE_FOLDER}/${key}/message.eml`;
+
+/** Quais anexos o passo salva: trecho do nome e tipo, sem diferença de maiúscula. Vazio: todos. */
+export const matchesAttachment = (
+  attachment: { name: string; contentType: string },
+  wanted: { nameContains?: string | null; contentType?: string | null },
+): boolean => {
+  const name = (wanted.nameContains ?? '').trim().toLowerCase();
+  const type = (wanted.contentType ?? '').trim().toLowerCase();
+  if (name && !attachment.name.toLowerCase().includes(name)) return false;
+  if (type && !attachment.contentType.toLowerCase().startsWith(type)) return false;
+  return true;
+};
+
 /** A página das caixas — de todo membro com `mailboxes.connect`, e não só de quem monta automação. */
 export const MAILBOXES_PAGE_KEY = 'mailboxes';
 

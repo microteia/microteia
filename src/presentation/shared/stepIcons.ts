@@ -25,6 +25,8 @@ import {
   RiUserUnfollowLine,
   RiBarChart2Line,
   RiTimerFlashLine,
+  RiAttachment2,
+  RiMailDownloadLine,
 } from 'react-icons/ri';
 
 const STEP_ICONS: Record<string, IconType> = {
@@ -50,6 +52,8 @@ const STEP_ICONS: Record<string, IconType> = {
   RiUserUnfollowLine,
   RiBarChart2Line,
   RiTimerFlashLine,
+  RiAttachment2,
+  RiMailDownloadLine,
 };
 
 /**

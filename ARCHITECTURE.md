@@ -9476,6 +9476,42 @@ só marca o ponto. De 1 a 30, ela entrega também os últimos N dias (`SEARCH SI
 UID. É a virada de outra fonte sem buraco; o que a caixa já entregou não volta, pela marca de
 `mail_messages`. Vale também depois de trocar conta, pasta ou automações — o ponto é zerado ali.
 
+#### Os passos — `save-mail-attachment` e `mail-search`
+
+Receber é gatilho; o que a automação FAZ com o e-mail são passos. Dois, ambos de `core.steps`, exigindo
+`MAIL_STEPS_SINCE_KERNEL` (2.133.0) no portão de pacote:
+
+| Passo | O que faz | De onde lê |
+|---|---|---|
+| **Salvar anexo do e-mail** (`save-mail-attachment`) | grava os anexos da mensagem na aba Documentos de um registro, filtrando por trecho do nome e tipo | a mensagem GUARDADA na entrega |
+| **Buscar e-mails** (`mail-search`) | as mensagens mais recentes de uma caixa IMAP, por remetente, assunto e dias | a caixa, na hora |
+
+**A mensagem é guardada na entrega.** O evento leva só nome, tipo e tamanho de cada anexo — o conteúdo
+estouraria o documento. Então `deliverParsedMail` grava a mensagem crua em
+`tenants/{t}/mail_messages/{chave}/message.eml` (`StorageMailRawStore`) ANTES da transação que publica os
+eventos: o evento acorda a automação na hora, e o passo não pode chegar antes do arquivo. O caminho é fixo
+pela chave, então a mensagem repetida só regrava o mesmo conteúdo, e ele vai na marca (`rawStoragePath`).
+Guardar é o que faz o passo valer para as DUAS fontes — a encaminhada não fica em caixa nenhuma, e a lida
+por IMAP pode ter a senha trocada ou a caixa removida. Só o que alguma automação quis é guardado, e pelo
+prazo da marca (32 dias): `onMailMessageDeleted` apaga o arquivo quando o TTL apaga a marca, conferindo o
+caminho EXATO da mensagem. A pasta é reservada no `storage.rules` (`isReservedStoragePath`): nem o dono do
+escritório a lê pelo SDK — ela pode ser de uma caixa pessoal.
+
+**Salvar o anexo** (`SaveMailAttachmentUseCase`, no molde de `AttachDownloadToRecordUseCase`): a mensagem
+ainda está guardada (`step.save-mail-attachment.message-gone`, também para a entregue antes desta versão),
+a tela existe e tem a aba Documentos, o registro existe — só então os anexos são lidos
+(`parseMailAttachments`, sem a imagem embutida no corpo) e gravados por `IRecordDocumentWriter`. Nenhum que
+case é sucesso com `count` 0; o acima do teto de documento sai em `tooLarge`. Roda como o escritório, como
+os outros passos que gravam. `appendsEachRun`: não é reexecutado em lote.
+
+**Buscar** (`searchMailbox`): a caixa do escritório, sempre; a de um MEMBRO, só se ele a ligou a ESTA
+automação (`mailboxSearchableBy`) — a regra do gatilho, sem a qual a busca seria a porta dos fundos dela. A
+que não existe e a que não se pode ver respondem igual. Caixa de encaminhamento não se consulta. O filtro é
+o do gatilho (`matchesMailFilter`, com a peneira do servidor antes); a pasta é aberta com `EXAMINE` e o ponto
+de leitura não se move — buscar não é receber. As saídas vão para a execução, que é um documento de 1 MB:
+até 50 mensagens só com cabeçalho, ou 20 com o texto cortado em 10.000 caracteres e sem HTML
+(`includeBody`).
+
 **Pacote.** A automação viaja com `mailFilter` e `subscribable`; a caixa nunca. Exige `MAIL_RECEIVED_SINCE_KERNEL`
 (2.131.0), e o filtro é conferido por `mailFilterIssue` no portão do pacote.
 
@@ -9488,7 +9524,11 @@ UID. É a virada de outra fonte sem buraco; o que a caixa já entregou não volt
 | `functions/src/domain/services/mailInbound.ts` | a assinatura e a decisão de quem recebe o encaminhado |
 | `functions/src/infrastructure/settings/mailInbound.ts` | os dois parâmetros da instalação |
 | `functions/src/data/repositories/FirestoreMailboxRepository.ts` | caixa, segredo, `claim`/`release`, a entrega transacional |
-| `functions/src/infrastructure/handlers/mailboxes.ts` | `pollMailboxes`, `manageMailbox` e `mailInbound` (grupo `deploy:mail`) |
+| `functions/src/infrastructure/handlers/mailboxes.ts` | `pollMailboxes`, `manageMailbox`, `mailInbound` e `onMailMessageDeleted` (grupo `deploy:mail`) |
+| `functions/src/domain/services/mailSearch.ts` | o passo `mail-search` e quem pode ser consultado |
+| `functions/src/domain/usecases/SaveMailAttachmentUseCase.ts` | o passo `save-mail-attachment` |
+| `functions/src/data/services/StorageMailRawStore.ts` | a mensagem entregue guardada (`.eml`) |
+| `functions/src/infrastructure/workflow/steps/MailSteps.ts` | os executores dos dois passos |
 | `presentation/pages/Mailboxes/` | a página "Caixas de e-mail" |
 
 O filtro de mudança (`changeType`/`changedFields`) também passou a valer de fato: os dois repositórios de

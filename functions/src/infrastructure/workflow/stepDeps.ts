@@ -17,6 +17,8 @@ import type { HttpStepDeps } from './steps/HttpRequestStep';
 import type { ApprovalStepDeps } from './steps/ApprovalStep';
 import type { IReportDefinitionReader } from '../../domain/repositories/IReportDefinitionReader';
 import type { RunReportFileDeps } from './steps/RunReportStep';
+import type { MailSearchDeps } from '../../domain/services/mailSearch';
+import type { SaveMailAttachmentUseCase } from '../../domain/usecases/SaveMailAttachmentUseCase';
 
 /**
  * Dependências que o composition root injeta nas fábricas de Step. Vive em arquivo próprio para
@@ -48,6 +50,8 @@ export interface RegisterStepsDeps {
   reportFile?: RunReportFileDeps;
   /** As fotos dos relatórios — o `snapshot` do mesmo passo e a série que ele lê. */
   reportSnapshots?: IReportSnapshotRepository;
+  /** As caixas de e-mail, dos passos "Buscar e-mails" e "Salvar anexo do e-mail". */
+  mail: { search: MailSearchDeps; saveAttachment: SaveMailAttachmentUseCase };
 }
 
 /**

@@ -61,6 +61,8 @@ export interface IMailboxRepository {
     now: Date;
   }): Promise<string>;
   remove(tenantId: string, id: string): Promise<void>;
+  /** A marca de uma mensagem entregue: de que caixa veio e onde ela ficou guardada. `null` se expirou. */
+  getMessage(tenantId: string, key: string): Promise<{ mailboxId: string; rawStoragePath: string | null } | null>;
   /** A caixa de encaminhamento dona do código, em qualquer escritório. */
   findByInboundToken(token: string): Promise<MailboxRef | null>;
   /** O que o encaminhamento deixa na caixa: como foi a última entrega, ou a confirmação do Gmail. */
