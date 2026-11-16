@@ -85,11 +85,11 @@ import type {
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseExtensionStatsRepository } from '../../data/repositories/FirebaseExtensionStatsRepository';
 import { FirebaseExtensionPublicationRepository } from '../../data/repositories/FirebaseExtensionPublicationRepository';
-import { FirebaseDefaultExtensionOnboardingRepository } from '../../data/repositories/FirebaseDefaultExtensionOnboardingRepository';
+import { FirebaseOfficeDefaultsRepository } from '../../data/repositories/FirebaseOfficeDefaultsRepository';
 import {
-  makeStageDefaultExtensionsUseCase,
-  type StageDefaultExtensionsUseCase,
-} from '../../domain/usecases/StageDefaultExtensionsUseCase';
+  makeStageOfficeDefaultsUseCase,
+  type StageOfficeDefaultsUseCase,
+} from '../../domain/usecases/StageOfficeDefaultsUseCase';
 import {
   makePublishExtensionUseCase,
   type PublishExtensionUseCase,
@@ -437,15 +437,15 @@ class DIContainer {
         Math.random,
         this.getPortalRepository(),
         new FirebaseRegistrationRepository(getDb(), getAuth()),
-        this.getStageDefaultExtensionsUseCase(),
+        this.getStageOfficeDefaultsUseCase(),
       );
     }
     return this.bootstrapUserUC;
   }
 
-  getStageDefaultExtensionsUseCase(): StageDefaultExtensionsUseCase {
-    return makeStageDefaultExtensionsUseCase({
-      onboarding: new FirebaseDefaultExtensionOnboardingRepository(getDb()),
+  getStageOfficeDefaultsUseCase(): StageOfficeDefaultsUseCase {
+    return makeStageOfficeDefaultsUseCase({
+      defaults: new FirebaseOfficeDefaultsRepository(getDb()),
       logger: { error: (message: string) => console.error(message) },
     });
   }
@@ -935,7 +935,7 @@ class DIContainer {
       tenants: this.getTenantRepository(),
       audit: this.getCreateAuditLogUseCase(),
       random: Math.random,
-      defaultExtensions: this.getStageDefaultExtensionsUseCase(),
+      officeDefaults: this.getStageOfficeDefaultsUseCase(),
     });
   }
 

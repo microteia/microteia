@@ -76,6 +76,13 @@ export const CORE_ADMIN: Record<string, string> = {
   'access.registration.opened': 'Novas contas liberadas.',
   'access.registration.update-failed': 'Não foi possível alterar o que acontece com novas contas.',
   'access.registration.load-failed': 'Não foi possível ler o que acontece com novas contas.',
+  'access.registration.locale': 'Idioma dos escritórios novos',
+  'access.registration.locale.hint':
+    'Todo escritório criado a partir de agora começa neste idioma. É também o idioma em que as extensões padrão '
+    + 'gravam os dados iniciais, que ficam como foram gravados se o idioma mudar depois. A interface só aparece '
+    + 'traduzida se o escritório também receber a extensão do idioma.',
+  'access.registration.locale.none': 'Nenhum (o navegador de cada pessoa decide)',
+  'access.registration.locale.saved': 'Idioma dos escritórios novos salvo.',
   'access.registration.organizations.block': 'Bloquear escritório automático',
   'access.registration.organizations.block.hint':
     'Ativado, uma conta nova não ganha mais um escritório próprio: ela espera ser adicionada a um, e só o '

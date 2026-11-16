@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.270.0] — 2026-11-16
+
+- feat(registration): `system/registration.defaultLocale` — the language every new organization starts with. `openOwnedTenant` writes it to `i18n.locale` in `tenants/{id}/settings/tenant` before staging the default extensions, so screen seeds (resolved server-side in the organization's stored locale) are written in it. Before, a new organization had no stored locale and its default extensions seeded English text, even with a translation installed. Validated by shape only, in `registrationPolicyOf` and in the Rules.
+- refactor(functions): `StageDefaultExtensionsUseCase` → `StageOfficeDefaultsUseCase` and `IDefaultExtensionOnboardingRepository` → `IOfficeDefaultsRepository`; the locale and the extension list fail independently and are logged.
+- feat(access): language selector for new organizations in Access Management › Users (installed locales plus the stored one).
+
 #### [9.269.1] — 2026-11-16
 
 - fix(console/deploy): the first deploy of a new installation runs with `--force` again, and a function that deployed without a cleanup policy no longer counts as failed (Console 2.43.6). No kernel change; the package is rebuilt so the history keeps one entry per package version.

@@ -203,11 +203,15 @@ service cloud.firestore {
     match /system/registration {
       allow get: if isSystemAdmin();
       allow create, update: if isSystemAdmin()
-        && request.resource.data.keys().hasOnly(['acceptNewAccounts', 'selfServiceTenants', 'defaultExtensions', 'updatedBy', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['acceptNewAccounts', 'selfServiceTenants', 'defaultExtensions', 'defaultLocale', 'updatedBy', 'updatedAt'])
         && request.resource.data.get('acceptNewAccounts', true) is bool
         && request.resource.data.get('selfServiceTenants', true) is bool
         && request.resource.data.get('defaultExtensions', []) is list
         && request.resource.data.get('defaultExtensions', []).size() <= 30
+        // O idioma do escritório novo: nenhum, ou um código BCP-47 — a mesma forma de `i18n.locale`.
+        && (request.resource.data.get('defaultLocale', null) == null
+          || (request.resource.data.defaultLocale is string
+            && request.resource.data.defaultLocale.matches('^[a-z]{2,3}(-[A-Za-z0-9]+)*$')))
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time;
     }

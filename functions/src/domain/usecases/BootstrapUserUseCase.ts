@@ -1,7 +1,7 @@
 import type { IUserRepository } from '../repositories/IUserRepository';
 import type { ITenantRepository } from '../repositories/ITenantRepository';
 import type { IRegistrationRepository } from '../repositories/IRegistrationRepository';
-import { NO_DEFAULT_EXTENSIONS, type StageDefaultExtensionsUseCase } from './StageDefaultExtensionsUseCase';
+import { NO_OFFICE_DEFAULTS, type StageOfficeDefaultsUseCase } from './StageOfficeDefaultsUseCase';
 import { generateArtifactPrefix } from '../schema/plugin/artifactPrefix';
 import { normalizePortalEmail } from '../schema/portal';
 import { isPortalIdentityAccount } from '../schema/portalIdentity';
@@ -31,7 +31,7 @@ export const openOwnedTenant = async (
   name: string,
   addedBy: string,
   random: () => number,
-  defaultExtensions: StageDefaultExtensionsUseCase = NO_DEFAULT_EXTENSIONS,
+  officeDefaults: StageOfficeDefaultsUseCase = NO_OFFICE_DEFAULTS,
 ) => {
   const tenant = await tenantRepo.createTenant({
     name,
@@ -45,8 +45,8 @@ export const openOwnedTenant = async (
   });
 
   // ANTES do dono entrar: o navegador dá o provisionamento por concluído quando o membro aparece, e lê
-  // a lista de extensões padrão na primeira carga. Gravada depois, ela poderia não estar lá ainda.
-  await defaultExtensions.execute(tenant.id);
+  // o idioma e a lista de extensões padrão na primeira carga. Gravados depois, poderiam não estar lá.
+  await officeDefaults.execute(tenant.id);
 
   // Sem perfil nenhum, e é de propósito: quem dá poder ao DONO é o curinga que
   // `materializeMemberPermissions` carimba a partir de `Tenant.ownerId`. Semear um perfil aqui
@@ -81,7 +81,7 @@ export type BootstrapUserUseCase = {
 //   ser adicionada a um. A exceção é a primeira conta da instalação — a do `SYSTEM` —, sem a qual não
 //   haveria escritório nenhum nem quem criasse o primeiro.
 const ALWAYS_OPEN: IRegistrationRepository = {
-  getPolicy: async () => ({ acceptNewAccounts: true, selfServiceTenants: true, defaultExtensions: [] }),
+  getPolicy: async () => ({ acceptNewAccounts: true, selfServiceTenants: true, defaultExtensions: [], defaultLocale: null }),
   refuse: async () => undefined,
 };
 
@@ -91,7 +91,7 @@ export const makeBootstrapUserUseCase = (
   random: () => number = Math.random,
   portalInvites: { hasInvite: (email: string) => Promise<boolean> } = { hasInvite: async () => false },
   registration: IRegistrationRepository = ALWAYS_OPEN,
-  defaultExtensions: StageDefaultExtensionsUseCase = NO_DEFAULT_EXTENSIONS,
+  officeDefaults: StageOfficeDefaultsUseCase = NO_OFFICE_DEFAULTS,
 ): BootstrapUserUseCase => ({
   execute: async ({ userId, email, displayName, photoURL }) => {
     // Quem chegou por um convite do PORTAL é de fora: entra no escritório que o convidou, como
@@ -126,6 +126,6 @@ export const makeBootstrapUserUseCase = (
     // o renomeia quando quiser — traduzi-lo depois mudaria o nome que ele escolheu manter. Por
     // isso é montado só com o que o usuário trouxe: sem palavra nossa, não há idioma para ficar
     // preso. O e-mail entra porque dois usuários homônimos precisam se distinguir na lista.
-    await openOwnedTenant(tenantRepo, { userId, email, displayName, photoURL }, `${displayName}(${email})`, userId, random, defaultExtensions);
+    await openOwnedTenant(tenantRepo, { userId, email, displayName, photoURL }, `${displayName}(${email})`, userId, random, officeDefaults);
   },
 });

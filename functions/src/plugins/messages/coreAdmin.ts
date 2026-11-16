@@ -83,6 +83,13 @@ export const CORE_ADMIN_MESSAGES: Record<string, string> = {
   'access.registration.opened': 'New accounts are now accepted.',
   'access.registration.update-failed': 'Could not change what happens to new accounts.',
   'access.registration.load-failed': 'Could not read what happens to new accounts.',
+  'access.registration.locale': 'Language of new organizations',
+  'access.registration.locale.hint':
+    'Every organization created from now on starts in this language. It is also the language in which the '
+    + 'default extensions write their initial data, which stays as it was written if the language changes later. '
+    + 'The interface is only translated if the organization also gets the language extension.',
+  'access.registration.locale.none': 'None (each person\'s browser decides)',
+  'access.registration.locale.saved': 'Language of new organizations saved.',
   'access.registration.organizations.block': 'Block automatic organizations',
   'access.registration.organizations.block.hint':
     'When on, a new account no longer gets an organization of its own: it waits to be added to one, and only '
