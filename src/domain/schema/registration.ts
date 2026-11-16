@@ -1,3 +1,5 @@
+import { isValidPluginId } from './plugin/artifactRef';
+
 /**
  * CONTAS NOVAS NA INSTALAÇÃO — o que o `SYSTEM` decide, em Gestão de Acessos › Usuários, sobre quem
  * chega pela primeira vez. São duas perguntas, no mesmo documento:
@@ -44,7 +46,18 @@ export const REGISTRATION_CLOSED_MESSAGE = `@${REGISTRATION_CLOSED_KEY}`;
 export interface RegistrationPolicy {
   acceptNewAccounts: boolean;
   selfServiceTenants: boolean;
+  /**
+   * As extensões do catálogo que todo escritório novo recebe instaladas (ids). A marca é a intenção do
+   * `SYSTEM`; quem decide o que de fato instalar, na criação do escritório, confere de novo o catálogo.
+   * Ver `schema/plugin/defaultExtensions.ts`.
+   */
+  defaultExtensions: string[];
 }
+
+const defaultExtensionsOf = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? [...new Set(value.filter((id): id is string => isValidPluginId(id)))]
+    : [];
 
 /**
  * Só `false` desliga: documento ausente, ou campo ilegível, é o comportamento de antes — conta nova
@@ -55,5 +68,6 @@ export const registrationPolicyOf = (data: unknown): RegistrationPolicy => {
   return {
     acceptNewAccounts: fields.acceptNewAccounts !== false,
     selfServiceTenants: fields.selfServiceTenants !== false,
+    defaultExtensions: defaultExtensionsOf(fields.defaultExtensions),
   };
 };

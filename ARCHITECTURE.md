@@ -10637,6 +10637,87 @@ Arquivos: `domain/schema/plugin/publicationProof.ts` ·
 `functions/src/infrastructure/handlers/publishExtension.ts` (grupo `deploy:marketplace`) ·
 `firestore.rules` · `rules-tests/publicExtensions.test.ts`.
 
+### Extensões padrão de escritório novo — `system/registration.defaultExtensions`
+
+Uma instalação dedicada a um ramo (advocacia, clínica, petshop) não deveria obrigar cada pessoa que
+entra a abrir a tela de Extensões e instalar, uma a uma, o que todo escritório dali usa. O `SYSTEM`
+marca extensões do catálogo como **padrão** (aba Catálogo, botão de pilha; selo "Padrão"), e todo
+escritório novo as recebe instaladas.
+
+**A marca aponta o ID, nunca uma versão.** O escritório novo recebe a versão ATUAL do catálogo, e isso
+só é seguro porque toda versão do catálogo foi instalada por completo antes de ir para lá (ver acima). A
+garantia está na publicação; a marca não guarda cópia de pacote e não precisa ser refeita a cada versão.
+Atualizações seguem o aviso de sempre.
+
+A lista mora em `system/registration.defaultExtensions`, ao lado das outras decisões do `SYSTEM` sobre
+quem chega — é o que o escritório novo GANHA. A régua (`schema/plugin/defaultExtensions.ts`,
+compartilhada) recusa marcar:
+
+| Motivo | Por quê |
+|---|---|
+| `not-approved` | fora do catálogo, na fila ou obsoleta: o escritório novo não teria de onde instalar |
+| `unproven` | a versão atual foi publicada antes da prova — o dono comprova ou publica outra |
+| `too-many` | teto de `DEFAULT_EXTENSIONS_MAX` (30): cada uma é uma instalação que a pessoa espera na primeira entrada |
+| `dependency-not-default` | o escritório novo terá SÓ as padrão; a dependência tem de ser do kernel, embutida ou padrão também |
+
+E recusa desmarcar a que outra padrão usa (`required-by`). Marcar e desmarcar gravam com
+`arrayUnion`/`arrayRemove`: dois administradores marcando extensões diferentes não apagam a marca um do
+outro.
+
+**As Rules não conferem a régua, e não precisam:** a lista é a INTENÇÃO do `SYSTEM`, e quem planeja a
+instalação do escritório novo confere o catálogo de novo, no servidor, no momento da criação. O que as
+Rules cobram é o que só elas alcançam: a lista é `list` de no máximo 30, e uma extensão padrão **não é
+obsoletada nem apagada** de `public_extensions` (`isDefaultExtension()`) — o próximo escritório novo a
+procuraria no catálogo e não a acharia. Tira-se a marca antes.
+
+**Na criação do escritório, o servidor fixa a lista** (`StageDefaultExtensionsUseCase`, chamado por
+`openOwnedTenant` — o mesmo caminho do autocadastro e do "Novo escritório" do `SYSTEM`). Ele lê a marca,
+confere o catálogo (`defaultInstallPlan`: só aprovada e comprovada, dependência antes de quem depende
+dela) e grava `tenants/{id}/extension_onboarding/defaults = { pending, failed }`. Duas decisões:
+
+- **Antes de o dono entrar como membro.** O navegador dá o provisionamento por concluído quando o
+  membro aparece (`waitForProvisioning`), e lê a lista na primeira carga; gravada depois, ela poderia
+  ainda não estar lá.
+- **Falhar não impede o escritório de nascer.** O erro vai para o log; a pessoa perde as padrão (que
+  ainda instala pela tela), não a entrada no sistema.
+
+A lista é fixada na criação: marcar ou desmarcar depois não alcança escritório que já existe. A
+coleção é reservada (`RESERVED_COLLECTIONS` e `isReservedCollection`), todo membro a lê, só quem tem
+`extensions.manage` a altera, e nenhum cliente a cria.
+
+**Quem instala é o navegador**, no `DefaultExtensionsGate` (em volta das `Routes`, dentro de toda a pilha
+de providers do escritório): enquanto há pendência e quem entrou pode `extensions.manage`, a tela é
+"Aguarde… adicionando extensões — 2 de 5: Nome". A instalação passa pela MESMA `install()` da tela de
+Extensões, com `source: 'public'` — instalar no servidor exigiria uma segunda porta, e ela divergiria
+das recusas de dependência, prefixo e colisão que só a primeira tem.
+
+- **Uma instalação por rodada.** `install()` decide com as instaladas que o store conhece na
+  renderização em que foi criada; a segunda instalação de um mesmo laço não enxergaria a primeira e
+  recusaria a dependência que acabou de entrar. A rodada seguinte nasce de um estado que muda quando a
+  anterior TERMINA (`round`) — o store muda antes, e a renderização que isso provoca encontra a rodada
+  ainda em curso.
+- **A dependência embutida** (que viaja no bundle e por isso nunca está na lista do servidor) entra numa
+  rodada própria, antes de quem depende dela.
+- **Retomável.** A extensão sai da lista só depois de instalada (`arrayRemove`); fechar a aba no meio
+  continua da próxima vez, e a já instalada numa passada interrompida só sai da lista.
+- **A que saiu do catálogo** depois de o escritório nascer vai para `failed` sem pergunta. **A que
+  falha** espera a pessoa: "Tentar de novo" ou "Continuar sem ela" (também vai para `failed`).
+
+**Limite conhecido:** o `provision` do Console decide o backend a manter pelo que os escritórios TÊM
+instalado. Se o único escritório com uma extensão padrão a desinstalar e alguém rodar
+`provision --prune`, a function sai, e o próximo escritório novo a recebe com backend pendente até o
+`provision` seguinte. Fazer o Console contar as padrão como exigidas pede ler o pacote do catálogo em
+vez da cópia instalada, e ficou para depois.
+
+Arquivos: `domain/schema/plugin/defaultExtensions.ts` · `domain/schema/registration.ts` ·
+`data/repositories/{FirebaseRegistrationPolicyRepository,FirebaseExtensionOnboardingRepository}.ts` ·
+`domain/usecases/registration/SetDefaultExtensionUseCase.ts` ·
+`domain/usecases/plugins/DefaultExtensionsOnboardingUseCases.ts` · `presentation/pages/Marketplace/` ·
+`presentation/components/layout/DefaultExtensionsGate/` ·
+`functions/src/domain/usecases/{StageDefaultExtensionsUseCase,BootstrapUserUseCase,CreateOrganizationUseCase}.ts` ·
+`functions/src/data/repositories/FirebaseDefaultExtensionOnboardingRepository.ts` · `firestore.rules` ·
+`rules-tests/{registration,publicExtensions,extensionOnboarding}.test.ts`.
+
 ### Reputação no catálogo — imagem, instalações, estrelas e publicador verificado
 
 A linha de uma extensão mostra o que uma loja mostra ao lado de um nome: a **imagem** dela, **quantos

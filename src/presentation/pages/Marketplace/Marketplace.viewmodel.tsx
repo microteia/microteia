@@ -76,6 +76,13 @@ import { usePackageCatalog } from '../../shared/i18n/usePackageCatalog';
 import { resolveLabel } from '../../../domain/schema/i18n/messageRef';
 import { packageMessageCatalog } from '../../../domain/schema/i18n/extensionPoints';
 import { catalogWithFallback } from '../../../domain/schema/i18n/messages';
+import {
+  defaultMarkIssues,
+  defaultUnmarkIssues,
+  type DefaultCatalogSide,
+} from '../../../domain/schema/plugin/defaultExtensions';
+import { makeGetRegistrationPolicyUseCase } from '../../../domain/usecases/registration/GetRegistrationPolicyUseCase';
+import { makeSetDefaultExtensionUseCase } from '../../../domain/usecases/registration/SetDefaultExtensionUseCase';
 import type { MessageCatalog, MessageParams } from '../../../domain/schema/i18n/messages';
 
 export interface Author {
@@ -181,6 +188,12 @@ export interface ExtensionRow {
   canRate: boolean;
   /** O SYSTEM pode conceder ou retirar o selo do escritório que publicou. */
   canVerifyPublisher: boolean;
+  /** Todo escritório novo a recebe instalada (`system/registration.defaultExtensions`). Só o SYSTEM vê. */
+  isDefault: boolean;
+  /** O gesto do SYSTEM sobre a marca de padrão, ou `null` quando ele não se aplica a esta linha. */
+  defaultAction: 'mark' | 'unmark' | null;
+  /** Por que o gesto ainda não pode acontecer — a frase pronta, ou `null` quando pode. */
+  defaultBlockedReason: string | null;
   publisherVerified: boolean;
 
   installBadge: InstallBadge | null;
@@ -432,6 +445,8 @@ export interface MarketplaceViewModel {
   clearMyRating: () => Promise<void>;
   /** Concede ou retira o selo do publicador desta extensão. */
   togglePublisherVerified: (id: string) => Promise<void>;
+  /** Marca ou desmarca a extensão como padrão de todo escritório novo. Só o SYSTEM. */
+  toggleDefault: (id: string) => Promise<void>;
   openDetails: (id: string) => void;
   closeDetails: () => void;
   /** A extensão cujos termos de licença estão abertos — o modal do ícone de licença do cartão. */
@@ -716,7 +731,54 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
    * Microteia Console, num terminal. Assinar o documento custaria uma conexão viva para observar algo
    * que muda quando alguém roda um comando — e a tela é reaberta muito mais vezes que isso.
    */
-  const { backendResidueRepository, installedCatalogSourceRepository } = useDI();
+  const { backendResidueRepository, installedCatalogSourceRepository, registrationPolicyRepository } = useDI();
+
+  /**
+   * As extensões padrão de escritório novo. O documento é só do SYSTEM (as Rules recusam a leitura de
+   * qualquer outro), e por isso só ele o lê; muda pelo gesto desta tela, que atualiza o estado local.
+   */
+  const [defaultExtensions, setDefaultExtensions] = useState<readonly string[]>([]);
+  useEffect(() => {
+    if (!canModerate) return undefined;
+    let cancelled = false;
+    void makeGetRegistrationPolicyUseCase(registrationPolicyRepository).execute()
+      .then((policy) => { if (!cancelled) setDefaultExtensions(policy.defaultExtensions); })
+      .catch((err: unknown) => console.error('[marketplace] default extensions:', err));
+    return () => { cancelled = true; };
+  }, [canModerate, registrationPolicyRepository]);
+  const defaultIds = useMemo(() => new Set(defaultExtensions), [defaultExtensions]);
+
+  const defaultCatalog = useMemo<DefaultCatalogSide[]>(
+    () => publicExtensions.map((entry) => ({
+      id: entry.domain,
+      status: entry.status,
+      proven: entry.proof !== null,
+      dependencies: entry.package.manifest.dependencies,
+    })),
+    [publicExtensions],
+  );
+
+  /**
+   * A marca de padrão vale para o que está no CATÁLOGO: a de primeira parte já vem com a aplicação, e a
+   * cópia privada não é alcançável por um escritório novo. A recusa é dita no botão, em vez de ele sumir.
+   */
+  const defaultStateOf = useCallback(
+    (id: string): Pick<ExtensionRow, 'isDefault' | 'defaultAction' | 'defaultBlockedReason'> => {
+      const isDefault = defaultIds.has(id);
+      if (!canModerate || !defaultCatalog.some((entry) => entry.id === id)) {
+        return { isDefault, defaultAction: null, defaultBlockedReason: null };
+      }
+      const [blocked] = isDefault
+        ? defaultUnmarkIssues(id, defaultCatalog, defaultExtensions)
+        : defaultMarkIssues(id, defaultCatalog, defaultExtensions, (pluginId) => BUILTIN_BY_ID.has(pluginId));
+      return {
+        isDefault,
+        defaultAction: isDefault ? 'unmark' : 'mark',
+        defaultBlockedReason: blocked ? label(blocked.message, blocked.messageParams) : null,
+      };
+    },
+    [canModerate, defaultIds, defaultCatalog, defaultExtensions, label],
+  );
   const [residueState, setResidueState] = useState<BackendResidue | null>(null);
 
   useEffect(() => {
@@ -1027,6 +1089,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         rating: null,
         canRate: false,
         canVerifyPublisher: false,
+        isDefault: false,
+        defaultAction: null,
+        defaultBlockedReason: null,
         publisherVerified: false,
         installBadge: 'active',
         statusBadge: 'system',
@@ -1134,6 +1199,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         ...reputation,
         canRate: Boolean(inst) && inst?.source !== 'private' && user !== null,
         canVerifyPublisher: canModerate && Boolean(pub),
+        ...defaultStateOf(id),
         publisherVerified: pub ? verifiedPublishers.has(pub.ownerTenantId) : false,
         installBadge: inst ? (inst.active ? 'active' : 'inactive') : null,
         statusBadge,
@@ -1152,7 +1218,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         canUninstall: installed_,
         canDelete: mine,
         canApprove: canModerate && publicStatus === 'pending',
-        canDeprecate: canModerate && publicStatus === 'approved',
+        // A padrão não sai do catálogo: o próximo escritório novo a procuraria lá. As Rules cobram igual.
+        canDeprecate: canModerate && publicStatus === 'approved' && !defaultIds.has(id),
         backendPending: inst !== undefined && inst !== null && isExtensionBackendPending(inst, appliedBackend),
         backendPendingDetail: backendPendingDetailOf(inst ? extensionBackendPendingCause(inst, appliedBackend) : null),
         migrationPending: inst ? isExtensionMigrationPending(inst, migrationStates) : false,
@@ -1175,7 +1242,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     }
 
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
-  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, pendenciesOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, appliedBackend, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf, verifiedPublishers, reputationOf, verificationLabelOf, connectionIssuesOf]);
+  }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, pendenciesOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, appliedBackend, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf, verifiedPublishers, reputationOf, verificationLabelOf, connectionIssuesOf, defaultStateOf, defaultIds]);
 
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,
@@ -1503,6 +1570,19 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     );
   }, [publicOf, verifiedPublishers, run, setPublisherVerified, t]);
 
+  const toggleDefault = useCallback((id: string) => {
+    if (!user) return Promise.resolve();
+    const isDefault = !defaultIds.has(id);
+    return run(
+      id,
+      async () => {
+        await makeSetDefaultExtensionUseCase(registrationPolicyRepository).execute(id, isDefault, user.id);
+        setDefaultExtensions((current) => (isDefault ? [...current, id] : current.filter((other) => other !== id)));
+      },
+      t(isDefault ? 'extension.default.marked' : 'extension.default.unmarked'),
+    );
+  }, [user, defaultIds, run, registrationPolicyRepository, t]);
+
   const openLicense = useCallback((id: string) => setLicenseId(id), []);
   const closeLicense = useCallback(() => setLicenseId(null), []);
 
@@ -1730,6 +1810,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     rate,
     clearMyRating,
     togglePublisherVerified,
+    toggleDefault,
     openDetails,
     closeDetails,
     licenseRow,

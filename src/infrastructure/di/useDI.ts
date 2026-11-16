@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import type { IAuthRepository } from '../../domain/repositories/IAuthRepository';
 import type { IUserRepository } from '../../domain/repositories/IUserRepository';
 import type { IRegistrationPolicyRepository } from '../../domain/repositories/IRegistrationPolicyRepository';
+import type { IExtensionOnboardingRepository } from '../../domain/repositories/IExtensionOnboardingRepository';
 import type { IUserProfileRepository } from '../../domain/repositories/IUserProfileRepository';
 import type { IAIConnectionRepository } from '../../domain/repositories/IAIConnectionRepository';
 import type { IHttpConnectionRepository } from '../../domain/repositories/IHttpConnectionRepository';
@@ -76,6 +77,7 @@ export interface DIContainer {
   authRepository: IAuthRepository;
   userRepository: IUserRepository;
   registrationPolicyRepository: IRegistrationPolicyRepository;
+  extensionOnboardingRepository: IExtensionOnboardingRepository;
   userProfileRepository: IUserProfileRepository;
   aiConnectionRepository: IAIConnectionRepository;
   httpConnectionRepository: IHttpConnectionRepository;

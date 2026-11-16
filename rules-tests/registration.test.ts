@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { arrayRemove, arrayUnion, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { asAnonymous, asUser, seed, testEnv } from './helpers';
 
 /**
@@ -56,6 +56,20 @@ describe('system/registration', () => {
     }));
     await assertFails(setDoc(policy('sys'), { selfServiceTenants: 'não', updatedBy: 'sys', updatedAt: serverTimestamp() }));
     await assertFails(setDoc(policy('comum'), { selfServiceTenants: false, updatedBy: 'comum', updatedAt: serverTimestamp() }));
+  });
+
+  it('o SYSTEM marca e desmarca extensões padrão, uma a uma, sem reescrever a lista', async () => {
+    const mark = (uid: string, value: unknown) =>
+      setDoc(policy(uid), { defaultExtensions: value, updatedBy: uid, updatedAt: serverTimestamp() }, { merge: true });
+    await assertSucceeds(mark('sys', arrayUnion('com.acme.crm')));
+    await assertSucceeds(mark('sys', arrayRemove('com.acme.crm')));
+    await assertFails(mark('comum', arrayUnion('com.acme.crm')));
+    await assertFails(mark('sys', 'com.acme.crm'));
+  });
+
+  it('a lista tem teto — cada padrão é uma instalação que a pessoa espera na primeira entrada', async () => {
+    const many = Array.from({ length: 31 }, (_, index) => `com.acme.e${index}`);
+    await assertFails(setDoc(policy('sys'), { defaultExtensions: many, updatedBy: 'sys', updatedAt: serverTimestamp() }, { merge: true }));
   });
 
   it('os outros documentos de system/ continuam fechados, até ao SYSTEM', async () => {

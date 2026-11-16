@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.269.0] — 2026-11-15
+
+- O administrador do sistema pode marcar extensões do catálogo como padrão, e todo escritório novo passa a recebê-las já instaladas. Na primeira entrada, a pessoa vê a tela "Aguarde… adicionando extensões", com o andamento de cada uma.
+- A marca acompanha sempre a versão mais recente do catálogo, e a tela explica quando uma extensão ainda não pode ser marcada — por exemplo, quando depende de outra que os escritórios novos não receberiam.
+- Se uma das extensões não puder ser instalada, é possível tentar de novo ou continuar sem ela; fechar a página no meio retoma de onde parou na próxima entrada.
+- Uma extensão marcada como padrão não pode ser retirada do catálogo nem marcada como obsoleta enquanto a marca estiver nela.
+
 #### [9.268.0] — 2026-11-15
 
 - O catálogo de extensões passou a garantir a instalação: uma extensão só vai para o catálogo depois de instalada e funcionando por completo no escritório que a publica, com tudo o que precisa já no ar. Quem a instala do catálogo não encontra mais pendências que não teria como resolver.

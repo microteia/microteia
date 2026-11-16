@@ -122,3 +122,26 @@ describe('republicar e moderar', () => {
     await assertSucceeds(deleteDoc(published('sistema')));
   });
 });
+
+describe('extensão padrão de escritório novo', () => {
+  beforeEach(async () => {
+    await seed(env, {
+      root: {
+        [`public_extensions/${DOMAIN}`]: record(),
+        'system/registration': { defaultExtensions: [DOMAIN], updatedBy: 'sistema' },
+      },
+    });
+  });
+
+  // O próximo escritório novo a procuraria no catálogo e não a acharia: a marca sai antes.
+  it('nem o SYSTEM a obsoleta ou a retira do catálogo enquanto é padrão', async () => {
+    await assertFails(updateDoc(published('sistema'), { status: 'deprecated' }));
+    await assertFails(deleteDoc(published('sistema')));
+  });
+
+  it('desmarcada, volta a poder sair', async () => {
+    await seed(env, { root: { 'system/registration': { defaultExtensions: [], updatedBy: 'sistema' } } });
+    await assertSucceeds(updateDoc(published('sistema'), { status: 'deprecated' }));
+    await assertSucceeds(deleteDoc(published('sistema')));
+  });
+});
