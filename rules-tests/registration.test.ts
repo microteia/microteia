@@ -72,6 +72,16 @@ describe('system/registration', () => {
     await assertFails(setDoc(policy('sys'), { defaultExtensions: many, updatedBy: 'sys', updatedAt: serverTimestamp() }, { merge: true }));
   });
 
+  it('o SYSTEM escolhe o idioma do escritório novo — um código de idioma, ou nenhum', async () => {
+    const choose = (uid: string, value: unknown) =>
+      setDoc(policy(uid), { defaultLocale: value, updatedBy: uid, updatedAt: serverTimestamp() }, { merge: true });
+    await assertSucceeds(choose('sys', 'pt-BR'));
+    await assertSucceeds(choose('sys', null));
+    await assertFails(choose('comum', 'pt-BR'));
+    await assertFails(choose('sys', 'Português'));
+    await assertFails(choose('sys', 42));
+  });
+
   it('os outros documentos de system/ continuam fechados, até ao SYSTEM', async () => {
     await assertFails(getDoc(doc(asUser(env, 'sys'), 'system/bootstrap')));
   });

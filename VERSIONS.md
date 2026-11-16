@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.270.0] — 2026-11-16
+
+- O administrador do sistema agora escolhe, em Gestão de Acessos › Usuários, o idioma com que todo escritório novo começa. As extensões padrão passam a gravar os dados iniciais nesse idioma, em vez de sempre em inglês.
+
 #### [9.269.1] — 2026-11-16
 
 - Corrigido: a primeira publicação de uma instalação nova deixava parte das funções de servidor fora do ar e mostrava como falha funções que tinham sido publicadas, por causa de uma configuração de limpeza do projeto que não era feita.

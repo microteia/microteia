@@ -10670,7 +10670,7 @@ Rules cobram é o que só elas alcançam: a lista é `list` de no máximo 30, e 
 obsoletada nem apagada** de `public_extensions` (`isDefaultExtension()`) — o próximo escritório novo a
 procuraria no catálogo e não a acharia. Tira-se a marca antes.
 
-**Na criação do escritório, o servidor fixa a lista** (`StageDefaultExtensionsUseCase`, chamado por
+**Na criação do escritório, o servidor fixa a lista** (`StageOfficeDefaultsUseCase`, chamado por
 `openOwnedTenant` — o mesmo caminho do autocadastro e do "Novo escritório" do `SYSTEM`). Ele lê a marca,
 confere o catálogo (`defaultInstallPlan`: só aprovada e comprovada, dependência antes de quem depende
 dela) e grava `tenants/{id}/extension_onboarding/defaults = { pending, failed }`. Duas decisões:
@@ -10703,6 +10703,28 @@ das recusas de dependência, prefixo e colisão que só a primeira tem.
 - **A que saiu do catálogo** depois de o escritório nascer vai para `failed` sem pergunta. **A que
   falha** espera a pessoa: "Tentar de novo" ou "Continuar sem ela" (também vai para `failed`).
 
+#### O idioma do escritório novo — `system/registration.defaultLocale`
+
+As sementes de tela são resolvidas no idioma GRAVADO do escritório (`i18n.locale` em
+`tenants/{id}/settings/tenant`), no instante em que o servidor as grava — e o servidor não enxerga o
+navegador. Um escritório que nasce sem idioma escolhido vê a interface no idioma negociado com o
+navegador, mas recebe as extensões padrão com os dados em inglês: instalar o pacote de tradução não
+mudava nada, porque o que faltava não era tradução, era o idioma gravado. E o que foi semeado é dado
+dele, que trocar o idioma depois não retraduz.
+
+Por isso o `SYSTEM` escolhe, em Gestão de Acessos › Usuários, o idioma com que todo escritório novo
+nasce. O mesmo `StageOfficeDefaultsUseCase` grava `i18n.locale` nas configurações do escritório —
+**antes** da lista de extensões, para que a primeira semente já saia nele — e as duas partes falham
+separadas: sem o idioma o escritório ainda recebe as extensões, e vice-versa.
+
+- **Validado pela forma** (`isValidLocale`, nas Rules a mesma expressão de `i18n.locale`), nunca contra
+  os pacotes instalados — a mesma regra que a preferência do escritório já segue.
+- **O seletor oferece os idiomas instalados no escritório de quem escolhe**, mais o já gravado. Gravar
+  o idioma não instala a tradução da interface: sem o pacote de idioma, a interface continua no
+  idioma-fonte, e o texto de ajuda diz isso.
+- **Opção de lista não depende disso.** A opção semeada com rótulo `@ns/chave` grava a CHAVE e traduz o
+  rótulo na leitura; só o campo de texto semeado congela o idioma.
+
 **Limite conhecido:** o `provision` do Console decide o backend a manter pelo que os escritórios TÊM
 instalado. Se o único escritório com uma extensão padrão a desinstalar e alguém rodar
 `provision --prune`, a function sai, e o próximo escritório novo a recebe com backend pendente até o
@@ -10714,8 +10736,8 @@ Arquivos: `domain/schema/plugin/defaultExtensions.ts` · `domain/schema/registra
 `domain/usecases/registration/SetDefaultExtensionUseCase.ts` ·
 `domain/usecases/plugins/DefaultExtensionsOnboardingUseCases.ts` · `presentation/pages/Marketplace/` ·
 `presentation/components/layout/DefaultExtensionsGate/` ·
-`functions/src/domain/usecases/{StageDefaultExtensionsUseCase,BootstrapUserUseCase,CreateOrganizationUseCase}.ts` ·
-`functions/src/data/repositories/FirebaseDefaultExtensionOnboardingRepository.ts` · `firestore.rules` ·
+`functions/src/domain/usecases/{StageOfficeDefaultsUseCase,BootstrapUserUseCase,CreateOrganizationUseCase}.ts` ·
+`functions/src/data/repositories/FirebaseOfficeDefaultsRepository.ts` · `firestore.rules` ·
 `rules-tests/{registration,publicExtensions,extensionOnboarding}.test.ts`.
 
 ### Reputação no catálogo — imagem, instalações, estrelas e publicador verificado

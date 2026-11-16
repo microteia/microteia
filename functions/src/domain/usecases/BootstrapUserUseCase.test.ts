@@ -75,17 +75,17 @@ describe('BootstrapUserUseCase', () => {
   });
 
   const policy = (acceptNewAccounts: boolean, selfServiceTenants: boolean) => ({
-    getPolicy: vi.fn(async () => ({ acceptNewAccounts, selfServiceTenants, defaultExtensions: [] })),
+    getPolicy: vi.fn(async () => ({ acceptNewAccounts, selfServiceTenants, defaultExtensions: [], defaultLocale: null })),
     refuse: vi.fn(async () => undefined),
   } satisfies IRegistrationRepository);
 
-  it('as extensões padrão são fixadas ANTES de o dono entrar — o navegador as lê na primeira carga', async () => {
+  it('o idioma e as extensões padrão são fixados ANTES de o dono entrar — o navegador as lê na primeira carga', async () => {
     const { users, tenants } = setup();
     const order: string[] = [];
     vi.mocked(tenants.addMemberIfWithinLimit).mockImplementation(async () => { order.push('member'); });
-    const defaultExtensions = { execute: vi.fn(async (tenantId: string) => { order.push(`defaults:${tenantId}`); }) };
+    const officeDefaults = { execute: vi.fn(async (tenantId: string) => { order.push(`defaults:${tenantId}`); }) };
 
-    await makeBootstrapUserUseCase(users, tenants, () => 0, undefined, undefined, defaultExtensions).execute(input);
+    await makeBootstrapUserUseCase(users, tenants, () => 0, undefined, undefined, officeDefaults).execute(input);
 
     expect(order).toEqual(['defaults:t1', 'member']);
   });

@@ -1,4 +1,5 @@
 import { isValidPluginId } from './plugin/artifactRef';
+import { isValidLocale, normalizeLocale, type LocaleCode } from './i18n/localeNegotiation';
 
 /**
  * CONTAS NOVAS NA INSTALAÇÃO — o que o `SYSTEM` decide, em Gestão de Acessos › Usuários, sobre quem
@@ -52,12 +53,27 @@ export interface RegistrationPolicy {
    * Ver `schema/plugin/defaultExtensions.ts`.
    */
   defaultExtensions: string[];
+  /**
+   * O idioma com que todo escritório novo nasce (`i18n.locale` dele), ou `null` para nascer sem idioma
+   * escolhido — o idioma-fonte no servidor, o do navegador na tela.
+   *
+   * Existe por causa das SEMENTES, não da interface: o servidor resolve o texto semeado no idioma
+   * GRAVADO do escritório no instante em que o grava, e não enxerga o navegador. Um escritório que
+   * nascia sem idioma recebia as extensões padrão com os dados em inglês, mesmo com a tradução
+   * instalada — e dali em diante aquilo é dado dele, que trocar o idioma não retraduz.
+   *
+   * Validado pela FORMA, nunca contra os pacotes instalados — a mesma regra de `i18n.locale`.
+   */
+  defaultLocale: LocaleCode | null;
 }
 
 const defaultExtensionsOf = (value: unknown): string[] =>
   Array.isArray(value)
     ? [...new Set(value.filter((id): id is string => isValidPluginId(id)))]
     : [];
+
+const defaultLocaleOf = (value: unknown): LocaleCode | null =>
+  typeof value === 'string' && value.trim() !== '' && isValidLocale(value) ? normalizeLocale(value) : null;
 
 /**
  * Só `false` desliga: documento ausente, ou campo ilegível, é o comportamento de antes — conta nova
@@ -69,5 +85,6 @@ export const registrationPolicyOf = (data: unknown): RegistrationPolicy => {
     acceptNewAccounts: fields.acceptNewAccounts !== false,
     selfServiceTenants: fields.selfServiceTenants !== false,
     defaultExtensions: defaultExtensionsOf(fields.defaultExtensions),
+    defaultLocale: defaultLocaleOf(fields.defaultLocale),
   };
 };

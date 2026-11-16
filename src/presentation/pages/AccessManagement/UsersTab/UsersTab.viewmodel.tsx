@@ -9,6 +9,9 @@ import { useNotification } from '../../../../stores/useNotification';
 import type { AppUser, UserRole } from '../../../../domain/entities';
 import type { RegistrationPolicy } from '../../../../domain/schema/registration';
 import type { FilterDef, FilterToken } from '../../../components/ui/CompositeFilter';
+import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
+import { useLocale } from '../../../../stores/useLocale';
+import { localeDisplayName } from '../../../../domain/schema/i18n/localeFormat';
 
 import { useT } from '../../../shared/i18n/useT';
 export interface UsersTabViewModel {
@@ -30,13 +33,21 @@ export interface UsersTabViewModel {
   savingRegistration: boolean;
   setBlockNewAccounts: (block: boolean) => Promise<void>;
   setBlockAutomaticOrganizations: (block: boolean) => Promise<void>;
+  /** O idioma com que o escritório novo nasce; `''` = nenhum escolhido, `null` enquanto carrega. */
+  newOrganizationsLocale: string | null;
+  newOrganizationsLocaleOptions: SearchSelectOption[];
+  setNewOrganizationsLocale: (locale: string) => Promise<void>;
 }
+
+/** O valor do seletor para "nenhum idioma escolhido" — o escritório novo nasce como antes. */
+const NO_LOCALE = '';
 
 export const useUsersTabViewModel = (): UsersTabViewModel => {
   const t = useT('core.admin');
   const { user } = useAuth();
   const { userRepository, registrationPolicyRepository } = useDI();
   const { notify } = useNotification();
+  const { available: availableLocales } = useLocale();
 
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +103,29 @@ export const useUsersTabViewModel = (): UsersTabViewModel => {
     ),
     [changePolicy],
   );
+
+  const setNewOrganizationsLocale = useCallback(
+    (locale: string) => changePolicy(
+      { defaultLocale: locale === NO_LOCALE ? null : locale },
+      'access.registration.locale.saved',
+    ),
+    [changePolicy],
+  );
+
+  /**
+   * Os idiomas que ESTE escritório tem instalados, mais o já escolhido: o escritório novo só tem a
+   * interface traduzida se receber o pacote de idioma, e quem escolhe está olhando para os pacotes que
+   * conhece. O já gravado entra mesmo sem pacote aqui — a escolha vale pela forma, e sumir do seletor
+   * a esconderia de quem precisa desfazê-la.
+   */
+  const newOrganizationsLocaleOptions = useMemo<SearchSelectOption[]>(() => {
+    const chosen = policy?.defaultLocale;
+    const locales = chosen && !availableLocales.includes(chosen) ? [...availableLocales, chosen] : availableLocales;
+    return [
+      { value: NO_LOCALE, label: t('access.registration.locale.none') },
+      ...locales.map((locale) => ({ value: locale, label: localeDisplayName(locale) })),
+    ];
+  }, [availableLocales, policy?.defaultLocale, t]);
 
   useEffect(() => {
     getUsersUseCase.execute()
@@ -162,5 +196,8 @@ export const useUsersTabViewModel = (): UsersTabViewModel => {
     savingRegistration,
     setBlockNewAccounts,
     setBlockAutomaticOrganizations,
+    newOrganizationsLocale: policy ? policy.defaultLocale ?? NO_LOCALE : null,
+    newOrganizationsLocaleOptions,
+    setNewOrganizationsLocale,
   };
 };

@@ -43,6 +43,19 @@ export const UsersTabView: React.FC = () => {
           disabled={vm.blockAutomaticOrganizations === null || vm.savingRegistration}
         />
         <S.PolicyHint>{t('access.registration.organizations.block.hint')}</S.PolicyHint>
+        <S.PolicyField>
+          <S.PolicyLabel>{t('access.registration.locale')}</S.PolicyLabel>
+          <S.PolicySelect>
+            <SearchSelect
+              options={vm.newOrganizationsLocaleOptions}
+              value={vm.newOrganizationsLocale ?? ''}
+              onChange={vm.setNewOrganizationsLocale}
+              placeholder={t('core.ui/action.select')}
+              disabled={vm.newOrganizationsLocale === null || vm.savingRegistration}
+            />
+          </S.PolicySelect>
+        </S.PolicyField>
+        <S.PolicyHint>{t('access.registration.locale.hint')}</S.PolicyHint>
       </S.PolicyCard>
 
       <S.Toolbar>

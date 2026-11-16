@@ -23,6 +23,23 @@ export const S = {
     color: ${({ theme }) => theme.colors.textMuted};
   `,
 
+  PolicyField: styled.div`
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.sm};
+    margin-top: ${({ theme }) => theme.spacing.sm};
+  `,
+
+  PolicyLabel: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    color: ${({ theme }) => theme.colors.text};
+  `,
+
+  PolicySelect: styled.div`
+    min-width: 220px;
+  `,
+
   Toolbar: styled.div`
     display: flex;
     align-items: center;
