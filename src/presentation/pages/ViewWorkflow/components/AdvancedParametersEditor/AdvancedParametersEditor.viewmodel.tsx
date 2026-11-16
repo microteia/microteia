@@ -19,6 +19,8 @@ export interface AdvancedParametersEditorProps {
   onRemove: (index: number) => void;
   onClone: (index: number) => void;
   onReplace: (parameters: WorkflowParameter[]) => void;
+  /** Ver `WorkflowParametersEditorProps.fillFromAllowed`. */
+  fillFromAllowed?: boolean;
 }
 
 export interface AdvancedParametersEditorViewModel {

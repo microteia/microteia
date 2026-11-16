@@ -12,6 +12,12 @@ import { makeGetAIConnectionsUseCase } from '../../../domain/usecases/aiconnecti
 import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
 import type { AIConnection } from '../../../domain/entities';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowParameter } from '../../../domain/entities/Workflow';
+import { pdfPageText } from '../../../domain/schema/pdfText';
+import {
+  MAX_SOURCE_TEXT_CHARACTERS,
+  isParameterFillFrom,
+  parametersForAI,
+} from '../../../domain/schema/invocationSource';
 
 import { useT, useLabel } from '../../shared/i18n/useT';
 import { followWorkflowExecution } from '../../shared/followWorkflowExecution';
@@ -43,6 +49,10 @@ export interface WorkflowChoice {
   description: string;
   eligible: boolean;
   reason?: string;
+  /** O selo de por que a automação não pode ser escolhida agora. */
+  blockedTag?: string;
+  /** Recebe o texto como chegou, num parâmetro `fillFrom` — sem a IA no meio. */
+  direct: boolean;
   ranked: boolean;
 }
 
@@ -74,6 +84,8 @@ export interface DataProcessorViewModel {
   freeText: string;
   onFreeTextChange: (value: string) => void;
   textCharCount: number;
+  /** O texto passou do teto que a invocação aceita — dito antes de rodar, não depois. */
+  textTooLarge: string | null;
 
   pdfFileName: string | null;
   pdfExtracting: boolean;
@@ -143,6 +155,12 @@ const isParamProcessable = (p: WorkflowParameter): boolean =>
 
 const isEligible = (w: WorkflowDefinition): boolean =>
   (w.parameters ?? []).every(isParamProcessable);
+
+/** A automação ainda depende do modelo para algum parâmetro — os de `fillFrom` não vão a ele. */
+const needsAI = (w: WorkflowDefinition): boolean => parametersForAI(w.parameters ?? []).length > 0;
+
+const receivesSource = (w: WorkflowDefinition): boolean =>
+  (w.parameters ?? []).some((parameter) => isParameterFillFrom(parameter.fillFrom));
 
 let logSeq = 0;
 const makeLog = (level: ProcessorLogLevel, message: string, workflowId?: string): ProcessorLogEntry => {
@@ -245,11 +263,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
       const pageNumber = Math.min(Math.max(pdfPage, 1), pdf.numPages);
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
-      const text = content.items
-        .map((item) => ('str' in item ? item.str : ''))
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+      const text = pdfPageText(content.items.map((item) => ('str' in item ? { str: item.str, hasEOL: item.hasEOL } : {})));
       if (!cancelled) setFreeText(text);
 
       const canvas = document.createElement('canvas');
@@ -323,16 +337,21 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
   );
 
   const workflowChoices = useMemo<WorkflowChoice[]>(() => {
-    const mapped = callableWorkflows.map((w) => {
-      const eligible = isEligible(w);
-      return {
+    const mapped = callableWorkflows.map((w): WorkflowChoice => {
+      const base = {
         id: w.id,
         name: label(w.name),
         description: label(w.description),
-        eligible,
-        reason: eligible ? undefined : t('processor.workflow.has-references'),
+        direct: receivesSource(w),
         ranked: detectedOrder.includes(w.id),
       };
+      if (!isEligible(w)) {
+        return { ...base, eligible: false, reason: t('processor.workflow.has-references'), blockedTag: t('processor.tag.reference') };
+      }
+      if (!selectedConnectionId && needsAI(w)) {
+        return { ...base, eligible: false, reason: t('processor.workflow.needs-ai'), blockedTag: t('processor.tag.needs-ai') };
+      }
+      return { ...base, eligible: true };
     });
     if (detectedOrder.length === 0) return mapped;
     const rank = (id: string) => {
@@ -340,7 +359,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
       return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
     };
     return [...mapped].sort((a, b) => rank(a.id) - rank(b.id));
-  }, [callableWorkflows, detectedOrder, t, label]);
+  }, [callableWorkflows, detectedOrder, selectedConnectionId, t, label]);
 
   const selectedWorkflow = useMemo(
     () => callableWorkflows.find((w) => w.id === selectedWorkflowId) ?? null,
@@ -366,21 +385,27 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     !detecting &&
     callableWorkflows.some((w) => isEligible(w) && (w.description ?? '').trim().length > 0);
 
+  const textTooLarge = trimmedText.length > MAX_SOURCE_TEXT_CHARACTERS
+    ? t('processor.text-too-large', { count: trimmedText.length, max: MAX_SOURCE_TEXT_CHARACTERS })
+    : null;
+
   const canRun =
     !!selectedWorkflow &&
     isEligible(selectedWorkflow) &&
     !running &&
+    !textTooLarge &&
     (trimmedText.length > 0 || (selectedWorkflow.parameters ?? []).length === 0) &&
-    (!!selectedConnectionId || (selectedWorkflow.parameters ?? []).length === 0);
+    (!!selectedConnectionId || !needsAI(selectedWorkflow));
 
   const completedSteps = useMemo<Record<StepKey, boolean>>(
     () => ({
-      source: trimmedText.length > 0,
-      ai: !!selectedConnectionId,
+      source: trimmedText.length > 0 && !textTooLarge,
+      // Sem IA cadastrada ainda se segue: a automação que recebe o texto direto roda sem ela.
+      ai: !!selectedConnectionId || hasNoConnections,
       workflow: !!selectedWorkflow && isEligible(selectedWorkflow),
       run: !!resultExecution && resultExecution.status === 'SUCCESS',
     }),
-    [trimmedText, selectedConnectionId, selectedWorkflow, resultExecution],
+    [trimmedText, textTooLarge, selectedConnectionId, hasNoConnections, selectedWorkflow, resultExecution],
   );
 
   const furthestReachableIndex = useMemo(() => {
@@ -547,6 +572,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
         connectionId: selectedConnectionId || undefined,
         targetWorkflowId: targetId,
         text: trimmedText || undefined,
+        sourceName: pdfFileName ?? undefined,
       });
       setStage('prepare', 'success');
       setStage('execute', 'running');
@@ -562,6 +588,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     selectedWorkflow,
     selectedConnectionId,
     trimmedText,
+    pdfFileName,
     dataProcessorRepository,
     observeExecution,
     setStage,
@@ -610,6 +637,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     freeText,
     onFreeTextChange,
     textCharCount: trimmedText.length,
+    textTooLarge,
 
     pdfFileName,
     pdfExtracting,

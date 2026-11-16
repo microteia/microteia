@@ -21,10 +21,11 @@ const propertyReference = (t: TranslateFn): { name: string; usage: string; descr
   { name: 'entityType', usage: 'EntityReference', description: t('parameter.ref.entity-type') },
   { name: 'lookupCollection', usage: 'lookup', description: t('parameter.ref.lookup-collection') },
   { name: 'fields', usage: 'Object', description: t('parameter.ref.fields') },
+  { name: 'fillFrom', usage: 'String', description: t('parameter.ref.fill-from') },
 ];
 
 export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> = (props) => {
-  const { parameters, errors, typeOptions, entityOptions, lookupOptions, variant, onAdd, onUpdate, onRemove, onClone } = props;
+  const { parameters, errors, typeOptions, entityOptions, lookupOptions, variant, onAdd, onUpdate, onRemove, onClone, fillFromAllowed } = props;
   const vm = useAdvancedParametersEditorViewModel(props);
   const t = useT('core.automation');
 
@@ -51,6 +52,7 @@ export const AdvancedParametersEditor: React.FC<AdvancedParametersEditorProps> =
           onUpdate={onUpdate}
           onRemove={onRemove}
           onClone={onClone}
+          fillFromAllowed={fillFromAllowed}
         />
       ) : (
         <>

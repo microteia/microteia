@@ -87,6 +87,7 @@ import {
   AI_EXTRACT_PARAMETERS_STEP_ID,
   AI_GENERATE_STEP_ID,
 } from '../../schema/aiSteps';
+import { PARAMETER_FILL_FROM_SINCE_KERNEL, declaresFillFrom, fillFromIssues } from '../../schema/invocationSource';
 import { screenEventPrefix } from './screenModule';
 import { RENDER_DOCUMENT_STEP_ID, declaredDocumentTemplates, renderDocumentStepIssues, renderDocumentTemplateKey } from './documentStepIntegrity';
 
@@ -397,6 +398,7 @@ const workflowIssues = (
     ...auditTriggerIssues(workflow, ref, pkg),
     ...webhookTriggerIssues(workflow, ref, pkg),
     ...mailTriggerIssues(workflow, ref, pkg),
+    ...fillFromPackageIssues(workflow, ref, pkg),
     ...childEventKernelIssues(workflow, ref, pkg),
     ...portalViewedIssues(workflow, ref, pkg),
     ...portalSharingKernelIssues(steps, ref, pkg),
@@ -419,6 +421,32 @@ const workflowIssues = (
     ...outputRefIssues(steps, ref),
     ...documentStepIssues(steps, ref, pkg),
   ];
+};
+
+/**
+ * O parâmetro que recebe o conteúdo da invocação (`fillFrom`). Fora do lugar, ele nunca recebe nada; num
+ * kernel anterior, é ignorado — e a IA tentaria copiar o texto inteiro num `String` comum, que é o que a
+ * propriedade veio evitar.
+ */
+const fillFromPackageIssues = (
+  workflow: WorkflowModuleTemplate,
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] => {
+  if (!declaresFillFrom(workflow.parameters)) return [];
+  const shape = fillFromIssues(workflow.parameters, workflow.eventName).map((issue) => ({
+    ref,
+    message: '@core.marketplace/issue.workflow.fill-from-invalid',
+    messageParams: { detail: issue.message, ...(issue.messageParams ?? {}) },
+  }));
+  const kernel = rangeExcludesBelow(pkg.manifest?.kernel ?? '', PARAMETER_FILL_FROM_SINCE_KERNEL)
+    ? []
+    : [{
+        ref,
+        message: '@core.marketplace/issue.workflow.feature-kernel',
+        messageParams: { feature: 'parameters[].fillFrom', minimum: PARAMETER_FILL_FROM_SINCE_KERNEL },
+      }];
+  return [...shape, ...kernel];
 };
 
 /** O evento de nota ou documento num pacote que admite um kernel em que ele não existe para toda tela. */

@@ -15,6 +15,8 @@ export interface RunWorkflowInput {
   connectionId?: string;
   targetWorkflowId: string;
   text?: string;
+  /** O nome do arquivo de onde o texto saiu — o parâmetro `fillFrom: 'sourceName'` o recebe. */
+  sourceName?: string;
   providedParams?: Record<string, unknown>;
 }
 

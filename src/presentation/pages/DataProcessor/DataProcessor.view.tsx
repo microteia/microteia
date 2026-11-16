@@ -139,6 +139,7 @@ export const DataProcessorView: React.FC = () => {
               placeholder={t('processor.text.placeholder')}
             />
             <S.FooterHint>{t('processor.text.count', { count: vm.textCharCount })}</S.FooterHint>
+            {vm.textTooLarge && <InfoBanner message={vm.textTooLarge} variant="warning" />}
           </S.Panel>
         )}
 
@@ -150,6 +151,7 @@ export const DataProcessorView: React.FC = () => {
                   message={t('processor.ai.none')}
                   variant="warning"
                 />
+                <InfoBanner message={t('processor.ai.optional')} variant="info" />
                 <S.LinkButton onClick={vm.openAISettings}>
                   {t('processor.ai.register')}
                 </S.LinkButton>
@@ -191,7 +193,8 @@ export const DataProcessorView: React.FC = () => {
                     <S.WorkflowName>
                       {choice.name}
                       {choice.ranked && <S.Tag>{t('processor.tag.compatible')}</S.Tag>}
-                      {!choice.eligible && <S.Tag $tone="warning">{t('processor.tag.reference')}</S.Tag>}
+                      {choice.direct && <S.Tag>{t('processor.tag.direct')}</S.Tag>}
+                      {choice.blockedTag && <S.Tag $tone="warning">{choice.blockedTag}</S.Tag>}
                     </S.WorkflowName>
                     <S.WorkflowDesc>
                       {choice.reason ?? (choice.description || t('processor.no-description'))}

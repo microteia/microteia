@@ -8926,6 +8926,45 @@ campos" virou um modo do "Extrair parâmetros".
 Fronteira: o texto lido é dado — o prompt do extrator diz isso ao modelo —, e nada que o modelo devolve
 vira expressão.
 
+### O conteúdo da invocação — `parameters[].fillFrom`
+
+O Processador de Dados e o passo `ai-extract-parameters` recebem um TEXTO e preenchem os parâmetros de
+uma automação `workflow.called` a partir dele. Até aqui o texto só servia de entrada para o modelo: o
+evento era publicado com o que ele devolvia. Uma extensão que já sabe ler um layout conhecido (conta de
+luz, extrato, nota) num script de sandbox tinha de pedir ao modelo que copiasse milhares de caracteres
+para um `String`, dependendo do limite de saída e de ele não trocar um dígito de uma tarifa de oito casas.
+
+Um `String` da raiz declara o papel, e o recebe sem passar pelo modelo:
+
+| `fillFrom` | O parâmetro recebe |
+|---|---|
+| `sourceText` | o texto, como chegou (o colado, ou a página do PDF; o `text` do passo) |
+| `sourceName` | o nome do arquivo de onde ele saiu — vazio para texto colado e no passo |
+
+Decisões que não são detalhe:
+
+- **O papel é da INVOCAÇÃO, não de uma tela.** O pedido original era `source: "processorText"`; ele
+  amarraria o contrato da automação ao Processador, e a mesma automação chamada por `ai-extract-parameters`
+  depois de um e-mail ficaria de fora. A regra mora num lugar só (`domain/schema/invocationSource.ts`,
+  sincronizado): `parametersForAI` diz o que vai ao modelo, `sourceFilledValues` o que vem da invocação,
+  e a callable `runWorkflow` e o passo usam os dois.
+- **Sem parâmetro para o modelo, sem modelo.** Nem conexão de IA é pedida — na tela, a etapa de IA deixa
+  seguir sem conexão cadastrada, e a automação que ainda precisa dela aparece bloqueada com o motivo.
+- **Texto acima de `MAX_SOURCE_TEXT_CHARACTERS` (100 000) é recusado, nunca cortado** — no navegador,
+  antes de rodar, e na callable. Ele viaja no payload do evento e volta no histórico da execução, e cortá-lo
+  entregaria a um leitor determinístico um documento que não existe.
+- **De qualquer outra porta, é um `String` comum** — ação, `call-workflow`, MCP.
+
+`fillFromIssues` recusa o papel fora de `workflow.called`, num tipo que não seja `String` único, dentro de
+um `Object` e repetido; vale no salvar da tela (o erro aparece no parâmetro da raiz) e no pacote
+(`issue.workflow.fill-from-invalid`), que também exige `PARAMETER_FILL_FROM_SINCE_KERNEL` (2.134.0) — num
+kernel anterior a propriedade seria ignorada e a IA voltaria a copiar o texto.
+
+**A junção do texto do PDF é uma só** (`domain/schema/pdfText.ts`, `pdfPageText`): o Processador a usa no
+navegador, e o passo que lê documento no servidor vai usar a mesma. Duas junções do mesmo PDF quebrariam em
+silêncio um leitor escrito contra o texto. `flat` (o padrão) é o que o Processador sempre mandou; `lines`
+preserva a quebra de linha que o PDF marca.
+
 ### Quem disparou — `actor`
 
 Uma automação disparada por um botão gravava o registro como se ninguém o tivesse criado: o ator chegava

@@ -17,12 +17,19 @@ import {
   hasEntityReferenceDeep,
   resolveParameters,
 } from '../../domain/services/aiParameterExtraction';
+import {
+  MAX_SOURCE_TEXT_CHARACTERS,
+  parametersForAI,
+  sourceFilledValues,
+} from '../../domain/schema/invocationSource';
 
 interface RunWorkflowRequest {
   tenantId: string;
   connectionId?: string;
   targetWorkflowId: string;
   text?: string;
+  /** O nome do arquivo de onde o texto saiu — vai para o parâmetro `fillFrom: 'sourceName'`. */
+  sourceName?: string;
   providedParams?: Record<string, unknown>;
 }
 
@@ -85,7 +92,7 @@ export const runWorkflow = onCall(
       throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
-    const { tenantId, connectionId, targetWorkflowId, text, providedParams } =
+    const { tenantId, connectionId, targetWorkflowId, text, sourceName, providedParams } =
       request.data as RunWorkflowRequest;
 
     if (!tenantId || !targetWorkflowId) {
@@ -120,14 +127,24 @@ export const runWorkflow = onCall(
         );
       }
 
+      const sourceText = typeof text === 'string' ? text : '';
+      if (sourceText.length > MAX_SOURCE_TEXT_CHARACTERS) {
+        throw new HttpsError('invalid-argument', '@core.admin/processor.text-too-large', {
+          messageParams: { count: String(sourceText.length), max: String(MAX_SOURCE_TEXT_CHARACTERS) },
+        });
+      }
+
+      // O que o fluxo recebe da própria invocação não vai ao modelo: sem nenhum outro parâmetro, não há
+      // conexão de IA a exigir — é o caminho do leitor determinístico.
+      const aiParams = parametersForAI(params);
       let values: Record<string, unknown> = {};
 
-      if (text && text.trim() && params.length > 0) {
+      if (sourceText.trim() && aiParams.length > 0) {
         if (!connectionId) {
           throw new HttpsError('invalid-argument', '@core.admin/processor.ai.none-selected');
         }
         const credentials = await di.getAIConnectionRepository().getCredentialsById(tenantId, connectionId);
-        const schemaJson = buildSchemaForPrompt(params);
+        const schemaJson = buildSchemaForPrompt(aiParams);
         const auth = request.auth;
         const reportFailure = async (
           diagnosis: string,
@@ -152,8 +169,8 @@ export const runWorkflow = onCall(
           values = await extractParameterValues({
             callAI: di.getCallAIUseCase(),
             credentials,
-            text,
-            parameters: params,
+            text: sourceText,
+            parameters: aiParams,
           });
         } catch (aiErr) {
           if (aiErr instanceof AIExtractionRefusedError) {
@@ -176,7 +193,10 @@ export const runWorkflow = onCall(
         }
       }
 
-      const resolvedParams = resolveParameters(params, providedParams, values);
+      const resolvedParams = resolveParameters(params, providedParams, {
+        ...values,
+        ...sourceFilledValues(params, { text: sourceText, name: typeof sourceName === 'string' ? sourceName : undefined }),
+      });
 
       const ruled = formatAndValidateParameters(params, resolvedParams);
       if (ruled.issues.length > 0) {

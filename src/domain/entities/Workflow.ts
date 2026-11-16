@@ -1,3 +1,4 @@
+import type { ParameterFillFrom } from '../schema/invocationSource';
 import type { FieldRules } from '../schema/fieldRules';
 import type { WorkflowLoopQuery } from '../schema/workflowLoopQuery';
 import type { WorkflowDateReached, WorkflowSchedule } from '../schema/workflowClock';
@@ -235,6 +236,11 @@ export interface WorkflowParameter {
   fields?: WorkflowParameter[];
   defaultValue?: unknown;
   rules?: FieldRules;
+  /**
+   * Só relevante num `workflow.called`, num `String` da raiz: o parâmetro recebe o CONTEÚDO da invocação
+   * (o texto, ou o nome do arquivo de onde ele saiu) sem passar pelo modelo. Ver `invocationSource.ts`.
+   */
+  fillFrom?: ParameterFillFrom;
 }
 
 /**

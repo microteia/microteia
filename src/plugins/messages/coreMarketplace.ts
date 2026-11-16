@@ -540,6 +540,8 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
     'the workflow runs on a schedule, and the clock cannot run it: {detail} It would install switched on and never fire.',
   'issue.workflow.date-reached-invalid':
     'the workflow runs when a date arrives, and the clock cannot run it: {detail} It would install switched on and never fire.',
+  'issue.workflow.fill-from-invalid':
+    'the workflow would never deliver the processed content to one of its parameters: {detail}',
   'issue.workflow.trigger-kernel':
     'the workflow is triggered by "{event}", which only exists from kernel {minimum} on — declare `kernel: "^{minimum}"` (or later) in the manifest, so that an older kernel refuses the package instead of installing a workflow that never fires.',
   'issue.workflow.portal-viewed.untracked':

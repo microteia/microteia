@@ -82,3 +82,24 @@ describe('limite de tamanho nas regras de validação', () => {
     expect(params?.[0]?.rules).toEqual({ validate: { maxLength: 500 } });
   });
 });
+
+describe('parâmetro preenchido pelo conteúdo da invocação (fillFrom)', () => {
+  it('o salvar guarda o papel só num String que não é lista', () => {
+    const [kept, dropped] = sanitizeWorkflowParameters([
+      { key: 'sourceText', label: 'Text', type: 'String', fillFrom: 'sourceText' },
+      { key: 'amount', label: 'Amount', type: 'Number', fillFrom: 'sourceText' },
+    ]);
+    expect(kept.fillFrom).toBe('sourceText');
+    expect(dropped.fillFrom).toBeUndefined();
+  });
+
+  it('o DSL ida e volta preserva o papel', () => {
+    const declared: WorkflowParameter[] = [{ key: 'sourceName', label: 'sourceName', type: 'String', fillFrom: 'sourceName' }];
+    expect(dslToParameters(parametersToDsl(declared)).params).toEqual(declared);
+  });
+
+  it('o DSL recusa um papel desconhecido', () => {
+    const { errors } = dslToParameters(JSON.stringify({ text: { type: 'String', fillFrom: 'processorText' } }));
+    expect(errors?.[0]?.message).toBe('@core.automation/parameter.dsl.invalid-fill-from');
+  });
+});

@@ -828,6 +828,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     onRemove={vm.removeParameter}
                     onClone={vm.cloneParameter}
                     onReplace={vm.replaceParameters}
+                    fillFromAllowed
                   />
                 </InputGroup>
               )}

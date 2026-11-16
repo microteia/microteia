@@ -539,6 +539,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
     'a automação roda em um horário, e o relógio não consegue rodá-la: {detail} Ela seria instalada ligada e nunca dispararia.',
   'issue.workflow.date-reached-invalid':
     'a automação roda quando uma data chega, e o relógio não consegue rodá-la: {detail} Ela seria instalada ligada e nunca dispararia.',
+  'issue.workflow.fill-from-invalid':
+    'a automação nunca entregaria o conteúdo processado a um dos parâmetros: {detail}',
   'issue.workflow.trigger-kernel':
     'a automação é disparada por "{event}", que só existe a partir do kernel {minimum} — declare `kernel: "^{minimum}"` (ou posterior) no manifest, para que um kernel mais antigo recuse o pacote em vez de instalar uma automação que nunca dispara.',
   'issue.workflow.portal-viewed.untracked':
