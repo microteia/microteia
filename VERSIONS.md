@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.271.0] — 2026-11-16
+
+- As extensões que já vêm com o sistema, como a do idioma português, agora também podem ser instaladas automaticamente em todo escritório novo. Assim o escritório já começa com a tela inteira traduzida, e não só com os dados.
+- A tela "Aguarde… adicionando extensões" já aparece no idioma escolhido para os escritórios novos, desde o primeiro instante.
+- Corrigido um problema que, com mais de uma extensão a instalar no escritório novo, podia mostrar um erro de instalação na tela de espera mesmo com tudo instalado corretamente.
+
 #### [9.270.0] — 2026-11-16
 
 - O administrador do sistema agora escolhe, em Gestão de Acessos › Usuários, o idioma com que todo escritório novo começa. As extensões padrão passam a gravar os dados iniciais nesse idioma, em vez de sempre em inglês.

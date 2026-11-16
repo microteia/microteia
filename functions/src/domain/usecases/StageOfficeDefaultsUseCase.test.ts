@@ -29,10 +29,22 @@ describe('StageOfficeDefaultsUseCase — extensões padrão', () => {
     expect(defaults.stage).not.toHaveBeenCalled();
   });
 
-  it('marcada, mas sem nada instalável no catálogo: nada a gravar', async () => {
-    const { useCase, defaults } = setup({ extensions: ['com.acme.a'] }, { readCatalog: vi.fn(async () => []) });
+  it('marcada, mas obsoleta no catálogo: nada a gravar', async () => {
+    const { useCase, defaults } = setup(
+      { extensions: ['com.acme.a'] },
+      { readCatalog: vi.fn(async () => [{ id: 'com.acme.a', status: 'deprecated', proven: true }]) },
+    );
     await useCase.execute('t1');
     expect(defaults.stage).not.toHaveBeenCalled();
+  });
+
+  it('fora do catálogo é embutida: entra na lista, antes das do catálogo', async () => {
+    const { useCase, defaults } = setup(
+      { extensions: ['com.acme.a', 'com.microteia.locale-pt-br'] },
+      { readCatalog: vi.fn(async () => [{ id: 'com.acme.a', status: 'approved', proven: true }]) },
+    );
+    await useCase.execute('t1');
+    expect(defaults.stage).toHaveBeenCalledWith('t1', ['com.microteia.locale-pt-br', 'com.acme.a']);
   });
 
   it('a falha não impede o escritório de nascer: vai para o log', async () => {

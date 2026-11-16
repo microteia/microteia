@@ -1,10 +1,11 @@
 import React from 'react';
 import { RiPuzzle2Line } from 'react-icons/ri';
-import { useDefaultExtensionsGateViewModel } from './DefaultExtensionsGate.viewmodel';
+import { useDefaultExtensionsGateViewModel, type DefaultExtensionsGateViewModel } from './DefaultExtensionsGate.viewmodel';
 import { S } from './DefaultExtensionsGate.styles';
 import { Button } from '../../ui/Button';
 import { Spinner } from '../../ui/Spinner';
 import { useT } from '../../../shared/i18n/useT';
+import { PackageLocaleProvider } from '../../../shared/i18n/PackageLocaleProvider';
 
 /**
  * A primeira entrada de um escritório novo que recebe extensões padrão: a pessoa espera, vendo o que
@@ -12,10 +13,19 @@ import { useT } from '../../../shared/i18n/useT';
  */
 export const DefaultExtensionsGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const vm = useDefaultExtensionsGateViewModel();
-  const t = useT('core.marketplace');
 
   if (!vm.active) return <>{children}</>;
 
+  return (
+    <PackageLocaleProvider catalog={vm.catalog}>
+      <GateCard vm={vm} />
+    </PackageLocaleProvider>
+  );
+};
+
+/** Separado para que o `useT` leia o catálogo do portão, e não o de fora dele. */
+const GateCard: React.FC<{ vm: DefaultExtensionsGateViewModel }> = ({ vm }) => {
+  const t = useT('core.marketplace');
   return (
     <S.Page>
       <S.Card role="status" aria-live="polite">

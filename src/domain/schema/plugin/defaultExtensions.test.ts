@@ -55,20 +55,39 @@ describe('defaultMarkIssues — o que impede a extensão de virar padrão', () =
       expect(defaultMarkIssues('com.acme.sales', catalog, [], (id) => id === 'com.acme.crm')).toEqual([]);
     });
   });
+
+  describe('embutida — viaja no bundle, mas não está instalada no escritório novo', () => {
+    const builtin = (id: string) => id === 'com.microteia.locale-pt-br';
+
+    it('pode, mesmo fora do catálogo e sem prova', () => {
+      expect(defaultMarkIssues('com.microteia.locale-pt-br', [], [], builtin)).toEqual([]);
+    });
+
+    it('o teto vale para ela também', () => {
+      const full = Array.from({ length: DEFAULT_EXTENSIONS_MAX }, (_, index) => `com.acme.e${index}`);
+      expect(messages(defaultMarkIssues('com.microteia.locale-pt-br', [], full, builtin)))
+        .toEqual(['@core.marketplace/default.too-many']);
+    });
+  });
 });
 
 describe('defaultUnmarkIssues — o que impede de deixar de ser padrão', () => {
   const catalog = [entry('com.acme.sales', { dependencies: { 'com.acme.crm': '^1.0.0' } }), entry('com.acme.crm')];
 
   it('outra padrão depende dela', () => {
-    expect(defaultUnmarkIssues('com.acme.crm', catalog, ['com.acme.crm', 'com.acme.sales'])).toEqual([{
+    expect(defaultUnmarkIssues('com.acme.crm', catalog, ['com.acme.crm', 'com.acme.sales'], noBuiltin)).toEqual([{
       message: '@core.marketplace/default.required-by',
       messageParams: { dependent: 'com.acme.sales' },
     }]);
   });
 
   it('a dependente que não é padrão não segura nada', () => {
-    expect(defaultUnmarkIssues('com.acme.crm', catalog, ['com.acme.crm'])).toEqual([]);
+    expect(defaultUnmarkIssues('com.acme.crm', catalog, ['com.acme.crm'], noBuiltin)).toEqual([]);
+  });
+
+  it('a embutida nunca é segurada — quem instala a dependente instala a dependência embutida', () => {
+    expect(defaultUnmarkIssues('com.acme.crm', catalog, ['com.acme.crm', 'com.acme.sales'], (id) => id === 'com.acme.crm'))
+      .toEqual([]);
   });
 });
 
@@ -84,13 +103,19 @@ describe('registrationPolicyOf — defaultExtensions', () => {
 });
 
 describe('defaultInstallPlan — o que o escritório novo de fato instala', () => {
-  it('só o que está aprovado e comprovado no catálogo', () => {
+  it('do catálogo, só o que está aprovado e comprovado', () => {
     const catalog = [
       entry('com.acme.a'),
       entry('com.acme.b', { proven: false }),
       entry('com.acme.c', { status: 'deprecated' }),
     ];
-    expect(defaultInstallPlan(['com.acme.a', 'com.acme.b', 'com.acme.c', 'com.acme.gone'], catalog)).toEqual(['com.acme.a']);
+    expect(defaultInstallPlan(['com.acme.a', 'com.acme.b', 'com.acme.c'], catalog)).toEqual(['com.acme.a']);
+  });
+
+  it('o que não está no catálogo é embutida, e vem antes — a tradução chega antes da semente que ela traduz', () => {
+    const catalog = [entry('com.acme.a')];
+    expect(defaultInstallPlan(['com.acme.a', 'com.microteia.locale-pt-br', 'com.microteia.brasil'], catalog))
+      .toEqual(['com.microteia.locale-pt-br', 'com.microteia.brasil', 'com.acme.a']);
   });
 
   it('dependência antes de quem depende dela, qualquer que seja a ordem marcada', () => {

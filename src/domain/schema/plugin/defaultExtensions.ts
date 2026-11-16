@@ -60,6 +60,11 @@ const issue = (message: string, messageParams?: Record<string, string>): Localiz
  * A dependência é a parte que não é óbvia: o escritório novo terá SÓ as padrão, então cada dependência
  * precisa vir junto — do kernel, embutida na aplicação (`isBuiltin`, que só o navegador sabe responder),
  * ou padrão ela também.
+ *
+ * A EMBUTIDA também pode ser padrão, e só o teto a segura: viajar no bundle não é estar instalada no
+ * escritório — o pacote de tradução é o caso que motivou, porque sem ele o escritório que nasce com
+ * idioma escolhido (`registration.defaultLocale`) tem os dados no idioma e a interface no idioma-fonte.
+ * A garantia que a prova dá ao catálogo, a embutida já tem: ela é da mesma versão do kernel que a instala.
  */
 export const defaultMarkIssues = (
   id: string,
@@ -67,12 +72,14 @@ export const defaultMarkIssues = (
   defaults: readonly string[],
   isBuiltin: (pluginId: string) => boolean,
 ): LocalizedMessage[] => {
+  const tooMany = defaults.length >= DEFAULT_EXTENSIONS_MAX
+    ? [issue('@core.marketplace/default.too-many', { max: String(DEFAULT_EXTENSIONS_MAX) })]
+    : [];
+  if (isBuiltin(id)) return tooMany;
   const entry = catalog.find((candidate) => candidate.id === id);
   if (!entry || entry.status !== 'approved') return [issue('@core.marketplace/default.not-approved')];
   if (!entry.proven) return [issue('@core.marketplace/default.unproven')];
-  if (defaults.length >= DEFAULT_EXTENSIONS_MAX) {
-    return [issue('@core.marketplace/default.too-many', { max: String(DEFAULT_EXTENSIONS_MAX) })];
-  }
+  if (tooMany.length > 0) return tooMany;
   return Object.keys(entry.dependencies ?? {})
     .filter((dependency) => !dependency.startsWith(KERNEL_PLUGIN_PREFIX)
       && !isBuiltin(dependency)
@@ -83,29 +90,43 @@ export const defaultMarkIssues = (
 /**
  * Por que a extensão não pode deixar de ser padrão — outra padrão depende dela, e o escritório novo
  * receberia a dependente sem a dependência.
+ *
+ * A embutida nunca é segurada: a dependência embutida é instalada por quem instala a dependente, seja
+ * ela padrão ou não.
  */
 export const defaultUnmarkIssues = (
   id: string,
   catalog: readonly DefaultCatalogSide[],
   defaults: readonly string[],
-): LocalizedMessage[] => defaults
+  isBuiltin: (pluginId: string) => boolean,
+): LocalizedMessage[] => (isBuiltin(id) ? [] : defaults
   .filter((other) => other !== id)
   .filter((other) => catalog.find((entry) => entry.id === other)?.dependencies?.[id] !== undefined)
-  .map((dependent) => issue('@core.marketplace/default.required-by', { dependent }));
+  .map((dependent) => issue('@core.marketplace/default.required-by', { dependent })));
 
 /**
  * O que o escritório novo de fato instala, e em que ordem — decidido no SERVIDOR, na criação dele.
  *
- * A lista marcada é a intenção do `SYSTEM`; esta é a conferência: só entra o que está no catálogo,
+ * A lista marcada é a intenção do `SYSTEM`; esta é a conferência: do catálogo, só entra o que está
  * aprovado e com a prova de instalação da versão atual. A ordem põe cada dependência ANTES de quem
  * depende dela, porque a instalação recusa a extensão cuja dependência ainda não está lá. Dependência
  * embutida ou do kernel não entra na lista — quem instala a resolve.
+ *
+ * O id marcado que NÃO está no catálogo é embutida: o servidor não conhece o bundle, e o catálogo é o
+ * único lugar de onde uma não embutida viria — as Rules recusam obsoletar ou apagar uma padrão, e
+ * marcar exige aprovada. Quem confere é o navegador, que tem o bundle: o id que ele não achar é
+ * adiado, como o que saiu do catálogo.
+ *
+ * As embutidas vêm PRIMEIRO, e o motivo é o pacote de tradução: a semente é resolvida no servidor no
+ * instante em que é gravada, e uma extensão do catálogo cujos textos ele traduz semearia sem a
+ * tradução se viesse antes dele.
  */
 export const defaultInstallPlan = (
   defaults: readonly string[],
   catalog: readonly DefaultCatalogSide[],
 ): string[] => {
   const entryOf = (id: string) => catalog.find((entry) => entry.id === id);
+  const builtins = defaults.filter((id) => entryOf(id) === undefined);
   const eligible = defaults.filter((id) => {
     const entry = entryOf(id);
     return entry !== undefined && entry.status === 'approved' && entry.proven;
@@ -127,5 +148,5 @@ export const defaultInstallPlan = (
     ordered.push(id);
   };
   eligible.forEach(place);
-  return ordered;
+  return [...builtins, ...ordered];
 };

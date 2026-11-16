@@ -11,9 +11,12 @@ let installedIds: string[] = [];
 const installedListeners = new Set<() => void>();
 const installCalls: string[] = [];
 const failOn = new Set<string>();
+/** Instalação que só termina quando o teste manda — a do Pet Shop leva ~30s de verdade. */
+const holdOn = new Map<string, Promise<void>>();
 const install = vi.fn(async (input: InstallExtensionInput) => {
   const id = input.package.manifest.id;
   installCalls.push(`${input.source}:${id}`);
+  await holdOn.get(id);
   if (failOn.has(id)) throw new Error(`falhou ${id}`);
   installedIds = [...installedIds, id];
   installedListeners.forEach((listener) => listener());
@@ -44,7 +47,9 @@ const onboardingRepo: IExtensionOnboardingRepository = {
       pending: onboardingState.pending.filter((id) => id !== pluginId),
       failed: outcome === 'deferred' ? [...onboardingState.failed, pluginId] : onboardingState.failed,
     };
+    // Como o Firestore: o `onSnapshot` local chega na hora, e a escrita só se confirma depois.
     publishOnboarding();
+    await new Promise((resolve) => setTimeout(resolve, 20));
   },
 };
 
@@ -67,7 +72,7 @@ vi.mock('../../../../stores/usePublicExtensions', () => ({
   }),
 }));
 vi.mock('../../../../infrastructure/di/useDI', () => ({ useDI: () => ({ extensionOnboardingRepository: onboardingRepo }) }));
-vi.mock('../../../shared/i18n/usePackageCatalog', () => ({ usePackageCatalog: () => ({ locale: 'en', messages: {} }) }));
+vi.mock('../../../shared/i18n/useProspectiveCatalog', () => ({ useProspectiveCatalog: () => ({ locale: 'en', messages: {} }) }));
 vi.mock('../../../../domain/schema/i18n/messageRef', () => ({ resolveLabel: (_catalog: unknown, value: string) => value }));
 vi.mock('../../../../plugins/marketplace/catalog', () => ({
   MARKETPLACE_CATALOG: [{ manifest: { id: 'com.microteia.brasil', version: '2.0.0', kernel: '*', name: 'Brasil' }, summary: '', workflows: [] }],
@@ -81,6 +86,7 @@ beforeEach(() => {
   installedIds = [];
   installCalls.length = 0;
   failOn.clear();
+  holdOn.clear();
   install.mockClear();
   onboardingState = null;
   canManage = true;
@@ -108,6 +114,42 @@ describe('DefaultExtensionsGate — a primeira entrada de um escritório novo', 
     expect(onboardingState?.pending).toEqual([]);
   });
 
+  it('a rodada seguinte não é instalada duas vezes quando a anterior termina depois de a lista mudar', async () => {
+    catalogEntries = [
+      { domain: 'com.acme.crm', status: 'approved', package: pkg('com.acme.crm') },
+      { domain: 'com.acme.sales', status: 'approved', package: pkg('com.acme.sales') },
+    ];
+    let release = () => {};
+    holdOn.set('com.acme.sales', new Promise<void>((resolve) => { release = resolve; }));
+    stage(['com.acme.crm', 'com.acme.sales']);
+    const { result } = renderHook(() => useDefaultExtensionsGateViewModel());
+
+    await waitFor(() => expect(installCalls).toContain('public:com.acme.sales'));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(installCalls.filter((call) => call === 'public:com.acme.sales')).toHaveLength(1);
+
+    release();
+    await waitFor(() => expect(result.current.active).toBe(false));
+    expect(installCalls).toEqual(['public:com.acme.crm', 'public:com.acme.sales']);
+  });
+
+  it('o total não encolhe quando a lista chega antes de a escrita se confirmar', async () => {
+    catalogEntries = [
+      { domain: 'com.acme.crm', status: 'approved', package: pkg('com.acme.crm') },
+      { domain: 'com.acme.sales', status: 'approved', package: pkg('com.acme.sales') },
+    ];
+    stage(['com.acme.crm', 'com.acme.sales']);
+    const totals: number[] = [];
+    const { result } = renderHook(() => {
+      const vm = useDefaultExtensionsGateViewModel();
+      totals.push(vm.total);
+      return vm;
+    });
+
+    await waitFor(() => expect(result.current.active).toBe(false));
+    expect(totals.filter((total) => total > 0).every((total) => total === 2)).toBe(true);
+  });
+
   it('a dependência embutida entra antes, numa rodada própria', async () => {
     catalogEntries = [{ domain: 'com.acme.law', status: 'approved', package: pkg('com.acme.law', { 'com.microteia.brasil': '^2.0.0' }) }];
     stage(['com.acme.law']);
@@ -115,6 +157,16 @@ describe('DefaultExtensionsGate — a primeira entrada de um escritório novo', 
 
     await waitFor(() => expect(result.current.active).toBe(false));
     expect(installCalls).toEqual(['builtin:com.microteia.brasil', 'public:com.acme.law']);
+  });
+
+  it('a embutida que é ela mesma padrão é instalada do bundle', async () => {
+    catalogEntries = [{ domain: 'com.acme.law', status: 'approved', package: pkg('com.acme.law') }];
+    stage(['com.microteia.brasil', 'com.acme.law']);
+    const { result } = renderHook(() => useDefaultExtensionsGateViewModel());
+
+    await waitFor(() => expect(result.current.active).toBe(false));
+    expect(installCalls).toEqual(['builtin:com.microteia.brasil', 'public:com.acme.law']);
+    expect(onboardingState).toEqual({ pending: [], failed: [] });
   });
 
   it('a que saiu do catálogo depois de o escritório nascer é adiada sem perguntar', async () => {

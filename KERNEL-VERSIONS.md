@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.271.0] — 2026-11-16
+
+- feat(default-extensions): built-in extensions can be marked as default for new organizations. `defaultMarkIssues` only applies the cap to a built-in, and `defaultUnmarkIssues` never holds one (whoever installs a dependent installs its built-in dependency). The motivating case is the translation pack: with only `defaultLocale`, a new organization had its seeded data in the chosen language and its interface in the source language.
+- feat(functions): `defaultInstallPlan` treats a marked id that is not in the catalog as a built-in and puts it first — the server does not know the bundle, and a translation pack must be installed before the catalog extensions whose seeds it translates. The browser checks it exists; one the bundle lacks goes to `failed`.
+- feat(gate): `DefaultExtensionsGate` installs a default built-in from the bundle, and renders through `useProspectiveCatalog`, which renegotiates the locale as if the pending packages were installed and REBUILDS the catalog — the kernel already ships some Portuguese (sign-in, license), so the active locale may already be `pt-BR` with source-language fill, and merging on top of it let that fill win.
+- fix(gate): a round only clears the in-progress mark it set. Settling an extension updates the list through `onSnapshot` before the write resolves, so the next round had already started; clearing blindly opened a second, parallel install of the same extension, which failed on the first one's artifacts (`artifact.id-taken`). Hidden while there was a single default extension. The progress counter is also updated before the settle write, not after it — the shrunken list arrived first and showed "1 of 1" for an instant instead of "2 of 2".
+
 #### [9.270.0] — 2026-11-16
 
 - feat(registration): `system/registration.defaultLocale` — the language every new organization starts with. `openOwnedTenant` writes it to `i18n.locale` in `tenants/{id}/settings/tenant` before staging the default extensions, so screen seeds (resolved server-side in the organization's stored locale) are written in it. Before, a new organization had no stored locale and its default extensions seeded English text, even with a translation installed. Validated by shape only, in `registrationPolicyOf` and in the Rules.
