@@ -8965,6 +8965,59 @@ navegador, e o passo que lê documento no servidor vai usar a mesma. Duas junç�
 silêncio um leitor escrito contra o texto. `flat` (o padrão) é o que o Processador sempre mandou; `lines`
 preserva a quebra de linha que o PDF marca.
 
+### Passo "Ler documento" (`read-document`) — o texto de um anexo, sem ninguém na tela
+
+O `fillFrom` entrega à automação o texto que o Processador leu; este passo é a mesma leitura do lado do
+servidor, para o documento que já está na aba Documentos de um registro — o anexo salvo de um e-mail, o
+arquivo enviado pelo portal, a conta que o escritório arrastou para a aba. Sem ele, o conteúdo de um
+documento só chegava a uma automação com uma pessoa na frente do Processador.
+
+| | |
+|---|---|
+| Entra | `collection` (picker de tela com documentos), `recordId`, `documentId`, `pages` (`1`, `1-3`, `2,4`; vazio = todas), `layout` (`flat` \| `lines`) |
+| Sai | `text` (páginas separadas por `\f`), `hasText`, `pageCount`, `pagesRead`, `name`, `contentType`, `size`, `sha256` |
+| Lê | PDF com camada de texto; `text/*`, JSON e XML |
+
+Decisões que não são detalhe:
+
+- **O caminho do arquivo é conferido, não obedecido.** O `storagePath` fica no documento, e o documento é
+  gravado pelo navegador sem que as regras o confiram. O passo só lê o que está em
+  `tenants/{t}/{coleção}/{registro}/` do próprio registro — sem isso, quem pode anexar apontaria o documento
+  para a mensagem guardada de uma caixa pessoal (`mail_messages/`) ou para o arquivo de outro registro, e o
+  passo, que roda como o escritório, o leria por ele.
+- **Um `text`, não uma saída por página.** As saídas vão para o histórico da execução, que é um documento de
+  1 MB; uma lista de páginas ao lado do texto dobraria o volume. O form feed é o separador do `pdftotext`, e
+  `text.split('\f')` devolve as páginas.
+- **Recusa, nunca corte**, acima de `MAX_SOURCE_TEXT_CHARACTERS` — o mesmo teto do Processador, pelo mesmo
+  motivo. Página que o documento não tem também é recusa: o leitor que pede a página 2 precisa saber que ela
+  não existe, e não receber outra.
+- **PDF escaneado é sucesso com `hasText: false`.** Sem OCR, falhar tiraria de quem monta o caminho da
+  triagem humana — o mesmo raciocínio do `found: false` do `ai-detect-workflow`. Senha, imagem, arquivo
+  ausente e arquivo corrompido falham, cada um com a sua mensagem.
+- **O `sha256` é do conteúdo LIDO**, e não o carimbado no documento — o carimbo é assíncrono e pode ainda
+  não existir. É o que deixa a automação reconhecer a conta que já importou.
+- **A mesma biblioteca e a mesma junção do navegador.** `pdfjs-dist` (mesma versão do Processador) e
+  `pdfPageText` — um leitor escrito contra o texto do Processador lê igual o texto do passo.
+
+**A `pdfjs-dist` é só ESM, e as functions compilam para CommonJS.** O TypeScript reescreveria um `import()`
+como `require()`. `PdfjsTextExtractor` carrega a biblioteca pelo `require` de ESM do Node (sem flag desde o
+22.12) e cai no `import()` de verdade — guardado num `new Function`, que o TypeScript não toca — num Node
+anterior. São os dois porque cada um falha onde o outro funciona: o `new Function` não roda sob o vitest.
+O teste do extrator gera um PDF com o `pdfmake` e o lê com a biblioteca real, que é o que prova o
+carregamento.
+
+Lê, não grava: pode ser reexecutado, e não tem `appendsEachRun`. O texto lido fica no histórico da
+execução, visível a quem vê as execuções da automação — como o corpo de e-mail do `mail-search`. Exige
+`READ_DOCUMENT_SINCE_KERNEL` (2.135.0) no portão de pacote.
+
+| Arquivo | Papel |
+|---|---|
+| `domain/schema/documentRead.ts` | id, kernel, tetos, tipos legíveis e `parsePageSelection` (sincronizado) |
+| `functions/src/domain/usecases/ReadRecordDocumentUseCase.ts` | as recusas, a seleção de páginas e a montagem do texto |
+| `functions/src/data/services/PdfjsTextExtractor.ts` | a camada de texto do PDF (`IPdfTextExtractor`) |
+| `functions/src/data/services/FirebaseRecordDocumentStore.ts` | o documento gravado e o arquivo no bucket (`IRecordDocumentStore`) |
+| `functions/src/infrastructure/workflow/steps/ReadDocumentStep.ts` | o executor |
+
 ### Quem disparou — `actor`
 
 Uma automação disparada por um botão gravava o registro como se ninguém o tivesse criado: o ator chegava

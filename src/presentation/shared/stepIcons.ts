@@ -27,6 +27,7 @@ import {
   RiTimerFlashLine,
   RiAttachment2,
   RiMailDownloadLine,
+  RiFileTextLine,
 } from 'react-icons/ri';
 
 const STEP_ICONS: Record<string, IconType> = {
@@ -54,6 +55,7 @@ const STEP_ICONS: Record<string, IconType> = {
   RiTimerFlashLine,
   RiAttachment2,
   RiMailDownloadLine,
+  RiFileTextLine,
 };
 
 /**

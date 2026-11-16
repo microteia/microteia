@@ -43,6 +43,8 @@ const CONFERIDOS: Record<string, string> = {
   // 9.265.0: os passos de e-mail — salvar o anexo e buscar na caixa.
   'save-mail-attachment': '1b45cb7334269f',
   'mail-search': '1373c7d7ffa275',
+  // 9.273.0: ler o texto de um documento da aba Documentos.
+  'read-document': '0e055c9147aef0',
 };
 
 /**
