@@ -11,6 +11,13 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.272.0] — 2026-11-16
+
+- O Processador de Dados agora pode entregar o texto do documento diretamente à automação, sem passar pela inteligência artificial. Basta indicar, no parâmetro da automação, que ele recebe o texto processado (ou o nome do arquivo). Assim, extensões que já sabem ler um modelo de documento conhecido — uma conta de luz, um extrato, uma nota fiscal — leem os números exatamente como estão no papel.
+- Quando todos os parâmetros da automação recebem o texto dessa forma, o Processador roda mesmo sem nenhuma inteligência artificial cadastrada no escritório.
+- O passo "Extrair parâmetros" das automações passou a seguir a mesma regra: o parâmetro que recebe o texto o recebe inteiro, sem passar pelo modelo.
+- Um texto grande demais agora é avisado antes da execução, em vez de ser enviado e falhar no meio.
+
 #### [9.271.0] — 2026-11-16
 
 - As extensões que já vêm com o sistema, como a do idioma português, agora também podem ser instaladas automaticamente em todo escritório novo. Assim o escritório já começa com a tela inteira traduzida, e não só com os dados.

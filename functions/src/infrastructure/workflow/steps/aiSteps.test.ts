@@ -324,6 +324,47 @@ describe('passo "Extrair Parâmetros"', () => {
     expect(result.outputs).toEqual({ params: {}, filled: 0 });
     expect(ai.calls).toHaveLength(0);
   });
+
+  it('o parâmetro que recebe o conteúdo da invocação leva o texto intacto e fica fora do esquema', async () => {
+    const ai = fakeAI({ values: { valor: 12 } });
+    const connections = new FakeConnections();
+    const leitor = workflow({
+      id: 'w-leitor',
+      parameters: [
+        { key: 'texto', label: 'Texto', type: 'String', fillFrom: 'sourceText' },
+        { key: 'valor', label: 'Valor', type: 'Number' },
+      ],
+    });
+    const definition = makeAIExtractParametersStepDefinition(depsWith([leitor], ai, connections));
+    const text = 'TUSD 0,83544863 R$/kWh\nTotal';
+
+    const result = await definition.createExecutor().execute({ text, targetWorkflowId: 'w-leitor' }, context());
+
+    expect(result.success).toBe(true);
+    expect((result.outputs as { params: Record<string, unknown> }).params).toEqual({ texto: text, valor: 12 });
+    expect(ai.calls).toHaveLength(1);
+    expect(ai.calls[0].userContent).not.toContain('"texto"');
+  });
+
+  it('só com parâmetros preenchidos pela invocação, nem modelo nem conexão', async () => {
+    const ai = fakeAI({ values: {} });
+    const connections = new FakeConnections();
+    const leitor = workflow({
+      id: 'w-leitor',
+      parameters: [
+        { key: 'texto', label: 'Texto', type: 'String', fillFrom: 'sourceText' },
+        { key: 'arquivo', label: 'Arquivo', type: 'String', fillFrom: 'sourceName' },
+      ],
+    });
+    const definition = makeAIExtractParametersStepDefinition(depsWith([leitor], ai, connections));
+
+    const result = await definition.createExecutor().execute({ text: 'conta', targetWorkflowId: 'w-leitor' }, context());
+
+    expect(result.success).toBe(true);
+    expect((result.outputs as { params: Record<string, unknown> }).params).toEqual({ texto: 'conta', arquivo: null });
+    expect(ai.calls).toHaveLength(0);
+    expect(connections.asked).toEqual([]);
+  });
 });
 
 describe('passo "Gerar texto"', () => {

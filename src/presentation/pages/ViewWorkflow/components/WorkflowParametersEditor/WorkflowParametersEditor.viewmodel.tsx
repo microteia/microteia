@@ -22,6 +22,11 @@ export interface WorkflowParametersEditorProps {
   onRemove: (index: number) => void;
   onClone: (index: number) => void;
   variant?: WorkflowParametersEditorVariant;
+  /**
+   * Oferece o papel `fillFrom` — só nos parâmetros da raiz de uma automação chamável, que é onde a
+   * invocação entrega o conteúdo. O editor aninhado e os outros usos (validação, script) não o mostram.
+   */
+  fillFromAllowed?: boolean;
 }
 
 export interface WorkflowParametersEditorViewModel {
@@ -107,6 +112,7 @@ export const useWorkflowParametersEditorViewModel = (
       }
       if (parameter.list) parts.push(t('parameter.summary.list'));
       if (parameter.required) parts.push(t('parameter.summary.required'));
+      if (parameter.fillFrom) parts.push(t('parameter.summary.fill-from'));
       return `${name} — ${parts.join(' · ')}`;
     },
     [typeOptions, entityOptions, lookupOptions, t, label],

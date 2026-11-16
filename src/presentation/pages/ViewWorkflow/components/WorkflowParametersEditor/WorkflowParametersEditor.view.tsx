@@ -14,6 +14,7 @@ import { isScalarParameterType } from '../../../../../domain/schema/eventCatalog
 import type { FieldRules, FormatPreset, ValidateCheck } from '../../../../../domain/schema/fieldRules';
 import type { FieldRulePresetOption } from '../../../../shared/useFieldRulePresets';
 import { parameterToInputDefinition } from '../../../../shared/parameterInputs';
+import { PARAMETER_FILL_FROM, isParameterFillFrom } from '../../../../../domain/schema/invocationSource';
 
 import { useT, useLabel, type TranslateFn } from '../../../../shared/i18n/useT';
 
@@ -25,6 +26,11 @@ const requiredOptions = (t: TranslateFn) => [
 const listOptions = (t: TranslateFn) => [
   { value: 'single', label: t('parameter.single') },
   { value: 'list', label: t('parameter.list') },
+];
+
+const fillFromOptions = (t: TranslateFn) => [
+  { value: '', label: t('parameter.fill-from.none') },
+  ...PARAMETER_FILL_FROM.map((value) => ({ value, label: t(`parameter.fill-from.${value}`) })),
 ];
 
 const booleanDefaultOptions = (t: TranslateFn) => [
@@ -101,7 +107,7 @@ const DefaultValueField: React.FC<{
 };
 
 export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> = (props) => {
-  const { parameters, errors, typeOptions, entityOptions, lookupOptions, onUpdate, variant = 'input' } = props;
+  const { parameters, errors, typeOptions, entityOptions, lookupOptions, onUpdate, variant = 'input', fillFromAllowed = false } = props;
   const t = useT('core.automation');
   const label = useLabel();
   const cloneLabel = t(variant === 'output' ? 'parameter.clone.output' : 'parameter.clone');
@@ -156,6 +162,7 @@ export const WorkflowParametersEditor: React.FC<WorkflowParametersEditorProps> =
                   variant={variant}
                   formatOptions={vm.formatOptions}
                   validateOptions={vm.validateOptions}
+                  fillFromAllowed={fillFromAllowed}
                 />
                 {parameter.type === 'Object' && (
                   <S.NestedBox>
@@ -212,7 +219,8 @@ const ParameterFields: React.FC<{
   variant: NonNullable<WorkflowParametersEditorProps['variant']>;
   formatOptions: FieldRulePresetOption[];
   validateOptions: FieldRulePresetOption[];
-}> = ({ parameter, error, index, typeOptions, entityOptions, lookupOptions, onUpdate, variant, formatOptions, validateOptions }) => {
+  fillFromAllowed: boolean;
+}> = ({ parameter, error, index, typeOptions, entityOptions, lookupOptions, onUpdate, variant, formatOptions, validateOptions, fillFromAllowed }) => {
   const t = useT('core.automation');
   const isInput = variant === 'input';
   return (
@@ -247,6 +255,7 @@ const ParameterFields: React.FC<{
               lookupCollection: undefined,
               options: undefined,
               defaultValue: undefined,
+              fillFrom: undefined,
               fields: type === 'Object' ? [] : undefined,
             })
           }
@@ -312,7 +321,7 @@ const ParameterFields: React.FC<{
         <SearchSelect
           options={listOptions(t)}
           value={parameter.list ? 'list' : 'single'}
-          onChange={(value) => onUpdate(index, { list: value === 'list' })}
+          onChange={(value) => onUpdate(index, { list: value === 'list', fillFrom: value === 'list' ? undefined : parameter.fillFrom })}
           placeholder="..."
         />
       </S.Cell>
@@ -337,6 +346,18 @@ const ParameterFields: React.FC<{
             value={parameter.lookupCollection ?? ''}
             onChange={(lookupCollection) => onUpdate(index, { lookupCollection })}
             placeholder={t('parameter.lookup.placeholder')}
+          />
+        </S.Cell>
+      )}
+
+      {isInput && fillFromAllowed && parameter.type === 'String' && !parameter.list && (
+        <S.Cell>
+          <Label>{t('parameter.fill-from')}</Label>
+          <SearchSelect
+            options={fillFromOptions(t)}
+            value={parameter.fillFrom ?? ''}
+            onChange={(value) => onUpdate(index, { fillFrom: isParameterFillFrom(value) ? value : undefined })}
+            placeholder={t('parameter.fill-from.none')}
           />
         </S.Cell>
       )}

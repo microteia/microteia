@@ -1,4 +1,5 @@
 import { WORKFLOW_PARALLEL_SINCE_KERNEL } from '../../../domain/schema/workflowParallel';
+import { MAX_SOURCE_TEXT_CHARACTERS, PARAMETER_FILL_FROM_SINCE_KERNEL } from '../../../domain/schema/invocationSource';
 import { RECORD_SURFACE_PREFIX, USER_MENU_SURFACE, WORKSPACE_SLOT_SURFACES } from '../../../domain/schema/ui/uiExtensionPoints';
 import { KERNEL_EXTENSION_POINTS } from '../../../domain/schema/extensionPoints';
 import { SCREEN_ICON_KEYS } from '../../../domain/schema/ui/screenIconCatalog';
@@ -3842,6 +3843,17 @@ field gets, so the parameter form refuses a bad value before the flow starts rat
 through it: \`validate\` takes \`check\` (a preset), \`pattern\` (with \`flags\`), \`minLength\` and
 \`maxLength\` (counted in characters), and an optional \`message\` that replaces the default refusal.
 \`list: true\` makes it many.
+
+**Receiving the processed text as it is — \`fillFrom\`.** A called workflow is also what the Data
+Processor and the \`ai-extract-parameters\` step fill from a free text, and by default a model reads that
+text into every parameter. A top-level \`String\` parameter with \`fillFrom: 'sourceText'\` receives the
+text itself instead — exactly as it arrived, and left out of what the model is asked —, and one with
+\`fillFrom: 'sourceName'\` receives the name of the file it came from (empty for pasted text). When every
+parameter has one, no model and no AI connection are involved: this is how an extension that already
+parses a known layout in a sandbox script gets the document without a model copying it. A text above
+${MAX_SOURCE_TEXT_CHARACTERS.toLocaleString('en-US')} characters is refused, never cut. Called from anywhere else (an action, \`call-workflow\`, MCP), the
+parameter is an ordinary \`String\`. Each value at most once per workflow; needs kernel
+${PARAMETER_FILL_FROM_SINCE_KERNEL} or later.
 
 ### Actions
 

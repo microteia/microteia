@@ -8,6 +8,7 @@ import { QUERY_PAGE_SINCE_KERNEL } from '../../schema/querySpec';
 import { CALLED_WORKFLOW_PATH_TYPES_SINCE_KERNEL } from '../../schema/eventCatalog';
 import { HTTP_ASYNC_SINCE_KERNEL, HTTP_REQUEST_SINCE_KERNEL } from '../../schema/httpRequestSpec';
 import { HTTP_CONNECTION_SINCE_KERNEL } from '../../schema/httpConnection';
+import { PARAMETER_FILL_FROM_SINCE_KERNEL } from '../../schema/invocationSource';
 
 /**
  * Cada caso aqui é um defeito que COMPILAVA e passava por toda a validação de pacote, e só falava no
@@ -857,5 +858,37 @@ describe('passo http-request no pacote', () => {
   it('a requisição que não é valor fixo é recusada', () => {
     const passoSemSpec = passo({ id: 'chamar', stepDefinitionId: 'http-request', configuration: { request: { kind: 'Event', path: 'x' } } });
     expect(mensagens(comKernel([passoSemSpec], `^${HTTP_REQUEST_SINCE_KERNEL}`))).toContain('@core.marketplace/issue.step.http-invalid');
+  });
+});
+
+describe('integridade do parâmetro preenchido pela invocação (fillFrom)', () => {
+  const comPapel = (
+    parameters: NonNullable<MarketplacePlugin['workflows'][number]['parameters']>,
+    kernel = `^${PARAMETER_FILL_FROM_SINCE_KERNEL}`,
+    eventName = 'workflow.called',
+  ): MarketplacePlugin => {
+    const base = pacote([passo({})]);
+    return {
+      ...base,
+      manifest: { ...base.manifest, kernel },
+      workflows: [{ ...base.workflows[0], eventName, parameters }],
+    } as unknown as MarketplacePlugin;
+  };
+  const texto = { key: 'sourceText', label: 'Text', type: 'String' as const, fillFrom: 'sourceText' as const };
+
+  it('aceita o papel num String da raiz de uma automação chamável', () => {
+    expect(workflowStepIssues(comPapel([texto]))).toEqual([]);
+  });
+
+  it('recusa o papel fora de um gatilho chamável, e diz o motivo', () => {
+    const [issue] = workflowStepIssues(comPapel([texto], undefined, 'records.saved'));
+    expect(issue?.message).toBe('@core.marketplace/issue.workflow.fill-from-invalid');
+    expect(issue?.messageParams?.detail).toBe('@core.automation/parameter.fill-from.not-callable');
+  });
+
+  it('cobra o kernel: no anterior a IA tentaria copiar o texto inteiro', () => {
+    const [issue] = workflowStepIssues(comPapel([texto], '^2.0.0'));
+    expect(issue?.message).toBe('@core.marketplace/issue.workflow.feature-kernel');
+    expect(issue?.messageParams).toEqual({ feature: 'parameters[].fillFrom', minimum: PARAMETER_FILL_FROM_SINCE_KERNEL });
   });
 });

@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.272.0] — 2026-11-16
+
+- feat(workflow): `parameters[].fillFrom` (`sourceText` | `sourceName`) on a top-level `String` parameter of a `workflow.called` automation. The Data Processor (`runWorkflow`) and the `ai-extract-parameters` step deliver the text they were given — and the file name — to that parameter as it arrived, and leave it out of the schema sent to the model; with no other parameter, no model is called and no AI connection is required. Before, the text only fed the model, so an extension that parses a known layout in a sandbox script had to ask a model to copy thousands of characters into a `String`, bounded by its output limit and free to change a digit unnoticed. The role belongs to the invocation, not to a screen, so the same automation behaves the same from the Processor and from a step woken by an e-mail. From any other entry point (action, `call-workflow`, MCP) it is an ordinary `String`.
+- feat(workflow): `MAX_SOURCE_TEXT_CHARACTERS` (100,000): `runWorkflow` refuses a longer text (`processor.text-too-large`) instead of cutting it, and the Processor says so before running. The text rides in the event payload and back in the execution history.
+- feat(package): `fillFromIssues` refuses `fillFrom` outside `workflow.called`, on a non-`String` or list parameter, inside an `Object`, repeated, or with an unknown value (`issue.workflow.fill-from-invalid`), and a package that declares it needs kernel `2.134.0` (`PARAMETER_FILL_FROM_SINCE_KERNEL`) — an older kernel would ignore it and send the text back to the model. Kernel 2.134.0.
+- refactor(processor): the text of a PDF page is built by `pdfPageText` (shared with the functions), so the server-side document reader that comes next joins the same PDF into the same text. `flat` keeps the Processor's previous output byte for byte; `lines` keeps the PDF's line breaks.
+- feat(editor): the parameter editor of a called automation offers "Filled with", and the JSON form accepts `fillFrom`. pt-BR 1.220.0.
+
 #### [9.271.0] — 2026-11-16
 
 - feat(default-extensions): built-in extensions can be marked as default for new organizations. `defaultMarkIssues` only applies the cap to a built-in, and `defaultUnmarkIssues` never holds one (whoever installs a dependent installs its built-in dependency). The motivating case is the translation pack: with only `defaultLocale`, a new organization had its seeded data in the chosen language and its interface in the source language.

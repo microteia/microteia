@@ -3,6 +3,7 @@ import type { ScriptOutputParam } from '../entities/Script';
 import { validateFieldKey } from '../services/customFieldValues';
 import { isScalarParameterType } from './eventCatalog';
 import type { FieldRules, FormatPreset, FormatRule, ValidateCheck, ValidateRule } from './fieldRules';
+import { isParameterFillFrom } from './invocationSource';
 
 import type { LocalizedMessage } from './i18n/localizedMessage';
 const isValidRegex = (pattern: string): boolean => {
@@ -165,6 +166,9 @@ export const sanitizeWorkflowParameters = (parameters: WorkflowParameter[]): Wor
     }
     const rules = sanitizeFieldRules(parameter.rules);
     if (rules) clean.rules = rules;
+    if (parameter.type === 'String' && !parameter.list && isParameterFillFrom(parameter.fillFrom)) {
+      clean.fillFrom = parameter.fillFrom;
+    }
     return clean;
   });
 
@@ -210,6 +214,7 @@ const parameterToDslValue = (parameter: WorkflowParameter): unknown => {
     parameter.list ||
     parameter.defaultValue !== undefined ||
     rules !== undefined ||
+    parameter.fillFrom !== undefined ||
     parameter.type === 'EntityReference' ||
     parameter.type === 'lookup' ||
     parameter.type === 'select' ||
@@ -225,6 +230,7 @@ const parameterToDslValue = (parameter: WorkflowParameter): unknown => {
   if (parameter.type === 'select' && parameter.options) rich.options = parameter.options;
   if (!parameter.list && parameter.defaultValue !== undefined) rich.default = parameter.defaultValue;
   if (rules) rich.rules = rules;
+  if (parameter.fillFrom) rich.fillFrom = parameter.fillFrom;
   if (parameter.type === 'Object') rich.fields = parametersToDslMap(parameter.fields ?? []);
   return rich;
 };
@@ -330,6 +336,14 @@ const parseDslNode = (
 
   const rules = parseDslRules(value.rules);
   if (rules) parameter.rules = rules;
+
+  if (value.fillFrom !== undefined) {
+    if (!isParameterFillFrom(value.fillFrom)) {
+      errors.push({ path, message: '@core.automation/parameter.dsl.invalid-fill-from', messageParams: { value: String(value.fillFrom) } });
+      return null;
+    }
+    parameter.fillFrom = value.fillFrom;
+  }
 
   return parameter;
 };

@@ -31,6 +31,7 @@ import { useEntityReferenceOptions, useLookupCollectionOptions } from '../../sha
 import type { WorkflowEventFieldOption } from '../../../domain/services/workflowEventCatalog';
 import { WORKFLOW_LOOKUP_COLLECTIONS } from '../../../domain/services/workflowLookupCatalog';
 import { siblingParameterErrors, hasParameterErrorsDeep, sanitizeWorkflowParameters, cloneParameterInList } from '../../../domain/schema/workflowParameters';
+import { fillFromIssues } from '../../../domain/schema/invocationSource';
 import { getWorkflowEventIcon, getWorkflowLookupGroupIcon } from '../../shared/workflowEventIcons';
 import { getScreenIconType } from '../../shared/screenIcons';
 import { getStepIcon as getStepIconType } from '../../shared/stepIcons';
@@ -183,6 +184,18 @@ export interface WorkflowFormData {
 }
 
 const sanitizeParameters = sanitizeWorkflowParameters;
+
+const parameterKeysDeep = (parameters: WorkflowParameter[]): Set<string> => {
+  const keys = new Set<string>();
+  const walk = (list: WorkflowParameter[]): void => {
+    for (const parameter of list) {
+      keys.add(parameter.key);
+      walk(parameter.fields ?? []);
+    }
+  };
+  walk(parameters);
+  return keys;
+};
 
 const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   workflowId: '',
@@ -939,14 +952,28 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const parameterEntityOptions = useEntityReferenceOptions();
   const parameterLookupOptions = useLookupCollectionOptions();
 
+  // O papel `fillFrom` só se confere na lista inteira (o repetido), e o problema de um campo aninhado
+  // aparece no parâmetro da raiz que o contém — é o que está visível com a linha recolhida.
+  const fillFromProblems = useMemo(
+    () => (isCalledEvent ? fillFromIssues(formData.parameters, WORKFLOW_CALLED_EVENT) : []),
+    [isCalledEvent, formData.parameters],
+  );
+
   const parameterErrors = useMemo<(string | undefined)[]>(
-    () => (isCalledEvent ? siblingParameterErrors(formData.parameters).map((issue) => (issue ? label(issue.message, issue.messageParams) : undefined)) : []),
-    [isCalledEvent, formData.parameters, label],
+    () => (isCalledEvent
+      ? siblingParameterErrors(formData.parameters).map((issue, index) => {
+          if (issue) return label(issue.message, issue.messageParams);
+          const keys = parameterKeysDeep([formData.parameters[index]]);
+          const fillFrom = fillFromProblems.find((problem) => keys.has(problem.parameter));
+          return fillFrom ? label(fillFrom.message, fillFrom.messageParams) : undefined;
+        })
+      : []),
+    [isCalledEvent, formData.parameters, fillFromProblems, label],
   );
 
   const hasParameterErrors = useMemo(
-    () => isCalledEvent && hasParameterErrorsDeep(formData.parameters),
-    [isCalledEvent, formData.parameters],
+    () => isCalledEvent && (hasParameterErrorsDeep(formData.parameters) || fillFromProblems.length > 0),
+    [isCalledEvent, formData.parameters, fillFromProblems],
   );
 
   const addParameter = useCallback(() => {

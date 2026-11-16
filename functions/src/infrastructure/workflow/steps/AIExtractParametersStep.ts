@@ -14,6 +14,7 @@ import type { WorkflowParameter } from '../../../domain/entities/Workflow';
 import { aiExtractFields } from '../../../domain/schema/aiSteps';
 import type { AiExtractField } from '../../../domain/schema/aiSteps';
 import { resolveAICredentials } from './aiStepCredentials';
+import { parametersForAI, sourceFilledValues } from '../../../domain/schema/invocationSource';
 
 /**
  * O campo declarado como PARÂMETRO do extrator: com lista fechada, é `select` — e o extrator já manda ao
@@ -86,40 +87,44 @@ export const makeAIExtractParametersStepDefinition = (deps: AIStepDeps): StepDef
         };
       }
 
-      const credentials = await resolveAICredentials(deps, tenantId, inputs.connectionId);
-
-      let values: Record<string, unknown>;
-      try {
-        values = await extractParameterValues({
-          callAI: deps.callAIUseCase,
-          credentials,
-          text,
-          parameters,
-        });
-      } catch (error) {
-        // O motivo é DIAGNÓSTICO, e vai para o log da execução como parâmetro da mensagem: quem
-        // abre a execução na tela precisa distinguir "o modelo desistiu" de "a resposta veio
-        // cortada no limite de saída" — são causas com correções diferentes.
-        if (error instanceof AIExtractionRefusedError) {
-          return {
-            success: false,
-            message: '@core.automation/step.ai-extract-parameters.refused',
-            messageParams: { detail: error.detail },
-          };
+      // O mesmo que a tela do Processador: o parâmetro que recebe o conteúdo da invocação não vai ao
+      // modelo, e sem nenhum outro o passo nem resolve credencial.
+      const aiParameters = parametersForAI(parameters);
+      let values: Record<string, unknown> = {};
+      if (aiParameters.length > 0) {
+        const credentials = await resolveAICredentials(deps, tenantId, inputs.connectionId);
+        try {
+          values = await extractParameterValues({
+            callAI: deps.callAIUseCase,
+            credentials,
+            text,
+            parameters: aiParameters,
+          });
+        } catch (error) {
+          // O motivo é DIAGNÓSTICO, e vai para o log da execução como parâmetro da mensagem: quem
+          // abre a execução na tela precisa distinguir "o modelo desistiu" de "a resposta veio
+          // cortada no limite de saída" — são causas com correções diferentes.
+          if (error instanceof AIExtractionRefusedError) {
+            return {
+              success: false,
+              message: '@core.automation/step.ai-extract-parameters.refused',
+              messageParams: { detail: error.detail },
+            };
+          }
+          if (error instanceof AIResponseFormatError) {
+            return {
+              success: false,
+              message: error.truncated
+                ? '@core.automation/step.ai.response-truncated'
+                : '@core.automation/step.ai.response-not-json',
+              messageParams: { limit: String(credentials.maxTokens) },
+            };
+          }
+          throw error;
         }
-        if (error instanceof AIResponseFormatError) {
-          return {
-            success: false,
-            message: error.truncated
-              ? '@core.automation/step.ai.response-truncated'
-              : '@core.automation/step.ai.response-not-json',
-            messageParams: { limit: String(credentials.maxTokens) },
-          };
-        }
-        throw error;
       }
 
-      const params = resolveParameters(parameters, undefined, values);
+      const params = resolveParameters(parameters, undefined, { ...values, ...sourceFilledValues(parameters, { text }) });
 
       return {
         success: true,
