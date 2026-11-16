@@ -759,18 +759,19 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   );
 
   /**
-   * A marca de padrão vale para o que está no CATÁLOGO: a de primeira parte já vem com a aplicação, e a
-   * cópia privada não é alcançável por um escritório novo. A recusa é dita no botão, em vez de ele sumir.
+   * A marca de padrão vale para o que um escritório novo ALCANÇA: o catálogo e as embutidas, que viajam
+   * com a aplicação. A cópia privada não é alcançável. A recusa é dita no botão, em vez de ele sumir.
    */
   const defaultStateOf = useCallback(
     (id: string): Pick<ExtensionRow, 'isDefault' | 'defaultAction' | 'defaultBlockedReason'> => {
       const isDefault = defaultIds.has(id);
-      if (!canModerate || !defaultCatalog.some((entry) => entry.id === id)) {
+      const isBuiltin = (pluginId: string) => BUILTIN_BY_ID.has(pluginId);
+      if (!canModerate || !(isBuiltin(id) || defaultCatalog.some((entry) => entry.id === id))) {
         return { isDefault, defaultAction: null, defaultBlockedReason: null };
       }
       const [blocked] = isDefault
-        ? defaultUnmarkIssues(id, defaultCatalog, defaultExtensions)
-        : defaultMarkIssues(id, defaultCatalog, defaultExtensions, (pluginId) => BUILTIN_BY_ID.has(pluginId));
+        ? defaultUnmarkIssues(id, defaultCatalog, defaultExtensions, isBuiltin)
+        : defaultMarkIssues(id, defaultCatalog, defaultExtensions, isBuiltin);
       return {
         isDefault,
         defaultAction: isDefault ? 'unmark' : 'mark',

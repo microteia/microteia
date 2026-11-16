@@ -10641,8 +10641,8 @@ Arquivos: `domain/schema/plugin/publicationProof.ts` ·
 
 Uma instalação dedicada a um ramo (advocacia, clínica, petshop) não deveria obrigar cada pessoa que
 entra a abrir a tela de Extensões e instalar, uma a uma, o que todo escritório dali usa. O `SYSTEM`
-marca extensões do catálogo como **padrão** (aba Catálogo, botão de pilha; selo "Padrão"), e todo
-escritório novo as recebe instaladas.
+marca extensões do catálogo — ou embutidas, ver abaixo — como **padrão** (aba Catálogo, botão de pilha;
+selo "Padrão"), e todo escritório novo as recebe instaladas.
 
 **A marca aponta o ID, nunca uma versão.** O escritório novo recebe a versão ATUAL do catálogo, e isso
 só é seguro porque toda versão do catálogo foi instalada por completo antes de ir para lá (ver acima). A
@@ -10660,7 +10660,12 @@ compartilhada) recusa marcar:
 | `too-many` | teto de `DEFAULT_EXTENSIONS_MAX` (30): cada uma é uma instalação que a pessoa espera na primeira entrada |
 | `dependency-not-default` | o escritório novo terá SÓ as padrão; a dependência tem de ser do kernel, embutida ou padrão também |
 
-E recusa desmarcar a que outra padrão usa (`required-by`). Marcar e desmarcar gravam com
+A **embutida** também pode ser padrão, e só o teto a segura: viajar no bundle não é estar instalada no
+escritório, e ela já tem a garantia que a prova dá ao catálogo — é da mesma versão do kernel que a
+instala. O caso que motivou é o pacote de tradução (ver "O idioma do escritório novo").
+
+E recusa desmarcar a que outra padrão usa (`required-by`) — menos a embutida, que quem instala a
+dependente instala também. Marcar e desmarcar gravam com
 `arrayUnion`/`arrayRemove`: dois administradores marcando extensões diferentes não apagam a marca um do
 outro.
 
@@ -10673,7 +10678,10 @@ procuraria no catálogo e não a acharia. Tira-se a marca antes.
 **Na criação do escritório, o servidor fixa a lista** (`StageOfficeDefaultsUseCase`, chamado por
 `openOwnedTenant` — o mesmo caminho do autocadastro e do "Novo escritório" do `SYSTEM`). Ele lê a marca,
 confere o catálogo (`defaultInstallPlan`: só aprovada e comprovada, dependência antes de quem depende
-dela) e grava `tenants/{id}/extension_onboarding/defaults = { pending, failed }`. Duas decisões:
+dela) e grava `tenants/{id}/extension_onboarding/defaults = { pending, failed }`. O id marcado que NÃO
+está no catálogo é tratado como embutida e vai para o INÍCIO da lista: o servidor não conhece o bundle,
+e o catálogo é o único outro lugar de onde a padrão viria (marcar exige aprovada; as Rules recusam
+obsoletar ou apagar a padrão). Quem confere que ela existe é o navegador. Duas decisões:
 
 - **Antes de o dono entrar como membro.** O navegador dá o provisionamento por concluído quando o
   membro aparece (`waitForProvisioning`), e lê a lista na primeira carga; gravada depois, ela poderia
@@ -10695,9 +10703,18 @@ das recusas de dependência, prefixo e colisão que só a primeira tem.
   renderização em que foi criada; a segunda instalação de um mesmo laço não enxergaria a primeira e
   recusaria a dependência que acabou de entrar. A rodada seguinte nasce de um estado que muda quando a
   anterior TERMINA (`round`) — o store muda antes, e a renderização que isso provoca encontra a rodada
-  ainda em curso.
-- **A dependência embutida** (que viaja no bundle e por isso nunca está na lista do servidor) entra numa
-  rodada própria, antes de quem depende dela.
+  ainda em curso. A marca de rodada em curso só é liberada por quem a pôs: a lista nova chega pelo
+  `onSnapshot` antes de a escrita que a mudou se confirmar, a rodada seguinte já começou, e liberar às
+  cegas abria uma segunda instalação da mesma extensão em paralelo.
+- **A dependência embutida** de uma extensão da lista entra numa rodada própria, antes de quem depende
+  dela. **A embutida que é ela mesma padrão** vem na lista e é instalada do bundle (`source: 'builtin'`);
+  a que o bundle não traz vai para `failed`, como a que saiu do catálogo.
+- **O portão fala o idioma do que ele vai instalar** (`useProspectiveCatalog` + `PackageLocaleProvider`).
+  O idioma em vigor é negociado contra o que está INSTALADO; sem o pacote de tradução ele é o
+  idioma-fonte, e a tela que instala o pacote falaria inglês enquanto o instala. O catálogo do portão
+  renegocia o idioma como se os pacotes da lista já estivessem lá, e é REMONTADO, não completado: o
+  kernel já traz algum texto em português (login, licença), então o idioma em vigor pode já ser
+  `pt-BR` com o resto preenchido em inglês — e completar deixava o preenchimento vencer.
 - **Retomável.** A extensão sai da lista só depois de instalada (`arrayRemove`); fechar a aba no meio
   continua da próxima vez, e a já instalada numa passada interrompida só sai da lista.
 - **A que saiu do catálogo** depois de o escritório nascer vai para `failed` sem pergunta. **A que
@@ -10721,7 +10738,9 @@ separadas: sem o idioma o escritório ainda recebe as extensões, e vice-versa.
   os pacotes instalados — a mesma regra que a preferência do escritório já segue.
 - **O seletor oferece os idiomas instalados no escritório de quem escolhe**, mais o já gravado. Gravar
   o idioma não instala a tradução da interface: sem o pacote de idioma, a interface continua no
-  idioma-fonte, e o texto de ajuda diz isso.
+  idioma-fonte, e o texto de ajuda diz isso. A tradução da interface vem marcando o pacote de idioma
+  (embutido) como padrão: ele é instalado PRIMEIRO, então a extensão do catálogo cujos textos ele
+  traduz já semeia com a tradução.
 - **Opção de lista não depende disso.** A opção semeada com rótulo `@ns/chave` grava a CHAVE e traduz o
   rótulo na leitura; só o campo de texto semeado congela o idioma.
 
@@ -10735,7 +10754,7 @@ Arquivos: `domain/schema/plugin/defaultExtensions.ts` · `domain/schema/registra
 `data/repositories/{FirebaseRegistrationPolicyRepository,FirebaseExtensionOnboardingRepository}.ts` ·
 `domain/usecases/registration/SetDefaultExtensionUseCase.ts` ·
 `domain/usecases/plugins/DefaultExtensionsOnboardingUseCases.ts` · `presentation/pages/Marketplace/` ·
-`presentation/components/layout/DefaultExtensionsGate/` ·
+`presentation/components/layout/DefaultExtensionsGate/` · `presentation/shared/i18n/useProspectiveCatalog.ts` ·
 `functions/src/domain/usecases/{StageOfficeDefaultsUseCase,BootstrapUserUseCase,CreateOrganizationUseCase}.ts` ·
 `functions/src/data/repositories/FirebaseOfficeDefaultsRepository.ts` · `firestore.rules` ·
 `rules-tests/{registration,publicExtensions,extensionOnboarding}.test.ts`.

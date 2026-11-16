@@ -15,7 +15,8 @@ import type { MarketplacePlugin } from '../../../../domain/entities/MarketplaceP
 import type { PublicExtension } from '../../../../domain/entities/PublicExtension';
 import { resolveLabel } from '../../../../domain/schema/i18n/messageRef';
 import { wrappedErrorParams } from '../../../../domain/errors/LocalizedError';
-import { usePackageCatalog } from '../../../shared/i18n/usePackageCatalog';
+import { useProspectiveCatalog } from '../../../shared/i18n/useProspectiveCatalog';
+import type { MessageCatalog } from '../../../../domain/schema/i18n/messages';
 import { MARKETPLACE_CATALOG } from '../../../../plugins/marketplace/catalog';
 
 export interface DefaultExtensionsGateViewModel {
@@ -30,6 +31,11 @@ export interface DefaultExtensionsGateViewModel {
   failure: { name: string; params: Record<string, string> } | null;
   retry: () => void;
   skip: () => Promise<void>;
+  /**
+   * Os textos do portão, já com os pacotes que ele ainda vai instalar: o escritório que nasce com idioma
+   * escolhido recebe o pacote de tradução AQUI, e a tela que o instala tem de falar o idioma dele.
+   */
+  catalog: MessageCatalog;
 }
 
 const BUILTIN_BY_ID = new Map<string, MarketplacePlugin>(
@@ -63,8 +69,9 @@ const builtinInput = (plugin: MarketplacePlugin): InstallExtensionInput => ({
  * renderização em que foi criada, então a segunda instalação de um mesmo laço não enxergaria a primeira
  * e recusaria a dependência que acabou de entrar. A rodada seguinte nasce quando o store e a lista mudam.
  *
- * A dependência EMBUTIDA (que viaja no bundle, e por isso nunca está na lista do servidor) entra numa
- * rodada própria, antes de quem depende dela.
+ * A dependência EMBUTIDA de uma extensão da lista entra numa rodada própria, antes de quem depende
+ * dela. A embutida que é ELA MESMA padrão vem na lista — o servidor a reconhece por não estar no
+ * catálogo, e quem confere que ela existe é este navegador, que tem o bundle.
  */
 export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewModel => {
   const { currentTenant } = useTenant();
@@ -115,8 +122,22 @@ export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewMo
   const current = pending[0] ?? null;
   const active = canManage && current !== null;
 
-  const catalogPackages = useMemo(() => publicExtensions.map((entry) => entry.package), [publicExtensions]);
-  const catalog = usePackageCatalog(catalogPackages);
+  /** De onde a extensão da lista vem: do catálogo, se aprovada lá; senão, do bundle. */
+  const sourceOf = useCallback((id: string): InstallExtensionInput | null => {
+    const entry = publicExtensions.find((candidate) => candidate.domain === id);
+    if (entry?.status === 'approved') return publicInput(entry);
+    const builtin = BUILTIN_BY_ID.get(id);
+    return builtin ? builtinInput(builtin) : null;
+  }, [publicExtensions]);
+
+  const pendingPackages = useMemo(
+    () => pending.flatMap((id) => {
+      const source = sourceOf(id);
+      return source ? [source.package] : [];
+    }),
+    [pending, sourceOf],
+  );
+  const catalog = useProspectiveCatalog(pendingPackages);
   const nameOf = useCallback((id: string) => {
     const pkg = publicExtensions.find((entry) => entry.domain === id)?.package ?? BUILTIN_BY_ID.get(id);
     return (pkg ? resolveLabel(catalog, pkg.manifest.name) : '') || id;
@@ -124,8 +145,19 @@ export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewMo
 
   const settle = useCallback(async (id: string, outcome: 'installed' | 'deferred') => {
     if (!tenantId) return;
-    await settleUseCase.execute(tenantId, id, outcome);
+    // Conta ANTES de gravar: a lista sem a extensão chega pelo `onSnapshot` antes de a escrita se
+    // confirmar, e contar depois mostrava, por um instante, "1 de 1" no lugar de "2 de 2".
     setSettled((previous) => new Set(previous).add(id));
+    try {
+      await settleUseCase.execute(tenantId, id, outcome);
+    } catch (error) {
+      setSettled((previous) => {
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
+      throw error;
+    }
   }, [tenantId, settleUseCase]);
 
   useEffect(() => {
@@ -138,13 +170,14 @@ export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewMo
         await settle(current, 'installed');
         return;
       }
-      const entry = publicExtensions.find((candidate) => candidate.domain === current);
-      // Saiu do catálogo depois de o escritório nascer: não há o que instalar, nem decisão a pedir.
-      if (!entry || entry.status !== 'approved') {
+      const source = sourceOf(current);
+      // Saiu do catálogo depois de o escritório nascer, ou é uma embutida que este bundle não traz: não
+      // há o que instalar, nem decisão a pedir.
+      if (!source) {
         await settle(current, 'deferred');
         return;
       }
-      const builtinDependency = Object.keys(entry.package.manifest.dependencies ?? {})
+      const builtinDependency = Object.keys(source.package.manifest.dependencies ?? {})
         .find((id) => !id.startsWith(KERNEL_PLUGIN_PREFIX)
           && BUILTIN_BY_ID.has(id)
           && !installed.some((extension) => extension.id === id));
@@ -153,7 +186,7 @@ export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewMo
         await install(builtinInput(builtin), { acceptDependencyRanges: true });
         return;
       }
-      await install(publicInput(entry), { acceptDependencyRanges: true });
+      await install(source, { acceptDependencyRanges: true });
       await settle(current, 'installed');
     };
 
@@ -163,10 +196,15 @@ export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewMo
         setFailure({ id: current, params: wrappedErrorParams(err) });
       })
       .finally(() => {
-        running.current = null;
+        // Só libera a marca se ela ainda é DESTA rodada. Concluir uma extensão tira-a da lista, e a
+        // lista nova chega pelo `onSnapshot` antes deste `finally`: a rodada seguinte já começou e
+        // marcou a dela. Liberar às cegas apagava essa marca, e a renderização do `setRound` abria
+        // uma segunda instalação da mesma extensão em paralelo — a que chegasse depois esbarrava nos
+        // artefatos da primeira ("id já em uso").
+        if (running.current === current) running.current = null;
         setRound((value) => value + 1);
       });
-  }, [active, current, installedLoading, catalogLoading, failure, installed, publicExtensions, install, settle, round]);
+  }, [active, current, installedLoading, catalogLoading, failure, installed, sourceOf, install, settle, round]);
 
   const retry = useCallback(() => setFailure(null), []);
 
@@ -186,5 +224,6 @@ export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewMo
     failure: failure ? { name: nameOf(failure.id), params: failure.params } : null,
     retry,
     skip,
+    catalog,
   };
 };
