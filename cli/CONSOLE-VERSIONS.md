@@ -22,6 +22,11 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.43.6] — 2026-11-16
+
+- fix(console/deploy): the first install is detected by `kernel.deployed === null` (`isFirstDeploy`), not by `kernel.version`. `unpack` writes `version` before the first deploy, so the check never held and the first deploy of every new installation ran without `--force`: no Artifact Registry cleanup policy was set up, and every trigger declaring `retry: true` was refused in non-interactive mode, leaving `runAggregateBackfill`, `runRecordSearchJob` and the other retrying triggers out of the project.
+- fix(console/deploy, console/provision): "Functions successfully deployed but could not set up cleanup policy" is a success. The Firebase CLI exits non-zero after the function is up, and the Console counted it as a failure — retried it, failed it again the same way, and reported a deployed function as down. It is now one note at the end, naming the region and the `firebase functions:artifacts:setpolicy --location <region> --project <id> --force` command that settles it.
+
 #### [2.43.5] — 2026-11-15
 
 - docs(console/prerequisites): `mail-inbound` points to the forwarding guide at doc.microteia.com/forwarded-email and to the reference Cloudflare Email Worker in `integrations/cloudflare-email-worker`, and warns that Cloudflare runs a catch-all rule only on the zone's apex domain. It suggested `in.<your-domain>`, a subdomain, where the random mailbox addresses can never be routed; the request contract it spelled out now lives in the guide, next to the Worker that implements it.

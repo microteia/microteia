@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.269.1] — 2026-11-16
+
+- fix(console/deploy): the first deploy of a new installation runs with `--force` again, and a function that deployed without a cleanup policy no longer counts as failed (Console 2.43.6). No kernel change; the package is rebuilt so the history keeps one entry per package version.
+
 #### [9.269.0] — 2026-11-15
 
 - feat(marketplace/default): `system/registration.defaultExtensions` lists the catalog extensions every new organization receives installed. The mark points at the ID, never at a version: the current catalog version is installed, which is safe because every catalog version was proven installed before publishing. `SYSTEM` toggles it from the Catalog tab with `arrayUnion`/`arrayRemove`, so two administrators marking different extensions do not overwrite each other.

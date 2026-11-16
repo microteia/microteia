@@ -5,7 +5,7 @@ import type { ParsedArgs } from '../shared/args.js';
 import { parseApprovals } from './packagedSources.js';
 import { run } from '../shared/run.js';
 import { blank, bullets, failure, heading, info, step, success, warn } from '../shared/ui.js';
-import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
+import { ENVIRONMENT_FILE, isFirstDeploy, readEnvironment, writeEnvironment } from './environment.js';
 import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
 import { reportFailures, reportNotices } from './deployFunctions.js';
@@ -55,7 +55,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   }
 
   const resolvedConfig = await readResolvedConfig(root);
-  const firstInstall = environment.kernel.version === null;
+  const firstInstall = isFirstDeploy(environment);
 
   heading(`Deploying Microteia to ${projectId}`);
 
