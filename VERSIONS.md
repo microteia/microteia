@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.269.1] — 2026-11-16
+
+- Corrigido: a primeira publicação de uma instalação nova deixava parte das funções de servidor fora do ar e mostrava como falha funções que tinham sido publicadas, por causa de uma configuração de limpeza do projeto que não era feita.
+
 #### [9.269.0] — 2026-11-15
 
 - O administrador do sistema pode marcar extensões do catálogo como padrão, e todo escritório novo passa a recebê-las já instaladas. Na primeira entrada, a pessoa vê a tela "Aguarde… adicionando extensões", com o andamento de cada uma.

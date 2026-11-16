@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { repoRoot } from '../shared/paths.js';
-import { parseEnvironment, serializeEnvironment, slug } from './environment.js';
+import { isFirstDeploy, parseEnvironment, serializeEnvironment, slug } from './environment.js';
 import type { Environment } from './environment.js';
 import { REQUIRED_CONFIG_KEYS, runtimeConfigFrom } from './runtimeConfigShape.js';
 import { stampedConfigJs } from './workspace.js';
@@ -43,6 +43,16 @@ describe('arquivo de ambiente', () => {
 
   it('acusa o campo que falta, nomeando-o', () => {
     expect(() => parseEnvironment('project:\n  name: x\n')).toThrow(/environment\.id/);
+  });
+
+  /**
+   * O `unpack` grava `version` antes do primeiro deploy. Perguntar por ele fazia a primeira instalação
+   * subir sem `--force`: sem política de limpeza e com os gatilhos de `retry: true` recusados.
+   */
+  it('a primeira instalação é a que nunca publicou, mesmo com o pacote já desempacotado', () => {
+    expect(isFirstDeploy({ ...sample, kernel: { version: '9.266.1', deployed: null } })).toBe(true);
+    expect(isFirstDeploy({ ...sample, kernel: { version: '9.266.1', deployed: '9.266.1' } })).toBe(false);
+    expect(isFirstDeploy({ ...sample, kernel: { version: '9.267.0', deployed: '9.266.1' } })).toBe(false);
   });
 
   it('deriva um id utilizável de um nome com acento e espaço', () => {

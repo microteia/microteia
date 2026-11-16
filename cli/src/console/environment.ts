@@ -64,6 +64,16 @@ export interface Environment {
   login: { extensions: string | null };
 }
 
+/**
+ * O projeto nunca recebeu deploy nenhum desta instalação.
+ *
+ * Lê `deployed`, e nunca `version`: o `unpack` grava `version` ANTES do primeiro deploy, então
+ * perguntar por ele respondia "não é a primeira vez" justamente na primeira. Foi assim que a primeira
+ * instalação subia sem `--force` — sem política de limpeza do Artifact Registry e com os gatilhos de
+ * `retry: true` recusados — e só o escritório novo pagava, porque é o único que passa por ali.
+ */
+export const isFirstDeploy = (environment: Environment): boolean => environment.kernel.deployed === null;
+
 export const ENVIRONMENT_FILE = 'microteia.yaml';
 
 /**

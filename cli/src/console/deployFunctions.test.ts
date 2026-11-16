@@ -3,8 +3,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { repoRoot } from '../shared/paths.js';
 import {
+  cleanupPolicyNotice,
   failureReason,
   mayConfirmRetryPolicy,
+  missingCleanupPolicy,
   stripNotices,
   terminalFailure,
   type FunctionDeployOptions,
@@ -235,5 +237,35 @@ describe('a política de repetição que a própria fonte declara é confirmada 
   it('não repete o que já subiu com --force, nem confirma outra recusa', () => {
     expect(mayConfirmRetryPolicy('runAggregateBackfill', refusal, options(new Set(), true))).toBe(false);
     expect(mayConfirmRetryPolicy('runAggregateBackfill', deletionAbortStdout, options(new Set()))).toBe(false);
+  });
+});
+
+describe('a function que subiu sem política de limpeza conta como no ar', () => {
+  /**
+   * O caso real, numa instalação nova: a function sobe ("Successful update operation") e o `firebase`
+   * sai com erro só porque não pôde criar a política do Artifact Registry sem `--force`.
+   */
+  const output = [
+    '✔  functions[materializePermissionsOnScreenChange(southamerica-east1)] Successful update operation.',
+    '⚠  functions: No cleanup policy detected for repositories in southamerica-east1.',
+    'Error: Functions successfully deployed but could not set up cleanup policy in location'
+      + ' southamerica-east1. Pass the --force option to automatically set up a cleanup policy or run'
+      + " 'firebase functions:artifacts:setpolicy' to manually set up a cleanup policy.",
+  ].join('\n');
+
+  it('reconhece a região sem política', () => {
+    expect(missingCleanupPolicy(output)).toBe('southamerica-east1');
+    expect(missingCleanupPolicy(`\u001b[1m${output}\u001b[22m`)).toBe('southamerica-east1');
+  });
+
+  it('não confunde com uma falha de verdade', () => {
+    expect(missingCleanupPolicy(deletionAbortStdout)).toBeNull();
+    expect(missingCleanupPolicy('Error: HTTP Error: 400, Invalid trigger')).toBeNull();
+  });
+
+  it('o aviso diz o comando que resolve, com a região e o projeto', () => {
+    expect(cleanupPolicyNotice('southamerica-east1', 'office')).toContain(
+      'firebase functions:artifacts:setpolicy --location southamerica-east1 --project office --force',
+    );
   });
 });

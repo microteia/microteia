@@ -191,6 +191,26 @@ export const terminalFailure = (output: string): TerminalFailure | undefined => 
 };
 
 /**
+ * A function SUBIU, e o `firebase` sai com erro mesmo assim.
+ *
+ * Sem `--force` ele não cria sozinho a política de limpeza do Artifact Registry e encerra com
+ * "Functions successfully deployed but could not set up cleanup policy" — código de saída de falha
+ * para um deploy que deu certo. Contado como falha, cada function ia para a segunda passada, falhava de
+ * novo do mesmo jeito e terminava no relatório como fora do ar, quando estava no ar. O que falta é uma
+ * configuração do projeto, feita uma vez, e por isso vira um aviso único no fim, não uma falha por
+ * function. Devolve a região sem política, ou `null`.
+ */
+const CLEANUP_POLICY_GAP = /Functions successfully deployed but could not set up cleanup policy in location (\S+?)\.?(\s|$)/;
+
+export const missingCleanupPolicy = (output: string): string | null =>
+  CLEANUP_POLICY_GAP.exec(stripVTControlCharacters(output))?.[1] ?? null;
+
+export const cleanupPolicyNotice = (location: string, projectId: string): string =>
+  `the function images in ${location} have no cleanup policy, so old ones pile up in Artifact Registry`
+  + ' and are billed. Set it once with:'
+  + ` firebase functions:artifacts:setpolicy --location ${location} --project ${projectId} --force`;
+
+/**
  * O deploy é UMA A UMA, e não `--only functions` de uma vez, porque em lote ele estoura a quota de
  * CPU do projeto — o motivo pelo qual `scripts/deploy-functions-individually.cjs` existe deste lado.
  * O cliente bate exatamente na mesma parede, com a diferença de que ele não tem o script.
@@ -211,11 +231,14 @@ const deployOne = async (
   const startedAt = Date.now();
   const result = await capture(FIREBASE_BIN, args, { cwd: options.cwd });
   const cleaned = stripNotices(`${result.stdout}${result.stderr}`);
+  const policyGap = result.code === 0 ? null : missingCleanupPolicy(cleaned.text);
 
   return {
-    ok: result.code === 0,
+    ok: result.code === 0 || policyGap !== null,
     output: cleaned.text.trim(),
-    notices: cleaned.summaries,
+    notices: policyGap === null
+      ? cleaned.summaries
+      : [...cleaned.summaries, cleanupPolicyNotice(policyGap, options.projectId)],
     seconds: Math.round((Date.now() - startedAt) / 1000),
   };
 };
