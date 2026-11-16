@@ -88,6 +88,7 @@ import {
   AI_GENERATE_STEP_ID,
 } from '../../schema/aiSteps';
 import { PARAMETER_FILL_FROM_SINCE_KERNEL, declaresFillFrom, fillFromIssues } from '../../schema/invocationSource';
+import { READ_DOCUMENT_SINCE_KERNEL, READ_DOCUMENT_STEP_ID } from '../../schema/documentRead';
 import { screenEventPrefix } from './screenModule';
 import { RENDER_DOCUMENT_STEP_ID, declaredDocumentTemplates, renderDocumentStepIssues, renderDocumentTemplateKey } from './documentStepIntegrity';
 
@@ -872,6 +873,7 @@ const STEP_DEFINITION_SINCE_KERNEL: Readonly<Record<string, string>> = {
   [AI_GENERATE_STEP_ID]: AI_DATA_STEPS_SINCE_KERNEL,
   [MAIL_SEARCH_STEP_ID]: MAIL_STEPS_SINCE_KERNEL,
   [SAVE_MAIL_ATTACHMENT_STEP_ID]: MAIL_STEPS_SINCE_KERNEL,
+  [READ_DOCUMENT_STEP_ID]: READ_DOCUMENT_SINCE_KERNEL,
 };
 
 /** "Executar relatório" com arquivo num pacote que admite kernel anterior: lá o `file` é ignorado em silêncio. */

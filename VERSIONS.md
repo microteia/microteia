@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.273.0] — 2026-11-16
+
+- Novo passo de automação "Ler documento": ele lê o texto de um PDF ou arquivo de texto anexado a um registro e o entrega ao passo seguinte. Assim, uma conta, um extrato ou uma nota que chegue por e-mail, pelo portal ou que alguém anexe pode ser processada sozinha, sem ninguém abrir o Processador de Dados.
+- É possível escolher quais páginas ler e se o texto vem numa linha só ou preservando as linhas do documento.
+- Documentos escaneados, sem texto, são sinalizados para que a automação possa encaminhá-los a uma pessoa; arquivos protegidos por senha são recusados com um aviso claro.
+
 #### [9.272.0] — 2026-11-16
 
 - O Processador de Dados agora pode entregar o texto do documento diretamente à automação, sem passar pela inteligência artificial. Basta indicar, no parâmetro da automação, que ele recebe o texto processado (ou o nome do arquivo). Assim, extensões que já sabem ler um modelo de documento conhecido — uma conta de luz, um extrato, uma nota fiscal — leem os números exatamente como estão no papel.

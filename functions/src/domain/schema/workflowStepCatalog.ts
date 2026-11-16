@@ -11,6 +11,7 @@
 
 import { WORKFLOW_AUDIT_EVENT } from './workflowAuditTrigger';
 import { MAIL_SEARCH_DEFAULT_DAYS, MAIL_SEARCH_MAX_RESULTS, MAIL_SEARCH_STEP_ID, SAVE_MAIL_ATTACHMENT_STEP_ID } from './mailbox';
+import { READ_DOCUMENT_STEP_ID } from './documentRead';
 import { HTTP_REQUEST_STEP_ID } from './httpRequestSpec';
 import type { FieldRules } from './fieldRules';
 import { RUN_REPORT_STEP_ID } from './report/reportStep';
@@ -1505,6 +1506,77 @@ export const CORE_STEP_CATALOG: readonly WorkflowStepMetadata[] = [
       { id: 'count', label: '@core.automation/step.save-mail-attachment.output.count', type: 'Number' },
       { id: 'documents', label: '@core.automation/step.save-mail-attachment.output.documents', type: 'String' },
       { id: 'tooLarge', label: '@core.automation/step.save-mail-attachment.output.too-large', type: 'String' },
+    ],
+  },
+  {
+    /**
+     * Ler o TEXTO de um documento da aba Documentos de um registro — PDF com camada de texto ou arquivo de
+     * texto —, para o passo seguinte processar. Lê, não grava. Os ids chegam prontos do gatilho
+     * `<prefixo>_document.saved` (`parentId`, `id`) ou da saída de "Salvar anexo do e-mail".
+     */
+    id: READ_DOCUMENT_STEP_ID,
+    version: 1,
+    name: '@core.automation/step.read-document.name',
+    description: '@core.automation/step.read-document.description',
+    icon: 'RiFileTextLine',
+    category: 'Data',
+    type: 'Action',
+    configurable: true,
+    inputs: [
+      {
+        id: 'collection',
+        label: '@core.automation/step.read-document.label.collection',
+        required: true,
+        type: 'String',
+        allowedMappingKinds: ['Literal'],
+        picker: 'documents-collection',
+      },
+      {
+        id: 'recordId',
+        label: '@core.automation/step.read-document.label.record',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'documentId',
+        label: '@core.automation/step.read-document.label.document',
+        description: '@core.automation/step.read-document.help.document',
+        required: true,
+        type: 'String',
+      },
+      {
+        id: 'pages',
+        label: '@core.automation/step.read-document.label.pages',
+        description: '@core.automation/step.read-document.help.pages',
+        required: false,
+        type: 'String',
+      },
+      {
+        id: 'layout',
+        label: '@core.automation/step.read-document.label.layout',
+        description: '@core.automation/step.read-document.help.layout',
+        required: false,
+        type: 'String',
+        defaultValue: 'flat',
+        allowedMappingKinds: ['Literal'],
+        options: {
+          kind: 'Static',
+          options: [
+            { value: 'flat', label: '@core.automation/step.read-document.layout.flat' },
+            { value: 'lines', label: '@core.automation/step.read-document.layout.lines' },
+          ],
+        },
+      },
+    ],
+    outputDefinitions: [
+      { id: 'text', label: '@core.automation/step.read-document.output.text', type: 'String' },
+      { id: 'hasText', label: '@core.automation/step.read-document.output.has-text', type: 'Boolean' },
+      { id: 'pageCount', label: '@core.automation/step.read-document.output.page-count', type: 'Number' },
+      { id: 'pagesRead', label: '@core.automation/step.read-document.output.pages-read', type: 'Number' },
+      { id: 'name', label: '@core.automation/step.read-document.output.name', type: 'String' },
+      { id: 'contentType', label: '@core.automation/step.read-document.output.content-type', type: 'String' },
+      { id: 'size', label: '@core.automation/step.read-document.output.size', type: 'Number' },
+      { id: 'sha256', label: '@core.automation/step.read-document.output.sha256', type: 'String' },
     ],
   },
   {

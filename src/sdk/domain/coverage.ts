@@ -87,6 +87,8 @@ const STEP_GAP_NOTES: Record<string, string> = {
     + 'no message to take an attachment from',
   'mail-search': 'searches a connected mailbox on demand. Mailboxes are connected by the office after installing, and the '
     + 'model describes records, not inboxes',
+  'read-document': 'reads the text of a document attached to a record. The model describes records and their fields, '
+    + 'not the content of the files people attach to them',
   query: 'reads other records. It is the missing half of every rule that compares one record with the rest — the guard '
     + 'that needs other records is refused precisely because the model cannot ask for this step',
   map: 'reshapes a list before writing it. Without it the model can say "create a record", never "create one per child"',

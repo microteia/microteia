@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.273.0] — 2026-11-16
+
+- feat(workflow): `read-document` step — the text of one document in a record's Documents tab (PDF text layer, `text/*`, JSON, XML) for the next step to process. Inputs `collection`, `recordId`, `documentId`, `pages` (`1`, `1-3`, `2,4`), `layout` (`flat` | `lines`); outputs `text` (pages separated by `\f`), `hasText`, `pageCount`, `pagesRead`, `name`, `contentType`, `size`, `sha256` of the content read. Before, a document's content only reached an automation through the Data Processor, with a person at the screen; an e-mail attachment or a portal upload could not be processed unattended. Kernel 2.135.0 (`READ_DOCUMENT_SINCE_KERNEL`).
+- security(workflow): the document's `storagePath` is written by the browser and not checked by the rules, so the step only reads a path under `tenants/{t}/{collection}/{record}/` of that same record — otherwise a member who can attach could point a document at a stored personal e-mail (`mail_messages/`) or another record's file, and the step, which runs as the organization, would read it.
+- feat(workflow): refusal instead of truncation above `MAX_SOURCE_TEXT_CHARACTERS`; a page the document does not have is refused; a scanned PDF is a success with `hasText: false`; password-protected, unreadable, missing and non-text files fail with their own message.
+- build(functions): `pdfjs-dist` 6.0.227 (the browser's version), loaded through Node's `require(esm)` with a real `import()` fallback — the functions compile to CommonJS, which would rewrite `import()` into `require()`. Text joined by the shared `pdfPageText`, so a parser written against the Processor's text reads the step's text the same way.
+- docs(authoring): the step in the step reference of the authoring guide. pt-BR 1.221.0.
+
 #### [9.272.0] — 2026-11-16
 
 - feat(workflow): `parameters[].fillFrom` (`sourceText` | `sourceName`) on a top-level `String` parameter of a `workflow.called` automation. The Data Processor (`runWorkflow`) and the `ai-extract-parameters` step deliver the text they were given — and the file name — to that parameter as it arrived, and leave it out of the schema sent to the model; with no other parameter, no model is called and no AI connection is required. Before, the text only fed the model, so an extension that parses a known layout in a sandbox script had to ask a model to copy thousands of characters into a `String`, bounded by its output limit and free to change a digit unnoticed. The role belongs to the invocation, not to a screen, so the same automation behaves the same from the Processor and from a step woken by an e-mail. From any other entry point (action, `call-workflow`, MCP) it is an ordinary `String`.

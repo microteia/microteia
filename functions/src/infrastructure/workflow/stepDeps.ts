@@ -19,6 +19,7 @@ import type { IReportDefinitionReader } from '../../domain/repositories/IReportD
 import type { RunReportFileDeps } from './steps/RunReportStep';
 import type { MailSearchDeps } from '../../domain/services/mailSearch';
 import type { SaveMailAttachmentUseCase } from '../../domain/usecases/SaveMailAttachmentUseCase';
+import type { ReadRecordDocumentUseCase } from '../../domain/usecases/ReadRecordDocumentUseCase';
 
 /**
  * Dependências que o composition root injeta nas fábricas de Step. Vive em arquivo próprio para
@@ -52,6 +53,8 @@ export interface RegisterStepsDeps {
   reportSnapshots?: IReportSnapshotRepository;
   /** As caixas de e-mail, dos passos "Buscar e-mails" e "Salvar anexo do e-mail". */
   mail: { search: MailSearchDeps; saveAttachment: SaveMailAttachmentUseCase };
+  /** O texto de um documento da aba Documentos, do passo "Ler documento". */
+  readDocument: ReadRecordDocumentUseCase;
 }
 
 /**

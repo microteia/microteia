@@ -37,6 +37,7 @@ const LACUNAS_CONFERIDAS = [
   'workflow-step\trun-report',
   'workflow-step\tshare-documents',
   'workflow-step\tsave-mail-attachment',
+  'workflow-step\tread-document',
   'workflow-step\tmail-search',
   'workflow-step\tportal-invite',
   'workflow-step\tportal-revoke',

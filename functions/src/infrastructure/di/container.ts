@@ -289,6 +289,9 @@ import type { IMailReader } from '../../domain/repositories/IMailReader';
 import { StorageMailRawStore } from '../../data/services/StorageMailRawStore';
 import type { IMailRawStore } from '../../domain/repositories/IMailRawStore';
 import { makeSaveMailAttachmentUseCase } from '../../domain/usecases/SaveMailAttachmentUseCase';
+import { makeReadRecordDocumentUseCase } from '../../domain/usecases/ReadRecordDocumentUseCase';
+import { FirebaseRecordDocumentStore } from '../../data/services/FirebaseRecordDocumentStore';
+import { PdfjsTextExtractor } from '../../data/services/PdfjsTextExtractor';
 import { parseMailAttachments } from '../../data/services/mailParsing';
 import type { HttpDeliveryDeps } from '../../domain/services/httpDelivery';
 import { makeDeliverHttpDispatchUseCase, type DeliverHttpDispatchUseCase } from '../../domain/usecases/DeliverHttpDispatchUseCase';
@@ -1462,6 +1465,11 @@ class DIContainer {
           timeZoneOf: (tenantId) => tenantTimeZone(tenantId),
         }),
       },
+      readDocument: makeReadRecordDocumentUseCase({
+        screens: this.getScreenDefinitionCache(),
+        documents: new FirebaseRecordDocumentStore(),
+        pdf: new PdfjsTextExtractor(),
+      }),
     });
     this.workflowStepsRegistered = true;
   }

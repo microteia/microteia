@@ -95,6 +95,7 @@ const SHARED_FILES = [
   'domain/schema/aiSteps.ts',
   'domain/schema/invocationSource.ts',
   'domain/schema/pdfText.ts',
+  'domain/schema/documentRead.ts',
   'domain/schema/workflowVersion.ts',
   'domain/schema/workflowLoopQuery.ts',
   'domain/schema/workflowParallel.ts',
