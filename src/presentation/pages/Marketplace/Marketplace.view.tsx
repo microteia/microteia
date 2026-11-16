@@ -30,6 +30,8 @@ import {
   RiShieldKeyholeLine,
   RiGroupLine,
   RiQuestionMark,
+  RiStackFill,
+  RiStackLine,
 } from 'react-icons/ri';
 import { getScreenIcon } from '../../shared/screenIcons';
 import { Button } from '../../components/ui/Button';
@@ -233,6 +235,7 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
           {row.failed && <S.Badge $tone="danger"><S.BadgeDot $tone="danger" />{t('extension.badge.failed')}</S.Badge>}
           {row.updateAvailable && <S.Badge $tone="primary">{t('extension.badge.update')}</S.Badge>}
           {row.statusBadge && <S.Badge $tone={STATUS_LABEL[row.statusBadge].tone}>{t(STATUS_LABEL[row.statusBadge].labelKey)}</S.Badge>}
+          {row.isDefault && <S.Badge $tone="primary" title={t('extension.badge.default.hint')}>{t('extension.badge.default')}</S.Badge>}
           {row.imported && <S.Badge $tone="neutral" title={t('extension.badge.imported.hint')}>{t('extension.badge.imported')}</S.Badge>}
           {row.hasCode && <S.Badge $tone="info">{t('extension.badge.has-code')}</S.Badge>}
           {row.hasServerCode && <S.Badge $tone="warning" title={t('extension.badge.server-code.hint')}>{t('extension.badge.server-code')}</S.Badge>}
@@ -411,6 +414,15 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
           onClick={() => void vm.togglePublisherVerified(row.id)}
         >
           {row.publisherVerified ? <RiVerifiedBadgeFill size={17} /> : <RiVerifiedBadgeLine size={17} />}
+        </S.ActionButton>
+      )}
+      {row.defaultAction && (
+        <S.ActionButton
+          title={row.defaultBlockedReason ?? t(row.defaultAction === 'mark' ? 'extension.default.mark' : 'extension.default.unmark')}
+          disabled={busy || row.defaultBlockedReason !== null}
+          onClick={() => void vm.toggleDefault(row.id)}
+        >
+          {row.isDefault ? <RiStackFill size={17} /> : <RiStackLine size={17} />}
         </S.ActionButton>
       )}
       {row.canDeprecate && (

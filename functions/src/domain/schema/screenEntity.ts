@@ -32,6 +32,7 @@ import { RECORD_SEQUENCES_COLLECTION, recordSequenceFields } from './recordSeque
 import { RECORD_IMPORTS_COLLECTION } from './recordImport';
 import { RECORD_SEARCH_JOBS_COLLECTION } from './recordSearch';
 import { EXTENSION_SEEDS_COLLECTION } from './screenSeed';
+import { EXTENSION_ONBOARDING_COLLECTION } from './plugin/defaultExtensions';
 import { WORKFLOW_CLOCK_COLLECTION, WORKFLOW_TRIGGER_MARKS_COLLECTION } from './workflowClock';
 import { WORKFLOW_TASKS_COLLECTION } from './workflowTask';
 import { WORKFLOW_WEBHOOKS_COLLECTION } from './workflowWebhook';
@@ -638,6 +639,7 @@ export const RESERVED_COLLECTIONS: ReadonlySet<string> = new Set<string>([
   'extension_migrations',
   'extension_history',
   EXTENSION_SEEDS_COLLECTION,
+  EXTENSION_ONBOARDING_COLLECTION,
   AGGREGATE_BACKFILL_COLLECTION,
   RECORD_KEY_ADOPTION_COLLECTION,
   RECORD_SEQUENCES_COLLECTION,

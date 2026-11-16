@@ -38,6 +38,7 @@ import { ExpressionFunctionStoreProvider } from './stores/ExpressionFunctionStor
 import { StepCatalogProvider } from './stores/StepCatalogStore';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { SecondFactorFlowHost, TenantEntryGate } from './presentation/components/layout/TenantEntryGate';
+import { DefaultExtensionsGate } from './presentation/components/layout/DefaultExtensionsGate';
 import { LoginView } from './presentation/pages/Login/Login.view';
 import { LicenseView } from './presentation/pages/License/License.view';
 import { WorkspaceShell } from './presentation/components/layout/WorkspaceShell';
@@ -149,6 +150,7 @@ const App: React.FC = () => {
                                                         <BusinessCalendarBridge />
                                                         <ExtensionStartupHost />
                                                         <SecondFactorFlowHost />
+                                                        <DefaultExtensionsGate>
                                                         <Routes>
                                                           {/*
                                                             O consentimento de OAuth é uma rota, e
@@ -166,6 +168,7 @@ const App: React.FC = () => {
                                                           />
                                                           <Route path="*" element={<WorkspaceShell />} />
                                                         </Routes>
+                                                        </DefaultExtensionsGate>
                                                       </TenantLocaleProvider>
                                                       </HttpConnectionStoreProvider>
                                                       </AuditLogAlertStoreProvider>

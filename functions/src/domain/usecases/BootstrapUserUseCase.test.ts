@@ -75,9 +75,20 @@ describe('BootstrapUserUseCase', () => {
   });
 
   const policy = (acceptNewAccounts: boolean, selfServiceTenants: boolean) => ({
-    getPolicy: vi.fn(async () => ({ acceptNewAccounts, selfServiceTenants })),
+    getPolicy: vi.fn(async () => ({ acceptNewAccounts, selfServiceTenants, defaultExtensions: [] })),
     refuse: vi.fn(async () => undefined),
   } satisfies IRegistrationRepository);
+
+  it('as extensões padrão são fixadas ANTES de o dono entrar — o navegador as lê na primeira carga', async () => {
+    const { users, tenants } = setup();
+    const order: string[] = [];
+    vi.mocked(tenants.addMemberIfWithinLimit).mockImplementation(async () => { order.push('member'); });
+    const defaultExtensions = { execute: vi.fn(async (tenantId: string) => { order.push(`defaults:${tenantId}`); }) };
+
+    await makeBootstrapUserUseCase(users, tenants, () => 0, undefined, undefined, defaultExtensions).execute(input);
+
+    expect(order).toEqual(['defaults:t1', 'member']);
+  });
 
   describe('autocadastro de escritório desligado (system/registration.selfServiceTenants falso)', () => {
     it('a conta nova não ganha escritório, e o carimbo diz que o provisionamento terminou', async () => {

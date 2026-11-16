@@ -196,15 +196,18 @@ service cloud.firestore {
     }
 
     // ─── Contas novas da instalação ───────────────────────────────────────────
-    // Se a conta nova pode existir e se ganha escritório próprio. Só o SYSTEM lê e muda (Gestão de
-    // Acessos › Usuários). O ÚNICO documento de `system/` que alguma regra alcança: `system/bootstrap`
+    // Se a conta nova pode existir, se ganha escritório próprio e quais extensões do catálogo esse
+    // escritório recebe instaladas (`defaultExtensions`). Só o SYSTEM lê e muda (Gestão de Acessos ›
+    // Usuários; a marca de padrão, na aba Catálogo de Extensões). O ÚNICO documento de `system/` que alguma regra alcança: `system/bootstrap`
     // continua só do Admin SDK. Campo ausente vale `true`. Ver `domain/schema/registration.ts`.
     match /system/registration {
       allow get: if isSystemAdmin();
       allow create, update: if isSystemAdmin()
-        && request.resource.data.keys().hasOnly(['acceptNewAccounts', 'selfServiceTenants', 'updatedBy', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['acceptNewAccounts', 'selfServiceTenants', 'defaultExtensions', 'updatedBy', 'updatedAt'])
         && request.resource.data.get('acceptNewAccounts', true) is bool
         && request.resource.data.get('selfServiceTenants', true) is bool
+        && request.resource.data.get('defaultExtensions', []) is list
+        && request.resource.data.get('defaultExtensions', []).size() <= 30
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time;
     }
@@ -549,6 +552,20 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // As extensões PADRÃO que o escritório novo ainda tem a instalar — fixadas pelo servidor na
+      // criação dele (`openOwnedTenant`). Quem instala é o navegador de quem tem `extensions.manage`,
+      // pela mesma porta da tela de Extensões, e é ele que tira da lista o que concluiu. A lista só
+      // nomeia extensões do catálogo, e instalar continua exigindo a permissão: forjá-la não dá nada.
+      match /extension_onboarding/{document} {
+        allow read: if isMember(tenantId);
+        allow create: if false;
+        allow update: if can(tenantId, 'extensions.manage')
+          && request.resource.data.keys().hasOnly(['pending', 'failed', 'stagedAt', 'updatedAt'])
+          && request.resource.data.pending is list
+          && request.resource.data.failed is list;
+        allow delete: if can(tenantId, 'extensions.manage');
+      }
+
       // O recálculo dos agregados sobre os registros que já existiam (um documento por tela pai).
       // Todo membro lê: é daqui que a listagem tira o aviso de uma passada bloqueada ou com falhas, e o
       // que o documento expõe — nomes de campo, contagens, ids — quem lê a tela já vê. Ninguém grava
@@ -827,7 +844,7 @@ service cloud.firestore {
       function isReservedCollection(name) {
         return name in [
         'actions', 'agentGrants', 'aggregate_backfills', 'aiConnections', 'assistantConversations',
-        'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extension_seeds', 'extensions',
+        'documentTemplates', 'documentTypes', 'documents', 'downloads', 'extension_history', 'extension_migrations', 'extension_onboarding', 'extension_seeds', 'extensions',
         'installed_extensions', 'lookupDefinitions', 'members', 'notes', 'notification_inbox', 'notification_dispatches', 'notification_contacts',
         'personalReports', 'portalIdentityInvites', 'portalRecords', 'portalTexts', 'portalUsers', 'portal_reprojections', 'report_snapshots', 'reports', 'roles',
         // `plugin_installations` não tem mais código que a leia — foi a instalação de antes de
@@ -1324,13 +1341,20 @@ service cloud.firestore {
     //   As regras de quem publica (código só SYSTEM, domínio do escritório dono) moram na callable.
     // - Aprovar e obsoletar: só SYSTEM, e só o `status` — nem ele reescreve pacote ou prova pela tela.
     // - Apagar: só SYSTEM.
+    // - Extensão PADRÃO (`system/registration.defaultExtensions`) não é obsoletada nem apagada: o
+    //   próximo escritório novo a procuraria no catálogo e não a acharia. Tira-se a marca antes.
     match /public_extensions/{domain} {
+      function isDefaultExtension() {
+        let registration = /databases/$(database)/documents/system/registration;
+        return exists(registration) && domain in get(registration).data.get('defaultExtensions', []);
+      }
       allow read: if request.auth != null;
       allow create: if false;
       allow update: if isSystemAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
-        && request.resource.data.status in ['approved', 'deprecated'];
-      allow delete: if isSystemAdmin();
+        && (request.resource.data.status == 'approved'
+          || (request.resource.data.status == 'deprecated' && !isDefaultExtension()));
+      allow delete: if isSystemAdmin() && !isDefaultExtension();
     }
 
     // ─── Reputação de extensão — instalações e estrelas ────────────────────────

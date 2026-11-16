@@ -330,6 +330,28 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'extension.removed': 'Extension deleted from your private area.',
   'extension.published': 'Published to the catalog.',
   'extension.proved': 'Installation proven: the version in the catalog now carries the guarantee.',
+  'extension.badge.default': 'Default',
+  'onboarding.title': 'Adding extensions…',
+  'onboarding.lead':
+    'Please wait: this organization is receiving the extensions every new organization gets. It only happens once.',
+  'onboarding.progress': '{done} of {total} — {name}',
+  'onboarding.failed': 'Could not install {name}: {detail}',
+  'onboarding.retry': 'Try again',
+  'onboarding.skip': 'Continue without it',
+  'extension.badge.default.hint': 'Every new organization receives this extension installed.',
+  'extension.default.mark': 'Install in every new organization',
+  'extension.default.unmark': 'Stop installing in new organizations',
+  'extension.default.marked': 'Every new organization will receive this extension installed.',
+  'extension.default.unmarked': 'New organizations will no longer receive this extension.',
+  'default.not-approved': 'Only an extension approved in the catalog can be installed in every new organization.',
+  'default.unproven':
+    'The version in the catalog was published before installation was proven. The publishing organization '
+    + 'must prove it (or publish a new version) first.',
+  'default.too-many': 'At most {max} extensions are installed in every new organization.',
+  'default.dependency-not-default':
+    'It depends on "{dependency}", which new organizations do not receive. Make that one default first.',
+  'default.required-by':
+    'The default extension "{dependent}" depends on this one. Stop installing that one first.',
   'extension.publish-failed': 'Could not publish: {detail}',
   'extension.approved': 'Extension approved.',
   'extension.deprecated': 'Extension marked as deprecated.',

@@ -85,6 +85,11 @@ import type {
 import { FirebaseAuditLogRepository } from '../../data/repositories/FirebaseAuditLogRepository';
 import { FirebaseExtensionStatsRepository } from '../../data/repositories/FirebaseExtensionStatsRepository';
 import { FirebaseExtensionPublicationRepository } from '../../data/repositories/FirebaseExtensionPublicationRepository';
+import { FirebaseDefaultExtensionOnboardingRepository } from '../../data/repositories/FirebaseDefaultExtensionOnboardingRepository';
+import {
+  makeStageDefaultExtensionsUseCase,
+  type StageDefaultExtensionsUseCase,
+} from '../../domain/usecases/StageDefaultExtensionsUseCase';
 import {
   makePublishExtensionUseCase,
   type PublishExtensionUseCase,
@@ -432,9 +437,17 @@ class DIContainer {
         Math.random,
         this.getPortalRepository(),
         new FirebaseRegistrationRepository(getDb(), getAuth()),
+        this.getStageDefaultExtensionsUseCase(),
       );
     }
     return this.bootstrapUserUC;
+  }
+
+  getStageDefaultExtensionsUseCase(): StageDefaultExtensionsUseCase {
+    return makeStageDefaultExtensionsUseCase({
+      onboarding: new FirebaseDefaultExtensionOnboardingRepository(getDb()),
+      logger: { error: (message: string) => console.error(message) },
+    });
   }
 
   getPortalRepository(): IPortalRepository {
@@ -922,6 +935,7 @@ class DIContainer {
       tenants: this.getTenantRepository(),
       audit: this.getCreateAuditLogUseCase(),
       random: Math.random,
+      defaultExtensions: this.getStageDefaultExtensionsUseCase(),
     });
   }
 

@@ -62,6 +62,7 @@ const SHARED_FILES = [
   'domain/schema/actionScope.ts',
   'domain/schema/plugin/codeTrust.ts',
   'domain/schema/plugin/publicationProof.ts',
+  'domain/schema/plugin/defaultExtensions.ts',
   'domain/schema/aggregationSpec.ts',
   'domain/schema/aggregateBackfill.ts',
   'domain/schema/lookupSeed.ts',

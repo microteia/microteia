@@ -322,6 +322,28 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'extension.removed': 'Extensão excluída da sua área privada.',
   'extension.published': 'Publicada no catálogo.',
   'extension.proved': 'Instalação comprovada: a versão do catálogo agora traz a garantia.',
+  'extension.badge.default': 'Padrão',
+  'onboarding.title': 'Aguarde… adicionando extensões',
+  'onboarding.lead':
+    'Este escritório está recebendo as extensões que todo escritório novo ganha. Isso acontece uma vez só.',
+  'onboarding.progress': '{done} de {total} — {name}',
+  'onboarding.failed': 'Não foi possível instalar {name}: {detail}',
+  'onboarding.retry': 'Tentar de novo',
+  'onboarding.skip': 'Continuar sem ela',
+  'extension.badge.default.hint': 'Todo escritório novo recebe esta extensão instalada.',
+  'extension.default.mark': 'Instalar em todo escritório novo',
+  'extension.default.unmark': 'Deixar de instalar nos escritórios novos',
+  'extension.default.marked': 'Todo escritório novo vai receber esta extensão instalada.',
+  'extension.default.unmarked': 'Os escritórios novos deixam de receber esta extensão.',
+  'default.not-approved': 'Só uma extensão aprovada no catálogo pode ser instalada em todo escritório novo.',
+  'default.unproven':
+    'A versão do catálogo foi publicada antes de a instalação ser comprovada. O escritório que a publicou '
+    + 'precisa comprová-la (ou publicar uma versão nova) antes.',
+  'default.too-many': 'No máximo {max} extensões são instaladas em todo escritório novo.',
+  'default.dependency-not-default':
+    'Ela depende de "{dependency}", que os escritórios novos não recebem. Torne aquela padrão antes.',
+  'default.required-by':
+    'A extensão padrão "{dependent}" depende desta. Deixe de instalar aquela antes.',
   'extension.publish-failed': 'Não foi possível publicar: {detail}',
   'extension.approved': 'Extensão aprovada.',
   'extension.deprecated': 'Extensão marcada como obsoleta.',
