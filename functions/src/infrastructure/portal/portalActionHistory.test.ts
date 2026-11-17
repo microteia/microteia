@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import { EXECUTION_DETAIL_COLLECTION, EXECUTION_DETAIL_DOC } from '../../domain/schema/executionHistory';
 import { deleteApp, getApps } from 'firebase-admin/app';
 import { DocumentReference, Firestore, WriteBatch } from 'firebase-admin/firestore';
 import { FirebaseTenantSettingsRepository } from '../../data/repositories/FirebaseTenantSettingsRepository';
@@ -121,10 +122,16 @@ const portalAction = async (db: Firestore) => {
 
 const resolve = (value: string) => value.replace('@portal.test/', '');
 
-/** O que foi gravado em `workflow_executions` — o serializador correu, o `commit` não sai para a rede. */
+/**
+ * As linhas gravadas — o DETALHE da execução (`workflow_executions/{id}/detail/run`), ao lado do resumo
+ * que vai no mesmo lote. O serializador correu; o `commit` não sai para a rede.
+ */
 const writtenExecutions = (calls: ReadonlyArray<ReadonlyArray<unknown>>) =>
   calls
-    .filter(([ref]) => (ref as DocumentReference).path.includes('/workflow_executions/'))
+    .filter(([ref]) => {
+      const path = (ref as DocumentReference).path;
+      return path.includes('/workflow_executions/') && path.endsWith(`/${EXECUTION_DETAIL_COLLECTION}/${EXECUTION_DETAIL_DOC}`);
+    })
     .map(([, data]) => data as { logs: Array<Record<string, unknown>> });
 
 describe('ação do portal — o histórico da execução é gravado', () => {

@@ -97,8 +97,8 @@ export const seed = async (env: RulesTestEnvironment, data: Seed): Promise<void>
     }
     for (const [tenantId, collections] of Object.entries(data.records ?? {})) {
       for (const [path, record] of Object.entries(collections)) {
-        const [collection, id] = path.split('/');
-        await setDoc(doc(db, 'tenants', tenantId, collection, id), record);
+        // O caminho pode descer a uma subcoleção (`workflow_executions/x/detail/run`).
+        await setDoc(doc(db, 'tenants', tenantId, ...path.split('/')), record);
       }
     }
     for (const [path, record] of Object.entries(data.root ?? {})) {

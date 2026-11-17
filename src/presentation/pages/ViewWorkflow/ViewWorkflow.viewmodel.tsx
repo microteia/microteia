@@ -436,6 +436,14 @@ export interface ViewWorkflowViewModel {
   changedFieldOptions: { value: string; label: string }[];
   /** Quem administra a automação pode refazer uma execução encerrada. */
   canRerun: boolean;
+  /**
+   * Quem não gerencia automações vê o status das execuções, e não o que cada passo recebeu e devolveu
+   * (ver `domain/schema/executionHistory.ts`). A aba diz isso em vez de mostrar execuções sem passo.
+   */
+  executionDetailHidden: boolean;
+  /** O status da execução e o nível de cada linha, no idioma de quem lê — o código fica no dado. */
+  executionStatusLabel: (status: WorkflowExecution['status']) => string;
+  stepStatusLabel: (status: 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO') => string;
   /** A execução pode ser refeita: terminou (não está correndo nem esperando). */
   isRerunnable: (execution: WorkflowExecution) => boolean;
   rerunExecution: (execution: WorkflowExecution) => Promise<void>;
@@ -463,7 +471,7 @@ const mapExecutionToRunResult = (
   const lastError = [...exec.logs].reverse().find((entry) => entry.level === 'ERROR');
   return {
     status: exec.status === 'RUNNING' ? null : exec.status,
-    outputs: exec.outputs ?? null,
+    outputs: exec.detailAvailable ? exec.outputs : null,
     logs: exec.logs.map((entry) => ({
       level: entry.level,
       message: resolve(entry.message, entry.messageParams),
@@ -540,6 +548,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const [dropTarget, setDropTarget] = useState<{ parentKey: string; index: number } | null>(null);
   const [rerunningId, setRerunningId] = useState<string | null>(null);
   const { can } = useAuthorization();
+  const canSeeExecutionDetail = can(PERMISSION_AUTOMATION_MANAGE);
   const { formatDateTime } = useLocaleFormat();
   const { installed } = useInstalledExtensions();
 
@@ -568,6 +577,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     return workflowExecutionRepository.subscribeToWorkflowExecutions(
       currentTenant.id,
       workflowId,
+      canSeeExecutionDetail,
       (newExecutions) => {
         // A mensagem de cada log vem do motor como REFERÊNCIA. Resolver na chegada, e não em cada
         // ponto que exibe, deixa a aba inteira lendo texto pronto.
@@ -593,7 +603,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       },
       (error) => setExecutionsError(error.message),
     );
-  }, [currentTenant, isNew, workflowId, workflowExecutionRepository, label]);
+  }, [currentTenant, isNew, workflowId, workflowExecutionRepository, label, canSeeExecutionDetail]);
 
   const setFormData = useCallback((data: Partial<WorkflowFormData>) => {
     setFormDataState((prev) => ({ ...prev, ...data }));
@@ -1495,6 +1505,26 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     });
   }, [dragging, dropTarget, workflow, updateWorkflowSteps, notify, t]);
 
+  const executionStatusLabel = useCallback((status: WorkflowExecution['status']): string => {
+    switch (status) {
+      case 'RUNNING': return t('executions.status.running');
+      case 'SUCCESS': return t('executions.status.success');
+      case 'FAILED': return t('executions.status.failed');
+      case 'PARTIAL': return t('executions.status.partial');
+      case 'WAITING': return t('executions.status.waiting');
+      case 'CANCELLED': return t('executions.status.cancelled');
+    }
+  }, [t]);
+
+  const stepStatusLabel = useCallback((status: 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO'): string => {
+    switch (status) {
+      case 'SUCCESS': return t('executions.level.success');
+      case 'ERROR': return t('executions.level.error');
+      case 'WARN': return t('executions.level.warn');
+      case 'INFO': return t('executions.level.info');
+    }
+  }, [t]);
+
   const getStepLogStatus = useCallback((log: { level: string }): 'SUCCESS' | 'ERROR' | 'WARN' | 'INFO' => {
     if (log.level === 'ERROR') return 'ERROR';
     if (log.level === 'SUCCESS') return 'SUCCESS';
@@ -1627,6 +1657,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
           (onUpdate, onError) => workflowExecutionRepository.subscribeToWorkflowExecutions(
             tenantId,
             targetWorkflowId,
+            canSeeExecutionDetail,
             onUpdate,
             onError,
           ),
@@ -1660,7 +1691,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         else follow.signal.addEventListener('abort', stop, { once: true });
       });
     },
-    [currentTenant, workflow, dataProcessorRepository, workflowExecutionRepository, t, label],
+    [currentTenant, workflow, dataProcessorRepository, workflowExecutionRepository, t, label, canSeeExecutionDetail],
   );
 
   return {
@@ -1794,6 +1825,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     changeTypeOptions,
     changedFieldOptions,
     canRerun,
+    executionDetailHidden: !canSeeExecutionDetail,
+    executionStatusLabel,
+    stepStatusLabel,
     isRerunnable,
     rerunExecution,
     rerunningId,

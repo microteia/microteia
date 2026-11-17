@@ -186,6 +186,7 @@ export const runWorkflow = async ({
     finishedAt: services.now(),
     logs,
     outputs,
+    ...(actor ? { actorId: actor.userId } : {}),
   });
 
   const buildContext = (

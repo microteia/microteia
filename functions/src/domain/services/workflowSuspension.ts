@@ -207,6 +207,7 @@ export const resumeWorkflowExecution = async (
     startedAt,
     logs,
     outputs: {},
+    ...(previous?.actorId ? { actorId: previous.actorId } : {}),
   };
 
   const end = async (status: 'CANCELLED' | 'FAILED', level: 'WARN' | 'ERROR', message: string): Promise<'fired'> => {

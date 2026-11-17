@@ -2496,7 +2496,9 @@ permissions.
 What it does NOT hide: an **aggregate** stored on a parent (\`aggregation\`) is computed over every
 child, so a count of restricted children shows on a parent everyone reads — do not aggregate a secret.
 The same goes for a **name read through a reference** (\`<denormKey>.<field>\`) and shown on another record. And the
-workflow execution history keeps what each step returned.
+workflow execution history keeps what each step returned — every member sees the status of a run, and
+what each step received and returned only those who manage automations, who already read the whole
+organization through the workflows they write.
 
 On an update of your extension, what your package declares wins; what it does NOT declare removes
 nothing — dropping the restriction is a person's decision, with \`screens.member-visibility\` in the
@@ -4158,9 +4160,9 @@ What each choice is for:
 - **\`sha256\` is the file's fingerprint.** Storing it on the record is what lets the script tell the same
   file attached twice — to this record or to another — from a new one.
 - **The beginning of the text stays in the run history**, as every step's output does — the history keeps
-  the start of a long text and how much was left out, never all of it —, and every member reads that
-  history: a restricted record does not restrict it (§8, "Record visibility"). Do not read a document there
-  whose text not every member may see.
+  the start of a long text and how much was left out, never all of it. Every member sees that the run
+  happened; what each step received and returned only those who manage automations — whatever the
+  record's own restriction (§8, "Record visibility").
 
 The text arrives two other ways, and the parser — \`bill.ts\`, listed in another script's \`sourceFile\` —
 serves both. From an **e-mail**, the flow above stays as it is after one more step: \`mail.received\` →

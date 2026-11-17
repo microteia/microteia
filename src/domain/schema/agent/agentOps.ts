@@ -666,6 +666,8 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       + 'outputs. "pending": true means the run has not started yet, and "finished": false that it is '
       + 'still running or waiting — call again in both cases. A run with status WAITING is paused on '
       + 'purpose and resumes by itself at "resumeAt"; CANCELLED means it had nothing left to resume. '
+      + 'The log and the outputs come only for a run this access started, or with permission to manage '
+      + 'automations; otherwise "detailWithheld": true and the status is all there is. '
       + 'An event id no run_workflow returned is refused.',
     inputSchema: object(
       { eventId: { type: 'string', description: 'The event id run_workflow returned.' } },

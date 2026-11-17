@@ -5,6 +5,7 @@ export type SubscribeToWorkflowExecutionsUseCase = {
   execute: (
     tenantId: string,
     workflowDefinitionId: string,
+    detail: boolean,
     onUpdate: (executions: WorkflowExecution[]) => void,
     onError?: (error: Error) => void,
   ) => () => void;
@@ -13,6 +14,6 @@ export type SubscribeToWorkflowExecutionsUseCase = {
 export const makeSubscribeToWorkflowExecutionsUseCase = (
   repo: IWorkflowExecutionRepository,
 ): SubscribeToWorkflowExecutionsUseCase => ({
-  execute: (tenantId, workflowDefinitionId, onUpdate, onError) =>
-    repo.subscribeToWorkflowExecutions(tenantId, workflowDefinitionId, onUpdate, onError),
+  execute: (tenantId, workflowDefinitionId, detail, onUpdate, onError) =>
+    repo.subscribeToWorkflowExecutions(tenantId, workflowDefinitionId, detail, onUpdate, onError),
 });

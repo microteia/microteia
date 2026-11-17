@@ -8,6 +8,7 @@ import {
   bareHistoryRecord,
   historyBytes,
   historyRecord,
+  seesExecutionDetail,
   trimForHistory,
 } from './executionHistory';
 
@@ -105,5 +106,21 @@ describe('bareHistoryRecord', () => {
   it('um histórico curto não perde linha nem repete', () => {
     const record = bareHistoryRecord(execution([step('a', { outputs: { v: 1 } }), step('b')]));
     expect(record.logs.map((entry) => entry.stepId)).toEqual(['a', 'b', undefined]);
+  });
+});
+
+describe('seesExecutionDetail', () => {
+  it('quem gerencia automações vê o detalhe de qualquer execução', () => {
+    expect(seesExecutionDetail(['automation.manage'], 'u2', { actorId: 'u1' })).toBe(true);
+    expect(seesExecutionDetail(['automation.manage'], 'u2', {})).toBe(true);
+  });
+
+  it('quem só executa vê o detalhe da execução que disparou, e de nenhuma outra', () => {
+    expect(seesExecutionDetail(['automation.run'], 'u1', { actorId: 'u1' })).toBe(true);
+    expect(seesExecutionDetail(['automation.run'], 'u2', { actorId: 'u1' })).toBe(false);
+  });
+
+  it('execução sem pessoa por trás (relógio, gatilho do kernel) só abre a quem gerencia', () => {
+    expect(seesExecutionDetail(['automation.run'], '', {})).toBe(false);
   });
 });

@@ -127,7 +127,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `AuditLog` | `auditLogs/{id}` | Sim (campo `tenantId`, coleção flat) |
 | `WorkflowDefinition` | `tenants/{tenantId}/workflow_definitions/{id}` (steps embutidos como array) | Sim |
 | `WorkflowEvent` | `tenants/{tenantId}/workflow_events/{id}` (append-only, sem leitura pelo cliente) | Sim |
-| `WorkflowExecution` | `tenants/{tenantId}/workflow_executions/{id}` (somente leitura pelo cliente) | Sim |
+| `WorkflowExecution` | `tenants/{tenantId}/workflow_executions/{id}` (resumo) + `…/detail/run` (detalhe), somente leitura pelo cliente | Sim |
 | `WorkflowTask` | `tenants/{tenantId}/workflow_tasks/{executionId_stepId}` (lê o designado e quem tem `automation.manage`; ninguém grava pelo cliente) | Sim |
 | `StepDefinition` (catálogo, espelho somente-leitura) | `workflow_step_catalog/{id}` | Não |
 | `Script` (código reutilizável do Step "Script") | `tenants/{tenantId}/scripts/{id}` | Sim |
@@ -7998,6 +7998,35 @@ A continuação de uma execução suspensa (`workflow_clock/resume_*`) guarda o 
 a regra deixou de liberá-la ao cliente — o editor só lê a agenda, pelo id da definição. O prefixo da
 regra é conferido contra `RESUME_CLOCK_ID_PREFIX` em `scripts/reservedCollections.test.ts`.
 
+### O histórico em dois documentos — resumo para todos, detalhe para quem gerencia
+
+A regra do Firestore não projeta campo: quem lê um documento lê tudo o que está nele. Com o histórico num
+documento só, liberado a todo membro (`isMember`), o que cada passo recebeu e devolveu — o registro que
+disparou a automação, com o `old`; o texto de um documento lido; o corpo de um e-mail de caixa pessoal —
+chegava a quem a visibilidade por registro, a permissão de leitura da coleção ou o sigilo da caixa
+deixavam de fora. Por isso são dois (`domain/schema/executionHistory.ts`):
+
+| Documento | Conteúdo | Quem lê |
+|---|---|---|
+| `workflow_executions/{id}` (resumo) | `schema`, status, horários, `eventId`, `actorId` | todo membro — só com `schema == 2` |
+| `workflow_executions/{id}/detail/run` | `logs` (com `contextInput`, `inputs`, `outputs`) e a saída final | `automation.manage` |
+
+- **Por que `automation.manage` vê tudo:** quem a tem já lê o escritório inteiro — escreve uma automação
+  que lê qualquer coleção. Dar o detalhe a ele não abre nada novo; tirá-lo dos outros fecha a brecha.
+- **O histórico antigo**, num documento só, não tem `schema`, e a regra o deixa com quem gerencia — sem
+  migração. A consulta de quem não gerencia diz `where('schema', '==', 2)`, que é o que a regra prova
+  antes de liberar; sem ela, uma consulta alcançaria um documento antigo e seria recusada inteira. Índice
+  próprio: `workflowDefinitionId` + `schema` + `startedAt`.
+- **Gravação em lote** (`FirebaseWorkflowExecutionRepository.write`): resumo sem detalhe mostraria uma
+  execução sem passo; detalhe sem resumo não seria achado.
+- **A tela** (`ViewWorkflow`) assina com detalhe só para quem gerencia, e relê o detalhe de uma execução só
+  quando o resumo muda de estado; quem não gerencia vê o status, com o aviso `executions.detail-restricted`.
+  O Processador assina só resumos.
+- **O MCP** (`get_workflow_run`) devolve log e saídas a quem gerencia e a quem disparou a execução
+  (`actorId`, `seesExecutionDetail`); aos outros, o status e `detailWithheld: true`. As mensagens andam com
+  o detalhe, não com o status, porque os parâmetros delas carregam valor ("Variável copia0 definida com
+  valor …").
+
 ### Resolução lazy de FKs — WorkflowContextHydrator
 
 O payload publicado é **cru** (só os dados do documento). Quem materializa FKs é o
@@ -9032,9 +9061,9 @@ anterior. São os dois porque cada um falha onde o outro funciona: o `new Functi
 O teste do extrator gera um PDF com o `pdfmake` e o lê com a biblioteca real, que é o que prova o
 carregamento.
 
-Lê, não grava: pode ser reexecutado, e não tem `appendsEachRun`. O começo do texto lido fica no histórico
-da execução (o corte de `historyRecord`), visível a quem vê as execuções da automação — como o corpo de e-mail do `mail-search` —, e por
-isso **não** respeita a visibilidade por registro (ver "O que NÃO esconde"). Exige
+Lê, não grava: pode ser reexecutado, e não tem `appendsEachRun`. O começo do texto lido fica no DETALHE da
+execução (o corte de `historyRecord`), que só quem gerencia automações lê — como o corpo de e-mail do
+`mail-search` —, e ali a visibilidade por registro não vale (ver "O que NÃO esconde"). Exige
 `READ_DOCUMENT_SINCE_KERNEL` (2.135.0) no portão de pacote.
 
 O exemplo de autoria ponta a ponta — documento salvo → `read-document` → script que interpreta e grava, com
@@ -16966,10 +16995,11 @@ ela — só o dono e o `SYSTEM`, que já supervisionam, os alcançam depois que 
 - **Agregado gravado no pai** (`aggregation`): é calculado sobre todos os filhos e é um valor do PAI. A
   contagem de filhos restritos aparece num pai que todos leem. Não agregue sigilo.
 - **Nome denormalizado** que uma referência copia para outro registro (`referenceDenormFields`).
-- **Histórico de execução** (`workflow_executions`): todo membro o lê, e ele guarda o que cada passo
-  devolveu — com cada texto cortado nos primeiros `HISTORY_TEXT_MAX_CHARACTERS` (ver "O histórico é
-  evidência, não depósito"), o que reduz a exposição mas não a elimina: o registro que disparou a
-  automação de `.saved` está ali. A regra é anterior a esta e vale igual para a permissão por coleção.
+- **Histórico de execução** (`workflow_executions`): o RESUMO (status, horários) é de todo membro; o
+  DETALHE — o que cada passo recebeu e devolveu, inclusive o registro que disparou a automação de
+  `.saved` — é de quem tem `automation.manage`, que já lê o escritório inteiro pelas automações que
+  escreve, e do MCP de quem disparou a própria execução. Dentro desse círculo, a visibilidade por registro
+  não vale. Ver "O histórico em dois documentos".
 - **Auditoria**: quem tem `audit.read` lê o histórico de toda coleção.
 - **Chave única** (`recordKeys`): a reserva é lida por todo membro e diz que um VALOR está tomado — é o que
   a unicidade é.
@@ -17511,6 +17541,7 @@ daquela instalação. Ver "Artefatos de backend por extensão".
 | `auditLogs` | `tenantId` ASC, `severity` ASC, `createdAt` ASC | kernel | `countUnreadCritical` — badge de falhas CRITICAL não lidas |
 | `tenants/{id}/workflow_definitions` | `eventName` ASC, `enabled` ASC | kernel | `findEnabledByEvent` — o gatilho do motor localiza workflows por evento |
 | `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `startedAt` DESC | kernel | Aba "Execuções" de um workflow, mais recente primeiro |
+| `tenants/{id}/workflow_executions` | `workflowDefinitionId` ASC, `schema` ASC, `startedAt` DESC | kernel | Os resumos de quem não gerencia automações (Processador, aba "Execuções" sem `automation.manage`) — a regra só libera `schema == 2` |
 | `tenants/{id}/workflow_tasks` | `assigneeIds` CONTAINS, `status` ASC, `createdAt` DESC | kernel | Caixa "Minhas tarefas": as abertas em que a pessoa é designada, mais recentes primeiro — e a consulta que a regra exige para provar a leitura sem abrir documento |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `createdAt` DESC | kernel | O sino — as notificações de quem está conectado, mais recente primeiro |
 | `tenants/{id}/notification_inbox` | `recipientId` ASC, `read` ASC, `createdAt` DESC | kernel | A contagem de não lidas do sino e o "marcar todas como lidas" |
