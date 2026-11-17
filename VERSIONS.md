@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.273.1] — 2026-11-16
+
+- Corrigido um problema que impedia anexar um documento sem escolher o tipo dele — o arquivo era enviado, mas o documento não aparecia e a tela avisava que o envio falhou. O mesmo acontecia com quem não tem foto no perfil.
+
 #### [9.273.0] — 2026-11-16
 
 - Novo passo de automação "Ler documento": ele lê o texto de um PDF ou arquivo de texto anexado a um registro e o entrega ao passo seguinte. Assim, uma conta, um extrato ou uma nota que chegue por e-mail, pelo portal ou que alguém anexe pode ser processada sozinha, sem ninguém abrir o Processador de Dados.

@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.273.1] — 2026-11-16
+
+- fix(documents): `FirebaseRecordDocumentRepository.addDocument` drops `undefined` fields before `addDoc`. The Documents tab sends `type: undefined` when no type is chosen, and `createdByPhotoUrl: undefined` for a user without a photo; Firestore rejects `undefined`, so the upload failed after the file was already in the bucket, leaving an orphan file and no document. Found while testing `read-document` end to end.
+
 #### [9.273.0] — 2026-11-16
 
 - feat(workflow): `read-document` step — the text of one document in a record's Documents tab (PDF text layer, `text/*`, JSON, XML) for the next step to process. Inputs `collection`, `recordId`, `documentId`, `pages` (`1`, `1-3`, `2,4`), `layout` (`flat` | `lines`); outputs `text` (pages separated by `\f`), `hasText`, `pageCount`, `pagesRead`, `name`, `contentType`, `size`, `sha256` of the content read. Before, a document's content only reached an automation through the Data Processor, with a person at the screen; an e-mail attachment or a portal upload could not be processed unattended. Kernel 2.135.0 (`READ_DOCUMENT_SINCE_KERNEL`).
