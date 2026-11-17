@@ -10,7 +10,9 @@ import { EXTENSION_IMAGE_MAX_BYTES } from '../../../domain/usecases/plugins/plug
 import type { ExtensionPointDefinition } from '../../../domain/schema/plugin/extensionPoint';
 import { CUSTOM_FIELD_TYPES } from '../../../domain/schema/fieldRules';
 import type { CustomFieldType } from '../../../domain/schema/fieldRules';
-import { WIDGET_DATA_SINCE_KERNEL, WIDGET_NODE_TYPES } from '../../../domain/schema/ui/widgetSpec';
+import {
+  WIDGET_DATA_SINCE_KERNEL, WIDGET_FILTER_CHOICE_SINCE_KERNEL, WIDGET_NODE_TYPES,
+} from '../../../domain/schema/ui/widgetSpec';
 import {
   REPORT_CHART_KINDS,
   REPORT_GRANULARITIES,
@@ -322,8 +324,10 @@ const WIDGET_NODES: Record<WidgetNodeType, string> = {
     + 'aggregation, permission and scan limits inside a layout DSL, and give you a second place to '
     + 'declare what a number means. `view?: \'full\' \\| \'chart\' \\| \'table\'` shows only one part, without '
     + 'header or filter bar; `prompts?` answers its filters, `bind?` ties them to a `filters` bar.',
-  filters: 'A dashboard filter bar. `filters: { key, label?, control?: \'period\' \\| \'text\', default? }[]`, '
-    + '`children`. A report or metric inside it uses an answer only where its `bind` says so — '
+  filters: 'A dashboard filter bar. `filters: { key, label?, control?: \'period\' \\| \'text\' \\| \'record\' '
+    + '\\| \'lookup\', collection?, multi?, default? }[]`, `children`. `record` picks records of the screen '
+    + 'named in `collection`; `lookup` picks options of that list, with their colours; both pick several unless '
+    + '`multi: false`. A report or metric inside it uses an answer only where its `bind` says so — '
     + '`bind: { <report prompt>: <filter key> }`.',
   keyValue: 'A list of label/value rows. `items: { label, value }[]`.',
   banner: 'A notice. `message`, `variant?: \'info\' \\| \'warning\'`.',
@@ -1653,6 +1657,34 @@ Precedence for each filter: the bar's answer, then the node's \`prompts\`, then 
 "any period" in the bar is an answer — "no restriction" — and the default does not come back over it. A compact
 \`view\` has no filter bar of its own, so every filter of that report must be answered by \`prompts\`, \`bind\` or a
 default. Data-bound dashboards need kernel ${WIDGET_DATA_SINCE_KERNEL} or later.
+
+A dashboard filtered by a RECORD — per client, per project, per supplier — or by an option of a list. \`record\`
+picks from the screen named in \`collection\` (named as a \`reference\` field would name it in \`refEntity\`);
+\`lookup\` picks from the list named there (as \`lookupCollection\` would), with its colours. It is the same
+control the report itself shows for a filter on a reference or list field:
+
+\`\`\`ts
+widgetPage({ key: 'client-board', title: label('page.client-board'), icon: 'fileChart' }, {
+  type: 'filters',
+  filters: [
+    { key: 'client', label: label('filter.client'), control: 'record', collection: 'acme_clients' },
+    { key: 'status', label: label('filter.status'), control: 'lookup', collection: 'acme_statuses', multi: false },
+  ],
+  children: [
+    { type: 'report', report: 'acme-consumption', view: 'chart', bind: { client: 'client' } },
+    { type: 'report', report: 'acme-invoices', view: 'table', bind: { customer: 'client', status: 'status' } },
+  ],
+})
+\`\`\`
+
+Both pick SEVERAL by default — "these three clients", the way a reference filter works in a list and in a
+report —, and \`multi: false\` restricts the choice to one. Either way the answer reaches the report as a
+LIST of record ids or option keys, which a prompt declared with \`eq\` reads as "any of these" and one with
+\`in\` reads as written. \`default\` is an id or key, or a list of them. The collection is a reference of
+your package like a field's: it has to be one of your screens or lists, or one a declared dependency brings.
+A source the organization does not have — the extension is missing, or the reader cannot read that screen —
+leaves the filter out of the bar, and the reports run with their own defaults. A choice filter needs kernel
+${WIDGET_FILTER_CHOICE_SINCE_KERNEL} or later: an earlier one would draw it as a text box.
 
 The node names the report by its \`key\`, and that key is **not** rewritten on installation the way a
 collection name is — so prefix it with your extension, or you inherit whichever report of that name

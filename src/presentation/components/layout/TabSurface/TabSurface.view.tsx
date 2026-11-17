@@ -28,7 +28,7 @@ const TabPanel: React.FC<{ tab: SurfaceTabDescriptor }> = ({ tab }) => {
           fallback={<S.Failure>{t('tab.render-failed', { title: tab.title })}</S.Failure>}
           onError={logTabFailure(tab.key)}
         >
-          {Component ? <Component /> : <WidgetRenderer spec={tab.spec} />}
+          {Component ? <Component /> : <WidgetRenderer spec={tab.spec} pluginId={tab.pluginId} />}
         </ErrorBoundary>
       </S.PanelBody>
     </S.Panel>

@@ -37,6 +37,7 @@ import { packageImageIssues } from './pluginImage';
 import { packageSurfaceIssues } from './pluginSurfaces';
 import { packageSettingsIssues, settingsOutRefs } from './pluginSettings';
 import { packagePrefixIssues } from './pluginPrefix';
+import { widgetOutRefs } from './pluginWidgetData';
 import { packageBackendSourceIssues } from './pluginBackendSource';
 import { screenEventPrefix, templateCollection } from './screenModule';
 
@@ -237,6 +238,7 @@ export const packageOutRefs = (pkg: MarketplacePlugin): PackageRef[] => [
   ...(pkg.reports ?? []).flatMap(reportOutRefs),
   ...pkg.workflows.flatMap((workflow) => workflowOutRefs(workflow, pkg.screens ?? [])),
   ...settingsOutRefs(pkg),
+  ...widgetOutRefs(pkg),
 ];
 
 /**

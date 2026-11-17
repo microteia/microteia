@@ -10244,6 +10244,22 @@ ligação a dados continua sendo SÓ o relatório declarado, mas por três porta
   é resposta (`null`, sem restrição) e o padrão não volta por cima.
 - O filtro já respondido de fora some da barra do próprio relatório; as respostas viajam por TEXTO
   (`JSON.stringify`) até o efeito, para o relatório não rodar de novo a cada render.
+- **Filtro de escolha (`control: 'record' | 'lookup'`, kernel `WIDGET_FILTER_CHOICE_SINCE_KERNEL`,
+  2.136.0)** — o painel filtrado por UM REGISTRO (por cliente, projeto, fornecedor) ou por opção de lista.
+  `collection` nomeia a tela (como o `refEntity` de um campo) ou a lista (como `lookupCollection`). A barra
+  não tem seletor próprio: `useWidgetChoiceField` sintetiza o campo `reference`/`select` e o passa por
+  `filterFieldOf`, e o controle é o `FieldFilterInput` do relatório — busca no servidor, título do registro e
+  cor da opção num lugar só. Escolhe VÁRIOS por padrão (a pertinência da listagem e do relatório);
+  `multi: false` restringe a um. A resposta vai SEMPRE como lista (`widgetFilterAnswer`): é o que o relatório
+  já manda para um filtro de referência, e a única forma que `eq` ("algum destes") e `in` entendem os dois.
+  - A contribuição NÃO é reescrita na instalação, o campo é: a tela do próprio pacote que ganhou sufixo
+    (`clientes` → `clientes_2`) é achada na leitura por `resolveSettingsOptionsScreen`, com o `pluginId` que
+    o `WidgetRenderer` recebe do hospedeiro (`WidgetOwnerContext`).
+  - Fonte que o escritório não tem — tela ausente, sem permissão de leitura, lista desconhecida — tira o
+    filtro da barra, e o relatório segue com o padrão dele: um seletor vazio diria "não há clientes".
+  - `widgetOutRefs` (`pluginWidgetData.ts`) faz da coleção uma referência do pacote, como a de um campo; e o
+    gate de kernel passou a ser POR capacidade (`widgetFeatureSinceKernel`): o pacote que admite o kernel da
+    barra, mas não o da escolha, é recusado — ali a escolha seria uma caixa de texto que não filtra nada.
 - **Pacote:** `packageWidgetDataIssues` (`pluginWidgetData.ts`) recusa a página de widget que usa qualquer
   dessas capacidades (`widgetDataFeatures`) num pacote que admite kernel anterior — ali o nó desconhecido é
   ignorado, e a barra `filters` levaria junto o painel inteiro que está dentro dela. O cartão do portal

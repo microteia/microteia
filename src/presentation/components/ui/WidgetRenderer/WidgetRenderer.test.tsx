@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { ThemeProvider } from 'styled-components';
 import { baseDarkTheme } from '../../../../shared/styles/theme';
 import type { WidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
@@ -18,15 +18,35 @@ vi.mock('../ReportMetric', () => ({
 vi.mock('../ReportView', () => ({
   ReportView: (props: { reportKey: string; view?: string }) => <span>{`report:${props.reportKey}:${props.view ?? 'full'}`}</span>,
 }));
+// A fonte de um filtro de escolha mora nos stores do escritório; aqui ela é a tela `clients` (que só o
+// pacote dono conhece) e a lista `statuses`. Qualquer outra coleção não está instalada.
+vi.mock('../../../shared/widgetChoiceField', () => ({
+  useWidgetChoiceField: (pluginId: string | undefined) =>
+    (filter: { key: string; control?: string; collection?: string; multi?: boolean }, label: string) => {
+      const known = (filter.control === 'record' && filter.collection === 'clients' && pluginId === 'com.acme.sales')
+        || (filter.control === 'lookup' && filter.collection === 'statuses');
+      return known
+        ? { key: filter.key, label, type: filter.control === 'record' ? 'reference' : 'select', multi: filter.multi !== false }
+        : null;
+    },
+}));
+// O controle é o do filtro do relatório; aqui ele só mostra o que recebe e devolve uma escolha.
+vi.mock('../FieldFilterInput', () => ({
+  FieldFilterInput: (props: { field: { key: string; type: string; multi: boolean }; value: unknown; onChange: (value: unknown) => void }) => (
+    <button onClick={() => props.onChange(props.field.multi ? ['c1', 'c2'] : 'c1')}>
+      {`choice:${props.field.key}:${props.field.type}:${props.field.multi}:${JSON.stringify(props.value)}`}
+    </button>
+  ),
+}));
 vi.mock('../../../shared/i18n/useT', () => ({
   useLabel: () => (value: string | null | undefined) => value ?? '',
   useT: () => (key: string) => key,
 }));
 
-const renderSpec = (spec: unknown) =>
+const renderSpec = (spec: unknown, pluginId?: string) =>
   render(
     <ThemeProvider theme={baseDarkTheme}>
-      <WidgetRenderer spec={spec} />
+      <WidgetRenderer spec={spec} pluginId={pluginId} />
     </ThemeProvider>,
   );
 
@@ -132,5 +152,37 @@ describe('WidgetRenderer', () => {
     } satisfies WidgetSpec);
     expect(screen.getByText('metric:acme-revenue:{"period":"when"}:{"when":"this-month"}')).toBeDefined();
     expect(screen.getByText('report:acme-by-city:chart')).toBeDefined();
+  });
+
+  it('o filtro de registro e o de lista escolhem pelo controle do relatório, e a resposta vai como LISTA', () => {
+    renderSpec({
+      type: 'filters',
+      filters: [
+        { key: 'client', control: 'record', collection: 'clients' },
+        { key: 'status', control: 'lookup', collection: 'statuses', multi: false, default: 'active' },
+      ],
+      children: [{ type: 'metric', label: 'Receita', report: 'acme-revenue', bind: { client: 'client', status: 'status' } }],
+    } satisfies WidgetSpec, 'com.acme.sales');
+
+    expect(screen.getByText('choice:client:reference:true:null')).toBeDefined();
+    expect(screen.getByText('choice:status:select:false:"active"')).toBeDefined();
+    // Escolha de UM ainda vai como lista: é o que `eq` e `in` do relatório entendem os dois.
+    expect(screen.getByText('metric:acme-revenue:{"client":"client","status":"status"}:{"status":["active"]}')).toBeDefined();
+
+    fireEvent.click(screen.getByText('choice:client:reference:true:null'));
+    expect(screen.getByText(
+      'metric:acme-revenue:{"client":"client","status":"status"}:{"client":["c1","c2"],"status":["active"]}',
+    )).toBeDefined();
+  });
+
+  it('a fonte que o escritório não tem some da barra — o seletor vazio diria que não há clientes', () => {
+    renderSpec({
+      type: 'filters',
+      filters: [{ key: 'client', label: 'Cliente', control: 'record', collection: 'clients' }],
+      children: [{ type: 'metric', label: 'Receita', report: 'acme-revenue', bind: { client: 'client' } }],
+    } satisfies WidgetSpec);
+
+    expect(screen.queryByText('Cliente')).toBeNull();
+    expect(screen.getByText('metric:acme-revenue:{"client":"client"}:{}')).toBeDefined();
   });
 });

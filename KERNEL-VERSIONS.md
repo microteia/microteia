@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.276.0] — 2026-11-17
+
+- feat(widget/filters): the dashboard filter bar gains choice filters — `control: 'record'` picks records of the screen named in `collection`, `control: 'lookup'` picks options of that list, with their colours. Both pick several by default; `multi: false` restricts the choice to one. Until now the bar offered only `period` and `text`, so a dashboard filtered by one client could not be declared: binding a `text` filter to a reference prompt made the reader type a record id, and a compact `view` could only fix the answer. The control is the report's own (`FieldFilterInput` over a synthesized `reference`/`select` field passed through `filterFieldOf`), and the answer reaches every bound report as a LIST of ids or keys (`widgetFilterAnswer`) — the shape the report already sends for a reference prompt, and the only one both `eq` and `in` read. A contribution is not rewritten on installation, so a package screen whose key gained a suffix is resolved on read (`resolveSettingsOptionsScreen`, with the contributing `pluginId` now passed to `WidgetRenderer`); a source the organization lacks or the reader cannot read leaves the filter out of the bar.
+- feat(marketplace/check): a choice filter's `collection` is a package reference (`widgetOutRefs`), refused like a field's when neither the package nor a declared dependency brings it; and the widget kernel gate is now per feature (`widgetFeatureSinceKernel`) — a package admitting kernel 2.112.0 but not 2.136.0 is refused, since there a choice filter would render as a text box that filters nothing.
+- KERNEL_VERSION 2.136.0. pt-BR locale package 1.224.0.
+
 #### [9.275.1] — 2026-11-17
 
 - fix(workflow/editor): the Loop step's "Item name" hint said the current item was read as `input.{name}` (or `input.field` for an object). The engine publishes it under `output.<loopId>` — an object item spread there, a scalar at `output.<loopId>.<itemName>` — as AUTHORING.md documents; an expression written from the hint read nothing. The hint now shows the loop's own identifier when it is readable, `loopId` otherwise. pt-BR locale package 1.223.1.

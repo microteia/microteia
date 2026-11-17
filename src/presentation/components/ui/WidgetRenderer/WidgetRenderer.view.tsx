@@ -7,10 +7,13 @@ import { MarkdownContent } from '../MarkdownContent';
 import type { WidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
 import { isWidgetSpec } from '../../../../domain/schema/ui/widgetSpec';
 import { useLabel } from '../../../shared/i18n/useT';
+import { WidgetOwnerContext } from '../../../shared/widgetFilterContext';
 import { S } from './WidgetRenderer.styles';
 
 interface WidgetRendererProps {
   spec: unknown;
+  /** A extensão que contribuiu o spec — é por ela que um filtro de escolha acha a tela do próprio pacote. */
+  pluginId?: string;
 }
 
 /**
@@ -23,9 +26,13 @@ interface WidgetRendererProps {
  * Sem isto o DSL era o único lugar declarativo onde a frase tinha de nascer num idioma — o que deixava
  * a apresentação de uma extensão e a tela que ela declara sob regras diferentes.
  */
-export const WidgetRenderer: React.FC<WidgetRendererProps> = ({ spec }) => {
+export const WidgetRenderer: React.FC<WidgetRendererProps> = ({ spec, pluginId }) => {
   if (!isWidgetSpec(spec)) return null;
-  return <WidgetNode node={spec} />;
+  return (
+    <WidgetOwnerContext.Provider value={pluginId}>
+      <WidgetNode node={spec} />
+    </WidgetOwnerContext.Provider>
+  );
 };
 
 const WidgetNode: React.FC<{ node: WidgetSpec }> = ({ node }) => {

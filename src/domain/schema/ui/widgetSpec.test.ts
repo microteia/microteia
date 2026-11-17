@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { isWidgetSpec, resolveWidgetAnswers, widgetChildren, widgetDataFeatures, WIDGET_NODE_TYPES } from './widgetSpec';
+import {
+  isWidgetSpec, resolveWidgetAnswers, widgetChildren, widgetDataFeatures, widgetFeatureSinceKernel, widgetFilterAnswer,
+  WIDGET_DATA_SINCE_KERNEL, WIDGET_FILTER_CHOICE_SINCE_KERNEL, WIDGET_NODE_TYPES,
+} from './widgetSpec';
 import type { WidgetSpec } from './widgetSpec';
 
 describe('isWidgetSpec', () => {
@@ -89,5 +92,41 @@ describe('painel com dados', () => {
 
   it('a barra é nó de layout: os filhos dela são renderizados', () => {
     expect(widgetChildren({ type: 'filters', filters: [], children: [{ type: 'divider' }] })).toEqual([{ type: 'divider' }]);
+  });
+});
+
+describe('filtro de escolha na barra', () => {
+  it('a escolha vai como LISTA, inclusive a de um — é o que `eq` e `in` do relatório entendem', () => {
+    expect(widgetFilterAnswer({ control: 'record' }, ['c1', 'c2'])).toEqual(['c1', 'c2']);
+    expect(widgetFilterAnswer({ control: 'lookup' }, 'active')).toEqual(['active']);
+    expect(widgetFilterAnswer({ control: 'record' }, ['', ' '])).toEqual([]);
+    expect(widgetFilterAnswer({ control: 'record' }, null)).toEqual([]);
+  });
+
+  it('período e texto continuam texto', () => {
+    expect(widgetFilterAnswer({ control: 'period' }, 'this-month')).toBe('this-month');
+    expect(widgetFilterAnswer({}, 'Recife')).toBe('Recife');
+    expect(widgetFilterAnswer({}, null)).toBe('');
+  });
+
+  it('a escolha esvaziada é "sem restrição", como o texto apagado', () => {
+    expect(resolveWidgetAnswers({ bind: { client: 'c' } }, { c: [] })).toEqual({ client: null });
+    expect(resolveWidgetAnswers({ bind: { client: 'c' } }, { c: ['c1'] })).toEqual({ client: ['c1'] });
+  });
+
+  it('cobra o kernel da escolha, e não só o da barra', () => {
+    const features = widgetDataFeatures({
+      type: 'filters',
+      filters: [
+        { key: 'when', control: 'period' },
+        { key: 'client', control: 'record', collection: 'clients' },
+        { key: 'status', control: 'lookup', collection: 'statuses' },
+      ],
+      children: [],
+    });
+    expect(features).toEqual(['filters', 'filters.record', 'filters.lookup']);
+    expect(widgetFeatureSinceKernel('filters')).toBe(WIDGET_DATA_SINCE_KERNEL);
+    expect(widgetFeatureSinceKernel('filters.record')).toBe(WIDGET_FILTER_CHOICE_SINCE_KERNEL);
+    expect(widgetFeatureSinceKernel('filters.lookup')).toBe(WIDGET_FILTER_CHOICE_SINCE_KERNEL);
   });
 });

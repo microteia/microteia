@@ -24,7 +24,7 @@ const SlotItem: React.FC<{ slot: SurfaceSlotDescriptor }> = ({ slot }) => {
         fallback={<S.Failure>{t('slot.render-failed', { title: slot.title })}</S.Failure>}
         onError={logSlotFailure(slot.key)}
       >
-        {Component ? <Component /> : <WidgetRenderer spec={slot.spec} />}
+        {Component ? <Component /> : <WidgetRenderer spec={slot.spec} pluginId={slot.pluginId} />}
       </ErrorBoundary>
     </S.Item>
   );

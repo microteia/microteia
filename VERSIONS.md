@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.276.0] — 2026-11-17
+
+- Os painéis podem ser filtrados por um registro: a barra de filtros do painel passa a oferecer a escolha de um ou mais clientes, projetos ou fornecedores — o mesmo seletor que os relatórios já mostram — e a escolha vale para todos os gráficos e indicadores do painel de uma vez. A barra também pode filtrar pelas opções de uma lista do escritório, com as cores delas.
+
 #### [9.275.1] — 2026-11-17
 
 - Corrigida a dica do campo "Nome do item" na repetição das automações: ela agora mostra o caminho certo para ler o item da vez, com o identificador da própria repetição.
