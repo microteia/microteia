@@ -732,6 +732,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'ref.origin.report': 'report',
   'ref.origin.screen': 'screen',
   'ref.origin.setting': 'setting',
+  'ref.origin.widget': 'panel',
   'ref.origin.workflow': 'automation',
   'ref.origin.workflow-step': 'step "{step}" of automation',
   'extension.code-pending-review':

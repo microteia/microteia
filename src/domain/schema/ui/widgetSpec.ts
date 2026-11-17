@@ -14,15 +14,48 @@ export const WIDGET_REPORT_VIEWS = ['full', 'chart', 'table'] as const;
 export type WidgetReportView = typeof WIDGET_REPORT_VIEWS[number];
 
 /**
- * Um filtro da barra `filters`. `period` oferece os períodos relativos dos relatórios; `text`, um
- * valor livre. A resposta só chega a um relatório que a LIGUE (`bind`) — a barra não adivinha qual
- * filtro de qual relatório é "o mesmo".
+ * Como um filtro da barra pergunta. `period` oferece os períodos relativos dos relatórios; `text`, um
+ * valor livre; `record` e `lookup` escolhem do que o escritório tem — os registros de uma tela, ou as
+ * opções de uma lista, com a cor delas.
+ */
+export const WIDGET_FILTER_CONTROLS = ['period', 'text', 'record', 'lookup'] as const;
+export type WidgetFilterControl = typeof WIDGET_FILTER_CONTROLS[number];
+
+/**
+ * Um filtro da barra `filters`. A resposta só chega a um relatório que a LIGUE (`bind`) — a barra não
+ * adivinha qual filtro de qual relatório é "o mesmo".
+ *
+ * `collection` nomeia a fonte de `record` (a coleção da tela, como um campo `reference` a nomearia em
+ * `refEntity`) e de `lookup` (a lista, como em `lookupCollection`). Esses dois escolhem VÁRIOS por
+ * padrão — a mesma pertinência ("destes três") do filtro de referência na listagem e no relatório —, e
+ * `multi: false` restringe a um. `default` é a chave da opção ou o id do registro, ou a lista deles.
  */
 export type WidgetFilter = {
   key: string;
   label?: string;
-  control?: 'period' | 'text';
-  default?: string;
+  control?: WidgetFilterControl;
+  collection?: string;
+  multi?: boolean;
+  default?: string | string[];
+};
+
+/** O filtro que escolhe do que o escritório TEM — e cuja resposta é, por isso, uma lista de chaves. */
+export const isWidgetChoiceFilter = (filter: Pick<WidgetFilter, 'control'>): boolean =>
+  filter.control === 'record' || filter.control === 'lookup';
+
+/**
+ * A resposta da barra como o RELATÓRIO a entende.
+ *
+ * A escolha vai sempre como LISTA, inclusive com `multi: false`: é a forma que o próprio relatório já
+ * manda quando a pergunta é sobre um campo de referência ou de lista (`filterFieldOf`), e a única que
+ * atende os dois operadores com que o autor a declara — `eq` com lista é "algum destes", e `in` com um
+ * texto solto não acharia nada. Uma resposta vazia sai vazia; quem a converte em "sem restrição" é
+ * `resolveWidgetAnswers`.
+ */
+export const widgetFilterAnswer = (filter: Pick<WidgetFilter, 'control'>, value: unknown): unknown => {
+  if (!isWidgetChoiceFilter(filter)) return typeof value === 'string' ? value : '';
+  const chosen = Array.isArray(value) ? value : [value];
+  return chosen.filter((one): one is string => typeof one === 'string' && one.trim() !== '');
 };
 
 /**
@@ -80,6 +113,21 @@ export const WIDGET_NODE_TYPES: readonly WidgetNodeType[] = [
  */
 export const WIDGET_DATA_SINCE_KERNEL = '2.112.0';
 
+/**
+ * O filtro de ESCOLHA na barra (`record` / `lookup`). Um kernel anterior não o recusa: desenha uma caixa
+ * de texto, e o leitor teria de digitar o id do cliente — o painel parece funcionar e não filtra nada.
+ */
+export const WIDGET_FILTER_CHOICE_SINCE_KERNEL = '2.136.0';
+
+/** O kernel mínimo de cada capacidade de dados. A que não está aqui é do primeiro painel com dados. */
+const WIDGET_FEATURE_SINCE_KERNEL: Readonly<Record<string, string>> = {
+  'filters.record': WIDGET_FILTER_CHOICE_SINCE_KERNEL,
+  'filters.lookup': WIDGET_FILTER_CHOICE_SINCE_KERNEL,
+};
+
+export const widgetFeatureSinceKernel = (feature: string): string =>
+  WIDGET_FEATURE_SINCE_KERNEL[feature] ?? WIDGET_DATA_SINCE_KERNEL;
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -95,7 +143,12 @@ export const widgetChildren = (spec: WidgetSpec): WidgetSpec[] =>
 
 /** O que o nó usa da ligação a dados — o que exige `WIDGET_DATA_SINCE_KERNEL`. */
 const nodeDataFeatures = (node: WidgetSpec): string[] => {
-  if (node.type === 'filters') return ['filters'];
+  if (node.type === 'filters') {
+    const controls = (Array.isArray(node.filters) ? node.filters : [])
+      .filter((filter) => isWidgetChoiceFilter(filter ?? {}))
+      .map((filter) => `filters.${filter.control}`);
+    return ['filters', ...controls];
+  }
   if (node.type === 'metric' && node.report !== undefined) return ['metric.report'];
   if (node.type === 'report') {
     return [
@@ -119,22 +172,27 @@ export const widgetDataFeatures = (spec: unknown): string[] => {
   return [...found];
 };
 
+/** Resposta que não restringe nada: o texto vazio, a lista vazia, a ausência. */
+const isEmptyAnswer = (value: unknown): boolean =>
+  value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
+
 /**
  * As respostas que um nó manda ao relatório: as fixas (`prompts`) e, por cima, as da barra que ele
  * liga (`bind`).
  *
- * `filters` traz só os filtros da barra que TÊM estado — tocados ou com padrão. Ausente, o nó não diz
- * nada sobre aquele filtro, e vale o fixo ou o padrão do relatório; vazio, é o leitor escolhendo "qualquer
- * um", e vai como `null` — "sem restrição" — para o padrão do relatório não voltar por cima do gesto.
+ * `filters` traz só os filtros da barra que TÊM estado — tocados ou com padrão —, já na forma do
+ * relatório (`widgetFilterAnswer`). Ausente, o nó não diz nada sobre aquele filtro, e vale o fixo ou o
+ * padrão do relatório; vazio, é o leitor escolhendo "qualquer um", e vai como `null` — "sem restrição" —
+ * para o padrão do relatório não voltar por cima do gesto.
  */
 export const resolveWidgetAnswers = (
   node: WidgetReportAnswers,
-  filters: Readonly<Record<string, string>>,
+  filters: Readonly<Record<string, unknown>>,
 ): Record<string, unknown> => {
   const answers: Record<string, unknown> = { ...(node.prompts ?? {}) };
   for (const [prompt, filter] of Object.entries(node.bind ?? {})) {
     if (!Object.prototype.hasOwnProperty.call(filters, filter)) continue;
-    answers[prompt] = filters[filter] === '' ? null : filters[filter];
+    answers[prompt] = isEmptyAnswer(filters[filter]) ? null : filters[filter];
   }
   return answers;
 };

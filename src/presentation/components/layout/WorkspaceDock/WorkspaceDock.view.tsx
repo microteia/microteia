@@ -24,7 +24,7 @@ const DockPanel: React.FC<{ panel: SurfaceSlotDescriptor; hidden: boolean }> = (
       >
         {/* Painel de plugin interno chega por carga preguiçosa: o código só desce quando o dock abre. */}
         <Suspense fallback={<S.Loading><Spinner size={20} /></S.Loading>}>
-          {Component ? <Component /> : <WidgetRenderer spec={panel.spec} />}
+          {Component ? <Component /> : <WidgetRenderer spec={panel.spec} pluginId={panel.pluginId} />}
         </Suspense>
       </ErrorBoundary>
     </S.Panel>

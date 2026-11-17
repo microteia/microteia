@@ -3,6 +3,7 @@ import { S } from './WidgetFilters.styles';
 import { useWidgetFiltersViewModel } from './WidgetFilters.viewmodel';
 import { Input } from '../Input';
 import { SearchSelect } from '../SearchSelect';
+import { FieldFilterInput } from '../FieldFilterInput';
 import { WidgetFilterContext } from '../../../shared/widgetFilterContext';
 import type { WidgetFilter } from '../../../../domain/schema/ui/widgetSpec';
 
@@ -22,14 +23,20 @@ export const WidgetFilters: React.FC<WidgetFiltersProps> = ({ filters, children 
           {vm.fields.map((field) => (
             <S.Field key={field.key}>
               {field.label}
-              {field.isPeriod ? (
+              {field.kind === 'period' ? (
                 <SearchSelect
                   options={vm.periodOptions}
+                  value={field.text}
+                  onChange={(value) => vm.setValue(field.key, value)}
+                />
+              ) : field.field ? (
+                <FieldFilterInput
+                  field={field.field}
                   value={field.value}
                   onChange={(value) => vm.setValue(field.key, value)}
                 />
               ) : (
-                <Input value={field.value} onChange={(event) => vm.setValue(field.key, event.target.value)} />
+                <Input value={field.text} onChange={(event) => vm.setValue(field.key, event.target.value)} />
               )}
             </S.Field>
           ))}

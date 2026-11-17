@@ -731,6 +731,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'ref.origin.report': 'relatório',
   'ref.origin.screen': 'tela',
   'ref.origin.setting': 'configuração',
+  'ref.origin.widget': 'painel',
   'ref.origin.workflow': 'automação',
   'ref.origin.workflow-step': 'passo "{step}" da automação',
   'extension.code-pending-review':

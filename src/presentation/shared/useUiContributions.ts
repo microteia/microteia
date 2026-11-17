@@ -27,8 +27,12 @@ export const useNavGroupContributions = (): QualifiedContribution[] => useContri
 // então o painel não desmonta a página (nem perde o estado dos filtros) quando o espaço de trabalho muda.
 const WidgetPage: PageComponent = ({ tabKey }) => {
   const contributions = usePageContributions();
-  const impl = resolvePageContribution(contributions, tabKey)?.impl;
-  return React.createElement(WidgetRenderer, { spec: impl?.kind === 'widget' ? impl.spec : undefined });
+  const contribution = resolvePageContribution(contributions, tabKey);
+  const impl = contribution?.impl;
+  return React.createElement(WidgetRenderer, {
+    spec: impl?.kind === 'widget' ? impl.spec : undefined,
+    pluginId: contribution?.pluginId,
+  });
 };
 
 export const useResolvePage = (): ((tabKey: string) => ResolvedPage | undefined) => {
