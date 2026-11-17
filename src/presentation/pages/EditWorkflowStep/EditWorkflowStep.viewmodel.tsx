@@ -298,6 +298,8 @@ export interface EditWorkflowStepViewModel {
   errorActionOptions: { value: string; label: string }[];
   errorRetryOptions: { value: string; label: string }[];
   loopItemName: string;
+  /** O caminho de leitura do item da vez, com o identificador deste Loop quando ele já é escrevível. */
+  loopItemNameHint: string;
   setLoopItemName: (name: string) => void;
   loopOutputName: string;
   setLoopOutputName: (name: string) => void;
@@ -1100,6 +1102,16 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
     return t('step.identifier.hint.generated');
   }, [editingStep, isConditionStep, t]);
 
+  // O motor publica o item da vez em output.<idDoLoop> (objeto espalhado, escalar sob o nome do item).
+  // A dica dizia input.<nome> — caminho que não existe —, e quem a seguia escrevia expressão vazia.
+  const loopItemNameHint = useMemo(() => {
+    const loopId = editingStep?.id ?? stepIdentifier.trim();
+    return t('loop.item-name.hint', {
+      loop: isReferenceableStepId(loopId) ? loopId : t('loop.item-name.hint.loop-id'),
+      name: loopItemName.trim() || t('loop.item-name.placeholder.value'),
+    });
+  }, [editingStep, stepIdentifier, loopItemName, t]);
+
   const setMapping = useCallback((inputId: string, mapping: InputMapping) => {
     setConfiguration((prev) => ({ ...prev, [inputId]: mapping }));
   }, []);
@@ -1686,6 +1698,7 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
       label: retries === 0 ? t('step.on-error.no-retry') : t('step.on-error.retries', { count: String(retries) }),
     })),
     loopItemName,
+    loopItemNameHint,
     setLoopItemName,
     loopOutputName,
     setLoopOutputName,

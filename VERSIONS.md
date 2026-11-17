@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.275.1] — 2026-11-17
+
+- Corrigida a dica do campo "Nome do item" na repetição das automações: ela agora mostra o caminho certo para ler o item da vez, com o identificador da própria repetição.
+
 #### [9.275.0] — 2026-11-17
 
 - O histórico de execução das automações passa a ser guardado por 90 dias depois da última movimentação de cada execução. Depois disso ele é apagado sozinho, junto com o que a automação tratou — o texto de um documento lido, o corpo de um e-mail. Uma execução que ainda aguarda uma aprovação ou uma espera programada não é apagada enquanto aguarda.

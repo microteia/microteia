@@ -591,7 +591,9 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'loop.body.notice': 'Adicione os steps que rodam a cada item no corpo da repetição, no fluxo do workflow.',
   'loop.item-name': 'Nome do item',
   'loop.item-name.hint':
-    'Item escalar fica disponível como input.{name}. Se o item for um objeto, seus campos ficam em input.campo.',
+    'Dentro do loop, os steps leem o item da vez em output.{loop}: se o item for um objeto, seus campos ficam ali (output.{loop}.campo); se for um valor simples, fica em output.{loop}.{name}.',
+  'loop.item-name.hint.loop-id': 'idDoLoop',
+  'loop.item-name.placeholder.value': 'item',
   'loop.item-name.placeholder': 'ex: item',
   'loop.output-name': 'Nome da saída',
   'loop.output-name.hint':

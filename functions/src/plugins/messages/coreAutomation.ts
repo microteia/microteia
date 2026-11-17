@@ -598,7 +598,9 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'loop.body.notice': 'Add the steps that run for each item in the loop body, in the workflow flow.',
   'loop.item-name': 'Item name',
   'loop.item-name.hint':
-    'A scalar item is available as input.{name}. If the item is an object, its fields sit under input.field.',
+    'Inside the loop, steps read the current item under output.{loop}: an object item has its fields there (output.{loop}.field); a single value sits at output.{loop}.{name}.',
+  'loop.item-name.hint.loop-id': 'loopId',
+  'loop.item-name.placeholder.value': 'item',
   'loop.item-name.placeholder': 'e.g. item',
   'loop.output-name': 'Output name',
   'loop.output-name.hint':

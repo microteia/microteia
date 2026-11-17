@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.275.1] — 2026-11-17
+
+- fix(workflow/editor): the Loop step's "Item name" hint said the current item was read as `input.{name}` (or `input.field` for an object). The engine publishes it under `output.<loopId>` — an object item spread there, a scalar at `output.<loopId>.<itemName>` — as AUTHORING.md documents; an expression written from the hint read nothing. The hint now shows the loop's own identifier when it is readable, `loopId` otherwise. pt-BR locale package 1.223.1.
+
 #### [9.275.0] — 2026-11-17
 
 - feat(workflow/history): execution history is retained for `EXECUTION_HISTORY_RETENTION_DAYS` (90) after the latest of `startedAt`, `finishedAt` and `resumeAt`, so a run waiting on an approval or a long `delay` is kept until it resumes. History used to be kept forever, including the text a step read and the body of a mail message whose own marker expires in 32 days.
