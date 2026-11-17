@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.273.4] — 2026-11-17
+
+- docs(authoring-guide): end-to-end example in §10 — `<prefix>_document.saved` → `read-document` (`layout: 'lines'`) → a script split into a tested parser and the sandbox file that writes, with `sha256` as the fingerprint against importing the same file twice; the e-mail (`save-mail-attachment`) and Data Processor (`fillFrom`) entries to the same parser; the run history does not follow record visibility.
+
 #### [9.273.3] — 2026-11-16
 
 - fix(workflow-editor): the step editor resolves event field labels once, in `EditWorkflowStep`'s `eventFields`, so every consumer (its own event select, `MappingValueControl`, the expression autocomplete) gets text. 9.273.2 fixed only `MappingValueControl`, and the step editor draws its own select — the raw reference was still on screen.

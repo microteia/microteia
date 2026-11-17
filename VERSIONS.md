@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.273.4] — 2026-11-17
+
+- O guia para quem cria extensões ganhou um exemplo completo de automação que lê o documento anexado a um registro e preenche o registro sozinha, sem inteligência artificial.
+
 #### [9.273.3] — 2026-11-16
 
 - Completa a correção anterior: o nome traduzido dos campos do evento agora aparece em todo o editor de passos, inclusive no campo já escolhido e nas sugestões das expressões.
