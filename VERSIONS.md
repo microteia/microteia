@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.273.5] — 2026-11-17
+
+- Corrigido um problema em que automações que liam documentos grandes terminavam sem deixar registro na lista de execuções. Agora o registro sempre é guardado, e textos longos aparecem resumidos no histórico.
+- Os dados de uma automação que está aguardando para continuar deixaram de ficar acessíveis a todos os membros do escritório.
+
 #### [9.273.4] — 2026-11-17
 
 - O guia para quem cria extensões ganhou um exemplo completo de automação que lê o documento anexado a um registro e preenche o registro sozinha, sem inteligência artificial.

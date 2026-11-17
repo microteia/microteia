@@ -716,8 +716,11 @@ service cloud.firestore {
 
       // Relógio das automações temporais — o próximo disparo de cada uma. Só o kernel o calcula (Admin
       // SDK); membros leem para o editor mostrar quando a automação roda de novo.
+      // A continuação de uma execução suspensa (`resume_<execução>`, RESUME_CLOCK_ID_PREFIX) mora na
+      // mesma coleção e guarda o evento e todas as saídas até a parada — o registro inteiro que disparou,
+      // inclusive o que a visibilidade por registro esconde. O editor nunca a lê, e ninguém a lê pelo cliente.
       match /workflow_clock/{definitionId} {
-        allow read: if isMember(tenantId);
+        allow read: if isMember(tenantId) && !definitionId.matches('resume_.*');
         allow write: if false;
       }
 

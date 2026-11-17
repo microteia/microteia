@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.273.5] — 2026-11-17
+
+- fix(workflow/history): the step context input is written once (the event payload) instead of on every step — it repeated the previous outputs, adding ~105 KB per step after a 100 000-character read, until the execution passed Firestore's 1 MiB and was not written at all (no outcome for the Data Processor, `get_workflow_run` pending forever).
+- fix(workflow/history): `historyRecord` trims every text in the stored copy to its first 2 000 characters plus `… [+N]`; what still does not fit keeps only the messages with `run.history-too-large`, and the repository falls back to that when Firestore refuses the document (code 3). The run itself still receives everything.
+- fix(rules): `workflow_clock/resume_*` (a suspended run's event and outputs) is no longer readable by clients; the editor only reads schedule entries by definition id.
+
 #### [9.273.4] — 2026-11-17
 
 - docs(authoring-guide): end-to-end example in §10 — `<prefix>_document.saved` → `read-document` (`layout: 'lines'`) → a script split into a tested parser and the sandbox file that writes, with `sha256` as the fingerprint against importing the same file twice; the e-mail (`save-mail-attachment`) and Data Processor (`fillFrom`) entries to the same parser; the run history does not follow record visibility.

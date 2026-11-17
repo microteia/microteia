@@ -2,9 +2,13 @@ import { Timestamp } from 'firebase-admin/firestore';
 import type { DocumentData, Firestore } from 'firebase-admin/firestore';
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
 import type { WorkflowExecution } from '../../domain/entities/Workflow';
+import { bareHistoryRecord, historyRecord } from '../../domain/services/executionHistory';
 
 /** Um evento abre em leque, mas não indefinidamente: o teto existe para a resposta ser limitada. */
 const EXECUTIONS_PER_EVENT_LIMIT = 20;
+
+/** Código gRPC com que o Firestore recusa um documento acima de 1 MiB. */
+const FIRESTORE_INVALID_ARGUMENT = 3;
 
 const asDate = (value: unknown): Date | null =>
   value instanceof Timestamp ? value.toDate() : value instanceof Date ? value : null;
@@ -29,6 +33,17 @@ export class FirebaseWorkflowExecutionRepository implements IWorkflowExecutionRe
   constructor(private readonly db: Firestore) {}
 
   async create(execution: WorkflowExecution): Promise<void> {
+    try {
+      await this.write(historyRecord(execution));
+    } catch (error) {
+      // INVALID_ARGUMENT é o documento acima do teto, que a estimativa por JSON deixou passar. Só esse
+      // erro cai para as mensagens: um erro de rede gravaria a versão pobre de um histórico que cabia.
+      if ((error as { code?: unknown }).code !== FIRESTORE_INVALID_ARGUMENT) throw error;
+      await this.write(bareHistoryRecord(execution));
+    }
+  }
+
+  private async write(execution: WorkflowExecution): Promise<void> {
     await this.db
       .collection('tenants')
       .doc(execution.tenantId)

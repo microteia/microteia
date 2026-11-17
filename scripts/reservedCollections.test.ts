@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { RESERVED_COLLECTIONS } from '../src/domain/schema/screenEntity';
+import { RESUME_CLOCK_ID_PREFIX, WORKFLOW_CLOCK_COLLECTION } from '../src/domain/schema/workflowClock';
 
 /**
  * Uma tela É uma coleção, e o nome dela só existe em runtime. Por isso o `firestore.rules` autoriza
@@ -94,5 +95,18 @@ describe('coleções reservadas', () => {
     const block = storage.match(/function isReservedStoragePath\(collection\) \{\s*return collection in \[([\s\S]*?)\];/);
     expect(block, 'função isReservedStoragePath não encontrada no storage.rules').toBeTruthy();
     expect([...(block?.[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1])).toContain('logs');
+  });
+});
+
+/**
+ * A continuação de uma execução suspensa mora no relógio com um prefixo no id, e guarda o evento e as
+ * saídas — o que a regra esconde do cliente pelo PREFIXO. Trocar a constante sem trocar a regra
+ * devolveria esse conteúdo a todo membro, sem teste de regra nenhum perceber (ele semeia o id à mão).
+ */
+describe('o relógio das automações', () => {
+  it('a regra esconde do cliente exatamente o prefixo da continuação', () => {
+    const rules = readFileSync(join(process.cwd(), 'firestore.rules'), 'utf8');
+    const block = rules.match(new RegExp(`match /${WORKFLOW_CLOCK_COLLECTION}/\\{definitionId\\} \\{([\\s\\S]*?)\\n      \\}`));
+    expect(block?.[1]).toContain(`!definitionId.matches('${RESUME_CLOCK_ID_PREFIX}.*')`);
   });
 });
