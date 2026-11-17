@@ -523,9 +523,12 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     (tenantId: string, workflowId: string, eventId: string) => {
       clearObservation();
       stopFollowRef.current = followWorkflowExecution(
+        // Só o status: o Processador acompanha o desfecho e leva à aba de execuções, onde quem
+        // gerencia automações vê o detalhe.
         (onUpdate, onError) => workflowExecutionRepository.subscribeToWorkflowExecutions(
           tenantId,
           workflowId,
+          false,
           onUpdate,
           onError,
         ),

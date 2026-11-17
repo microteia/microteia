@@ -1010,6 +1010,9 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 message={t('executions.load-failed', { detail: vm.executionsError })}
               />
             )}
+            {vm.executionDetailHidden && (
+              <InfoBanner variant="info" message={t('executions.detail-restricted')} />
+            )}
             {vm.executions.length === 0 ? (
               <S.EmptyState>
                 <div>{t('executions.empty')}</div>
@@ -1023,7 +1026,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                   return (
                     <S.ExecutionRow key={execution.id}>
                       <S.ExecutionSummary>
-                        <S.StatusBadge $status={execution.status}>{execution.status}</S.StatusBadge>
+                        <S.StatusBadge $status={execution.status}>{vm.executionStatusLabel(execution.status)}</S.StatusBadge>
                         {formatDateTime(execution.startedAt)}
                         {execution.status === 'WAITING' && execution.resumeAt && (
                           <S.FieldHint>{t('executions.waiting-until', { when: formatDateTime(execution.resumeAt) })}</S.FieldHint>
@@ -1069,7 +1072,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                                 <StepIcon size={16} />
                               </S.StepResultIcon>
                               <span>{stepName}</span>
-                              <S.StepStatusBadge $status={status}>{status}</S.StepStatusBadge>
+                              <S.StepStatusBadge $status={status}>{vm.stepStatusLabel(status)}</S.StepStatusBadge>
                             </S.StepResultHeader>
                             {isExpanded && (
                               <S.StepResultBody>

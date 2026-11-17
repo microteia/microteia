@@ -15,6 +15,7 @@ const execution = (eventId: string, status: WorkflowExecutionStatus): WorkflowEx
   startedAt: new Date(0),
   logs: [],
   outputs: {},
+  detailAvailable: false,
 });
 
 const fakeSubscription = () => {

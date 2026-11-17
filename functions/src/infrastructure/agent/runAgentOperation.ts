@@ -38,6 +38,7 @@ import { decideWorkflowTask } from '../workflow/decideWorkflowTask';
 import { getDI } from '../di/container';
 import { getDb } from '../firebase/initFirebase';
 import type { AgentSession } from './authenticateAgent';
+import { seesExecutionDetail } from '../../domain/services/executionHistory';
 import { agentReader, agentRun } from './agentContext';
 import { readerSeesRecord, resolveMemberVisibility } from '../../domain/schema/memberVisibility';
 import { identifyActor } from '../workflow/identifyActor';
@@ -798,13 +799,17 @@ const readAgentWorkflowRun = async (
         startedAt: execution.startedAt.toISOString(),
         ...(execution.finishedAt ? { finishedAt: execution.finishedAt.toISOString() } : {}),
         ...(execution.status === 'WAITING' && execution.resumeAt ? { resumeAt: execution.resumeAt.toISOString() } : {}),
-        // O log do motor é escrito como REFERÊNCIA, e é aqui que ele vira frase. Sem isto o agente
-        // receberia `@core.automation/condition.field.eval-failed` como explicação.
-        log: execution.logs.map((entry) => ({
-          level: entry.level,
-          ...agentText(catalog, entry.message, entry.messageParams),
-        })),
-        outputs: execution.outputs,
+        ...(seesExecutionDetail(session.permissions, session.userId, execution)
+          ? {
+            // O log do motor é escrito como REFERÊNCIA, e é aqui que ele vira frase. Sem isto o agente
+            // receberia `@core.automation/condition.field.eval-failed` como explicação.
+            log: execution.logs.map((entry) => ({
+              level: entry.level,
+              ...agentText(catalog, entry.message, entry.messageParams),
+            })),
+            outputs: execution.outputs,
+          }
+          : { detailWithheld: true }),
       })),
     },
   };

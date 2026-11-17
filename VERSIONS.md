@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.274.0] — 2026-11-17
+
+- O que cada etapa de uma automação recebeu e produziu agora só aparece para quem gerencia automações. Os demais membros continuam vendo se a execução terminou, falhou ou está aguardando — sem ver os dados do registro, do documento lido ou do e-mail que a automação tratou.
+- O status das execuções passou a aparecer traduzido ("Concluída", "Falhou", "Aguardando") em vez do código em inglês.
+
 #### [9.273.5] — 2026-11-17
 
 - Corrigido um problema em que automações que liam documentos grandes terminavam sem deixar registro na lista de execuções. Agora o registro sempre é guardado, e textos longos aparecem resumidos no histórico.

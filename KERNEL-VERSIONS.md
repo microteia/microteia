@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.274.0] — 2026-11-17
+
+- feat(workflow/history): an execution is two documents — the summary (`workflow_executions/{id}`: `schema: 2`, status, times, `eventId`, `actorId`) readable by every member, and the detail (`…/detail/run`: logs with context, inputs and outputs, and the final outputs) readable only with `automation.manage`. Written in one batch. Firestore rules cannot project fields, and the single document let any member read the triggering record, a document's text or a personal mailbox's e-mail regardless of record visibility or collection read permission. Pre-existing single-document executions have no `schema` and stay with `automation.manage`, with no migration.
+- feat(firestore): composite index `workflow_executions` (`workflowDefinitionId`, `schema`, `startedAt` desc) for the summary-only query a non-manager's rule can prove.
+- feat(mcp/get_workflow_run): log and outputs only to `automation.manage` or to the access whose user started the run (`actorId`); otherwise the status and `detailWithheld: true`. Log messages travel with the detail because their parameters carry values.
+- feat(ui/workflow): the executions tab reads the detail only with `automation.manage`, re-reading it only when a summary changes state, and says so to everyone else; execution status and step level are translated.
+
 #### [9.273.5] — 2026-11-17
 
 - fix(workflow/history): the step context input is written once (the event payload) instead of on every step — it repeated the previous outputs, adding ~105 KB per step after a 100 000-character read, until the execution passed Firestore's 1 MiB and was not written at all (no outcome for the Data Processor, `get_workflow_run` pending forever).

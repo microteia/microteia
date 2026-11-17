@@ -724,10 +724,23 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      // Histórico de execução — só a Cloud Function grava (Admin SDK); membros só leem.
+      // Histórico de execução — só a Cloud Function grava (Admin SDK). Dois documentos, porque a regra
+      // não projeta campo (ver domain/schema/executionHistory.ts):
+      // - o RESUMO (status, horários, quem disparou) é de todo membro — é o que o Processador e o botão
+      //   "executar" acompanham. Só o de `schema == 2` (EXECUTION_HISTORY_SCHEMA): o histórico antigo
+      //   tinha os dados de cada passo no mesmo documento, e fica com quem gerencia;
+      // - o DETALHE (o que cada passo recebeu e devolveu) é de quem gerencia automações. Ali está o
+      //   registro que disparou a automação, o texto de documento lido, o corpo do e-mail — o que
+      //   ignorava a visibilidade por registro e a permissão de leitura da coleção.
       match /workflow_executions/{executionId} {
-        allow read: if isMember(tenantId);
+        allow read: if can(tenantId, 'automation.manage')
+          || (isMember(tenantId) && resource.data.schema == 2);
         allow write: if false;
+
+        match /detail/{part} {
+          allow read: if can(tenantId, 'automation.manage');
+          allow write: if false;
+        }
       }
 
       // Tarefas de aprovação. Lê quem está DESIGNADO — a caixa é de cada um — e quem administra as

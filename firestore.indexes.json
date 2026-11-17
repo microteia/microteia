@@ -61,6 +61,24 @@
       ]
     },
     {
+      "collectionGroup": "workflow_executions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workflowDefinitionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "schema",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "notification_inbox",
       "queryScope": "COLLECTION",
       "fields": [

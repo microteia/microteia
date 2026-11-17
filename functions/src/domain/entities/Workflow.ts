@@ -333,6 +333,11 @@ export interface WorkflowExecution {
   finishedAt?: Date;
   logs: WorkflowExecutionLogEntry[];
   outputs: Record<string, unknown>;
+  /**
+   * Quem causou a execução, quando foi uma pessoa. Fica no RESUMO: é o que deixa o `get_workflow_run`
+   * devolver as saídas a quem disparou a própria execução, e só o status a quem não disparou.
+   */
+  actorId?: string;
   /** Só em `WAITING`: quando a execução continua. */
   resumeAt?: Date;
 }

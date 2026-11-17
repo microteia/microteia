@@ -1,4 +1,6 @@
 import type { WorkflowExecution, WorkflowExecutionLogEntry } from '../entities/Workflow';
+import { PERMISSION_AUTOMATION_MANAGE } from '../schema/access/kernelPermissions';
+import { grants } from '../schema/access/memberPermissions';
 
 /**
  * O histórico é a EVIDÊNCIA do que aconteceu, não o depósito dos dados: a execução recebe o texto
@@ -88,3 +90,16 @@ export const historyRecord = (execution: WorkflowExecution): WorkflowExecution =
   };
   return historyBytes(trimmed) <= HISTORY_MAX_BYTES ? trimmed : bareHistoryRecord(execution);
 };
+
+/**
+ * O detalhe — o que cada passo recebeu e devolveu — vai a quem gerencia automações e a quem DISPAROU a
+ * execução; os outros ficam com o status. As mensagens andam com o detalhe, e não com o status, porque
+ * os parâmetros delas carregam valor: "Variável copia0 definida com valor …" traz o texto que a
+ * automação leu. É a fronteira do `firestore.rules` (`domain/schema/executionHistory.ts`), mais quem
+ * disparou, que já recebe o desfecho da própria ação.
+ */
+export const seesExecutionDetail = (
+  permissions: readonly string[],
+  userId: string,
+  execution: Pick<WorkflowExecution, 'actorId'>,
+): boolean => grants(permissions, PERMISSION_AUTOMATION_MANAGE) || (execution.actorId !== undefined && execution.actorId === userId);

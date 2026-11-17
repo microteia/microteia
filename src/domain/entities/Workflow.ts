@@ -341,4 +341,11 @@ export interface WorkflowExecution {
   outputs: Record<string, Record<string, unknown>>;
   /** Só em `WAITING`: quando a execução continua. */
   resumeAt?: Date;
+  /** Quem causou a execução, quando foi uma pessoa. */
+  actorId?: string;
+  /**
+   * Falso quando só o RESUMO foi lido — quem não tem `automation.manage` não lê o que cada passo
+   * recebeu e devolveu (ver `domain/schema/executionHistory.ts`). `logs` e `outputs` vêm vazios.
+   */
+  detailAvailable: boolean;
 }
