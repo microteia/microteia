@@ -4,6 +4,7 @@ import { getDI } from '../di/container';
 import { isClockedDefinition, runWorkflowClockRound, syncWorkflowClockEntry } from '../../domain/services/workflowClock';
 import type { ClockedDefinition } from '../../domain/services/workflowClock';
 import { WORKFLOW_CLOCK_TICK_MINUTES } from '../../domain/schema/workflowClock';
+import { isHistoryPurgeTick } from '../../domain/services/executionHistory';
 import { versionArtifactOnWrite, versionWorkflowOnWrite } from '../../domain/services/workflowVersions';
 import { SCRIPT_VERSION_CONTENT_KEYS } from '../../domain/schema/workflowVersion';
 import { escalateDueApprovals, remindDueApprovals } from '../../domain/services/approvalReminders';
@@ -30,6 +31,16 @@ const APPROVAL_REMINDER_SWEEP_LIMIT = 100;
 
 /** Quantos pedidos HTTP vencidos uma volta devolve à fila. O resto fica para a próxima. */
 const HTTP_DISPATCH_SWEEP_LIMIT = 200;
+
+/**
+ * Teto da varredura do histórico vencido numa passada. Ela roda DEPOIS das voltas do relógio, e o que
+ * não couber fica para a hora seguinte: o histórico pode passar umas horas do prazo, a automação de
+ * horário não pode atrasar.
+ */
+const HISTORY_PURGE_BUDGET_MS = 30_000;
+
+/** Até onde a execução do relógio pode ir, com folga para o `timeoutSeconds` de 240. */
+const TICK_DEADLINE_MS = 200_000;
 
 /**
  * Mantém o relógio de cada automação de acordo com a definição dela. A definição é gravada pelo
@@ -156,7 +167,21 @@ export const runWorkflowClock = onSchedule(
       if (result.fired + result.failed > 0) {
         console.log(`[workflow-clock] volta ${round + 1}: ${result.fired} tratada(s), ${result.stale} já tratada(s), ${result.failed} falha(s)`);
       }
-      if (!result.saturated) return;
+      if (!result.saturated) break;
+    }
+
+    // A retenção do histórico pega a mesma carona, uma vez por hora (a passada cujo minuto cai no
+    // primeiro intervalo), e por último: o que ela não apagar agora apaga na hora seguinte.
+    const now = new Date();
+    if (!isHistoryPurgeTick(now)) return;
+    try {
+      const deadline = Math.min(Date.now() + HISTORY_PURGE_BUDGET_MS, startedAt + TICK_DEADLINE_MS);
+      const purge = await getDI().getExecutionHistoryRetention().purgeExpired(now, () => Date.now() < deadline);
+      if (purge.deleted > 0 || !purge.complete) {
+        console.log(`[workflow-clock] ${purge.deleted} histórico(s) de execução vencido(s) apagado(s)${purge.complete ? '' : ' — o resto na próxima hora'}`);
+      }
+    } catch (error) {
+      console.error('[workflow-clock] Falha ao apagar o histórico de execução vencido:', error);
     }
   },
 );

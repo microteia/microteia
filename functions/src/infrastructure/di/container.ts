@@ -171,6 +171,7 @@ import { dateReachedEventName } from '../../domain/schema/workflowClock';
 import { FirebaseWorkflowExecutionRepository } from '../../data/repositories/FirebaseWorkflowExecutionRepository';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
+import type { IExecutionHistoryRetention } from '../../domain/repositories/IExecutionHistoryRetention';
 import { makeRunWorkflowsForEventUseCase } from '../../domain/usecases/RunWorkflowsForEventUseCase';
 import type { RunWorkflowsForEventUseCase } from '../../domain/usecases/RunWorkflowsForEventUseCase';
 import { makeRunCalledWorkflowUseCase } from '../../domain/usecases/RunCalledWorkflowUseCase';
@@ -857,6 +858,10 @@ class DIContainer {
       this.workflowExecutionRepo = new FirebaseWorkflowExecutionRepository(getDb());
     }
     return this.workflowExecutionRepo;
+  }
+
+  getExecutionHistoryRetention(): IExecutionHistoryRetention {
+    return new FirebaseWorkflowExecutionRepository(getDb());
   }
 
   getWorkflowServices(): WorkflowServices {

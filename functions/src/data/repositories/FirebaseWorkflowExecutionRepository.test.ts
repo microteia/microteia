@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Timestamp } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { WorkflowExecution } from '../../domain/entities/Workflow';
 import { EXECUTION_HISTORY_SCHEMA } from '../../domain/schema/executionHistory';
@@ -18,7 +19,25 @@ const makeFakeDb = (failures: unknown[] = [], seed: Record<string, Record<string
     collection: (name: string) => ({ doc: (id: string) => ref(`${path}/${name}/${id}`) }),
     get: async () => ({ exists: path in store, id: path.split('/').at(-1), data: () => store[path], ref: ref(path) }),
   });
+  const millis = (value: unknown) => (value as Timestamp).toMillis();
+  const groupQuery = (name: string, field: string, bound: unknown, size = Infinity, after?: string) => ({
+    orderBy: () => groupQuery(name, field, bound, size, after),
+    limit: (n: number) => groupQuery(name, field, bound, n, after),
+    startAfter: (snap: { ref: { path: string } }) => groupQuery(name, field, bound, size, snap.ref.path),
+    get: async () => {
+      const matches = Object.entries(store)
+        .filter(([path, data]) => path.split('/').at(-2) === name && data[field] instanceof Timestamp && millis(data[field]) <= millis(bound))
+        .sort(([pa, a], [pb, b]) => millis(a[field]) - millis(b[field]) || pa.localeCompare(pb));
+      const start = after === undefined ? 0 : matches.findIndex(([path]) => path === after) + 1;
+      queries.push(after ?? '');
+      return { docs: matches.slice(start, start + size).map(([path, data]) => ({ id: path.split('/').at(-1), data: () => data, ref: ref(path) })) };
+    },
+  });
+  const queries: string[] = [];
   const db = {
+    collectionGroup: (name: string) => ({
+      where: (field: string, _op: string, bound: unknown) => groupQuery(name, field, bound),
+    }),
     collection: (name: string) => ({
       doc: (id: string) => {
         const base = `${name}/${id}`;
@@ -39,18 +58,22 @@ const makeFakeDb = (failures: unknown[] = [], seed: Record<string, Record<string
       },
     }),
     batch: () => {
-      const pending: [string, Record<string, unknown>][] = [];
+      const pending: [string, Record<string, unknown> | null][] = [];
       return {
         set: (target: { path: string }, data: Record<string, unknown>) => { pending.push([target.path, data]); },
+        delete: (target: { path: string }) => { pending.push([target.path, null]); },
         commit: async () => {
           const failure = failures.shift();
           if (failure !== undefined) throw failure;
-          for (const [path, data] of pending) store[path] = data;
+          for (const [path, data] of pending) {
+            if (data === null) delete store[path];
+            else store[path] = data;
+          }
         },
       };
     },
   } as unknown as Firestore;
-  return { db, store };
+  return { db, store, queries };
 };
 
 const SUMMARY = 'tenants/t1/workflow_executions/ex1';
@@ -124,5 +147,63 @@ describe('FirebaseWorkflowExecutionRepository — leitura', () => {
     expect(read?.logs.map((entry) => entry.message)).toEqual(['antigo']);
     expect(read?.outputs).toEqual({ ok: false });
     expect(read?.actorId).toBeUndefined();
+  });
+});
+
+describe('FirebaseWorkflowExecutionRepository.purgeExpired', () => {
+  const now = new Date('2026-11-17T12:00:00Z');
+  const daysAgo = (days: number) => Timestamp.fromMillis(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const always = () => true;
+
+  it('apaga resumo e detalhe do vencido, e deixa o recente e o que ainda espera', async () => {
+    const { db, store } = makeFakeDb([], {
+      'tenants/t1/workflow_executions/velho': { schema: 2, startedAt: daysAgo(120), finishedAt: daysAgo(120) },
+      'tenants/t1/workflow_executions/velho/detail/run': { logs: [] },
+      'tenants/t1/workflow_executions/recente': { schema: 2, startedAt: daysAgo(10), finishedAt: daysAgo(10) },
+      'tenants/t1/workflow_executions/recente/detail/run': { logs: [] },
+      'tenants/t2/workflow_executions/esperando': { schema: 2, startedAt: daysAgo(200), resumeAt: daysAgo(-30) },
+      'tenants/t2/workflow_executions/esperando/detail/run': { logs: [] },
+      'tenants/t2/workflow_executions/retomada': { schema: 2, startedAt: daysAgo(200), finishedAt: daysAgo(5) },
+    });
+    const result = await new FirebaseWorkflowExecutionRepository(db).purgeExpired(now, always);
+    expect(result).toEqual({ deleted: 1, complete: true });
+    expect(Object.keys(store).sort()).toEqual([
+      'tenants/t1/workflow_executions/recente',
+      'tenants/t1/workflow_executions/recente/detail/run',
+      'tenants/t2/workflow_executions/esperando',
+      'tenants/t2/workflow_executions/esperando/detail/run',
+      'tenants/t2/workflow_executions/retomada',
+    ]);
+  });
+
+  it('o histórico antigo, sem `schema` e com tudo num documento, vence pela mesma conta', async () => {
+    const { db, store } = makeFakeDb([], {
+      'tenants/t1/workflow_executions/antigo': { startedAt: daysAgo(400), finishedAt: daysAgo(400), logs: [{ message: 'x' }] },
+    });
+    await new FirebaseWorkflowExecutionRepository(db).purgeExpired(now, always);
+    expect(store).toEqual({});
+  });
+
+  it('não toca um homônimo fora do lugar do histórico', async () => {
+    const homonym = 'tenants/t1/pedidos/p1/workflow_executions/x';
+    const { db, store } = makeFakeDb([], { [homonym]: { startedAt: daysAgo(400) } });
+    await new FirebaseWorkflowExecutionRepository(db).purgeExpired(now, always);
+    expect(Object.keys(store)).toEqual([homonym]);
+  });
+
+  it('pagina, passa pelas que esperam e para quando o tempo acaba', async () => {
+    const seed: Record<string, Record<string, unknown>> = {};
+    for (let i = 0; i < 150; i += 1) seed[`tenants/t1/workflow_executions/w${i}`] = { startedAt: daysAgo(300), resumeAt: daysAgo(-1) };
+    for (let i = 0; i < 250; i += 1) seed[`tenants/t1/workflow_executions/v${i}`] = { startedAt: daysAgo(200), finishedAt: daysAgo(200) };
+
+    const all = makeFakeDb([], { ...seed });
+    expect(await new FirebaseWorkflowExecutionRepository(all.db).purgeExpired(now, always)).toEqual({ deleted: 250, complete: true });
+    expect(Object.keys(all.store)).toHaveLength(150);
+
+    const once = makeFakeDb([], { ...seed });
+    let pages = 0;
+    const result = await new FirebaseWorkflowExecutionRepository(once.db).purgeExpired(now, () => (pages += 1) === 1);
+    expect(result).toEqual({ deleted: 50, complete: false });
+    expect(once.queries).toHaveLength(1);
   });
 });

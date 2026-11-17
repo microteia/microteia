@@ -20,3 +20,14 @@ export const EXECUTION_HISTORY_SCHEMA = 2;
 export const EXECUTION_DETAIL_COLLECTION = 'detail';
 
 export const EXECUTION_DETAIL_DOC = 'run';
+
+/**
+ * Quantos dias o histórico de uma execução fica depois do último movimento dela — começo, fim ou hora
+ * de continuar. Contar do começo apagaria a execução que ainda espera (uma aprovação, um `delay` de até
+ * um ano), e a retomada seguiria sem as linhas de antes.
+ *
+ * O histórico é evidência de curto prazo — "por que essa automação falhou ontem?" —, não o arquivo do
+ * escritório: ali fica o texto do documento lido, o corpo do e-mail, o registro que disparou. O que
+ * precisa ficar por anos é gravado pela automação num registro, que tem dono, permissão e auditoria.
+ */
+export const EXECUTION_HISTORY_RETENTION_DAYS = 90;

@@ -127,7 +127,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | `AuditLog` | `auditLogs/{id}` | Sim (campo `tenantId`, coleção flat) |
 | `WorkflowDefinition` | `tenants/{tenantId}/workflow_definitions/{id}` (steps embutidos como array) | Sim |
 | `WorkflowEvent` | `tenants/{tenantId}/workflow_events/{id}` (append-only, sem leitura pelo cliente) | Sim |
-| `WorkflowExecution` | `tenants/{tenantId}/workflow_executions/{id}` (resumo) + `…/detail/run` (detalhe), somente leitura pelo cliente | Sim |
+| `WorkflowExecution` | `tenants/{tenantId}/workflow_executions/{id}` (resumo) + `…/detail/run` (detalhe), somente leitura pelo cliente; vence 90 dias depois do último movimento (varredura do relógio) | Sim |
 | `WorkflowTask` | `tenants/{tenantId}/workflow_tasks/{executionId_stepId}` (lê o designado e quem tem `automation.manage`; ninguém grava pelo cliente) | Sim |
 | `StepDefinition` (catálogo, espelho somente-leitura) | `workflow_step_catalog/{id}` | Não |
 | `Script` (código reutilizável do Step "Script") | `tenants/{tenantId}/scripts/{id}` | Sim |
@@ -8026,6 +8026,36 @@ deixavam de fora. Por isso são dois (`domain/schema/executionHistory.ts`):
   (`actorId`, `seesExecutionDetail`); aos outros, o status e `detailWithheld: true`. As mensagens andam com
   o detalhe, não com o status, porque os parâmetros delas carregam valor ("Variável copia0 definida com
   valor …").
+
+### O histórico vence — 90 dias depois do último movimento
+
+O histórico é evidência de curto prazo ("por que essa automação falhou ontem?"), e guarda o que a
+automação tocou: o texto do documento lido, o corpo do e-mail que a caixa de mensagens apaga em 32 dias.
+Guardá-lo para sempre era reter o dado do escritório no lugar menos vigiado dele. Ele fica
+`EXECUTION_HISTORY_RETENTION_DAYS` (90) depois da data mais tardia entre o começo, o fim e a hora de
+continuar (`historyRetainedUntil`): contar do começo apagaria a execução que espera uma aprovação ou um
+`delay` de até um ano, e a retomada seguiria sem as linhas de antes. O que precisa durar anos a automação
+grava num registro, que tem dono, permissão e auditoria.
+
+**Por que varredura, e não TTL** — a regra da casa é TTL em `expiresAt`, e aqui ela não serve por três
+motivos:
+
+| Motivo | O que o TTL faria |
+|---|---|
+| O detalhe é subcoleção | o TTL do resumo não apaga `detail/run`; uma política sobre o grupo `detail` alcançaria qualquer subcoleção de registro com esse nome e um campo `expiresAt` — dado do escritório apagado sem aviso |
+| O histórico antigo não tem campo | o TTL ignora documento sem o campo, e justamente o histórico de antes da separação, com tudo num documento, ficaria para sempre |
+| A espera muda o prazo | o campo teria de ser regravado a cada suspensão; a conta pelas datas que o resumo já tem vale igual para o antigo e o atual |
+
+A varredura (`FirebaseWorkflowExecutionRepository.purgeExpired`) é uma consulta de GRUPO por `startedAt
+<= agora - 90 dias` (índice `workflow_executions.startedAt` de grupo), página a página do mais antigo:
+apaga resumo e detalhe no mesmo lote e passa pela execução que começou há muito e ainda espera. Só toca
+documento no lugar do histórico (`tenants/{t}/workflow_executions/{id}`), nunca um homônimo.
+
+Ela pega carona no `runWorkflowClock`, depois das voltas do relógio, uma vez por hora
+(`isHistoryPurgeTick`: a passada cujo minuto cai no primeiro intervalo), com 30 s de teto: o que não
+couber fica para a hora seguinte. Um agendador próprio seria mais um job do Cloud Scheduler cobrado em
+cada projeto instalado, para uma tarefa que tolera horas de atraso. Na primeira hora depois da
+atualização, a varredura começa pelo histórico antigo — o que for de antes de 90 dias sai.
 
 ### Resolução lazy de FKs — WorkflowContextHydrator
 
@@ -17569,7 +17599,7 @@ runtime na primeira execução. Foi a separação por dono que os encontrou — 
 `orderBy` em campos diferentes tem de declarar o índice no `manifest.backend.indexes` dela; sem isso ela
 instala, aparece no menu e falha na primeira execução.
 
-Além dos compostos, o arquivo declara dezesseis `fieldOverrides`:
+Além dos compostos, o arquivo declara dezenove `fieldOverrides`:
 
 | Coleção | Campo | Motivo |
 |---|---|---|
@@ -17577,6 +17607,7 @@ Além dos compostos, o arquivo declara dezesseis `fieldOverrides`:
 | `members` (collectionGroup) | `userId` ASC | `getTenantsForUser` consulta `collectionGroup('members')` para descobrir os escritórios do usuário |
 | `portalUsers` (collectionGroup) | `userId` ASC | `listMemberships` descobre em quais escritórios a pessoa é convidada do portal |
 | `workflow_clock` (collectionGroup) | `nextRunAt` ASC | `runWorkflowClock` pergunta, em todos os escritórios de uma vez, quais automações temporais venceram |
+| `workflow_executions` (collectionGroup) | `startedAt` ASC | `runWorkflowClock` apaga, uma vez por hora e em todos os escritórios, o histórico de execução vencido (90 dias). Ver "O histórico vence" |
 | `workflow_trigger_marks` | `expiresAt` | TTL — a marca de "já disparou" do gatilho de data expira sozinha; sem índice, porque ninguém consulta por ela |
 | `notification_inbox` | `expiresAt` | TTL — o sino guarda o recente (30 dias), não o histórico; o histórico é a Auditoria |
 | `notification_dispatches` | `expiresAt` | TTL — a marca de "este aviso já saiu" (`dedupKey`) vale o mesmo que o aviso |
