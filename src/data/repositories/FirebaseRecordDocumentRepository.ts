@@ -85,8 +85,11 @@ export class FirebaseRecordDocumentRepository implements IRecordDocumentReposito
     recordId: string,
     data: Omit<RecordDocument, 'id' | 'recordId' | 'collection' | 'tenantId' | 'createdAt'>,
   ): Promise<RecordDocument> {
+    // O Firestore recusa `undefined`, e o tipo e a foto de quem anexa são opcionais: sem esta limpeza,
+    // anexar sem escolher o tipo — ou sendo alguém sem foto — falhava inteiro, depois de o arquivo subir.
+    const defined = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
     const docRef = await addDoc(docsRef(tenantId, collection, recordId), {
-      ...data,
+      ...defined,
       createdAt: serverTimestamp(),
     });
     return { id: docRef.id, recordId, collection, tenantId, ...data, createdAt: new Date() };
