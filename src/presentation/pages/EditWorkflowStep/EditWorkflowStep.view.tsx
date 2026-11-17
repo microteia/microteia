@@ -667,7 +667,7 @@ export const EditWorkflowStepView: React.FC<{ tabKey: string }> = ({ tabKey }) =
                 onChange={(e) => vm.setLoopItemName(e.target.value)}
                 placeholder={t('loop.item-name.placeholder')}
               />
-              <S.HelpText>{t('loop.item-name.hint', { name: vm.loopItemName || 'item' })}</S.HelpText>
+              <S.HelpText>{vm.loopItemNameHint}</S.HelpText>
             </InputGroup>
             <InputGroup>
               <Label>{t('loop.output-name')}</Label>
