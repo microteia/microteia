@@ -1025,13 +1025,15 @@ export const useEditWorkflowStepViewModel = (tabKey: string): EditWorkflowStepVi
 
   const workflowName = label(workflow?.name) || t('workflow.fallback-name');
 
+  // O catálogo de eventos devolve referências de mensagem como rótulo; resolvidas aqui, todo controle que
+  // recebe os campos — o seletor "Do evento", o autocomplete — mostra o texto, e nenhum a referência crua.
   const eventFields = useMemo<WorkflowEventFieldOption[]>(() => {
     if (!workflow) return [];
-    if (isParameterRootedEvent(workflow.eventName)) {
-      return workflowParametersToFieldOptions(workflow.parameters, schemaContext);
-    }
-    return getWorkflowEventFields(workflow.eventName, schemaContext);
-  }, [workflow, schemaContext]);
+    const fields = isParameterRootedEvent(workflow.eventName)
+      ? workflowParametersToFieldOptions(workflow.parameters, schemaContext)
+      : getWorkflowEventFields(workflow.eventName, schemaContext);
+    return fields.map((field) => ({ ...field, label: label(field.label) }));
+  }, [workflow, schemaContext, label]);
 
   const pathRoot = useMemo(
     () => (workflow ? workflowEventRoot(workflow.eventName, workflow.parameters, schemaContext) : null),

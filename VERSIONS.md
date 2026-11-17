@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.273.3] — 2026-11-16
+
+- Completa a correção anterior: o nome traduzido dos campos do evento agora aparece em todo o editor de passos, inclusive no campo já escolhido e nas sugestões das expressões.
+
 #### [9.273.2] — 2026-11-16
 
 - No editor de passos das automações, os campos escolhidos em "Do evento" voltaram a aparecer com o nome traduzido, como "Id do registro pai", em vez de um código interno.

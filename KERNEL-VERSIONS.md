@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.273.3] — 2026-11-16
+
+- fix(workflow-editor): the step editor resolves event field labels once, in `EditWorkflowStep`'s `eventFields`, so every consumer (its own event select, `MappingValueControl`, the expression autocomplete) gets text. 9.273.2 fixed only `MappingValueControl`, and the step editor draws its own select — the raw reference was still on screen.
+
 #### [9.273.2] — 2026-11-16
 
 - fix(workflow-editor): `MappingValueControl` resolves the event field labels (`label(f.label)`) before handing them to the select. The event catalog labels are message references (`@core.automation/event-field.parent-id`), and the closed select showed the raw reference; `ConditionBuilder` already resolved them. Found while testing `read-document` end to end.
