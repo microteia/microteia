@@ -9,7 +9,7 @@ import type { PathRoot } from '../../../../../domain/schema/pathResolver';
 import type { WorkflowEventFieldOption } from '../../../../../domain/services/workflowEventCatalog';
 import type { StepOutputField, WorkflowVariable } from '../../../../components/ui/ExpressionEditor/autocompleteHelpers';
 
-import { useT, type TranslateFn } from '../../../../shared/i18n/useT';
+import { useT, useLabel, type TranslateFn } from '../../../../shared/i18n/useT';
 
 type MappingKind = InputMapping['kind'];
 
@@ -47,6 +47,7 @@ export interface MappingValueControlProps {
 
 export const MappingValueControl: React.FC<MappingValueControlProps> = (props) => {
   const t = useT('core.automation');
+  const label = useLabel();
   const { mapping, onChange } = props;
   const kindOptions = props.allowedKinds
     ? allKindOptions(t).filter((opt) => props.allowedKinds?.includes(opt.value))
@@ -66,7 +67,7 @@ export const MappingValueControl: React.FC<MappingValueControlProps> = (props) =
       case 'Event':
         return props.eventFields.length > 0 ? (
           <SearchSelect
-            options={props.eventFields.map((f) => ({ value: f.path, label: f.label }))}
+            options={props.eventFields.map((f) => ({ value: f.path, label: label(f.label) }))}
             value={mapping.path}
             onChange={(path) => onChange({ kind: 'Event', path })}
             placeholder={t('mapping.event-field.placeholder')}
