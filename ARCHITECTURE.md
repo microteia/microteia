@@ -9007,8 +9007,14 @@ O teste do extrator gera um PDF com o `pdfmake` e o lê com a biblioteca real, q
 carregamento.
 
 Lê, não grava: pode ser reexecutado, e não tem `appendsEachRun`. O texto lido fica no histórico da
-execução, visível a quem vê as execuções da automação — como o corpo de e-mail do `mail-search`. Exige
+execução, visível a quem vê as execuções da automação — como o corpo de e-mail do `mail-search` —, e por
+isso **não** respeita a visibilidade por registro (ver "O que NÃO esconde"). Exige
 `READ_DOCUMENT_SINCE_KERNEL` (2.135.0) no portão de pacote.
+
+O exemplo de autoria ponta a ponta — documento salvo → `read-document` → script que interpreta e grava, com
+a regra num arquivo testável e o `sha256` como impressão digital contra a importação repetida — está no guia
+de autoria (§10, "End to end — a document a person attaches fills in the record"), junto das duas outras
+entradas do mesmo texto: `save-mail-attachment` e o `fillFrom` do Processador.
 
 | Arquivo | Papel |
 |---|---|

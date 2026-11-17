@@ -4059,6 +4059,119 @@ administrator sees. \`examples/library-example\` is a script split exactly this 
 
 Declaring \`outputParams\` is what lets later steps read the result by name.
 
+### End to end — a document a person attaches fills in the record
+
+The pieces of this section compose into the flow most document work wants: someone attaches a file of a
+layout you know, and the record fills itself in. \`read-document\` turns the file into text, a script
+parses it and writes — no model is involved, so the same file always gives the same record.
+
+\`\`\`ts
+// plugin.ts — screen 'acme_bill' declares hasDocuments: true
+workflows: [{
+  templateId: 'acme-read-bill',
+  name: label('workflow.read-bill'),
+  eventName: 'acme_bill_document.saved',          // a document saved on that screen
+  version: 1,
+  condition: { kind: 'AlwaysTrue' },
+  steps: [
+    {
+      id: 'read', stepDefinitionId: 'read-document', type: 'Action', order: 0, enabled: true,
+      configuration: {
+        collection: { kind: 'Literal', value: 'acme_bill' },
+        recordId: { kind: 'Event', path: 'parentId' },   // the record the document belongs to
+        documentId: { kind: 'Event', path: 'id' },       // the document itself
+        layout: { kind: 'Literal', value: 'lines' },
+      },
+    },
+    {
+      id: 'parse', stepDefinitionId: 'script', type: 'Script', order: 1, enabled: true,
+      configuration: {
+        scriptId: { kind: 'Literal', value: 'acme-parse-bill' },
+        'param.billId': { kind: 'Event', path: 'parentId' },
+        'param.text': { kind: 'Output', stepId: 'read', outputId: 'text' },
+        'param.hasText': { kind: 'Output', stepId: 'read', outputId: 'hasText' },
+        'param.sha256': { kind: 'Output', stepId: 'read', outputId: 'sha256' },
+      },
+    },
+  ],
+}],
+scripts: [{
+  templateId: 'acme-parse-bill',
+  name: label('script.parse-bill'),
+  sourceFile: ['./scripts/bill.ts', './scripts/parse-bill.script.ts'],
+  inputParams: [
+    { key: 'billId', label: label('script.parse-bill.in.bill'), type: 'String', required: true },
+    { key: 'text', label: label('script.parse-bill.in.text'), type: 'String' },
+    { key: 'hasText', label: label('script.parse-bill.in.has-text'), type: 'Boolean' },
+    { key: 'sha256', label: label('script.parse-bill.in.sha256'), type: 'String' },
+  ],
+  outputParams: [{ key: 'status', label: label('script.parse-bill.out.status'), type: 'String' }],
+}]
+\`\`\`
+
+\`\`\`ts
+// scripts/bill.ts — the layout and nothing else, so "npm test" can feed it real texts
+export interface Bill { number: string; total: number; dueDate: string }
+
+const after = (lines: string[], label: string): string | undefined =>
+  lines.find((line) => line.startsWith(label))?.slice(label.length).trim();
+
+export function parseBill(text: string): Bill | null {
+  const lines = text.split('\\n');
+  const number = after(lines, 'Invoice no.');
+  const total = Number(after(lines, 'Total due')?.replace(/,/g, ''));
+  const [day, month, year] = (after(lines, 'Due date') ?? '').split('/');
+  if (!number || !Number.isFinite(total) || !year) return null;
+  return { number, total, dueDate: [year, month, day].join('-') };
+}
+
+// scripts/parse-bill.script.ts — the file that runs
+import { parseBill } from './bill';
+
+async function main() {
+  if (!input.hasText) return { status: 'no-text' };
+  const seen = await query({
+    table: 'acme_bill',
+    where: [{ path: 'sourceSha256', op: 'eq', value: input.sha256 }],
+    limit: 1,
+  });
+  if (seen.count > 0) return { status: 'duplicate' };
+  const bill = parseBill(String(input.text));
+  if (!bill) return { status: 'unknown-layout' };
+  await upsert({ table: 'acme_bill', id: String(input.billId), data: { ...bill, sourceSha256: input.sha256 } });
+  return { status: 'filled' };
+}
+
+main()
+\`\`\`
+
+What each choice is for:
+
+- **\`layout: 'lines'\`** keeps the PDF's line breaks, which is what lets a parser look for a label at the
+  start of a line. \`flat\` (the default) is one line, the form a model reads best. Pages are separated by a
+  form feed: \`text.split('\\f')[0]\` is the first page.
+- **The parser is a file of its own, with a test.** Feed the test texts that \`read-document\` produced from
+  real files — what breaks when a supplier changes its layout is \`parseBill\`, and the test is where you see it.
+- **\`hasText: false\` is a scanned PDF**, and it is a success of the step: the script answers \`no-text\`,
+  and a \`Condition\` on \`output.parse.status\` may notify a person. A password-protected PDF, an image or
+  a text above ${MAX_SOURCE_TEXT_CHARACTERS.toLocaleString('en-US')} characters fails the step instead, and the run shows why.
+- **\`sha256\` is the file's fingerprint.** Storing it on the record is what lets the script tell the same
+  file attached twice — to this record or to another — from a new one.
+- **The text read stays in the run history**, as every step's output does, and every member reads that
+  history: a restricted record does not restrict it (§8, "Record visibility"). Do not read a document there
+  whose text not every member may see.
+
+The text arrives two other ways, and the parser — \`bill.ts\`, listed in another script's \`sourceFile\` —
+serves both. From an **e-mail**, the flow above stays as it is after one more step: \`mail.received\` →
+\`save-mail-attachment\` saves the attachments to a record and publishes \`documents\` (each
+\`{ id, name, url, size }\`) → \`read-document\` with that record and one of those ids. From the **Data
+Processor**, there is no record and no file to fingerprint: a \`workflow.called\` workflow with a
+\`String\` parameter declared \`fillFrom: 'sourceText'\` receives the text the Processor extracted, and its
+script creates the record. The Processor joins a PDF's lines into one, so a parser meant for both
+cannot depend on the line breaks.
+
+\`read-document\` needs kernel ${READ_DOCUMENT_SINCE_KERNEL} or later.
+
 ## 11. Reports — questions asked of the data
 
 A report is not a screen and not an automation: it is a **question**. What it covers, how it is
