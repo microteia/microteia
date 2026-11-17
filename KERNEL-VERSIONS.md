@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.273.2] — 2026-11-16
+
+- fix(workflow-editor): `MappingValueControl` resolves the event field labels (`label(f.label)`) before handing them to the select. The event catalog labels are message references (`@core.automation/event-field.parent-id`), and the closed select showed the raw reference; `ConditionBuilder` already resolved them. Found while testing `read-document` end to end.
+
 #### [9.273.1] — 2026-11-16
 
 - fix(documents): `FirebaseRecordDocumentRepository.addDocument` drops `undefined` fields before `addDoc`. The Documents tab sends `type: undefined` when no type is chosen, and `createdByPhotoUrl: undefined` for a user without a photo; Firestore rejects `undefined`, so the upload failed after the file was already in the bucket, leaving an orphan file and no document. Found while testing `read-document` end to end.

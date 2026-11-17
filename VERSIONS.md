@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.273.2] — 2026-11-16
+
+- No editor de passos das automações, os campos escolhidos em "Do evento" voltaram a aparecer com o nome traduzido, como "Id do registro pai", em vez de um código interno.
+
 #### [9.273.1] — 2026-11-16
 
 - Corrigido um problema que impedia anexar um documento sem escolher o tipo dele — o arquivo era enviado, mas o documento não aparecia e a tela avisava que o envio falhou. O mesmo acontecia com quem não tem foto no perfil.
