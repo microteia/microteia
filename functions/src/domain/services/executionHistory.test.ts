@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkflowExecution, WorkflowExecutionLogEntry } from '../entities/Workflow';
 import {
+  historyRetainedUntil,
+  historyStartedBefore,
+  isHistoryExpired,
+  isHistoryPurgeTick,
   HISTORY_EDGE_LINES,
   HISTORY_MAX_BYTES,
   HISTORY_TEXT_MAX_CHARACTERS,
@@ -122,5 +126,40 @@ describe('seesExecutionDetail', () => {
 
   it('execução sem pessoa por trás (relógio, gatilho do kernel) só abre a quem gerencia', () => {
     expect(seesExecutionDetail(['automation.run'], '', {})).toBe(false);
+  });
+});
+
+describe('retenção do histórico', () => {
+  const day = (iso: string) => new Date(`${iso}T12:00:00Z`);
+
+  it('conta 90 dias do fim da execução', () => {
+    expect(historyRetainedUntil({ startedAt: day('2026-01-01'), finishedAt: day('2026-01-02') }))
+      .toEqual(day('2026-04-02'));
+  });
+
+  it('a execução que espera conta da hora de continuar, e não do começo', () => {
+    const waiting = { startedAt: day('2026-01-01'), resumeAt: day('2026-12-01') };
+    expect(isHistoryExpired(waiting, day('2026-06-01'))).toBe(false);
+    expect(isHistoryExpired(waiting, day('2027-03-01'))).toBe(true);
+  });
+
+  it('a que esperou muito e terminou ontem fica mais 90 dias, ainda que tenha começado há um ano', () => {
+    const resumed = { startedAt: day('2025-11-01'), resumeAt: day('2026-11-15'), finishedAt: day('2026-11-16') };
+    expect(isHistoryExpired(resumed, day('2026-11-17'))).toBe(false);
+  });
+
+  it('o limite da consulta é o próprio instante do vencimento — a consulta inclui o limite', () => {
+    const now = day('2026-11-17');
+    expect(historyStartedBefore(now)).toEqual(day('2026-08-19'));
+    expect(isHistoryExpired({ startedAt: historyStartedBefore(now) }, now)).toBe(true);
+    expect(isHistoryExpired({ startedAt: new Date(historyStartedBefore(now).getTime() + 1) }, now)).toBe(false);
+  });
+});
+
+describe('isHistoryPurgeTick', () => {
+  it('uma passada do relógio por hora — a do primeiro intervalo', () => {
+    const ticks = Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(2026, 10, 17, 9, i * 5 + 2)));
+    expect(ticks.filter(isHistoryPurgeTick)).toHaveLength(1);
+    expect(isHistoryPurgeTick(new Date(Date.UTC(2026, 10, 17, 9, 0, 1)))).toBe(true);
   });
 });

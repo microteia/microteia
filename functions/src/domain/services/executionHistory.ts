@@ -1,6 +1,8 @@
 import type { WorkflowExecution, WorkflowExecutionLogEntry } from '../entities/Workflow';
 import { PERMISSION_AUTOMATION_MANAGE } from '../schema/access/kernelPermissions';
 import { grants } from '../schema/access/memberPermissions';
+import { EXECUTION_HISTORY_RETENTION_DAYS } from '../schema/executionHistory';
+import { WORKFLOW_CLOCK_TICK_MINUTES } from '../schema/workflowClock';
 
 /**
  * O histórico é a EVIDÊNCIA do que aconteceu, não o depósito dos dados: a execução recebe o texto
@@ -103,3 +105,41 @@ export const seesExecutionDetail = (
   userId: string,
   execution: Pick<WorkflowExecution, 'actorId'>,
 ): boolean => grants(permissions, PERMISSION_AUTOMATION_MANAGE) || (execution.actorId !== undefined && execution.actorId === userId);
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** As datas do resumo que contam para a retenção — as mesmas no histórico antigo e no atual. */
+export type HistoryDates = Pick<WorkflowExecution, 'startedAt' | 'finishedAt' | 'resumeAt'>;
+
+/**
+ * Até quando o histórico fica: `EXECUTION_HISTORY_RETENTION_DAYS` depois da data mais tardia entre o
+ * começo, o fim e a hora de continuar. Calculado na varredura, e não gravado num campo, para valer
+ * igual para o histórico anterior a esta regra — que nunca teria o campo.
+ */
+export const historyRetainedUntil = (execution: HistoryDates): Date => {
+  const latest = Math.max(
+    execution.startedAt.getTime(),
+    execution.finishedAt?.getTime() ?? 0,
+    execution.resumeAt?.getTime() ?? 0,
+  );
+  return new Date(latest + EXECUTION_HISTORY_RETENTION_DAYS * DAY_MS);
+};
+
+export const isHistoryExpired = (execution: HistoryDates, now: Date): boolean =>
+  historyRetainedUntil(execution).getTime() <= now.getTime();
+
+/**
+ * O limite que a CONSULTA da varredura usa: nada que começou depois dele pode ter vencido, porque o
+ * começo é a menor das três datas. O que começou antes e ainda não venceu (a execução que espera) é
+ * lido e deixado.
+ */
+export const historyStartedBefore = (now: Date): Date =>
+  new Date(now.getTime() - EXECUTION_HISTORY_RETENTION_DAYS * DAY_MS);
+
+/**
+ * A varredura vai no relógio das automações, que passa a cada `WORKFLOW_CLOCK_TICK_MINUTES` — e roda
+ * só na passada cujo minuto cai no primeiro intervalo da hora: uma vez por hora, sem estado guardado.
+ * Um agendador próprio seria mais um job do Cloud Scheduler cobrado em cada projeto instalado, para uma
+ * tarefa que tolera horas de atraso.
+ */
+export const isHistoryPurgeTick = (now: Date): boolean => now.getUTCMinutes() < WORKFLOW_CLOCK_TICK_MINUTES;

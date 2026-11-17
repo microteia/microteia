@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.275.0] — 2026-11-17
+
+- O histórico de execução das automações passa a ser guardado por 90 dias depois da última movimentação de cada execução. Depois disso ele é apagado sozinho, junto com o que a automação tratou — o texto de um documento lido, o corpo de um e-mail. Uma execução que ainda aguarda uma aprovação ou uma espera programada não é apagada enquanto aguarda.
+
 #### [9.274.0] — 2026-11-17
 
 - O que cada etapa de uma automação recebeu e produziu agora só aparece para quem gerencia automações. Os demais membros continuam vendo se a execução terminou, falhou ou está aguardando — sem ver os dados do registro, do documento lido ou do e-mail que a automação tratou.

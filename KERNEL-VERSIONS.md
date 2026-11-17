@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.275.0] — 2026-11-17
+
+- feat(workflow/history): execution history is retained for `EXECUTION_HISTORY_RETENTION_DAYS` (90) after the latest of `startedAt`, `finishedAt` and `resumeAt`, so a run waiting on an approval or a long `delay` is kept until it resumes. History used to be kept forever, including the text a step read and the body of a mail message whose own marker expires in 32 days.
+- feat(workflow/clock): `runWorkflowClock` sweeps expired history once an hour (the tick whose minute falls in the first interval), after the clock rounds, with a 30 s budget; what does not fit waits for the next hour. Summary and `detail/run` are deleted in one batch. A sweep instead of a TTL policy because a TTL on the summary leaves the detail subcollection behind, a TTL on the `detail` collection group would reach any record subcollection with that name, and pre-9.274.0 single-document executions have no field to expire on — the sweep removes them by the same dates.
+- feat(firestore): field override `workflow_executions.startedAt` with a `COLLECTION_GROUP` ascending index, for the sweep. Deploy indexes before the functions; until the index exists the sweep logs an error and the clock is unaffected.
+
 #### [9.274.0] — 2026-11-17
 
 - feat(workflow/history): an execution is two documents — the summary (`workflow_executions/{id}`: `schema: 2`, status, times, `eventId`, `actorId`) readable by every member, and the detail (`…/detail/run`: logs with context, inputs and outputs, and the final outputs) readable only with `automation.manage`. Written in one batch. Firestore rules cannot project fields, and the single document let any member read the triggering record, a document's text or a personal mailbox's e-mail regardless of record visibility or collection read permission. Pre-existing single-document executions have no `schema` and stay with `automation.manage`, with no migration.

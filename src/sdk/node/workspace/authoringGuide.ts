@@ -1,6 +1,7 @@
 import { WORKFLOW_PARALLEL_SINCE_KERNEL } from '../../../domain/schema/workflowParallel';
 import { MAX_SOURCE_TEXT_CHARACTERS, PARAMETER_FILL_FROM_SINCE_KERNEL } from '../../../domain/schema/invocationSource';
 import { READ_DOCUMENT_SINCE_KERNEL } from '../../../domain/schema/documentRead';
+import { EXECUTION_HISTORY_RETENTION_DAYS } from '../../../domain/schema/executionHistory';
 import { RECORD_SURFACE_PREFIX, USER_MENU_SURFACE, WORKSPACE_SLOT_SURFACES } from '../../../domain/schema/ui/uiExtensionPoints';
 import { KERNEL_EXTENSION_POINTS } from '../../../domain/schema/extensionPoints';
 import { SCREEN_ICON_KEYS } from '../../../domain/schema/ui/screenIconCatalog';
@@ -4162,7 +4163,8 @@ What each choice is for:
 - **The beginning of the text stays in the run history**, as every step's output does — the history keeps
   the start of a long text and how much was left out, never all of it. Every member sees that the run
   happened; what each step received and returned only those who manage automations — whatever the
-  record's own restriction (§8, "Record visibility").
+  record's own restriction (§8, "Record visibility"). The history goes away ${EXECUTION_HISTORY_RETENTION_DAYS} days after the run's last
+  movement: what has to last — the parsed values, the fingerprint — the script writes on the record.
 
 The text arrives two other ways, and the parser — \`bill.ts\`, listed in another script's \`sourceFile\` —
 serves both. From an **e-mail**, the flow above stays as it is after one more step: \`mail.received\` →

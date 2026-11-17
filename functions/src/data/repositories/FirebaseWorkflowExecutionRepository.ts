@@ -1,8 +1,14 @@
 import { Timestamp } from 'firebase-admin/firestore';
-import type { DocumentData, DocumentReference, Firestore } from 'firebase-admin/firestore';
+import type { DocumentData, DocumentReference, Firestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import type { IWorkflowExecutionRepository } from '../../domain/repositories/IWorkflowExecutionRepository';
+import type { IExecutionHistoryRetention, ExecutionHistoryPurge } from '../../domain/repositories/IExecutionHistoryRetention';
 import type { WorkflowExecution } from '../../domain/entities/Workflow';
-import { bareHistoryRecord, historyRecord } from '../../domain/services/executionHistory';
+import {
+  bareHistoryRecord,
+  historyRecord,
+  historyStartedBefore,
+  isHistoryExpired,
+} from '../../domain/services/executionHistory';
 import {
   EXECUTION_DETAIL_COLLECTION,
   EXECUTION_DETAIL_DOC,
@@ -11,6 +17,17 @@ import {
 
 /** Um evento abre em leque, mas não indefinidamente: o teto existe para a resposta ser limitada. */
 const EXECUTIONS_PER_EVENT_LIMIT = 20;
+
+const EXECUTIONS_COLLECTION = 'workflow_executions';
+
+/**
+ * Execuções apagadas por lote da varredura: duas exclusões cada (resumo e detalhe), abaixo das 500
+ * operações que um lote do Firestore aceita.
+ */
+const PURGE_PAGE_SIZE = 200;
+
+/** A consulta é de GRUPO: só apaga o que estiver no lugar do histórico, e nunca um homônimo. */
+const TENANT_EXECUTION_PATH = new RegExp(`^tenants/[^/]+/${EXECUTIONS_COLLECTION}/[^/]+$`);
 
 /** Código gRPC com que o Firestore recusa um documento acima de 1 MiB. */
 const FIRESTORE_INVALID_ARGUMENT = 3;
@@ -42,11 +59,11 @@ const mapExecution = (tenantId: string, id: string, summary: DocumentData, detai
   };
 };
 
-export class FirebaseWorkflowExecutionRepository implements IWorkflowExecutionRepository {
+export class FirebaseWorkflowExecutionRepository implements IWorkflowExecutionRepository, IExecutionHistoryRetention {
   constructor(private readonly db: Firestore) {}
 
   private executionRef(tenantId: string, id: string): DocumentReference {
-    return this.db.collection('tenants').doc(tenantId).collection('workflow_executions').doc(id);
+    return this.db.collection('tenants').doc(tenantId).collection(EXECUTIONS_COLLECTION).doc(id);
   }
 
   private detailRef(summary: DocumentReference): DocumentReference {
@@ -108,11 +125,54 @@ export class FirebaseWorkflowExecutionRepository implements IWorkflowExecutionRe
     const snapshot = await this.db
       .collection('tenants')
       .doc(tenantId)
-      .collection('workflow_executions')
+      .collection(EXECUTIONS_COLLECTION)
       .where('eventId', '==', eventId)
       .limit(EXECUTIONS_PER_EVENT_LIMIT)
       .get();
 
     return Promise.all(snapshot.docs.map((doc) => this.withDetail(tenantId, doc.id, doc.data(), doc.ref)));
+  }
+
+  /**
+   * Página a página pelo começo, o mais antigo primeiro. A consulta alcança tudo o que pode ter vencido
+   * (o começo é a menor das datas que contam); a execução que começou há muito e ainda espera é lida e
+   * deixada, e o cursor passa por ela. O histórico anterior ao `schema` não tem detalhe — apagar o que
+   * não existe não custa nada no lote.
+   */
+  async purgeExpired(now: Date, hasTime: () => boolean): Promise<ExecutionHistoryPurge> {
+    const startedBefore = Timestamp.fromDate(historyStartedBefore(now));
+    let cursor: QueryDocumentSnapshot | undefined;
+    let deleted = 0;
+    while (hasTime()) {
+      const base = this.db
+        .collectionGroup(EXECUTIONS_COLLECTION)
+        .where('startedAt', '<=', startedBefore)
+        .orderBy('startedAt')
+        .limit(PURGE_PAGE_SIZE);
+      const page = await (cursor ? base.startAfter(cursor) : base).get();
+      const expired = page.docs.filter((doc) => {
+        const data = doc.data();
+        const startedAt = asDate(data.startedAt);
+        return TENANT_EXECUTION_PATH.test(doc.ref.path)
+          && startedAt !== null
+          && isHistoryExpired({
+            startedAt,
+            finishedAt: asDate(data.finishedAt) ?? undefined,
+            resumeAt: asDate(data.resumeAt) ?? undefined,
+          }, now);
+      });
+      if (expired.length > 0) {
+        const batch = this.db.batch();
+        for (const doc of expired) {
+          batch.delete(this.detailRef(doc.ref));
+          batch.delete(doc.ref);
+        }
+        await batch.commit();
+        deleted += expired.length;
+      }
+      if (page.docs.length < PURGE_PAGE_SIZE) return { deleted, complete: true };
+      cursor = page.docs[page.docs.length - 1];
+    }
+    return { deleted, complete: false };
   }
 }
