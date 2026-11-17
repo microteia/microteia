@@ -4157,7 +4157,8 @@ What each choice is for:
   a text above ${MAX_SOURCE_TEXT_CHARACTERS.toLocaleString('en-US')} characters fails the step instead, and the run shows why.
 - **\`sha256\` is the file's fingerprint.** Storing it on the record is what lets the script tell the same
   file attached twice — to this record or to another — from a new one.
-- **The text read stays in the run history**, as every step's output does, and every member reads that
+- **The beginning of the text stays in the run history**, as every step's output does — the history keeps
+  the start of a long text and how much was left out, never all of it —, and every member reads that
   history: a restricted record does not restrict it (§8, "Record visibility"). Do not read a document there
   whose text not every member may see.
 

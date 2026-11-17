@@ -1171,6 +1171,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'run.delay.not-suspendable': 'Esta execução não pode esperar: quem a iniciou aguarda a resposta (uma ação, um teste, ou uma automação que espera por esta).',
   'run.delay.nested': 'A espera só pausa no nível principal da automação, não dentro de uma condição ou de uma repetição.',
   'run.delay.too-large': 'A execução carrega dados demais para esperar — reduza o que os passos anteriores devolvem.',
+  'run.history-too-large': 'O histórico desta execução passou do tamanho guardado por execução, e os dados de cada passo ficaram de fora. A execução em si recebeu tudo.',
   'run.delay.step-missing': 'A automação não tem mais o passo em que esta execução esperava — não há o que continuar.',
   'run.delay.cancelled.deleted': 'A automação foi excluída durante a espera.',
   'run.delay.cancelled.disabled': 'A automação foi desligada durante a espera.',

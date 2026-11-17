@@ -7972,6 +7972,32 @@ crescente), resolvendo os inputs de cada um via `InputMapping` e despachando o e
 salvo quando o passo declara `onError` (ver "Política de falha do passo") — mas nunca derruba os
 demais workflows nem a Cloud Function.
 
+### O histórico é evidência, não depósito — teto e corte
+
+O documento de `workflow_executions` tem o 1 MiB do Firestore, e passar dele não era erro visível: o
+`create` lançava, o erro ia só para o log do servidor, o que a automação fez já tinha acontecido, o
+Processador ficava sem desfecho e o `get_workflow_run` respondia "pendente" para sempre. Medido com o
+executor real: um texto de 100 000 caracteres lido no primeiro passo somava ~105 KB por passo seguinte
+(316 KB com um passo depois, 843 KB com seis). Três medidas, cada uma com o seu motivo:
+
+- **O contexto de entrada é gravado uma vez.** Ele é derivável — o payload do evento, ou a soma das
+  saídas anteriores, que já estão nas linhas dos passos que as produziram. O executor grava só o evento,
+  na primeira linha que o traz (`WorkflowExecutor.ts`, `historyInput`). Era a repetição que crescia por
+  passo.
+- **Texto longo é cortado na CÓPIA do histórico**, nunca na execução: `historyRecord`
+  (`functions/src/domain/services/executionHistory.ts`) guarda os primeiros
+  `HISTORY_TEXT_MAX_CHARACTERS` de cada texto, seguidos de `… [+N]`. A marca não tem palavra para não pôr
+  idioma num dado. O mesmo corte reduz o que o histórico expõe — ver "O que NÃO esconde".
+- **O que não cabe nem cortado fica com as mensagens** (`bareHistoryRecord`): sem os dados de cada linha
+  e sem a saída final, com o aviso `run.history-too-large`, e só as pontas (`HISTORY_EDGE_LINES`) quando
+  nem as mensagens cabem. O repositório também cai para ele quando o Firestore recusa (código 3) o que a
+  estimativa por JSON aprovou; erro de outro código sobe, para não gravar a versão pobre de um histórico
+  que cabia.
+
+A continuação de uma execução suspensa (`workflow_clock/resume_*`) guarda o evento e todas as saídas, e
+a regra deixou de liberá-la ao cliente — o editor só lê a agenda, pelo id da definição. O prefixo da
+regra é conferido contra `RESUME_CLOCK_ID_PREFIX` em `scripts/reservedCollections.test.ts`.
+
 ### Resolução lazy de FKs — WorkflowContextHydrator
 
 O payload publicado é **cru** (só os dados do documento). Quem materializa FKs é o
@@ -9006,8 +9032,8 @@ anterior. São os dois porque cada um falha onde o outro funciona: o `new Functi
 O teste do extrator gera um PDF com o `pdfmake` e o lê com a biblioteca real, que é o que prova o
 carregamento.
 
-Lê, não grava: pode ser reexecutado, e não tem `appendsEachRun`. O texto lido fica no histórico da
-execução, visível a quem vê as execuções da automação — como o corpo de e-mail do `mail-search` —, e por
+Lê, não grava: pode ser reexecutado, e não tem `appendsEachRun`. O começo do texto lido fica no histórico
+da execução (o corte de `historyRecord`), visível a quem vê as execuções da automação — como o corpo de e-mail do `mail-search` —, e por
 isso **não** respeita a visibilidade por registro (ver "O que NÃO esconde"). Exige
 `READ_DOCUMENT_SINCE_KERNEL` (2.135.0) no portão de pacote.
 
@@ -16941,7 +16967,9 @@ ela — só o dono e o `SYSTEM`, que já supervisionam, os alcançam depois que 
   contagem de filhos restritos aparece num pai que todos leem. Não agregue sigilo.
 - **Nome denormalizado** que uma referência copia para outro registro (`referenceDenormFields`).
 - **Histórico de execução** (`workflow_executions`): todo membro o lê, e ele guarda o que cada passo
-  devolveu. A regra é anterior a esta e vale igual para a permissão por coleção.
+  devolveu — com cada texto cortado nos primeiros `HISTORY_TEXT_MAX_CHARACTERS` (ver "O histórico é
+  evidência, não depósito"), o que reduz a exposição mas não a elimina: o registro que disparou a
+  automação de `.saved` está ali. A regra é anterior a esta e vale igual para a permissão por coleção.
 - **Auditoria**: quem tem `audit.read` lê o histórico de toda coleção.
 - **Chave única** (`recordKeys`): a reserva é lida por todo membro e diz que um VALOR está tomado — é o que
   a unicidade é.

@@ -103,6 +103,21 @@ export const runWorkflow = async ({
   // O laço paginado de onde a execução volta: lido UMA vez, pelo próprio laço, na primeira passagem.
   let resumedLoop: PagedLoopState | null = resume?.loop ?? null;
 
+  /*
+   * O contexto de entrada de um passo é DERIVÁVEL: ou é o payload do evento, ou a soma das saídas dos
+   * passos anteriores — e essas já estão nas linhas dos passos que as produziram. Repeti-lo em cada
+   * linha copiava o mesmo texto N vezes: um documento de 100 000 caracteres lido no primeiro passo
+   * somava ~105 KB por passo seguinte, e o histórico passava do 1 MB do Firestore e não era gravado.
+   * Fica só o evento, uma vez — na execução retomada, ele já está nas linhas de antes da espera.
+   */
+  const derivedInputs = new WeakSet<object>();
+  let eventInputLogged = logs.some((entry) => entry.contextInput !== undefined);
+  const historyInput = (contextInput: Record<string, unknown> | undefined): Record<string, unknown> | undefined => {
+    if (contextInput === undefined || derivedInputs.has(contextInput) || eventInputLogged) return undefined;
+    eventInputLogged = true;
+    return contextInput;
+  };
+
   const log = (
     level: WorkflowExecutionLogEntry['level'],
     message: string,
@@ -115,6 +130,7 @@ export const runWorkflow = async ({
   ): void => {
     // O campo ausente fica FORA da linha, e não `undefined` dentro dela: o histórico é gravado no fim
     // da execução, e um `undefined` recusado ali perde a evidência de efeitos já aplicados.
+    const loggedInput = historyInput(contextInput);
     logs.push({
       level,
       message,
@@ -122,7 +138,7 @@ export const runWorkflow = async ({
       ...(stepId === undefined ? {} : { stepId }),
       ...(stepDefinitionId === undefined ? {} : { stepDefinitionId }),
       ...(messageParams === undefined ? {} : { messageParams }),
-      ...(contextInput === undefined ? {} : { contextInput }),
+      ...(loggedInput === undefined ? {} : { contextInput: loggedInput }),
       ...(inputs === undefined ? {} : { inputs }),
       ...(outputs === undefined ? {} : { outputs }),
     });
@@ -297,7 +313,12 @@ export const runWorkflow = async ({
     for (const stepOutputs of Object.values(ctx.outputs)) {
       Object.assign(flattenedOutputs, stepOutputs);
     }
-    ctx.input = Object.keys(flattenedOutputs).length > 0 ? flattenedOutputs : (toStored(event.payload ?? {}) as Record<string, unknown>);
+    if (Object.keys(flattenedOutputs).length > 0) {
+      derivedInputs.add(flattenedOutputs);
+      ctx.input = flattenedOutputs;
+      return;
+    }
+    ctx.input = toStored(event.payload ?? {}) as Record<string, unknown>;
   };
 
   type StepsRunResult =

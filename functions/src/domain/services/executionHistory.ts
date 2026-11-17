@@ -1,0 +1,90 @@
+import type { WorkflowExecution, WorkflowExecutionLogEntry } from '../entities/Workflow';
+
+/**
+ * O histórico é a EVIDÊNCIA do que aconteceu, não o depósito dos dados: a execução recebe o texto
+ * inteiro, e o histórico guarda o começo dele e quanto faltou. Sem isto, um documento de 100 000
+ * caracteres lido por um passo ficava inteiro no histórico — que todo membro do escritório lê.
+ */
+export const HISTORY_TEXT_MAX_CHARACTERS = 2_000;
+
+/**
+ * Abaixo do 1 MiB do documento do Firestore, com folga: o tamanho é estimado pelo JSON, e a conta do
+ * Firestore (nomes de campo, carimbos de data) não é a mesma.
+ */
+export const HISTORY_MAX_BYTES = 900_000;
+
+/** Quantas linhas sobram de cada ponta quando nem as mensagens cabem — um laço de milhares de voltas. */
+export const HISTORY_EDGE_LINES = 50;
+
+export const HISTORY_TOO_LARGE_MESSAGE = '@core.automation/run.history-too-large';
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype;
+
+/** O corte vai no TEXTO, e diz quanto ficou de fora — sem palavra, para não haver idioma no dado. */
+export const trimForHistory = (value: unknown): unknown => {
+  if (typeof value === 'string') {
+    return value.length <= HISTORY_TEXT_MAX_CHARACTERS
+      ? value
+      : `${value.slice(0, HISTORY_TEXT_MAX_CHARACTERS)}… [+${value.length - HISTORY_TEXT_MAX_CHARACTERS}]`;
+  }
+  if (Array.isArray(value)) return value.map(trimForHistory);
+  if (isPlainObject(value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, trimForHistory(item)]));
+  }
+  return value;
+};
+
+const trimEntry = (entry: WorkflowExecutionLogEntry): WorkflowExecutionLogEntry => ({
+  ...entry,
+  ...(entry.messageParams === undefined
+    ? {}
+    : { messageParams: trimForHistory(entry.messageParams) as Record<string, string> }),
+  ...(entry.contextInput === undefined ? {} : { contextInput: trimForHistory(entry.contextInput) as Record<string, unknown> }),
+  ...(entry.inputs === undefined ? {} : { inputs: trimForHistory(entry.inputs) as Record<string, unknown> }),
+  ...(entry.outputs === undefined ? {} : { outputs: trimForHistory(entry.outputs) as Record<string, unknown> }),
+});
+
+const withoutData = (entry: WorkflowExecutionLogEntry): WorkflowExecutionLogEntry => ({
+  level: entry.level,
+  message: entry.message,
+  at: entry.at,
+  ...(entry.stepId === undefined ? {} : { stepId: entry.stepId }),
+  ...(entry.stepDefinitionId === undefined ? {} : { stepDefinitionId: entry.stepDefinitionId }),
+  ...(entry.messageParams === undefined ? {} : { messageParams: entry.messageParams }),
+});
+
+export const historyBytes = (execution: WorkflowExecution): number =>
+  Buffer.byteLength(JSON.stringify(execution), 'utf8');
+
+const tooLargeNotice = (execution: WorkflowExecution): WorkflowExecutionLogEntry => ({
+  level: 'WARN',
+  message: HISTORY_TOO_LARGE_MESSAGE,
+  at: execution.finishedAt ?? execution.logs.at(-1)?.at ?? execution.startedAt,
+});
+
+/**
+ * Só as mensagens: sem os dados de cada linha nem a saída final, e com as pontas quando nem isso
+ * cabe. É também o que o repositório grava quando o Firestore recusa o histórico que a estimativa
+ * aprovou — sem desfecho gravado, o Processador e o `get_workflow_run` esperariam para sempre.
+ */
+export const bareHistoryRecord = (execution: WorkflowExecution): WorkflowExecution => {
+  const lines = execution.logs.map((entry) => withoutData(trimEntry(entry)));
+  const notice = tooLargeNotice(execution);
+  const bare: WorkflowExecution = { ...execution, logs: [...lines, notice], outputs: {} };
+  if (historyBytes(bare) <= HISTORY_MAX_BYTES || lines.length <= HISTORY_EDGE_LINES * 2) return bare;
+  return { ...bare, logs: [...lines.slice(0, HISTORY_EDGE_LINES), notice, ...lines.slice(-HISTORY_EDGE_LINES)] };
+};
+
+/**
+ * O que vai para `workflow_executions`: os textos cortados e, quando nem assim cabe, só as mensagens.
+ * Um histórico que não cabe não é gravado — e a execução já aplicou o que aplicou.
+ */
+export const historyRecord = (execution: WorkflowExecution): WorkflowExecution => {
+  const trimmed: WorkflowExecution = {
+    ...execution,
+    logs: execution.logs.map(trimEntry),
+    outputs: trimForHistory(execution.outputs) as Record<string, unknown>,
+  };
+  return historyBytes(trimmed) <= HISTORY_MAX_BYTES ? trimmed : bareHistoryRecord(execution);
+};

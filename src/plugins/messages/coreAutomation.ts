@@ -1170,6 +1170,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'run.delay.not-suspendable': 'This run cannot wait: whoever started it is waiting for the answer (an action, a test run, or a workflow that waits for this one).',
   'run.delay.nested': 'A wait only pauses at the top level of the workflow, not inside a condition or a loop.',
   'run.delay.too-large': 'The run carries too much data to wait — reduce what the previous steps return.',
+  'run.history-too-large': 'The history of this run exceeded the size kept per run, so the data of each step was left out. The run itself received everything.',
   'run.delay.step-missing': 'The workflow no longer has the step this run was waiting on — nothing left to continue.',
   'run.delay.cancelled.deleted': 'The workflow was deleted during the wait.',
   'run.delay.cancelled.disabled': 'The workflow was turned off during the wait.',

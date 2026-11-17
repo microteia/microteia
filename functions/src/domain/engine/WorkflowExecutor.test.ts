@@ -3,6 +3,7 @@ import { runWorkflow } from './WorkflowExecutor';
 import type { StepRegistry } from './StepRegistry';
 import type { StepDefinition } from './StepDefinition';
 import type { WorkflowServices } from '../entities/WorkflowContext';
+import { HISTORY_TOO_LARGE_MESSAGE, historyBytes, historyRecord } from '../services/executionHistory';
 import type { Condition, InputMapping, WorkflowDefinition, WorkflowEvent, WorkflowStep } from '../entities/Workflow';
 
 // Step de teste "record": registra sua tag na ordem de execução e devolve { value: tag }.
@@ -1055,5 +1056,49 @@ describe('runWorkflow — Loop sobre consulta paginada', () => {
     });
     expect(run.status).toBe('SUCCESS');
     expect(run.outputs).toEqual({ processed: 5, pages: 1 });
+  });
+});
+
+describe('runWorkflow — o contexto de entrada no histórico', () => {
+  const TEXT = 'Consumo kWh 39,27 ação '.repeat(5_000).slice(0, 100_000);
+  const readStep: StepDefinition = {
+    id: 'read', version: 1, name: 'Read', description: '', icon: 'x', category: 'Action', type: 'Action',
+    configurable: true, inputs: [], outputDefinitions: [{ id: 'text', label: 'Text', type: 'String' }],
+    createExecutor: () => ({ execute: async () => ({ success: true, outputs: { text: TEXT } }) }),
+  };
+  const useStep: StepDefinition = {
+    id: 'use', version: 1, name: 'Use', description: '', icon: 'x', category: 'Action', type: 'Action',
+    configurable: true, inputs: [{ id: 'text', label: 'Text', required: false, type: 'String' }],
+    outputDefinitions: [{ id: 'status', label: 'Status', type: 'String' }],
+    createExecutor: () => ({ execute: async () => ({ success: true, outputs: { status: 'filled' } }) }),
+  };
+  const registry: StepRegistry = {
+    register: () => undefined,
+    resolve: (id) => (id === 'read' ? readStep : id === 'use' ? useStep : undefined),
+    list: () => [readStep, useStep],
+  };
+  const steps: WorkflowStep[] = [
+    { id: 'read', stepDefinitionId: 'read', type: 'Action', order: 0, enabled: true, configuration: {} },
+    ...Array.from({ length: 6 }, (_, i): WorkflowStep => ({
+      id: `use${i}`, stepDefinitionId: 'use', type: 'Action', order: i + 1, enabled: true,
+      configuration: i === 0 ? { text: { kind: 'Output', stepId: 'read', outputId: 'text' } } : {},
+    })),
+  ];
+
+  it('grava o evento uma vez, e não a soma das saídas anteriores em cada passo', async () => {
+    const run = await runWorkflow({ definition: makeDefinition(steps), event: makeEvent({ id: 'd1' }), registry, services });
+    expect(run.status).toBe('SUCCESS');
+    const withContext = run.logs.filter((entry) => entry.contextInput !== undefined);
+    expect(withContext.map((entry) => entry.stepId)).toEqual(['read']);
+    expect(withContext[0].contextInput).toEqual({ id: 'd1' });
+    // A execução continua recebendo o texto inteiro — o que se poupa é a cópia no histórico.
+    expect(run.logs.find((entry) => entry.stepId === 'use0')?.inputs?.text).toBe(TEXT);
+  });
+
+  it('um texto de 100 000 caracteres lido no primeiro passo cabe no histórico depois de seis passos', async () => {
+    const run = await runWorkflow({ definition: makeDefinition(steps), event: makeEvent({ id: 'd1' }), registry, services });
+    const record = historyRecord(run);
+    expect(record.logs.map((entry) => entry.message)).not.toContain(HISTORY_TOO_LARGE_MESSAGE);
+    expect(historyBytes(record)).toBeLessThan(50_000);
   });
 });

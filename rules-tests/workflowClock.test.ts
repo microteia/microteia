@@ -23,7 +23,10 @@ beforeEach(async () => {
       [OTHER_TENANT]: { deFora: ['automation.manage'] },
     },
     records: {
-      [TENANT]: { 'workflow_clock/wf': { kind: 'schedule', cron: '0 8 * * *', nextRunAt: new Date('2026-10-13T11:00:00Z') } },
+      [TENANT]: {
+        'workflow_clock/wf': { kind: 'schedule', cron: '0 8 * * *', nextRunAt: new Date('2026-10-13T11:00:00Z') },
+        'workflow_clock/resume_ex1': { kind: 'resume', executionId: 'ex1', event: { payload: { salary: 1 } }, outputs: {} },
+      },
     },
   });
 });
@@ -38,6 +41,12 @@ describe('o relógio das automações temporais', () => {
 
   it('quem não é do escritório não lê', async () => {
     await assertFails(getDoc(entry('deFora')));
+  });
+
+  it('a continuação de execução suspensa não é lida pelo cliente — ela guarda o evento e as saídas', async () => {
+    await assertFails(getDoc(entry('membro', TENANT, 'resume_ex1')));
+    await assertFails(getDoc(entry('gestor', TENANT, 'resume_ex1')));
+    await assertFails(getDoc(entry('dono', TENANT, 'resume_ex1')));
   });
 
   it('ninguém grava pelo cliente, nem quem gerencia automações, nem o dono', async () => {
