@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.280.0] — 2026-11-18
+
+- Quem escreve extensões ganhou um exemplo completo de relatório com aparência própria: botões de período e destaques acima do gráfico e da tabela, com Exportar e Assinar agindo sobre o que está na tela.
+- Corrigido: num relatório agrupado por uma lista de opções trazida por uma extensão, o gráfico, a tabela e o CSV mostravam um código no lugar do nome da opção.
+- O guia de autoria explica como uma extensão desenha a aba do próprio relatório e o que acontece enquanto ela ainda não foi aprovada pelo escritório.
+
 #### [9.279.0] — 2026-11-18
 
 - Uma extensão agora pode trazer a sua própria apresentação para um relatório: quem abre o relatório — pela lista de Relatórios, pela busca, por um link ou pelo aviso de uma automação — vê a tela que a extensão desenhou, com o título, os avisos e os botões de exportar, imprimir e assinar de sempre, valendo sobre os filtros escolhidos nela. Até que o código da extensão seja revisado e confiado, o relatório continua com a apresentação padrão.

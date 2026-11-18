@@ -11950,6 +11950,12 @@ Os números continuam vindo só da callable — permissão, visibilidade por reg
 valem igual. O `check` recusa a `view` que não é do pacote (`issue.report.view-unknown`): sem a
 recusa, a aba cairia calada no corpo padrão em todo escritório.
 
+O exemplo de autoria é `examples/report-view-example`: um relatório só, desenhado com botões de período
+e destaques acima do `ReportChart` e do `ReportTable` da plataforma. A média é medida CALCULADA no
+`dataset`, e não divisão na view — o número que a view inventa é um que o CSV, o agente e a automação
+não veem. `ReportFrame.report` (e `UseReportResult.report`) declara `spec` na API curada: era entregue
+em tempo de execução, mas o tipo publicado não o tinha, e compor `ReportTable` pedia um `any`.
+
 ### Relatório como passo de automação (`run-report`) — assinar e alertar
 
 O relatório não ganhou agendador próprio: ganhou um PASSO, e o agendador é o relógio das automações.

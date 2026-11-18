@@ -1,0 +1,273 @@
+{
+  "manifest": {
+    "id": "com.microteia.report-view-example",
+    "version": "1.0.0",
+    "kernel": "^2.138.0",
+    "name": "@com.microteia.report-view-example/package.name",
+    "description": "@com.microteia.report-view-example/package.description",
+    "category": "@com.microteia.report-view-example/package.category",
+    "publisher": {
+      "name": "Microteia"
+    },
+    "contributes": [
+      {
+        "point": "i18n.messages",
+        "id": "en.com.microteia.report-view-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "en",
+          "namespace": "com.microteia.report-view-example",
+          "messages": {
+            "package.name": "A report drawn in code, by example",
+            "package.category": "Reports",
+            "package.description": "A report whose tab the extension draws: its own period buttons and headline, above the chart and the table of the platform.",
+            "package.summary": "How an extension draws the BODY of a report it declares. The report names one of the package views (`reports[].view`), and that view replaces the standard body of the report tab wherever it is opened — the report list, the command palette, a link in a notification. The platform keeps the title, the warnings and Export / Print / Subscribe, and it runs the report: the view asks for a new period with `useReportFrame().run(...)`, so what is exported is what is on screen. The numbers still come from the declared dataset — the view only decides how they are shown.",
+            "screen.entry": "Entry",
+            "screen.entry.plural": "Entries",
+            "field.label": "Description",
+            "field.category": "Category",
+            "field.category.standard": "Standard",
+            "field.category.priority": "Priority",
+            "field.category.exception": "Exception",
+            "field.entryDate": "Date",
+            "field.amount": "Amount",
+            "report.overview": "Entries overview",
+            "report.overview.description": "Totals by category for a period, with the headline above the chart.",
+            "dimension.category": "Category",
+            "measure.total": "Total",
+            "measure.count": "Entries",
+            "measure.average": "Average per entry",
+            "prompt.period": "Period",
+            "view.overview": "Entries overview",
+            "period.this-month": "This month",
+            "period.this-year": "This year",
+            "period.last-year": "Last year",
+            "period.all": "All time",
+            "overview.total": "Total",
+            "overview.count": "Entries",
+            "overview.average": "Average per entry",
+            "overview.loading": "Running the report…",
+            "overview.outside": "This view draws the body of the Entries overview report. Open the report to see it."
+          }
+        }
+      },
+      {
+        "point": "i18n.messages",
+        "id": "pt-br.com.microteia.report-view-example",
+        "apiVersion": "1.0.0",
+        "metadata": {
+          "locale": "pt-BR",
+          "namespace": "com.microteia.report-view-example",
+          "messages": {
+            "package.name": "Relatório desenhado em código, pelo exemplo",
+            "package.category": "Relatórios",
+            "package.description": "Um relatório cuja aba a extensão desenha: botões de período e destaques próprios, acima do gráfico e da tabela da plataforma.",
+            "package.summary": "Como uma extensão desenha o CORPO de um relatório que ela declara. O relatório nomeia uma das views do pacote (`reports[].view`), e essa view substitui o corpo padrão da aba do relatório onde quer que ele seja aberto — a lista de relatórios, a paleta de comandos, o link de uma notificação. A plataforma mantém o título, os avisos e Exportar / Imprimir / Assinar, e é ela que executa o relatório: a view pede outro período com `useReportFrame().run(...)`, e por isso o que se exporta é o que está na tela. Os números continuam saindo do dataset declarado — a view só decide como mostrá-los.",
+            "screen.entry": "Lançamento",
+            "screen.entry.plural": "Lançamentos",
+            "field.label": "Descrição",
+            "field.category": "Categoria",
+            "field.category.standard": "Padrão",
+            "field.category.priority": "Prioritário",
+            "field.category.exception": "Exceção",
+            "field.entryDate": "Data",
+            "field.amount": "Valor",
+            "report.overview": "Panorama dos lançamentos",
+            "report.overview.description": "Totais por categoria num período, com os destaques acima do gráfico.",
+            "dimension.category": "Categoria",
+            "measure.total": "Total",
+            "measure.count": "Lançamentos",
+            "measure.average": "Média por lançamento",
+            "prompt.period": "Período",
+            "view.overview": "Panorama dos lançamentos",
+            "period.this-month": "Este mês",
+            "period.this-year": "Este ano",
+            "period.last-year": "Ano passado",
+            "period.all": "Todo o período",
+            "overview.total": "Total",
+            "overview.count": "Lançamentos",
+            "overview.average": "Média por lançamento",
+            "overview.loading": "Executando o relatório…",
+            "overview.outside": "Esta view desenha o corpo do relatório Panorama dos lançamentos. Abra o relatório para vê-la."
+          }
+        }
+      }
+    ]
+  },
+  "summary": "@com.microteia.report-view-example/package.summary",
+  "workflows": [],
+  "screens": [
+    {
+      "key": "reportViewEntry",
+      "sourceId": "microteia:report-view-example:entry",
+      "sourceRev": 1,
+      "titleSingular": "@com.microteia.report-view-example/screen.entry",
+      "titlePlural": "@com.microteia.report-view-example/screen.entry.plural",
+      "icon": "fileList",
+      "fields": [
+        {
+          "key": "label",
+          "label": "@com.microteia.report-view-example/field.label",
+          "type": "text",
+          "required": true,
+          "order": 0
+        },
+        {
+          "key": "category",
+          "label": "@com.microteia.report-view-example/field.category",
+          "type": "select",
+          "required": true,
+          "order": 1,
+          "filterable": true,
+          "optionsColored": true,
+          "options": [
+            {
+              "key": "standard",
+              "label": "@com.microteia.report-view-example/field.category.standard",
+              "color": "info"
+            },
+            {
+              "key": "priority",
+              "label": "@com.microteia.report-view-example/field.category.priority",
+              "color": "warning"
+            },
+            {
+              "key": "exception",
+              "label": "@com.microteia.report-view-example/field.category.exception",
+              "color": "danger"
+            }
+          ]
+        },
+        {
+          "key": "entryDate",
+          "label": "@com.microteia.report-view-example/field.entryDate",
+          "type": "date",
+          "required": true,
+          "order": 2,
+          "filterable": true
+        },
+        {
+          "key": "amount",
+          "label": "@com.microteia.report-view-example/field.amount",
+          "type": "currency",
+          "required": true,
+          "order": 3
+        }
+      ],
+      "titleFieldKey": "label",
+      "subtitleFieldKey": "category",
+      "eventPrefix": "reportViewEntry"
+    }
+  ],
+  "reports": [
+    {
+      "templateId": "overview",
+      "key": "entries-overview",
+      "title": "@com.microteia.report-view-example/report.overview",
+      "description": "@com.microteia.report-view-example/report.overview.description",
+      "icon": "barChart",
+      "origin": "plugin",
+      "sourceId": "microteia:report-view-example:overview",
+      "sourceRev": 1,
+      "managed": true,
+      "enabled": true,
+      "spec": {
+        "v": 1,
+        "dataset": {
+          "table": "reportViewEntry",
+          "dimensions": [
+            {
+              "key": "category",
+              "path": "category",
+              "label": "@com.microteia.report-view-example/dimension.category"
+            }
+          ],
+          "measures": [
+            {
+              "key": "total",
+              "op": "sum",
+              "path": "amount",
+              "label": "@com.microteia.report-view-example/measure.total",
+              "format": {
+                "kind": "currency"
+              }
+            },
+            {
+              "key": "count",
+              "op": "count",
+              "label": "@com.microteia.report-view-example/measure.count"
+            },
+            {
+              "key": "average",
+              "kind": "computed",
+              "expression": "total / count",
+              "label": "@com.microteia.report-view-example/measure.average",
+              "format": {
+                "kind": "currency"
+              }
+            }
+          ]
+        },
+        "shape": {
+          "kind": "summary",
+          "groupBy": [
+            {
+              "dimension": "category"
+            }
+          ],
+          "values": [
+            "total",
+            "count",
+            "average"
+          ],
+          "grandTotal": true
+        },
+        "presentation": {
+          "chart": {
+            "kind": "bar",
+            "category": "category",
+            "series": [
+              "total"
+            ]
+          },
+          "prompts": [
+            {
+              "key": "period",
+              "label": "@com.microteia.report-view-example/prompt.period",
+              "path": "entryDate",
+              "op": "gte",
+              "control": "period",
+              "default": {
+                "kind": "Literal",
+                "value": "this-year"
+              }
+            }
+          ],
+          "export": {
+            "csv": true
+          }
+        },
+        "requires": [
+          "dataset.collection",
+          "export.csv",
+          "measure.aggregate",
+          "measure.computed",
+          "presentation.chart",
+          "presentation.prompt",
+          "presentation.prompt.default",
+          "presentation.prompt.period",
+          "shape.summary"
+        ]
+      },
+      "view": "overview"
+    }
+  ],
+  "views": [
+    {
+      "key": "overview",
+      "title": "@com.microteia.report-view-example/view.overview",
+      "icon": "barChart",
+      "source": "// --- Overview.view.tsx ---\nimport { Button, InfoBanner } from '@microteia/ui';\nimport { ReportChart, ReportTable } from '@microteia/report';\n\n\n\n/**\n * The body of the \"Entries overview\" report tab, named by `reports[].view` in the package.\n *\n * Above the line is this extension's: the period buttons and the headline. Below it are the platform's\n * own pieces, `ReportChart` and `ReportTable`, fed with the report's spec and the result the frame ran —\n * composition, not reimplementation. The title, the warnings and Export / Print / Subscribe are drawn\n * by the tab around this view, and are not repeated here.\n */\nexport default function Overview() {\n  const vm = useOverviewViewModel();\n\n  if (!vm.inFrame) return <InfoBanner message={vm.t('overview.outside')} variant=\"info\" />;\n\n  return (\n    <S.Wrapper>\n      <S.Periods>\n        {vm.periods.map((period) => (\n          <Button key={period.key} size=\"sm\" variant={period.active ? 'primary' : 'secondary'} onClick={period.onClick}>\n            {period.label}\n          </Button>\n        ))}\n      </S.Periods>\n\n      {vm.loading && <S.Muted>{vm.t('overview.loading')}</S.Muted>}\n\n      {vm.headline.length > 0 && (\n        <S.Headline>\n          {vm.headline.map((item) => (\n            <S.Tile key={item.key}>\n              <S.TileLabel>{item.label}</S.TileLabel>\n              <S.TileValue>{item.value}</S.TileValue>\n            </S.Tile>\n          ))}\n        </S.Headline>\n      )}\n\n      <ReportChart spec={vm.spec} result={vm.result} />\n      <ReportTable spec={vm.spec} result={vm.result} />\n    </S.Wrapper>\n  );\n}\n\n// --- Overview.viewmodel.tsx ---\nimport { useCallback, useMemo } from 'react';\nimport { useReportFrame } from '@microteia/report';\nimport { useLocaleFormat, useT } from '@microteia/i18n';\n\n/** The prompt this view answers — `presentation.prompts[].key` of the report it draws. */\nconst PERIOD_PROMPT = 'period';\n\n/** Periods offered as buttons. Any `REPORT_PERIODS` value is valid; these are the ones worth one click. */\nconst PERIODS = ['this-month', 'this-year', 'last-year'] as const;\n\n/**\n * Everything the overview decides, so the view only draws.\n *\n * The data comes from the FRAME — the report tab around this view — and never from `useReport`. The\n * frame is what runs the report, so Export and Subscribe act on the result and the answers shown\n * here. A view that fetched its own numbers would show one thing and export another.\n */\nexport const useOverviewViewModel = () => {\n  const t = useT('com.microteia.report-view-example');\n  const { formatMoney, formatNumber } = useLocaleFormat();\n  const frame = useReportFrame();\n\n  // The frame remembers the answers the report last ran with. ABSENT means it has not run yet, and no\n  // button is lit; `null` is an answer — \"no restriction\" — and lights \"All time\". Sending `null`\n  // rather than leaving the key out is what overrides the report's default period.\n  const answered = frame ? frame.prompts[PERIOD_PROMPT] : undefined;\n\n  const choose = useCallback(\n    (period: string | null) => {\n      void frame?.run({ [PERIOD_PROMPT]: period });\n    },\n    [frame],\n  );\n\n  const periods = useMemo(\n    () => [\n      ...PERIODS.map((period) => ({\n        key: period,\n        label: t(`period.${period}`),\n        active: answered === period,\n        onClick: () => choose(period),\n      })),\n      { key: 'all', label: t('period.all'), active: answered === null, onClick: () => choose(null) },\n    ],\n    [t, answered, choose],\n  );\n\n  // Every number below is a measure of the report, read from the grand total. The average is\n  // `total / count` DECLARED as a computed measure, not divided here: a number the view computes is a\n  // number that the export, the agent and the automation never see.\n  // A measure the report could not compute — the average of nothing divides by zero — arrives as\n  // `null`. It is shown as a dash: an empty tile looks broken, and a zero would claim a number.\n  const headline = useMemo(() => {\n    const totals = frame?.result?.totals;\n    if (!totals) return [];\n    const shown = (value: number | null, format: (one: number) => string): string =>\n      value === null || value === undefined ? '—' : format(value);\n    return [\n      { key: 'total', label: t('overview.total'), value: shown(totals.values.total, formatMoney) },\n      { key: 'count', label: t('overview.count'), value: shown(totals.values.count, formatNumber) },\n      { key: 'average', label: t('overview.average'), value: shown(totals.values.average, formatMoney) },\n    ];\n  }, [frame, t, formatMoney, formatNumber]);\n\n  return {\n    t,\n    /** `null` outside the report tab: the same view could be mounted somewhere else, and there it has no report. */\n    inFrame: frame !== null,\n    loading: frame !== null && frame.isLoading && !frame.result,\n    periods,\n    headline,\n    spec: frame?.report.spec,\n    result: frame?.result ?? null,\n  };\n};\n\n// --- Overview.styles.tsx ---\nimport { styled } from 'styled-components';\n\n/** Every colour, size and space comes from the theme. */\nconst Wrapper = styled.div`\n  display: flex;\n  flex-direction: column;\n  gap: ${({ theme }) => theme.spacing.lg};\n`;\n\nconst Periods = styled.div`\n  display: flex;\n  flex-wrap: wrap;\n  gap: ${({ theme }) => theme.spacing.sm};\n`;\n\nconst Muted = styled.p`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst Headline = styled.div`\n  display: flex;\n  flex-wrap: wrap;\n  gap: ${({ theme }) => theme.spacing.md};\n`;\n\nconst Tile = styled.div`\n  flex: 1 1 0;\n  display: flex;\n  flex-direction: column;\n  gap: ${({ theme }) => theme.spacing.xs};\n  padding: ${({ theme }) => theme.spacing.md};\n  border: 1px solid ${({ theme }) => theme.colors.border};\n  border-radius: ${({ theme }) => theme.borderRadius.md};\n  background: ${({ theme }) => theme.colors.surface};\n`;\n\nconst TileLabel = styled.span`\n  font-size: ${({ theme }) => theme.fontSizes.sm};\n  color: ${({ theme }) => theme.colors.textMuted};\n`;\n\nconst TileValue = styled.span`\n  font-size: ${({ theme }) => theme.fontSizes.xl};\n  font-weight: 700;\n  color: ${({ theme }) => theme.colors.text};\n`;\n\nexport const S = { Wrapper, Periods, Muted, Headline, Tile, TileLabel, TileValue };\n"
+    }
+  ]
+}
