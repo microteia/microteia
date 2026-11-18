@@ -780,3 +780,35 @@ describe('validateReportSpec — o campo que a dobra não mostra', () => {
     expect(errors(validateReportSpec(spec, ctx))).toContain('@core.reports/shape.summary.no-group');
   });
 });
+
+describe('validateReportSpec — o filtro de período (#4)', () => {
+  const comPeriodo = (prompt: Partial<NonNullable<NonNullable<ReportSpec['presentation']>['prompts']>[number]>): ReportSpec => ({
+    ...valid,
+    presentation: { prompts: [{ key: 'mes', path: 'vencimento', op: 'gte', control: 'period', ...prompt }] },
+  });
+
+  it('o padrão parametrizado e os `periods` válidos passam', () => {
+    expect(errors(validateReportSpec(comPeriodo({
+      periods: ['last-15-days', 'last-12-months', 'previous-2-quarters', 'this-year'],
+      default: { kind: 'Literal', value: 'last-12-months' },
+    }), ctx))).toEqual([]);
+  });
+
+  it('o padrão fora do que o filtro oferece, ou deslocado, é recusa', () => {
+    expect(errors(validateReportSpec(comPeriodo({
+      periods: ['last-12-months'], default: { kind: 'Literal', value: 'this-year' },
+    }), ctx))).toContain('@core.reports/prompt.period.default-invalid');
+    expect(errors(validateReportSpec(comPeriodo({
+      default: { kind: 'Literal', value: 'last-12-months-offset-1' },
+    }), ctx))).toContain('@core.reports/prompt.period.default-invalid');
+  });
+
+  it('uma opção que não é período é recusa, nomeando a posição', () => {
+    const issues = validateReportSpec(comPeriodo({ periods: ['last-12-months', 'ultimos-12-meses'] }), ctx);
+    expect(issues).toContainEqual(expect.objectContaining({
+      field: 'presentation.prompts[0].periods[1]',
+      error: '@core.reports/prompt.period.option-invalid',
+      errorParams: { key: 'mes', value: 'ultimos-12-meses' },
+    }));
+  });
+});

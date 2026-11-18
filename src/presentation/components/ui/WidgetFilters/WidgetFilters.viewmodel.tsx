@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useLabel, useT } from '../../../shared/i18n/useT';
+import { useLabel } from '../../../shared/i18n/useT';
 import { useWidgetOwner } from '../../../shared/widgetFilterContext';
 import { useWidgetChoiceField } from '../../../shared/widgetChoiceField';
-import { REPORT_PERIODS } from '../../../../domain/schema/report/reportPeriod';
+import { useReportPeriodOptions } from '../../../shared/useReportPeriodOptions';
+import type { ReportPeriodOption } from '../../../shared/useReportPeriodOptions';
 import { isWidgetChoiceFilter, widgetFilterAnswer } from '../../../../domain/schema/ui/widgetSpec';
 import type { WidgetFilter } from '../../../../domain/schema/ui/widgetSpec';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities';
@@ -14,6 +15,8 @@ export interface WidgetFilterField {
   kind: 'period' | 'text' | 'choice';
   /** A resposta de `period` e `text`. */
   text: string;
+  /** As opções de `period`: os `periods` do filtro, ou os nomeados. */
+  periodOptions: ReportPeriodOption[];
   /** O campo e a resposta de `choice` — o mesmo controle do filtro do relatório. */
   field?: FieldDefinition;
   value: CustomFieldValue;
@@ -21,7 +24,6 @@ export interface WidgetFilterField {
 
 export interface WidgetFiltersViewModel {
   fields: WidgetFilterField[];
-  periodOptions: { value: string; label: string }[];
   setValue: (key: string, value: CustomFieldValue) => void;
   /** Só os filtros com estado — tocados ou com padrão —, na forma do relatório. Ver `resolveWidgetAnswers`. */
   values: Readonly<Record<string, unknown>>;
@@ -52,7 +54,6 @@ const textOf = (value: CustomFieldValue | undefined): string => (typeof value ==
  * que as liga (`bind`). Muda a resposta, cada relatório ligado roda de novo — e só ele.
  */
 export const useWidgetFiltersViewModel = (filters: WidgetFilter[]): WidgetFiltersViewModel => {
-  const t = useT('core.reports');
   const label = useLabel();
   const choiceField = useWidgetChoiceField(useWidgetOwner());
   const declared = useMemo(
@@ -61,13 +62,7 @@ export const useWidgetFiltersViewModel = (filters: WidgetFilter[]): WidgetFilter
   );
   const [values, setValues] = useState<Record<string, CustomFieldValue>>(() => initialValues(declared));
 
-  const periodOptions = useMemo(
-    () => [
-      { value: '', label: t('period.any') },
-      ...REPORT_PERIODS.map((period) => ({ value: period, label: t(`period.${period}`) })),
-    ],
-    [t],
-  );
+  const periodOptionsOf = useReportPeriodOptions();
 
   const fields = useMemo<WidgetFilterField[]>(
     () => declared.flatMap((filter): WidgetFilterField[] => {
@@ -75,12 +70,14 @@ export const useWidgetFiltersViewModel = (filters: WidgetFilter[]): WidgetFilter
       const value = values[filter.key] ?? null;
       if (isWidgetChoiceFilter(filter)) {
         const field = choiceField(filter, name);
-        return field ? [{ key: filter.key, label: name, kind: 'choice', text: '', field, value }] : [];
+        return field ? [{ key: filter.key, label: name, kind: 'choice', text: '', periodOptions: [], field, value }] : [];
       }
       const kind = filter.control === 'period' ? 'period' : 'text';
-      return [{ key: filter.key, label: name, kind, text: textOf(value), value }];
+      const text = textOf(value);
+      const periodOptions = kind === 'period' ? periodOptionsOf(filter.periods, text) : [];
+      return [{ key: filter.key, label: name, kind, text, periodOptions, value }];
     }),
-    [declared, values, label, choiceField],
+    [declared, values, label, choiceField, periodOptionsOf],
   );
 
   const answers = useMemo(
@@ -97,5 +94,5 @@ export const useWidgetFiltersViewModel = (filters: WidgetFilter[]): WidgetFilter
     [],
   );
 
-  return { fields, periodOptions, setValue, values: answers };
+  return { fields, setValue, values: answers };
 };

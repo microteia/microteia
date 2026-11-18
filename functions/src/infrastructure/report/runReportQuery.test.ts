@@ -882,14 +882,24 @@ describe('runReportQuery — o filtro obrigatório, o padrão e o período', () 
 
   it('o período DESCONHECIDO recusa, nomeando o filtro — não roda sem o recorte', async () => {
     const outcome = await runReportQuery({
-      spec: porPeriodo({}), context: context(), deps: contasDeps(), prompts: { mes: 'last-12-months' },
+      spec: porPeriodo({}), context: context(), deps: contasDeps(), prompts: { mes: 'last-12-meses' },
     });
 
     expect(outcome.ok).toBe(false);
     if (!outcome.ok) {
       expect(outcome.error).toBe('@core.reports/prompt.period.unknown');
-      expect(outcome.errorParams).toEqual({ key: 'mes', value: 'last-12-months' });
+      expect(outcome.errorParams).toEqual({ key: 'mes', value: 'last-12-meses' });
     }
+  });
+
+  it('o período PARAMETRIZADO vira o intervalo de calendário, e o deslocado também (#4)', async () => {
+    const run = async (mes: string) => totalOf(await runReportQuery({
+      spec: porPeriodo({}), context: context(), deps: contasDeps(), prompts: { mes },
+    }));
+
+    expect(await run('last-2-months')).toBe(70);
+    expect(await run('previous-1-months')).toBe(await run('last-month'));
+    expect(await run('last-1-months-offset-1')).toBe(await run('last-month'));
   });
 
   it('o período que não é texto também recusa', async () => {

@@ -9,7 +9,9 @@ import { useReportSchema } from '../../../shared/report/useReportSchema';
 import { filterLiteralOf, filterTextOf, filterValueOf, promptFieldOf } from '../../../shared/report/reportFilterFields';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities/entitySchemas';
 import type { ReportSpecIssue } from '../../../../domain/schema/report/validateReportSpec';
-import { REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL } from '../../../../domain/schema/report/reportPeriod';
+import { REPORT_PROMPT_PERIOD_CONTROL } from '../../../../domain/schema/report/reportPeriod';
+import { useReportPeriodOptions } from '../../../shared/useReportPeriodOptions';
+import type { ReportPeriodOption } from '../../../shared/useReportPeriodOptions';
 import { reportDrillEnabled } from '../../../../domain/schema/report/reportSpec';
 import type { ReportDrillTarget } from '../../../../domain/schema/report/aggregateRows';
 import { useOpenRecord } from '../../../shared/useOpenRecord';
@@ -39,6 +41,8 @@ export interface ReportPromptField {
    */
   isPeriod: boolean;
   periodValue: string;
+  /** As opções do seletor DESTE filtro: os `periods` que ele declara, ou os nomeados. */
+  periodOptions: ReportPeriodOption[];
   required: boolean;
 }
 
@@ -64,7 +68,6 @@ export interface ReportViewViewModel {
   prompts: ReportPromptField[];
   setPromptValue: (key: string, value: CustomFieldValue) => void;
   setPromptPeriod: (key: string, period: string) => void;
-  periodOptions: { value: string; label: string }[];
   /** Falta resposta a um filtro obrigatório — o servidor recusaria, então a tela nem pergunta. */
   canRun: boolean;
   runLabel: string;
@@ -275,6 +278,8 @@ export const useReportViewViewModel = (
 
   const reportTitle = report ? label(report.title) : '';
 
+  const periodOptionsOf = useReportPeriodOptions();
+
   const prompts = useMemo<ReportPromptField[]>(
     () => declaredPrompts.map((prompt) => {
       const name = prompt.label ? label(prompt.label) : prompt.path;
@@ -287,10 +292,11 @@ export const useReportViewViewModel = (
         value: isPeriod ? '' : filterValueOf(fieldByPath(prompt.path), text),
         isPeriod,
         periodValue: isPeriod ? text : '',
+        periodOptions: isPeriod ? periodOptionsOf(prompt.periods, text) : [],
         required: prompt.required === true,
       };
     }),
-    [declaredPrompts, fieldByPath, promptValues, label, effectiveText, t],
+    [declaredPrompts, fieldByPath, promptValues, label, effectiveText, t, periodOptionsOf],
   );
 
   const missingRequired = useMemo(
@@ -299,14 +305,6 @@ export const useReportViewViewModel = (
         && !Object.prototype.hasOwnProperty.call(promptValues, prompt.key))
       && effectiveText(prompt, promptValues).trim() === ''),
     [declaredPrompts, promptValues, effectiveText],
-  );
-
-  const periodOptions = useMemo(
-    () => [
-      { value: '', label: t('period.any') },
-      ...REPORT_PERIODS.map((period) => ({ value: period, label: t(`period.${period}`) })),
-    ],
-    [t],
   );
 
   /**
@@ -440,7 +438,6 @@ export const useReportViewViewModel = (
       setPromptValues((current) => ({ ...current, [key]: filterTextOf(value) })),
     setPromptPeriod: (key, period) =>
       setPromptValues((current) => ({ ...current, [key]: period })),
-    periodOptions,
     canRun: !missingRequired,
     runLabel: t('prompts.run'),
     clearLabel: t('prompts.clear'),

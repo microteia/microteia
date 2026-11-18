@@ -10265,8 +10265,10 @@ ligação a dados continua sendo SÓ o relatório declarado, mas por três porta
 
 - **`metric` com `report`** (+ `measure?`) mostra o TOTAL daquela medida (`ReportMetric`), pelo mesmo
   `runReport` — mesma permissão, filtros e visibilidade por registro. `compare: 'previous-period'` roda o
-  relatório de novo com o filtro de período trocado por `previousReportPeriod` (este mês → mês passado);
-  período sem anterior nomeado ("últimos 30 dias") não compara, em vez de inventar uma janela. A cor da
+  relatório de novo com o filtro de período trocado por `previousReportPeriod`: a janela de MESMO tamanho
+  logo antes (este mês → mês passado; `last-12-months` → `last-12-months-offset-1`, os 12 antes deles).
+  O deslocamento (`-offset-<k>`) é token do servidor e não do autor — `isDeclarableReportPeriod` o recusa em
+  `default` e `periods`, porque o seletor não teria nome para ele. `year-to-date` não compara. A cor da
   variação segue a direção, e o sinal vai no texto: só quem lê sabe se a medida é custo ou receita.
 - **`report`** ganhou `view` (`full` | `chart` | `table` — a compacta sem cabeçalho nem barra de
   filtros), `prompts` (respostas fixas) e `bind`.
@@ -10299,7 +10301,7 @@ ligação a dados continua sendo SÓ o relatório declarado, mas por três porta
   (`portal.view`) tem vocabulário próprio e fica de fora.
 
 **Falta para o Widget DSL completo:** `when` por expressão e uma fonte genérica (`source:
-query:/script:/field:`); a comparação fora dos períodos correntes; e o `useReport` da API curada ainda não
+query:/script:/field:`); e o `useReport` da API curada ainda não
 recebe respostas de uma barra.
 
 O irmão ligado a dados é o **cartão declarado** da listagem — ver "O cartão da listagem é declarado —
@@ -11883,7 +11885,21 @@ Executados no SERVIDOR (`runReportQuery.ts`), não só na tela — o widget e o 
   (`dayInTimeZone`); a semana começa na segunda, a mesma régua ISO do balde `week`. Dias e não
   instantes porque é como `predicateMatch` compara uma data sem hora: o dia inteiro. Os identificadores
   são `kebab-case` (`this-month`) porque são também chave de mensagem (`period.this-month`).
-  Resposta de período que não está na lista — do leitor, do padrão, do `run-report`, do MCP ou de uma
+- **Períodos parametrizados (#4, kernel 2.139.0).** Ao lado dos nomeados, `last-<n>-<unit>` termina no
+  período CORRENTE, inclusive, e `previous-<n>-<unit>` são os n FECHADOS antes dele (`previous-1-months`
+  ≡ `last-month` — o par existe para o nome antigo não mentir: `last-1-months` é este mês). Unidades em
+  `REPORT_PERIOD_UNITS`: dias são janela móvel; semana ISO, mês, trimestre e ano são períodos de
+  CALENDÁRIO inteiros, a régua dos baldes de `granularity` (decisão do #4: semana também por calendário).
+  Teto de `n` em `REPORT_PERIOD_MAX_COUNT` (~20 anos), e forma canônica sem zero à esquerda. `periods`
+  no prompt (e no filtro da barra) limita e ordena o seletor — só a TELA: o servidor aceita qualquer
+  período, e o MCP pode pedir um que o autor não listou. O padrão tem de ser um dos oferecidos. Usar
+  `periods` ou padrão parametrizado deriva o token `presentation.prompt.period.relative` (aviso num kernel
+  anterior) e, na barra, a capacidade `filters.period.relative` (`WIDGET_PERIOD_RELATIVE_SINCE_KERNEL`).
+  O nome vem de `reportPeriodLabel` — `period.last.months` com `count`, plural pelo `Intl.PluralRules` —, e
+  os três seletores (relatório, barra, editor) montam as opções por `useReportPeriodOptions`. Como a chave é
+  montada, `reportPeriodMessages.test.ts` faz o papel do `verify-messages`. O passo `run-report` leva o
+  `count` na opção (`WorkflowParameter.options[].labelParams`).
+- **Período desconhecido RECUSA.** Resposta que não é período — do leitor, do padrão, do `run-report`, do MCP ou de uma
   barra de painel — RECUSA com `@core.reports/prompt.period.unknown` (`invalidPeriodPrompt`), nomeando o
   filtro. Antes ela era ignorada, e o relatório voltava sem o recorte: um erro de digitação se lia como
   "o ano inteiro foi isto" (#4). É também o que faz um kernel recusar pelo nome o período que só um

@@ -90,7 +90,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey, view 
                   ver, e o formato exato da data. */}
               {prompt.isPeriod ? (
                 <SearchSelect
-                  options={vm.periodOptions}
+                  options={prompt.periodOptions}
                   value={prompt.periodValue}
                   onChange={(value) => vm.setPromptPeriod(prompt.key, value)}
                 />

@@ -5,10 +5,9 @@
 
 import type { WorkflowParameter } from '../../entities/Workflow';
 import { isAggregateMeasure } from './reportSpec';
-import type { ReportSpec } from './reportSpec';
+import type { ReportPrompt, ReportSpec } from './reportSpec';
 import type { ReportResult } from './reportResult';
-import { REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL } from './reportPeriod';
-import type { ReportPeriod } from './reportPeriod';
+import { REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL, reportPeriodLabel } from './reportPeriod';
 
 export const RUN_REPORT_STEP_ID = 'run-report';
 
@@ -107,27 +106,9 @@ export const runReportStepOutputs = (
   };
 };
 
-/**
- * A REFERÊNCIA do nome de cada período — as mesmas chaves da barra de filtros do relatório. Tabela
- * literal, e não montada, para que `verify-messages` confira cada uma: um período novo sem nome
- * reprova aqui, pelo tipo, e não como uma opção em branco no editor.
- */
-const PERIOD_LABEL_REFS: Record<ReportPeriod, string> = {
-  'today': '@core.reports/period.today',
-  'yesterday': '@core.reports/period.yesterday',
-  'this-week': '@core.reports/period.this-week',
-  'last-week': '@core.reports/period.last-week',
-  'this-month': '@core.reports/period.this-month',
-  'last-month': '@core.reports/period.last-month',
-  'this-quarter': '@core.reports/period.this-quarter',
-  'last-quarter': '@core.reports/period.last-quarter',
-  'this-year': '@core.reports/period.this-year',
-  'last-year': '@core.reports/period.last-year',
-  'last-7-days': '@core.reports/period.last-7-days',
-  'last-30-days': '@core.reports/period.last-30-days',
-  'last-90-days': '@core.reports/period.last-90-days',
-  'year-to-date': '@core.reports/period.year-to-date',
-};
+/** Os períodos que o filtro OFERECE: os que ele declarou em `periods`, ou os nomeados. */
+const offeredPeriods = (prompt: ReportPrompt): readonly string[] =>
+  (Array.isArray(prompt.periods) && prompt.periods.length > 0 ? prompt.periods : REPORT_PERIODS);
 
 /**
  * Os filtros do relatório como PARÂMETROS do passo — é o que faz o editor mostrar um campo por filtro,
@@ -143,7 +124,12 @@ export const reportPromptParameters = (spec: ReportSpec): WorkflowParameter[] =>
     ...(prompt.control === REPORT_PROMPT_PERIOD_CONTROL
       ? {
           type: 'select' as const,
-          options: REPORT_PERIODS.map((period) => ({ value: period, label: PERIOD_LABEL_REFS[period] })),
+          options: offeredPeriods(prompt).flatMap((period) => {
+            const name = reportPeriodLabel(period);
+            if (!name) return [];
+            const ref = `@core.reports/${name.key}`;
+            return [{ value: period, label: ref, ...(name.params ? { labelParams: name.params } : {}) }];
+          }),
         }
       : { type: 'String' as const }),
     // O padrão do relatório responde quando o passo não manda nada: o filtro só é obrigatório aqui

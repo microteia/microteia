@@ -23,7 +23,7 @@ import {
   unsupportedReportCapabilities,
 } from './reportCapabilities';
 import { isSingleSeriesChartKind, reportChartSplit } from './reportChartSplit';
-import { isReportPeriod, REPORT_PROMPT_PERIOD_CONTROL } from './reportPeriod';
+import { isDeclarableReportPeriod, REPORT_PROMPT_PERIOD_CONTROL } from './reportPeriod';
 import {
   DEFAULT_REPORT_DATASET_KIND,
   isAggregateMeasure,
@@ -451,17 +451,32 @@ export const validateReportSpecShape = (
       });
     }
 
-    // O padrão de um filtro de PERÍODO é um dos períodos. Qualquer outro valor seria convertido em
-    // nada no servidor, e o relatório abriria sem o recorte que o autor achou ter pedido.
+    // O padrão de um filtro de PERÍODO é um dos períodos que ele oferece. Qualquer outro valor seria
+    // recusado no servidor, e o relatório não abriria com o recorte que o autor achou ter pedido.
+    const offered = prompt.control === REPORT_PROMPT_PERIOD_CONTROL && Array.isArray(prompt.periods)
+      && prompt.periods.length > 0
+      ? prompt.periods
+      : null;
     if (prompt.control === REPORT_PROMPT_PERIOD_CONTROL
       && prompt.default?.kind === 'Literal'
-      && !isReportPeriod(prompt.default.value)) {
+      && (!isDeclarableReportPeriod(prompt.default.value)
+        || (offered !== null && !offered.includes(String(prompt.default.value))))) {
       issues.push({
         field: `presentation.prompts[${index}].default`,
         error: '@core.reports/prompt.period.default-invalid',
         errorParams: { key: prompt.key, value: String(prompt.default.value) },
       });
     }
+
+    // Uma opção fora da gramática seria uma linha do seletor que o servidor recusa ao ser escolhida.
+    (offered ?? []).forEach((period, at) => {
+      if (isDeclarableReportPeriod(period)) return;
+      issues.push({
+        field: `presentation.prompts[${index}].periods[${at}]`,
+        error: '@core.reports/prompt.period.option-invalid',
+        errorParams: { key: prompt.key, value: String(period) },
+      });
+    });
   });
 
   // O realce é APARÊNCIA: o que ele não consegue aplicar vira aviso, nunca recusa — o número da

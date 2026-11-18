@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
-import { WIDGET_DATA_SINCE_KERNEL, WIDGET_FILTER_CHOICE_SINCE_KERNEL } from '../../schema/ui/widgetSpec';
-import type { WidgetSpec } from '../../schema/ui/widgetSpec';
+import { WIDGET_DATA_SINCE_KERNEL, WIDGET_FILTER_CHOICE_SINCE_KERNEL, WIDGET_PERIOD_RELATIVE_SINCE_KERNEL } from '../../schema/ui/widgetSpec';
+import type { WidgetFilter, WidgetSpec } from '../../schema/ui/widgetSpec';
 import { packageWidgetDataIssues, packageWidgetPeriodIssues, widgetOutRefs, WIDGET_REF_ORIGIN } from './pluginWidgetData';
 import { packageIssues, validatePackage } from './pluginReferences';
 
@@ -57,19 +57,55 @@ describe('o padrão do filtro de período da barra', () => {
 
   it('um período conhecido, ou nenhum padrão, passa', () => {
     expect(packageWidgetPeriodIssues(comPadrao('this-month'))).toEqual([]);
+    expect(packageWidgetPeriodIssues(comPadrao('last-12-months'))).toEqual([]);
     expect(packageWidgetPeriodIssues(comPadrao(undefined))).toEqual([]);
     expect(packageWidgetPeriodIssues(comPadrao(''))).toEqual([]);
   });
 
   it('um período desconhecido é recusa na autoria, a qualquer profundidade, nomeando o filtro', () => {
-    expect(packageWidgetPeriodIssues(comPadrao('last-12-months'))).toEqual([{
+    expect(packageWidgetPeriodIssues(comPadrao('last-12-meses'))).toEqual([{
       message: '@core.marketplace/issue.widget.period-default',
-      messageParams: { contribution: 'sales', key: 'when', value: 'last-12-months' },
+      messageParams: { contribution: 'sales', key: 'when', value: 'last-12-meses' },
     }]);
   });
 
   it('uma lista não é período — a barra pergunta um só', () => {
     expect(packageWidgetPeriodIssues(comPadrao(['this-month']))).toHaveLength(1);
+  });
+
+  it('periods: cada opção é período, e o padrão é um dos oferecidos', () => {
+    const comPeriodos = (periods: string[], start?: string): MarketplacePlugin => pkg({
+      type: 'filters',
+      filters: [{ key: 'when', control: 'period', periods, ...(start ? { default: start } : {}) }],
+      children: [],
+    }, `^${WIDGET_PERIOD_RELATIVE_SINCE_KERNEL}`);
+
+    expect(packageWidgetPeriodIssues(comPeriodos(['last-15-days', 'last-12-months'], 'last-12-months'))).toEqual([]);
+    expect(packageWidgetPeriodIssues(comPeriodos(['last-12-months', 'ultimos-meses', 'last-12-months-offset-1'])))
+      .toEqual(['ultimos-meses', 'last-12-months-offset-1'].map((value) => ({
+        message: '@core.marketplace/issue.widget.period-option',
+        messageParams: { contribution: 'sales', key: 'when', value },
+      })));
+    expect(packageWidgetPeriodIssues(comPeriodos(['last-12-months'], 'this-year'))).toEqual([{
+      message: '@core.marketplace/issue.widget.period-default',
+      messageParams: { contribution: 'sales', key: 'when', value: 'this-year' },
+    }]);
+  });
+
+  it('o período parametrizado exige o kernel dele — o anterior abriria o painel sem recorte', () => {
+    const parametrizado = (filter: WidgetFilter): WidgetSpec => ({ type: 'filters', filters: [filter], children: [] });
+    for (const filter of [
+      { key: 'when', control: 'period', default: 'last-12-months' },
+      { key: 'when', control: 'period', periods: ['this-month', 'last-month'] },
+    ] as WidgetFilter[]) {
+      expect(packageWidgetDataIssues(pkg(parametrizado(filter), `^${WIDGET_FILTER_CHOICE_SINCE_KERNEL}`))).toEqual([{
+        message: '@core.marketplace/issue.widget.data-kernel',
+        messageParams: { contribution: 'sales', feature: 'filters.period.relative', minimum: WIDGET_PERIOD_RELATIVE_SINCE_KERNEL },
+      }]);
+      expect(packageWidgetDataIssues(pkg(parametrizado(filter), `^${WIDGET_PERIOD_RELATIVE_SINCE_KERNEL}`))).toEqual([]);
+    }
+    expect(packageWidgetDataIssues(pkg(parametrizado({ key: 'when', control: 'period', default: 'this-month' }), `^${WIDGET_DATA_SINCE_KERNEL}`)))
+      .toEqual([]);
   });
 
   it('chega a quem valida o pacote', () => {
