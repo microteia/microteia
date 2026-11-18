@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.282.1] — 2026-11-18
+
+- No período personalizado, o campo da unidade (dias, semanas, meses…) agora tem o seu nome visível, como o campo da quantidade.
+
 #### [9.282.0] — 2026-11-18
 
 - A lista de períodos dos relatórios e dos painéis ganhou a opção "Personalizado…": escolha quantos dias, semanas, meses, trimestres ou anos quer ver, e se o período em andamento entra ou não na conta.
