@@ -11,6 +11,7 @@ import type { ActionDefinition } from './Action';
 import type { PortalDeclaration } from '../schema/portal';
 import type { EditWindowSpec } from '../schema/editWindow';
 import type { CardTemplate } from '../schema/ui/cardTemplate';
+import type { QueryOrderBy } from '../schema/querySpec';
 import type { MemberVisibilitySpec } from '../schema/memberVisibility';
 import type { CustomFieldOption, FieldDefinition, RecordKeySpec, ScreenListAction } from './entitySchemas';
 
@@ -106,6 +107,8 @@ export interface ScreenModuleTemplate {
   cardActionIds?: string[];
   /** O desenho do cartão da listagem. Ver `ScreenDefinition.cardTemplate`. */
   cardTemplate?: CardTemplate | null;
+  /** A ordem da listagem e da aba no pai. Ver `ScreenDefinition.listOrder`. */
+  listOrder?: QueryOrderBy[] | null;
   /**
    * Registros que a extensão entrega prontos — o catálogo com atributos que uma lista de opções não
    * comporta. Não é declaração da tela: viaja só no pacote, e quem o aplica é o servidor, depois da

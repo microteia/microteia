@@ -405,6 +405,8 @@ const upsertPluginScreens = async (
           // O cartão que o escritório desenhou no Form Design sobre uma tela de extensão sobrevive à
           // atualização que não declara cartão nenhum — o mesmo destino das ações do card acima.
           cardTemplate: input.cardTemplate ?? existing.cardTemplate ?? null,
+          // A ordem que o escritório escolheu sobrevive à atualização que não declara ordem nenhuma.
+          listOrder: input.listOrder ?? existing.listOrder ?? null,
         }
       : input;
     await deps.screenRepository.upsert(tenantId, screenKey, merged);

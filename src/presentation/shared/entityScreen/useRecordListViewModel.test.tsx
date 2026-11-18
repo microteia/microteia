@@ -211,6 +211,74 @@ describe('useRecordListViewModel — ordenação', () => {
 });
 
 /**
+ * A ordem que a TELA declara (`listOrder`), sem uma linha de código: é ela que põe a aba de filhos de
+ * um registro na ordem do vencimento, e não na do cadastro.
+ */
+describe('useRecordListViewModel — ordem declarada pela tela', () => {
+  const comVencimento = (listOrder: ScreenDefinition['listOrder']): ScreenDefinition => {
+    const base = definition();
+    return {
+      ...base,
+      listOrder,
+      fields: [
+        ...base.fields,
+        { key: 'dueDate', label: 'Vencimento', type: 'date', required: false, order: 2, origin: 'plugin' },
+      ],
+    } as ScreenDefinition;
+  };
+  const doPai = () => {
+    state.records = [
+      { ...record('a', 'Recurso', 'Pendente', 20), caseId: 'p1' },
+      { ...record('b', 'Audiência', 'Vencido', 5), caseId: 'p1' },
+      { ...record('c', 'Petição', 'Pendente', 12), caseId: 'p1' },
+    ] as EntityRecord[];
+  };
+  const naAba = { parent: { entityKey: 'cases', fieldKeys: ['caseId'], recordId: 'p1' }, paginate: true };
+
+  it('na aba do pai, os filhos saem na ordem declarada — e a consulta continua sendo a dos filhos', () => {
+    state.definition = comVencimento([{ path: 'dueDate', dir: 'asc' }]);
+    doPai();
+    const { result } = listar(source(naAba));
+
+    expect(result.current.records.map((r) => r.id)).toEqual(['b', 'c', 'a']);
+    expect(result.current.filteredRecords.map((r) => r.id)).toEqual(['b', 'c', 'a']);
+    expect(watchQueryStub).toHaveBeenCalledWith(expect.objectContaining({
+      anyOf: [{ field: 'caseId', op: '==', value: 'p1' }],
+      orderBy: null,
+    }));
+  });
+
+  it('a ordem escrita em código pela extensão vence a declarada', () => {
+    state.definition = comVencimento([{ path: 'dueDate', dir: 'asc' }]);
+    doPai();
+    const porTipoDecrescente = (x: EntityRecord, y: EntityRecord) => String(y.type).localeCompare(String(x.type));
+    const { result } = listar(source({ ...naAba, sortRecords: porTipoDecrescente }));
+
+    expect(result.current.records.map((r) => r.id)).toEqual(['a', 'c', 'b']);
+  });
+
+  it('a chave de um campo que a tela não tem mais sai da ordem, sem derrubar a lista', () => {
+    state.definition = comVencimento([{ path: 'apagado', dir: 'asc' }]);
+    doPai();
+    const { result } = listar(source(naAba));
+    expect(result.current.records.map((r) => r.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('na listagem própria, a ordem declarada deixa de paginar por cadastro e avisa quando a janela enche', () => {
+    state.definition = comVencimento([{ path: 'dueDate', dir: 'desc' }]);
+    state.records = Array.from({ length: 500 }, (_, index) => record(`r${index}`, 'Recurso', 'Pendente', 1 + (index % 28)));
+    const { result } = listar(source({ paginate: true }));
+
+    expect(watchQueryStub).not.toHaveBeenCalled();
+    expect(result.current.hasMore).toBe(false);
+    expect(result.current.windowNotice).toBe('core.records/list.order.window');
+    const dias = result.current.records.map((r) => (r.dueDate as Date).getDate());
+    expect(dias[0]).toBe(28);
+    expect(dias.at(-1)).toBe(1);
+  });
+});
+
+/**
  * Abrir a listagem JÁ FILTRADA. O recado é endereçado pela chave da TELA, e chega por dois caminhos
  * porque são duas situações: a aba que ainda vai abrir e a que já está aberta.
  */

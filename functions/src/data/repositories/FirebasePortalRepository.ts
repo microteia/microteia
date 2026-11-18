@@ -82,6 +82,7 @@ const toScreen = (id: string, data: DocumentData): PortalScreen => ({
   parentFieldKey: asString(data.parentFieldKey) || null,
   viewActionIds: asStrings(data.viewActionIds),
   portal: asPortalDeclaration(data.portal),
+  ...(Array.isArray(data.listOrder) ? { listOrder: data.listOrder } : {}),
   fields: (Array.isArray(data.fields) ? data.fields as DocumentData[] : [])
     .filter((field) => typeof field?.key === 'string')
     .map((field) => ({

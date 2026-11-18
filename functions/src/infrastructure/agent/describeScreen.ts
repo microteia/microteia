@@ -71,6 +71,12 @@ export interface AgentScreenDescription {
    * agente é o que o impede de responder "não há registro" quando há, só não para ele.
    */
   memberVisibility?: { userFields: string[]; seesAll: boolean };
+  /**
+   * A ordem em que uma pessoa vê os registros desta tela (`listOrder`): a primeira chave decide, as
+   * seguintes desempatam, e o vazio vai para o fim. Ausente = o cadastro mais recente primeiro. Existe
+   * para que o agente apresente uma lista na mesma ordem da tela, e não na da busca.
+   */
+  listOrder?: { field: string; direction: 'asc' | 'desc' }[];
   allowedOperations: string[];
 }
 
@@ -218,6 +224,9 @@ export const describeScreen = (
           seesAll: readerSeesAll(visibility, collection, session.permissions),
         },
       }
+      : {}),
+    ...(screen?.listOrder && screen.listOrder.length > 0
+      ? { listOrder: screen.listOrder.map((key) => ({ field: key.path, direction: key.dir })) }
       : {}),
     allowedOperations: allowedOperations(ctx, session, collection),
   };

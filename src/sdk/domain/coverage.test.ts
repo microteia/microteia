@@ -146,6 +146,7 @@ const LACUNAS_CONFERIDAS = [
   'screen-property\thideFromParentTabs',
   'screen-property\thideRecordsFromCommandPalette',
   'screen-property\tcardTemplate',
+  'screen-property\tlistOrder',
   'screen-property\tseed',
 
   // As propriedades da ação. `title` é a família da descrição da transição, ainda aberta: o modelo diz

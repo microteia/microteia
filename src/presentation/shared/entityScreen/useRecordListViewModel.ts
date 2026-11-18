@@ -3,6 +3,8 @@ import { useEnsureReferencedRecords } from '../useEnsureReferencedRecords';
 import { useServerRecordSearch } from '../useServerRecordSearch';
 import { useRecordQuery } from '../../../stores/useRecordQuery';
 import { planRecordListQuery, RECORD_LIST_PAGE_SIZE, recordQueryHasMore } from '../../../domain/services/recordListQuery';
+import { listOrderComparator, readListOrder } from '../../../domain/schema/ui/listOrder';
+import { RECORD_WINDOW_DEFAULT } from '../../../domain/repositories/IRecordRepository';
 import { useRecordDemand } from '../../../stores/useRecordDemand';
 import { RECORD_SEARCH_MAX_RESULTS } from '../../../domain/schema/recordSearch';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -124,7 +126,8 @@ export interface RecordListViewModel {
   loadMoreRef: React.RefObject<HTMLDivElement | null>;
   /**
    * O aviso de que, com filtro, a lista mostra só os primeiros que atendem — a ordem é refeita entre
-   * os trazidos, e rolar traz mais. `null` sem filtro ou sem mais a trazer.
+   * os trazidos, e rolar traz mais. Numa lista em ordem própria, que não pagina, o aviso de que ela
+   * ordena a janela da coleção cheia. `null` sem filtro ou sem mais a trazer.
    */
   windowNotice: string | null;
   filterTokens: FilterToken[];
@@ -293,6 +296,17 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
 
   const listing = useCustomFieldListing(sortedFields);
 
+  /**
+   * A ordem da lista: a escrita em CÓDIGO pela extensão (`sortRecords`) vence; sem ela, a que a tela
+   * DECLARA (`listOrder`). As duas seguem o mesmo caminho daqui para baixo — inclusive o de deixar de
+   * paginar por cadastro, que mostraria a página errada de uma lista em outra ordem.
+   */
+  const declaredOrder = useMemo(() => readListOrder(definition?.listOrder, allFields), [definition, allFields]);
+  const recordOrder = useMemo(
+    () => sortRecords ?? listOrderComparator<EntityRecord>(declaredOrder),
+    [sortRecords, declaredOrder],
+  );
+
   // Sem ordem declarada vale a da coleção (mais recente primeiro). A tela cuja leitura DEPENDE da
   // ordem — uma agenda de prazos se lê do mais próximo ao mais distante — informa a sua, e ela vale
   // nas DUAS listas: `filteredRecords` sai daqui pelo `filter`, que preserva a ordem. Ordenar só a
@@ -320,9 +334,9 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const pageLimit = page.signature === filterSignature ? page.limit : RECORD_LIST_PAGE_SIZE;
   const querySpec = useMemo(
     () => (definition && collection
-      ? planRecordListQuery({ collection, fields: allFields, tokenMap, pageLimit, parent: parent ?? null, hasDeclaredOrder: !!sortRecords, paginate })
+      ? planRecordListQuery({ collection, fields: allFields, tokenMap, pageLimit, parent: parent ?? null, hasDeclaredOrder: !!recordOrder, paginate })
       : null),
-    [definition, collection, allFields, tokenMap, pageLimit, parent, sortRecords, paginate],
+    [definition, collection, allFields, tokenMap, pageLimit, parent, recordOrder, paginate],
   );
   const listQuery = useRecordQuery(querySpec);
 
@@ -337,9 +351,12 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const hasMore = !!querySpec && recordQueryHasMore(querySpec, listQuery.records.length);
   const filtersActive = filterTokens.some((token) => token.key !== 'search' && token.values.some((value) => value !== ''));
   // A aba do pai é um recorte também — invisível, mas recorte: a ordem é refeita entre os trazidos.
+  // A lista em ordem própria fica na janela da coleção, que não rola para trás: cheia, a ordem é a dos
+  // mais recentes cadastrados, e só a busca — que vai ao servidor — alcança os anteriores.
+  const orderedWindowFull = !querySpec && !!recordOrder && sourceRecords.length >= RECORD_WINDOW_DEFAULT;
   const windowNotice = (filtersActive || !!parent) && hasMore
     ? t(filtersActive ? 'list.filter.window' : 'list.window', { count: listQuery.records.length })
-    : null;
+    : orderedWindowFull ? t('list.order.window', { count: sourceRecords.length }) : null;
 
   const loadMore = useCallback(() => {
     setPage({ signature: filterSignature, limit: pageLimit + RECORD_LIST_PAGE_SIZE });
@@ -361,8 +378,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
   const records = useMemo(() => {
     const all = sourceRecords;
     const locked = parent ? all.filter((record) => pointsToParent(record, parent.fieldKeys, parent.recordId)) : all;
-    return sortRecords ? [...locked].sort(sortRecords) : locked;
-  }, [sourceRecords, parent, sortRecords]);
+    return recordOrder ? [...locked].sort(recordOrder) : locked;
+  }, [sourceRecords, parent, recordOrder]);
 
 
   const tagCollection = useTagCollection(collection, definition?.tagCollection);
@@ -410,8 +427,8 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
       && passesOtherFilters(record));
     if (outside.length === 0) return local;
     const merged = [...local, ...outside];
-    return sortRecords ? merged.sort(sortRecords) : merged;
-  }, [records, sourceRecords, parent, sortRecords, tokenMap, searchText, serverSearch, listing]);
+    return recordOrder ? merged.sort(recordOrder) : merged;
+  }, [records, sourceRecords, parent, recordOrder, tokenMap, searchText, serverSearch, listing]);
 
   useEnsureReferencedRecords(filteredRecords, allFields);
 

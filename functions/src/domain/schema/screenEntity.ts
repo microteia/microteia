@@ -22,6 +22,7 @@ import { buildFieldRulePresetCatalog } from './fieldRulePresets';
 import type { RecordKeySpec, ScopedRecordKeySpec } from './recordKeys';
 import type { EditWindowSpec } from './editWindow';
 import type { MemberVisibilitySpec } from './memberVisibility';
+import type { QueryOrderBy } from './querySpec';
 import { RECORD_KEYS_COLLECTION, scopeRecordKeys } from './recordKeys';
 import { AGENT_GRANTS_COLLECTION } from './agent/agentGrant';
 import { ASSISTANT_CONVERSATIONS_COLLECTION } from './assistant/assistantConversation';
@@ -126,6 +127,11 @@ export interface SchemaScreen {
    * que um pacote aponta a tela de outro artefato dele — um modelo de documento, uma aba de registro.
    */
   sourceId?: string | null;
+  /**
+   * A ordem da listagem, já lida como a lista a aplica (`readListOrder`). Está no schema porque o agente
+   * que apresenta os registros de uma tela deve apresentá-los na ordem em que uma pessoa os vê.
+   */
+  listOrder?: QueryOrderBy[] | null;
 }
 
 /** A lista de opções como o schema a enxerga. `collection` é o nome da coleção sob o tenant. */

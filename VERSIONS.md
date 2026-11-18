@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.277.0] — 2026-11-17
+
+- Cada tela pode ter a sua ordem de registros. Na aba "Cartão" do Form Design, a nova seção "Ordem dos registros" escolhe por qual campo a lista é ordenada — data, número, valor, texto, hora ou as datas de criação e de alteração —, em ordem crescente ou decrescente, com até duas chaves de desempate. A ordem vale na lista da tela e também na aba que ela forma dentro do registro-pai: as parcelas de um contrato pelo vencimento, as etapas de um projeto pela posição. No portal, a mesma ordem é aplicada usando apenas os campos que a tela mostra ao convidado.
+
 #### [9.276.0] — 2026-11-17
 
 - Os painéis podem ser filtrados por um registro: a barra de filtros do painel passa a oferecer a escolha de um ou mais clientes, projetos ou fornecedores — o mesmo seletor que os relatórios já mostram — e a escolha vale para todos os gráficos e indicadores do painel de uma vez. A barra também pode filtrar pelas opções de uma lista do escritório, com as cores delas.

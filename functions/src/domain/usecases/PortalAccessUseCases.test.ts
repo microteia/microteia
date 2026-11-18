@@ -843,6 +843,37 @@ describe('contexto do portal', () => {
     });
   });
 
+  describe('a ordem da lista (`listOrder`)', () => {
+    const contextOf = async (listOrder: unknown) => {
+      const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices' ? { ...screen, listOrder } : screen));
+      const fake = makeFakePortalRepository(screens);
+      fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+      const context = await makeGetPortalContextUseCase(fake.repo).execute({
+        tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
+      });
+      return context.screens.find((screen) => screen.id === 'invoices');
+    };
+
+    it('sem declaração, a tela não leva ordem — a da projeção', async () => {
+      expect(await contextOf(undefined)).not.toHaveProperty('listOrder');
+    });
+
+    it('só sai chave de campo exposto, e nunca o cadastro, que a projeção não guarda', async () => {
+      const screen = await contextOf([
+        { path: 'auditNote', dir: 'asc' },
+        { path: 'amount', dir: 'desc' },
+        { path: 'createdAt', dir: 'desc' },
+        { path: 'number', dir: 'asc' },
+      ]);
+      expect(screen?.listOrder).toEqual([{ path: 'amount', dir: 'desc' }, { path: 'number', dir: 'asc' }]);
+      expect(JSON.stringify(screen)).not.toContain('auditNote');
+    });
+
+    it('a ordem que só nomeava o que não saiu não vai junto', async () => {
+      expect(await contextOf([{ path: 'auditNote', dir: 'asc' }])).not.toHaveProperty('listOrder');
+    });
+  });
+
   describe('opções de lista', () => {
     const select = (key: string, extra: Partial<PortalScreen['fields'][number]> = {}) =>
       ({ key, label: key, type: 'select', ...extra });

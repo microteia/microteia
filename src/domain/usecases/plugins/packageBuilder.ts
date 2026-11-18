@@ -149,6 +149,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     viewActionIds: screen.viewActionIds,
     cardActionIds: screen.cardActionIds,
     cardTemplate: screen.cardTemplate ?? undefined,
+    listOrder: screen.listOrder ?? undefined,
   });
 
 const templateSourceOf = (template: ScreenModuleTemplate): string => template.sourceId ?? template.key;

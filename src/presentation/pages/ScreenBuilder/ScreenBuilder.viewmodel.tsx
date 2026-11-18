@@ -36,6 +36,9 @@ import {
 } from './components/ScreenCardTemplatePanel/screenCardTemplateForm';
 import type { CardTemplateFormState } from './components/ScreenCardTemplatePanel/screenCardTemplateForm';
 import type { CardTemplateFieldInfo } from '../../../domain/schema/ui/cardTemplateIssues';
+import { fromListOrderForm, toListOrderForm } from './components/ScreenListOrderPanel/screenListOrderForm';
+import type { ListOrderPanelField } from './components/ScreenListOrderPanel';
+import { listOrderIssues } from '../../../domain/schema/ui/listOrder';
 import {
   portalDeclarationIssues,
   portalOfferableActions,
@@ -187,6 +190,9 @@ export interface ScreenFormState {
   /** O cartão da listagem. Como a janela, só é gravado quando a aba foi tocada. */
   cardTemplate: CardTemplateFormState;
   cardTemplateTouched: boolean;
+  /** A ordem da listagem, editada na mesma aba do cartão. Como ele, só é gravada quando foi tocada. */
+  listOrder: QueryOrderBy[];
+  listOrderTouched: boolean;
 }
 
 /**
@@ -471,6 +477,11 @@ export interface ScreenBuilderViewModel {
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
   updateEditWindowForm: (patch: Partial<EditWindowFormState>) => void;
   updateCardTemplateForm: (patch: Partial<CardTemplateFormState>) => void;
+  updateListOrderForm: (keys: QueryOrderBy[]) => void;
+  /** Os campos da tela aberta, rotulados, para a seção "Ordem dos registros" oferecer os que ordenam. */
+  listOrderFields: ListOrderPanelField[];
+  /** O que impede gravar a ordem, já como frase. */
+  listOrderIssues: string[];
   /** Os campos da tela aberta, para a aba "Cartão" conferir o que o template nomeia. */
   cardTemplateFields: CardTemplateFieldInfo[];
   /** A chave da tela aberta no modal — a aba "Cartão" pré-visualiza um registro dela. */
@@ -699,6 +710,8 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   memberVisibilityTouched: false,
   cardTemplate: EMPTY_CARD_TEMPLATE_FORM,
   cardTemplateTouched: false,
+  listOrder: [],
+  listOrderTouched: false,
 };
 
 const EMPTY_FIELD_FORM: FieldFormState = {
@@ -1296,6 +1309,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     setScreenForm((prev) => ({ ...prev, cardTemplate: { ...prev.cardTemplate, ...patch }, cardTemplateTouched: true }));
   }, []);
 
+  const updateListOrderForm = useCallback((keys: QueryOrderBy[]) => {
+    setScreenForm((prev) => ({ ...prev, listOrder: keys, listOrderTouched: true }));
+  }, []);
+
   const updateMemberVisibilityForm = useCallback((patch: Partial<MemberVisibilityFormState>) => {
     setScreenForm((prev) => ({
       ...prev,
@@ -1417,6 +1434,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       memberVisibilityTouched: false,
       cardTemplate: toCardTemplateForm(def.cardTemplate),
       cardTemplateTouched: false,
+      listOrder: toListOrderForm(def.listOrder),
+      listOrderTouched: false,
     });
     setScreenModal({ screenKey });
   }, [getDefinitionByKey, dynamicDefinitions, tagDependentSlots]);
@@ -1626,6 +1645,17 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
     return (def?.fields ?? []).map((field) => ({ key: field.key, type: field.type }));
   }, [screenModal, getDefinitionByKey]);
+
+  const listOrderFields = useMemo<ListOrderPanelField[]>(() => {
+    const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
+    return (def?.fields ?? []).map((field) => ({ key: field.key, type: field.type, multi: field.multi ?? null, label: field.label }));
+  }, [screenModal, getDefinitionByKey]);
+
+  const listOrderIssueTexts = useMemo(
+    () => listOrderIssues(fromListOrderForm(screenForm.listOrder), listOrderFields)
+      .map((issue) => label(issue.message, issue.messageParams)),
+    [screenForm.listOrder, listOrderFields, label],
+  );
 
   const portalPanel = useMemo(() => {
     const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
@@ -1902,6 +1932,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       notify(t('card-template.panel.invalid'), 'error');
       return;
     }
+    const listOrderChanged = screenForm.listOrderTouched;
+    if (listOrderChanged && listOrderIssueTexts.length > 0) {
+      setScreenModalTab('card');
+      notify(t('list-order.panel.invalid'), 'error');
+      return;
+    }
     const portalChanged = canManagePortal && screenForm.portalTouched && !portalPanel.readOnly;
     if (portalChanged && screenForm.portal.enabled && portalPanel.issues.length > 0) {
       setScreenModalTab('portal');
@@ -1984,6 +2020,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           ...(editWindowValue !== undefined ? { editWindow: editWindowValue } : {}),
           ...(memberVisibilityValue !== undefined ? { memberVisibility: memberVisibilityValue } : {}),
           ...(cardTemplateChanged ? { cardTemplate: fromCardTemplateForm(screenForm.cardTemplate) as ScreenDefinition['cardTemplate'] } : {}),
+          ...(listOrderChanged ? { listOrder: fromListOrderForm(screenForm.listOrder) } : {}),
         });
 
         // A regra lê a janela e a visibilidade do documento da COLEÇÃO. Numa tela que descreve outra
@@ -2066,7 +2103,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     } finally {
       setSavingScreen(false);
     }
-  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label, canManagePortal, portalPanel, canManageEditWindow, canManageMemberVisibility, memberVisibilityPanel, cardTemplateFields]);
+  }, [artifactPrefix, screenForm, screenModal, getDefinitionByKey, saveDefinition, definitions, dynamicDefinitions, childCandidates, persistChildLinks, notify, schemaContext, declareTagList, t, label, canManagePortal, portalPanel, canManageEditWindow, canManageMemberVisibility, memberVisibilityPanel, cardTemplateFields, listOrderIssueTexts]);
 
   const toggleScreenEnabled = useCallback(async (screenKey: string) => {
     const def = getDefinitionByKey(screenKey);
@@ -3109,6 +3146,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     screenModalTabs,
     updateEditWindowForm,
     updateCardTemplateForm,
+    updateListOrderForm,
+    listOrderFields,
+    listOrderIssues: listOrderIssueTexts,
     cardTemplateFields,
     cardTemplateScreenKey: screenModal?.screenKey ?? null,
     editWindowFromExtension: !!screenModal?.screenKey && getDefinitionByKey(screenModal.screenKey)?.managed === true,

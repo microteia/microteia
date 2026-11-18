@@ -5748,6 +5748,39 @@ mostraria a página errada de uma agenda. As consultas ficam no `RecordStore` (`
 `useRecordQuery`) pelo molde das janelas, com a chave SEM o tamanho — carregar mais reassina a mesma
 consulta maior, e o que estava na tela fica até a resposta chegar.
 
+**A ordem declarada — `listOrder`.** A tela diz em que ordem os registros dela se leem
+(`ScreenDefinition.listOrder`, até três chaves `{ path, dir }`, a mesma forma do `latest` da agregação),
+e a ordem vale na listagem própria E na aba que a tela vira dentro do pai, sob qualquer pai. Mora na tela
+FILHA porque a aba mostra os registros dela: os andamentos têm a mesma ordem sob qualquer processo. A
+Form Design a edita na aba "Cartão" (seção "Ordem dos registros"); a extensão a declara no `screen`.
+
+| Peça | Onde | O quê |
+|---|---|---|
+| Validação | `listOrderIssues` (`domain/schema/ui/listOrder.ts`) | a Form Design antes de gravar e o `check` do pacote (`pluginListOrder.ts`): campo da tela, tipo que ordena, sem repetir, até o teto |
+| Leitura | `readListOrder` | tolerante: a chave que a tela não responde mais sai da ordem, sem derrubar a lista |
+| Aplicação | `listOrderComparator` → `useRecordListViewModel` | o mesmo `deterministicRecordOrder` do `latest`: vazio no fim nas duas direções, desempate pelo cadastro e pelo id. A ordem em código (`sortRecords`) vence a declarada |
+| Portal | `guestListOrder` (servidor) + `orderPortalRecords` (casca) | só sai chave de campo EXPOSTO e nunca `createdAt`, que a projeção não guarda; a casca reordena a janela que recebeu |
+| Agente | `describe_screen` → `listOrder` | para o agente apresentar uma lista na mesma ordem da tela |
+
+Só entram tipos que ordenam pelo que a pessoa vê (`text`, `masked`, `number`, `currency`, `date`,
+`time`, não `multi`) e os carimbos `createdAt`/`updatedAt`. `select` e `reference` ficam de fora: gravam
+a chave e o id, e a lista seguiria uma ordem que nenhum rótulo explica. `checkbox` também: `compareValues`
+não compara booleanos, e a chave empataria sempre.
+
+**Por que em memória, e nunca no Firestore.** A aba do pai consulta os filhos por igualdade no vínculo, e
+igualdade com ordenação por OUTRO campo pede um índice composto por tela — que uma tela criada em tempo de
+execução não tem como declarar. E `orderBy` no servidor EXCLUI o documento sem o campo, quando aqui ele só
+vai para o fim. O custo é o da janela: a aba do pai já trazia até 500 filhos e já avisava que a ordem é
+refeita entre os trazidos (`list.window`); a listagem própria, com ordem declarada, deixa de paginar por
+cadastro (`hasDeclaredOrder` em `planRecordListQuery`) e fica na janela da coleção, como já ficava a de
+`sortRecords` — e, cheia, avisa (`list.order.window`) que a busca, que vai ao servidor, alcança os
+anteriores. Paginar por cadastro numa lista em outra ordem mostraria a página errada.
+
+Não confundir com `FieldDefinition.listOrder`, que é a posição da meta-linha no cartão. A partir de
+`LIST_ORDER_SINCE_KERNEL` (2.137.0); um kernel anterior ignora a chave e mostra os mais recentes, e por
+isso o pacote não precisa pedir faixa de `kernel`. Na atualização de extensão, a ordem do pacote vence; a
+ausência mantém a que o escritório escolheu.
+
 **A extensão além da janela.** Seis portas, porque a view feita em código (a tela de Processos de um
 escritório) lê a coleção por conta própria e não passa pelo diretório do kernel:
 
@@ -6759,7 +6792,7 @@ prazo:
 | Capacidade | Declaração | Sem ela |
 |---|---|---|
 | Faixa de destaque no cartão | `accentColor(record)` no `RecordListSurface` | a prioridade do prazo só se leria depois de ler o texto do cartão |
-| Ordem da listagem | `useEntityList({ sortRecords })` | a agenda abriria na ordem de CADASTRO, e o prazo mais recente não é o mais urgente |
+| Ordem da listagem | `useEntityList({ sortRecords })` — ou, sem código, `listOrder` na tela | a agenda abriria na ordem de CADASTRO, e o prazo mais recente não é o mais urgente |
 | Abrir a listagem já filtrada | `useOpenScreenList(collection, filterTokens)` + a intenção consumida pelo `useRecordListViewModel` | o painel e o cartão de um push endereçavam a intenção pela CHAVE da tela, que passou a variar por escritório |
 
 A terceira fechou um buraco que a migração do Financeiro tinha deixado em aberto: o painel do

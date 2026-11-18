@@ -5,6 +5,7 @@ import { createSchemaContext } from '../../domain/schema/pathResolver';
 import type { SchemaLookup } from '../../domain/schema/screenEntity';
 import { readEditWindow } from '../../domain/schema/editWindow';
 import { readMemberVisibility } from '../../domain/schema/memberVisibility';
+import { readListOrder } from '../../domain/schema/ui/listOrder';
 import { asPortalDeclaration } from '../../domain/schema/portal';
 import type { RecordKeySpec } from '../../domain/schema/recordKeys';
 import type { FieldDefinition, FieldOrigin } from '../../domain/entities/entitySchemas';
@@ -107,6 +108,7 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
         memberWritableFields: Array.isArray(data.memberWritableFields)
           ? (data.memberWritableFields as unknown[]).filter((field): field is string => typeof field === 'string')
           : null,
+        listOrder: readListOrder(data.listOrder, Array.isArray(data.fields) ? (data.fields as FieldDefinition[]) : []),
       };
     });
 
