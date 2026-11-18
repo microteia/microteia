@@ -1,4 +1,5 @@
 import type { ReportDefinition, ReportModuleTemplate } from '../../entities/Report';
+import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import type { ReportSpec } from '../../schema/report/reportSpec';
 
 /**
@@ -46,7 +47,9 @@ export const reportInputFromTemplate = (
   keyMap: Map<string, string>,
   userId?: string,
 ): ReportInput => {
-  const { templateId, ...rest } = template;
+  // `view` aponta para CÓDIGO do pacote e fica nele — ver `ReportModuleTemplate.view`.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- desestruturar para omitir `view` do documento
+  const { templateId, view: _view, ...rest } = template;
   return stripUndefined({
     ...rest,
     spec: rewriteReportTables(template.spec, keyMap),
@@ -64,3 +67,42 @@ export const reportInputFromTemplate = (
 /** Id UNIVERSAL do relatório: o `sourceId` do template; na falta, o próprio `templateId`. */
 export const reportTemplateSourceId = (template: ReportModuleTemplate): string =>
   template.sourceId ?? template.templateId;
+
+/**
+ * O kernel a partir do qual `reports[].view` desenha o corpo da aba do relatório. Um kernel anterior
+ * ignora a propriedade e mostra o corpo padrão — o relatório é o mesmo, só não tem a apresentação
+ * escrita em código.
+ */
+export const REPORT_VIEW_SINCE_KERNEL = '2.138.0';
+
+/** A view que desenha um relatório instalado: de quem é e qual, entre as `views` daquele pacote. */
+export interface ReportCodeView {
+  pluginId: string;
+  viewKey: string;
+}
+
+/**
+ * A view que o PACOTE dono declara para este relatório, ou `null` quando não há.
+ *
+ * Lê o pacote instalado, e não o documento do relatório: é lá que a declaração mora (ver
+ * `ReportModuleTemplate.view`). O relatório do escritório (`design`) e o pessoal não têm pacote, e
+ * por isso nunca trocam de corpo. Entre vários donos (o refcount de `ownerPluginIds`), vale o primeiro
+ * que declara — a mesma ordem que elege `ownerPluginId`.
+ *
+ * Não decide se a view RODA: isso é da confiança de código, conferida por quem a resolve no registro de
+ * implementações — onde ela só existe quando o pacote é confiado.
+ */
+export const reportCodeViewOf = (
+  report: Pick<ReportDefinition, 'origin' | 'ownerPluginId' | 'ownerPluginIds' | 'sourceId' | 'ownerId'>,
+  packageOf: (pluginId: string) => MarketplacePlugin | undefined,
+): ReportCodeView | null => {
+  if (report.origin !== 'plugin' || report.ownerId || !report.sourceId) return null;
+  const owners = report.ownerPluginIds?.length ? report.ownerPluginIds : [report.ownerPluginId ?? ''];
+  for (const pluginId of owners.filter((one) => one !== '')) {
+    const pkg = packageOf(pluginId);
+    const template = (pkg?.reports ?? []).find((one) => reportTemplateSourceId(one) === report.sourceId);
+    const viewKey = typeof template?.view === 'string' ? template.view.trim() : '';
+    if (viewKey !== '' && (pkg?.views ?? []).some((view) => view.key === viewKey)) return { pluginId, viewKey };
+  }
+  return null;
+};

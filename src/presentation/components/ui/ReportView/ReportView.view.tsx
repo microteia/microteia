@@ -12,6 +12,8 @@ import { ReportTable } from '../ReportTable';
 import { SearchSelect } from '../SearchSelect';
 import { ReportDrill } from '../ReportDrill';
 import { ReportSubscribe } from '../ReportSubscribe';
+import { ErrorBoundary } from '../../layout/ErrorBoundary';
+import { ReportFrameContext } from '../../../shared/report/reportFrame';
 import type { WidgetReportAnswers, WidgetReportView } from '../../../../domain/schema/ui/widgetSpec';
 
 export interface ReportViewProps extends WidgetReportAnswers {
@@ -21,6 +23,12 @@ export interface ReportViewProps extends WidgetReportAnswers {
   tabKey?: string;
   /** `chart`/`table`: só aquela parte, sem cabeçalho nem filtros — o relatório como peça de um painel. */
   view?: WidgetReportView;
+  /**
+   * A view da extensão que desenha o CORPO no lugar da barra de filtros, do gráfico e da tabela
+   * (`reports[].view`). Só a aba do relatório a passa: um painel que mostra o relatório, e a própria
+   * view quando compõe `ReportView` do seu relatório, continuam com o corpo declarado.
+   */
+  body?: React.ComponentType<{ tabKey: string }>;
 }
 
 /**
@@ -30,8 +38,8 @@ export interface ReportViewProps extends WidgetReportAnswers {
  * este kernel não conhece já foi degradada para `tabular` na validação, com aviso — então aqui não
  * existe caso "desconhecido" a tratar.
  */
-export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey, view = 'full', prompts, bind }) => {
-  const vm = useReportViewViewModel(reportKey, tabKey, { prompts, bind }, view);
+export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey, view = 'full', prompts, bind, body: Body }) => {
+  const vm = useReportViewViewModel(reportKey, tabKey, { prompts, bind }, view, Body !== undefined);
 
   if (!vm.report || !vm.spec) return <InfoBanner message={reportKey} variant="warning" />;
 
@@ -69,7 +77,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey, view 
         </S.Header>
       )}
 
-      {vm.showChrome && vm.prompts.length > 0 && (
+      {!vm.customBody && vm.showChrome && vm.prompts.length > 0 && (
         <S.Prompts
           data-print-hide
           onSubmit={(event) => { event.preventDefault(); void vm.run(); }}
@@ -113,6 +121,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey, view 
         </S.Prompts>
       )}
 
+      {vm.bodyFailed && <InfoBanner message={vm.bodyFailed} variant="warning" />}
       {vm.error && <InfoBanner message={vm.error} variant="warning" />}
       {vm.partial && <InfoBanner message={vm.partial} variant="warning" />}
       {vm.series && <InfoBanner message={vm.series} variant="info" />}
@@ -121,13 +130,23 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey, view 
         <InfoBanner key={warning} message={warning} variant="info" />
       ))}
 
-      {vm.isLoading && !vm.result && <S.Loading />}
+      {vm.customBody && Body && vm.frame ? (
+        <ErrorBoundary fallback={null} onError={vm.onBodyError}>
+          <ReportFrameContext.Provider value={vm.frame}>
+            <Body tabKey={tabKey ?? ''} />
+          </ReportFrameContext.Provider>
+        </ErrorBoundary>
+      ) : (
+        <>
+          {vm.isLoading && !vm.result && <S.Loading />}
 
-      {vm.result && vm.showChart && <ReportChart spec={vm.spec} result={vm.result} />}
+          {vm.result && vm.showChart && <ReportChart spec={vm.spec} result={vm.result} />}
 
-      {vm.result && vm.showTable && (vm.spec.shape.kind === 'matrix'
-        ? <ReportMatrix spec={vm.spec} result={vm.result} onDrill={vm.drill} />
-        : <ReportTable spec={vm.spec} result={vm.result} onDrill={vm.drill} />)}
+          {vm.result && vm.showTable && (vm.spec.shape.kind === 'matrix'
+            ? <ReportMatrix spec={vm.spec} result={vm.result} onDrill={vm.drill} />
+            : <ReportTable spec={vm.spec} result={vm.result} onDrill={vm.drill} />)}
+        </>
+      )}
 
       {vm.drillOpen && (
         <ReportDrill

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.279.0] — 2026-11-18
+
+- Uma extensão agora pode trazer a sua própria apresentação para um relatório: quem abre o relatório — pela lista de Relatórios, pela busca, por um link ou pelo aviso de uma automação — vê a tela que a extensão desenhou, com o título, os avisos e os botões de exportar, imprimir e assinar de sempre, valendo sobre os filtros escolhidos nela. Até que o código da extensão seja revisado e confiado, o relatório continua com a apresentação padrão.
+
 #### [9.278.1] — 2026-11-18
 
 - Nos relatórios, um filtro sobre um cadastro ligado a outro — por exemplo, o cliente do pedido num relatório de itens de pedido — agora é perguntado com a busca de registros daquele cadastro, como os demais filtros, e não mais com uma caixa de texto onde nada do que se digitava encontrava resultado.

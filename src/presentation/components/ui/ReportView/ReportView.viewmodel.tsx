@@ -20,6 +20,7 @@ import { PERMISSION_AUTOMATION_MANAGE } from '../../../../domain/schema/access/k
 import { resolveWidgetAnswers } from '../../../../domain/schema/ui/widgetSpec';
 import type { WidgetReportAnswers, WidgetReportView } from '../../../../domain/schema/ui/widgetSpec';
 import { useWidgetFilterValues } from '../../../shared/widgetFilterContext';
+import type { ReportFrame } from '../../../shared/report/reportFrame';
 
 /** Um filtro que o LEITOR preenche, já com o que a tela precisa para desenhá-lo. */
 export interface ReportPromptField {
@@ -102,6 +103,16 @@ export interface ReportViewViewModel {
   closeSubscribe: () => void;
   /** Os filtros como estão agora — a assinatura os repete em cada execução. */
   subscribePrompts: Record<string, unknown>;
+  /**
+   * O corpo é a view que a extensão declarou (`reports[].view`): a barra de filtros, o gráfico e a
+   * tabela padrão saem, e cabeçalho, botões e avisos ficam.
+   */
+  customBody: boolean;
+  /** O que a view recebe por `useReportFrame()`. `null` quando o corpo é o padrão. */
+  frame: ReportFrame | null;
+  /** O aviso de que a view da extensão quebrou e o corpo padrão voltou. */
+  bodyFailed: string | null;
+  onBodyError: (error: Error) => void;
 }
 
 /**
@@ -122,6 +133,7 @@ export const useReportViewViewModel = (
   tabKey?: string,
   answers?: WidgetReportAnswers,
   view: WidgetReportView = 'full',
+  hasBody = false,
 ): ReportViewViewModel => {
   const { getReport, runReport } = useReportDefinitions();
   const { setTabTitle } = useWorkspace();
@@ -152,6 +164,10 @@ export const useReportViewViewModel = (
   const openRecord = useOpenRecord();
   const { can } = useAuthorization();
   const [subscribeOpen, setSubscribeOpen] = useState(false);
+  const [lastPayload, setLastPayload] = useState<Record<string, unknown>>({});
+  /** A view da extensão quebrou ao desenhar: a aba volta ao corpo padrão, e diz por quê. */
+  const [bodyFailed, setBodyFailed] = useState(false);
+  const customBody = hasBody && view === 'full' && !bodyFailed;
 
   /*
    * As respostas que vêm de FORA — as fixas de um nó do painel e as da barra que ele liga. Por texto,
@@ -228,12 +244,16 @@ export const useReportViewViewModel = (
     return { ...filled, ...fixed };
   }, [declaredPrompts, effectiveText, fieldByPath, fixed]);
 
-  const runWith = useCallback(async (values: Record<string, string>) => {
+  /**
+   * Executa com estas respostas, já na forma do servidor, e as LEMBRA: é com elas que a assinatura
+   * repete a pergunta quando o corpo é uma view da extensão, que não tem a barra padrão.
+   */
+  const runPayload = useCallback(async (filled: Record<string, unknown>) => {
     if (!report) return;
     setIsLoading(true);
     setError(null);
+    setLastPayload(filled);
     try {
-      const filled = promptPayload(values);
       const outcome = await runReport({ reportId: report.id, prompts: filled });
       setResult(outcome.result);
       setIssues(outcome.issues ?? []);
@@ -244,7 +264,12 @@ export const useReportViewViewModel = (
     } finally {
       setIsLoading(false);
     }
-  }, [report, promptPayload, runReport, label]);
+  }, [report, runReport, label]);
+
+  const runWith = useCallback(
+    (values: Record<string, string>) => runPayload(promptPayload(values)),
+    [runPayload, promptPayload],
+  );
 
   const run = useCallback(() => runWith(promptValues), [runWith, promptValues]);
 
@@ -340,6 +365,28 @@ export const useReportViewViewModel = (
     : null;
   const seriesPartial = seriesInfo?.partial ? t('series.partial') : null;
 
+  /**
+   * As respostas da pergunta que está na tela. Com a barra padrão, são as dela; com a view da extensão,
+   * as que a view mandou por último — a barra padrão nem aparece.
+   */
+  const currentPayload = useCallback(
+    (): Record<string, unknown> => (customBody ? lastPayload : promptPayload(promptValues)),
+    [customBody, lastPayload, promptPayload, promptValues],
+  );
+
+  const frame = useMemo<ReportFrame | null>(
+    () => (report && customBody
+      ? {
+          report,
+          result,
+          isLoading,
+          prompts: lastPayload,
+          run: (prompts) => runPayload({ ...(prompts ?? {}), ...fixed }),
+        }
+      : null),
+    [report, customBody, result, isLoading, lastPayload, runPayload, fixed],
+  );
+
   const groupLabel = useReportGroupLabels(spec ?? EMPTY_SPEC);
 
   const drill = useCallback(async (target: ReportDrillTarget) => {
@@ -350,7 +397,7 @@ export const useReportViewViewModel = (
       : t('table.total');
     setDrillState({ title, records: [], matched: 0, loading: true });
     try {
-      const outcome = await runReport({ reportId: report.id, prompts: promptPayload(promptValues), drill: target });
+      const outcome = await runReport({ reportId: report.id, prompts: currentPayload(), drill: target });
       if (outcome.error) {
         setDrillState(null);
         setError(label(outcome.error, outcome.errorParams));
@@ -366,7 +413,7 @@ export const useReportViewViewModel = (
       setDrillState(null);
       setError(caught instanceof Error ? label(caught.message) : String(caught));
     }
-  }, [report, groupLabel, t, runReport, promptPayload, promptValues, label]);
+  }, [report, groupLabel, t, runReport, currentPayload, label]);
 
   const exportAs = useReportExport(spec ?? EMPTY_SPEC, result, report ? label(report.title) : '');
   const offered = spec?.presentation?.export;
@@ -432,6 +479,13 @@ export const useReportViewViewModel = (
     subscribeOpen,
     openSubscribe: () => setSubscribeOpen(true),
     closeSubscribe: () => setSubscribeOpen(false),
-    subscribePrompts: subscribeOpen ? promptPayload(promptValues) : {},
+    subscribePrompts: subscribeOpen ? currentPayload() : {},
+    customBody,
+    frame,
+    bodyFailed: bodyFailed ? t('view.failed') : null,
+    onBodyError: (caught: Error) => {
+      console.error(`[report ${reportKey}]`, caught);
+      setBodyFailed(true);
+    },
   };
 };

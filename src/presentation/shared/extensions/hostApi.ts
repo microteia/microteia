@@ -4,6 +4,7 @@ import { ReportTable } from '../../components/ui/ReportTable';
 import { ReportMatrix } from '../../components/ui/ReportMatrix';
 import { ReportChart } from '../../components/ui/ReportChart';
 import { useReport } from '../report/useReport';
+import { useReportFrame } from '../report/reportFrame';
 import { httpsCallable } from 'firebase/functions';
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 import styled, { useTheme } from 'styled-components';
@@ -254,6 +255,7 @@ const reportModule = {
   ReportMatrix,
   ReportChart,
   useReport,
+  useReportFrame,
 };
 
 const uiModule = {

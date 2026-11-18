@@ -11469,7 +11469,7 @@ Por que o nível 3 existe e o Widget DSL não precisa dele: um widget que descar
 |---|---|---|---|---|
 | **A** | O escritório | tela `report-design`, irmã do Form Design | `tenants/{tid}/reports`, `origin: 'design'` | não |
 | **B** | A extensão, declarando | `MarketplacePlugin.reports` | materializado na instalação | não |
-| **C** | A extensão, em código | view MVVM que compõe `@microteia/report` | `views[]` + `impl: { kind: 'code' }` | **sim** |
+| **C** | A extensão, em código | view MVVM que compõe `@microteia/report` | `views[]` + `reports[].view` | **sim** |
 
 **A regra que mantém C seguro:** o código substitui a `presentation`, **nunca o `dataset`**. Os
 números só chegam pela callable, que cobra permissão e teto. Sem isso, relatório em código seria a
@@ -11914,6 +11914,41 @@ recusa o pedido feito à mão (`@core.reports/drill.disabled`).
   afirmou. Clicar no registro abre o registro (`useOpenRecord`, pela coleção).
 - `ReportTable`/`ReportMatrix` aceitam `onDrill`, mas a API curada não o oferece às extensões ainda: o
   `useReport` delas não tem a contraparte. O `ReportView` curado já detalha sozinho.
+
+### A view que desenha o corpo da aba (`reports[].view`)
+
+O caminho C existia só pela metade: a view que compõe `@microteia/report` nascia como `ui.page` com
+entrada própria no menu, e o relatório continuava abrindo na tela padrão por toda porta que a
+plataforma gera — a lista, o ⌘K, o link direto, o `rep:<chave>` de uma notificação e a assinatura. Duas
+portas para o mesmo relatório, e a que se acha primeiro era a que o autor não conseguia desenhar (#3).
+O ponto `report.definition` aceitava `impl: code` e ninguém o consultava.
+
+`reports[].view` nomeia uma `views[].key` do MESMO pacote, e a view passa a desenhar o CORPO da aba
+`rep:<chave>` — a barra de filtros, o gráfico e a tabela. Quatro decisões:
+
+- **A declaração fica no pacote, nunca no documento do escritório.** `reportInputFromTemplate` a
+  descarta, e `reportCodeViewOf` a lê do pacote instalado do dono (casando o `sourceId`; entre vários
+  donos, o primeiro que declara). É ponteiro para CÓDIGO: gravado no relatório, seria um campo que quem
+  tem `reports.manage` edita, e o "duplicar para editar" o herdaria apontando para a view de outro
+  relatório. Por isso não há regra, migração nem cópia gerada a manter.
+- **A confiança vem de graça.** `useReportCodeView` resolve a view no registro de implementações, que
+  só recebe as `views` de um pacote confiado e ligado (`extensionRecordFrom`). Sem confiança, desligada,
+  ou num kernel anterior ao `REPORT_VIEW_SINCE_KERNEL`: o corpo padrão. A aba nunca fica em branco — e a
+  view que QUEBRA ao desenhar cai num `ErrorBoundary` que devolve o corpo padrão com o aviso
+  `@core.reports/view.failed`.
+- **Só a aba troca.** É `ViewReport` quem passa o `body` ao `ReportView`; o nó `report` de um painel e
+  o `ReportView` da API curada continuam com o corpo declarado. Sem isso, a view que compõe
+  `<ReportView reportKey view="chart" />` do próprio relatório desenharia a si mesma.
+- **A moldura executa, e a view pergunta por ela.** Título, avisos (parcial, erro, degradação) e
+  Exportar / Imprimir / Assinar ficam com a plataforma; a view recebe `useReportFrame()` —
+  `{ report, result, isLoading, prompts, run }` — e chama `run(respostas)` quando os controles dela
+  mudam. A moldura lembra a última pergunta (`lastPayload`), e é com ela que a assinatura a repete. Uma view que buscasse os números por `useReport` mostraria uma coisa
+  e exportaria outra. A abertura segue a regra de sempre: executa sozinha só quando não há o que
+  perguntar.
+
+Os números continuam vindo só da callable — permissão, visibilidade por registro e teto de varredura
+valem igual. O `check` recusa a `view` que não é do pacote (`issue.report.view-unknown`): sem a
+recusa, a aba cairia calada no corpo padrão em todo escritório.
 
 ### Relatório como passo de automação (`run-report`) — assinar e alertar
 

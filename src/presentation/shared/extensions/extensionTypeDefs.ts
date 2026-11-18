@@ -1932,6 +1932,29 @@ const REPORT_MODULE_DEFS = `declare module '@microteia/report' {
   /** Runs a report from the organization's catalogue, by its key. */
   export function useReport(reportKey: string, prompts?: Record<string, unknown>): UseReportResult;
 
+  /** What the report tab hands to the view that draws a report's body. */
+  export interface ReportFrame {
+    report: { id: string; key: string; title: string };
+    result: ReportResult | null;
+    isLoading: boolean;
+    /** The answers the report last ran with — the ones Subscribe repeats. */
+    prompts: Readonly<Record<string, unknown>>;
+    /** Runs the report again with these answers, by prompt key. */
+    run: (prompts?: Record<string, unknown>) => Promise<void>;
+  }
+
+  /**
+   * The report tab around your view, when your package names it as the body of one of its reports
+   * (\`reports[].view\`); \`null\` anywhere else, so the same view still works as a page of its own.
+   *
+   * The tab keeps the title, the warnings and Export / Print / Subscribe, and it is the tab that runs
+   * the report — on opening, exactly as the standard screen does when there is nothing to ask. Call
+   * \`run(prompts)\` when your own controls change: the export and the subscription then act on the
+   * result and the answers you are showing. A view that fetched its numbers through \`useReport\`
+   * instead would show one thing and export another. Needs kernel 2.138.0 or later.
+   */
+  export function useReportFrame(): ReportFrame | null;
+
   /**
    * The whole declared report: header, warnings, chart and fold. Wrap it in your own chrome.
    *

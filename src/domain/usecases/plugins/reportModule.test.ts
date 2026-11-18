@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { ReportModuleTemplate } from '../../entities/Report';
 import type { ReportSpec } from '../../schema/report/reportSpec';
 import { reportOutRefs } from './pluginReferences';
-import { reportInputFromTemplate, reportTemplateSourceId, rewriteReportTables } from './reportModule';
+import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
+import { reportCodeViewOf, reportInputFromTemplate, reportTemplateSourceId, rewriteReportTables } from './reportModule';
 
 const spec: ReportSpec = {
   v: 1,
@@ -79,6 +80,12 @@ describe('reportInputFromTemplate', () => {
     expect((input as unknown as Record<string, unknown>).templateId).toBeUndefined();
   });
 
+  it('não leva a `view` para o documento — ela é código do pacote, e fica nele', () => {
+    const comView = reportInputFromTemplate({ ...template, view: 'vendas-view' }, 'p', new Map());
+
+    expect((comView as unknown as Record<string, unknown>).view).toBeUndefined();
+  });
+
   it('respeita o `sourceId` declarado, quando ele existe', () => {
     const comSourceId = { ...template, sourceId: 'guid-universal' };
 
@@ -111,5 +118,64 @@ describe('reportOutRefs — o portão do pacote', () => {
 
     expect(() => reportOutRefs(quebrado)).not.toThrow();
     expect(reportOutRefs(quebrado)).toEqual([]);
+  });
+});
+
+/**
+ * A view que o pacote dono declara para o relatório (#3).
+ *
+ * A declaração mora no PACOTE: o documento do escritório não a carrega, então a resposta sai de quem o
+ * instalou. Quem decide se ela RODA é a confiança de código, conferida depois, no registro de
+ * implementações.
+ */
+describe('reportCodeViewOf', () => {
+  const pacote = (patch: Partial<MarketplacePlugin> = {}): MarketplacePlugin => ({
+    manifest: { id: 'com.acme.vendas', version: '1.0.0', kernel: '^2.0.0', name: 'Vendas' },
+    workflows: [],
+    reports: [{ ...template, view: 'vendas-view' }],
+    views: [{ key: 'vendas-view', source: 'export default () => null;' }],
+    ...patch,
+  } as MarketplacePlugin);
+
+  const instalado = {
+    origin: 'plugin' as const,
+    ownerPluginId: 'com.acme.vendas',
+    ownerPluginIds: ['com.acme.vendas'],
+    sourceId: 'vendasPorCategoria',
+  };
+
+  it('acha a view pelo `sourceId` do relatório, no pacote do dono', () => {
+    expect(reportCodeViewOf(instalado, () => pacote()))
+      .toEqual({ pluginId: 'com.acme.vendas', viewKey: 'vendas-view' });
+  });
+
+  it('o relatório sem `view` fica com o corpo padrão', () => {
+    expect(reportCodeViewOf(instalado, () => pacote({ reports: [template] }))).toBeNull();
+  });
+
+  it('a `view` que não está em `views` não aponta para nada', () => {
+    expect(reportCodeViewOf(instalado, () => pacote({ views: [] }))).toBeNull();
+  });
+
+  it('o relatório do escritório e o pessoal nunca trocam de corpo', () => {
+    expect(reportCodeViewOf({ ...instalado, origin: 'design' }, () => pacote())).toBeNull();
+    expect(reportCodeViewOf({ ...instalado, ownerId: 'u1' }, () => pacote())).toBeNull();
+  });
+
+  it('sem o pacote instalado, não há view', () => {
+    expect(reportCodeViewOf(instalado, () => undefined)).toBeNull();
+  });
+
+  it('entre vários donos, vale o primeiro que declara', () => {
+    const outro = pacote({
+      manifest: { id: 'com.acme.outro', version: '1.0.0', kernel: '^2.0.0', name: 'Outro' },
+      reports: [template],
+    } as Partial<MarketplacePlugin>);
+    const packages: Record<string, MarketplacePlugin> = { 'com.acme.outro': outro, 'com.acme.vendas': pacote() };
+
+    expect(reportCodeViewOf(
+      { ...instalado, ownerPluginId: 'com.acme.outro', ownerPluginIds: ['com.acme.outro', 'com.acme.vendas'] },
+      (id) => packages[id],
+    )).toEqual({ pluginId: 'com.acme.vendas', viewKey: 'vendas-view' });
   });
 });

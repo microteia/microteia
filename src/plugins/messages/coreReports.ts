@@ -162,6 +162,7 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'series.partial': 'Some snapshots were taken from a partial result.',
   'design.source.snapshot': 'Snapshots of "{name}"',
   'result.partial-groups': 'There were more groups than this report shows. What is below is part of the answer.',
+  'view.failed': 'The custom presentation of this report could not be displayed, so the standard one is shown.',
   'save.done': 'Report saved.',
   'schedule.not-implemented':
     'This report asks to run on a schedule, which this version does not do yet. It still runs whenever you open it.',
