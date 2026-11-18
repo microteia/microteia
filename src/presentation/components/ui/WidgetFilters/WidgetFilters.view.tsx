@@ -2,7 +2,7 @@ import React from 'react';
 import { S } from './WidgetFilters.styles';
 import { useWidgetFiltersViewModel } from './WidgetFilters.viewmodel';
 import { Input } from '../Input';
-import { SearchSelect } from '../SearchSelect';
+import { PeriodPicker } from '../PeriodPicker';
 import { FieldFilterInput } from '../FieldFilterInput';
 import { WidgetFilterContext } from '../../../shared/widgetFilterContext';
 import type { WidgetFilter } from '../../../../domain/schema/ui/widgetSpec';
@@ -24,7 +24,7 @@ export const WidgetFilters: React.FC<WidgetFiltersProps> = ({ filters, children 
             <S.Field key={field.key}>
               {field.label}
               {field.kind === 'period' ? (
-                <SearchSelect
+                <PeriodPicker
                   options={field.periodOptions}
                   value={field.text}
                   onChange={(value) => vm.setValue(field.key, value)}

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.282.0] — 2026-11-18
+
+- A lista de períodos dos relatórios e dos painéis ganhou a opção "Personalizado…": escolha quantos dias, semanas, meses, trimestres ou anos quer ver, e se o período em andamento entra ou não na conta.
+
 #### [9.281.0] — 2026-11-18
 
 - Os filtros de período dos relatórios e dos painéis agora aceitam janelas sob medida: "últimos 12 meses", "últimos 15 dias", "últimas 2 semanas", "últimos 3 anos" e também os períodos completos, como "últimos 12 meses completos", que deixam de fora o mês em andamento.

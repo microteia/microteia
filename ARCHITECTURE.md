@@ -11899,6 +11899,10 @@ Executados no SERVIDOR (`runReportQuery.ts`), não só na tela — o widget e o 
   os três seletores (relatório, barra, editor) montam as opções por `useReportPeriodOptions`. Como a chave é
   montada, `reportPeriodMessages.test.ts` faz o papel do `verify-messages`. O passo `run-report` leva o
   `count` na opção (`WorkflowParameter.options[].labelParams`).
+  Os três seletores são o MESMO controle, `ui/PeriodPicker`: as opções e, ao fim, "Personalizado" — número,
+  unidade e "incluir o período atual", que vira `last-` ou `previous-`. É o que deixa o leitor pedir a
+  janela que o autor não listou; no editor ele some quando o filtro declara `periods`, porque ali o padrão
+  tem de ser um dos oferecidos. Não muda o contrato: o servidor já aceitava qualquer período.
 - **Período desconhecido RECUSA.** Resposta que não é período — do leitor, do padrão, do `run-report`, do MCP ou de uma
   barra de painel — RECUSA com `@core.reports/prompt.period.unknown` (`invalidPeriodPrompt`), nomeando o
   filtro. Antes ela era ignorada, e o relatório voltava sem o recorte: um erro de digitação se lia como
