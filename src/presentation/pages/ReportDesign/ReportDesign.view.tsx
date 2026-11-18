@@ -27,6 +27,7 @@ import { FieldFilterInput } from '../../components/ui/FieldFilterInput';
 import { Input, Textarea } from '../../components/ui/Input';
 import { MultiSearchSelect } from '../../components/ui/MultiSearchSelect';
 import { SearchSelect } from '../../components/ui/SearchSelect';
+import { PeriodPicker } from '../../components/ui/PeriodPicker';
 import { Spinner } from '../../components/ui/Spinner';
 import { ReportChart } from '../../components/ui/ReportChart';
 import { ReportMatrix } from '../../components/ui/ReportMatrix';
@@ -723,11 +724,12 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                             label={vm.labels.promptRequired}
                           />
                           {prompt.isPeriod && (
-                            <SearchSelect
+                            <PeriodPicker
                               label={vm.labels.promptDefault}
                               options={prompt.periodOptions}
                               value={prompt.periodDefault}
                               onChange={(value) => vm.setPromptPeriodDefault(prompt.key, value)}
+                              allowCustom={prompt.periodCustom}
                             />
                           )}
                         </div>

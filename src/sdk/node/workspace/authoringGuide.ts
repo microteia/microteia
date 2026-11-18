@@ -4524,6 +4524,8 @@ A reference or an option list is answered as a LIST of the chosen ones, so decla
   \`periods: ['last-15-days', 'last-12-months', 'this-year']\` limits and orders what the picker offers
   (absent: the named list); \`default\` must be one of them. A \`metric\` with
   \`compare: 'previous-period'\` sets any of them beside the window of the same length right before it.
+  The reader's picker always ends with "Custom…" — a number, a unit and "include the current period" —, so
+  \`periods\` chooses what is one click away, not what can be asked.
   Either one — \`periods\` or a parameterised \`default\`, in a report or in a widget \`filters\` bar —
   needs kernel ${WIDGET_PERIOD_RELATIVE_SINCE_KERNEL}: an older one would show an empty picker.
 - **A period the server does not recognise refuses the run** (\`prompt.period.unknown\`), naming the

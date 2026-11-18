@@ -9,7 +9,7 @@ import { Input } from '../Input';
 import { ReportChart } from '../ReportChart';
 import { ReportMatrix } from '../ReportMatrix';
 import { ReportTable } from '../ReportTable';
-import { SearchSelect } from '../SearchSelect';
+import { PeriodPicker } from '../PeriodPicker';
 import { ReportDrill } from '../ReportDrill';
 import { ReportSubscribe } from '../ReportSubscribe';
 import { ErrorBoundary } from '../../layout/ErrorBoundary';
@@ -89,7 +89,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey, view 
                   Um texto livre aqui pedia a quem lê o relatório o id do registro que ele queria
                   ver, e o formato exato da data. */}
               {prompt.isPeriod ? (
-                <SearchSelect
+                <PeriodPicker
                   options={prompt.periodOptions}
                   value={prompt.periodValue}
                   onChange={(value) => vm.setPromptPeriod(prompt.key, value)}

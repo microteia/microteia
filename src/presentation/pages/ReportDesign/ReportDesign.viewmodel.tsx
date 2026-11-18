@@ -126,6 +126,8 @@ export interface ReportDesignPrompt {
   periodDefault: string;
   /** As opções do período inicial: os `periods` que o filtro declara, ou os nomeados. */
   periodOptions: ReportPeriodOption[];
+  /** Sem `periods` declarados o padrão pode ser qualquer janela; com eles, tem de ser uma das listadas. */
+  periodCustom: boolean;
 }
 
 /**
@@ -1811,6 +1813,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         isPeriod,
         periodDefault,
         periodOptions: isPeriod ? periodOptionsOf(prompt.periods, periodDefault) : [],
+        periodCustom: isPeriod && !(Array.isArray(prompt.periods) && prompt.periods.length > 0),
       };
     }),
     promptPathOptions: promptPathChoices,

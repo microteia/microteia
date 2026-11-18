@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.282.0] — 2026-11-18
+
+- feat(reports/ui): `ui/PeriodPicker` — one period control for the report prompt bar, the widget `filters` bar and the report designer's default. It ends with "Custom…": a count, a unit and "include the current period", producing `last-<n>-<unit>` or `previous-<n>-<unit>`, prefilled from the current answer when it is parameterised and bounded by `REPORT_PERIOD_MAX_COUNT`. The reader can ask for a window the author did not list; in the designer the entry is hidden when the prompt declares `periods`, since the default must be one of them. No contract change: the server already accepted any period since 2.139.0. Phase 3 of #4.
+- chore(locale-pt-br): 1.230.0 carries the picker's messages.
+
 #### [9.281.0] — 2026-11-18
 
 - feat(reports): parameterised relative periods for `control: 'period'` (#4). `last-<n>-<unit>` ends with the current period, inclusive; `previous-<n>-<unit>` is the n closed periods before it (`previous-1-months` ≡ `last-month`, while `last-1-months` is this month). Units `days` (rolling, from today), `weeks` (whole ISO weeks, Monday), `months`, `quarters`, `years` (whole calendar periods, the same rule as the `granularity` buckets). Canonical form only, `n` capped by `REPORT_PERIOD_MAX_COUNT` (about 20 years per unit). `last-7-days`, `last-30-days` and `last-90-days` are now resolved by the same rule, with identical ranges. Accepted in `presentation.prompts[].default`, in a widget `filters` bar `default`, as the reader's answer, by `run-report` and by the MCP.
