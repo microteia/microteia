@@ -28,6 +28,7 @@ import type { PortalDeclaration } from '../schema/portal';
 import type { EditWindowSpec } from '../schema/editWindow';
 import type { MemberVisibilitySpec } from '../schema/memberVisibility';
 import type { CardTemplate } from '../schema/ui/cardTemplate';
+import type { QueryOrderBy } from '../schema/querySpec';
 import type { ContactKind } from '../schema/notificationContacts';
 
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
@@ -356,6 +357,15 @@ export interface ScreenDefinition {
    * por isso mora aqui, ao lado de `cardActionIds`, e não num ponto de extensão.
    */
   cardTemplate?: CardTemplate | null;
+  /**
+   * A ordem da listagem desta tela e da aba que ela vira dentro do pai — ver
+   * `domain/schema/ui/listOrder.ts`. Ausente (o normal) = o cadastro mais recente primeiro.
+   *
+   * Mora na tela FILHA, e não no pai, porque a aba mostra os registros dela: a ordem dos andamentos é
+   * a mesma sob qualquer processo. Não confundir com `FieldDefinition.listOrder`, que é a posição da
+   * meta-linha no cartão, e não a ordem dos registros.
+   */
+  listOrder?: QueryOrderBy[] | null;
   /**
    * Quando presente, a tela é FILHA de outra: sai do menu lateral e da busca ⌘K, e seus registros
    * aparecem como uma aba do registro-pai. Aceita a chave de uma tela fixa ('contracts', 'persons'…)

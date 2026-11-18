@@ -364,6 +364,7 @@ const SCREEN_REACH: Record<keyof ScreenModuleTemplate, string | null> = {
   viewActionIds: 'the actions the screen plan places in the detail header',
   cardActionIds: 'the actions the screen plan places on the list card',
   cardTemplate: null,
+  listOrder: null,
   seed: null,
 };
 
@@ -395,6 +396,8 @@ const SCREEN_NOTES: Record<string, string> = {
     + 'machine-written',
   cardTemplate: 'HUMAN: how the list card is drawn, and whether the list is a grid or one card per line. A '
     + 'presentation decision, and the model says what a record is, never how it looks',
+  listOrder: 'HUMAN: the order of the list and of the tab inside the parent. Which record a person wants to see '
+    + 'first is a decision about how they work, and no rule implies it',
   seed: 'HUMAN: the records the extension delivers ready to use — a catalog. Content the author chooses, not something a '
     + 'rule implies',
 };

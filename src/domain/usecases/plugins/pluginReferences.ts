@@ -30,6 +30,7 @@ import { packageFieldLookupIssues } from './pluginFieldLookups';
 import { packageFieldSearchIssues } from './pluginFieldSearch';
 import { packageOptionsFilterIssues } from './pluginOptionsFilter';
 import { packageCardTemplateIssues } from './pluginCardTemplates';
+import { packageListOrderIssues } from './pluginListOrder';
 import { fieldPresetIssues } from './fieldPresetRefs';
 import { packageIconIssues } from './pluginIcons';
 import { packageActionIssues } from './pluginActions';
@@ -480,6 +481,7 @@ export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageFieldSearchIssues(pkg),
   ...packageOptionsFilterIssues(pkg),
   ...packageCardTemplateIssues(pkg),
+  ...packageListOrderIssues(pkg),
   ...fieldPresetIssues(pkg),
   ...packagePrefixIssues(pkg),
   ...packageBackendSourceIssues(pkg),

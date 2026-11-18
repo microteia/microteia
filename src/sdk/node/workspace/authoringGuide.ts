@@ -45,6 +45,12 @@ import {
 } from '../../../domain/services/recordListQuery';
 import { RECORD_WINDOW_DEFAULT } from '../../../domain/repositories/IRecordRepository';
 import { CARD_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/cardTemplate';
+import {
+  LIST_ORDER_FIELD_TYPES,
+  LIST_ORDER_MAX_KEYS,
+  LIST_ORDER_RECORD_PATHS,
+  LIST_ORDER_SINCE_KERNEL,
+} from '../../../domain/schema/ui/listOrder';
 import { NAV_FILTER_PRESENCE_SINCE_KERNEL, SLOT_DOCK_SINCE_KERNEL } from '../../../domain/schema/ui/uiExtensionPoints';
 import { PORTAL_DETAIL_ONLY_NODE_TYPES, PORTAL_TEMPLATE_SINCE_KERNEL } from '../../../domain/schema/ui/portalTemplate';
 import {
@@ -769,8 +775,9 @@ still has other ids stays \`related\`, and turns \`owned\` only where \`recordId
 lock by ONE single field hides that field from the card and the filters, because there every record
 has the same value; a \`multi\` field or a second field tells something, and stays. Requires kernel
 \`^2.51.0\`. Draw \`filteredRecords\` — the list after the person's filter, in
-the order of \`sortRecords\` —, and keep \`records\` (the whole list, same order) for counting, finding by id
-and totals; declare \`sortRecords\` instead of sorting by hand.
+the order of \`sortRecords\` or, without it, of the screen's \`listOrder\` —, and keep \`records\` (the whole
+list, same order) for counting, finding by id and totals; declare \`sortRecords\` (or \`listOrder\` on the
+screen) instead of sorting by hand.
 
 **Beyond the window.** \`records\`, \`useCollection\` and the \`records\` a command or mention provider receives
 hold the newest ${RECORD_WINDOW_DEFAULT} of a collection, and an organization with thousands outgrows them silently: a
@@ -780,7 +787,8 @@ Six doors reach the rest (kernel \`^${SERVER_RECORDS_API_SINCE_KERNEL}\`):
 - \`useEntityList(sourceId, { paginate: true })\` — the list fetches ${RECORD_LIST_PAGE_SIZE} at a time and the next ${RECORD_LIST_PAGE_SIZE} when
   \`loadMoreRef\` scrolls into view (\`RecordListSurface\` places it), and the person's filter goes to the
   server. \`records\` is then only what was fetched — do not count or look up by id in it. Show
-  \`windowNotice\` under the list. Ignored with \`sortRecords\`.
+  \`windowNotice\` under the list. Ignored with \`sortRecords\` or a screen \`listOrder\`: the list stays on the
+  window, and \`windowNotice\` then says when the window is full.
 - \`useRecordsByIds(collection, ids)\` — the records a card points at, by id, fetched when missing.
 - \`useRecordCounts(collection, groups)\` — a dashboard number counted on the server, one group of
   conditions per number.
@@ -2314,6 +2322,38 @@ expression that does not parse. A kernel older than ${CARD_TEMPLATE_SINCE_KERNEL
 declaration and draws the standard card, so no \`kernel\` range is required. The organization can redraw
 the card in the Form Design ("Card" tab); an update of your extension that declares a card replaces
 theirs, and one that declares none keeps it.
+
+### The order of the records — \`listOrder\`
+
+Leave it out and the list shows the most recently created record first. Declare it when the screen is
+read in another order — the installments of a contract by due date, the steps of a project by position.
+It orders the screen's own list AND the tab it becomes inside its parent, under any parent:
+
+\`\`\`ts
+listOrder: [
+  { path: 'dueDate', dir: 'asc' },        // the first key decides
+  { path: 'installment', dir: 'asc' },    // the next ones break ties
+]
+\`\`\`
+
+A key is a field of the screen of type ${inlineList([...LIST_ORDER_FIELD_TYPES])}, not \`multi\`, or one of
+${inlineList([...LIST_ORDER_RECORD_PATHS])}; at most ${LIST_ORDER_MAX_KEYS} keys. A \`select\` or a \`reference\` cannot order the list: it
+stores the option key and the record id, and the list would follow an order no label explains. A record
+with an empty key goes last in both directions, and a full tie falls back to the creation date and the id,
+so the list never reshuffles between reads.
+
+The order is applied in memory, never by the database: a query on the parent link ordered by another
+field would need a composite index per screen. The child tab already reads up to the parent's records in a
+window; the screen's own list, with an order declared, stops loading more as the person scrolls and orders
+the most recently created records in that window — the search still reaches older ones. In the portal, a
+key on a field the screen does not expose (or \`createdAt\`) is dropped before it reaches the guest.
+
+An order written in code — \`useEntityList({ sortRecords })\` — wins over the declared one. \`check\`
+refuses a field the screen does not have, a type that does not order, a repeated key and an unknown
+direction. A kernel older than ${LIST_ORDER_SINCE_KERNEL} ignores the declaration and shows the most recent first,
+so no \`kernel\` range is required. The organization can change the order in the Form Design ("Card"
+tab); an update of your extension that declares an order replaces theirs, and one that declares none
+keeps it.
 
 ### Keys — what cannot repeat
 

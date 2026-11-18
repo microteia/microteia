@@ -182,6 +182,7 @@ export const materializeScreen = (
     viewActionIds: mapActionIds(template.viewActionIds),
     cardActionIds: mapActionIds(template.cardActionIds),
     cardTemplate: template.cardTemplate ?? null,
+    listOrder: template.listOrder ?? null,
     parentEntity: rewriteRef(template.parentEntity, keyMap) ?? null,
     parentFieldKey: template.parentFieldKey ?? null,
     parentRelation: template.parentRelation ?? null,

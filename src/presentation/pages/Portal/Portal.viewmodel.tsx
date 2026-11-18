@@ -4,7 +4,7 @@ import { useAuth } from '../../../stores/useAuth';
 import { usePortal } from '../../../stores/usePortal';
 import { usePortalNavigation } from '../../../stores/usePortalNavigation';
 import { useLocaleFormat, useT } from '../../shared/i18n/useT';
-import { canEditPortalRecord, fillPortalWelcome, portalWelcomeValues, type PortalDocument, type PortalScreenInfo } from '../../../domain/entities/Portal';
+import { canEditPortalRecord, fillPortalWelcome, orderPortalRecords, portalWelcomeValues, type PortalDocument, type PortalScreenInfo } from '../../../domain/entities/Portal';
 import { portalSubjectKey } from '../../../domain/schema/portal';
 import { portalTemplatePlaces } from '../../../domain/schema/ui/portalTemplate';
 import { portalTenantPath } from './portalPaths';
@@ -265,7 +265,9 @@ export const usePortalViewModel = (): PortalViewModel => {
   const { formatValue, cardOf, answersOf } = usePortalRecordFormat();
 
   const records = useMemo<PortalRecordCard[]>(
-    () => (rootScreen ? (recordsByCollection[rootScreen.collection] ?? []).map((record) => cardOf(rootScreen, record)) : []),
+    () => (rootScreen
+      ? orderPortalRecords(recordsByCollection[rootScreen.collection] ?? [], rootScreen.listOrder).map((record) => cardOf(rootScreen, record))
+      : []),
     [rootScreen, recordsByCollection, cardOf],
   );
 

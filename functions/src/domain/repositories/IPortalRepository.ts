@@ -36,6 +36,8 @@ export interface PortalScreen extends PortalScreenLike {
      */
     optionsFilter?: unknown;
   }>;
+  /** A ordem da listagem (`listOrder`) como está no documento — quem a leva ao convidado é `guestListOrder`. */
+  listOrder?: unknown;
 }
 
 /** Uma ação do escritório como o portal a lê — o botão que o convidado vê e o fluxo que ele dispara. */

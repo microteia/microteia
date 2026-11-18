@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePortal } from '../../../../../stores/usePortal';
 import { useT } from '../../../../shared/i18n/useT';
+import { orderPortalRecords } from '../../../../../domain/entities/Portal';
 import type { PortalRecord } from '../../../../../domain/entities/Portal';
 import type { FilterDef, FilterToken } from '../../../../components/ui/CompositeFilter';
 import type { PortalChildSection, PortalRecordCard } from '../../Portal.viewmodel';
@@ -101,7 +102,11 @@ export const usePortalChildListViewModel = ({ child, onOpen, onCreate }: PortalC
     });
   }, [filtering, records, tokens, child.screen, formatValue]);
 
-  const cards = useMemo(() => filtered.map((record) => cardOf(child.screen, record)), [filtered, cardOf, child.screen]);
+  // A janela é a das alterações mais recentes; a ordem que a tela declara é refeita entre elas.
+  const cards = useMemo(
+    () => orderPortalRecords(filtered, child.screen.listOrder).map((record) => cardOf(child.screen, record)),
+    [filtered, cardOf, child.screen],
+  );
 
   const windowNote = filtering
     ? records.length >= PORTAL_CHILDREN_FILTER_MAX ? t('portal.children.window', { count: String(PORTAL_CHILDREN_FILTER_MAX) }) : null

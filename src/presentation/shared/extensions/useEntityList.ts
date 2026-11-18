@@ -24,7 +24,7 @@ export interface EntityListOptions {
    * do vencimento mais próximo ao mais distante, e o mais recente cadastrado não é o mais urgente.
    *
    * Declare o comparador FORA do componente: uma função nova a cada render refaz a ordenação a cada
-   * render, sem que nada tenha mudado.
+   * render, sem que nada tenha mudado. Ausente, vale a ordem que a TELA declara (`listOrder`).
    */
   sortRecords?: (a: EntityRecord, b: EntityRecord) => number;
   /**

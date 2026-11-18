@@ -1192,7 +1192,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     isLoading: boolean;
     /**
      * The WHOLE list - the newest records of the collection, up to a window of 500 (all the parent's
-     * records when options.parent is given), in the order of options.sortRecords, and blind to the
+     * records when options.parent is given), in the order of options.sortRecords (or of the screen's
+     * listOrder, when the screen declares one and sortRecords is absent), and blind to the
      * filter the person typed. Use it to count, to find a record by id, to compute totals. To draw the
      * list, use filteredRecords. With options.paginate it is only what has been fetched so far, and the
      * server-side filter has already narrowed it.
@@ -1200,7 +1201,7 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     records: any[];
     /**
      * The list the screen DRAWS: records after the filter the person typed (and the defaultFilterTokens),
-     * in the order of options.sortRecords. Draw this one even in a parent tab with no filter bar - the
+     * in the same order as records. Draw this one even in a parent tab with no filter bar - the
      * list a person can narrow is the one they expect to see.
      */
     filteredRecords: any[];
@@ -1295,9 +1296,9 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
      */
     defaultFilterTokens?: { key: string; values: string[] }[];
     /**
-     * The order of BOTH records and filteredRecords. Without it, the collection's order applies - most
-     * recent first. Declare it instead of sorting by hand, and declare the comparator OUTSIDE the
-     * component.
+     * The order of BOTH records and filteredRecords. Without it, the order the screen declares
+     * (listOrder) applies, and without that, the collection's order - most recent first. Declare it
+     * instead of sorting by hand, and declare the comparator OUTSIDE the component.
      */
     sortRecords?: (a: any, b: any) => number;
     /**
@@ -1305,8 +1306,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
      * view, and a filter the person picks goes to the server (one equality there, the rest checked on
      * what comes back; a date-only range pages by that date). records then holds only what has been
      * fetched - do not count or look up by id in it. Without it, the list keeps the newest 500 and
-     * filters in memory, as always. Ignored together with sortRecords: a list in its own order needs
-     * the whole window to be in that order.
+     * filters in memory, as always. Ignored together with sortRecords or a screen listOrder: a list in
+     * its own order needs the whole window to be in that order.
      */
     paginate?: boolean;
     /**

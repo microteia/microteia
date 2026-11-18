@@ -33,6 +33,7 @@ import { getScreenIcon } from '../../shared/screenIcons';
 import { ScreenPortalPanel } from './components/ScreenPortalPanel';
 import { ScreenEditWindowPanel } from './components/ScreenEditWindowPanel';
 import { ScreenCardTemplatePanel } from './components/ScreenCardTemplatePanel';
+import { ScreenListOrderPanel } from './components/ScreenListOrderPanel';
 import { ScreenMemberVisibilityPanel } from './components/ScreenMemberVisibilityPanel';
 import { FieldSequencePanel } from './components/FieldSequencePanel';
 import type { FieldDefinition } from '../../../domain/entities';
@@ -498,6 +499,13 @@ const ScreenEditor: React.FC<{ vm: ScreenBuilderViewModel }> = ({ vm }) => {
         )}
         {vm.screenModalTab === 'card' && vm.cardTemplateScreenKey && (
           <S.ModalForm>
+            <ScreenListOrderPanel
+              keys={vm.screenForm.listOrder}
+              fields={vm.listOrderFields}
+              issues={vm.listOrderIssues}
+              fromExtension={vm.editWindowFromExtension}
+              onChange={vm.updateListOrderForm}
+            />
             <ScreenCardTemplatePanel
               screenKey={vm.cardTemplateScreenKey}
               form={vm.screenForm.cardTemplate}

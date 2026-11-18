@@ -66,6 +66,8 @@ import { portalFieldInput, type PortalFieldInput } from '../schema/portalFieldIn
 import { buildFieldRulePresetCatalog, type FieldRulePreset } from '../schema/fieldRulePresets';
 import { buildLookupProviderCatalog, type LookupProviderSpec } from '../schema/lookupProviderSpec';
 import { guestPortalTemplate, type PortalTemplate } from '../schema/ui/portalTemplate';
+import { guestListOrder } from '../schema/ui/listOrder';
+import type { QueryOrderBy } from '../schema/querySpec';
 import { guestPortalWidgetSpec, portalWidgetMarkdownRefs, type PortalWidgetSpec } from '../schema/ui/portalWidget';
 import { portalContentOf } from '../schema/portalText';
 import type { MessageBundle } from '../schema/i18n/messages';
@@ -672,6 +674,8 @@ export interface PortalContextScreen {
    * só leem o exposto, e todo texto já no idioma do convidado (`guestPortalTemplate`). Ausente, o padrão.
    */
   template?: PortalTemplate;
+  /** A ordem da lista (`listOrder`) só com chave de campo exposto (`guestListOrder`). Ausente, a da projeção. */
+  listOrder?: QueryOrderBy[];
 }
 
 /** Uma view de portal de extensão, entregue ao convidado. */
@@ -967,6 +971,11 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
         const editable = new Set(portalEditFieldKeys(screen));
         const linkTarget = parentOf(screen);
         const template = guestPortalTemplate(screen.portal?.template, exposed, resolve);
+        const listOrder = guestListOrder(
+          screen.listOrder,
+          screen.fields.map((field) => ({ key: field.key, type: field.type ?? '', multi: field.multi ?? null })),
+          exposed,
+        );
         const picks = portalPickableReferences(screen, screens, [...fillable, ...editable]);
         const pickable = new Map(picks
           .map((pick) => [pick.fieldKey, { collection: pick.target.collection, multi: pick.multi }]));
@@ -1022,6 +1031,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
             }
             : null,
           ...(template ? { template } : {}),
+          ...(listOrder.length > 0 ? { listOrder } : {}),
         };
       }),
     };

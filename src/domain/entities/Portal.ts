@@ -11,6 +11,8 @@ import type {
   PortalVerifiedIdentity,
 } from '../schema/portalIdentity';
 import type { PortalSubjectRole } from '../schema/portalRole';
+import type { QueryOrderBy } from '../schema/querySpec';
+import { listOrderComparator } from '../schema/ui/listOrder';
 
 /** Um escritório em que a pessoa é convidada do portal. */
 export interface PortalMembership {
@@ -56,7 +58,25 @@ export interface PortalScreenInfo {
    * o texto já no idioma do convidado. Ausente — e num contexto guardado antes dele —, o padrão.
    */
   template?: PortalTemplate | null;
+  /**
+   * A ordem que a tela declara (`listOrder`), como o servidor a deixa sair: só chave de campo exposto
+   * ou `updatedAt` — a projeção não guarda o cadastro. Ausente, a ordem da projeção: a alteração mais
+   * recente primeiro.
+   */
+  listOrder?: QueryOrderBy[] | null;
 }
+
+/**
+ * Os registros do portal na ordem que a tela declara. A projeção guarda os campos em `data`, e só a
+ * alteração (`updatedAt`) entre os carimbos; sem ordem declarada, a lista fica como chegou.
+ */
+export const orderPortalRecords = (records: readonly PortalRecord[], order: readonly QueryOrderBy[] | null | undefined): PortalRecord[] => {
+  const compare = listOrderComparator<PortalRecord>(
+    order ?? [],
+    (record, path) => (path === 'updatedAt' ? record.updatedAt : path === 'createdAt' ? undefined : record.data[path]),
+  );
+  return compare ? [...records].sort(compare) : [...records];
+};
 
 /** Um campo como o portal o recebe; nos preenchíveis, com a máscara e a busca externa já resolvidas. */
 export interface PortalFieldInfo extends PortalFieldInput {
