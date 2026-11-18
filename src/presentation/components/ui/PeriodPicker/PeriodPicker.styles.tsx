@@ -21,6 +21,9 @@ export const S = {
     min-width: 0;
   `,
   Unit: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
     flex: 1 1 140px;
     min-width: 0;
   `,

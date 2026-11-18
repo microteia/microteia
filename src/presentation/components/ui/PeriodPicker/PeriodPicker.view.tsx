@@ -30,7 +30,8 @@ export const PeriodPicker = (props: PeriodPickerProps) => {
             />
           </S.Count>
           <S.Unit>
-            <SearchSelect label={vm.labels.unit} options={vm.unitOptions} value={vm.unit} onChange={vm.setUnit} />
+            <S.Caption>{vm.labels.unit}</S.Caption>
+            <SearchSelect options={vm.unitOptions} value={vm.unit} onChange={vm.setUnit} />
           </S.Unit>
           <Checkbox checked={vm.includeCurrent} onChange={vm.setIncludeCurrent} label={vm.labels.includeCurrent} />
           <Button type="button" size="sm" onClick={vm.apply} disabled={vm.error !== null}>{vm.labels.apply}</Button>

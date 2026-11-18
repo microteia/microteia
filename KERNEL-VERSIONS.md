@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.282.1] — 2026-11-18
+
+- fix(reports/ui): `PeriodPicker` shows the unit's caption beside the count's. It was passed as the `SearchSelect` `label`, which that control does not draw, so the unit select stood unnamed next to a captioned "How many" (found in the end-to-end test of #4).
+
 #### [9.282.0] — 2026-11-18
 
 - feat(reports/ui): `ui/PeriodPicker` — one period control for the report prompt bar, the widget `filters` bar and the report designer's default. It ends with "Custom…": a count, a unit and "include the current period", producing `last-<n>-<unit>` or `previous-<n>-<unit>`, prefilled from the current answer when it is parameterised and bounded by `REPORT_PERIOD_MAX_COUNT`. The reader can ask for a window the author did not list; in the designer the entry is hidden when the prompt declares `periods`, since the default must be one of them. No contract change: the server already accepted any period since 2.139.0. Phase 3 of #4.
