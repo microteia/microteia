@@ -70,6 +70,23 @@ export const filterFieldOf = (field: FieldDefinition): FieldDefinition => ({
 });
 
 /**
+ * O campo com que um FILTRO DO LEITOR (`presentation.prompts[]`) é perguntado, a qualquer profundidade.
+ *
+ * Caminha o esquema como `fieldAtPath`, e não procura na lista que a autoria oferece: aquela lista vai
+ * um salto só e deixa de fora a referência do outro lado, então `pedido.cliente` não estava nela. O
+ * filtro caía num texto livre onde a única coisa que se podia digitar — o nome — nunca casava, enquanto
+ * o servidor aplicava o mesmo caminho certo. Rótulo de grupo e texto de célula já caminhavam assim.
+ */
+export const promptFieldOf = (
+  ctx: SchemaContext,
+  table: string,
+  path: string,
+): FieldDefinition | undefined => {
+  const field = fieldAtPath(ctx, table, path);
+  return field ? filterFieldOf(field) : undefined;
+};
+
+/**
  * O valor do filtro como a TELA o carrega: texto.
  *
  * O formulário transporta tudo em texto — é o que permite guardar a resposta de um filtro antes de

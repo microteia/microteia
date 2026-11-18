@@ -457,6 +457,8 @@ export interface ReportDesignViewModel {
   setChartStacked: (stacked: boolean) => void;
 
   prompts: ReportDesignPrompt[];
+  /** Os caminhos do filtro do leitor: os de sempre e a referência um salto adiante. */
+  promptPathOptions: { value: string; label: string }[];
   promptPath: string;
   setPromptPath: (path: string) => void;
   promptOp: ReportPromptChoice;
@@ -927,6 +929,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     [seriesSource, schema],
   );
   const pathOptions = useReportPathOptions(draft.table, designSchema);
+  const promptPathOptions = useReportPathOptions(draft.table, designSchema, { hopReferences: true });
   const valueLabel = useReportValueLabel(pathOptions);
 
   /** O campo do caminho escolhido — é ele que decide o CONTROLE com que o valor é informado. */
@@ -1232,7 +1235,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
 
   const addPrompt = useCallback(() => {
     if (!promptPath) return;
-    const option = pathOptions.find((one) => one.value === promptPath);
+    const option = promptPathOptions.find((one) => one.value === promptPath);
     const taken = new Set(draft.prompts.map((one) => one.key));
     const isPeriod = promptOp === REPORT_PROMPT_PERIOD_CONTROL;
     change({
@@ -1246,7 +1249,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         ...(isPeriod ? { control: REPORT_PROMPT_PERIOD_CONTROL } : {}),
       }],
     });
-  }, [promptPath, promptOp, pathOptions, draft, change]);
+  }, [promptPath, promptOp, promptPathOptions, draft, change]);
 
   const patchPrompt = useCallback((key: string, patch: (one: ReportPrompt) => ReportPrompt) => {
     change({ prompts: draft.prompts.map((one) => (one.key === key ? patch(one) : one)) });
@@ -1400,7 +1403,11 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     ];
   }, [permissionCatalog, label, draft.permission, t]);
 
-  const promptIsDate = pathOptions.find((one) => one.value === promptPath)?.isDate === true;
+  const promptPathChoices = useMemo(
+    () => promptPathOptions.map((option) => ({ value: option.value, label: option.label })),
+    [promptPathOptions],
+  );
+  const promptIsDate = promptPathOptions.find((one) => one.value === promptPath)?.isDate === true;
   const promptOpOptions = useMemo<{ value: ReportPromptChoice; label: string }[]>(
     () => [
       ...(promptIsDate ? [{ value: REPORT_PROMPT_PERIOD_CONTROL as ReportPromptChoice, label: t('design.prompt.period') }] : []),
@@ -1807,6 +1814,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
           : '',
       };
     }),
+    promptPathOptions: promptPathChoices,
     promptPath,
     // Trocar o campo devolve o operador ao padrão: o período só existe para data, e ficar escolhido
     // sobre um campo de texto pediria ao servidor um período de um nome.

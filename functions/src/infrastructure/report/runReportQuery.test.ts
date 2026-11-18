@@ -467,6 +467,58 @@ describe('runReportQuery', () => {
   });
 
   /**
+   * O filtro do leitor "está entre" respondido com UM valor (#2).
+   *
+   * O passo `run-report` pede cada filtro num campo de texto, o MCP repassa o que o agente escreveu, e
+   * a tela cai num texto livre quando o caminho não descreve campo. O `in` com o texto solto não achava
+   * nada, nem com o id certo, e o relatório voltava vazio.
+   */
+  describe('filtro "está entre" com uma resposta só', () => {
+    const lista = (prompt: { key: string; path: string }): ReportSpec => ({
+      v: 1,
+      dataset: {
+        table: 'lancamentos',
+        dimensions: [{ key: 'situacao', path: 'situacao' }],
+        measures: [{ key: 'total', op: 'sum', path: 'valor' }],
+      },
+      shape: { kind: 'tabular', columns: ['situacao'] },
+      presentation: { prompts: [{ ...prompt, op: 'in' }] },
+    });
+    const clientes = { c1: { nome: 'Ana', cidade: 'Recife' }, c2: { nome: 'Bruno', cidade: 'Olinda' } };
+
+    const idsOf = async (spec: ReportSpec, prompts: Record<string, unknown>): Promise<string[]> => {
+      const outcome = await runReportQuery({ spec, context: context(), deps: deps(rows, clientes), prompts });
+      if (!outcome.ok) throw new Error(outcome.error);
+      return (outcome.value.records ?? []).map((record) => String(record.id));
+    };
+
+    it('o id solto vale como a lista de um', async () => {
+      expect(await idsOf(lista({ key: 'cliente', path: 'clienteId' }), { cliente: 'c1' })).toEqual(['1', '3']);
+    });
+
+    it('atravessando a referência, também', async () => {
+      expect(await idsOf(lista({ key: 'cidade', path: 'cliente.cidade' }), { cidade: 'Olinda' })).toEqual(['2']);
+    });
+
+    it('a lista continua sendo a lista', async () => {
+      expect(await idsOf(lista({ key: 'cliente', path: 'clienteId' }), { cliente: ['c2', 'c1'] }))
+        .toEqual(['1', '2', '3']);
+    });
+
+    it('o padrão solto do autor também vira lista', async () => {
+      const spec = lista({ key: 'cliente', path: 'clienteId' });
+      const comPadrao: ReportSpec = {
+        ...spec,
+        presentation: {
+          prompts: [{ key: 'cliente', path: 'clienteId', op: 'in', default: { kind: 'Literal', value: 'c2' } }],
+        },
+      };
+
+      expect(await idsOf(comPadrao, {})).toEqual(['2']);
+    });
+  });
+
+  /**
    * O campo de CADA apontado, numa referência de vários — como coluna e como filtro.
    *
    * Os dois caminhos são o mesmo (`poloAtivoIds.cidade`), e era o executor que os separava: o

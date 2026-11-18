@@ -11883,6 +11883,16 @@ Executados no SERVIDOR (`runReportQuery.ts`), não só na tela — o widget e o 
   (`dayInTimeZone`); a semana começa na segunda, a mesma régua ISO do balde `week`. Dias e não
   instantes porque é como `predicateMatch` compara uma data sem hora: o dia inteiro. Os identificadores
   são `kebab-case` (`this-month`) porque são também chave de mensagem (`period.this-month`).
+- **O controle sai do campo no FIM do caminho, a qualquer profundidade** (`promptFieldOf`, que caminha
+  como `fieldAtPath`). A tela procurava o campo na lista que a AUTORIA oferece — um salto, sem a
+  referência do outro lado —, e `pedido.cliente` num relatório de itens era perguntado num texto livre
+  ao lado do seletor de clientes que o relatório de pedidos mostrava para `cliente` (#2). O salto por
+  referência de VÁRIOS também ganha o seletor: o servidor responde por pertinência. Na autoria, o
+  seletor de caminho do FILTRO (só dele) oferece a referência um salto adiante (`hopReferences`).
+- **`in` respondido com UM valor vale como a lista de um** (`promptOperand`). O passo `run-report` pede
+  cada filtro num campo de texto, o MCP repassa o que o agente escreveu, e a tela cai num texto quando o
+  caminho não descreve campo: com o texto solto, o `in` não achava nada — nem com o id certo. É regra do
+  filtro do leitor; o `dataset.where` do autor não é reescrito.
 
 ### Detalhamento (`presentation.drillDown`)
 

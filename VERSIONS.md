@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.278.1] — 2026-11-18
+
+- Nos relatórios, um filtro sobre um cadastro ligado a outro — por exemplo, o cliente do pedido num relatório de itens de pedido — agora é perguntado com a busca de registros daquele cadastro, como os demais filtros, e não mais com uma caixa de texto onde nada do que se digitava encontrava resultado.
+- Na criação de relatórios, os filtros para quem lê passam a oferecer também o cadastro alcançado por meio de outro (como "Pedido › Cliente").
+- Corrigido o relatório que voltava vazio quando um filtro de "está entre" recebia um único valor, como acontecia ao assinar o relatório numa automação ou ao pedi-lo a um assistente de IA.
+
 #### [9.278.0] — 2026-11-18
 
 - Enquanto uma extensão é instalada, atualizada, importada ou removida, a tela de Extensões agora mostra um aviso claro com o nome dela e o andamento — antes, só o ícone do botão mudava e não dava para saber se algo estava acontecendo até a mensagem final.

@@ -6,8 +6,7 @@ import type { ReportDefinition } from '../../../../domain/entities/Report';
 import type { ReportResult } from '../../../../domain/schema/report/reportResult';
 import type { ReportPrompt, ReportSpec } from '../../../../domain/schema/report/reportSpec';
 import { useReportSchema } from '../../../shared/report/useReportSchema';
-import { useReportPathOptions } from '../../../shared/report/useReportPathOptions';
-import { filterLiteralOf, filterTextOf, filterValueOf } from '../../../shared/report/reportFilterFields';
+import { filterLiteralOf, filterTextOf, filterValueOf, promptFieldOf } from '../../../shared/report/reportFilterFields';
 import type { CustomFieldValue, FieldDefinition } from '../../../../domain/entities/entitySchemas';
 import type { ReportSpecIssue } from '../../../../domain/schema/report/validateReportSpec';
 import { REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL } from '../../../../domain/schema/report/reportPeriod';
@@ -172,12 +171,10 @@ export const useReportViewViewModel = (
     [spec, fixed],
   );
   const reportSchema = useReportSchema(spec);
-  const pathOptions = useReportPathOptions(reportSchema.table, reportSchema.ctx);
 
   const fieldByPath = useCallback(
-    (path: string): FieldDefinition | undefined =>
-      pathOptions.find((option) => option.value === path)?.field,
-    [pathOptions],
+    (path: string): FieldDefinition | undefined => promptFieldOf(reportSchema.ctx, reportSchema.table, path),
+    [reportSchema],
   );
 
   /**
