@@ -21,7 +21,7 @@ import { packageAggregationIssues } from './pluginAggregations';
 import { packageDocumentTemplateIssues } from './pluginDocumentTemplates';
 import { packagePortalIssues } from './pluginPortal';
 import { packageEditWindowIssues } from './pluginEditWindow';
-import { packageWidgetDataIssues } from './pluginWidgetData';
+import { packageWidgetDataIssues, packageWidgetPeriodIssues } from './pluginWidgetData';
 import { packageMemberVisibilityIssues } from './pluginMemberVisibility';
 import { packageRecordSequenceIssues } from './pluginRecordSequence';
 import { packageLookupSeedIssues } from './pluginLookupSeeds';
@@ -488,6 +488,7 @@ export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packagePortalIssues(pkg),
   ...packageEditWindowIssues(pkg),
   ...packageWidgetDataIssues(pkg),
+  ...packageWidgetPeriodIssues(pkg),
   ...packageMemberVisibilityIssues(pkg),
   ...packageRecordSequenceIssues(pkg),
   ...packageLookupSeedIssues(pkg),

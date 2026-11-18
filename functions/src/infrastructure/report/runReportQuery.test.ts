@@ -880,6 +880,39 @@ describe('runReportQuery — o filtro obrigatório, o padrão e o período', () 
     }
   });
 
+  it('o período DESCONHECIDO recusa, nomeando o filtro — não roda sem o recorte', async () => {
+    const outcome = await runReportQuery({
+      spec: porPeriodo({}), context: context(), deps: contasDeps(), prompts: { mes: 'last-12-months' },
+    });
+
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) {
+      expect(outcome.error).toBe('@core.reports/prompt.period.unknown');
+      expect(outcome.errorParams).toEqual({ key: 'mes', value: 'last-12-months' });
+    }
+  });
+
+  it('o período que não é texto também recusa', async () => {
+    const outcome = await runReportQuery({
+      spec: porPeriodo({}), context: context(), deps: contasDeps(), prompts: { mes: ['this-month'] },
+    });
+
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.errorParams).toEqual({ key: 'mes', value: '["this-month"]' });
+  });
+
+  it('a resposta fora da lista recusa mesmo com um padrão válido — o padrão não a substitui', async () => {
+    const outcome = await runReportQuery({
+      spec: porPeriodo({ default: { kind: 'Literal', value: 'this-month' } }),
+      context: context(),
+      deps: contasDeps(),
+      prompts: { mes: 'este-mes' },
+    });
+
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.error).toBe('@core.reports/prompt.period.unknown');
+  });
+
   it('o obrigatório com padrão roda — o padrão É a resposta', async () => {
     const outcome = await runReportQuery({
       spec: porPeriodo({ required: true, default: { kind: 'Literal', value: 'this-month' } }),

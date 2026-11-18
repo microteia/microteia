@@ -3,6 +3,7 @@ import { rangeExcludesBelow } from '../../schema/plugin/semver';
 import { PORTAL_VIEW_POINT } from '../../schema/portalExtensionPoints';
 import { getEntityByCollection } from '../../schema/entityRegistry';
 import { isLookupCollection } from '../../schema/lookupRegistry';
+import { isReportPeriod } from '../../schema/report/reportPeriod';
 import {
   isWidgetSpec, widgetChildren, widgetDataFeatures, widgetFeatureSinceKernel, type WidgetFilter,
 } from '../../schema/ui/widgetSpec';
@@ -41,6 +42,25 @@ const filtersOf = (spec: unknown): WidgetFilter[] => {
   const own = spec.type === 'filters' && Array.isArray(spec.filters) ? spec.filters : [];
   return [...own, ...widgetChildren(spec).flatMap(filtersOf)];
 };
+
+/**
+ * O padrão de um filtro de PERÍODO da barra é um dos períodos.
+ *
+ * O relatório já confere o padrão dele (`validateReportSpec`); a barra não conferia, e o padrão
+ * escrito errado só aparecia quando o servidor recusava o painel aberto — no escritório, não na
+ * autoria (#4). Lista não é período: a barra pergunta um só.
+ */
+export const packageWidgetPeriodIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
+  (pkg.manifest?.contributes ?? []).flatMap((contribution): LocalizedIssue[] => {
+    if (contribution?.point === PORTAL_VIEW_POINT || contribution?.impl?.kind !== 'widget') return [];
+    return filtersOf(contribution.impl.spec)
+      .filter((filter) => filter?.control === 'period'
+        && filter.default !== undefined && filter.default !== '' && !isReportPeriod(filter.default))
+      .map((filter) => ({
+        message: '@core.marketplace/issue.widget.period-default',
+        messageParams: { contribution: contribution.id, key: filter.key, value: String(filter.default) },
+      }));
+  });
 
 /**
  * A coleção de onde um filtro de escolha da barra tira as opções. É referência como a de um campo

@@ -321,6 +321,7 @@ export const CORE_REPORTS: Record<string, string> = {
   'subscribe.alert.message-file': 'O limite definido neste relatório foi ultrapassado: o valor agora é {value} ({count} registros). O arquivo "{file}" está em Downloads.',
   'prompt.period.default-invalid': 'O filtro "{key}" começa em "{value}", que não é um dos períodos que ele oferece.',
   'prompt.period.not-date': 'O filtro "{key}" pede um período, mas o campo que ele lê não é uma data.',
+  'prompt.period.unknown': 'O filtro "{key}" recebeu "{value}", que não é um período que esta versão entende. O relatório não foi executado, para não mostrar todos os registros sem o recorte.',
   'prompt.required.missing': 'Preencha os filtros obrigatórios antes de executar o relatório: {keys}.',
   'prompts.required': '{label} (obrigatório)',
   'tone.negative': 'Ruim',

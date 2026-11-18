@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { MarketplacePlugin } from '../../entities/MarketplacePlugin';
 import { WIDGET_DATA_SINCE_KERNEL, WIDGET_FILTER_CHOICE_SINCE_KERNEL } from '../../schema/ui/widgetSpec';
 import type { WidgetSpec } from '../../schema/ui/widgetSpec';
-import { packageWidgetDataIssues, widgetOutRefs, WIDGET_REF_ORIGIN } from './pluginWidgetData';
-import { validatePackage } from './pluginReferences';
+import { packageWidgetDataIssues, packageWidgetPeriodIssues, widgetOutRefs, WIDGET_REF_ORIGIN } from './pluginWidgetData';
+import { packageIssues, validatePackage } from './pluginReferences';
 
 const pkg = (spec: WidgetSpec, kernel: string, point = 'ui.page'): MarketplacePlugin => ({
   summary: 'x',
@@ -42,6 +42,39 @@ describe('Widget DSL que liga dados, no pacote', () => {
 
   it('o cartão do portal tem vocabulário próprio e fica de fora', () => {
     expect(packageWidgetDataIssues(pkg(painel, '^2.0.0', 'portal.view'))).toEqual([]);
+  });
+});
+
+describe('o padrão do filtro de período da barra', () => {
+  const comPadrao = (value: string | string[] | undefined): MarketplacePlugin => pkg({
+    type: 'grid',
+    children: [{
+      type: 'filters',
+      filters: [{ key: 'when', control: 'period', default: value }, { key: 'q', control: 'text', default: 'qualquer' }],
+      children: [],
+    }],
+  }, `^${WIDGET_FILTER_CHOICE_SINCE_KERNEL}`);
+
+  it('um período conhecido, ou nenhum padrão, passa', () => {
+    expect(packageWidgetPeriodIssues(comPadrao('this-month'))).toEqual([]);
+    expect(packageWidgetPeriodIssues(comPadrao(undefined))).toEqual([]);
+    expect(packageWidgetPeriodIssues(comPadrao(''))).toEqual([]);
+  });
+
+  it('um período desconhecido é recusa na autoria, a qualquer profundidade, nomeando o filtro', () => {
+    expect(packageWidgetPeriodIssues(comPadrao('last-12-months'))).toEqual([{
+      message: '@core.marketplace/issue.widget.period-default',
+      messageParams: { contribution: 'sales', key: 'when', value: 'last-12-months' },
+    }]);
+  });
+
+  it('uma lista não é período — a barra pergunta um só', () => {
+    expect(packageWidgetPeriodIssues(comPadrao(['this-month']))).toHaveLength(1);
+  });
+
+  it('chega a quem valida o pacote', () => {
+    expect(packageIssues(comPadrao('ultimos-12-meses')).map((issue) => issue.message))
+      .toContain('@core.marketplace/issue.widget.period-default');
   });
 });
 

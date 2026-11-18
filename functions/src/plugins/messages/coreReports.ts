@@ -335,6 +335,7 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'subscribe.alert.message-file': 'The limit set on this report was crossed: the value is now {value} ({count} records). The file "{file}" is in Downloads.',
   'prompt.period.default-invalid': 'The filter "{key}" starts at "{value}", which is not one of the periods it offers.',
   'prompt.period.not-date': 'The filter "{key}" asks for a period, but the field it reads is not a date.',
+  'prompt.period.unknown': 'The filter "{key}" received "{value}", which is not a period this version understands. The report was not run, so it would not show every record unfiltered.',
   'prompt.required.missing': 'Fill in the required filters before running the report: {keys}.',
   'prompts.required': '{label} (required)',
   'tone.negative': 'Bad',
