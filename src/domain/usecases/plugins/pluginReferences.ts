@@ -432,7 +432,22 @@ const packageReportIssues = (pkg: MarketplacePlugin): LocalizedIssue[] =>
     ...(report.spec?.dataset?.kind === REPORT_SNAPSHOT_DATASET_KIND
       ? [{ message: '@core.marketplace/issue.report.snapshot', messageParams: { name: report.templateId } }]
       : []),
+    ...reportViewIssues(pkg, report),
   ]);
+
+/**
+ * A `view` do relatório tem de ser uma view do PRÓPRIO pacote. Apontada para o que ele não traz, a aba
+ * cairia calada no corpo padrão em todo escritório — e o autor só descobriria olhando a tela.
+ */
+const reportViewIssues = (pkg: MarketplacePlugin, report: ReportModuleTemplate): LocalizedIssue[] => {
+  if (report.view === undefined) return [];
+  const view = typeof report.view === 'string' ? report.view.trim() : '';
+  if (view !== '' && (pkg.views ?? []).some((one) => one.key === view)) return [];
+  return [{
+    message: '@core.marketplace/issue.report.view-unknown',
+    messageParams: { name: report.templateId, view: String(report.view) },
+  }];
+};
 
 /**
  * O `requires` escrito à MENOS — a única forma de escapar do portão de capacidade.

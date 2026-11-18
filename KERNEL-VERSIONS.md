@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.279.0] — 2026-11-18
+
+- feat(reports): `reports[].view` — a report of a package names one of its `views[].key`, and that view draws the BODY of the `rep:<key>` tab (prompt bar, chart, table) from every door that opens it: the report list, the command palette, a deep link, a `run-report` notification link and the Subscribe flow. Until now the only way to present a report in code was a separate `ui.page` with its own menu entry, so the report kept opening on the standard screen everywhere the platform links to it; `report.definition` accepted `impl: code` and nothing read it (#3). KERNEL_VERSION 2.138.0 (`REPORT_VIEW_SINCE_KERNEL`); an older kernel ignores the property and shows the standard body.
+- feat(reports): the declaration stays in the PACKAGE — `reportInputFromTemplate` drops it from the tenant's report document, and `reportCodeViewOf` reads it from the owner's installed package by `sourceId` (first declaring owner wins). It is a pointer to code: stored on the report, it would be a field anyone with `reports.manage` edits, and "duplicate to edit" would inherit it.
+- feat(reports): the view resolves through the implementations registry, which only holds the views of a trusted, enabled package — untrusted, disabled or older kernel means the standard body, never a blank tab. A view that throws while rendering falls back to the standard body with `@core.reports/view.failed`. Only the tab swaps: a `report` widget node and the curated `ReportView` keep the declared body, so a view composing its own report does not render itself.
+- feat(host-api): `useReportFrame()` in `@microteia/report` — `{ report, result, isLoading, prompts, run }` inside the report tab, `null` elsewhere. The frame keeps title, warnings and Export / Print / Subscribe and owns the run; the view calls `run(prompts)` and the frame remembers the answers, so export and subscription act on what the view shows.
+- feat(check): `@core.marketplace/issue.report.view-unknown` refuses a `view` that is not a `views[].key` of the same package.
+- feat(locale-pt-br): `issue.report.view-unknown` and `view.failed` translated; package bumped to 1.227.0.
+
 #### [9.278.1] — 2026-11-18
 
 - fix(reports): a reader prompt whose `path` crosses references (`order.customer` on a report over `orderItems`) is now asked with the control of the field at the END of the path — the record chooser for a reference, the options for a list, the date picker, the checkbox — at any depth and through `multi` references (the server already filters those by membership). The report screen resolved the prompt's field from the designer's path list (`useReportPathOptions`), which goes one hop and leaves out the reference on the far side, so the prompt fell back to a free text box where neither the name nor the id matched anything. It now walks the schema with `promptFieldOf` (`fieldAtPath` + `filterFieldOf`), the walk group labels and cell text already used (#2).

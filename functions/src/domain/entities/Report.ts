@@ -76,4 +76,14 @@ export interface ReportDefinition {
 export type ReportModuleTemplate = { templateId: string } & Omit<
   ReportDefinition,
   'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'createdBy' | 'ownerPluginId' | 'ownerPluginIds' | 'ownerId'
->;
+> & {
+  /**
+   * A chave de uma view do MESMO pacote (`views[].key`) que desenha o corpo da aba do relatório no
+   * lugar do padrão. O cabeçalho, os botões e os números continuam da plataforma.
+   *
+   * Fica no PACOTE e não chega ao documento do escritório: é ponteiro para código, e código só roda
+   * pela confiança dada ao pacote. Gravado no relatório, seria um campo que quem administra
+   * relatórios edita, e o "duplicar para editar" o herdaria apontando para a view de outro relatório.
+   */
+  view?: string;
+};

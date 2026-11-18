@@ -609,6 +609,29 @@ describe('packageIssues — a forma do relatório', () => {
     expect(packageIssues(withReport(valido))).toEqual([]);
   });
 
+  describe('a view que desenha o relatório (#3)', () => {
+    const comView = (view: unknown, views: MarketplacePlugin['views'] = []): MarketplacePlugin => {
+      const pkg = withReport(valido);
+      return { ...pkg, views, reports: [{ ...pkg.reports![0], view: view as string }] };
+    };
+
+    it('aceita a view do próprio pacote', () => {
+      expect(packageIssues(comView('vendas-view', [{ key: 'vendas-view', title: 'V', icon: 'apps', source: 'x' }]))).toEqual([]);
+    });
+
+    it('recusa a view que o pacote não traz — a aba cairia calada no corpo padrão', () => {
+      const issues = packageIssues(comView('fantasma', [{ key: 'vendas-view', title: 'V', icon: 'apps', source: 'x' }]));
+
+      expect(issues.map((i) => i.message)).toEqual(['@core.marketplace/issue.report.view-unknown']);
+      expect(issues[0].messageParams).toEqual({ name: 'vendas', view: 'fantasma' });
+    });
+
+    it('recusa a view vazia ou que não é texto', () => {
+      expect(packageIssues(comView('  ')).map((i) => i.message)).toEqual(['@core.marketplace/issue.report.view-unknown']);
+      expect(packageIssues(comView(42)).map((i) => i.message)).toEqual(['@core.marketplace/issue.report.view-unknown']);
+    });
+  });
+
   it('recusa a dobra que cita dimensão que o relatório não declara', () => {
     const issues = packageIssues(withReport({
       ...valido,

@@ -154,6 +154,7 @@ export const CORE_REPORTS: Record<string, string> = {
   'series.partial': 'Alguns instantâneos foram tirados de um resultado parcial.',
   'design.source.snapshot': 'Instantâneos de "{name}"',
   'result.partial-groups': 'Havia mais grupos do que este relatório mostra. O que está abaixo é parte da resposta.',
+  'view.failed': 'Não foi possível exibir a apresentação personalizada deste relatório, e a padrão é mostrada no lugar.',
   'save.done': 'Relatório salvo.',
   'schedule.not-implemented':
     'Este relatório pede para rodar sozinho, o que esta versão ainda não faz. Ele continua rodando sempre que você o abre.',

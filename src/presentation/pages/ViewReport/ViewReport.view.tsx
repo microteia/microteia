@@ -9,7 +9,7 @@ export const ViewReportView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
 
   return (
     <S.Page>
-      <ReportView reportKey={vm.reportKey} tabKey={tabKey} />
+      <ReportView reportKey={vm.reportKey} tabKey={tabKey} body={vm.body} />
     </S.Page>
   );
 };
