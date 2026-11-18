@@ -6,7 +6,7 @@ import type { InputDefinition } from '../../domain/entities/WorkflowStepCatalog'
  * pede. É a mesma assinatura de `useLabel`, e ela precisa dos dois argumentos porque este módulo
  * INTRODUZ referências próprias (o rótulo de uma lista), e não só repassa as declaradas.
  */
-type LabelFn = (value: string | null | undefined, params?: Record<string, string>) => string;
+type LabelFn = (value: string | null | undefined, params?: Record<string, string | number>) => string;
 
 /**
  * O parâmetro com os RÓTULOS resolvidos — e nada mais tocado.
@@ -24,7 +24,7 @@ type LabelFn = (value: string | null | undefined, params?: Record<string, string
 export const parameterForDisplay = (label: LabelFn, parameter: WorkflowParameter): WorkflowParameter => ({
   ...parameter,
   label: label(parameter.label),
-  options: parameter.options?.map((option) => ({ ...option, label: label(option.label) })),
+  options: parameter.options?.map(({ labelParams, ...option }) => ({ ...option, label: label(option.label, labelParams) })),
   fields: parameter.fields?.map((field) => parameterForDisplay(label, field)),
 });
 

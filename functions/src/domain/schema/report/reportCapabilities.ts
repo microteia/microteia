@@ -9,9 +9,9 @@
 // é GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { REPORT_PROMPT_PERIOD_CONTROL } from './reportPeriod';
+import { isNamedReportPeriod, REPORT_PROMPT_PERIOD_CONTROL } from './reportPeriod';
 import { DEFAULT_REPORT_DATASET_KIND, isAggregateMeasure, isComputedDimension } from './reportSpec';
-import type { ReportGroupLevel, ReportSpec } from './reportSpec';
+import type { ReportGroupLevel, ReportPrompt, ReportSpec } from './reportSpec';
 
 /**
  * As capacidades que ESTE kernel sabe executar.
@@ -46,6 +46,7 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'presentation.prompt',
   'presentation.prompt.default',
   'presentation.prompt.period',
+  'presentation.prompt.period.relative',
   'presentation.prompt.required',
   'shape.matrix',
   'shape.subtotal',
@@ -53,6 +54,11 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'shape.tabular',
   'shape.tabular.group',
 ];
+
+/** O filtro de período que pede mais do que os nomeados: `periods` declarado, ou um padrão parametrizado. */
+const usesRelativePeriod = (prompt: ReportPrompt): boolean =>
+  (Array.isArray(prompt.periods) && prompt.periods.length > 0)
+  || (prompt.default?.kind === 'Literal' && !isNamedReportPeriod(prompt.default.value));
 
 const anySubtotal = (levels: ReportGroupLevel[]): boolean =>
   levels.some((level) => level.subtotal === true);
@@ -133,6 +139,11 @@ export const deriveReportRequires = (spec: ReportSpec): string[] => {
   for (const prompt of spec.presentation?.prompts ?? []) {
     if (prompt.control === REPORT_PROMPT_PERIOD_CONTROL) required.add('presentation.prompt.period');
     else if (prompt.control !== undefined) required.add('presentation.prompt.control');
+    // Token PRÓPRIO: o kernel anterior ignorava o período que não conhecia e rodava o relatório sem
+    // recorte. Com ele, o kernel avisa pelo nome do recurso que lhe falta.
+    if (prompt.control === REPORT_PROMPT_PERIOD_CONTROL && usesRelativePeriod(prompt)) {
+      required.add('presentation.prompt.period.relative');
+    }
     if (prompt.required === true) required.add('presentation.prompt.required');
     if (prompt.default !== undefined) required.add('presentation.prompt.default');
   }

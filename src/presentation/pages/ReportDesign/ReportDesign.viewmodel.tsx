@@ -23,7 +23,9 @@ import { parseReportDesignTabKey } from '../../../shared/constants/reportKeys';
 import { useAuthorization } from '../../../stores/useAuthorization';
 import { PERMISSION_AI_MANAGE, PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL } from '../../../domain/schema/access';
 import type { ReportDraftAvailability } from '../../../domain/repositories/IReportDraftRepository';
-import { REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL } from '../../../domain/schema/report/reportPeriod';
+import { REPORT_PROMPT_PERIOD_CONTROL } from '../../../domain/schema/report/reportPeriod';
+import { useReportPeriodOptions } from '../../shared/useReportPeriodOptions';
+import type { ReportPeriodOption } from '../../shared/useReportPeriodOptions';
 
 /** A lista, para onde a autoria volta depois de excluir. */
 const REPORT_DESIGN_RETURN_TAB = 'reports';
@@ -122,6 +124,8 @@ export interface ReportDesignPrompt {
   isPeriod: boolean;
   /** O período inicial de um filtro de período; vazio = nenhum. */
   periodDefault: string;
+  /** As opções do período inicial: os `periods` que o filtro declara, ou os nomeados. */
+  periodOptions: ReportPeriodOption[];
 }
 
 /**
@@ -467,7 +471,6 @@ export interface ReportDesignViewModel {
   promptOpOptions: { value: ReportPromptChoice; label: string }[];
   setPromptRequired: (key: string, required: boolean) => void;
   setPromptPeriodDefault: (key: string, period: string) => void;
-  periodOptions: { value: string; label: string }[];
   addPrompt: () => void;
   canAddPrompt: boolean;
   removePrompt: (key: string) => void;
@@ -1416,13 +1419,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     [promptIsDate, t],
   );
 
-  const periodOptions = useMemo(
-    () => [
-      { value: '', label: t('period.any') },
-      ...REPORT_PERIODS.map((period) => ({ value: period, label: t(`period.${period}`) })),
-    ],
-    [t],
-  );
+  const periodOptionsOf = useReportPeriodOptions();
 
   const chartSplitOptions = useMemo(
     () => [
@@ -1803,15 +1800,17 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
 
     prompts: draft.prompts.map((prompt) => {
       const isPeriod = prompt.control === REPORT_PROMPT_PERIOD_CONTROL;
+      const periodDefault = isPeriod && prompt.default?.kind === 'Literal' && typeof prompt.default.value === 'string'
+        ? prompt.default.value
+        : '';
       return {
         key: prompt.key,
         label: prompt.label ? label(prompt.label) : prompt.path,
         op: isPeriod ? t('design.prompt.period') : t(`operator.${prompt.op}`),
         required: prompt.required === true,
         isPeriod,
-        periodDefault: isPeriod && prompt.default?.kind === 'Literal' && typeof prompt.default.value === 'string'
-          ? prompt.default.value
-          : '',
+        periodDefault,
+        periodOptions: isPeriod ? periodOptionsOf(prompt.periods, periodDefault) : [],
       };
     }),
     promptPathOptions: promptPathChoices,
@@ -1824,7 +1823,6 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     promptOpOptions,
     setPromptRequired,
     setPromptPeriodDefault,
-    periodOptions,
     addPrompt,
     canAddPrompt: promptPath !== '',
     removePrompt,

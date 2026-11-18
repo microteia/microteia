@@ -232,7 +232,11 @@ export interface WorkflowParameter {
    * que um campo de tela usa em `lookupCollection`). O valor do parâmetro é a CHAVE da opção.
    */
   lookupCollection?: string;
-  options?: { value: string; label: string }[];
+  /**
+   * `labelParams` interpola o rótulo (uma referência `@ns/chave`), e é o que deixa uma opção gerada —
+   * "últimos {count} meses" — ser traduzida sem uma chave por valor.
+   */
+  options?: { value: string; label: string; labelParams?: Record<string, string | number> }[];
   fields?: WorkflowParameter[];
   defaultValue?: unknown;
   rules?: FieldRules;

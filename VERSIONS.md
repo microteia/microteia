@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.281.0] — 2026-11-18
+
+- Os filtros de período dos relatórios e dos painéis agora aceitam janelas sob medida: "últimos 12 meses", "últimos 15 dias", "últimas 2 semanas", "últimos 3 anos" e também os períodos completos, como "últimos 12 meses completos", que deixam de fora o mês em andamento.
+- Quem monta um relatório ou painel pode escolher quais períodos aparecem na lista, e em que ordem — por exemplo, abrir um painel já em "últimos 12 meses".
+- Os indicadores com comparação passam a comparar também essas janelas: os últimos 12 meses ao lado dos 12 meses anteriores, os últimos 30 dias ao lado dos 30 dias anteriores.
+
 #### [9.280.1] — 2026-11-18
 
 - Corrigido: um relatório ou painel que recebia um período que o sistema não reconhece mostrava todos os registros, como se nenhum período tivesse sido escolhido. Agora ele avisa qual filtro recebeu o período inválido e não exibe números enganosos.

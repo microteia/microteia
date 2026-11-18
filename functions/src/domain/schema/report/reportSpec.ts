@@ -361,10 +361,16 @@ export interface ReportPrompt {
   op: QueryOperator;
   /**
    * Como ele escolhe. Ausente = herda o controle do campo apontado. `'period'` pede um PERÍODO
-   * relativo (`REPORT_PERIODS`) sobre um caminho de data, e o servidor o converte num intervalo no
-   * fuso do escritório — `op` é ignorado, porque o período já é a comparação.
+   * relativo (`REPORT_PERIODS`, ou `last-<n>-<unit>` / `previous-<n>-<unit>`) sobre um caminho de
+   * data, e o servidor o converte num intervalo no fuso do escritório — `op` é ignorado, porque o
+   * período já é a comparação.
    */
   control?: string;
+  /**
+   * Só com `control: 'period'`: os períodos que o seletor oferece, nesta ordem. Ausente = os
+   * nomeados. Limita a TELA, não o servidor — o MCP e o `run-report` podem responder qualquer período.
+   */
+  periods?: string[];
   /** Sem resposta, o relatório não roda: o servidor recusa, e a tela não deixa executar. */
   required?: boolean;
   /**

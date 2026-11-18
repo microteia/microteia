@@ -13,7 +13,7 @@ import { NUMERIC_AGGREGATION_OPS } from '../fieldRules';
 import { FIELD_EXPRESSION_FUNCTION_NAMES, FIELD_EXPRESSION_OPERATOR_FUNCTIONS } from '../fieldExpression';
 import { QUERY_OPERATORS } from '../querySpec';
 import { REPORT_CAPABILITIES } from './reportCapabilities';
-import { REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL } from './reportPeriod';
+import { REPORT_PERIOD_UNITS, REPORT_PERIODS, REPORT_PROMPT_PERIOD_CONTROL } from './reportPeriod';
 import {
   REPORT_CHART_KINDS,
   REPORT_GRANULARITIES,
@@ -80,6 +80,8 @@ export const REPORT_DRAFT_TEACHING: Readonly<Record<string, string | null>> = {
     `"presentation.prompts": filters the READER answers: [{ "key", "label", "path", "op": ${list(QUERY_OPERATORS)} }] — use them when the request says "by client of my choice", never for a fixed restriction.`,
   'presentation.prompt.period':
     `A relative period the reader picks: { "key", "label", "path": "<date field>", "op": "eq", "control": "${REPORT_PROMPT_PERIOD_CONTROL}", "default": { "kind": "Literal", "value": ${list(REPORT_PERIODS)} } } — "this month", "last 30 days" go here.`,
+  'presentation.prompt.period.relative':
+    `Beyond the named periods, "last-<n>-<unit>" ends with the current period, inclusive ("last-12-months"), and "previous-<n>-<unit>" is the n closed periods before it; unit ${list(REPORT_PERIOD_UNITS)}. Days roll back from today; weeks (Monday), months, quarters and years are whole calendar periods. "periods": ["last-15-days", "last-12-months", "this-year"] restricts and orders what the reader's picker offers.`,
   'presentation.prompt.default':
     'A prompt\'s "default": { "kind": "Literal", "value": <value> } answers it when the reader does not.',
   'presentation.prompt.required':

@@ -725,7 +725,7 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                           {prompt.isPeriod && (
                             <SearchSelect
                               label={vm.labels.promptDefault}
-                              options={vm.periodOptions}
+                              options={prompt.periodOptions}
                               value={prompt.periodDefault}
                               onChange={(value) => vm.setPromptPeriodDefault(prompt.key, value)}
                             />

@@ -87,6 +87,20 @@ describe('reportPromptParameters', () => {
     expect(plain).toEqual({ key: 'regiao', label: 'regiao', type: 'String', required: true });
   });
 
+  it('com `periods`, o passo oferece esses — o parametrizado com o count do plural', () => {
+    const [period] = reportPromptParameters({
+      ...spec,
+      presentation: {
+        prompts: [{ key: 'quando', path: 'data', op: 'eq', control: 'period', periods: ['last-12-months', 'this-year'] }],
+      },
+    });
+
+    expect(period.options).toEqual([
+      { value: 'last-12-months', label: '@core.reports/period.last.months', labelParams: { count: 12 } },
+      { value: 'this-year', label: '@core.reports/period.this-year' },
+    ]);
+  });
+
   it('o obrigatório com padrão não é cobrado do passo: o padrão responde', () => {
     const [prompt] = reportPromptParameters({
       ...spec,

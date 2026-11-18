@@ -25,7 +25,7 @@ export const WidgetFilters: React.FC<WidgetFiltersProps> = ({ filters, children 
               {field.label}
               {field.kind === 'period' ? (
                 <SearchSelect
-                  options={vm.periodOptions}
+                  options={field.periodOptions}
                   value={field.text}
                   onChange={(value) => vm.setValue(field.key, value)}
                 />

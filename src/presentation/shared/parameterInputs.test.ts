@@ -6,7 +6,7 @@ import type { WorkflowParameter } from '../../domain/entities/Workflow';
  * O resolvedor de referência do teste: marca o que passou por ele e interpola o que a frase pede —
  * é o suficiente para provar que nenhuma referência escapa para a tela.
  */
-const label = (value: string | null | undefined, params?: Record<string, string>): string => {
+const label = (value: string | null | undefined, params?: Record<string, string | number>): string => {
   const raw = value ?? '';
   if (!raw.startsWith('@')) return raw;
   const resolved = `traduzido(${raw.slice(1)})`;
@@ -89,6 +89,17 @@ describe('parameterForDisplay — o rótulo declarativo resolvido antes de virar
       { value: 'rejected', label: 'Reprovar' },
     ]);
     expect(shown.fields?.[0].label).toBe('traduzido(com.acme.auto/parameter.note)');
+  });
+
+  it('a opção com `labelParams` interpola o rótulo, e o parâmetro sai sem eles', () => {
+    const shown = parameterForDisplay(label, {
+      key: 'quando',
+      label: 'Quando',
+      type: 'select',
+      options: [{ value: 'last-12-months', label: '@core.reports/period.last.months', labelParams: { count: 12 } }],
+    });
+
+    expect(shown.options).toEqual([{ value: 'last-12-months', label: 'traduzido(core.reports/period.last.months)[count=12]' }]);
   });
 
   it('nada além do rótulo é tocado — chave, tipo e regras seguem intactos', () => {

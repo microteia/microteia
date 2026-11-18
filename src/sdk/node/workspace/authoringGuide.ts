@@ -12,7 +12,7 @@ import type { ExtensionPointDefinition } from '../../../domain/schema/plugin/ext
 import { CUSTOM_FIELD_TYPES } from '../../../domain/schema/fieldRules';
 import type { CustomFieldType } from '../../../domain/schema/fieldRules';
 import {
-  WIDGET_DATA_SINCE_KERNEL, WIDGET_FILTER_CHOICE_SINCE_KERNEL, WIDGET_NODE_TYPES,
+  WIDGET_DATA_SINCE_KERNEL, WIDGET_FILTER_CHOICE_SINCE_KERNEL, WIDGET_NODE_TYPES, WIDGET_PERIOD_RELATIVE_SINCE_KERNEL,
 } from '../../../domain/schema/ui/widgetSpec';
 import {
   REPORT_CHART_KINDS,
@@ -68,7 +68,7 @@ import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { MAX_STEP_RETRIES, STEP_TYPES } from '../../../domain/entities/Workflow';
 import { WORKFLOW_FLOW_CONTROL_SINCE_KERNEL } from '../../../domain/schema/workflowChangeFilter';
-import { REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
+import { REPORT_PERIOD_MAX_COUNT, REPORT_PERIOD_UNITS, REPORT_PERIODS } from '../../../domain/schema/report/reportPeriod';
 import { WORKFLOW_APPROVAL_PORTAL_SINCE_KERNEL, WORKFLOW_APPROVAL_SINCE_KERNEL } from '../../../domain/schema/workflowTask';
 import { REPORT_SNAPSHOTS_SINCE_KERNEL, WORKFLOW_RUN_REPORT_SINCE_KERNEL } from '../../../domain/schema/report/reportStep';
 import { WORKFLOW_WAIT_FOR_SINCE_KERNEL } from '../../../domain/schema/workflowWait';
@@ -324,8 +324,9 @@ const WIDGET_NODES: Record<WidgetNodeType, string> = {
   markdown: 'A block of Markdown. `content`.',
   metric: 'A big number with a caption. `label`, and either `value` (fixed text) or `report` + `measure?` '
     + '(that report\'s total for the measure; the first one when absent), with `prompts?`, `bind?` and '
-    + '`compare?: \'previous-period\'` (the change against the previous period, when the report\'s period '
-    + 'filter is on a current period: this month against last month).',
+    + '`compare?: \'previous-period\'` (the change against the window of the same length right before the '
+    + 'report\'s period: this month against last month, the last 12 months against the 12 before them; '
+    + '`year-to-date` does not compare).',
   report: 'A report from the organization\'s catalogue, by name. `report` is its key. '
     + 'It names the report instead of embedding the query on purpose: an inline query would put '
     + 'aggregation, permission and scan limits inside a layout DSL, and give you a second place to '
@@ -1694,6 +1695,11 @@ your package like a field's: it has to be one of your screens or lists, or one a
 A source the organization does not have — the extension is missing, or the reader cannot read that screen —
 leaves the filter out of the bar, and the reports run with their own defaults. A choice filter needs kernel
 ${WIDGET_FILTER_CHOICE_SINCE_KERNEL} or later: an earlier one would draw it as a text box.
+
+A \`period\` filter takes the same tokens as a report's period prompt, \`periods\` included —
+\`{ key: 'when', control: 'period', default: 'last-12-months', periods: ['last-15-days', 'last-12-months', 'last-24-months'] }\`
+(§11). \`default\` must be one the filter offers; a parameterised one, or \`periods\`, needs kernel
+${WIDGET_PERIOD_RELATIVE_SINCE_KERNEL} or later.
 
 The node names the report by its \`key\`, and that key is **not** rewritten on installation the way a
 collection name is — so prefix it with your extension, or you inherit whichever report of that name
@@ -4510,6 +4516,18 @@ A reference or an option list is answered as a LIST of the chosen ones, so decla
   ${inlineList(REPORT_PERIODS)}. The server turns it into a range of days counted from today in the
   organization's time zone, weeks starting on Monday like the \`week\` bucket; \`op\` is not read.
   \`default: { kind: 'Literal', value: 'this-month' }\` opens the report on the current month.
+- **Parameterised periods** fill the gaps in that list. \`last-<n>-<unit>\` ends with the current period,
+  inclusive — \`last-12-months\` in November is December to November —, and \`previous-<n>-<unit>\` is the
+  n CLOSED periods before it, so \`previous-1-months\` is \`last-month\`. The unit is one of
+  ${inlineList(REPORT_PERIOD_UNITS)}: days roll back from today, the others are whole calendar periods
+  (ISO weeks, from Monday). \`n\` goes up to ${REPORT_PERIOD_UNITS.map((unit) => `${REPORT_PERIOD_MAX_COUNT[unit]} ${unit}`).join(', ')}.
+  \`periods: ['last-15-days', 'last-12-months', 'this-year']\` limits and orders what the picker offers
+  (absent: the named list); \`default\` must be one of them. A \`metric\` with
+  \`compare: 'previous-period'\` sets any of them beside the window of the same length right before it.
+  Either one — \`periods\` or a parameterised \`default\`, in a report or in a widget \`filters\` bar —
+  needs kernel ${WIDGET_PERIOD_RELATIVE_SINCE_KERNEL}: an older one would show an empty picker.
+- **A period the server does not recognise refuses the run** (\`prompt.period.unknown\`), naming the
+  prompt — it is never dropped, which would run the report over every row.
 
 A report that would be wrong unrestricted still needs its restriction in \`dataset.where\`, where
 nobody can skip it.

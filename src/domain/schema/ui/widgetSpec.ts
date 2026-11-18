@@ -9,6 +9,8 @@
  * dela. `when` por expressão continua pendente.
  */
 
+import { isNamedReportPeriod } from '../report/reportPeriod';
+
 /** Como o nó `report` se mostra: inteiro, só o gráfico ou só a tabela — sem cabeçalho nem filtros. */
 export const WIDGET_REPORT_VIEWS = ['full', 'chart', 'table'] as const;
 export type WidgetReportView = typeof WIDGET_REPORT_VIEWS[number];
@@ -29,6 +31,9 @@ export type WidgetFilterControl = typeof WIDGET_FILTER_CONTROLS[number];
  * `refEntity`) e de `lookup` (a lista, como em `lookupCollection`). Esses dois escolhem VÁRIOS por
  * padrão — a mesma pertinência ("destes três") do filtro de referência na listagem e no relatório —, e
  * `multi: false` restringe a um. `default` é a chave da opção ou o id do registro, ou a lista deles.
+ *
+ * `periods` é de `period`: o que o seletor oferece, nesta ordem — nomeados ou `last-<n>-<unit>` /
+ * `previous-<n>-<unit>`. Ausente = os nomeados.
  */
 export type WidgetFilter = {
   key: string;
@@ -37,6 +42,7 @@ export type WidgetFilter = {
   collection?: string;
   multi?: boolean;
   default?: string | string[];
+  periods?: string[];
 };
 
 /** O filtro que escolhe do que o escritório TEM — e cuja resposta é, por isso, uma lista de chaves. */
@@ -119,10 +125,18 @@ export const WIDGET_DATA_SINCE_KERNEL = '2.112.0';
  */
 export const WIDGET_FILTER_CHOICE_SINCE_KERNEL = '2.136.0';
 
+/**
+ * O período PARAMETRIZADO na barra (`periods`, ou um `default` como `last-12-months`). Um kernel anterior
+ * mostraria o seletor em branco e ignoraria a resposta no servidor: o painel abriria sem recorte, com o
+ * número do ano inteiro sob o título de "últimos 12 meses" (#4).
+ */
+export const WIDGET_PERIOD_RELATIVE_SINCE_KERNEL = '2.139.0';
+
 /** O kernel mínimo de cada capacidade de dados. A que não está aqui é do primeiro painel com dados. */
 const WIDGET_FEATURE_SINCE_KERNEL: Readonly<Record<string, string>> = {
   'filters.record': WIDGET_FILTER_CHOICE_SINCE_KERNEL,
   'filters.lookup': WIDGET_FILTER_CHOICE_SINCE_KERNEL,
+  'filters.period.relative': WIDGET_PERIOD_RELATIVE_SINCE_KERNEL,
 };
 
 export const widgetFeatureSinceKernel = (feature: string): string =>
@@ -141,13 +155,22 @@ export const widgetChildren = (spec: WidgetSpec): WidgetSpec[] =>
     ? spec.children
     : [];
 
+/** O filtro de período que pede mais do que os nomeados: `periods` declarado, ou um padrão parametrizado. */
+const usesRelativePeriod = (filter: WidgetFilter | undefined): boolean =>
+  filter?.control === 'period'
+  && ((Array.isArray(filter.periods) && filter.periods.length > 0)
+    || (typeof filter.default === 'string' && filter.default !== '' && !isNamedReportPeriod(filter.default)));
+
 /** O que o nó usa da ligação a dados — o que exige `WIDGET_DATA_SINCE_KERNEL`. */
 const nodeDataFeatures = (node: WidgetSpec): string[] => {
   if (node.type === 'filters') {
     const controls = (Array.isArray(node.filters) ? node.filters : [])
       .filter((filter) => isWidgetChoiceFilter(filter ?? {}))
       .map((filter) => `filters.${filter.control}`);
-    return ['filters', ...controls];
+    const relative = (Array.isArray(node.filters) ? node.filters : []).some(usesRelativePeriod)
+      ? ['filters.period.relative']
+      : [];
+    return ['filters', ...controls, ...relative];
   }
   if (node.type === 'metric' && node.report !== undefined) return ['metric.report'];
   if (node.type === 'report') {

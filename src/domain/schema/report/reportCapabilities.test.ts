@@ -188,6 +188,21 @@ describe('deriveReportRequires', () => {
     expect(reportCapabilitySeverity('presentation.prompt.period')).toBe('warning');
   });
 
+  it('o período parametrizado tem token próprio — por `periods` ou pelo padrão (#4)', () => {
+    const comPeriodo = (prompt: Partial<NonNullable<NonNullable<ReportSpec['presentation']>['prompts']>[number]>): ReportSpec => ({
+      ...base,
+      presentation: { prompts: [{ key: 'mes', path: 'vencimento', op: 'gte', control: 'period', ...prompt }] },
+    });
+
+    expect(deriveReportRequires(comPeriodo({ default: { kind: 'Literal', value: 'this-month' } })))
+      .not.toContain('presentation.prompt.period.relative');
+    expect(deriveReportRequires(comPeriodo({ default: { kind: 'Literal', value: 'last-12-months' } })))
+      .toContain('presentation.prompt.period.relative');
+    expect(deriveReportRequires(comPeriodo({ periods: ['this-month', 'last-month'] })))
+      .toContain('presentation.prompt.period.relative');
+    expect(unsupportedReportCapabilities(comPeriodo({ periods: ['last-12-months'] }))).toEqual([]);
+  });
+
   it('ordenar por MEDIDA é o Top N, e não é a ordem por rótulo', () => {
     // Dois tokens porque são duas respostas: o kernel que sabe a primeira não pode anunciar a segunda.
     const topN: ReportSpec = {
