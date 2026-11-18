@@ -4489,7 +4489,13 @@ Each prompt names a \`path\` and an \`op\`, and an answered one becomes one more
 \`dataset.where\`. How it is asked comes from the FIELD the path points at — a date asks with a date
 picker, a reference asks with the record chooser of the collection it points to, an option list asks
 with its options. You do not choose that, and you should not try to: it is the same control the
-organization already knows from the screen the data came from.
+organization already knows from the screen the data came from. The path may cross references: on a
+report over \`orderItems\`, \`path: 'order.customer'\` asks with the chooser of customers, the same as
+\`path: 'customer'\` on a report over \`orders\`.
+
+A reference or an option list is answered as a LIST of the chosen ones, so declare it with
+\`op: 'in'\`. A single value sent to an \`in\` prompt — a \`run-report\` step parameter, an agent's
+\`run_report\` — counts as a list of one.
 
 **A prompt left empty simply does not filter** — unless the report says otherwise:
 

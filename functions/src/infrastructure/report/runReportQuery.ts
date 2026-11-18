@@ -161,9 +161,22 @@ const promptPredicates = (
       ];
     }
 
-    return [{ path: prompt.path, op: prompt.op, value: { kind: 'Literal', value } }];
+    return [{ path: prompt.path, op: prompt.op, value: { kind: 'Literal', value: promptOperand(prompt, value) } }];
   });
 };
+
+/**
+ * A resposta na forma que o operador do filtro espera: "está entre" pergunta por uma LISTA, e um valor
+ * só é a lista de um.
+ *
+ * Quem responde um filtro nem sempre manda lista: o passo `run-report` pede cada filtro num campo de
+ * texto, o MCP repassa o que o agente escreveu, e a tela cai num texto livre quando o caminho não
+ * descreve campo nenhum. O `in` com um texto solto não achava nada — nem com o id certo —, e o
+ * relatório voltava vazio, indistinguível de "ninguém atende". É regra do FILTRO DO LEITOR, e não do
+ * `in`: o `where` declarado é escrito por um autor, com a forma que ele escolheu, e não muda aqui.
+ */
+const promptOperand = (prompt: ReportPrompt, value: unknown): unknown =>
+  prompt.op === 'in' && !Array.isArray(value) ? [value] : value;
 
 /**
  * Os filtros OBRIGATÓRIOS que ficaram sem resposta — nem a do leitor, nem o padrão.

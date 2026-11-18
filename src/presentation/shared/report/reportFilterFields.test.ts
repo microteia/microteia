@@ -5,6 +5,7 @@ import {
   filterLiteralOf,
   filterTextOf,
   filterValueOf,
+  promptFieldOf,
 } from './reportFilterFields';
 import type { FieldDefinition } from '../../../domain/entities/entitySchemas';
 
@@ -165,5 +166,55 @@ describe('fieldAtPath', () => {
 
   it('não inventa campo onde o caminho não leva a lugar nenhum', () => {
     expect(fieldAtPath(ctx, 'vendas', 'situacao.cidade')).toBeUndefined();
+  });
+});
+
+/**
+ * O filtro do leitor cujo caminho atravessa uma referência (#2).
+ *
+ * Itens de pedido → pedido → cliente: o relatório sobre os itens pergunta pelo cliente do pedido. A
+ * tela procurava o campo na lista que a autoria oferece — um salto, sem a referência do outro lado — e
+ * pedia o cliente num texto livre, onde nem o nome nem o id achavam nada.
+ */
+describe('promptFieldOf', () => {
+  const cliente = field({ key: 'customer', label: 'Cliente', type: 'reference', refEntity: 'customers' });
+  const pedido = field({ key: 'order', label: 'Pedido', type: 'reference', refEntity: 'orders' });
+  const pedidos = field({ key: 'orders', label: 'Pedidos', type: 'reference', refEntity: 'orders', multi: true });
+  const regiao = field({ key: 'region', label: 'Região', type: 'select', lookupCollection: 'regions' });
+  const ctx = {
+    screens: new Map([
+      ['orderItems', { fields: [pedido, pedidos, field({ key: 'amount', type: 'currency' })] }],
+      ['orders', { fields: [cliente, field({ key: 'placedOn', type: 'date' })] }],
+      ['customers', { fields: [regiao, field({ key: 'vip', type: 'checkbox' })] }],
+    ]),
+  } as never;
+
+  it('pergunta a referência do outro lado do salto com o seletor de registros dela, escolhendo vários', () => {
+    const asked = promptFieldOf(ctx, 'orderItems', 'order.customer');
+
+    expect(asked?.type).toBe('reference');
+    expect(asked?.refEntity).toBe('customers');
+    expect(asked?.multi).toBe(true);
+  });
+
+  it('caminha mais de um salto até a lista de opções, a data e a caixa de marcação', () => {
+    expect(promptFieldOf(ctx, 'orderItems', 'order.customer.region')?.lookupCollection).toBe('regions');
+    expect(promptFieldOf(ctx, 'orderItems', 'order.placedOn')?.type).toBe('date');
+    expect(promptFieldOf(ctx, 'orderItems', 'order.customer.vip')?.type).toBe('checkbox');
+  });
+
+  it('atravessa a referência de VÁRIOS: o servidor responde por pertinência, e o texto voltaria ao defeito', () => {
+    expect(promptFieldOf(ctx, 'orderItems', 'orders.customer')?.refEntity).toBe('customers');
+  });
+
+  it('manda a LISTA dos escolhidos — `in` com um texto solto não acha nada', () => {
+    const asked = promptFieldOf(ctx, 'orderItems', 'order.customer');
+
+    expect(filterLiteralOf(asked, 'c1')).toEqual(['c1']);
+  });
+
+  it('caminho que o esquema não descreve fica sem campo, e a tela pede texto', () => {
+    expect(promptFieldOf(ctx, 'orderItems', 'order.nada')).toBeUndefined();
+    expect(promptFieldOf(ctx, 'orderItems', 'amount.customer')).toBeUndefined();
   });
 });

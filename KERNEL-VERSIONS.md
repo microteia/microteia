@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.278.1] — 2026-11-18
+
+- fix(reports): a reader prompt whose `path` crosses references (`order.customer` on a report over `orderItems`) is now asked with the control of the field at the END of the path — the record chooser for a reference, the options for a list, the date picker, the checkbox — at any depth and through `multi` references (the server already filters those by membership). The report screen resolved the prompt's field from the designer's path list (`useReportPathOptions`), which goes one hop and leaves out the reference on the far side, so the prompt fell back to a free text box where neither the name nor the id matched anything. It now walks the schema with `promptFieldOf` (`fieldAtPath` + `filterFieldOf`), the walk group labels and cell text already used (#2).
+- fix(reports/server): a single value answering an `in` prompt counts as a list of one (`promptOperand`, in `runReportQuery`). `run-report` step parameters are text fields, MCP `run_report` passes what the agent wrote, and the screen's text fallback sends a string — and `in` with a scalar matched nothing, returning an empty report indistinguishable from "no rows". Applies to reader prompts and their `default` only; `dataset.where` is not rewritten.
+- feat(report-design): the reader-prompt path picker (only it) also offers the reference one hop away (`useReportPathOptions(..., { hopReferences: true })`), so an organization's own report can declare `order.customer` too.
+- docs(authoring): §11 states that prompt paths may cross references and that `in` takes a list, a single value counting as a list of one.
+
 #### [9.278.0] — 2026-11-18
 
 - feat(marketplace): every extension operation (install, update, import, uninstall, activate, publish, restore, migrate, delete) now shows a floating progress card naming the gesture and the extension, plus an indeterminate bar on the busy row with its actions kept visible. The only signal used to be the row's button turning disabled — hidden along with the actions once the pointer left the row — so a slow install looked like nothing was happening until the final toast. The card appears after a 300 ms delay, so instant toggles do not flash it.

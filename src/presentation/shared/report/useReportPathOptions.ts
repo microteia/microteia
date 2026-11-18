@@ -43,8 +43,16 @@ const optionOf = (
  * Um salto só, e é escolha: dois já é uma árvore, e uma lista de trezentas entradas não ajuda
  * ninguém a achar "a cidade do cliente". Quem precisa de mais escreve o caminho — o validador aceita
  * a mesma profundidade que o resto do produto.
+ *
+ * A referência do outro lado do salto fica fora da lista de sempre. Como FILTRO DO LEITOR ela entra
+ * (`hopReferences`): o relatório sobre itens de pedido que pergunta "de qual cliente" precisa de
+ * `pedido.cliente`, perguntado com o seletor de clientes — e sem ela a autoria não tinha como escrevê-lo.
  */
-export const useReportPathOptions = (table: string, schema?: SchemaContext): ReportPathOption[] => {
+export const useReportPathOptions = (
+  table: string,
+  schema?: SchemaContext,
+  { hopReferences = false }: { hopReferences?: boolean } = {},
+): ReportPathOption[] => {
   const base = useSchemaContext();
   const ctx = schema ?? base;
   const label = useLabel();
@@ -62,11 +70,11 @@ export const useReportPathOptions = (table: string, schema?: SchemaContext): Rep
 
       const hop = field.refDenormKey ?? field.key;
       for (const nested of target.fields) {
-        if (nested.type === 'file' || nested.type === 'reference') continue;
+        if (nested.type === 'file' || (nested.type === 'reference' && !hopReferences)) continue;
         options.push(optionOf(nested, hop, label(field.label), label));
       }
     }
 
     return options;
-  }, [ctx, table, label]);
+  }, [ctx, table, label, hopReferences]);
 };

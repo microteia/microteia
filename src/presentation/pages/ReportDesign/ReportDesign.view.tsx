@@ -739,7 +739,7 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     <S.Row>
                       <S.Grow>
                         <SearchSelect
-                          options={vm.pathOptions.map((option) => ({ value: option.value, label: option.label }))}
+                          options={vm.promptPathOptions}
                           value={vm.promptPath}
                           onChange={vm.setPromptPath}
                           placeholder={vm.labels.add}
