@@ -42,6 +42,7 @@ const TEMPLATES = {
   'locale-pt-br.json': 'localePtBrPlugin',
   'automation-example.json': 'automationExamplePlugin',
   'report-example.json': 'reportExamplePlugin',
+  'report-view-example.json': 'reportViewExamplePlugin',
   'widget-example.json': 'widgetExamplePlugin',
   'access-example.json': 'accessExamplePlugin',
   // Pela entrada PRÓPRIA, e não pelo catálogo: é a pasta do `plugin.ts` que o build lê para levar a

@@ -44,6 +44,7 @@ export const EXAMPLE_SOURCES: Record<string, string> = {
   'locale-pt-br': 'localePtBr',
   news: 'news.ts',
   'report-example': 'examples/report-example',
+  'report-view-example': 'examples/report-view-example',
   'widget-example': 'examples/widget-example',
   'access-example': 'examples/access-example',
   'backend-example': 'examples/backend-example',

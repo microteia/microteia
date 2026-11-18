@@ -13,7 +13,7 @@ import { resolveColor, resolveFieldOptionColor } from '../../shared/styles/color
 import type { CustomFieldValue, FieldDefinition } from '../../domain/entities';
 import type { FilterDef, FilterOption } from '../components/ui/CompositeFilter';
 
-import { useT } from '../shared/i18n/useT';
+import { useLabel, useT } from '../shared/i18n/useT';
 export const CUSTOM_FIELD_FILTER_PREFIX = 'cf-';
 
 export { FILTER_EMPTY_KEY, FILTER_FILLED_KEY, FILTER_RANGE_TO_SUFFIX };
@@ -75,6 +75,7 @@ export const useCustomFieldListing = (
   filterKeyPrefix = '',
 ): CustomFieldListing => {
   const t = useT('core.records');
+  const label = useLabel();
   const { getOptions } = useLookups();
   const referenceOptionsByEntity = useReferenceOptions();
   // O filtro de uma referência procura também no servidor: a pessoa que se quer achar pode estar fora
@@ -118,22 +119,26 @@ export const useCustomFieldListing = (
    * chave difere do rótulo não filtrava nada (o registro guarda `pending`, o filtro procurava
    * `Pendente`) e o chip do filtro exibia a chave crua. Nas opções cadastradas no escritório chave e
    * rótulo são o mesmo texto, e por isso nada muda para elas.
+   *
+   * O rótulo sai RESOLVIDO: a opção declarada por uma extensão é uma referência `@ns/chave`, e quem
+   * consome esta lista como texto pronto — o grupo do relatório, o CSV — mostrava a referência crua.
+   * O texto que o escritório digitou passa intacto pelo `label`, e resolver de novo no render não muda nada.
    */
   const selectOptionLabels = useCallback((field: FieldDefinition): FilterOption[] => {
     const staticOptions = (field.options ?? []).map((o) => ({
       value: o.key,
-      label: o.label,
+      label: label(o.label),
       color: resolveFieldOptionColor(o.color, field.optionsColored, theme),
     }));
     const dynamicOptions = getOptions(field.lookupCollection ?? '')
       .filter((option) => !staticOptions.some((existing) => existing.value === option.key))
       .map((option) => ({
         value: option.key,
-        label: option.label,
+        label: label(option.label),
         color: resolveColor(option.color, theme, false),
       }));
     return [...staticOptions, ...dynamicOptions];
-  }, [getOptions, theme]);
+  }, [getOptions, theme, label]);
 
   const filterDefs = useMemo<FilterDef[]>(() => {
     const defs: FilterDef[] = [];

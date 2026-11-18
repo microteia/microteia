@@ -45,6 +45,11 @@ export const EXAMPLE_NOTES: Record<string, string> = {
     + 'subtotals, a summary bucketed by month with a chart, a pivot, and one that filters by an expression over '
     + 'each row and asks the reader a question first. Read it for the three layers of a `ReportSpec` and for why '
     + '`requires` is derived rather than written.',
+  'report-view-example': 'The body of a report tab, drawn by the extension: the report names one of the package '
+    + 'views (`reports[].view`), and the view reads the result the tab ran through `useReportFrame()`, asks for '
+    + 'another period with `run(...)` and composes `ReportChart` and `ReportTable`. Read it after `report-example`, '
+    + 'for why the tab — not the view — runs the report, and why the average is a computed measure rather than a '
+    + 'division in the view.',
   'widget-example': 'Every surface an extension can fill without shipping code: two cards on the dashboard, two marks in the shell and a tab in the organization settings, each one a Widget DSL tree. Read it for what a surface NAME buys you, and for why a package with no code needs no trust gesture.',
   'access-example': 'Authorisation by PERMISSION, never by role. Read it for the three things that are declared and the one that is free: a screen collection yields its four CRUD permissions on its own, while a resource names what is NOT a collection and each declared permission carries the closure it drags along.',
   'backend-example': 'The only example with Cloud Functions of its own: a callable, a Firestore trigger and a nightly run, each born with the guard its shape requires. Read it for why a function of the PROJECT needs to be told which organizations installed you, and for everything `manifest.backend` asks of a Firebase project.',

@@ -2,6 +2,9 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { FieldDefinition } from '../../domain/entities';
+import type { ReactNode } from 'react';
+import { LocaleContext } from '../../stores/useLocale';
+import type { LocaleContextValue } from '../../stores/useLocale';
 
 vi.mock('../../stores/useLookups', () => ({
   useLookups: () => ({
@@ -235,5 +238,50 @@ describe('filtro por campo vazio ou preenchido', () => {
   /** Como o token de valor de um campo que deixou de ser filtrável — um filtro salvo antigo não esvazia a lista. */
   it('ignora o campo que não é filtrável por presença', () => {
     expect(presenceListing().matchesFilters({ urgent: true }, { [FILTER_EMPTY_KEY]: ['urgent', 'missing'] })).toBe(true);
+  });
+});
+
+/**
+ * A opção declarada por uma extensão chega como referência `@ns/chave`. O relatório e o CSV usam
+ * `displayValue` como texto pronto, e mostravam a referência crua no agrupamento por esse campo.
+ */
+describe('rótulo de opção declarado por extensão', () => {
+  const category: FieldDefinition = {
+    key: 'category',
+    label: 'Categoria',
+    type: 'select',
+    required: false,
+    order: 0,
+    filterable: true,
+    optionsColored: true,
+    options: [
+      { key: 'priority', label: '@com.acme.example/field.category.priority' },
+      { key: 'typed', label: 'Digitada no escritório' },
+    ],
+  } as FieldDefinition;
+
+  const catalogo = {
+    locale: 'pt-BR',
+    preferred: 'pt-BR',
+    available: ['en', 'pt-BR'],
+    catalog: { locale: 'pt-BR', messages: { 'com.acme.example/field.category.priority': 'Prioritário' } },
+    setLocale: () => {},
+  } as unknown as LocaleContextValue;
+
+  const translated = () => renderHook(() => useCustomFieldListing([category]), {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <LocaleContext.Provider value={catalogo}>{children}</LocaleContext.Provider>
+    ),
+  }).result.current;
+
+  it('o valor exibido resolve a referência, e o texto digitado passa intacto', () => {
+    expect(translated().displayValue({ category: 'priority' }, category)).toBe('Prioritário');
+    expect(translated().displayValue({ category: 'typed' }, category)).toBe('Digitada no escritório');
+  });
+
+  it('o filtro e o selo usam o mesmo rótulo resolvido', () => {
+    const filter = translated().filterDefs.find((def) => def.key === 'category');
+    expect(filter?.options?.map((option) => option.label)).toEqual(['Prioritário', 'Digitada no escritório']);
+    expect(translated().fieldItem({ category: 'priority' }, category).badges?.map((badge) => badge.label)).toEqual(['Prioritário']);
   });
 });

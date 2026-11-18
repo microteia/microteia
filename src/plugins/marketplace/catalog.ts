@@ -9,6 +9,7 @@ import { businessDaysPlugin } from './businessDays';
 import { localePtBrPlugin } from './localePtBr';
 import { automationExamplePlugin } from './examples/automation-example/plugin';
 import { reportExamplePlugin } from './examples/report-example/plugin';
+import { reportViewExamplePlugin } from './examples/report-view-example/plugin';
 import { widgetExamplePlugin } from './examples/widget-example/plugin';
 import { accessExamplePlugin } from './examples/access-example/plugin';
 import { backendExamplePlugin } from './examples/backend-example/plugin';
@@ -48,6 +49,7 @@ export { agentPlugin, assistantPlugin, brasilPlugin, newsPlugin, dashboardPlugin
 export {
   automationExamplePlugin,
   reportExamplePlugin,
+  reportViewExamplePlugin,
   widgetExamplePlugin,
   accessExamplePlugin,
   backendExamplePlugin,

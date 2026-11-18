@@ -83,6 +83,7 @@ const PLUGIN_CATALOG_BY_NS = {
   'com.microteia.dashboard': { dir: 'marketplace', source: 'dashboardMessages', ptBr: 'dashboardMessagesPtBr' },
   'com.microteia.news': { dir: 'marketplace', source: 'newsMessages', ptBr: 'newsMessagesPtBr' },
   'com.microteia.report-example': { dir: 'marketplace/examples/report-example', source: 'reportMessages', ptBr: 'reportMessagesPtBr' },
+  'com.microteia.report-view-example': { dir: 'marketplace/examples/report-view-example', source: 'reportViewMessages', ptBr: 'reportViewMessagesPtBr' },
   'com.microteia.widget-example': { dir: 'marketplace/examples/widget-example', source: 'widgetMessages', ptBr: 'widgetMessagesPtBr' },
   'com.microteia.access-example': { dir: 'marketplace/examples/access-example', source: 'accessMessages', ptBr: 'accessMessagesPtBr' },
   'com.microteia.backend-example': { dir: 'marketplace/examples/backend-example', source: 'backendMessages', ptBr: 'backendMessagesPtBr' },

@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.280.0] — 2026-11-18
+
+- docs(examples): `report-view-example` (`com.microteia.report-view-example`, kernel `^2.138.0`). One screen and one report whose tab is drawn by a code view through `reports[].view`: period buttons that answer the report's `control: 'period'` prompt with `useReportFrame().run(...)`, a headline read from the grand total, and the platform `ReportChart` / `ReportTable` fed with `frame.report.spec`. The average is a computed measure in the dataset, not a division in the view. Phase 3 of #3.
+- docs(authoring): AUTHORING §11 gains "The report's own tab, drawn by your view — `reports[].view`" (the frame contract, `null` as an answer, the fallbacks to the standard body, `REPORT_VIEW_SINCE_KERNEL`); the example note and the `report.definition` coverage note point to the new example.
+- fix(records/listing): `selectOptionLabels` resolves the option label through `useLabel`. An option declared by an extension is a `@ns/key` reference, and every consumer that takes `displayValue` as ready text — the report's group label (`useReportGroupLabels`: standard body, `ReportTable`, `ReportChart`, `ReportMatrix`) and the report CSV — showed the raw reference when a report grouped by that select. Text the office typed passes through unchanged.
+- fix(host-api/types): `ReportFrame.report` and `UseReportResult.report` declare `spec`. It was delivered at runtime, but the published type left it out, so composing `ReportTable`, `ReportMatrix` or `ReportChart` from a report needed a cast.
+
 #### [9.279.0] — 2026-11-18
 
 - feat(reports): `reports[].view` — a report of a package names one of its `views[].key`, and that view draws the BODY of the `rep:<key>` tab (prompt bar, chart, table) from every door that opens it: the report list, the command palette, a deep link, a `run-report` notification link and the Subscribe flow. Until now the only way to present a report in code was a separate `ui.page` with its own menu entry, so the report kept opening on the standard screen everywhere the platform links to it; `report.definition` accepted `impl: code` and nothing read it (#3). KERNEL_VERSION 2.138.0 (`REPORT_VIEW_SINCE_KERNEL`); an older kernel ignores the property and shows the standard body.

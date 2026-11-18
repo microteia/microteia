@@ -1918,7 +1918,8 @@ const REPORT_MODULE_DEFS = `declare module '@microteia/report' {
   }
 
   export interface UseReportResult {
-    report: { id: string; key: string; title: string } | undefined;
+    /** \`spec\` is what \`ReportTable\`, \`ReportMatrix\` and \`ReportChart\` take. */
+    report: { id: string; key: string; title: string; spec: unknown } | undefined;
     result: ReportResult | null;
     /** What degraded without stopping the report. Show them — the loss is invisible otherwise. */
     issues: ReportSpecIssue[];
@@ -1934,7 +1935,8 @@ const REPORT_MODULE_DEFS = `declare module '@microteia/report' {
 
   /** What the report tab hands to the view that draws a report's body. */
   export interface ReportFrame {
-    report: { id: string; key: string; title: string };
+    /** \`spec\` is what \`ReportTable\`, \`ReportMatrix\` and \`ReportChart\` take. */
+    report: { id: string; key: string; title: string; spec: unknown };
     result: ReportResult | null;
     isLoading: boolean;
     /** The answers the report last ran with — the ones Subscribe repeats. */

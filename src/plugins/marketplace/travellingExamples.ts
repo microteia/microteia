@@ -13,6 +13,7 @@ import {
   recordTabExamplePlugin,
   portalExamplePlugin,
   reportExamplePlugin,
+  reportViewExamplePlugin,
   settingsExamplePlugin,
   themeExamplePlugin,
   widgetExamplePlugin,
@@ -37,6 +38,7 @@ import {
 export const TRAVELLING_EXAMPLES: MarketplacePlugin[] = [
   automationExamplePlugin,
   reportExamplePlugin,
+  reportViewExamplePlugin,
   widgetExamplePlugin,
   accessExamplePlugin,
   backendExamplePlugin,

@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.44.0] — 2026-11-18
+
+- feat(examples): the Console ships `report-view-example` as authoring source — a report whose tab is drawn by a code view (`reports[].view`), reading the run of the tab through `useReportFrame()` and composing `ReportChart` and `ReportTable`.
+
 #### [2.43.6] — 2026-11-16
 
 - fix(console/deploy): the first install is detected by `kernel.deployed === null` (`isFirstDeploy`), not by `kernel.version`. `unpack` writes `version` before the first deploy, so the check never held and the first deploy of every new installation ran without `--force`: no Artifact Registry cleanup policy was set up, and every trigger declaring `retry: true` was refused in non-interactive mode, leaving `runAggregateBackfill`, `runRecordSearchJob` and the other retrying triggers out of the project.

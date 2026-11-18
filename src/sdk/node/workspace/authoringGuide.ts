@@ -7,6 +7,7 @@ import { KERNEL_EXTENSION_POINTS } from '../../../domain/schema/extensionPoints'
 import { SCREEN_ICON_KEYS } from '../../../domain/schema/ui/screenIconCatalog';
 import { AUTH_PROVIDER_KINDS } from '../../../domain/schema/auth';
 import { EXTENSION_IMAGE_MAX_BYTES } from '../../../domain/usecases/plugins/pluginImage';
+import { REPORT_VIEW_SINCE_KERNEL } from '../../../domain/usecases/plugins/reportModule';
 import type { ExtensionPointDefinition } from '../../../domain/schema/plugin/extensionPoint';
 import { CUSTOM_FIELD_TYPES } from '../../../domain/schema/fieldRules';
 import type { CustomFieldType } from '../../../domain/schema/fieldRules';
@@ -4656,11 +4657,54 @@ and nothing for anybody to review.
 When the declared shape is not enough — a cover page, text between sections, two datasets side by
 side — write a view and compose \`@microteia/report\`: \`useReport\`, \`ReportView\`,
 \`ReportTable\`, \`ReportMatrix\`, \`ReportChart\`. They are the same components the platform uses,
-so this is composition, not reimplementation.
+so this is composition, not reimplementation. \`report.spec\` is what the last three take.
 
 The report still needs its \`dataset\`: code replaces the **presentation**, never the data. Numbers
-arrive through \`useReport\`, which asks the server — and that is where permission is charged. A view
-is \`impl: { kind: 'code' }\`, so it waits for an administrator to read and trust it (§7).
+arrive from the server — and that is where permission is charged. A view is
+\`impl: { kind: 'code' }\`, so it waits for an administrator to read and trust it (§7).
+
+### The report's own tab, drawn by your view — \`reports[].view\`
+
+A view placed in a page of its own is one more menu entry: the report list, the command palette, a
+notification link and a subscription still open the report on the standard screen. To change the
+report itself, name the view in the report:
+
+\`\`\`ts
+reports: [{ templateId: 'overview', key: 'entries-overview', /* …title, spec… */, view: 'overview' }],
+views: [{ key: 'overview', title: label('view.overview'), icon: 'barChart', sourceFile: ['./views/Overview.view.tsx', /* … */] }],
+\`\`\`
+
+The view replaces the BODY of the report tab — the prompt bar, the chart and the table — wherever the
+report is opened. The tab keeps the title, the warnings and Export / Print / Subscribe, and it is the
+tab that runs the report. Your view reads that run with \`useReportFrame()\`:
+
+\`\`\`tsx
+const frame = useReportFrame();          // null anywhere but the report tab
+frame.result;                            // what the tab ran — the same thing Export writes
+frame.prompts;                           // the answers it ran with; a key absent = not run yet
+frame.run({ period: 'last-year' });      // run again: the tab remembers, Subscribe repeats it
+<ReportTable spec={frame.report.spec} result={frame.result} />
+\`\`\`
+
+Ask for answers through \`run\`, never through \`useReport\`: a view that fetched its own numbers would
+show one result and export another. Sending a prompt as \`null\` is an answer — "no restriction" — and
+overrides its \`default\`. What the view shows still comes from the dataset: a figure computed in the
+view is one the CSV, the agent and an automation never see, so declare it as a measure.
+
+- \`view\` is the key of a view of the SAME package; \`check\` refuses any other. It stays in the
+  package: the organization's copy of the report does not carry it, and "duplicate to edit" yields a
+  report of the office's own, with the standard body.
+- Until the package is trusted, while it is disabled, or on a kernel older than
+  \`${REPORT_VIEW_SINCE_KERNEL}\`, the report opens with the standard body. A view that throws while
+  rendering falls back to it too, with a warning. So the report has to be complete without the view —
+  its prompts, chart and fold are what that body draws, and what the agent and a subscription use.
+- Only the tab changes. A \`report\` node in a Widget DSL tree and \`ReportView\` draw the declared
+  body, so a view that composes its own report does not end up inside itself.
+- Clicking a number to see its records (drill-down) is a gesture of the standard body; the frame does
+  not offer it.
+
+\`examples/report-view-example\` has one report, drawn with period buttons and a headline above the
+platform chart and table.
 
 ### Downloads — CSV, Excel and print
 

@@ -70,7 +70,8 @@ const UNREACHABLE_POINTS: Record<string, string> = {
   'data.service': 'needs `impl: code`, resolved in the bundle registry. An extension registers what it offers from '
     + '`startup` instead — see `command-example`',
   'report.definition': 'declared and consulted by NOTHING at runtime. A report reaches an office through '
-    + '`package.reports`, which the installation materialises — that is the live path, and `report-example` takes it',
+    + '`package.reports`, which the installation materialises — that is the live path, and `report-example` takes it. '
+    + 'A report drawn in code names a view of its package in `reports[].view` instead — see `report-view-example`',
 };
 
 const pointItems = (examples: MarketplacePlugin[]): ExampleCoverageItem[] => {
