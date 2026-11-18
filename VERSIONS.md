@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.280.1] — 2026-11-18
+
+- Corrigido: um relatório ou painel que recebia um período que o sistema não reconhece mostrava todos os registros, como se nenhum período tivesse sido escolhido. Agora ele avisa qual filtro recebeu o período inválido e não exibe números enganosos.
+- Quem escreve extensões passa a ser avisado, já na conferência do pacote, quando o período inicial de um painel não é um dos períodos disponíveis.
+
 #### [9.280.0] — 2026-11-18
 
 - Quem escreve extensões ganhou um exemplo completo de relatório com aparência própria: botões de período e destaques acima do gráfico e da tabela, com Exportar e Assinar agindo sobre o que está na tela.

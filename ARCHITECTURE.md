@@ -11883,6 +11883,12 @@ Executados no SERVIDOR (`runReportQuery.ts`), não só na tela — o widget e o 
   (`dayInTimeZone`); a semana começa na segunda, a mesma régua ISO do balde `week`. Dias e não
   instantes porque é como `predicateMatch` compara uma data sem hora: o dia inteiro. Os identificadores
   são `kebab-case` (`this-month`) porque são também chave de mensagem (`period.this-month`).
+  Resposta de período que não está na lista — do leitor, do padrão, do `run-report`, do MCP ou de uma
+  barra de painel — RECUSA com `@core.reports/prompt.period.unknown` (`invalidPeriodPrompt`), nomeando o
+  filtro. Antes ela era ignorada, e o relatório voltava sem o recorte: um erro de digitação se lia como
+  "o ano inteiro foi isto" (#4). É também o que faz um kernel recusar pelo nome o período que só um
+  kernel mais novo conhece. Na autoria, o `default` de período da barra `filters` é conferido no pacote
+  (`packageWidgetPeriodIssues`), como o do relatório já era em `validateReportSpec`.
 - **O controle sai do campo no FIM do caminho, a qualquer profundidade** (`promptFieldOf`, que caminha
   como `fieldAtPath`). A tela procurava o campo na lista que a AUTORIA oferece — um salto, sem a
   referência do outro lado —, e `pedido.cliente` num relatório de itens era perguntado num texto livre

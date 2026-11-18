@@ -153,6 +153,7 @@ const promptPredicates = (
     if (!answered(value)) return [];
 
     if (prompt.control === REPORT_PROMPT_PERIOD_CONTROL) {
+      // `invalidPeriodPrompt` já recusou o que não é período; sem intervalo aqui, só um dia ilegível.
       const range = isReportPeriod(value) ? reportPeriodRange(value, today) : null;
       if (!range) return [];
       return [
@@ -193,6 +194,29 @@ const missingRequiredPrompts = (
   (spec.presentation?.prompts ?? [])
     .filter((prompt) => prompt.required === true && !answered(promptAnswer(prompt, values, context)))
     .map((prompt) => prompt.key);
+
+/**
+ * O primeiro filtro de PERÍODO respondido com algo que não é período.
+ *
+ * Recusa, e não ignora: o filtro ignorado tirava o recorte, e o relatório voltava com TODAS as linhas
+ * — um erro de digitação no MCP, no `run-report` ou numa barra de painel se lia como "o ano inteiro
+ * vendeu isto", sem nada na tela dizendo que o período não tinha valido (#4). É também o que faz um
+ * kernel recusar pelo nome o período que só um kernel mais novo conhece.
+ */
+const invalidPeriodPrompt = (
+  spec: ReportSpec,
+  values: Record<string, unknown>,
+  context: WorkflowContext,
+): { key: string; value: string } | null => {
+  for (const prompt of spec.presentation?.prompts ?? []) {
+    if (prompt.control !== REPORT_PROMPT_PERIOD_CONTROL) continue;
+    const value = promptAnswer(prompt, values, context);
+    if (answered(value) && !isReportPeriod(value)) {
+      return { key: prompt.key, value: typeof value === 'string' ? value : JSON.stringify(value) };
+    }
+  }
+  return null;
+};
 
 export interface RunReportInput {
   spec: ReportSpec;
@@ -270,6 +294,11 @@ export const runReportQuery = async ({
       errorParams: { keys: missing.join(', ') },
       issues,
     };
+  }
+
+  const invalidPeriod = invalidPeriodPrompt(spec, prompts ?? {}, context);
+  if (invalidPeriod) {
+    return { ok: false, error: '@core.reports/prompt.period.unknown', errorParams: invalidPeriod, issues };
   }
 
   const base = buildReportQuery(spec, REPORT_MAX_SCAN);

@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.280.1] — 2026-11-18
+
+- fix(reports): a `control: 'period'` answer that is not a known period now refuses the run with `@core.reports/prompt.period.unknown` (`{ key, value }`), checked against the effective answer (the reader's, or the default when the key is absent) right after the required-prompt check. It used to be dropped from the query, so the report ran over every row: a typo from `run-report`, the MCP or a dashboard bar read as an unfiltered total with nothing on screen saying the period had not applied. It is also what lets a kernel refuse, by name, a period token that only a newer kernel understands. Phase 1 of #4.
+- fix(marketplace/check): `packageWidgetPeriodIssues` refuses a Widget DSL `filters` bar whose `control: 'period'` filter has a `default` outside `REPORT_PERIODS` (`@core.marketplace/issue.widget.period-default`), at any depth. The report's own default was already validated by `validateReportSpec`; the bar's was not, and the mistake only surfaced in the office, as a refused dashboard.
+- chore(locale-pt-br): 1.228.0 carries the two new messages.
+
 #### [9.280.0] — 2026-11-18
 
 - docs(examples): `report-view-example` (`com.microteia.report-view-example`, kernel `^2.138.0`). One screen and one report whose tab is drawn by a code view through `reports[].view`: period buttons that answer the report's `control: 'period'` prompt with `useReportFrame().run(...)`, a headline read from the grand total, and the platform `ReportChart` / `ReportTable` fed with `frame.report.spec`. The average is a computed measure in the dataset, not a division in the view. Phase 3 of #3.
