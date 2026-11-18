@@ -418,6 +418,11 @@ export interface MarketplaceViewModel {
   setFilterTokens: (tokens: FilterToken[]) => void;
   savedFiltersScreenKey: string;
   busyId: string | null;
+  /**
+   * O aviso do que está em curso, com o nome da extensão. `null` quando nada corre — ou quando o que
+   * corre não tem nome a mostrar (a leitura do arquivo escolhido, que é instantânea).
+   */
+  progress: { title: string; hint: string } | null;
   removeTarget: { id: string; name: string } | null;
   /**
    * A troca que deixaria uma extensão fora da faixa de versão que outra declara, esperando o
@@ -567,6 +572,42 @@ const matchesTokens = (
 /** O gesto recusado por faixa de versão — instalar aqui ou publicar no catálogo. */
 export type RangeConfirmKind = 'install' | 'publish';
 
+/**
+ * O que está em curso, para o aviso da página dizer o GESTO e não só "aguarde". Instalar pode levar
+ * minutos (backend da extensão, migração), e o único sinal era o botão da linha desabilitado — que
+ * some junto com as ações quando o ponteiro sai da linha.
+ */
+export type BusyKind =
+  | 'install' | 'update' | 'import' | 'uninstall' | 'activate' | 'deactivate'
+  | 'publish' | 'restore' | 'migrate' | 'remove' | 'work';
+
+/** `name` só quando a extensão ainda não está em linha nenhuma — o pacote recém-escolhido na importação. */
+interface BusyState {
+  id: string;
+  kind: BusyKind;
+  name?: string;
+}
+
+/** O gesto, com o nome quando a linha da extensão ainda não existe para fornecê-lo. */
+type BusyLabel = BusyKind | { kind: BusyKind; name: string };
+
+const busyStateOf = (id: string, label: BusyLabel): BusyState =>
+  (typeof label === 'string' ? { id, kind: label } : { id, ...label });
+
+const PROGRESS_KEY: Record<BusyKind, string> = {
+  install: 'progress.install',
+  update: 'progress.update',
+  import: 'progress.import',
+  uninstall: 'progress.uninstall',
+  activate: 'progress.activate',
+  deactivate: 'progress.deactivate',
+  publish: 'progress.publish',
+  restore: 'progress.restore',
+  migrate: 'progress.migrate',
+  remove: 'progress.remove',
+  work: 'progress.work',
+};
+
 /** A aplicação recusada por faixa, guardando o gesto que a repete já com o consentimento. */
 interface PendingRangeConfirm {
   kind: RangeConfirmKind;
@@ -574,6 +615,7 @@ interface PendingRangeConfirm {
   issues: readonly LocalizedIssue[];
   retry: () => Promise<void>;
   successMessage: string;
+  progress: BusyLabel;
 }
 
 const rankOf = (row: ExtensionRow): number => (row.installed ? 0 : row.mine ? 1 : 2);
@@ -624,7 +666,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
   const storedOfficeHosts = useOptionalSettings()?.values.tenant[HTTP_ALLOWED_HOSTS_SETTING];
   const canManageIntegrations = can(PERMISSION_INTEGRATIONS_MANAGE);
 
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busy, setBusy] = useState<BusyState | null>(null);
+  const busyId = busy?.id ?? null;
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
   const [rangeConfirm, setRangeConfirm] = useState<PendingRangeConfirm | null>(null);
   const [filter, setFilter] = useState<MarketplaceFilter>('all');
@@ -861,20 +904,20 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
    * faixa vire PERGUNTA em vez de erro; quem não passa continua recebendo a recusa como sempre.
    */
   const run = useCallback(
-    async (id: string, action: () => Promise<void>, successMessage: string, retry?: () => Promise<void>) => {
-      setBusyId(id);
+    async (id: string, progress: BusyLabel, action: () => Promise<void>, successMessage: string, retry?: () => Promise<void>) => {
+      setBusy(busyStateOf(id, progress));
       try {
         await action();
         notify(successMessage, 'success');
       } catch (err) {
         if (retry && err instanceof DependencyRangeRefusal) {
-          setRangeConfirm({ kind: 'install', id, issues: err.issues, retry, successMessage });
+          setRangeConfirm({ kind: 'install', id, issues: err.issues, retry, successMessage, progress });
           return;
         }
         console.error('[marketplace] extension operation failed:', err);
         notify(t('extension.operation-failed', wrappedErrorParams(err)), 'error');
       } finally {
-        setBusyId(null);
+        setBusy(null);
       }
     },
     [notify, t],
@@ -1245,6 +1288,17 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     return list.sort((a, b) => rankOf(a) - rankOf(b) || a.name.localeCompare(b.name));
   }, [extensions, installed, publicExtensions, publicOf, pendingUpdateIds, pendenciesOf, canModerate, canManage, user, installedNeedsReview, problemsByPlugin, label, migrationStates, appliedBackend, pendingMigrationsOf, migrationErrorOf, histories, publishActionOf, verifiedPublishers, reputationOf, verificationLabelOf, connectionIssuesOf, defaultStateOf, defaultIds]);
 
+  /**
+   * O nome sai da LINHA, não do momento do clique: a importação seguida de instalação troca o alvo
+   * de `__import__` para o id da extensão, e a linha dela é que tem o nome resolvido no idioma.
+   */
+  const progress = useMemo(() => {
+    if (!busy) return null;
+    const name = busy.name ?? rows.find((row) => row.id === busy.id)?.name;
+    if (!name) return null;
+    return { title: t(PROGRESS_KEY[busy.kind], { name }), hint: t('progress.hint') };
+  }, [busy, rows, t]);
+
   const counts = useMemo<Record<MarketplaceFilter, number>>(() => ({
     all: rows.length,
     installed: rows.filter((r) => r.installed).length,
@@ -1381,7 +1435,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
    * fora da faixa) abre o mesmo diálogo da instalação.
    */
   const publishPackage = useCallback(async (id: string, pkg: MarketplacePlugin) => {
-    setBusyId(id);
+    setBusy({ id, kind: 'publish' });
     try {
       const outcome = await publishPublic(pkg);
       notify(t(outcome.kind === 'prove' ? 'extension.proved' : 'extension.published'), 'success');
@@ -1393,12 +1447,13 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
           issues: err.issues,
           retry: async () => { await publishPublic(pkg, { acceptDependentRanges: true }); },
           successMessage: t('extension.published'),
+          progress: 'publish',
         });
         return;
       }
       notify(t('extension.publish-failed', wrappedErrorParams(err)), 'error');
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
   }, [publishPublic, notify, t]);
 
@@ -1415,6 +1470,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
       if (!input) return Promise.resolve();
       return run(
         id,
+        'update',
         () => installCopy(input),
         t('extension.updated'),
         () => installCopy(input, { acceptDependencyRanges: true }),
@@ -1424,6 +1480,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     if (!input) return Promise.resolve();
     return run(
       id,
+      'install',
       () => installCopy(input),
       t('extension.installed'),
       () => installCopy(input, { acceptDependencyRanges: true }),
@@ -1442,24 +1499,24 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         notify(t('migration.up-to-date', { name }), 'info');
         return Promise.resolve();
       }
-      return run(id, () => runExtensionMigrations(id), t('migration.ran', { name }));
+      return run(id, 'migrate', () => runExtensionMigrations(id), t('migration.ran', { name }));
     },
     [installed, pendingMigrationsOf, runExtensionMigrations, run, notify, t, label],
   );
 
   const toggleActive = useCallback(
-    (id: string, active: boolean) => run(id, () => setInstalledActive(id, active), active ? t('extension.activated') : t('extension.deactivated')),
+    (id: string, active: boolean) => run(id, active ? 'activate' : 'deactivate', () => setInstalledActive(id, active), active ? t('extension.activated') : t('extension.deactivated')),
     [run, setInstalledActive, t],
   );
 
   const uninstall = useCallback(
-    (id: string) => run(id, () => uninstallCopy(id), t('extension.uninstalled')),
+    (id: string) => run(id, 'uninstall', () => uninstallCopy(id), t('extension.uninstalled')),
     [run, uninstallCopy, t],
   );
 
-  const approve = useCallback((id: string) => run(id, () => approvePublic(id), t('extension.approved')), [run, approvePublic, t]);
-  const deprecate = useCallback((id: string) => run(id, () => deprecatePublic(id), t('extension.deprecated')), [run, deprecatePublic, t]);
-  const reject = useCallback((id: string) => run(id, () => unpublish(id), t('extension.rejected')), [run, unpublish, t]);
+  const approve = useCallback((id: string) => run(id, 'work', () => approvePublic(id), t('extension.approved')), [run, approvePublic, t]);
+  const deprecate = useCallback((id: string) => run(id, 'work', () => deprecatePublic(id), t('extension.deprecated')), [run, deprecatePublic, t]);
+  const reject = useCallback((id: string) => run(id, 'work', () => unpublish(id), t('extension.rejected')), [run, unpublish, t]);
 
   const requestRemove = useCallback((id: string) => {
     const ext = extensions.find((e) => e.id === id);
@@ -1479,9 +1536,9 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
 
   const confirmRange = useCallback(async () => {
     if (!rangeConfirm) return;
-    const { id, retry, successMessage } = rangeConfirm;
+    const { id, retry, successMessage, progress } = rangeConfirm;
     setRangeConfirm(null);
-    await run(id, retry, successMessage);
+    await run(id, progress, retry, successMessage);
   }, [rangeConfirm, run]);
 
   const cancelRange = useCallback(() => setRangeConfirm(null), []);
@@ -1566,6 +1623,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     const verified = !verifiedPublishers.has(pub.ownerTenantId);
     return run(
       id,
+      'work',
       () => setPublisherVerified(pub.ownerTenantId, verified),
       t(verified ? 'extension.publisher-verified' : 'extension.publisher-unverified', { name: pub.ownerName }),
     );
@@ -1576,6 +1634,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     const isDefault = !defaultIds.has(id);
     return run(
       id,
+      'work',
       async () => {
         await makeSetDefaultExtensionUseCase(registrationPolicyRepository).execute(id, isDefault, user.id);
         setDefaultExtensions((current) => (isDefault ? [...current, id] : current.filter((other) => other !== id)));
@@ -1653,6 +1712,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
       setHistoryId(null);
       return run(
         id,
+        'restore',
         () => restoreVersion(id, revision),
         t('history.applied', { version: entry?.version ?? '' }),
         () => restoreVersion(id, revision, { acceptDependencyRanges: true }),
@@ -1665,14 +1725,14 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     if (!reviewTarget) return;
     const { id } = reviewTarget;
     setReviewId(null);
-    await run(id, () => trustCode(id), t('extension.trusted'));
+    await run(id, 'work', () => trustCode(id), t('extension.trusted'));
   }, [reviewTarget, run, trustCode, t]);
 
   const confirmRemove = useCallback(async () => {
     if (!removeTarget) return;
     const { id } = removeTarget;
     setRemoveTarget(null);
-    await run(id, () => removeExtension(id), t('extension.removed'));
+    await run(id, 'remove', () => removeExtension(id), t('extension.removed'));
   }, [removeTarget, run, removeExtension, t]);
 
   /**
@@ -1685,7 +1745,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    setBusyId('__import__');
+    setBusy({ id: '__import__', kind: 'import' });
     try {
       const text = await file.text();
       const parsed = parsePackage(text);
@@ -1714,7 +1774,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     } catch (err) {
       notify(t('extension.import-failed', wrappedErrorParams(err)), 'error');
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
   }, [notify, t, label, canModerate, catalog, installed]);
 
@@ -1751,7 +1811,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     const target = importTarget;
     if (!target) return;
     setImportTarget(null);
-    setBusyId('__import__');
+    setBusy({ id: '__import__', kind: 'import', name: target.name });
     let imported: { id: string; package: MarketplacePlugin } | null = null;
     try {
       const result = await importExtension(target.text);
@@ -1764,7 +1824,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     } catch (err) {
       notify(t('extension.import-failed', wrappedErrorParams(err)), 'error');
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
     if (!imported) return;
     if (importInstall || importScope === 'public') {
@@ -1777,6 +1837,8 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
         const input = importedInputOf(imported.package);
         await run(
           imported.id,
+          // A linha da extensão recém-importada pode ainda não ter chegado à lista neste render.
+          { kind: current ? 'update' : 'install', name: target.name },
           () => installCopy(input),
           t(current ? 'extension.updated' : 'extension.installed'),
           () => installCopy(input, { acceptDependencyRanges: true }),
@@ -1803,6 +1865,7 @@ export const useMarketplaceViewModel = (): MarketplaceViewModel => {
     setFilterTokens,
     savedFiltersScreenKey: 'marketplace',
     busyId,
+    progress,
     removeTarget,
     reviewTarget,
     detailsRow,

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.278.0] — 2026-11-18
+
+- Enquanto uma extensão é instalada, atualizada, importada ou removida, a tela de Extensões agora mostra um aviso claro com o nome dela e o andamento — antes, só o ícone do botão mudava e não dava para saber se algo estava acontecendo até a mensagem final.
+
 #### [9.277.0] — 2026-11-17
 
 - Cada tela pode ter a sua ordem de registros. Na aba "Cartão" do Form Design, a nova seção "Ordem dos registros" escolhe por qual campo a lista é ordenada — data, número, valor, texto, hora ou as datas de criação e de alteração —, em ordem crescente ou decrescente, com até duas chaves de desempate. A ordem vale na lista da tela e também na aba que ela forma dentro do registro-pai: as parcelas de um contrato pelo vencimento, as etapas de um projeto pela posição. No portal, a mesma ordem é aplicada usando apenas os campos que a tela mostra ao convidado.

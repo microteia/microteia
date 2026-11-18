@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.278.0] — 2026-11-18
+
+- feat(marketplace): every extension operation (install, update, import, uninstall, activate, publish, restore, migrate, delete) now shows a floating progress card naming the gesture and the extension, plus an indeterminate bar on the busy row with its actions kept visible. The only signal used to be the row's button turning disabled — hidden along with the actions once the pointer left the row — so a slow install looked like nothing was happening until the final toast. The card appears after a 300 ms delay, so instant toggles do not flash it.
+- feat(locale-pt-br): `progress.*` keys translated; package bumped to 1.226.0.
+
 #### [9.277.0] — 2026-11-17
 
 - feat(screens): `ScreenDefinition.listOrder` — up to three `{ path, dir }` keys (the `QueryOrderBy` shape of the aggregation's `latest`) that order the screen's own list AND the tab it becomes inside its parent. Until now the child tab always showed the most recently created record first, and only an extension written in code (`useEntityList({ sortRecords })`) could change that. Keys are fields of type `text`, `masked`, `number`, `currency`, `date` or `time` (not `multi`), or `createdAt`/`updatedAt`; `select` and `reference` are refused because they would order by option key and record id. The order is applied in memory with `deterministicRecordOrder` (empty last in both directions, ties broken by creation date and id), never by Firestore: an equality on the parent link ordered by another field needs a composite index per screen, and a server `orderBy` drops documents without the field. Code-level `sortRecords` still wins. KERNEL_VERSION 2.137.0 (`LIST_ORDER_SINCE_KERNEL`); an older kernel ignores the key.

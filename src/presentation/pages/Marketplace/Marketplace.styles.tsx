@@ -1,4 +1,4 @@
-import styled, { type DefaultTheme } from 'styled-components';
+import styled, { css, keyframes, type DefaultTheme } from 'styled-components';
 
 type Tone = 'neutral' | 'success' | 'warning' | 'info' | 'danger' | 'primary';
 
@@ -29,7 +29,44 @@ const RowActions = styled.div`
   }
 `;
 
-const Row = styled.div`
+/**
+ * O aviso surge com atraso de propósito: ativar ou desativar termina em instantes, e um cartão que
+ * pisca e some chama mais atenção do que a operação merecia. O que passa do atraso é o que demora.
+ */
+const progressEnter = keyframes`
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+`;
+
+const indeterminate = keyframes`
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+`;
+
+const indeterminateBar = css`
+  overflow: hidden;
+  background: ${({ theme }) => theme.colors.primaryLight};
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    border-radius: inherit;
+    background: ${({ theme }) => theme.colors.primary};
+    animation: ${indeterminate} 1.4s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      width: 100%;
+      animation: none;
+      opacity: 0.6;
+    }
+  }
+`;
+
+const Row = styled.div<{ $busy?: boolean }>`
   position: relative;
   display: flex;
   align-items: center;
@@ -52,10 +89,86 @@ const Row = styled.div`
     opacity: 1;
     pointer-events: auto;
   }
+
+  ${({ $busy, theme }) => $busy && css`
+    background: ${theme.colors.surfaceHover};
+
+    ${RowActions} {
+      opacity: 1;
+    }
+  `}
 `;
 
 export const S = {
+  RowProgress: styled.div`
+    position: absolute;
+    left: ${({ theme }) => theme.spacing.md};
+    right: ${({ theme }) => theme.spacing.md};
+    bottom: 0;
+    height: 2px;
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+    ${indeterminateBar}
+  `,
+
+  Progress: styled.div`
+    position: absolute;
+    left: 50%;
+    bottom: ${({ theme }) => theme.spacing.lg};
+    z-index: 5;
+    width: min(420px, calc(100% - ${({ theme }) => theme.spacing.xl}));
+    overflow: hidden;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    background: ${({ theme }) => theme.colors.surface};
+    box-shadow: 0 12px 32px ${({ theme }) => theme.colors.shadow};
+    transform: translate(-50%, 0);
+    animation: ${progressEnter} ${({ theme }) => theme.transitions.normal} 300ms both;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation-name: none;
+    }
+  `,
+
+  ProgressBody: styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    padding: ${({ theme }) => theme.spacing.md};
+
+    & > :first-child {
+      flex-shrink: 0;
+    }
+  `,
+
+  ProgressText: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  `,
+
+  ProgressTitle: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.text};
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `,
+
+  ProgressHint: styled.span`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.textMuted};
+  `,
+
+  ProgressTrack: styled.div`
+    position: relative;
+    height: 3px;
+    ${indeterminateBar}
+  `,
+
   Page: styled.div`
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;

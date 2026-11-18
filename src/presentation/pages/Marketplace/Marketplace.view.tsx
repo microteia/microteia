@@ -38,6 +38,7 @@ import { Button } from '../../components/ui/Button';
 import { CompositeFilter } from '../../components/ui/CompositeFilter';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Spinner } from '../../components/ui/Spinner';
 import { Modal } from '../../components/ui/Modal';
 import { WidgetRenderer } from '../../components/ui/WidgetRenderer';
 import { RadioGroup } from '../../components/ui/RadioButton';
@@ -223,7 +224,8 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
   const t = useT('core.marketplace');
 
   return (
-  <S.Row>
+  <S.Row $busy={busy} aria-busy={busy}>
+    {busy && <S.RowProgress />}
     <Identity row={row} />
 
     <S.RowMain>
@@ -341,12 +343,12 @@ const RowView: React.FC<{ row: ExtensionRow; busy: boolean; vm: ReturnType<typeo
       )}
       {row.install === 'install' && (
         <S.ActionButton $primary title={t('extension.install')} disabled={busy} onClick={() => void vm.install(row.id)}>
-          <RiInstallLine size={17} />
+          {busy ? <Spinner size={16} /> : <RiInstallLine size={17} />}
         </S.ActionButton>
       )}
       {row.install === 'update' && (
         <S.ActionButton $primary title={t('extension.update')} disabled={busy} onClick={() => void vm.install(row.id)}>
-          <RiRefreshLine size={17} />
+          {busy ? <Spinner size={16} /> : <RiRefreshLine size={17} />}
         </S.ActionButton>
       )}
       {row.canRunMigrations && (
@@ -583,6 +585,19 @@ export const MarketplaceView: React.FC = () => {
           )}
         </S.Body>
       </S.Scroll>
+
+      {vm.progress && (
+        <S.Progress role="status" aria-live="polite">
+          <S.ProgressBody>
+            <Spinner size={20} />
+            <S.ProgressText>
+              <S.ProgressTitle>{vm.progress.title}</S.ProgressTitle>
+              <S.ProgressHint>{vm.progress.hint}</S.ProgressHint>
+            </S.ProgressText>
+          </S.ProgressBody>
+          <S.ProgressTrack />
+        </S.Progress>
+      )}
 
       <ConfirmModal
         isOpen={vm.removeTarget !== null}
