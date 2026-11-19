@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.283.1] — 2026-11-19
+
+- fix(brand): link previews carry the image at a full address. Open Graph requires an absolute `og:image`, and WhatsApp, LinkedIn and X dropped the relative `/logo.png` the package always shipped — previews showed text only. The deploy stamp completes `og:image` and `twitter:image` with `brand.url` or `https://<project>.web.app`, with or without a brand of its own.
+- fix(brand): `index.html` declares `<link rel="apple-touch-icon">`, and the stamp points it to the first PNG of `brand.icon`/`brand.logo`. iOS fetched `/apple-touch-icon.png` on its own, so a home-screen shortcut kept the Microteia icon.
+- fix(index): `twitter:card` is `summary`, not `summary_large_image`: the preview image is always a square logo, and the large card cropped it.
+- chore(public): `site.webmanifest` and `web-app-manifest-512x512.png` removed — no page linked the manifest, and it still read "MyWebSite". The 192 px icon stays: the notification service worker uses it.
+- build: the repository's `brand/brand.yaml` defaults the preview address to the `web.app` of the mode's `VITE_PROJECT_ID`.
+
 #### [9.283.0] — 2026-11-18
 
 - feat(brand): installation identity. `window.__MICROTEIA_BRAND__` (stamped in `brand.js`, loaded synchronously in `<head>` like `firebase-config.js`; the package ships it empty) carries `name`, `tagline`, `description`, `logo` and `accent`. Read defensively by `parseStampedBrand` — the logo only as a same-origin path, the accent only as `#rrggbb`, no `name` means no brand. The sign-in screen and the sidebar header render it through `useBrand()`; texts go through `useLabel()`, so an `@namespace/key` reference translates. Until now every installation was called Microteia, which is the platform that runs it.

@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -21,12 +21,16 @@ const BRAND_FILE = join(BRAND_DIR, 'brand.yaml');
 const installationBrand = (mode: string): Plugin | null => {
   if (mode === 'dist' || !existsSync(BRAND_FILE)) return null;
 
+  // O `web.app` do projeto que o modo escolhe (`.env.dev`, `.env.prod`) — o mesmo endereço padrão que
+  // o `microteia deploy` usa. Um domínio próprio entra no `url:` do bloco.
+  const projectId = loadEnv(mode, process.cwd(), 'VITE_').VITE_PROJECT_ID;
   let stamp: BrandStamp | null = null;
   const load = async (): Promise<BrandStamp> => {
     stamp ??= await buildBrandStamp(
       BRAND_DIR,
       brandFromSections(parseYamlSections(readFileSync(BRAND_FILE, 'utf8'), 'brand/brand.yaml')),
       'brand/brand.yaml',
+      projectId ? `https://${projectId}.web.app` : null,
     );
     return stamp;
   };

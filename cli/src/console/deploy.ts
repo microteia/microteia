@@ -59,7 +59,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   const firstInstall = isFirstDeploy(environment);
   // Lida e conferida ANTES de qualquer escrita: um logo que não existe tem de parar o deploy aqui, e
   // não no meio do carimbo, com metade do hosting já reescrita.
-  const brand = await buildBrandStamp(root, environment.brand, ENVIRONMENT_FILE);
+  const brand = await buildBrandStamp(root, environment.brand, ENVIRONMENT_FILE, `https://${projectId}.web.app`);
 
   heading(`Deploying Microteia to ${projectId}`);
 

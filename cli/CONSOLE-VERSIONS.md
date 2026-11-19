@@ -22,6 +22,11 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.46.0] — 2026-11-19
+
+- feat(deploy): `brand.url` in `microteia.yaml` — the public origin of an installation with its own domain. Link previews need the image at a full address; empty, the deploy uses `https://<project>.web.app`. Only an http(s) origin is accepted (a path would move the image away from where hosting serves it), and it is valid without `brand.name`.
+- fix(deploy): the stamp makes `og:image`/`twitter:image` absolute even without a brand, and points `apple-touch-icon` to the first PNG of `brand.icon`/`brand.logo`.
+
 #### [2.45.0] — 2026-11-18
 
 - feat(yaml): `brand:` block in `microteia.yaml` — `name`, `tagline`, `description`, `logo`, `icon` and `accent`, images relative to the file. The YAML subset reader moved to `shared/yaml.ts`, shared with the repository's `vite.config.ts`.

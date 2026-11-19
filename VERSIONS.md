@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.283.1] — 2026-11-19
+
+- O link do sistema compartilhado no WhatsApp, no LinkedIn ou no X agora mostra também o logo, e não só o nome e a descrição.
+- O atalho do sistema na tela de início do iPhone passa a usar o ícone do produto.
+- Quem tem domínio próprio pode informá-lo nas configurações de identidade da instalação, para que as prévias de link usem esse endereço.
+
 #### [9.283.0] — 2026-11-18
 
 - Cada instalação agora pode ter a sua própria identidade: nome, frase de apresentação, logotipo, ícone da aba e cor de destaque. É ela que aparece na tela de entrada, no topo do menu, no título da aba do navegador e na prévia do link compartilhado.

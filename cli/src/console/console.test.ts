@@ -26,6 +26,7 @@ const sample: Environment = {
     logo: 'brand/logo.png',
     icon: 'brand/icon.svg',
     accent: '#1f6feb',
+    url: 'https://prazos.acme.example',
   },
 };
 
