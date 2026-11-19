@@ -237,6 +237,21 @@ describe('reportRequiredPermissions', () => {
       .toEqual(['lancamentos.margem', 'lancamentos.read', 'persons.read']);
   });
 
+  // A garantia que mantém `drillDown.columns` em `presentation`: só dimensão entra ali, e dimensão já
+  // é lida e cobrada. Se um dia aceitar campo solto, este teste é o primeiro a dizer (#5).
+  it('as colunas e a ordem do detalhe não mudam o que se lê nem o que se cobra', () => {
+    const spec: ReportSpec = {
+      ...FIXTURE_V1,
+      presentation: {
+        ...FIXTURE_V1.presentation,
+        drillDown: { columns: ['mes', 'cidade', 'outra'], orderBy: [{ dimension: 'mes', dir: 'desc' }] },
+      },
+    };
+
+    expect(reportPaths(spec).sort()).toEqual(reportPaths(FIXTURE_V1).sort());
+    expect(reportRequiredPermissions(spec, ctx).sort()).toEqual(reportRequiredPermissions(FIXTURE_V1, ctx).sort());
+  });
+
   it('ignora a permissão própria em branco', () => {
     const spec: ReportSpec = { ...FIXTURE_V1, access: { permission: '  ' } };
     expect(reportRequiredPermissions(spec, ctx)).not.toContain('  ');

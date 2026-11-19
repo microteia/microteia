@@ -168,7 +168,7 @@ const PUBLISHED_TYPES = [
   'DocumentTemplateSpec', 'TemplateIssue', 'TemplateNode',
   'ReportAccess', 'ReportAggregateMeasure', 'ReportChart', 'ReportChartKind',
   'ReportComputedMeasure', 'ReportContributionMetadata', 'ReportDataset', 'ReportDatasetKind',
-  'ReportDefinition', 'ReportDimension', 'ReportFieldPresentation', 'ReportGranularity',
+  'ReportDefinition', 'ReportDimension', 'ReportDrillDown', 'ReportDrillOrder', 'ReportFieldPresentation', 'ReportGranularity',
   'ReportGroupKey', 'ReportGroupLevel', 'ReportHighlight', 'ReportHighlightOp', 'ReportHighlightTone',
   'ReportMatrixShape', 'ReportMeasure', 'ReportPeriod',
   'ReportModuleTemplate', 'ReportPresentation', 'ReportPrompt', 'ReportResult', 'ReportRow',

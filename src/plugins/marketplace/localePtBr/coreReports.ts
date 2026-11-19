@@ -160,7 +160,7 @@ export const CORE_REPORTS: Record<string, string> = {
     'Este relatório pede para rodar sozinho, o que esta versão ainda não faz. Ele continua rodando sempre que você o abre.',
   'shape.dimension.unknown': 'O relatório é dobrado por "{key}", que ele não declara como agrupamento.',
   'shape.fields-unused':
-    'Este relatório mostra só o que o agrupa, então os campos {keys} não aparecem em lugar nenhum. Agrupe por eles, remova-os, ou mostre o relatório como lista.',
+    'Este relatório mostra só o que o agrupa, então os campos {keys} não aparecem em lugar nenhum. Agrupe por eles, liste-os como colunas dos registros por trás de um número, remova-os, ou mostre o relatório como lista.',
   'shape.kind.unsupported':
     'Este relatório é dobrado de um jeito que esta versão não conhece ({kind}), então ele aparece como uma lista simples.',
   'shape.matrix': 'Cruzado — um campo nas linhas, outro nas colunas',
@@ -362,4 +362,6 @@ export const CORE_REPORTS: Record<string, string> = {
   'drill.empty': 'Nenhum registro nesta parte do relatório.',
   'drill.loading': 'Buscando os registros…',
   'drill.truncated': 'Mostrando {shown} de {total} registros.',
+  'drill.column.unknown': 'Os registros por trás de um número listam "{key}" como coluna, mas ele não é um campo deste relatório. Ele foi deixado de fora.',
+  'drill.order.invalid': 'Os registros por trás de um número são ordenados por "{key}", que não é um campo deste relatório ou não tem direção (asc ou desc). Essa ordem foi deixada de fora.',
 };

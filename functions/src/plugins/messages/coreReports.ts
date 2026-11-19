@@ -174,7 +174,7 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
     'This report asks to run on a schedule, which this version does not do yet. It still runs whenever you open it.',
   'shape.dimension.unknown': 'The report is folded by "{key}", which it does not declare as a grouping.',
   'shape.fields-unused':
-    'This report shows only what groups it, so the fields {keys} do not appear anywhere. Group by them, remove them, or show the report as a list.',
+    'This report shows only what groups it, so the fields {keys} do not appear anywhere. Group by them, list them as columns of the records behind a figure, remove them, or show the report as a list.',
   'shape.kind.unsupported':
     'This report is folded in a way this version does not know ({kind}), so it is shown as a plain list.',
   'shape.matrix': 'Crossed — one field down, another across',
@@ -376,4 +376,6 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'drill.empty': 'No record in this part of the report.',
   'drill.loading': 'Looking for the records…',
   'drill.truncated': 'Showing {shown} of {total} records.',
+  'drill.column.unknown': 'The records behind a figure list "{key}" as a column, but it is not a field of this report. It was left out.',
+  'drill.order.invalid': 'The records behind a figure are ordered by "{key}", which is not a field of this report or has no direction (asc or desc). That order was left out.',
 };

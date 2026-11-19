@@ -229,6 +229,23 @@ describe('deriveReportRequires', () => {
     expect(reportCapabilitySeverity('presentation.highlight')).toBe('warning');
   });
 
+  it('as colunas do detalhe têm token próprio: executado aqui, aviso num kernel anterior (#5)', () => {
+    const comColunas: ReportSpec = { ...base, presentation: { drillDown: { columns: ['situacao'] } } };
+    const comOrdem: ReportSpec = {
+      ...base,
+      presentation: { drillDown: { orderBy: [{ dimension: 'situacao', dir: 'asc' }] } },
+    };
+
+    expect(deriveReportRequires(comColunas)).toContain('presentation.drilldown.columns');
+    expect(deriveReportRequires(comOrdem)).toContain('presentation.drilldown.columns');
+    expect(unsupportedReportCapabilities(comColunas)).toEqual([]);
+    expect(unsupportedReportCapabilities(comColunas, REPORT_CAPABILITIES.filter((one) => one !== 'presentation.drilldown.columns')))
+      .toEqual(['presentation.drilldown.columns']);
+    expect(reportCapabilitySeverity('presentation.drilldown.columns')).toBe('warning');
+    expect(deriveReportRequires({ ...base, presentation: { drillDown: { columns: [] } } }))
+      .not.toContain('presentation.drilldown.columns');
+  });
+
   it('ordenar por chave é o que este kernel faz, e não pede capacidade nenhuma', () => {
     const porChave: ReportSpec = {
       ...base,
