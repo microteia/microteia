@@ -12006,9 +12006,20 @@ recusa o pedido feito à mão (`@core.reports/drill.disabled`).
   agregador são do relatório inteiro, não de cada linha), e o detalhe é a interseção.
 - **É a única exceção ao "nunca as linhas"** da callable, limitada ao recorte pedido e a
   `REPORT_MAX_RECORDS`; `matched` diz quantos o recorte tem quando o teto cortou.
-- As colunas do detalhe são as DIMENSÕES do relatório — o que a varredura já trouxe hidratado. Pedir
+- As colunas do detalhe saem de `reportDrillColumns` — o que a varredura já trouxe hidratado. Pedir
   outros campos obrigaria uma segunda leitura, com outra permissão, para mostrar o que o relatório não
   afirmou. Clicar no registro abre o registro (`useOpenRecord`, pela coleção).
+- **Sem `columns`, o padrão são as outras dimensões mais o campo de cada medida `sum`/`avg`/`min`/`max`
+  mostrada** — as parcelas do número clicado, rotuladas pelo CAMPO, não pela medida. A medida com
+  `filter` fica fora (o registro descartado mostraria um valor que o número não somou), e a contagem
+  também (o caminho dela é o que se conta).
+- **A dimensão do recorte clicado sai** — era o que fazia o detalhe de um resumo de um nível repetir o
+  nome do grupo em toda linha. Fica no "Outros" do Top N e na dimensão com faixas, em que a célula
+  mostra o valor cru de cada registro. Se nada sobrar, voltam todas as dimensões.
+- **O registro sai com o lugar reservado das dimensões calculadas** (`REPORT_DIMENSION_SLOT`), e
+  `reportDimensionValue` é a leitura única do agregador, da tela e do arquivo da automação. Antes,
+  `recordOut` o retirava e cada um lia `dimension.path`, que a calculada não tem: a coluna dela saía
+  em branco na lista, no detalhe e no CSV.
 - **`drillDown.columns` e `drillDown.orderBy` citam chave de DIMENSÃO, nunca caminho** (#5). É o que
   os mantém em `presentation`: a dimensão já está em `reportPaths`, e por isso nem a leitura nem as
   permissões cobradas mudam (`reportSpec.test.ts` prova). O padrão "título + `showInList` da tela"

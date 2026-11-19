@@ -1,8 +1,8 @@
 import type { CustomFieldOption, FieldDefinition } from '../entities/entitySchemas';
 import type { SchemaContext } from '../schema/pathResolver';
-import { getValueAtPath, parsePath } from '../schema/pathResolver';
 import type { MessageCatalog } from '../schema/i18n/messages';
 import { resolveLabel } from '../schema/i18n/messageRef';
+import { reportDimensionValue } from '../schema/report/reportComputedDimension';
 import { REPORT_OTHERS_KEY, isComputedDimension } from '../schema/report/reportSpec';
 import type { ReportDimension, ReportSpec, ReportValueFormat } from '../schema/report/reportSpec';
 import type { ReportGroupKey, ReportResult } from '../schema/report/reportResult';
@@ -98,7 +98,7 @@ export const reportFileText = async (input: {
   for (const entry of entries) need(fieldOf(dimensions.get(entry.dimension)), idsOf(entry.key));
   for (const record of [...(result.records ?? []), ...result.rows.flatMap((row) => row.records ?? [])]) {
     for (const dimension of dimensions.values()) {
-      need(fieldOf(dimension), idsOf(getValueAtPath(record, parsePath(dimension.path))));
+      need(fieldOf(dimension), idsOf(reportDimensionValue(record, dimension)));
     }
   }
 
@@ -139,7 +139,7 @@ export const reportFileText = async (input: {
       return valueText(fieldOf(dimensions.get(entry.dimension)), entry.key);
     },
     cell: (record, dimension) => {
-      const value = getValueAtPath(record, parsePath(dimension.path));
+      const value = reportDimensionValue(record, dimension);
       if (value === null || value === undefined) return '';
       const field = fieldOf(dimension);
       if (Array.isArray(value)) return value.map((item) => (typeof item === 'string' ? valueText(field, item) : idsOf(item).map((id) => valueText(field, id)).join(''))).join(', ');

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.285.0] — 2026-11-19
+
+- Ao clicar num número de um relatório, a lista de registros que se abre agora mostra o que interessa: as colunas que quem criou o relatório escolheu ou, sem essa escolha, os valores que compõem o número clicado — e não mais o nome do grupo repetido em todas as linhas.
+- Os agrupamentos calculados — como dias de atraso — passam a aparecer preenchidos nas listas de registros dos relatórios e nos arquivos exportados, em vez de em branco.
+
 #### [9.284.0] — 2026-11-19
 
 - Nos relatórios, quem cria o relatório agora pode definir a ordem dos registros que aparecem ao clicar num número — por exemplo, do mais recente para o mais antigo. Quando há registros demais para mostrar, a lista traz os primeiros dessa ordem.

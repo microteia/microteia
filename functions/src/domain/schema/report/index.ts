@@ -67,7 +67,7 @@ export {
   REPORT_DIMENSION_SLOT,
   computedDimensionValue,
   materializeReportDimensions,
-  withoutComputedDimensions,
+  reportDimensionValue,
 } from './reportComputedDimension';
 
 export {

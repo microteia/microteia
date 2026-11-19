@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.285.0] — 2026-11-19
+
+- feat(reports): the drill-down detail draws its columns from `reportDrillColumns` (#5): the declared `drillDown.columns`, or by default the other dimensions plus the field each shown `sum`/`avg`/`min`/`max` measure reads, labelled by the FIELD. A filtered measure and a count stay out. Until now the columns were every dimension, so a one-level summary showed a single column repeating the clicked group on every line.
+- feat(reports): the dimension of the clicked path leaves the detail — it is constant there — except under "Others" and for a dimension with `buckets`, whose cell shows each record's raw value. If nothing is left, every dimension comes back rather than a table with no columns.
+- fix(reports): a computed dimension (`expression`) no longer shows blank in a tabular list, in the drill-down and in the CSV/XLSX of a `run-report` step. `recordOut` stripped `REPORT_DIMENSION_SLOT` and every reader looked up `dimension.path`, which a computed dimension does not have; the record now keeps the slot and `reportDimensionValue` is the single reader for the aggregator, the screen and the server file text.
+- docs(sdk/workspace): AUTHORING §11 documents `drillDown.columns` and `drillDown.orderBy`.
+
 #### [9.284.0] — 2026-11-19
 
 - feat(reports): `presentation.drillDown.columns` and `presentation.drillDown.orderBy` (`ReportDrillDown`, `ReportDrillOrder`) — the columns and the order of the records behind a figure, by DIMENSION key (#5). Only dimension keys are accepted, so neither the scan (`reportPaths`) nor the permissions charged to the reader change; a test pins that. The report screen draws the declared columns in the next release.

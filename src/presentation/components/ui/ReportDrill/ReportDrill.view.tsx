@@ -3,9 +3,12 @@ import { S } from './ReportDrill.styles';
 import { useReportDrillViewModel } from './ReportDrill.viewmodel';
 import { Modal } from '../Modal';
 import type { ReportSpec } from '../../../../domain/schema/report/reportSpec';
+import type { ReportDrillTarget } from '../../../../domain/schema/report/aggregateRows';
 
 export interface ReportDrillProps {
   spec: ReportSpec;
+  /** O recorte clicado: a dimensão dele sai das colunas, porque ali o valor é um só. */
+  target: ReportDrillTarget | null;
   title: string;
   records: Record<string, unknown>[];
   matched: number;
@@ -16,9 +19,9 @@ export interface ReportDrillProps {
 
 /** O detalhamento de um número: os registros que o compõem, cada um abrindo o próprio registro. */
 export const ReportDrill: React.FC<ReportDrillProps> = ({
-  spec, title, records, matched, isLoading, onOpenRecord, onClose,
+  spec, target, title, records, matched, isLoading, onOpenRecord, onClose,
 }) => {
-  const vm = useReportDrillViewModel(spec, records, matched);
+  const vm = useReportDrillViewModel(spec, target, records, matched);
 
   return (
     <Modal title={title} onClose={onClose} size="xlarge">

@@ -627,6 +627,69 @@ export const reportRequiredPermissions = (spec: ReportSpec, ctx: SchemaContext):
   ];
 };
 
+/** Uma coluna do detalhe: uma dimensão, ou o campo que uma medida agrega, lido registro a registro. */
+export type ReportDrillColumn =
+  | { kind: 'dimension'; key: string; dimension: ReportDimension }
+  | { kind: 'measure'; key: string; path: string; measure: ReportAggregateMeasure };
+
+/**
+ * As operações cujo valor POR REGISTRO tem a unidade do total — a parcela da soma, o valor de que se
+ * tirou a média. A contagem fica de fora: o caminho dela é o que se conta, não o que se mostra.
+ */
+const DRILL_MEASURE_OPS: readonly NumericAggregationOp[] = ['sum', 'avg', 'min', 'max'];
+
+/**
+ * As colunas do detalhe do recorte clicado (#5).
+ *
+ * `fixed` é o caminho clicado. A dimensão dele SAI, porque ali o valor é um só — e era isso que fazia o
+ * detalhe de um resumo de um nível ter uma coluna que repetia o nome do grupo em toda linha. Fica quando
+ * o valor mostrado NÃO é constante: no "Outros" do Top N, que junta vários, e numa dimensão com faixas,
+ * em que a célula mostra o valor cru (os dias de atraso) e não a faixa clicada.
+ *
+ * Sem `columns` declarado, o padrão são as outras dimensões mais o campo de cada medida mostrada — as
+ * parcelas que compõem o número clicado. Tudo isso já está em `reportPaths`: nenhuma coluna aqui amplia
+ * a leitura nem a permissão cobrada. Se nada sobrar, volta às dimensões inteiras: um detalhe sem coluna
+ * nenhuma esconderia os registros que ele existe para mostrar.
+ */
+export const reportDrillColumns = (
+  spec: ReportSpec,
+  fixed: readonly { dimension: string; key: string }[],
+): ReportDrillColumn[] => {
+  const dimensions = spec.dataset.dimensions ?? [];
+  const byKey = new Map(dimensions.map((dimension) => [dimension.key, dimension]));
+  const constant = new Set(fixed
+    .filter((entry) => entry.key !== REPORT_OTHERS_KEY && (byKey.get(entry.dimension)?.buckets ?? []).length === 0)
+    .map((entry) => entry.dimension));
+  const asColumn = (dimension: ReportDimension): ReportDrillColumn => ({ kind: 'dimension', key: dimension.key, dimension });
+
+  const declared = spec.presentation?.drillDown?.columns;
+  const chosen = Array.isArray(declared) && declared.length > 0
+    ? [...new Set(declared)]
+      .map((key) => byKey.get(key))
+      .filter((dimension): dimension is ReportDimension => dimension !== undefined && !constant.has(dimension.key))
+      .map(asColumn)
+    : defaultDrillColumns(spec, dimensions.filter((dimension) => !constant.has(dimension.key)));
+
+  return chosen.length > 0 ? chosen : dimensions.map(asColumn);
+};
+
+const defaultDrillColumns = (spec: ReportSpec, dimensions: ReportDimension[]): ReportDrillColumn[] => {
+  const columns: ReportDrillColumn[] = dimensions.map((dimension) => ({ kind: 'dimension', key: dimension.key, dimension }));
+  const shownPaths = new Set(dimensions.filter((dimension) => !isComputedDimension(dimension)).map((dimension) => dimension.path));
+  const measures = new Map((spec.dataset.measures ?? []).map((measure) => [measure.key, measure]));
+
+  for (const key of spec.shape.kind === 'tabular' ? [] : spec.shape.values) {
+    const measure = measures.get(key);
+    // A medida FILTRADA fica de fora: o registro que o filtro dela descartou mostraria um valor que o
+    // número clicado não somou.
+    if (!measure || !isAggregateMeasure(measure) || !measure.path || (measure.filter ?? []).length > 0) continue;
+    if (!DRILL_MEASURE_OPS.includes(measure.op) || shownPaths.has(measure.path)) continue;
+    shownPaths.add(measure.path);
+    columns.push({ kind: 'measure', key: measure.key, path: measure.path, measure });
+  }
+  return columns;
+};
+
 /** O detalhamento vale para este relatório? Ligado salvo quando o spec o desliga explicitamente. */
 export const reportDrillEnabled = (spec: ReportSpec): boolean =>
   // A linha da série é uma FOTO, não um registro: não há o que abrir atrás dela.

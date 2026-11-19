@@ -151,6 +151,7 @@ export const ReportView: React.FC<ReportViewProps> = ({ reportKey, tabKey, view 
       {vm.drillOpen && (
         <ReportDrill
           spec={vm.spec}
+          target={vm.drillTarget}
           title={vm.drillTitle}
           records={vm.drillRecords}
           matched={vm.drillMatched}
