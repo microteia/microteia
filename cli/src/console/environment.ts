@@ -211,11 +211,15 @@ brand:
   # Sentence on the sign-in screen and in link previews. Empty: the tagline.
   description: ${quote(environment.brand.description)}
   # Images, relative to this file — keep them next to it, never inside .microteia/. Logo: PNG, SVG,
-  # WebP or JPEG. Icon (browser tab): PNG, SVG or ICO. Empty logo: the Microteia logo.
+  # WebP or JPEG. Icon (browser tab): PNG, SVG or ICO. Empty logo: the Microteia logo. The first PNG
+  # of the two also becomes the iPhone home-screen icon — a square 180×180 PNG icon fits it best.
   logo: ${quote(environment.brand.logo)}
   icon: ${quote(environment.brand.icon)}
   # Accent color, as #rrggbb. It replaces the accent of every theme. Empty: the theme decides.
   accent: ${quote(environment.brand.accent)}
+  # The public address, when the installation has its own domain (https://app.example.com). Link
+  # previews need the image at a full address. Empty: the project's https://<project>.web.app.
+  url: ${quote(environment.brand.url)}
 `;
 
 /**

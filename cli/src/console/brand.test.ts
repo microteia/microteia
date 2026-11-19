@@ -103,23 +103,57 @@ describe('identidade da instalação', () => {
     expect(stamp.summary).toBe('Acme Legal (logo, accent #1f6feb)');
   });
 
-  it('reescreve o título, a descrição, as prévias de link e o ícone do index.html do kernel', async () => {
+  it('reescreve o título, a descrição, as prévias de link e os ícones do index.html do kernel', async () => {
     const root = await workspace();
     const stamp = await buildBrandStamp(root, declared({
       name: 'Acme "Legal"',
       tagline: 'Legal work, simplified',
       logo: 'brand/logo.png',
       icon: 'brand/icon.svg',
-    }), 'microteia.yaml');
+    }), 'microteia.yaml', 'https://acme-legal.web.app');
 
     const html = stamp.rewriteHtml(await readFile(join(repoRoot, 'index.html'), 'utf8'));
 
     expect(html).not.toMatch(/Microteia/);
+    expect(html).not.toMatch(/apple-touch-icon\.png|favicon\.ico/);
     expect(html).toContain('<title>Acme &quot;Legal&quot; — Legal work, simplified</title>');
     expect(html).toContain('<meta property="og:title" content="Acme &quot;Legal&quot; — Legal work, simplified" />');
     expect(html).toContain('<meta name="twitter:description" content="Legal work, simplified" />');
-    expect(html).toMatch(/<meta property="og:image" content="\/brand\/logo-[0-9a-f]{8}\.png" \/>/);
+    expect(html).toMatch(/<meta property="og:image" content="https:\/\/acme-legal\.web\.app\/brand\/logo-[0-9a-f]{8}\.png" \/>/);
+    expect(html).toMatch(/<meta name="twitter:image" content="https:\/\/acme-legal\.web\.app\/brand\/logo-[0-9a-f]{8}\.png" \/>/);
     expect(html).toMatch(/<link rel="icon" type="image\/svg\+xml" href="\/brand\/icon-[0-9a-f]{8}\.svg" \/>/);
+    // O ícone é SVG, que o iOS não aceita: o atalho da tela de início fica com o logo PNG.
+    expect(html).toMatch(/<link rel="apple-touch-icon" href="\/brand\/logo-[0-9a-f]{8}\.png" \/>/);
+  });
+
+  it('o domínio próprio vence o endereço do projeto, e só a origem é aceita', async () => {
+    const root = await workspace();
+    const stamp = await buildBrandStamp(
+      root,
+      declared({ logo: 'brand/logo.png', url: 'https://legal.acme.example/' }),
+      'microteia.yaml',
+      'https://acme-legal.web.app',
+    );
+    const html = stamp.rewriteHtml(await readFile(join(repoRoot, 'index.html'), 'utf8'));
+    expect(html).toMatch(/content="https:\/\/legal\.acme\.example\/brand\/logo-[0-9a-f]{8}\.png"/);
+    expect(stamp.summary).toBe('Acme Legal (logo, at https://legal.acme.example)');
+
+    for (const url of ['legal.acme.example', 'ftp://legal.acme.example', 'https://acme.example/app']) {
+      await expect(buildBrandStamp(root, declared({ url }), 'microteia.yaml')).rejects.toThrow(/brand\.url/);
+    }
+  });
+
+  it('sem identidade própria, a prévia ainda ganha o endereço completo do logo da plataforma', async () => {
+    const stamp = await buildBrandStamp('/nowhere', EMPTY_BRAND, 'microteia.yaml', 'https://acme-legal.web.app');
+    const html = stamp.rewriteHtml(await readFile(join(repoRoot, 'index.html'), 'utf8'));
+    expect(html).toContain('<meta property="og:image" content="https://acme-legal.web.app/logo.png" />');
+    expect(html).toContain('<meta name="twitter:image" content="https://acme-legal.web.app/logo.png" />');
+    expect(html).toContain('<link rel="apple-touch-icon" href="/apple-touch-icon.png" />');
+    expect(evaluate(stamp.contents)).toBeUndefined();
+
+    const declaredOnly = await buildBrandStamp('/nowhere', { ...EMPTY_BRAND, url: 'https://x.example' }, 'microteia.yaml');
+    expect(declaredOnly.rewriteHtml('<meta property="og:image" content="/logo.png" />'))
+      .toBe('<meta property="og:image" content="https://x.example/logo.png" />');
   });
 
   it('deixa a referência de mensagem fora do HTML, onde ela não se resolve', async () => {

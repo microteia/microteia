@@ -26,6 +26,12 @@ export interface BrandDeclaration {
   logo: string | null;
   icon: string | null;
   accent: string | null;
+  /**
+   * O endereço público da instalação (`https://curatino.com.br`), quando ela tem domínio próprio.
+   * Existe só para a prévia de link: o padrão exige a imagem em endereço COMPLETO, e o WhatsApp, o
+   * LinkedIn e o X descartam a relativa. Vazio, vale o endereço do Firebase Hosting do projeto.
+   */
+  url: string | null;
 }
 
 export const EMPTY_BRAND: BrandDeclaration = {
@@ -35,6 +41,7 @@ export const EMPTY_BRAND: BrandDeclaration = {
   logo: null,
   icon: null,
   accent: null,
+  url: null,
 };
 
 export const brandFromSections = (sections: YamlSections): BrandDeclaration => {
@@ -49,6 +56,7 @@ export const brandFromSections = (sections: YamlSections): BrandDeclaration => {
     logo: value('logo'),
     icon: value('icon'),
     accent: value('accent'),
+    url: value('url'),
   };
 };
 
@@ -143,27 +151,72 @@ const escapeAttribute = (value: string): string =>
 const plainText = (value: string | null): string | null =>
   value === null || value.startsWith('@') ? null : value;
 
-const setMeta = (html: string, attribute: 'name' | 'property', key: string, value: string): string =>
+const rewriteMeta = (
+  html: string,
+  attribute: 'name' | 'property',
+  key: string,
+  next: (current: string) => string,
+): string =>
   html.replace(
-    new RegExp(`(<meta\\s+${attribute}="${key.replace(/[.:]/g, '\\$&')}"\\s+content=")[^"]*(")`, 'g'),
-    (_match, before: string, after: string) => `${before}${escapeAttribute(value)}${after}`,
+    new RegExp(`(<meta\\s+${attribute}="${key.replace(/[.:]/g, '\\$&')}"\\s+content=")([^"]*)(")`, 'g'),
+    (_match, before: string, current: string, after: string) => `${before}${escapeAttribute(next(current))}${after}`,
   );
 
+const setMeta = (html: string, attribute: 'name' | 'property', key: string, value: string): string =>
+  rewriteMeta(html, attribute, key, () => value);
+
+/** As duas tags de imagem da prévia de link — a do Open Graph e a do X. */
+const PREVIEW_IMAGES: ReadonlyArray<['name' | 'property', string]> = [
+  ['property', 'og:image'],
+  ['name', 'twitter:image'],
+];
+
+/**
+ * Só a ORIGEM: a imagem é servida da raiz do hosting, e um caminho no endereço declarado a
+ * deslocaria para um lugar onde ela não existe.
+ */
+const parseOrigin = (value: string, fileLabel: string): string => {
+  const parsed = URL.canParse(value) ? new URL(value) : null;
+  if (parsed === null || (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')
+    || parsed.pathname !== '/' || parsed.search !== '' || parsed.hash !== '') {
+    throw new Error(`${fileLabel}: brand.url must be the address of the site, like https://app.example.com — got "${value}".`);
+  }
+  return parsed.origin;
+};
+
+/** Completa o caminho da raiz com a origem; o endereço já completo passa intacto. */
+const absolute = (origin: string | null, path: string): string =>
+  origin !== null && path.startsWith('/') && !path.startsWith('//') ? `${origin}${path}` : path;
+
+/**
+ * `defaultOrigin` é o endereço que a instalação tem sem domínio próprio — o `web.app` do projeto, que
+ * só quem chama conhece. Nulo, a imagem da prévia fica relativa, como vinha no pacote.
+ */
 export const buildBrandStamp = async (
   baseDir: string,
   declaration: BrandDeclaration,
   fileLabel: string,
+  defaultOrigin: string | null = null,
 ): Promise<BrandStamp> => {
+  const origin = declaration.url === null ? defaultOrigin : parseOrigin(declaration.url, fileLabel);
+  // A imagem relativa que o pacote traz (o logo da plataforma) também não aparece na prévia: a
+  // instalação SEM identidade própria ganha o endereço completo do mesmo jeito.
+  const absolutePreviewImages = (html: string): string => PREVIEW_IMAGES.reduce(
+    (out, [attribute, key]) => rewriteMeta(out, attribute, key, (current) => absolute(origin, current)),
+    html,
+  );
+
   if (declaration.name === null) {
+    // `url` é o endereço da instalação, não parte da identidade: vale também sem ela.
     const stray = (Object.keys(declaration) as Array<keyof BrandDeclaration>)
-      .filter((key) => key !== 'name' && declaration[key] !== null);
+      .filter((key) => key !== 'name' && key !== 'url' && declaration[key] !== null);
     if (stray.length > 0) {
       throw new Error(
         `${fileLabel}: brand.name is empty, but ${stray.map((key) => `brand.${key}`).join(', ')} `
         + 'is set. Fill in the name, or clear the whole block to keep the Microteia identity.',
       );
     }
-    return { contents: NO_BRAND_JS, assets: [], rewriteHtml: (html) => html, summary: null };
+    return { contents: NO_BRAND_JS, assets: [], rewriteHtml: absolutePreviewImages, summary: null };
   }
 
   if (declaration.accent !== null && !ACCENT_PATTERN.test(declaration.accent)) {
@@ -195,6 +248,9 @@ export const buildBrandStamp = async (
   // O ícone da aba cai no logo: um PNG ou SVG serve aos dois, e a aba com o logo da plataforma ao
   // lado do nome do produto era justamente o que esta identidade veio corrigir.
   const tabIcon = icon ?? logo;
+  // O iOS só aceita PNG no atalho da tela de início. Sem nenhum, fica o da plataforma: tirar o link
+  // não adiantaria, porque o iOS pede `/apple-touch-icon.png` por conta própria.
+  const touchIcon = [icon, logo].find((asset) => asset?.contentType === 'image/png') ?? null;
 
   const rewriteHtml = (html: string): string => {
     let out = html;
@@ -210,8 +266,7 @@ export const buildBrandStamp = async (
       out = setMeta(out, 'name', 'twitter:description', summary);
     }
     if (logo !== null) {
-      out = setMeta(out, 'property', 'og:image', `/${logo.target}`);
-      out = setMeta(out, 'name', 'twitter:image', `/${logo.target}`);
+      for (const [attribute, key] of PREVIEW_IMAGES) out = setMeta(out, attribute, key, `/${logo.target}`);
     }
     if (tabIcon !== null) {
       out = out.replace(
@@ -219,13 +274,17 @@ export const buildBrandStamp = async (
         `<link rel="icon" type="${tabIcon.contentType}" href="/${tabIcon.target}" />`,
       );
     }
-    return out;
+    if (touchIcon !== null) {
+      out = out.replace(/<link\s+rel="apple-touch-icon"[^>]*>/, `<link rel="apple-touch-icon" href="/${touchIcon.target}" />`);
+    }
+    return absolutePreviewImages(out);
   };
 
   const details = [
     logo === null ? null : 'logo',
     icon === null ? null : 'icon',
     stamped.accent === null ? null : `accent ${stamped.accent}`,
+    declaration.url === null ? null : `at ${origin}`,
   ].filter((detail): detail is string => detail !== null);
 
   return {

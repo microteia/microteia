@@ -3170,6 +3170,23 @@ o mesmo vão do SSO, e a mesma saída: o que se mostra antes do login é o que q
   pacote, guardado em `install/index.pristine.html` no primeiro deploy; reescrever o já reescrito
   deixava o nome anterior no ar quando o bloco era esvaziado.
 
+**A prévia de link precisa de endereço COMPLETO.** O padrão do Open Graph exige a imagem em URL
+absoluta, e o WhatsApp, o LinkedIn e o X descartam a relativa — o `/logo.png` que o pacote sempre
+trouxe nunca aparecia na prévia. O carimbo completa `og:image` e `twitter:image` com a origem: o
+`brand.url` quando a instalação tem domínio próprio (só a origem é aceita — a imagem é servida da
+raiz), senão `https://<projeto>.web.app`, que é o que só o `deploy` conhece. Vale também SEM
+identidade própria: é o logo da plataforma que ganha o endereço. O cartão é `summary`, e não
+`summary_large_image`, porque a imagem é sempre um logo quadrado.
+
+**Ícones:** o `<link rel="icon">` vira o `brand.icon` ou, sem ele, o logo. O
+`<link rel="apple-touch-icon">` vira o primeiro PNG dos dois, porque o iOS não aceita outro formato no
+atalho da tela de início; sem PNG nenhum fica o da plataforma — tirar o link não adiantaria, o iOS pede
+`/apple-touch-icon.png` por conta própria. Ficam da plataforma, de propósito: o `/favicon.ico` da raiz
+(só o pede quem ignora o `<link>`, e convertê-lo exigiria gerar `.ico`) e o ícone das notificações
+(`public/notification-sw.js`, que roda num service worker, onde o `brand.js` não chega). Não há
+`site.webmanifest`: nenhuma página o referenciava, e o "instalar como aplicativo" exigiria um por
+identidade.
+
 **A leitura no navegador é desconfiada** (`domain/schema/brand.ts`): o logo só vale como caminho da
 própria origem (nem `//host`, nem `javascript:`), e a cor só como `#rrggbb`.
 
