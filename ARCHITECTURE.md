@@ -3178,14 +3178,23 @@ raiz), senão `https://<projeto>.web.app`, que é o que só o `deploy` conhece. 
 identidade própria: é o logo da plataforma que ganha o endereço. O cartão é `summary`, e não
 `summary_large_image`, porque a imagem é sempre um logo quadrado.
 
-**Ícones:** o `<link rel="icon">` vira o `brand.icon` ou, sem ele, o logo. O
-`<link rel="apple-touch-icon">` vira o primeiro PNG dos dois, porque o iOS não aceita outro formato no
-atalho da tela de início; sem PNG nenhum fica o da plataforma — tirar o link não adiantaria, o iOS pede
-`/apple-touch-icon.png` por conta própria. Ficam da plataforma, de propósito: o `/favicon.ico` da raiz
-(só o pede quem ignora o `<link>`, e convertê-lo exigiria gerar `.ico`) e o ícone das notificações
-(`public/notification-sw.js`, que roda num service worker, onde o `brand.js` não chega). Não há
-`site.webmanifest`: nenhuma página o referenciava, e o "instalar como aplicativo" exigiria um por
-identidade.
+**Ícones:** o `<link rel="icon">` vira o `brand.icon` ou, sem ele, o logo. O ícone do app FORA da
+página — o `<link rel="apple-touch-icon">` e o ícone das notificações — é o primeiro PNG dos dois,
+carimbado como `appIcon`: o iOS não aceita outro formato no atalho da tela de início, e o Chrome não
+desenha SVG na notificação. Sem PNG nenhum, fica o da plataforma — tirar o link não adiantaria, o iOS
+pede `/apple-touch-icon.png` por conta própria.
+
+**O service worker das notificações lê o mesmo `brand.js`** (`importScripts`), e é por isso que o
+carimbo atribui em `globalThis`, e não em `window`, que no worker não existe. O `importScripts` fica
+num `try`: o carimbo do Console anterior à 2.47.0 escrevia em `window` e lançaria ali, e um worker que
+lança na avaliação nem se instala — a pessoa ficaria sem notificação. Importar o arquivo também faz o
+navegador reinstalar o worker quando a identidade muda. Com identidade própria a notificação vai SEM
+`badge`: o do Android é uma silhueta tirada da transparência, e um logo colorido vira um quadrado
+branco; o navegador põe o dele, neutro.
+
+Fica da plataforma, de propósito, o `/favicon.ico` da raiz: só o pede quem ignora o `<link>`, e
+trocá-lo exigiria gerar `.ico`. Não há `site.webmanifest`: nenhuma página o referenciava, e o
+"instalar como aplicativo" exigiria um por identidade.
 
 **A leitura no navegador é desconfiada** (`domain/schema/brand.ts`): o logo só vale como caminho da
 própria origem (nem `//host`, nem `javascript:`), e a cor só como `#rrggbb`.
@@ -3201,7 +3210,8 @@ o `primary` deixava o botão escurecer para a cor do tema ao passar o mouse. Sem
 **Os nossos ambientes** usam a pasta `brand/` da raiz (`brand/brand.yaml`, mesmo bloco `brand:`, com
 os caminhos relativos à pasta), lida pelo `vite.config.ts` com o MESMO módulo do Console — no
 `npm run dev` e nos builds com `TARGET`, nunca no modo `dist`. O `pack` confere o artefato e recusa um
-`dist/` que saia com identidade: ela é de quem instala.
+`dist/` que saia com identidade: ela é de quem instala. A conferência (`carriesBrandStamp`) só olha
+linha de código — o `brand.js` vazio mostra a atribuição num comentário de exemplo.
 
 ### O pacote
 

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.283.2] — 2026-11-19
+
+- As notificações recebidas no computador ou no celular passam a mostrar o ícone do produto, e não mais o da Microteia.
+
 #### [9.283.1] — 2026-11-19
 
 - O link do sistema compartilhado no WhatsApp, no LinkedIn ou no X agora mostra também o logo, e não só o nome e a descrição.

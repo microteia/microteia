@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runInNewContext } from 'node:vm';
+import { createContext, runInContext, runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { parseStampedBrand } from '../../../src/domain/schema/brand';
 import { parseYamlSections } from '../shared/yaml.js';
@@ -12,6 +12,7 @@ import {
   applyBrandStamp,
   brandFromSections,
   buildBrandStamp,
+  carriesBrandStamp,
 } from './brand.js';
 import type { BrandDeclaration } from './brand.js';
 
@@ -35,9 +36,45 @@ const declared = (overrides: Partial<BrandDeclaration>): BrandDeclaration => ({
 
 /** O que o navegador faria com o arquivo: executá-lo e ler o global. */
 const evaluate = (contents: string): unknown => {
-  const window: Record<string, unknown> = {};
-  runInNewContext(contents, { window });
-  return window.__MICROTEIA_BRAND__;
+  const global: Record<string, unknown> = {};
+  runInNewContext(contents, global);
+  return global.__MICROTEIA_BRAND__;
+};
+
+interface ShownNotification {
+  title: string;
+  options: { icon?: string; badge?: string };
+}
+
+/**
+ * Roda o `notification-sw.js` REAL como o navegador: o próprio contexto é o `self`, e o
+ * `importScripts('/brand.js')` executa o carimbo ali dentro. Devolve o que um push mostraria.
+ */
+const notificationFrom = async (brandJs: string | null): Promise<ShownNotification> => {
+  const handlers = new Map<string, (event: unknown) => void>();
+  const shown: ShownNotification[] = [];
+  const context = createContext({
+    importScripts: (path: string) => {
+      expect(path).toBe('/brand.js');
+      if (brandJs === null) throw new Error('404');
+      runInContext(brandJs, context);
+    },
+    addEventListener: (type: string, handler: (event: unknown) => void) => handlers.set(type, handler),
+    registration: {
+      showNotification: (title: string, options: ShownNotification['options']) => {
+        shown.push({ title, options });
+        return Promise.resolve();
+      },
+    },
+  });
+  runInContext('var self = globalThis;', context);
+  runInContext(await readFile(join(repoRoot, 'public', 'notification-sw.js'), 'utf8'), context);
+  handlers.get('push')?.({
+    data: { json: () => ({ title: 'Deadline today' }) },
+    waitUntil: () => undefined,
+  });
+  expect(shown).toHaveLength(1);
+  return shown[0];
 };
 
 describe('identidade da instalação', () => {
@@ -99,6 +136,7 @@ describe('identidade da instalação', () => {
       logo: expect.stringMatching(/^\/brand\/logo-[0-9a-f]{8}\.png$/),
       accent: '#1f6feb',
     });
+    expect(evaluate(stamp.contents)).toMatchObject({ appIcon: parsed?.logo });
     expect(stamp.assets.map((asset) => `/${asset.target}`)).toEqual([parsed?.logo]);
     expect(stamp.summary).toBe('Acme Legal (logo, accent #1f6feb)');
   });
@@ -160,6 +198,40 @@ describe('identidade da instalação', () => {
     const stamp = await buildBrandStamp('/nowhere', declared({ tagline: '@com.acme.brand/tagline' }), 'microteia.yaml');
     const html = stamp.rewriteHtml('<title>Microteia</title>');
     expect(html).toBe('<title>Acme Legal</title>');
+  });
+
+  it('a notificação usa o ícone PNG da instalação, e sem ele o da plataforma', async () => {
+    const root = await workspace();
+    const branded = await buildBrandStamp(root, declared({ logo: 'brand/logo.png', icon: 'brand/icon.svg' }), 'microteia.yaml');
+    const withPng = await notificationFrom(branded.contents);
+    expect(withPng.options.icon).toMatch(/^\/brand\/logo-[0-9a-f]{8}\.png$/);
+    expect(withPng.options.badge).toBeUndefined();
+
+    // Só SVG: o Chrome não o desenha na notificação, então fica o ícone da plataforma.
+    const svgOnly = await notificationFrom(
+      (await buildBrandStamp(root, declared({ icon: 'brand/icon.svg' }), 'microteia.yaml')).contents,
+    );
+    expect(svgOnly.options.icon).toBe('/web-app-manifest-192x192.png');
+
+    const platform = await notificationFrom((await buildBrandStamp(root, EMPTY_BRAND, 'microteia.yaml')).contents);
+    expect(platform.options).toMatchObject({ icon: '/web-app-manifest-192x192.png', badge: '/favicon-96x96.png' });
+  });
+
+  it('o worker sobrevive ao brand.js que falta e ao carimbo antigo, que escrevia em window', async () => {
+    expect((await notificationFrom(null)).options.icon).toBe('/web-app-manifest-192x192.png');
+    const legacy = 'window.__MICROTEIA_BRAND__ = { "name": "Acme Legal", "logo": "/brand/logo-1.png" };';
+    expect((await notificationFrom(legacy)).options.icon).toBe('/web-app-manifest-192x192.png');
+    expect((await notificationFrom(await readFile(join(repoRoot, 'public', 'brand.js'), 'utf8'))).options.badge)
+      .toBe('/favicon-96x96.png');
+  });
+
+  it('o pack distingue o brand.js vazio do pacote, com o exemplo em comentário, do carimbado', async () => {
+    const placeholder = await readFile(join(repoRoot, 'public', 'brand.js'), 'utf8');
+    expect(placeholder).toMatch(/__MICROTEIA_BRAND__ = \{/);
+    expect(carriesBrandStamp(placeholder)).toBe(false);
+    expect(carriesBrandStamp((await buildBrandStamp('/nowhere', EMPTY_BRAND, 'microteia.yaml')).contents)).toBe(false);
+    expect(carriesBrandStamp((await buildBrandStamp('/nowhere', declared({}), 'microteia.yaml')).contents)).toBe(true);
+    expect(carriesBrandStamp('window.__MICROTEIA_BRAND__ = {"name":"Acme"};')).toBe(true);
   });
 
   it('aplica sempre a partir do HTML original, e limpa o carimbo anterior', async () => {
