@@ -293,6 +293,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'action.clear': 'Clear',
   'action.clear-all': 'Clear all',
   'app.tagline': 'AI-First Application Platform',
+  'platform.powered-by': 'Powered by',
   'sidebar.menu': 'Menu',
   'status.command-palette': '⌘K Command palette',
   'status.terms': 'Terms and Privacy',

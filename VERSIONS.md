@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.283.3] — 2026-11-19
+
+- O aviso "Desenvolvido com Microteia" agora também chega traduzido às mensagens preparadas pelo servidor.
+
 #### [9.283.2] — 2026-11-19
 
 - As notificações recebidas no computador ou no celular passam a mostrar o ícone do produto, e não mais o da Microteia.
