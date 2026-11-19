@@ -6,10 +6,13 @@ import { authErrorKey, authProviderSpecOf } from '../../../domain/schema/auth';
 import { useAuthProviders, type AuthProviderDescriptor } from '../../shared/auth/useAuthProviders';
 
 import { useT } from '../../shared/i18n/useT';
+import { useBrand, type Brand } from '../../shared/brand/useBrand';
 
 export type LoginMode = 'login' | 'signup' | 'forgot-password' | 'verify-email';
 
 export interface LoginViewModel {
+  /** A identidade da instalação: é ela, e não a plataforma, que recebe quem chega. */
+  brand: Brand;
   mode: LoginMode;
   loading: boolean;
   error: string;
@@ -262,7 +265,10 @@ export const useLoginViewModel = (): LoginViewModel => {
     }
   }, [signOut]);
 
+  const brand = useBrand();
+
   return {
+    brand,
     mode,
     loading,
     error,

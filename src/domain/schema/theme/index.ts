@@ -1,5 +1,6 @@
 export type { ThemeBase, ThemeShape, ThemeSpec, ThemeTagColor } from './themeSpec';
 export { asThemeSpec, composeTheme, isValidThemeId } from './themeSpec';
+export { applyAccent } from './accent';
 
 export { AUTOMATIC_THEME, negotiateTheme } from './preference';
 

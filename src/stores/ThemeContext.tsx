@@ -6,6 +6,7 @@ import { GlobalStyles } from '../shared/styles/GlobalStyles';
 import {
   THEME_DEFINITION_POINT,
   THEME_TOKENS_POINT,
+  applyAccent,
   composeTheme,
   negotiateTheme,
   themeSpecsOf,
@@ -17,6 +18,7 @@ import { ThemeContext, type ThemeOption } from './useTheme';
 import { ThemeSourceContext, type ThemeSource } from './useThemeSource';
 import { useContributions } from './useKernel';
 import { RESERVED_THEME_IDS } from '../plugins/themes/systemThemes';
+import { readStampedBrand } from '../infrastructure/boot/stampedBrand';
 
 const STORAGE_KEY = 'microteia:theme';
 
@@ -97,16 +99,23 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
    * Sem tema contribuído nenhum, a base do kernel vale sozinha. Não é hipótese: é o instante entre o
    * React montar a árvore e o host de plugins terminar de carregar — e nele a tela precisa ter cor.
    */
-  const theme: Theme = useMemo(
-    () => (active
+  /**
+   * A cor da INSTALAÇÃO vence a do tema, em qualquer tema: é a identidade do produto, e um produto
+   * que muda de cor conforme a preferência de quem o abre deixa de ser reconhecível. Sem cor
+   * carimbada, o tema decide sozinho.
+   */
+  const accent = readStampedBrand()?.accent ?? null;
+
+  const theme: Theme = useMemo(() => {
+    const composed = active
       ? composeTheme(
         THEME_BASES[active.extends],
         resolveThemeTokens(bundles, active.extends, active.id),
         active,
       )
-      : baseDarkTheme),
-    [active, bundles],
-  );
+      : baseDarkTheme;
+    return accent ? applyAccent(composed, accent) : composed;
+  }, [active, bundles, accent]);
 
   /**
    * A lista que Configurações e a barra lateral mostram. A amostra de cor sai do tema JÁ MONTADO de
@@ -115,11 +124,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
    */
   const available = useMemo<ThemeOption[]>(
     () => specs.map((spec) => {
-      const resolved = composeTheme(
+      const composed = composeTheme(
         THEME_BASES[spec.extends],
         resolveThemeTokens(bundles, spec.extends, spec.id),
         spec,
       );
+      const resolved = accent ? applyAccent(composed, accent) : composed;
       return {
         id: spec.id,
         name: spec.name,
@@ -128,7 +138,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         backgroundColor: resolved.colors.background,
       };
     }),
-    [specs, bundles],
+    [specs, bundles, accent],
   );
 
   /**

@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.283.0] — 2026-11-18
+
+- feat(brand): installation identity. `window.__MICROTEIA_BRAND__` (stamped in `brand.js`, loaded synchronously in `<head>` like `firebase-config.js`; the package ships it empty) carries `name`, `tagline`, `description`, `logo` and `accent`. Read defensively by `parseStampedBrand` — the logo only as a same-origin path, the accent only as `#rrggbb`, no `name` means no brand. The sign-in screen and the sidebar header render it through `useBrand()`; texts go through `useLabel()`, so an `@namespace/key` reference translates. Until now every installation was called Microteia, which is the platform that runs it.
+- feat(theme): `applyAccent` — an installation accent replaces `primary`, `primaryHover`, `primaryLight` and `calendarToday` on every theme, in the `ThemeProvider`. Without one, the theme decides.
+- feat(ui): `layout/PlatformWatermark` — the platform's logo, name and tagline as a click-through watermark in the bottom-right corner of the workspace, and "Powered by" under the sign-in card. Shown only when the installation has a brand of its own.
+- build: `brand/brand.yaml` at the repository root (same `brand:` block, paths relative to that folder) brands our own environments through `vite.config.ts`, never in `dist` mode; `pack` refuses a `dist/` carrying a brand.
+- chore(locale-pt-br): 1.231.0 carries `platform.powered-by`.
+
 #### [9.282.1] — 2026-11-18
 
 - fix(reports/ui): `PeriodPicker` shows the unit's caption beside the count's. It was passed as the `SearchSelect` `label`, which that control does not draw, so the unit select stood unnamed next to a captioned "How many" (found in the end-to-end test of #4).

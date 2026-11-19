@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CLI_VERSION } from '../shared/paths.js';
 import { ENVIRONMENT_FILE, readEnvironment, serializeEnvironment } from './environment.js';
+import { EMPTY_BRAND } from './brand.js';
 import type { Environment } from './environment.js';
 import { versionReport } from './versions.js';
 
@@ -20,6 +21,7 @@ const environment: Environment = {
   kernel: { version: '7.47.0', deployed: '7.46.0' },
   backend: { functions: null, parameters: null, indexes: null },
   login: { extensions: null },
+  brand: EMPTY_BRAND,
 };
 
 let root = '';
