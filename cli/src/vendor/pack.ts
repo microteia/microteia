@@ -29,7 +29,7 @@ import {
 } from '../kernel/backendShape.js';
 import type { BackendClaim, FirestoreIndexSpec } from '../kernel/backendShape.js';
 import { declarationsWithComments, environmentSecrets, findBundleLeaks } from './bundleAudit.js';
-import { BRAND_ASSETS_DIR, BRAND_STAMP_FILE } from '../console/brand.js';
+import { BRAND_ASSETS_DIR, BRAND_STAMP_FILE, carriesBrandStamp } from '../console/brand.js';
 import { KERNEL_CHANGELOG, readChangelog } from './changelogs.js';
 import { assertInsideRepository } from './repository.js';
 import { SDK_TARBALL } from './pluginWorkspaceTemplates.js';
@@ -289,7 +289,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   // que alguém mexer naquela condição.
   const brandStamp = await readFile(join(root, 'dist', BRAND_STAMP_FILE), 'utf8').catch(() => '');
   const brandAssets = await readdir(join(root, 'dist', BRAND_ASSETS_DIR)).catch(() => null);
-  if (/__MICROTEIA_BRAND__\s*=/.test(brandStamp) || brandAssets !== null) {
+  if (carriesBrandStamp(brandStamp) || brandAssets !== null) {
     throw new Error(
       `The built frontend carries an installation brand (dist/${BRAND_STAMP_FILE} or dist/${BRAND_ASSETS_DIR}/).\n`
       + 'The package must ship without one: the brand is stamped by "microteia deploy" at the installation.',

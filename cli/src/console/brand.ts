@@ -9,7 +9,8 @@ import type { YamlSections } from '../shared/yaml.js';
  * Uma instalação costuma ser um produto de um ramo só, e sem isto toda instalação se chamava Microteia,
  * que é a plataforma que a executa. O carimbo tem três partes, e cada uma existe por um leitor:
  *
- * - `brand.js` — para o bundle, que desenha a tela de entrada e o menu com ela.
+ * - `brand.js` — para o bundle, que desenha a tela de entrada e o menu com ela, e para o service
+ *   worker das notificações, que tira dele o ícone.
  * - as imagens em `hosting/brand/` — com o hash no nome, porque o hosting serve imagem com
  *   `max-age` de um dia: trocar o logo sob o mesmo nome deixaria o antigo no ar até amanhã.
  * - o `index.html` reescrito — para quem NÃO roda o JavaScript: a prévia de link do WhatsApp, o
@@ -105,6 +106,14 @@ export interface BrandStamp {
   /** Uma linha para a saída do deploy; nulo quando a instalação mantém a identidade da plataforma. */
   summary: string | null;
 }
+
+/**
+ * Se o `brand.js` atribui uma identidade. Só linha de CÓDIGO conta: o arquivo vazio que viaja no
+ * pacote mostra a atribuição num comentário de exemplo, e uma busca no texto inteiro o tomava por
+ * carimbado — o `pack` recusava todo build.
+ */
+export const carriesBrandStamp = (contents: string): boolean =>
+  contents.split('\n').some((line) => !line.trimStart().startsWith('//') && /__MICROTEIA_BRAND__\s*=/.test(line));
 
 const NO_BRAND_JS = '// No "brand:" declared for this installation: it shows the Microteia identity.\n';
 
@@ -230,17 +239,25 @@ export const buildBrandStamp = async (
     ? null
     : await loadImage(baseDir, declaration.icon, 'icon', ICON_TYPES, fileLabel);
 
+  // O ícone do app FORA da página — o atalho da tela de início e a notificação. Só PNG: o iOS não
+  // aceita outro formato no atalho, e o Chrome não desenha SVG na notificação. Sem nenhum, fica o da
+  // plataforma: tirar o link não adiantaria, porque o iOS pede `/apple-touch-icon.png` por conta própria.
+  const appIcon = [icon, logo].find((asset) => asset?.contentType === 'image/png') ?? null;
+
   const stamped = {
     name: declaration.name,
     tagline: declaration.tagline,
     description: declaration.description,
     logo: logo === null ? null : `/${logo.target}`,
     accent: declaration.accent === null ? null : declaration.accent.toLowerCase(),
+    appIcon: appIcon === null ? null : `/${appIcon.target}`,
   };
 
+  // `globalThis`, e não `window`: o service worker das notificações também importa este arquivo, e
+  // lá não há `window`. Na página os dois são o mesmo objeto.
   const contents = '// Stamped by "microteia deploy" from the "brand:" block. Do not edit: the next deploy\n'
     + '// rewrites it.\n'
-    + `window.__MICROTEIA_BRAND__ = ${JSON.stringify(stamped, null, 2)};\n`;
+    + `globalThis.__MICROTEIA_BRAND__ = ${JSON.stringify(stamped, null, 2)};\n`;
 
   const name = plainText(declaration.name);
   const tagline = plainText(declaration.tagline);
@@ -248,9 +265,6 @@ export const buildBrandStamp = async (
   // O ícone da aba cai no logo: um PNG ou SVG serve aos dois, e a aba com o logo da plataforma ao
   // lado do nome do produto era justamente o que esta identidade veio corrigir.
   const tabIcon = icon ?? logo;
-  // O iOS só aceita PNG no atalho da tela de início. Sem nenhum, fica o da plataforma: tirar o link
-  // não adiantaria, porque o iOS pede `/apple-touch-icon.png` por conta própria.
-  const touchIcon = [icon, logo].find((asset) => asset?.contentType === 'image/png') ?? null;
 
   const rewriteHtml = (html: string): string => {
     let out = html;
@@ -274,8 +288,8 @@ export const buildBrandStamp = async (
         `<link rel="icon" type="${tabIcon.contentType}" href="/${tabIcon.target}" />`,
       );
     }
-    if (touchIcon !== null) {
-      out = out.replace(/<link\s+rel="apple-touch-icon"[^>]*>/, `<link rel="apple-touch-icon" href="/${touchIcon.target}" />`);
+    if (appIcon !== null) {
+      out = out.replace(/<link\s+rel="apple-touch-icon"[^>]*>/, `<link rel="apple-touch-icon" href="/${appIcon.target}" />`);
     }
     return absolutePreviewImages(out);
   };

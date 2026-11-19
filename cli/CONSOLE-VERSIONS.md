@@ -22,6 +22,11 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.47.0] — 2026-11-19
+
+- feat(deploy): `brand.js` assigns to `globalThis`, not `window`, so the notification service worker can import it, and carries `appIcon` — the first PNG of `brand.icon`/`brand.logo`, the icon of the app outside the page (home-screen shortcut and notifications). In the page `globalThis` is `window`, so older kernels read it unchanged.
+- fix(pack): `carriesBrandStamp` ignores comment lines; the empty placeholder made the brand guard refuse every build.
+
 #### [2.46.0] — 2026-11-19
 
 - feat(deploy): `brand.url` in `microteia.yaml` — the public origin of an installation with its own domain. Link previews need the image at a full address; empty, the deploy uses `https://<project>.web.app`. Only an http(s) origin is accepted (a path would move the image away from where hosting serves it), and it is valid without `brand.name`.

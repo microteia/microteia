@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.283.2] — 2026-11-19
+
+- feat(push): `notification-sw.js` imports `/brand.js` and uses the stamped `appIcon` (the first PNG of `brand.icon`/`brand.logo`) as the notification icon; with a brand of its own it sends no `badge`, since Android draws the badge from the image alpha and a colored logo became a white square. The import is wrapped in `try`: a stamp from Console < 2.47.0 assigns to `window`, which does not exist in a worker, and a worker that throws while evaluating never installs. Importing the stamp also makes the browser reinstall the worker when the brand changes.
+- fix(pack): the installation-brand guard only looks at code lines. The empty `brand.js` the package ships shows the assignment in a comment, and the guard read it as stamped — `microteia pack` refused every build since 9.283.0.
+
 #### [9.283.1] — 2026-11-19
 
 - fix(brand): link previews carry the image at a full address. Open Graph requires an absolute `og:image`, and WhatsApp, LinkedIn and X dropped the relative `/logo.png` the package always shipped — previews showed text only. The deploy stamp completes `og:image` and `twitter:image` with `brand.url` or `https://<project>.web.app`, with or without a brand of its own.
