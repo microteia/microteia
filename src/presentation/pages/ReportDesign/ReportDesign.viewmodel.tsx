@@ -42,6 +42,8 @@ import type { QueryOperator, QueryPredicate } from '../../../domain/schema/query
 import type {
   ReportBucket,
   ReportDimension,
+  ReportDrillDown,
+  ReportDrillOrder,
   ReportGranularity,
   ReportHighlight,
   ReportHighlightOp,
@@ -266,6 +268,10 @@ interface ReportDraft {
   /** Os filtros que o LEITOR preenche ao abrir. */
   prompts: ReportPrompt[];
   highlights: ReportHighlight[];
+  /** As colunas do detalhe (`drillDown.columns`). Vazio = o padrão do contrato. */
+  drillColumns: string[];
+  /** A ordem dos registros do detalhe (`drillDown.orderBy`). Vazio = a ordem estável do servidor. */
+  drillOrder: ReportDrillOrder[];
   /** O total geral do resumo e do pivô. Ligado é o padrão do contrato. */
   grandTotal: boolean;
   /** Vazio = o padrão (o valor calculado). */
@@ -402,6 +408,14 @@ export interface ReportDesignViewModel {
   setColumnDimension: (key: string) => void;
   groupDimensions: string[];
   setGroupDimensions: (keys: string[]) => void;
+  /** A série de instantâneos não tem registro atrás do número: o detalhe não se aplica. */
+  drillAvailable: boolean;
+  drillColumns: string[];
+  setDrillColumns: (keys: string[]) => void;
+  /** `<dimensão>:<asc|desc>` do primeiro critério; vazio = a ordem padrão. */
+  drillOrder: string;
+  setDrillOrder: (value: string) => void;
+  drillOrderOptions: { value: string; label: string }[];
 
   filters: { label: string; op: string; value: string }[];
   filterPath: string;
@@ -565,6 +579,10 @@ export interface ReportDesignViewModel {
     bandsPlaceholder: string;
     others: string;
     grandTotal: string;
+    drill: string;
+    drillHint: string;
+    drillColumnsDefault: string;
+    drillOrder: string;
     emptyCell: string;
     scanLimit: string;
     scanLimitPlaceholder: string;
@@ -663,6 +681,42 @@ export const movedDimensions = (
  * Repeti-lo em toda linha de detalhe é escrever o mesmo valor debaixo da faixa que acabou de o
  * dizer, e um teste sobre um hook inteiro não guardaria essa linha.
  */
+/**
+ * O `drillDown` gravado a partir do que a autoria edita — colunas e ordem —, levando o resto como
+ * estava (`enabled: false` não tem controle aqui, e não pode sumir no primeiro Salvar). `undefined`
+ * quando não sobra nada: um `drillDown: {}` declararia uma capacidade que o relatório não usa.
+ */
+export const drillDownOf = (
+  original: ReportDrillDown | undefined,
+  columns: readonly string[],
+  orderBy: readonly ReportDrillOrder[],
+): ReportDrillDown | undefined => {
+  const kept: ReportDrillDown = { ...(original ?? {}) };
+  delete kept.columns;
+  delete kept.orderBy;
+  const next: ReportDrillDown = {
+    ...kept,
+    ...(columns.length > 0 ? { columns: [...columns] } : {}),
+    ...(orderBy.length > 0 ? { orderBy: [...orderBy] } : {}),
+  };
+  return Object.keys(next).length > 0 ? next : undefined;
+};
+
+/**
+ * Troca o PRIMEIRO critério da ordem do detalhe — o único que a tela edita. Os seguintes, vindos de um
+ * `.json` ou da IA, ficam como desempate; esvaziar o campo tira a ordem inteira, porque um desempate
+ * sem critério à frente passaria a ser a ordem sem que a tela o mostrasse.
+ */
+export const withDrillOrder = (
+  order: readonly ReportDrillOrder[],
+  dimension: string,
+  dir: ReportDrillOrder['dir'],
+): ReportDrillOrder[] => {
+  if (dimension === '') return [];
+  const rest = order.slice(1).filter((one) => one.dimension !== dimension);
+  return [{ dimension, dir }, ...rest];
+};
+
 export const tabularShapeOf = (
   dimensionKeys: string[],
   groupKeys: string[],
@@ -748,6 +802,8 @@ const draftFromSpec = (spec: ReportSpec, title: string): ReportDraft => ({
   chartStacked: spec.presentation?.chart?.stacked === true,
   prompts: spec.presentation?.prompts ?? [],
   highlights: spec.presentation?.highlight ?? [],
+  drillColumns: spec.presentation?.drillDown?.columns ?? [],
+  drillOrder: spec.presentation?.drillDown?.orderBy ?? [],
   grandTotal: !('grandTotal' in spec.shape) || spec.shape.grandTotal !== false,
   emptyCell: spec.shape.kind === 'matrix' ? (spec.shape.emptyCell ?? '') : '',
   scanLimit: spec.dataset.scanLimit !== undefined ? String(spec.dataset.scanLimit) : '',
@@ -877,6 +933,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         chartStacked: false,
         prompts: [],
         highlights: [],
+        drillColumns: [],
+        drillOrder: [],
         grandTotal: true,
         emptyCell: '',
         scanLimit: '',
@@ -984,6 +1042,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       chartSplitBy: '',
       prompts: [],
       highlights: [],
+      drillColumns: [],
+      drillOrder: [],
     });
     setFilterPath('');
     setFilterText('');
@@ -1090,6 +1150,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       groupDimensions: draft.groupDimensions.filter((one) => one !== key),
       chartCategory: draft.chartCategory === key ? '' : draft.chartCategory,
       chartSplitBy: draft.chartSplitBy === key ? '' : draft.chartSplitBy,
+      drillColumns: draft.drillColumns.filter((one) => one !== key),
+      drillOrder: draft.drillOrder.filter((one) => one.dimension !== key),
     });
   }, [draft, change]);
 
@@ -1210,6 +1272,23 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     });
     setHighlightValue('');
   }, [highlightMeasure, highlightOp, highlightValue, highlightTone, draft, change]);
+
+  const setDrillOrder = useCallback((value: string) => {
+    const [dimension = '', dir] = value.split(':');
+    change({ drillOrder: withDrillOrder(draft.drillOrder, dimension, dir === 'desc' ? 'desc' : 'asc') });
+  }, [draft, change]);
+
+  // A dimensão é a chave (letras, dígitos, `_`): o `:` não colide com ela.
+  const drillOrderOptions = useMemo(() => [
+    { value: '', label: t('design.drill.order.default') },
+    ...draft.dimensions.flatMap((dimension) => {
+      const field = label(dimension.label ?? dimension.key);
+      return (['asc', 'desc'] as const).map((dir) => ({
+        value: `${dimension.key}:${dir}`,
+        label: t(`design.drill.order.${dir}`, { field }),
+      }));
+    }),
+  ], [draft.dimensions, label, t]);
 
   const removeHighlight = useCallback((index: number) => {
     change({ highlights: draft.highlights.filter((_, at) => at !== index) });
@@ -1503,11 +1582,14 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     delete kept.chart;
     delete kept.prompts;
     delete kept.highlight;
+    delete kept.drillDown;
+    const drillDown = drillDownOf(original?.presentation?.drillDown, draft.drillColumns, draft.drillOrder);
     const presentation: ReportPresentation = {
       ...kept,
       ...(chart ? { chart } : {}),
       ...(draft.prompts.length > 0 ? { prompts: draft.prompts } : {}),
       ...(draft.highlights.length > 0 ? { highlight: draft.highlights } : {}),
+      ...(drillDown ? { drillDown } : {}),
     };
 
     const scan = Number.parseInt(draft.scanLimit, 10);
@@ -1750,6 +1832,12 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     setColumnDimension: (columnDimension) => change({ columnDimension }),
     groupDimensions: draft.groupDimensions,
     setGroupDimensions: (groupDimensions) => change({ groupDimensions }),
+    drillAvailable: !seriesSource,
+    drillColumns: draft.drillColumns,
+    setDrillColumns: (drillColumns) => change({ drillColumns }),
+    drillOrder: draft.drillOrder[0] ? `${draft.drillOrder[0].dimension}:${draft.drillOrder[0].dir}` : '',
+    setDrillOrder,
+    drillOrderOptions,
 
     filters: draft.filters.map((filter) => ({
       label: pathOptions.find((one) => one.value === filter.path)?.label ?? filter.path,
@@ -1913,6 +2001,10 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       bandsPlaceholder: t('design.dimension.bands.placeholder'),
       others: t('design.others'),
       grandTotal: t('design.grand-total'),
+      drill: t('design.drill'),
+      drillHint: t('design.drill.hint'),
+      drillColumnsDefault: t('design.drill.columns-default'),
+      drillOrder: t('design.drill.order'),
       emptyCell: t('design.empty-cell'),
       scanLimit: t('design.scan-limit'),
       scanLimitPlaceholder: t('design.scan-limit.placeholder'),

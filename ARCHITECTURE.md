@@ -12037,6 +12037,10 @@ recusa o pedido feito à mão (`@core.reports/drill.disabled`).
   detalhar e mostraria todas as dimensões calado; com o token, avisa pelo nome.
 - `ReportTable`/`ReportMatrix` aceitam `onDrill`, mas a API curada não o oferece às extensões ainda: o
   `useReport` delas não tem a contraparte. O `ReportView` curado já detalha sozinho.
+- **Autoria (fase 3):** a aba de layout do desenhador edita `columns` e o PRIMEIRO critério de
+  `orderBy`; os desempates seguintes e `enabled: false` atravessam o Salvar intactos (`drillDownOf`,
+  `withDrillOrder`). A gramática do rascunho por IA ensina `presentation.drilldown.columns` — só quando
+  o pedido diz o que mostrar atrás do número. Ligar/desligar o detalhamento continua fora do rascunho.
 
 ### A view que desenha o corpo da aba (`reports[].view`)
 

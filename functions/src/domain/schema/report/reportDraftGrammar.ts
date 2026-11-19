@@ -33,7 +33,8 @@ const list = (values: readonly string[]): string => values.map((value) => JSON.s
  * a lista de valores de cada uma vem da constante que o executor lê, nunca de uma cópia.
  *
  * `null` é uma decisão, não um esquecimento: a capacidade existe mas não é do rascunho (a exportação
- * é escolha de quem lê; o detalhamento já vem ligado).
+ * é escolha de quem lê; o detalhamento já vem ligado — só as COLUNAS dele são ensinadas, porque "o que
+ * aparece quando clico" é coisa que o pedido diz).
  */
 export const REPORT_DRAFT_TEACHING: Readonly<Record<string, string | null>> = {
   'dataset.collection':
@@ -87,7 +88,8 @@ export const REPORT_DRAFT_TEACHING: Readonly<Record<string, string | null>> = {
   'presentation.prompt.required':
     '"required": true on a prompt makes the reader answer before it runs.',
   'presentation.drilldown': null,
-  'presentation.drilldown.columns': null,
+  'presentation.drilldown.columns':
+    '"presentation.drillDown": { "columns": ["<dimension key>", …], "orderBy": [{ "dimension": "<key>", "dir": "asc" | "desc" }] } — the columns and order of the records listed when the reader clicks a figure, only when the request says what to see there ("show the month and the amount of each invoice"). Dimension keys only: a field shown only there is still declared as a dimension. Without it the list shows the other dimensions and the field of each measure.',
   // A série de instantâneos depende de uma automação que tire as fotos: o rascunho descreve uma pergunta
   // sobre os registros, e propor uma série sem fotos seria um relatório vazio.
   'dataset.snapshot': null,

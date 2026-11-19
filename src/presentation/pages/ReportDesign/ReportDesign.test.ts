@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest';
 import {
   MEASURE_COUNT_KEY,
   bucketsFromLimits,
+  drillDownOf,
   limitsOfBuckets,
   movedDimensions,
   operatorNeedsValue,
   reportDesignSectionCounts,
   tabularShapeOf,
   uniqueReportKey,
+  withDrillOrder,
   withGranularity,
 } from './ReportDesign.viewmodel';
 import type {
@@ -247,5 +249,36 @@ describe('o contador de cada aba da autoria', () => {
   it('o filtro por expressão conta como um filtro — e só se não estiver em branco', () => {
     expect(reportDesignSectionCounts({ ...empty, filterExpression: '   ' }).filters).toBe(0);
     expect(reportDesignSectionCounts({ ...empty, filterExpression: 'row.total > 10' }).filters).toBe(1);
+  });
+});
+
+describe('o detalhe na autoria', () => {
+  it('sem colunas nem ordem, o drillDown não aparece — nem como objeto vazio', () => {
+    expect(drillDownOf(undefined, [], [])).toBeUndefined();
+    expect(drillDownOf({ columns: ['mes'] }, [], [])).toBeUndefined();
+  });
+
+  it('grava as colunas e a ordem escolhidas', () => {
+    expect(drillDownOf(undefined, ['mes', 'valor'], [{ dimension: 'mes', dir: 'desc' }])).toEqual({
+      columns: ['mes', 'valor'],
+      orderBy: [{ dimension: 'mes', dir: 'desc' }],
+    });
+  });
+
+  it('o detalhe desligado no .json sobrevive ao Salvar — a tela não tem esse controle', () => {
+    expect(drillDownOf({ enabled: false, columns: ['mes'] }, [], [])).toEqual({ enabled: false });
+  });
+
+  it('trocar o critério mantém os desempates que vieram de fora, sem repetir a dimensão', () => {
+    const order = [{ dimension: 'mes', dir: 'asc' as const }, { dimension: 'unidade', dir: 'asc' as const }];
+    expect(withDrillOrder(order, 'unidade', 'desc')).toEqual([{ dimension: 'unidade', dir: 'desc' }]);
+    expect(withDrillOrder(order, 'valor', 'desc')).toEqual([
+      { dimension: 'valor', dir: 'desc' },
+      { dimension: 'unidade', dir: 'asc' },
+    ]);
+  });
+
+  it('esvaziar o critério tira a ordem inteira', () => {
+    expect(withDrillOrder([{ dimension: 'mes', dir: 'asc' }, { dimension: 'unidade', dir: 'asc' }], '', 'asc')).toEqual([]);
   });
 });

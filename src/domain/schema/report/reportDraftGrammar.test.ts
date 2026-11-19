@@ -26,6 +26,14 @@ describe('gramática do rascunho de relatório por IA', () => {
   });
 
   it('o que fica de fora não aparece', () => {
-    expect(reportDraftGrammar()).not.toMatch(/drillDown|"export"/);
+    // Ligar e desligar o detalhamento não é do rascunho: ele já nasce ligado.
+    expect(reportDraftGrammar()).not.toMatch(/"enabled"|"export"/);
+  });
+
+  it('ensina as colunas e a ordem do detalhe, só com chave de dimensão', () => {
+    const grammar = reportDraftGrammar();
+    expect(grammar).toContain('"presentation.drillDown": { "columns"');
+    expect(grammar).toContain('"orderBy": [{ "dimension"');
+    expect(grammar).toMatch(/Dimension keys only/);
   });
 });
