@@ -175,6 +175,42 @@ Two things follow, and both are deliberate:
 \`deploy\` refuses a package that contributes to nothing which works before sign-in, rather than stamping
 it: it would load with no effect, and you would believe it was live.
 
+### The product identity
+
+An installation is usually one product — legal practice, energy bills — and the people who sign in are
+entering that product, not the platform underneath. The \`brand:\` block of \`microteia.yaml\` says what
+it is called and how it looks, and \`deploy\` stamps it into the site:
+
+| Field | Where it shows |
+|---|---|
+| \`name\` | sign-in screen, top of the menu, browser tab, link previews. **Empty: the whole block is off** |
+| \`tagline\` | under the name, at the top of the menu |
+| \`description\` | the sentence on the sign-in screen and in link previews. Empty: the tagline |
+| \`logo\` | sign-in screen, top of the menu, link previews. PNG, SVG, WebP or JPEG, up to 1 MB |
+| \`icon\` | browser tab. PNG, SVG or ICO. Empty: the logo |
+| \`accent\` | the accent color of every theme, as \`#rrggbb\`. Empty: each theme keeps its own |
+| \`url\` | your own domain, when there is one. Empty: \`https://<project>.web.app\` |
+
+Images are paths relative to \`microteia.yaml\` — keep them beside it, never inside \`.microteia/\`.
+The first PNG of \`icon\` and \`logo\` is also the iPhone home-screen icon and the notification icon,
+which accept nothing else; a square PNG of 180×180 or more serves all three. \`deploy\` checks the whole
+block before writing anything, and stops with the field and the reason.
+
+Texts are shown as written. To translate one, write a message reference (\`@namespace/key\`) and stamp an
+extension that declares it in \`login.extensions\`; link previews do not run the platform, so there the
+reference counts as absent.
+
+What stays the platform's: a small Microteia watermark in the corner of the workspace and under the
+sign-in card, and the \`/favicon.ico\` that only clients ignoring the page's icon ask for. Clearing the
+block brings the Microteia identity back on the next deploy.
+
+**This is not an extension.** Replacing the sign-in screen with an extension is for changing what the
+screen does — a corporate SSO, an extra step. To change the name, the images or the color, fill this
+block.
+
+Link previews are cached by the apps that show them — WhatsApp, LinkedIn and X can keep the old one for
+days after a deploy.
+
 \`unpack\` and \`deploy\` are separate so that taking a new version does not oblige you to publish
 everything, and so that there is a moment between the two to fill in a setting the new version asks for.
 
