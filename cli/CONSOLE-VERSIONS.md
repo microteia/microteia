@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.47.1] — 2026-11-19
+
+- docs(installation): `MICROTEIA.md` gains "The product identity" — each `brand:` field and where it shows, the image rules (relative paths beside `microteia.yaml`, the first PNG as home-screen and notification icon), translation through `login.extensions`, what stays the platform's, why it is not an extension, and that link previews are cached by the apps that show them.
+
 #### [2.47.0] — 2026-11-19
 
 - feat(deploy): `brand.js` assigns to `globalThis`, not `window`, so the notification service worker can import it, and carries `appIcon` — the first PNG of `brand.icon`/`brand.logo`, the icon of the app outside the page (home-screen shortcut and notifications). In the page `globalThis` is `window`, so older kernels read it unchanged.

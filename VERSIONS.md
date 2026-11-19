@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.283.4] — 2026-11-19
+
+- O guia que acompanha a instalação agora explica como dar ao sistema o nome, o logo, o ícone e a cor do seu produto, e o assistente de IA que ajuda a criar extensões passa a indicar esse caminho em vez de propor uma nova tela de entrada.
+
 #### [9.283.3] — 2026-11-19
 
 - O aviso "Desenvolvido com Microteia" agora também chega traduzido às mensagens preparadas pelo servidor.

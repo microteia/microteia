@@ -212,6 +212,14 @@ that hides for the wrong person, a badge counting what this person has not read,
 from child records — all of those are declared, and \`AUTHORING.md\` says how. Reaching for a view
 because it is the shape you know best is the single most expensive habit in this directory.
 
+Some things are not an extension at all. **The product identity** — the name, tagline, logo, icon and
+accent color on the sign-in screen, at the top of the menu, in the browser tab, in link previews and in
+notifications — is the \`brand:\` block of \`microteia.yaml\`, one directory up, stamped by
+\`microteia deploy\`; \`MICROTEIA.md\` beside it describes each field. Asked to "change the logo on the
+sign-in screen", fill that block: an extension that replaces the sign-in screen is for changing what it
+does, not what the product is called. If the file has no \`brand:\` block, the Console that wrote it
+predates the block — update the Console, then run \`microteia unpack\` again.
+
 ## When the platform is missing something — ask before working around it
 
 Sooner or later you will need something the platform does not offer, and there will always be a way to
