@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.286.0] — 2026-11-19
+
+- feat(reports/design): the layout tab edits `presentation.drillDown.columns` and the first `orderBy` criterion. Before, the only way to set them was the `.json`; the designer already carried them through a save, but nobody could see or change them there. `enabled: false` and further tie-break criteria still pass through unchanged, and removing a dimension prunes it from both lists.
+- feat(reports/ai): `reportDraftGrammar` teaches `presentation.drilldown.columns` (it was `null`), so `draft_report` and the in-app assistant can answer "show the month and the amount of each invoice". Dimension keys only, and only when the request says what to see behind a figure; switching the drill-down on or off stays out of the draft.
+
 #### [9.285.0] — 2026-11-19
 
 - feat(reports): the drill-down detail draws its columns from `reportDrillColumns` (#5): the declared `drillDown.columns`, or by default the other dimensions plus the field each shown `sum`/`avg`/`min`/`max` measure reads, labelled by the FIELD. A filtered measure and a count stay out. Until now the columns were every dimension, so a one-level summary showed a single column repeating the clicked group on every line.

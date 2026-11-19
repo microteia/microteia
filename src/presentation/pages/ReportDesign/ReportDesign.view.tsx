@@ -532,6 +532,29 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     )}
                   </S.Group>
                 </S.Section>
+                {vm.drillAvailable && (
+                  <S.Section>
+                    <S.Group>
+                      <S.Legend>{vm.labels.drill}</S.Legend>
+                      <S.Hint>{vm.labels.drillHint}</S.Hint>
+                      <MultiSearchSelect
+                        options={vm.dimensions.map((dimension) => ({
+                          value: dimension.key,
+                          label: dimension.label,
+                        }))}
+                        values={vm.drillColumns}
+                        onChange={vm.setDrillColumns}
+                        placeholder={vm.labels.drillColumnsDefault}
+                      />
+                      <SearchSelect
+                        label={vm.labels.drillOrder}
+                        options={vm.drillOrderOptions}
+                        value={vm.drillOrder}
+                        onChange={vm.setDrillOrder}
+                      />
+                    </S.Group>
+                  </S.Section>
+                )}
               </S.Sections>
             )}
             {vm.activeTab === 'chart' && (

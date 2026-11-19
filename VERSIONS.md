@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.286.0] — 2026-11-19
+
+- No desenho de relatórios, a aba de layout ganhou a seção "Registros por trás de um número": escolha ali as colunas e a ordem da lista que se abre ao clicar num número, sem precisar editar o relatório à mão.
+- Ao pedir um relatório ao assistente, dá para dizer também o que mostrar nessa lista — por exemplo, "o mês e o valor de cada fatura" — e ele já o deixa configurado.
+
 #### [9.285.0] — 2026-11-19
 
 - Ao clicar num número de um relatório, a lista de registros que se abre agora mostra o que interessa: as colunas que quem criou o relatório escolheu ou, sem essa escolha, os valores que compõem o número clicado — e não mais o nome do grupo repetido em todas as linhas.
