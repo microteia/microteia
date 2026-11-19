@@ -6,6 +6,7 @@ import { Spinner } from '../../components/ui/Spinner';
 import { Input, Label } from '../../components/ui/Input';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { SlotSurface } from '../../components/layout/SlotSurface';
+import { PlatformWatermark } from '../../components/layout/PlatformWatermark';
 import { LOGIN_SLOT_SURFACES } from '../../../domain/schema/ui/uiExtensionPoints';
 import { getAuthProviderIcon } from '../../shared/auth/authProviderIcons';
 import { S } from './Login.styles';
@@ -21,8 +22,7 @@ export const LoginView: React.FC = () => {
       <S.Page>
         <S.Card>
           <S.Logo>
-            {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
-            <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
+            <img src={vm.brand.logo} alt={vm.brand.name} />
           </S.Logo>
           <S.VerifyEmailIcon>
             <RiMailSendLine />
@@ -44,6 +44,7 @@ export const LoginView: React.FC = () => {
           {vm.successMessage && <S.SuccessMessage>{vm.successMessage}</S.SuccessMessage>}
           {vm.error && <S.ErrorMessage>{vm.error}</S.ErrorMessage>}
         </S.Card>
+        <PlatformWatermark placement="footer" />
       </S.Page>
     );
   }
@@ -56,8 +57,7 @@ export const LoginView: React.FC = () => {
             <RiArrowLeftLine /> {t('action.back')}
           </S.BackLink>
           <S.Logo>
-            {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
-            <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
+            <img src={vm.brand.logo} alt={vm.brand.name} />
           </S.Logo>
           <S.Title>{t('login.reset.title')}</S.Title>
           <S.Subtitle>{t('login.reset.subtitle')}</S.Subtitle>
@@ -81,6 +81,7 @@ export const LoginView: React.FC = () => {
           {vm.successMessage && <S.SuccessMessage>{vm.successMessage}</S.SuccessMessage>}
           {vm.error && <S.ErrorMessage>{vm.error}</S.ErrorMessage>}
         </S.Card>
+        <PlatformWatermark placement="footer" />
       </S.Page>
     );
   }
@@ -93,8 +94,7 @@ export const LoginView: React.FC = () => {
             <RiArrowLeftLine /> {t('action.back')}
           </S.BackLink>
           <S.Logo>
-            {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
-            <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
+            <img src={vm.brand.logo} alt={vm.brand.name} />
           </S.Logo>
           <S.Title>{t('login.signup.title')}</S.Title>
           <S.Form>
@@ -167,6 +167,7 @@ export const LoginView: React.FC = () => {
             <S.SwitchModeLink onClick={vm.goToLogin}>{t('login.signin')}</S.SwitchModeLink>
           </S.SwitchModeText>
         </S.Card>
+        <PlatformWatermark placement="footer" />
       </S.Page>
     );
   }
@@ -177,12 +178,10 @@ export const LoginView: React.FC = () => {
         <SlotSurface surface={LOGIN_SLOT_SURFACES.header} />
 
         <S.Logo>
-          {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
-            <img src="/logo.png" alt="Microteia" style={{ width: '80px', height: '80px' }} />
+          <img src={vm.brand.logo} alt={vm.brand.name} />
         </S.Logo>
-        {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
-        <S.Title>Microteia</S.Title>
-        <S.Subtitle>{t('login.tagline')}</S.Subtitle>
+        <S.Title>{vm.brand.name}</S.Title>
+        {vm.brand.description && <S.Subtitle>{vm.brand.description}</S.Subtitle>}
 
         {vm.hasNoProvider && <InfoBanner message={t('core.auth/error.no-provider')} />}
 
@@ -276,6 +275,7 @@ export const LoginView: React.FC = () => {
 
         <SlotSurface surface={LOGIN_SLOT_SURFACES.footer} />
       </S.Card>
+      <PlatformWatermark placement="footer" />
     </S.Page>
   );
 };

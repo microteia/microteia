@@ -286,6 +286,7 @@ export const CORE_UI: Record<string, string> = {
   'action.clear': 'Limpar',
   'action.clear-all': 'Limpar tudo',
   'app.tagline': 'AI-First Application Platform',
+  'platform.powered-by': 'Desenvolvido com',
   'sidebar.menu': 'Menu',
   'status.command-palette': '⌘K Paleta de comandos',
   'status.terms': 'Termos e Privacidade',

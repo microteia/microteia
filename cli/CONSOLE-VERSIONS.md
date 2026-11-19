@@ -22,6 +22,12 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.45.0] — 2026-11-18
+
+- feat(yaml): `brand:` block in `microteia.yaml` — `name`, `tagline`, `description`, `logo`, `icon` and `accent`, images relative to the file. The YAML subset reader moved to `shared/yaml.ts`, shared with the repository's `vite.config.ts`.
+- feat(deploy): stamps the installation identity in the same step as the Firebase config: `hosting/brand.js`, the images under `hosting/brand/` with a content hash in the name (the hosting caches images for a day), and the title, description, `og:*`/`twitter:*` tags and tab icon of `index.html` — always rewritten from the package's original, kept in `install/index.pristine.html`, so clearing the block brings the Microteia identity back. Checked before anything is written: a missing image, a wrong type, an image over 1 MB, an accent that is not `#rrggbb` or a block without `name` stop the deploy. Written even when empty, so a removed brand does not stay on the air.
+- feat(pack): refuses a built frontend that carries an installation brand.
+
 #### [2.44.0] — 2026-11-18
 
 - feat(examples): the Console ships `report-view-example` as authoring source — a report whose tab is drawn by a code view (`reports[].view`), reading the run of the tab through `useReportFrame()` and composing `ReportChart` and `ReportTable`.

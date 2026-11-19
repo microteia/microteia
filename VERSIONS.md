@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.283.0] — 2026-11-18
+
+- Cada instalação agora pode ter a sua própria identidade: nome, frase de apresentação, logotipo, ícone da aba e cor de destaque. É ela que aparece na tela de entrada, no topo do menu, no título da aba do navegador e na prévia do link compartilhado.
+- Quando a instalação tem identidade própria, a Microteia passa a assinar de forma discreta: uma marca d'água no canto inferior direito da área de trabalho e um "Desenvolvido com Microteia" sob a tela de entrada.
+
 #### [9.282.1] — 2026-11-18
 
 - No período personalizado, o campo da unidade (dias, semanas, meses…) agora tem o seu nome visível, como o campo da quantidade.

@@ -3,6 +3,9 @@ import { dirname, join } from 'node:path';
 import { compareVersions } from '../kernel/manifest.js';
 import { CLI_VERSION } from '../shared/paths.js';
 import { CONSOLE_CHANGELOG, changelogVersions } from '../vendor/changelogs.js';
+import { parseYamlSections } from '../shared/yaml.js';
+import { brandFromSections } from './brand.js';
+import type { BrandDeclaration } from './brand.js';
 
 /**
  * Um Environment é UMA instalação da Microteia associada a UM projeto Firebase. Nada além disso por
@@ -62,7 +65,18 @@ export interface Environment {
    * entende mapas de dois níveis e escalares.
    */
   login: { extensions: string | null };
+  /**
+   * A identidade da instalação — o produto que ela é para quem a usa. `deploy` a carimba em
+   * `brand.js`, copia as imagens para `hosting/brand/` e reescreve o título e as prévias de link do
+   * `index.html`. Ver `brand.ts`.
+   *
+   * Mora aqui pelo mesmo motivo de `login`: a tela de entrada roda acima de qualquer escritório, e o
+   * que ela mostra só pode vir do que quem instala declarou. As imagens ficam ao lado deste arquivo,
+   * nunca em `.microteia/`, que o `unpack` apaga inteiro.
+   */
+  brand: BrandDeclaration;
 }
+
 
 /**
  * O projeto nunca recebeu deploy nenhum desta instalação.
@@ -75,21 +89,6 @@ export interface Environment {
 export const isFirstDeploy = (environment: Environment): boolean => environment.kernel.deployed === null;
 
 export const ENVIRONMENT_FILE = 'microteia.yaml';
-
-/**
- * O YAML aqui é um SUBCONJUNTO deliberado: mapas de dois níveis com valores escalares, que é a forma
- * exata deste arquivo. Não há biblioteca de YAML no repositório, e trazer uma para ler quatro seções
- * seria pagar uma dependência pela generalidade que não vamos usar. O que o leitor não entende ele
- * REJEITA com o número da linha, em vez de adivinhar.
- */
-const unquote = (raw: string): string | null => {
-  const value = raw.trim();
-  if (value === '' || value === 'null' || value === '~') return null;
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-    return value.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-  }
-  return value;
-};
 
 const needsQuotes = (value: string): boolean =>
   value === ''
@@ -107,36 +106,7 @@ const quote = (value: string | null): string => {
 };
 
 export const parseEnvironment = (source: string): Environment => {
-  const sections = new Map<string, Map<string, string | null>>();
-  let current: Map<string, string | null> | null = null;
-
-  const lines = source.split('\n');
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    // O comentário pode estar INDENTADO: o arquivo que este módulo gera tem um dentro da seção
-    // `firebase`, e olhar só a coluna zero faria o leitor rejeitar o que ele mesmo escreveu.
-    const withoutComment = line.trim().startsWith('#') ? '' : line;
-    if (withoutComment.trim() === '') continue;
-
-    const topLevel = withoutComment.match(/^([A-Za-z][A-Za-z0-9_]*):\s*$/);
-    if (topLevel !== null) {
-      current = new Map();
-      sections.set(topLevel[1], current);
-      continue;
-    }
-
-    const entry = withoutComment.match(/^ {2}([A-Za-z][A-Za-z0-9_]*):\s*(.*)$/);
-    if (entry !== null) {
-      if (current === null) {
-        throw new Error(`${ENVIRONMENT_FILE} line ${index + 1}: entry outside of any section.`);
-      }
-      current.set(entry[1], unquote(entry[2]));
-      continue;
-    }
-
-    throw new Error(`${ENVIRONMENT_FILE} line ${index + 1}: unsupported syntax: ${line.trim()}`);
-  }
+  const sections = parseYamlSections(source, ENVIRONMENT_FILE);
 
   const required = (section: string, key: string): string => {
     const value = sections.get(section)?.get(key);
@@ -169,6 +139,7 @@ export const parseEnvironment = (source: string): Environment => {
       indexes: optional('backend', 'indexes'),
     },
     login: { extensions: optional('login', 'extensions') },
+    brand: brandFromSections(sections),
   };
 };
 
@@ -225,6 +196,26 @@ login:
   # Nothing stamped here runs JavaScript: the packages load as untrusted, so only declarations apply.
   # To USE an extension inside the organization, install it from the Extensions screen instead.
   extensions: ${quote(environment.login.extensions)}
+
+brand:
+  # The identity of the product this installation is — what people see on the sign-in screen, at
+  # the top of the menu, in the browser tab and in link previews. Leave "name" empty to keep the
+  # Microteia identity. "microteia deploy" stamps it; the platform signature then moves to a small
+  # watermark in the corner of the workspace.
+  #
+  # Texts are shown as written. To translate one, use a message reference ("@namespace/key") from an
+  # extension stamped in "login.extensions".
+  name: ${quote(environment.brand.name)}
+  # Short line under the name, at the top of the menu.
+  tagline: ${quote(environment.brand.tagline)}
+  # Sentence on the sign-in screen and in link previews. Empty: the tagline.
+  description: ${quote(environment.brand.description)}
+  # Images, relative to this file — keep them next to it, never inside .microteia/. Logo: PNG, SVG,
+  # WebP or JPEG. Icon (browser tab): PNG, SVG or ICO. Empty logo: the Microteia logo.
+  logo: ${quote(environment.brand.logo)}
+  icon: ${quote(environment.brand.icon)}
+  # Accent color, as #rrggbb. It replaces the accent of every theme. Empty: the theme decides.
+  accent: ${quote(environment.brand.accent)}
 `;
 
 /**

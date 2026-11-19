@@ -28,16 +28,14 @@ export const WorkspaceSidebar: React.FC = () => {
       <S.LogoArea $collapsed={vm.collapsed}>
         <S.LogoLeft>
           <S.LogoIcon $collapsed={vm.collapsed}>
-            {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
-          <img src="/logo.png" alt="Microteia" />
+            <img src={vm.brand.logo} alt={vm.brand.name} />
           </S.LogoIcon>
           {!vm.collapsed && (
             <S.LogoText>
               <S.AppNameRow>
-                {/* eslint-disable-next-line no-restricted-syntax -- "Microteia" é a MARCA: não traduz em idioma nenhum. */}
-            <S.AppName>Microteia</S.AppName>
+                <S.AppName>{vm.brand.name}</S.AppName>
               </S.AppNameRow>
-              <S.AppTagline>{t('app.tagline')}</S.AppTagline>
+              {vm.brand.tagline && <S.AppTagline title={vm.brand.tagline}>{vm.brand.tagline}</S.AppTagline>}
             </S.LogoText>
           )}
         </S.LogoLeft>

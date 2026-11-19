@@ -29,6 +29,7 @@ import {
 } from '../kernel/backendShape.js';
 import type { BackendClaim, FirestoreIndexSpec } from '../kernel/backendShape.js';
 import { declarationsWithComments, environmentSecrets, findBundleLeaks } from './bundleAudit.js';
+import { BRAND_ASSETS_DIR, BRAND_STAMP_FILE } from '../console/brand.js';
 import { KERNEL_CHANGELOG, readChangelog } from './changelogs.js';
 import { assertInsideRepository } from './repository.js';
 import { SDK_TARBALL } from './pluginWorkspaceTemplates.js';
@@ -282,6 +283,18 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
     );
   }
   success('no project baked into the bundle');
+
+  // A identidade é de quem INSTALA. A pasta `brand/` do repositório marca os nossos ambientes, e o
+  // `vite.config.ts` a ignora no modo de distribuição — esta conferência é a do artefato, para o dia em
+  // que alguém mexer naquela condição.
+  const brandStamp = await readFile(join(root, 'dist', BRAND_STAMP_FILE), 'utf8').catch(() => '');
+  const brandAssets = await readdir(join(root, 'dist', BRAND_ASSETS_DIR)).catch(() => null);
+  if (/__MICROTEIA_BRAND__\s*=/.test(brandStamp) || brandAssets !== null) {
+    throw new Error(
+      `The built frontend carries an installation brand (dist/${BRAND_STAMP_FILE} or dist/${BRAND_ASSETS_DIR}/).\n`
+      + 'The package must ship without one: the brand is stamped by "microteia deploy" at the installation.',
+    );
+  }
 
   step(6, total, 'Assembling the distribution');
   await rm(stageDir, { recursive: true, force: true });

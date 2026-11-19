@@ -7,6 +7,7 @@ import { WorkspacePanelNode } from '../WorkspacePanelNode';
 import { NotificationBanner } from '../NotificationBanner';
 import { TopBar } from '../TopBar';
 import { WorkspaceStatusBar } from '../WorkspaceStatusBar';
+import { PlatformWatermark } from '../PlatformWatermark';
 import { CommandPalette } from '../../ui/CommandPalette';
 import { RecordDialogOutlet } from '../RecordDialogOutlet';
 import { WorkspaceDock } from '../WorkspaceDock';
@@ -44,6 +45,7 @@ export const WorkspaceShell: React.FC = () => {
                 <WorkspacePanelNode node={layout} />
               </S.PanelArea>
             )}
+            <PlatformWatermark placement="corner" />
           </S.WorkspaceArea>
 
           <WorkspaceDock />

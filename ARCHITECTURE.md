@@ -3142,6 +3142,50 @@ obrigatórias e `analytics` passou a ser `Analytics | null` (derrubar o boot por
 impediria a instalação em quem não usa Analytics); e a região das functions saiu do literal e passou a
 vir da configuração, com `southamerica-east1` de padrão.
 
+### Identidade da instalação — o produto na frente, a plataforma no canto
+
+Uma instalação costuma ser um produto de um ramo só (gestão jurídica, Domicílio, fatura de energia),
+e até aqui todas se chamavam Microteia, que é a plataforma que as executa. São três camadas, e cada
+uma tem um dono:
+
+| Camada | Onde aparece | Quem declara |
+|---|---|---|
+| Plataforma (Microteia) | marca d'água no canto do workspace e "Desenvolvido com" sob o cartão de entrada | o kernel, fixa (`PLATFORM_NAME`/`PLATFORM_LOGO` em `presentation/shared/brand/useBrand.ts`) |
+| Produto (a instalação) | tela de entrada, topo do menu, título da aba, ícone, prévia de link, cor de destaque | o bloco `brand:` do `microteia.yaml`, carimbado pelo `deploy` |
+| Escritório (tenant) | e-mail (`tenants/{id}.logoURL`) | Dados do Escritório |
+
+**Por que é da instalação, e não do escritório:** a tela de entrada roda acima de qualquer tenant — é
+o mesmo vão do SSO, e a mesma saída: o que se mostra antes do login é o que quem instala carimbou.
+
+**O carimbo tem três partes, cada uma por um leitor** (`cli/src/console/brand.ts`):
+
+- `hosting/brand.js` → `window.__MICROTEIA_BRAND__`, lido por `infrastructure/boot/stampedBrand.ts`
+  (síncrono no `<head>`, como o `firebase-config.js`). O pacote traz o arquivo VAZIO
+  (`public/brand.js`), e sem `name` não há identidade: a instalação volta a ser a Microteia, e a marca
+  d'água some — repeti-la no canto só duplicaria o menu.
+- as imagens em `hosting/brand/<campo>-<hash8>.<ext>` — com hash porque o hosting serve imagem com
+  `max-age` de um dia, e o logo trocado sob o mesmo nome ficaria velho até amanhã.
+- o `index.html` reescrito (título, `description`, `og:*`, `twitter:*`, ícone da aba) — para quem não
+  roda JavaScript: a prévia do WhatsApp e o buscador. É reescrito sempre a partir do ORIGINAL do
+  pacote, guardado em `install/index.pristine.html` no primeiro deploy; reescrever o já reescrito
+  deixava o nome anterior no ar quando o bloco era esvaziado.
+
+**A leitura no navegador é desconfiada** (`domain/schema/brand.ts`): o logo só vale como caminho da
+própria origem (nem `//host`, nem `javascript:`), e a cor só como `#rrggbb`.
+
+**Texto é dado, não catálogo.** Nome, frase e descrição passam por `useLabel()` como o nome de uma tela
+que o escritório digitou; uma referência `@namespace/chave` é a saída para traduzi-los, vinda de uma
+extensão carimbada em `login.extensions`. No HTML a referência não se resolve, e é tratada como ausente.
+
+**A cor vence o tema** (`applyAccent`, em `domain/schema/theme/accent.ts`, aplicada no
+`ThemeProvider`): troca `primary`, `primaryHover`, `primaryLight` e `calendarToday` juntos — trocar só
+o `primary` deixava o botão escurecer para a cor do tema ao passar o mouse. Sem cor, o tema decide.
+
+**Os nossos ambientes** usam a pasta `brand/` da raiz (`brand/brand.yaml`, mesmo bloco `brand:`, com
+os caminhos relativos à pasta), lida pelo `vite.config.ts` com o MESMO módulo do Console — no
+`npm run dev` e nos builds com `TARGET`, nunca no modo `dist`. O `pack` confere o artefato e recusa um
+`dist/` que saia com identidade: ela é de quem instala.
+
 ### O pacote
 
 `microteia pack` produz `distributions/kernel/<versão>/`, com o tarball e uma cópia do `manifest.json`

@@ -25,6 +25,7 @@ import {
   writeResolvedConfig,
 } from './workspace.js';
 import { STAMP_FILE, buildLoginExtensions, stampPath } from './loginExtensions.js';
+import { BRAND_STAMP_FILE, applyBrandStamp, buildBrandStamp } from './brand.js';
 
 const COMPONENTS = ['rules', 'indexes', 'functions', 'hosting'] as const;
 type Component = (typeof COMPONENTS)[number];
@@ -56,6 +57,9 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
 
   const resolvedConfig = await readResolvedConfig(root);
   const firstInstall = isFirstDeploy(environment);
+  // Lida e conferida ANTES de qualquer escrita: um logo que não existe tem de parar o deploy aqui, e
+  // não no meio do carimbo, com metade do hosting já reescrita.
+  const brand = await buildBrandStamp(root, environment.brand, ENVIRONMENT_FILE);
 
   heading(`Deploying Microteia to ${projectId}`);
 
@@ -88,6 +92,12 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   await writeFile(join(install, 'hosting', 'firebase-config.js'), stampedConfigJs(stamped));
 
   success(`hosting/firebase-config.js → ${projectId}`);
+
+  // A identidade é carimbada no mesmo passo pela mesma razão das extensões abaixo: é o que o
+  // navegador precisa saber antes de o bundle subir — e a tela de entrada não tem escritório de onde
+  // lê-la.
+  await applyBrandStamp(install, brand);
+  success(`hosting/${BRAND_STAMP_FILE} → ${brand.summary ?? 'Microteia identity (no "brand:" declared)'}`);
 
   // As extensões que valem ANTES do login. Carimbadas no mesmo passo da configuração porque são a
   // mesma coisa: o que o navegador precisa saber antes de o bundle subir. Escrito sempre, mesmo vazio

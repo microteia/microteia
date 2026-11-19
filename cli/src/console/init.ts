@@ -5,6 +5,7 @@ import type { ParsedArgs } from '../shared/args.js';
 import { blank, bullets, heading, info, success } from '../shared/ui.js';
 import { DEFAULT_FUNCTIONS_REGION } from '../kernel/manifest.js';
 import { ENVIRONMENT_FILE, slug, writeEnvironment } from './environment.js';
+import { EMPTY_BRAND } from './brand.js';
 import type { Environment } from './environment.js';
 import { WORKSPACE_DIR } from './workspace.js';
 import { ensureRootGitignore } from './backendEnv.js';
@@ -38,6 +39,7 @@ export const init = async (args: ParsedArgs): Promise<void> => {
     kernel: { version: null, deployed: null },
     backend: { functions: null, parameters: null, indexes: null },
     login: { extensions: null },
+    brand: EMPTY_BRAND,
   };
 
   await writeEnvironment(file, environment);

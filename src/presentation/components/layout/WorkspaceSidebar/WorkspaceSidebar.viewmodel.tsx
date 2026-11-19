@@ -21,6 +21,7 @@ import { useAuditLogAlert } from '../../../../stores/useAuditLogAlert';
 import { useExtensionPendencies } from '../../../shared/useExtensionPendencies';
 import type { User } from '../../../../domain/entities';
 import { useLabel } from '../../../shared/i18n/useT';
+import { useBrand, type Brand } from '../../../shared/brand/useBrand';
 
 export interface NavItem {
   key: string;
@@ -108,6 +109,8 @@ export interface SidebarMenuItem {
 }
 
 export interface WorkspaceSidebarViewModel {
+  /** A identidade da instalação, no topo da barra. */
+  brand: Brand;
   collapsed: boolean;
   /** O menu em trechos. Sem grupo declarado, é um trecho só, sem título — o menu de sempre. */
   navSections: NavSectionView[];
@@ -384,7 +387,10 @@ export const useWorkspaceSidebarViewModel = (): WorkspaceSidebarViewModel => {
     await signOut();
   }, [signOut, closeMenu]);
 
+  const brand = useBrand();
+
   return {
+    brand,
     collapsed,
     navSections,
     activeKey,

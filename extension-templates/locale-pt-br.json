@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.230.0",
+    "version": "1.231.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -685,6 +685,7 @@
             "action.clear": "Limpar",
             "action.clear-all": "Limpar tudo",
             "app.tagline": "AI-First Application Platform",
+            "platform.powered-by": "Desenvolvido com",
             "sidebar.menu": "Menu",
             "status.command-palette": "⌘K Paleta de comandos",
             "status.terms": "Termos e Privacidade",

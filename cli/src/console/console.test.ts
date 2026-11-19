@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { repoRoot } from '../shared/paths.js';
 import { isFirstDeploy, parseEnvironment, serializeEnvironment, slug } from './environment.js';
+import { EMPTY_BRAND } from './brand.js';
 import type { Environment } from './environment.js';
 import { REQUIRED_CONFIG_KEYS, runtimeConfigFrom } from './runtimeConfigShape.js';
 import { stampedConfigJs } from './workspace.js';
@@ -18,6 +19,14 @@ const sample: Environment = {
     indexes: 'auditLogs:tenantId+,createdAt-;records/group:labels*,at-',
   },
   login: { extensions: 'extensions/dist/sso-acme.json,extensions/dist/marca.json' },
+  brand: {
+    name: 'Ação Jurídica: Prazos',
+    tagline: '@com.acme.brand/tagline',
+    description: 'Prazos, intimações e processos — num só lugar.',
+    logo: 'brand/logo.png',
+    icon: 'brand/icon.svg',
+    accent: '#1f6feb',
+  },
 };
 
 describe('arquivo de ambiente', () => {
@@ -32,7 +41,7 @@ describe('arquivo de ambiente', () => {
       kernel: { version: null, deployed: null },
       backend: { functions: null, parameters: null, indexes: null },
       login: { extensions: null },
-  login: { extensions: null },
+      brand: EMPTY_BRAND,
     };
     expect(parseEnvironment(serializeEnvironment(fresh))).toEqual(fresh);
   });

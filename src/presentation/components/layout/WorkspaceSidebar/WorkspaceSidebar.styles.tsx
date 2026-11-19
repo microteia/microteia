@@ -138,6 +138,8 @@ export const S = {
     font-size: ${({ theme }) => theme.fontSizes.xs};
     color: ${({ theme }) => theme.colors.textMuted};
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   `,
 
   CollapseButton: styled.button`
