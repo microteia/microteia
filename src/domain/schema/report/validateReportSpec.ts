@@ -28,9 +28,10 @@ import {
   REPORT_HIGHLIGHT_TONES,
   REPORT_SHAPE_KINDS,
   REPORT_SPEC_VERSION,
+  reportDrillEnabled,
   reportGranularityOf,
 } from './reportSpec';
-import type { ReportGroupLevel, ReportSpec } from './reportSpec';
+import type { ReportDrillOrder, ReportGroupLevel, ReportSpec } from './reportSpec';
 
 /**
  * Um problema do relatório.
@@ -69,6 +70,17 @@ const levelsOf = (spec: ReportSpec): ReportGroupLevel[] => {
 
 const valuesOf = (spec: ReportSpec): string[] =>
   spec.shape.kind === 'tabular' ? [] : spec.shape.values;
+
+// O spec chega de pacote e de documento: a forma é conferida aqui, e nunca presumida.
+const drillColumnsOf = (spec: ReportSpec): string[] => {
+  const columns = spec.presentation?.drillDown?.columns;
+  return Array.isArray(columns) ? columns.map((key) => String(key)) : [];
+};
+
+const drillOrderOf = (spec: ReportSpec): Partial<ReportDrillOrder>[] => {
+  const orderBy = spec.presentation?.drillDown?.orderBy;
+  return Array.isArray(orderBy) ? orderBy : [];
+};
 
 /**
  * Tudo o que NÃO precisa do esquema do escritório.
@@ -313,6 +325,9 @@ export const validateReportSpecShape = (
   const shownKeys = new Set<string>([
     ...levelsOf(spec).map((level) => level.dimension),
     ...(spec.shape.kind === 'tabular' ? spec.shape.columns : []),
+    // A coluna do DETALHE é mostrada — o autor que a declarou ali não fez nada por engano, e o aviso,
+    // que aparece para todo leitor, punia a única forma de dar colunas ao detalhe (#5).
+    ...(reportDrillEnabled(spec) ? drillColumnsOf(spec) : []),
   ]);
   const unused = dimensions.map((dimension) => dimension.key).filter((key) => !shownKeys.has(key));
   if (unused.length > 0) {
@@ -471,6 +486,30 @@ export const validateReportSpecShape = (
         errorParams: { key: prompt.key, value: String(period) },
       });
     });
+  });
+
+  // As colunas e a ordem do detalhe são APARÊNCIA, como o realce: a chave que não é dimensão é
+  // ignorada com aviso — o número do relatório é o mesmo com ou sem ela.
+  drillColumnsOf(spec).forEach((key, index) => {
+    if (!dimensionKeys.has(key)) {
+      issues.push({
+        field: `presentation.drillDown.columns[${index}]`,
+        error: '@core.reports/drill.column.unknown',
+        errorParams: { key },
+        severity: 'warning',
+      });
+    }
+  });
+  drillOrderOf(spec).forEach((order, index) => {
+    const known = typeof order?.dimension === 'string' && dimensionKeys.has(order.dimension);
+    if (!known || (order.dir !== 'asc' && order.dir !== 'desc')) {
+      issues.push({
+        field: `presentation.drillDown.orderBy[${index}]`,
+        error: '@core.reports/drill.order.invalid',
+        errorParams: { key: String(order?.dimension ?? '') },
+        severity: 'warning',
+      });
+    }
   });
 
   // O realce é APARÊNCIA: o que ele não consegue aplicar vira aviso, nunca recusa — o número da

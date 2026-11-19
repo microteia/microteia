@@ -769,3 +769,59 @@ describe('drillReportRows — os registros por trás do número', () => {
     expect(drilled.matched).toBe(5);
   });
 });
+
+describe('drillReportRows — a ordem declarada do detalhe (#5)', () => {
+  const ordered = (drillDown: NonNullable<ReportSpec['presentation']>['drillDown']): ReportSpec =>
+    summarySpec({ presentation: { drillDown } });
+  const idsInOrder = (records: Record<string, unknown>[]): string[] => records.map((record) => String(record.id));
+
+  it('ordena pelo valor CRU da dimensão, não pelo balde do mês', () => {
+    const drilled = drillReportRows({
+      spec: ordered({ orderBy: [{ dimension: 'mes', dir: 'desc' }] }),
+      rows,
+      target: { keys: [] },
+    });
+
+    expect(idsInOrder(drilled.records)).toEqual(['5', '4', '3', '2', '1']);
+  });
+
+  it('ordena ANTES do teto: o corte fica com os primeiros da ordem, não com os primeiros lidos', () => {
+    const drilled = drillReportRows({
+      spec: ordered({ orderBy: [{ dimension: 'mes', dir: 'desc' }] }),
+      rows,
+      target: { keys: [] },
+      maxRecords: 2,
+    });
+
+    expect(idsInOrder(drilled.records)).toEqual(['5', '4']);
+    expect(drilled.matched).toBe(5);
+  });
+
+  it('desempata pela chave seguinte, e por fim pelo id', () => {
+    const drilled = drillReportRows({
+      spec: ordered({ orderBy: [{ dimension: 'cliente', dir: 'asc' }] }),
+      rows,
+      target: { keys: [] },
+    });
+
+    expect(idsInOrder(drilled.records)).toEqual(['1', '3', '4', '2', '5']);
+  });
+
+  it('ignora a chave que não é dimensão, e sem ordem válida mantém a ordem da varredura', () => {
+    const drilled = drillReportRows({
+      spec: ordered({ orderBy: [{ dimension: 'inexistente', dir: 'desc' }] }),
+      rows,
+      target: { keys: [] },
+    });
+
+    expect(idsInOrder(drilled.records)).toEqual(['1', '2', '3', '4', '5']);
+  });
+
+  it('as colunas não mudam QUAIS registros o recorte devolve', () => {
+    const target = { keys: [{ dimension: 'status', key: 'pago' }] };
+    const plain = drillReportRows({ spec: summarySpec(), rows, target });
+    const withColumns = drillReportRows({ spec: ordered({ columns: ['mes', 'cliente'] }), rows, target });
+
+    expect(withColumns).toEqual(plain);
+  });
+});

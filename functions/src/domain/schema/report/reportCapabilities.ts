@@ -42,6 +42,7 @@ export const REPORT_CAPABILITIES: readonly string[] = [
   'presentation.chart',
   'presentation.chart.split',
   'presentation.drilldown',
+  'presentation.drilldown.columns',
   'presentation.highlight',
   'presentation.prompt',
   'presentation.prompt.default',
@@ -151,6 +152,13 @@ export const deriveReportRequires = (spec: ReportSpec): string[] => {
   if ((spec.presentation?.highlight ?? []).length > 0) required.add('presentation.highlight');
   if (Object.keys(spec.presentation?.fields ?? {}).length > 0) required.add('presentation.fields');
   if (spec.presentation?.drillDown?.enabled === true) required.add('presentation.drilldown');
+  // Token PRÓPRIO, e nunca o `presentation.drilldown`: o kernel anterior sabe detalhar e mostraria
+  // todas as dimensões, em silêncio. Com ele, o aviso diz pelo nome o que lhe falta.
+  const drill = spec.presentation?.drillDown;
+  if ((Array.isArray(drill?.columns) && drill.columns.length > 0)
+    || (Array.isArray(drill?.orderBy) && drill.orderBy.length > 0)) {
+    required.add('presentation.drilldown.columns');
+  }
   if (spec.presentation?.export?.csv) required.add('export.csv');
   if (spec.presentation?.export?.pdf) required.add('export.pdf');
   if (spec.presentation?.export?.xlsx) required.add('export.xlsx');

@@ -288,6 +288,8 @@ export type {
   ReportDataset,
   ReportDatasetKind,
   ReportDimension,
+  ReportDrillDown,
+  ReportDrillOrder,
   ReportFieldPresentation,
   ReportGranularity,
   ReportGroupLevel,

@@ -12009,6 +12009,21 @@ recusa o pedido feito à mão (`@core.reports/drill.disabled`).
 - As colunas do detalhe são as DIMENSÕES do relatório — o que a varredura já trouxe hidratado. Pedir
   outros campos obrigaria uma segunda leitura, com outra permissão, para mostrar o que o relatório não
   afirmou. Clicar no registro abre o registro (`useOpenRecord`, pela coleção).
+- **`drillDown.columns` e `drillDown.orderBy` citam chave de DIMENSÃO, nunca caminho** (#5). É o que
+  os mantém em `presentation`: a dimensão já está em `reportPaths`, e por isso nem a leitura nem as
+  permissões cobradas mudam (`reportSpec.test.ts` prova). O padrão "título + `showInList` da tela"
+  proposto na issue foi recusado por isso — um campo de listagem que atravesse referência cobraria a
+  leitura de outra coleção, e uma propriedade de aparência mudaria quem consegue ver o relatório.
+- **A dimensão listada em `columns` conta como mostrada** para `shape.fields-unused` — com o
+  detalhamento ligado. Era a única forma de dar colunas ao detalhe, e o aviso aparecia para todo
+  leitor. Chave que não é dimensão é aviso (`drill.column.unknown`, `drill.order.invalid`), como no
+  realce.
+- **A ordem é aplicada em `drillReportRows`, ANTES do corte de `REPORT_MAX_RECORDS`**, pelo valor cru
+  da dimensão (não pelo balde) e com o desempate de `deterministicRecordOrder`. Ordenar na tela o que
+  já foi cortado mostraria "os mais recentes" escolhidos entre quaisquer. Referência hidratada não tem
+  ordem (`compareValues` não compara objetos): ordena-se por dimensão de valor.
+- Token próprio, `presentation.drilldown.columns` (KERNEL_VERSION 2.140.0): o kernel anterior sabe
+  detalhar e mostraria todas as dimensões calado; com o token, avisa pelo nome.
 - `ReportTable`/`ReportMatrix` aceitam `onDrill`, mas a API curada não o oferece às extensões ainda: o
   `useReport` delas não tem a contraparte. O `ReportView` curado já detalha sozinho.
 

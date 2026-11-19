@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.284.0] — 2026-11-19
+
+- feat(reports): `presentation.drillDown.columns` and `presentation.drillDown.orderBy` (`ReportDrillDown`, `ReportDrillOrder`) — the columns and the order of the records behind a figure, by DIMENSION key (#5). Only dimension keys are accepted, so neither the scan (`reportPaths`) nor the permissions charged to the reader change; a test pins that. The report screen draws the declared columns in the next release.
+- feat(reports): a dimension listed in `drillDown.columns` counts as shown, so `@core.reports/shape.fields-unused` no longer warns every reader about a field kept for the drill-down (only while the drill-down is enabled). Until now, giving the detail a column meant a permanent warning on screen.
+- feat(reports): `drillDown.orderBy` is applied by `drillReportRows` BEFORE the `REPORT_MAX_RECORDS` cut, on the raw dimension value (not the date bucket), with the `deterministicRecordOrder` tie-break. Sorting on screen what was already cut would show "the latest" picked among any 500.
+- feat(reports): a key that is not a dimension is a named warning and is ignored — `@core.reports/drill.column.unknown`, `@core.reports/drill.order.invalid` — never a refusal, as with `presentation.highlight`.
+- feat(reports): capability `presentation.drilldown.columns`; KERNEL_VERSION 2.140.0. An older kernel warns by name and keeps showing every dimension.
+- feat(locale-pt-br): the two warnings and the new wording of `shape.fields-unused` translated; package bumped to 1.232.0.
+
 #### [9.283.4] — 2026-11-19
 
 - docs(sdk/workspace): the generated `extensions/AGENTS.md` says the product identity is the `brand:` block of `microteia.yaml`, not an extension. Asked to "change the sign-in logo", an assistant working in `extensions/` had no way to know the block existed, and the nearest mechanism it could see was replacing the sign-in screen. It also says what a missing block means: a Console older than the block, fixed by updating it and unpacking again.

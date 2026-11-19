@@ -6,6 +6,7 @@
 import { applyAggregationOp } from '../aggregationSpec';
 import { getValueAtPath, parsePath } from '../pathResolver';
 import { matchesResolvedPredicates } from '../predicateMatch';
+import { deterministicRecordOrder } from '../recordOrder';
 import type { ResolvedPredicate } from '../predicateMatch';
 import { bucketDateValue, reportBucketOf } from './reportBuckets';
 import { computedDimensionValue, withoutComputedDimensions } from './reportComputedDimension';
@@ -620,6 +621,34 @@ const descend = (
 };
 
 /**
+ * A ordem DECLARADA do detalhe (`presentation.drillDown.orderBy`), ou `null` quando não há nenhuma.
+ *
+ * Pelo valor CRU da dimensão, não pelo balde: dentro de um mês, os dias ainda têm ordem. A chave que
+ * não é dimensão já foi avisada pela validação e aqui só é ignorada. Desempata pelo comparador dos
+ * registros (`createdAt`, depois o id), para o corte do teto não depender da ordem do banco.
+ */
+const drillOrder = (spec: ReportSpec): ((left: Record<string, unknown>, right: Record<string, unknown>) => number) | null => {
+  const dimensions = new Map((spec.dataset.dimensions ?? []).map((one) => [one.key, one]));
+  const declared = spec.presentation?.drillDown?.orderBy;
+  const orderBy = (Array.isArray(declared) ? declared : [])
+    .filter((order) => dimensions.has(order?.dimension) && (order.dir === 'asc' || order.dir === 'desc'))
+    .map((order) => ({ path: order.dimension, dir: order.dir }));
+  if (orderBy.length === 0) return null;
+
+  return deterministicRecordOrder<Record<string, unknown>>(
+    orderBy,
+    (row, key) => {
+      const dimension = dimensions.get(key);
+      if (!dimension) return getValueAtPath(row, parsePath(key));
+      return isComputedDimension(dimension)
+        ? computedDimensionValue(row, dimension.key)
+        : getValueAtPath(row, parsePath(dimension.path));
+    },
+    (row) => (typeof row.id === 'string' ? row.id : ''),
+  );
+};
+
+/**
  * Os REGISTROS de um grupo ou de uma célula — o detalhamento do número que o leitor clicou.
  *
  * Função pura, ao lado da agregação, pela mesma razão dela: o recorte tem de ser o MESMO que produziu
@@ -641,8 +670,12 @@ export const drillReportRows = (input: ReportDrillInput): ReportDrillResult => {
         return byRows.filter((row) => inColumn.has(row));
       })();
 
+  // Ordena ANTES de cortar: o teto escolhe os primeiros da ordem declarada, não os primeiros lidos.
+  const order = drillOrder(input.spec);
+  const ordered = order ? [...selected].sort(order) : selected;
+
   return {
-    records: selected.slice(0, maxRecords).map((row) => recordOut(row)),
+    records: ordered.slice(0, maxRecords).map((row) => recordOut(row)),
     matched: selected.length,
   };
 };

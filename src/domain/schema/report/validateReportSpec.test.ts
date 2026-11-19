@@ -772,6 +772,62 @@ describe('validateReportSpec — o campo que a dobra não mostra', () => {
     expect(warnings(validateReportSpec(spec, ctx))).not.toContain('@core.reports/shape.fields-unused');
   });
 
+  /* #5: declarar o campo como coluna do DETALHE era a única forma de dar colunas a ele, e o aviso
+     aparecia para todo leitor. A coluna do detalhe é mostrada. */
+  it('não avisa o campo que o detalhe mostra como coluna', () => {
+    const spec: ReportSpec = {
+      ...comDoisCampos({ kind: 'summary', groupBy: [{ dimension: 'situacao' }], values: ['total'] }),
+      presentation: { drillDown: { columns: ['titulo'] } },
+    };
+
+    expect(warnings(validateReportSpec(spec, ctx))).not.toContain('@core.reports/shape.fields-unused');
+  });
+
+  it('continua avisando quando o detalhamento está desligado', () => {
+    const spec: ReportSpec = {
+      ...comDoisCampos({ kind: 'summary', groupBy: [{ dimension: 'situacao' }], values: ['total'] }),
+      presentation: { drillDown: { enabled: false, columns: ['titulo'] } },
+    };
+
+    expect(warnings(validateReportSpec(spec, ctx))).toContain('@core.reports/shape.fields-unused');
+  });
+
+  it('a coluna ou a ordem que não é dimensão é aviso nomeado, nunca recusa', () => {
+    const spec: ReportSpec = {
+      ...comDoisCampos({ kind: 'summary', groupBy: [{ dimension: 'situacao' }], values: ['total'] }),
+      presentation: {
+        drillDown: {
+          columns: ['titulo', 'total'],
+          orderBy: [
+            { dimension: 'titulo', dir: 'desc' },
+            { dimension: 'valor', dir: 'asc' },
+            { dimension: 'titulo', dir: 'para-cima' as 'asc' },
+          ],
+        },
+      },
+    };
+    const issues = validateReportSpec(spec, ctx);
+
+    expect(issues.filter((issue) => issue.error === '@core.reports/drill.column.unknown')).toEqual([{
+      field: 'presentation.drillDown.columns[1]',
+      error: '@core.reports/drill.column.unknown',
+      errorParams: { key: 'total' },
+      severity: 'warning',
+    }]);
+    expect(issues.filter((issue) => issue.error === '@core.reports/drill.order.invalid').map((issue) => issue.field))
+      .toEqual(['presentation.drillDown.orderBy[1]', 'presentation.drillDown.orderBy[2]']);
+    expect(hasBlockingReportIssue(issues)).toBe(false);
+  });
+
+  it('não lança com colunas e ordem malformadas', () => {
+    const spec = {
+      ...comDoisCampos({ kind: 'summary', groupBy: [{ dimension: 'situacao' }], values: ['total'] }),
+      presentation: { drillDown: { columns: 'titulo', orderBy: [null, 7] } },
+    } as unknown as ReportSpec;
+
+    expect(() => validateReportSpec(spec, ctx)).not.toThrow();
+  });
+
   /* Sem nível nenhum, `buildTree` não tem o que percorrer: o resumo saía "Nenhum dado" sobre uma
      coleção cheia — o sintoma que mais parece defeito do dado. */
   it('recusa o resumo sem agrupamento nenhum, em vez de devolver uma tabela vazia', () => {

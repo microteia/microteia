@@ -403,6 +403,31 @@ export interface ReportHighlight {
   tone: ReportHighlightTone;
 }
 
+/** Uma chave de ordem do detalhe: a DIMENSÃO, nunca o caminho — o mesmo espaço de nomes de `columns`. */
+export interface ReportDrillOrder {
+  dimension: string;
+  dir: QueryOrderBy['dir'];
+}
+
+/**
+ * O detalhamento e as colunas dele.
+ *
+ * `columns` só aceita chave de DIMENSÃO, e é isso que mantém a propriedade em `presentation`: a
+ * dimensão já é lida pela varredura e já tem a permissão cobrada de quem lê. Um campo qualquer da tela
+ * ampliaria a leitura e, se atravessasse uma referência, cobraria a leitura de outra coleção — uma
+ * propriedade de aparência mudando quem consegue ver o relatório (#5).
+ */
+export interface ReportDrillDown {
+  enabled?: boolean;
+  /** As colunas do detalhe, na ordem. A dimensão do recorte clicado sai sempre: ali o valor é um só. */
+  columns?: string[];
+  /**
+   * A ordem dos registros do detalhe. Aplicada no SERVIDOR, antes do teto de registros: ordenar na
+   * tela o que já foi cortado mostraria "os mais recentes" escolhidos entre quaisquer.
+   */
+  orderBy?: ReportDrillOrder[];
+}
+
 /**
  * A APARÊNCIA — e o limite dela.
  *
@@ -425,7 +450,7 @@ export interface ReportPresentation {
    * Objeto desde já, e não booleano: booleano que vira objeto é a quebra clássica, e um alvo de
    * detalhamento é a primeira coisa que este campo vai querer.
    */
-  drillDown?: { enabled?: boolean };
+  drillDown?: ReportDrillDown;
   /**
    * Os formatos que o leitor pode baixar. Ausente = todos; `false` esconde aquele botão (`pdf` é a
    * impressão do navegador). `fileName` é o nome-base do arquivo — o dia e a extensão vêm junto.

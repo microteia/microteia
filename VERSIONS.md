@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.284.0] — 2026-11-19
+
+- Nos relatórios, quem cria o relatório agora pode definir a ordem dos registros que aparecem ao clicar num número — por exemplo, do mais recente para o mais antigo. Quando há registros demais para mostrar, a lista traz os primeiros dessa ordem.
+- Um relatório que reserva campos para mostrar nesses registros não exibe mais, a quem o abre, o aviso de que esses campos não aparecem em lugar nenhum.
+
 #### [9.283.4] — 2026-11-19
 
 - O guia que acompanha a instalação agora explica como dar ao sistema o nome, o logo, o ícone e a cor do seu produto, e o assistente de IA que ajuda a criar extensões passa a indicar esse caminho em vez de propor uma nova tela de entrada.
