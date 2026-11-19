@@ -4473,7 +4473,20 @@ mean, and treat a refusal as the platform telling you it cannot answer for them.
   records behind that number — same scan, same filters, same per-record visibility, so the detail never
   shows a record the total did not count. It is on by default; \`{ enabled: false }\` turns it off, and
   the server then refuses a drill asked for by hand. The "Others" group of a Top N drills into exactly
-  what it gathered. The columns of the detail are the report's dimensions.
+  what it gathered. The dimension of the clicked group leaves the detail — every line would repeat it —,
+  except in "Others" and in a dimension with \`buckets\`, where each record shows its own value.
+- \`presentation.drillDown.columns\`: the dimension keys the detail shows, in order. Without it, the
+  detail shows the other dimensions plus the field each shown \`sum\`/\`avg\`/\`min\`/\`max\` measure
+  reads (\`amount\` for \`sum(amount)\`) — the parts that make up the figure. A measure with a
+  \`filter\` stays out: a record the filter left out would show a value the figure did not add. A
+  dimension listed here counts as shown, so \`shape.fields-unused\` does not warn about it. Only
+  dimension keys are accepted, never a path: a dimension is already read and already charged to the
+  reader, so the columns never widen what the report reads or who can open it. To show a field that is
+  not grouped, declare it as a dimension and list it here.
+- \`presentation.drillDown.orderBy\`: \`[{ dimension, dir }]\`, \`dir\` \`asc\` or \`desc\` — the order of the
+  records, applied by the server before the record ceiling, so a cut detail keeps the first ones of
+  that order. It orders by the raw value (the day, not the month bucket); a reference dimension has no
+  order. A key that is not a dimension, in either list, is warned and ignored.
 - \`presentation.highlight\`: \`[{ measure, op, value, tone }]\` paints a measure's cell when its value
   compares true — \`op\` is \`lt\`, \`lte\`, \`gt\`, \`gte\`, \`eq\` or \`neq\`, \`tone\` is
   ${inlineList(REPORT_HIGHLIGHT_TONES)}. A tone, never a colour: the theme draws it, light or dark. The first

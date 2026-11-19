@@ -42,6 +42,7 @@ vi.mock('../useSchemaContext', () => ({
 }));
 
 const { useReportCellText } = await import('./useReportCellText');
+const { REPORT_DIMENSION_SLOT } = await import('../../../domain/schema/report/reportComputedDimension');
 
 const SPEC: ReportSpec = {
   v: 1,
@@ -53,6 +54,7 @@ const SPEC: ReportSpec = {
       { key: 'passivo', path: 'passiveId' },
       { key: 'venc', path: 'dueDate' },
       { key: 'venc_mes', path: 'dueDate', granularity: 'month', timeZone: 'UTC' },
+      { key: 'atraso', path: '', expression: 'dateDiff(today(), dueDate)' },
     ],
   },
   shape: { kind: 'tabular', columns: ['titulo', 'ativo', 'passivo', 'venc', 'venc_mes'] },
@@ -114,5 +116,10 @@ describe('useReportCellText', () => {
 
   it('o corte declarado é honrado — quem escolheu "Por mês" vê o mês', () => {
     expect(cellOf({ id: '1', dueDate: '2026-03-01T12:00:00.000Z' }, 'venc_mes')).toBe('2026-03');
+  });
+
+  // A coluna da calculada saía em branco: lia `path`, que ela não tem (#5).
+  it('a dimensão calculada mostra o valor que o servidor calculou', () => {
+    expect(cellOf({ id: '1', dueDate: '2026-03-01', [REPORT_DIMENSION_SLOT]: { atraso: 12 } }, 'atraso')).toBe('12');
   });
 });

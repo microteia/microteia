@@ -4,7 +4,9 @@ import type { SchemaScreen } from '../pathResolver';
 import {
   buildReportQuery,
   isAggregateMeasure,
+  REPORT_OTHERS_KEY,
   REPORT_SPEC_VERSION,
+  reportDrillColumns,
   reportGranularityOf,
   reportPaths,
   reportRequiredPermissions,
@@ -255,5 +257,69 @@ describe('reportRequiredPermissions', () => {
   it('ignora a permissão própria em branco', () => {
     const spec: ReportSpec = { ...FIXTURE_V1, access: { permission: '  ' } };
     expect(reportRequiredPermissions(spec, ctx)).not.toContain('  ');
+  });
+});
+
+describe('reportDrillColumns — as colunas do detalhe (#5)', () => {
+  /** O cenário da issue: um resumo de UM nível, por unidade, com consumo e valor somados. */
+  const invoices: ReportSpec = {
+    v: 1,
+    dataset: {
+      table: 'lancamentos',
+      dimensions: [
+        { key: 'unit', path: 'unidade', label: 'Unidade' },
+        { key: 'month', path: 'vencimento', label: 'Mês', granularity: 'month' },
+        { key: 'band', path: 'valor', label: 'Faixa', buckets: [{ key: 'low', lt: 100 }, { key: 'high' }] },
+      ],
+      measures: [
+        { key: 'amount', label: 'Total', op: 'sum', path: 'valor' },
+        { key: 'kwh', label: 'Consumo', op: 'sum', path: 'consumo' },
+        { key: 'count', label: 'Faturas', op: 'count' },
+        { key: 'paid', label: 'Pago', op: 'sum', path: 'pago', filter: [{ path: 'situacao', op: 'eq', value: { kind: 'Literal', value: 'pago' } }] },
+        { key: 'people', label: 'Clientes', op: 'count', path: 'cliente', distinct: true },
+      ],
+    },
+    shape: { kind: 'summary', groupBy: [{ dimension: 'unit' }], values: ['amount', 'kwh', 'count', 'paid', 'people'] },
+  };
+  const keys = (spec: ReportSpec, fixed: { dimension: string; key: string }[]): string[] =>
+    reportDrillColumns(spec, fixed).map((column) => column.key);
+  const unit = { dimension: 'unit', key: 'u1' };
+
+  it('sem colunas declaradas: as outras dimensões e o campo de cada medida somada, sem a dimensão clicada', () => {
+    // `valor` já é a faixa: não se repete como a medida que o soma. Contagem e medida filtrada ficam fora.
+    expect(keys(invoices, [unit])).toEqual(['month', 'band', 'kwh']);
+  });
+
+  it('com colunas declaradas: só elas, na ordem, sem repetição e sem a dimensão clicada', () => {
+    const spec: ReportSpec = { ...invoices, presentation: { drillDown: { columns: ['month', 'unit', 'month', 'nada'] } } };
+    expect(keys(spec, [unit])).toEqual(['month']);
+    expect(keys(spec, [])).toEqual(['month', 'unit']);
+  });
+
+  it('a dimensão clicada FICA quando o valor mostrado não é um só: o "Outros" e a faixa', () => {
+    const spec: ReportSpec = { ...invoices, presentation: { drillDown: { columns: ['unit', 'band'] } } };
+    expect(keys(spec, [{ dimension: 'unit', key: REPORT_OTHERS_KEY }, { dimension: 'band', key: 'low' }]))
+      .toEqual(['unit', 'band']);
+  });
+
+  it('no pivô, sai a dimensão da linha E a da coluna', () => {
+    const spec: ReportSpec = { ...invoices, presentation: { drillDown: { columns: ['unit', 'month', 'band'] } } };
+    expect(keys(spec, [unit, { dimension: 'month', key: '2026-03' }])).toEqual(['band']);
+  });
+
+  it('se nada sobrar, volta às dimensões inteiras — um detalhe sem coluna esconderia os registros', () => {
+    const spec: ReportSpec = {
+      ...invoices,
+      dataset: { ...invoices.dataset, dimensions: [invoices.dataset.dimensions![0]], measures: [{ key: 'count', op: 'count' }] },
+      shape: { kind: 'summary', groupBy: [{ dimension: 'unit' }], values: ['count'] },
+    };
+    expect(keys(spec, [unit])).toEqual(['unit']);
+    expect(keys({ ...spec, presentation: { drillDown: { columns: ['unit'] } } }, [unit])).toEqual(['unit']);
+  });
+
+  it('a coluna de medida carrega o caminho que lê, que já está entre os caminhos do relatório', () => {
+    const measureColumns = reportDrillColumns(invoices, [unit]).filter((column) => column.kind === 'measure');
+    expect(measureColumns.map((column) => column.kind === 'measure' && column.path)).toEqual(['consumo']);
+    expect(reportPaths(invoices)).toContain('consumo');
   });
 });

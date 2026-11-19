@@ -88,6 +88,7 @@ export interface ReportViewViewModel {
   /** O detalhamento, quando o relatório o permite. Ausente, tabela e pivô não são clicáveis. */
   drill: ((target: ReportDrillTarget) => void) | undefined;
   drillOpen: boolean;
+  drillTarget: ReportDrillTarget | null;
   drillTitle: string;
   drillRecords: Record<string, unknown>[];
   drillMatched: number;
@@ -159,6 +160,7 @@ export const useReportViewViewModel = (
    */
   const [promptValues, setPromptValues] = useState<Record<string, string>>({});
   const [drillState, setDrillState] = useState<{
+    target: ReportDrillTarget;
     title: string;
     records: Record<string, unknown>[];
     matched: number;
@@ -393,7 +395,7 @@ export const useReportViewViewModel = (
     const title = path.length > 0
       ? path.map((entry) => groupLabel(entry)).join(' / ')
       : t('table.total');
-    setDrillState({ title, records: [], matched: 0, loading: true });
+    setDrillState({ target, title, records: [], matched: 0, loading: true });
     try {
       const outcome = await runReport({ reportId: report.id, prompts: currentPayload(), drill: target });
       if (outcome.error) {
@@ -402,6 +404,7 @@ export const useReportViewViewModel = (
         return;
       }
       setDrillState({
+        target,
         title,
         records: outcome.drill?.records ?? [],
         matched: outcome.drill?.matched ?? 0,
@@ -459,6 +462,7 @@ export const useReportViewViewModel = (
     print: () => window.print(),
     drill: spec && reportDrillEnabled(spec) ? (target) => { void drill(target); } : undefined,
     drillOpen: drillState !== null,
+    drillTarget: drillState?.target ?? null,
     drillTitle: drillState?.title ?? '',
     drillRecords: drillState?.records ?? [],
     drillMatched: drillState?.matched ?? 0,

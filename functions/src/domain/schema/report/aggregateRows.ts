@@ -15,10 +15,10 @@ import { matchesResolvedPredicates } from '../predicateMatch';
 import { deterministicRecordOrder } from '../recordOrder';
 import type { ResolvedPredicate } from '../predicateMatch';
 import { bucketDateValue, reportBucketOf } from './reportBuckets';
-import { computedDimensionValue, withoutComputedDimensions } from './reportComputedDimension';
+import { reportDimensionValue } from './reportComputedDimension';
 import { computedMeasureReferences, evaluateComputedMeasure, isComputedMeasure } from './reportComputedMeasure';
 import type { ReportGroupKey, ReportResult, ReportRow, ReportTotals } from './reportResult';
-import { isAggregateMeasure, isComputedDimension, REPORT_OTHERS_KEY, reportGranularityOf } from './reportSpec';
+import { isAggregateMeasure, REPORT_OTHERS_KEY, reportGranularityOf } from './reportSpec';
 import type { ReportDimension, ReportGroupLevel, ReportMeasure, ReportSpec } from './reportSpec';
 
 export interface ReportAggregateLimits {
@@ -100,9 +100,12 @@ const wireValue = (value: unknown): unknown => {
   return value;
 };
 
-/** O registro como sai no resultado: sem o que o relatório calculou nele, e no formato do fio. */
+/**
+ * O registro como sai no resultado, no formato do fio — COM o lugar reservado das dimensões calculadas.
+ * Sem ele, a coluna de uma calculada não tinha de onde sair (`reportDimensionValue`).
+ */
 const recordOut = (row: Record<string, unknown>): Record<string, unknown> =>
-  wireValue(withoutComputedDimensions(row)) as Record<string, unknown>;
+  wireValue(row) as Record<string, unknown>;
 
 /**
  * A chave do grupo desta dimensão, nesta linha.
@@ -112,9 +115,7 @@ const recordOut = (row: Record<string, unknown>): Record<string, unknown> =>
  * trimestre é uma mentira, e o leitor não tem como notar.
  */
 const dimensionKeyOf = (row: Record<string, unknown>, dimension: ReportDimension): ReportGroupKey => {
-  const raw = isComputedDimension(dimension)
-    ? computedDimensionValue(row, dimension.key)
-    : getValueAtPath(row, parsePath(dimension.path));
+  const raw = reportDimensionValue(row, dimension);
 
   // Com faixas, o grupo é a FAIXA — e o que não cai em nenhuma é o grupo vazio, nunca o valor cru: um
   // aging com um grupo por número de dias seria a tabela que as faixas existem para evitar.
@@ -645,10 +646,7 @@ const drillOrder = (spec: ReportSpec): ((left: Record<string, unknown>, right: R
     orderBy,
     (row, key) => {
       const dimension = dimensions.get(key);
-      if (!dimension) return getValueAtPath(row, parsePath(key));
-      return isComputedDimension(dimension)
-        ? computedDimensionValue(row, dimension.key)
-        : getValueAtPath(row, parsePath(dimension.path));
+      return dimension ? reportDimensionValue(row, dimension) : getValueAtPath(row, parsePath(key));
     },
     (row) => (typeof row.id === 'string' ? row.id : ''),
   );

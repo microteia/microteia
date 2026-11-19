@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { aggregateReportRows, drillReportRows } from './aggregateRows';
 import { reportBucketOf } from './reportBuckets';
-import { computedDimensionValue, materializeReportDimensions, REPORT_DIMENSION_SLOT } from './reportComputedDimension';
+import { computedDimensionValue, materializeReportDimensions, REPORT_DIMENSION_SLOT, reportDimensionValue } from './reportComputedDimension';
 import { deriveReportRequires, unsupportedReportCapabilities } from './reportCapabilities';
 import { reportPaths } from './reportSpec';
 import type { ReportBucket, ReportSpec } from './reportSpec';
@@ -57,10 +57,12 @@ describe('dimensão calculada', () => {
     ]);
   });
 
-  it('o detalhamento acha a faixa pela mesma chave, e devolve o registro sem o valor calculado', () => {
+  it('o detalhamento acha a faixa pela mesma chave, e devolve o registro COM o valor calculado', () => {
+    // Sem o lugar reservado, a coluna da calculada saía em branco no detalhe, na lista e no CSV (#5).
     const drill = drillReportRows({ spec, rows: materialized(), target: { keys: [{ dimension: 'atraso', key: 'a' }] } });
     expect(drill.records.map((record) => record.id)).toEqual(['1', '4']);
-    expect(drill.records[0]).not.toHaveProperty(REPORT_DIMENSION_SLOT);
+    expect(reportDimensionValue(drill.records[0], spec.dataset.dimensions![0])).toBe(10);
+    expect(drill.records[0].vencimento).toBe('2026-11-02');
   });
 
   it('a expressão que estoura é recusa nomeada, e não um grupo vazio', () => {

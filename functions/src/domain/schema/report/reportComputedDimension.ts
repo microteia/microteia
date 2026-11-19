@@ -10,8 +10,10 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { evaluateFieldExpression, extractFieldExpressionPaths } from '../fieldExpression';
+import { getValueAtPath, parsePath } from '../pathResolver';
 import { isBusinessDaysError } from '../time/businessDays';
 import { isComputedDimension } from './reportSpec';
+import type { ReportDimension } from './reportSpec';
 import type { ReportRowFilterInput, ReportRowFilterOutcome } from './reportRowFilter';
 import { reportRowScope } from './reportRowFilter';
 
@@ -26,13 +28,17 @@ export const computedDimensionValue = (row: Record<string, unknown>, key: string
   return slot && typeof slot === 'object' ? (slot as Record<string, unknown>)[key] ?? null : null;
 };
 
-/** A linha sem o que o relatório calculou nela — o registro como ele é, para quem o vê no detalhe. */
-export const withoutComputedDimensions = (row: Record<string, unknown>): Record<string, unknown> => {
-  if (!(REPORT_DIMENSION_SLOT in row)) return row;
-  const rest = { ...row };
-  delete rest[REPORT_DIMENSION_SLOT];
-  return rest;
-};
+/**
+ * O valor de uma dimensão NUM REGISTRO: o calculado sai do lugar reservado, o de campo sai do caminho.
+ *
+ * Leitura única para o agregador, a tela e o arquivo da automação. O registro chegava à tela sem o
+ * lugar reservado e cada um lia `dimension.path` — que a calculada não tem —, e a coluna dela saía em
+ * branco na lista, no detalhe e no CSV, sem uma palavra (#5).
+ */
+export const reportDimensionValue = (record: Record<string, unknown>, dimension: ReportDimension): unknown =>
+  isComputedDimension(dimension)
+    ? computedDimensionValue(record, dimension.key)
+    : getValueAtPath(record, parsePath(dimension.path));
 
 /**
  * Calcula as dimensões por expressão, UMA vez por linha, entre o filtro e a agregação.

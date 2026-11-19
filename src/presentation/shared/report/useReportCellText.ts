@@ -2,10 +2,10 @@ import { useCallback, useMemo } from 'react';
 import { useLabel, useLocaleFormat } from '../i18n/useT';
 import { useReportSchema } from './useReportSchema';
 import { fieldAtPath } from './reportFilterFields';
-import { getValueAtPath, parsePath } from '../../../domain/schema/pathResolver';
 import type { SchemaContext, SchemaScreen } from '../../../domain/schema/pathResolver';
 import { resolveRecordTitle } from '../../../domain/services/customFieldValues';
 import { bucketDateValue } from '../../../domain/schema/report/reportBuckets';
+import { reportDimensionValue } from '../../../domain/schema/report/reportComputedDimension';
 import { reportGranularityOf } from '../../../domain/schema/report/reportSpec';
 import type { ReportDimension, ReportSpec } from '../../../domain/schema/report/reportSpec';
 
@@ -65,7 +65,7 @@ export const useReportCellText = (
   }, [ctx, spec, table]);
 
   return useCallback((record, dimension) => {
-    const raw = getValueAtPath(record, parsePath(dimension.path));
+    const raw = reportDimensionValue(record, dimension);
     if (raw === null || raw === undefined) return '';
 
     // O balde vem do MESMO corte do agregador, e a chave dele já é o texto: "2026-03" é o que a

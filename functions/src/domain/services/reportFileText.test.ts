@@ -3,6 +3,7 @@ import { reportFileText } from './reportFileText';
 import { createSchemaContext } from '../schema/pathResolver';
 import type { SchemaScreen } from '../schema/pathResolver';
 import { buildMessageCatalog } from '../schema/i18n/messages';
+import { REPORT_DIMENSION_SLOT } from '../schema/report/reportComputedDimension';
 import { REPORT_OTHERS_KEY } from '../schema/report/reportSpec';
 import type { ReportSpec } from '../schema/report/reportSpec';
 import type { ReportResult } from '../schema/report/reportResult';
@@ -90,5 +91,12 @@ describe('reportFileText — o relatório como o escritório o lê, no servidor'
   it('a célula de um registro hidratado mostra o título, não o id', async () => {
     const t = await text(false);
     expect(t.cell({ clienteId: { id: 'c1', nome: 'Ana' } }, { key: 'cliente', path: 'clienteId' })).toBe('Ana');
+  });
+
+  // A coluna da calculada saía em branco no arquivo da automação: lia `path`, que ela não tem (#5).
+  it('a célula de uma dimensão calculada mostra o valor calculado', async () => {
+    const t = await text(false);
+    expect(t.cell({ [REPORT_DIMENSION_SLOT]: { atraso: 12 } }, { key: 'atraso', path: '', expression: 'dateDiff(today(), vencimento)' }))
+      .toBe('12');
   });
 });
