@@ -3932,7 +3932,10 @@ through it: \`validate\` takes \`check\` (a preset), \`pattern\` (with \`flags\`
 Processor and the \`ai-extract-parameters\` step fill from a free text, and by default a model reads that
 text into every parameter. A top-level \`String\` parameter with \`fillFrom: 'sourceText'\` receives the
 text itself instead — exactly as it arrived, and left out of what the model is asked —, and one with
-\`fillFrom: 'sourceName'\` receives the name of the file it came from (empty for pasted text). When every
+\`fillFrom: 'sourceName'\` receives the name of the file it came from (empty for pasted text). From a PDF, the
+text is that of the pages the person picks in the Processor — page 1 unless they choose others —, in page
+order and separated by a form feed, exactly like the \`text\` of \`read-document\`: \`text.split('\\f')\`
+gives one page each, whichever of the two sent it. When every
 parameter has one, no model and no AI connection are involved: this is how an extension that already
 parses a known layout in a sandbox script gets the document without a model copying it. A text above
 ${MAX_SOURCE_TEXT_CHARACTERS.toLocaleString('en-US')} characters is refused, never cut. Called from anywhere else (an action, \`call-workflow\`, MCP), the
@@ -4252,7 +4255,9 @@ serves both. From an **e-mail**, the flow above stays as it is after one more st
 Processor**, there is no record and no file to fingerprint: a \`workflow.called\` workflow with a
 \`String\` parameter declared \`fillFrom: 'sourceText'\` receives the text the Processor extracted, and its
 script creates the record. The Processor joins a PDF's lines into one, so a parser meant for both
-cannot depend on the line breaks.
+cannot depend on the line breaks; the pages, though, arrive the same way from both — the ones the
+person picked, separated by a form feed —, so a document with the header on page 1 and the totals on the
+last one reaches the script whole when the person picks both.
 
 \`read-document\` needs kernel ${READ_DOCUMENT_SINCE_KERNEL} or later.
 

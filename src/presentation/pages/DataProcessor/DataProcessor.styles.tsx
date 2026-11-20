@@ -331,13 +331,20 @@ export const S = {
 
   PageSelector: styled.div`
     display: flex;
-    align-items: flex-end;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: ${({ theme }) => theme.spacing.md};
+  `,
+
+  PagesRow: styled.div`
+    display: flex;
+    align-items: center;
     gap: ${({ theme }) => theme.spacing.sm};
   `,
 
   PageSelectorField: styled.div`
     flex: 1;
-    min-width: 0;
+    min-width: 220px;
   `,
 
   CanvasWrapper: styled.div`
