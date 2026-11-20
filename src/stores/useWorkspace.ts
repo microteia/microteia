@@ -25,6 +25,11 @@ export interface WorkspaceContextValue {
   activePanelId: string;
   tabTitleOverrides: Record<string, string>;
   openTab: (key: string) => void;
+  /**
+   * Abre várias abas de uma vez e ativa a PRIMEIRA. Existe porque `openTab` em sequência ativaria a
+   * última — e a primeira é a que a ordem declarada põe na frente (as telas iniciais, #14).
+   */
+  openTabs: (keys: string[]) => void;
   closeTab: (key: string, panelId: string) => void;
   closeOtherTabs: (keepKey: string, panelId: string) => void;
   activateTab: (key: string, panelId: string) => void;

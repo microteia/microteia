@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.291.0] — 2026-11-20
+
+- Quando mais de uma extensão traz a própria tela inicial, todas passam a abrir ao entrar no escritório, com a primeira em destaque. Antes, só uma delas aparecia.
+- Uma tela inicial restrita a quem tem certa permissão não deixa mais de abrir quando o acesso demora alguns instantes para carregar.
+
 #### [9.290.0] — 2026-11-20
 
 - As regras de ocultar um campo podem distinguir o formulário do cartão da lista: um campo pode aparecer no cartão só em certas situações, por exemplo apenas enquanto o registro estiver aberto.

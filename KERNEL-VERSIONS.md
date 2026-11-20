@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.291.0] — 2026-11-20
+
+- feat(ui.page): every page declaring `home: true` opens on entering the workspace, in load order, with the first one focused (#14). It used to be `.find()`: a second extension bringing its own start page was ignored with no warning. `homePageKey` became `homePageKeys`; the workspace gained `openTabs(keys)`, which focuses the FIRST key (successive `openTab` calls would focus the last). With a single home page nothing changes. `KERNEL_VERSION` goes to `2.142.0` (the same field now means something else).
+- fix(workspace): the start-page decision waits for what can change it — the current organization's installed list (`useInstalledExtensions().isLoaded`, new: `isLoading` starts `false` and keeps the previous organization's list on a switch), code trust (the hash is async, and a page with code only exists after it), authorization, and this organization's member document (or unrestricted access). Before, it was taken on the first render a key appeared, and a home page with `requiredPermissions` could be skipped for good while permissions loaded.
+- refactor(workspace): the workspace reducer moved to `stores/workspaceReducer.ts`, so it can be tested; a `.tsx` exports components only.
+
 #### [9.290.0] — 2026-11-20
 
 - feat(fields): `surface` in the UI scope of field expressions (`hiddenWhen`, `disabledWhen`, `onChange`) — `form` in the record form, `card` on the list card (contract 2.141.0, unpublished until now). The card evaluates `hiddenWhen` only for fields that declare `visibleIn`, so installed packages whose conditions were written for the form keep their cards as they were; there it hides the field from the extra-fields block and the `listIcon` meta row (`isFieldHiddenOnCard`, `isCardFieldHidden`). As a reserved name, `surface` now wins over a field with that key in the UI scope (#12, phase 3).

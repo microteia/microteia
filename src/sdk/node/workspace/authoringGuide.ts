@@ -1883,8 +1883,8 @@ Two things follow from the same wiring:
   prefix, and a screen's \`recordTabPrefix\` is what sends a record there instead of to the form.
 - **\`home: true\`** makes the page the workspace's start page — the tab opened when the
   organization is entered and nothing else is open. The platform names no start page of its own: with
-  none declared, the workspace starts with no tab. If several are declared, the first one loaded that
-  the person may see wins.
+  none declared, the workspace starts with no tab. If several are declared, every one the person may
+  see opens, in load order, and the first one is focused.
 - **\`nav().badge\`** counts records without any code: \`badge: { collection: 'invoices', when: 'status
   == "open"' }\`. The expression sees each record's fields plus \`user\` (§9), which is what lets a badge
   count what *this* person has not dealt with. Give the entry the same slice as a \`filter\` (above, "The

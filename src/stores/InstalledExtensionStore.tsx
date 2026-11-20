@@ -77,6 +77,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
 
   const [installed, setInstalled] = useState<InstalledExtension[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadedTenantId, setLoadedTenantId] = useState<string | null>(null);
   const [migrationStates, setMigrationStates] = useState<ReadonlyMap<string, ExtensionMigrationState>>(new Map());
   const [histories, setHistories] = useState<ReadonlyMap<string, ExtensionHistory>>(new Map());
   const [appliedBackend, setAppliedBackend] = useState<AppliedBackend | null>(null);
@@ -110,9 +111,11 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       return;
     }
     setIsLoading(true);
-    const unsubscribe = installedExtensionRepository.subscribe(currentTenant.id, (list) => {
+    const tenantId = currentTenant.id;
+    const unsubscribe = installedExtensionRepository.subscribe(tenantId, (list) => {
       setInstalled(list);
       setIsLoading(false);
+      setLoadedTenantId(tenantId);
     });
     return () => unsubscribe();
   }, [currentTenant, installedExtensionRepository]);
@@ -480,6 +483,7 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
     () => ({
       installed,
       isLoading,
+      isLoaded: currentTenant !== null && loadedTenantId === currentTenant.id,
       migrationStates,
       histories,
       appliedBackend,
@@ -493,8 +497,8 @@ export const InstalledExtensionStoreProvider: React.FC<{ children: React.ReactNo
       restore,
     }),
     [
-      installed, isLoading, migrationStates, histories, appliedBackend, install, setActive, trustCode,
-      uninstall, installedOf, pendingMigrationsOf, runMigrations, restore,
+      installed, isLoading, loadedTenantId, currentTenant, migrationStates, histories, appliedBackend, install,
+      setActive, trustCode, uninstall, installedOf, pendingMigrationsOf, runMigrations, restore,
     ],
   );
 

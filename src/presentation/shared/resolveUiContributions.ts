@@ -57,13 +57,22 @@ export const navigablePages = (
     .filter((metadata) => !metadata.requiresSystemAdmin || isSystemAdmin)
     .filter((metadata) => isPermitted(canAny, metadata.requiredPermissions));
 
-/** A chave da tela inicial que esta pessoa pode abrir — ver `UiPageMetadata.home`. */
-export const homePageKey = (
+/**
+ * As chaves das telas iniciais que esta pessoa pode abrir, na ordem de carga e sem repetição — ver
+ * `UiPageMetadata.home`. Eram uma chave só ("vence a primeira"), e a segunda extensão que trazia a
+ * própria tela inicial era ignorada em silêncio (#14).
+ */
+export const homePageKeys = (
   contributions: QualifiedContribution[],
   canAny: CanAny,
   isSystemAdmin: boolean,
-): string | undefined =>
-  navigablePages(contributions, canAny, isSystemAdmin).find((metadata) => metadata.home)?.key;
+): string[] => [
+  ...new Set(
+    navigablePages(contributions, canAny, isSystemAdmin)
+      .filter((metadata) => metadata.home)
+      .map((metadata) => metadata.key),
+  ),
+];
 
 export const visibleNavItems = (
   contributions: QualifiedContribution[],
@@ -78,7 +87,7 @@ export const visibleNavItems = (
 
 /**
  * Os grupos declarados, um por `key`. Duas extensões que declaram a mesma `key` falam do mesmo grupo,
- * e vale a primeira na ordem de carga — a mesma regra de `home`. A declaração sem `key` não forma
+ * e vale a primeira na ordem de carga. A declaração sem `key` não forma
  * grupo: o item que a apontasse não teria como encontrá-la.
  */
 export const declaredNavGroups = (contributions: QualifiedContribution[]): UiNavGroupMetadata[] => {
