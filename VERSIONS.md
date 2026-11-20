@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.287.4] — 2026-11-20
+
+- Ao atualizar uma extensão, os relatórios e as automações que ela instalou passam a ser trocados pela versão nova. Antes, em alguns casos, o escritório continuava com a versão antiga sem nenhum aviso.
+
 #### [9.287.3] — 2026-11-20
 
 - Campos marcados para ficar fora do formulário — como um código preenchido por uma automação — deixaram de aparecer na tela de cadastro e de edição. O valor deles continua guardado no registro.

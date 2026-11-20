@@ -624,6 +624,13 @@ written for whoever *uses* the extension: what they will notice, in one plain se
 or the field you touched. An extension changed without a new version is an extension that never reaches
 the organizations that already have it: the version is the whole of how an update is recognised.
 
+On an update, what the package manages — scripts, automations, actions, reports — is rewritten with the
+new version. \`sourceRev\` on any of them is optional, and it only ever holds content back in two cases:
+re-importing an OLDER version of your own extension (a lower \`sourceRev\` does not overwrite a higher
+one, so nothing regresses), and another extension carrying the same artifact (same \`sourceId\`), which
+replaces your copy only with a strictly greater \`sourceRev\`. Keeping \`sourceRev\` constant across
+versions is fine: the update still replaces the report or the automation.
+
 ### References between your own artifacts
 
 Inside the package, artifacts point at each other by \`templateId\` (automations, actions, scripts) or
@@ -4266,6 +4273,10 @@ last one reaches the script whole when the person picks both.
 A report is not a screen and not an automation: it is a **question**. What it covers, how it is
 folded, what is counted. Declare one in \`reports\` and it shows up in the organization's report list
 the moment your extension is installed.
+
+An update of your extension replaces the reports it installed — they are read-only in the organization's
+designer, so there is no local edit to keep. \`sourceRev\` only stops a re-import of an older version
+from bringing an older report back (see "Every change to an extension raises \`manifest.version\`").
 
 \`\`\`ts
 reports: [{

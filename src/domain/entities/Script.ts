@@ -26,8 +26,9 @@ export interface Script {
   ownerPluginIds?: string[] | null;
   /** Id UNIVERSAL de origem (GUID do artefato no tenant autor) — chave de deduplicação na instalação. */
   sourceId?: string | null;
-  /** Revisão de ORIGEM (epoch ms do `updatedAt` no autor), carimbada no empacotamento. A atualização
-   * só reescreve o conteúdo quando a revisão que chega é estritamente maior que a materializada. */
+  /** Revisão de ORIGEM do artefato, carimbada no empacotamento. A atualização da extensão DONA reescreve
+   * o conteúdo, a não ser que a revisão que chega seja MENOR (reimportar um pacote antigo não regride);
+   * outra extensão com o mesmo `sourceId` só o reescreve com revisão estritamente maior. */
   sourceRev?: number | null;
   /** De onde veio o conteúdo gravado por último — edição ou extensão. Ver `WorkflowContentOrigin`. */
   contentOrigin?: WorkflowContentOrigin;

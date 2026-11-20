@@ -440,7 +440,7 @@ const ACTION_NOTES: Record<string, string> = {
   order: 'HUMAN: the order gestures appear in',
   ownerPluginIds: 'the refcount of extensions sharing the action, set by the installation',
   sourceId: 'the universal identity of the action, like the screen\'s — how an update recognises it across offices',
-  sourceRev: 'the origin revision, stamped at packaging so an update only rewrites what is genuinely newer',
+  sourceRev: 'the origin revision, stamped at packaging: an update of the owning extension rewrites unless it is LOWER, another extension only with a greater one',
 };
 
 const WORKFLOW_REACH: Record<keyof WorkflowModuleTemplate, string | null> = {
@@ -479,7 +479,7 @@ const WORKFLOW_NOTES: Record<string, string> = {
     + 'of the model',
   ownerPluginIds: 'the refcount of extensions sharing the flow, set by the installation',
   sourceId: 'the universal identity of the flow — how an update recognises it across offices',
-  sourceRev: 'the origin revision, stamped at packaging so an update only rewrites what is genuinely newer',
+  sourceRev: 'the origin revision, stamped at packaging: an update of the owning extension rewrites unless it is LOWER, another extension only with a greater one',
 };
 
 const propertyItems = (
