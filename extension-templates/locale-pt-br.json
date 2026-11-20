@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.235.0",
+    "version": "1.236.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -704,6 +704,7 @@
             "command.hint.close": "fechar",
             "search.no-results": "Nenhum resultado encontrado.",
             "search.nothing-found": "Nada encontrado.",
+            "search.type-to-search": "Digite para pesquisar…",
             "filter.active.one": "{count} filtro ativo",
             "filter.active.other": "{count} filtros ativos",
             "filter.enter-to-apply": "Pressione Enter para aplicar",

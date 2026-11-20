@@ -249,6 +249,9 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   const selected = options.find((o) => o.value === value);
   const isOrphan = !!value && !selected;
 
+  // Quem busca no servidor lista o que acha ao digitar: antes disso, a lista vazia não diz que não há
+  // nada a escolher — diz que ainda não se perguntou (#9).
+  const awaitingQuery = !!onQueryChange && query.trim() === '';
   const filtered = options.filter((o) =>
     o.label.toLowerCase().includes(query.toLowerCase()) ||
     (o.meta ?? '').toLowerCase().includes(query.toLowerCase()) ||
@@ -362,7 +365,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
           </SearchRow>
           <OptionList>
             {filtered.length === 0 ? (
-              <EmptyMsg>{t('search.no-results')}</EmptyMsg>
+              <EmptyMsg>{t(awaitingQuery ? 'search.type-to-search' : 'search.no-results')}</EmptyMsg>
             ) : (
               filtered.map((opt, idx) => (
                 <OptionItem

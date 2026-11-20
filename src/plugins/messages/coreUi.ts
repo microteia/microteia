@@ -308,6 +308,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'command.hint.close': 'close',
   'search.no-results': 'No result found.',
   'search.nothing-found': 'Nothing found.',
+  'search.type-to-search': 'Type to search…',
   'filter.active.one': '{count} active filter',
   'filter.active.other': '{count} active filters',
   'filter.enter-to-apply': 'Press Enter to apply',

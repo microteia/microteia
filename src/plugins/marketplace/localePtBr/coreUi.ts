@@ -307,6 +307,7 @@ export const CORE_UI: Record<string, string> = {
   'command.hint.close': 'fechar',
   'search.no-results': 'Nenhum resultado encontrado.',
   'search.nothing-found': 'Nada encontrado.',
+  'search.type-to-search': 'Digite para pesquisar…',
   'filter.active.one': '{count} filtro ativo',
   'filter.active.other': '{count} filtros ativos',
   'filter.enter-to-apply': 'Pressione Enter para aplicar',
