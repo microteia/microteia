@@ -71,4 +71,21 @@ describe('DynamicRecordCommandProvider', () => {
       .map((item) => item.id);
     expect(items).toEqual([]);
   });
+
+  it('a tela que se chama por referência aparece pelo nome do apontado, nunca pelo id (#8)', () => {
+    const accounts = screen({ id: 'accounts', titlePlural: 'Accounts', titleSingular: 'Account', titleFieldKey: 'holder' });
+    const account = { id: 'a1', collection: 'accounts', holder: 'O7aUqpiiVsn6yBTfd7Bi' } as unknown as EntityRecord;
+    const ctx = {
+      ...context([accounts], [account], new Set(['accounts/a1'])),
+      recordTitle: (one: EntityRecord) => (one.id === 'a1' ? 'Jane Example' : ''),
+    };
+    const items = DynamicRecordCommandProvider.getItems('jane', ctx);
+    expect(items.map((item) => [item.id, item.title])).toEqual([['dyn-record:a1', 'Jane Example']]);
+
+    const unnamed = { ...ctx, recordTitle: () => '' };
+    expect(DynamicRecordCommandProvider.getItems('jane', unnamed).map((item) => item.title))
+      .toEqual(['@core.records/record.untitled']);
+    // O aviso "sem título" não é nome: digitar parte dele não acha o registro.
+    expect(DynamicRecordCommandProvider.getItems('untitled', { ...unnamed, recordMatches: new Set() })).toEqual([]);
+  });
 });

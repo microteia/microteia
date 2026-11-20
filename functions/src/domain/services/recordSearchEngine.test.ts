@@ -9,6 +9,7 @@ import {
   RECORD_SEARCH_STALL_MS,
   recordSearchBackfillJobId,
   recordSearchPropagationJobId,
+  recordSearchSignature,
   searchQueryTerms,
 } from '../schema/recordSearch';
 import type { RecordSearchJobState, RecordSearchScan } from '../schema/recordSearch';
@@ -340,5 +341,93 @@ describe('a busca de quem tem a leitura restrita', () => {
     expect(await searchVisibleRecordIds(TENANT, 'cases', 'curatela', 10, { uid: 'u9', permissions: ['cases.read-all'] }, deps))
       .toEqual(['c1', 'c2', 'c3']);
     expect(await searchVisibleRecordIds(TENANT, 'cases', 'a', 10, { uid: 'u1', permissions: [] }, deps)).toEqual([]);
+  });
+});
+
+/**
+ * Issue #8: a tela cujo título é uma referência (a conta se chama pelo titular). A carta que aponta a
+ * conta levava para os termos o id do titular — ou nada —, e não era achada pelo nome dele.
+ */
+describe('o título que é uma referência — um salto', () => {
+  const holders = (): SchemaScreen => ({ id: 'holders', titleSingular: 'Holder', titleFieldKey: 'name', fields: [field('name', 'text')] });
+  const accounts = (): SchemaScreen => ({
+    id: 'accounts', titleSingular: 'Account', titleFieldKey: 'holder',
+    fields: [field('holder', 'reference', { refEntity: 'holders' })],
+  });
+  const letters = (): SchemaScreen => ({
+    id: 'letters', titleSingular: 'Letter', titleFieldKey: 'subject',
+    fields: [field('subject', 'text'), field('account', 'reference', { refEntity: 'accounts', searchable: true })],
+  });
+
+  const seed = async () => {
+    const env = setup([holders(), accounts(), letters()]);
+    const { repository, deps } = env;
+    repository.put('holders', 'h1', { name: 'Jane Example' });
+    repository.put('holders', 'h2', { name: 'John Sample' });
+    await deriveRecordSearchOnWrite(TENANT, 'accounts', 'a1', null, repository.put('accounts', 'a1', { holder: 'h1' }), deps);
+    await deriveRecordSearchOnWrite(TENANT, 'letters', 'l1', null, repository.put('letters', 'l1', { subject: 'Statement', account: 'a1' }), deps);
+    return env;
+  };
+
+  it('a carta que aponta a conta é achada pelo nome do titular, e nunca pelo id dele', async () => {
+    const { repository } = await seed();
+    expect(finds(repository.read('accounts', 'a1'), 'jane example')).toBe(true);
+    expect(finds(repository.read('letters', 'l1'), 'jane example')).toBe(true);
+    expect(finds(repository.read('letters', 'l1'), 'h1')).toBe(false);
+  });
+
+  it('renomear o titular chega à carta, pela conta — que não foi gravada', async () => {
+    const { repository, deps } = await seed();
+    const renamed = repository.put('holders', 'h1', { name: 'Jane Renamed' });
+    await deriveRecordSearchOnWrite(TENANT, 'holders', 'h1', { name: 'Jane Example' }, renamed, deps);
+
+    await drain(repository, deps, recordSearchPropagationJobId('holders', 'h1'));
+    await drain(repository, deps, recordSearchPropagationJobId('accounts', 'a1'));
+
+    expect(finds(repository.read('accounts', 'a1'), 'renamed')).toBe(true);
+    expect(finds(repository.read('letters', 'l1'), 'renamed')).toBe(true);
+    expect(finds(repository.read('letters', 'l1'), 'example')).toBe(false);
+  });
+
+  it('trocar o titular da conta rederiva a carta', async () => {
+    const { repository, deps } = await seed();
+    const before = repository.read('accounts', 'a1') as Record<string, unknown>;
+    const changed = repository.put('accounts', 'a1', { ...before, holder: 'h2' });
+    await deriveRecordSearchOnWrite(TENANT, 'accounts', 'a1', before, changed, deps);
+
+    await drain(repository, deps, recordSearchPropagationJobId('accounts', 'a1'));
+
+    expect(finds(repository.read('letters', 'l1'), 'john sample')).toBe(true);
+    expect(finds(repository.read('letters', 'l1'), 'jane')).toBe(false);
+  });
+
+  it('um salto só: o título que aponta para outro título por referência não é seguido', async () => {
+    const chained: SchemaScreen = {
+      id: 'notes', titleSingular: 'Note', titleFieldKey: 'letter',
+      fields: [field('letter', 'reference', { refEntity: 'accounts' })],
+    };
+    const pointing: SchemaScreen = {
+      id: 'tasks', titleSingular: 'Task', titleFieldKey: 'title',
+      fields: [field('title', 'text'), field('note', 'reference', { refEntity: 'notes', searchable: true })],
+    };
+    const { repository, deps } = setup([holders(), accounts(), chained, pointing]);
+    repository.put('holders', 'h1', { name: 'Jane Example' });
+    repository.put('accounts', 'a1', { holder: 'h1' });
+    repository.put('notes', 'n1', { letter: 'a1' });
+    await deriveRecordSearchOnWrite(TENANT, 'tasks', 't1', null, repository.put('tasks', 't1', { title: 'Call', note: 'n1' }), deps);
+
+    expect(finds(repository.read('tasks', 't1'), 'call')).toBe(true);
+    expect(finds(repository.read('tasks', 't1'), 'jane')).toBe(false);
+  });
+
+  it('a coleção que aponta para um título por referência ganha assinatura nova; as outras não', async () => {
+    const { repository, deps } = setup([holders(), accounts(), letters(), personsScreen(), casesScreen()]);
+    await reconcileRecordSearch(TENANT, deps);
+    const signatures = new Map([...repository.jobs].map(([id, job]) => [id, job.signature]));
+
+    const plainLetters = recordSearchSignature({ titleFieldKey: 'subject', fields: letters().fields });
+    expect(signatures.get(recordSearchBackfillJobId('letters'))).not.toBe(plainLetters);
+    expect(signatures.get(recordSearchBackfillJobId('cases')))
+      .toBe(recordSearchSignature({ titleFieldKey: 'title', fields: casesScreen().fields }));
   });
 });

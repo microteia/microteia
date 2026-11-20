@@ -47,6 +47,11 @@ export interface CommandPaletteAppContext {
    * estão em `records`; esta é a marca de que valem mesmo sem o título conter o que foi digitado.
    */
   recordMatches: ReadonlySet<string>;
+  /**
+   * O título que se lê de um registro — o de uma tela que se chama por referência sai pelo nome do
+   * apontado, e não pelo id gravado no campo. Vazio quando o registro não tem título.
+   */
+  recordTitle?: (record: EntityRecord) => string;
   screenDefinitions: ScreenDefinition[];
   workflows: WorkflowDefinition[];
   reports: CommandPaletteReport[];

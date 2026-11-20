@@ -5719,6 +5719,20 @@ memória, e um registro duplicado a partir de outro o levaria de volta numa grav
   ordenado por id — servido pelos índices de campo único, sem índice declarado — em cada campo
   pesquisável que aponta para a coleção (`searchReferrersOf`; para lista, `searchLookupReferrersOf`).
   Criar um registro não propaga: ninguém o aponta ainda. O job de propagação é apagado ao terminar.
+- **O título que é referência é o título do apontado — um salto** (issue #8). A conta cujo
+  `titleFieldKey` é o titular se chama pelo nome do titular: `recordSearchTitle` recebe o
+  `referenceTitle` já lido, e quem o resolve chama a função SEM ele — o segundo título que for
+  referência fica vazio, o mesmo limite do portal. A rodada lê o segundo salto numa leitura por coleção
+  (`searchTitleReferenceIds`). Três consequências: (1) a propagação compara `recordSearchTitleSource` —
+  com título por referência, o que muda o nome é TROCAR o apontado (os ids), não o texto, que não está no
+  registro; (2) a varredura de propagação que passa por registros cujo TÍTULO é o campo varrido (as contas
+  do titular renomeado) abre a propagação de cada um — nenhuma gravação neles a dispararia, e a carta que
+  aponta a conta ficaria com o nome velho; (3) a assinatura de quem aponta inclui a coleção do segundo
+  salto, só quando ele existe (`recordSearchSignature(screen, titleReferenceOf)`): a coleção que aponta
+  para um título por referência é rederivada uma vez, as outras não mudam de assinatura. A listagem
+  (`useRecordSearchReconcile`) faz a mesma conta. No navegador, `useEnsureReferencedRecords` traz por id
+  também o registro do segundo salto (`titleReferenceNeeds`) — sem ele o campo da carta mostrava "Sem
+  título" — e o ⌘K nomeia o registro por `buildRecordTitleResolver`, nunca pelo valor cru do campo-título.
 - **Uma leitura por coleção apontada, não por registro.** A rodada junta os ids de toda a página
   (`searchReferencesOf`) e lê cada coleção com `getAll`; as opções de lista, por `where('key', 'in')`;
   o catálogo de mensagens só quando algum rótulo é referência.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildReferenceOptions } from './buildReferenceOptions';
+import { buildRecordTitleResolver, buildReferenceOptions } from './buildReferenceOptions';
 import type { ReferenceOptionSources } from './buildReferenceOptions';
 import type { EntityRecord, FieldDefinition, LookupOption, ScreenDefinition } from '../../domain/entities';
 
@@ -254,3 +254,38 @@ describe('buildReferenceOptions', () => {
     });
   });
 });
+
+describe('título por referência fora do seletor — o ⌘K (#8)', () => {
+  const holders = screen({ id: 'holders', titleFieldKey: 'name', fields: [field({ key: 'name' })] });
+  const accounts = screen({
+    id: 'accounts',
+    titleFieldKey: 'holder',
+    fields: [field({ key: 'holder', type: 'reference', refEntity: 'holders' })],
+  });
+
+  it('o registro se chama pelo título do apontado, mesmo fora dos carregados', () => {
+    const titleOf = buildRecordTitleResolver({
+      recordsByCollection: { holders: [record('h1', { name: 'Jane Example' })] },
+      dynamicScreens: [holders, accounts],
+      members: [],
+      getOptions: () => [],
+      label: (value) => value,
+      untitled: 'Sem título',
+    });
+    const found = { id: 'a1', collection: 'accounts', holder: 'h1' } as unknown as EntityRecord;
+    expect(titleOf(found)).toBe('Jane Example');
+  });
+
+  it('o apontado que ainda não chegou deixa o título vazio — nunca o id', () => {
+    const titleOf = buildRecordTitleResolver({
+      recordsByCollection: {},
+      dynamicScreens: [holders, accounts],
+      members: [],
+      getOptions: () => [],
+      label: (value) => value,
+      untitled: 'Sem título',
+    });
+    expect(titleOf({ id: 'a1', collection: 'accounts', holder: 'h1' } as unknown as EntityRecord)).toBe('');
+  });
+});
+

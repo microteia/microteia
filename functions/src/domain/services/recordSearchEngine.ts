@@ -12,7 +12,10 @@ import {
   recordSearchSignature,
   recordSearchTerms,
   recordSearchTitle,
+  recordSearchTitleSource,
   sameSearchTerms,
+  searchTitleReferenceField,
+  searchTitleReferenceIds,
   searchFieldsOf,
   searchLookupReferrersOf,
   searchReferencesOf,
@@ -50,6 +53,22 @@ const searchScreenOf = (ctx: SchemaContext, collection: string): CollectionScree
   return searchFieldsOf(candidate).length > 0 ? candidate : undefined;
 };
 
+/**
+ * A tela de uma coleção como fonte de TÍTULO — mesmo a que não tem nada pesquisável. O título de quem é
+ * apontado é lido de qualquer tela, e não só das que a busca deriva.
+ */
+const titleScreenOf = (ctx: SchemaContext, collection: string): SearchScreen => {
+  const screen = ctx.screens.get(collection);
+  return screen ? { titleFieldKey: screen.titleFieldKey, fields: screen.fields } : { titleFieldKey: '', fields: [] };
+};
+
+/** Para onde aponta o título de uma coleção, quando ele é uma referência — a entrada da assinatura. */
+const titleReferenceOf = (ctx: SchemaContext) => (collection: string): string | null =>
+  searchTitleReferenceField(titleScreenOf(ctx, collection))?.refEntity ?? null;
+
+const signatureOf = (ctx: SchemaContext, screen: SearchScreen): string =>
+  recordSearchSignature(screen, titleReferenceOf(ctx));
+
 const searchScreens = (ctx: SchemaContext): CollectionScreen[] =>
   [...ctx.screens.keys()]
     .map((collection) => searchScreenOf(ctx, collection))
@@ -84,14 +103,40 @@ const textSourcesFor = async (
       needs.set(need.collection, ids);
     }
   }
+  const pointed = new Map<string, Map<string, Record<string, unknown>>>();
   await Promise.all([...needs].map(async ([collection, ids]) => {
-    const target = searchScreenOf(ctx, collection) ?? { titleFieldKey: '', fields: [] };
-    const found = await deps.repository.getRecords(tenantId, collection, [...ids]);
-    for (const [id, data] of found) {
+    pointed.set(collection, await deps.repository.getRecords(tenantId, collection, [...ids]));
+  }));
+
+  // O segundo salto: o apontado cujo título é OUTRA referência se chama pelo título do registro dela.
+  // Uma leitura por coleção, e só quando há o que ler.
+  const distantNeeds = new Map<string, Set<string>>();
+  for (const [collection, found] of pointed) {
+    const target = titleScreenOf(ctx, collection);
+    const through = searchTitleReferenceField(target)?.refEntity;
+    if (!through) continue;
+    const ids = distantNeeds.get(through) ?? new Set<string>();
+    for (const data of found.values()) for (const id of searchTitleReferenceIds(target, data)) ids.add(id);
+    distantNeeds.set(through, ids);
+  }
+  const distantTitles = new Map<string, string>();
+  await Promise.all([...distantNeeds].filter(([, ids]) => ids.size > 0).map(async ([collection, ids]) => {
+    const target = titleScreenOf(ctx, collection);
+    for (const [id, data] of await deps.repository.getRecords(tenantId, collection, [...ids])) {
+      // Sem `referenceTitle`: um salto só — o título do segundo apontado que for referência fica vazio.
       const title = recordSearchTitle(target, data, inlineLabel);
-      if (title) titles.set(`${collection}/${id}`, title);
+      if (title) distantTitles.set(`${collection}/${id}`, title);
     }
   }));
+  const distantTitle = (collection: string, id: string) => distantTitles.get(`${collection}/${id}`);
+
+  for (const [collection, found] of pointed) {
+    const target = titleScreenOf(ctx, collection);
+    for (const [id, data] of found) {
+      const title = recordSearchTitle(target, data, inlineLabel, distantTitle);
+      if (title) titles.set(`${collection}/${id}`, title);
+    }
+  }
 
   const options = new Map<string, CustomFieldOption[]>();
   const lookupKeys = new Map<string, Set<string>>();
@@ -139,6 +184,18 @@ const startPropagation = async (
     startRecordSearchJob('propagate', scans, null, current, deps.now()));
 };
 
+/** Rederiva quem aponta para um registro cujo título (o que quem aponta lê) mudou. */
+const propagateTitleChange = async (
+  tenantId: string,
+  ctx: SchemaContext,
+  collection: string,
+  recordId: string,
+  deps: RecordSearchDeps,
+): Promise<void> => {
+  const referrers = searchReferrersOf(searchScreens(ctx), collection);
+  await startPropagation(tenantId, recordSearchPropagationJobId(collection, recordId), scansFor(referrers, recordId), deps);
+};
+
 const labelOf = (data: Record<string, unknown> | null): string =>
   typeof data?.label === 'string' ? data.label : '';
 
@@ -173,9 +230,10 @@ export const deriveRecordSearchOnWrite = async (
   // consulta por campo a cada cadastro, para achar nada.
   if (!before) return;
 
-  if (screen && recordSearchTitle(screen, before, inlineLabel) !== recordSearchTitle(screen, afterData, inlineLabel)) {
-    const referrers = searchReferrersOf(searchScreens(ctx), collection);
-    await startPropagation(tenantId, recordSearchPropagationJobId(collection, recordId), scansFor(referrers, recordId), deps);
+  // A tela que não tem nada pesquisável também é apontada: o título dela vai para os termos de outros.
+  const titleScreen = titleScreenOf(ctx, collection);
+  if (recordSearchTitleSource(titleScreen, before, inlineLabel) !== recordSearchTitleSource(titleScreen, afterData, inlineLabel)) {
+    await propagateTitleChange(tenantId, ctx, collection, recordId, deps);
   }
 
   if (ctx.lookups.has(collection) && labelOf(before) !== labelOf(afterData)) {
@@ -201,14 +259,23 @@ const processPage = async (
   screen: SearchScreen,
   scan: RecordSearchScan,
   cursor: string | null,
+  propagating: boolean,
   deps: RecordSearchDeps,
 ): Promise<RoundOutcome> => {
   const page = await deps.repository.scanPage(tenantId, scan, cursor, RECORD_SEARCH_ROUND_SIZE);
   const sources = await textSourcesFor(tenantId, ctx, screen, page.map((record) => record.data), deps);
+  // A varredura passa pelos registros cujo TÍTULO é a referência ao registro renomeado: o nome deles
+  // mudou junto, sem gravação nenhuma neles que dispare a propagação. Quem os aponta é rederivado daqui
+  // — a não ser que o renomeado também se chame por referência, que é o segundo salto que ninguém lê.
+  const titleField = propagating && scan.fieldKey !== null && scan.fieldKey === screen.titleFieldKey
+    ? searchTitleReferenceField(screen)
+    : undefined;
+  const cascades = !!titleField?.refEntity && titleReferenceOf(ctx)(titleField.refEntity) === null;
   let written = 0;
   let failed = 0;
   for (const record of page) {
     try {
+      if (cascades) await propagateTitleChange(tenantId, ctx, scan.collection, record.id, deps);
       const terms = recordSearchTerms(screen, record.data, sources);
       if (sameSearchTerms(terms, storedSearchTerms(record.data))) continue;
       if (await deps.repository.writeTerms(tenantId, scan.collection, record, terms)) written += 1;
@@ -240,11 +307,11 @@ export const runRecordSearchRound = async (
 
   // A declaração mudou depois que a passada começou: a conferência que a mudança dispara recomeça
   // com a assinatura nova. Seguir aqui gravaria termos de uma regra que já não vale.
-  if (state.kind === 'backfill' && screen && recordSearchSignature(screen) !== state.signature) return;
+  if (state.kind === 'backfill' && screen && signatureOf(ctx, screen) !== state.signature) return;
 
   // Varredura de uma tela que saiu (ou que já não tem o que buscar) termina vazia.
   const outcome: RoundOutcome = scan && screen
-    ? await processPage(tenantId, ctx, screen, scan, state.cursor, deps)
+    ? await processPage(tenantId, ctx, screen, scan, state.cursor, state.kind === 'propagate', deps)
     : { size: 0, lastId: null, written: 0, failed: 0 };
 
   await deps.repository.updateJob(tenantId, jobId, (current) => {
@@ -283,7 +350,7 @@ export const reconcileRecordSearch = async (tenantId: string, deps: RecordSearch
   let changed = 0;
 
   for (const screen of searchScreens(ctx)) {
-    const signature = recordSearchSignature(screen);
+    const signature = signatureOf(ctx, screen);
     const jobId = recordSearchBackfillJobId(screen.collection);
     const plan = planRecordSearchBackfill(signature, jobs.get(jobId) ?? null, now);
     if (plan.kind === 'none') continue;
