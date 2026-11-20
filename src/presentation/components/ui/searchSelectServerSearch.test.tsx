@@ -55,4 +55,30 @@ describe('a busca no servidor por trás dos seletores', () => {
     expect(screen.getByText('Maria Isabel')).toBeTruthy();
     expect(screen.queryByText('Bruno Lima')).toBeNull();
   });
+
+  /**
+   * Issue #9: o seletor que só lista depois da busca abria dizendo "Nenhuma opção encontrada" antes de
+   * qualquer letra — como se não houvesse nada a escolher.
+   */
+  it.each([
+    ['SearchSelect', (onQueryChange?: (q: string) => void) => (
+      <SearchSelect options={[]} value="" onChange={() => {}} onQueryChange={onQueryChange} />
+    ), 'search.no-results'],
+    ['MultiSearchSelect', (onQueryChange?: (q: string) => void) => (
+      <MultiSearchSelect options={[]} values={[]} onChange={() => {}} onQueryChange={onQueryChange} />
+    ), 'filter.no-options'],
+  ])('%s vazio convida a digitar antes da busca, e diz "nada" só depois dela (#9)', (_name, control, nothing) => {
+    const { unmount } = render(<ThemeProvider theme={baseDarkTheme}>{control(vi.fn())}</ThemeProvider>);
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByText('search.type-to-search')).toBeTruthy();
+    fireEvent.change(screen.getByPlaceholderText('action.search'), { target: { value: 'zzz' } });
+    expect(screen.getByText(nothing)).toBeTruthy();
+    unmount();
+
+    // Sem busca no servidor, a lista vazia é mesmo vazia: o aviso continua o de sempre.
+    render(<ThemeProvider theme={baseDarkTheme}>{control(undefined)}</ThemeProvider>);
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByText(nothing)).toBeTruthy();
+  });
 });
+

@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.287.2] — 2026-11-20
+
+- fix(ui/pickers): `SearchSelect` and `MultiSearchSelect` with server search (`onQueryChange`) show `search.type-to-search` ("Type to search…") when the list is empty and nothing was typed; the "nothing found" text is kept for an actual search with no match, and for pickers that do not search the server. The `control: 'record'` filter of a dashboard opened saying "No option found" before any search (#9).
+
 #### [9.287.1] — 2026-11-20
 
 - fix(search): a screen whose `titleFieldKey` is a `reference` is now titled by the record it points to, one hop (the portal's limit), in the search terms of whoever points at it. `recordSearchTitle` takes the already-read `referenceTitle`; the round reads the second hop in one read per collection. A `searchable` reference to such a screen used to contribute nothing, so the record pointing at it was never found by the name (#8).

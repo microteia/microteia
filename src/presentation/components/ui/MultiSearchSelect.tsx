@@ -268,6 +268,9 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
   const searchRef = useRef<HTMLInputElement>(null);
   const { dropPos, reposition } = useAnchoredDropdown({ open, anchorRef: wrapperRef, dropdownRef });
 
+  // Quem busca no servidor lista o que acha ao digitar: antes disso, a lista vazia não diz que não há
+  // nada a escolher — diz que ainda não se perguntou (#9).
+  const awaitingQuery = !!onQueryChange && query.trim() === '';
   const filtered = options.filter((o) =>
     o.label.toLowerCase().includes(query.toLowerCase()) ||
     (o.meta ?? '').toLowerCase().includes(query.toLowerCase()) ||
@@ -422,7 +425,7 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
           </SearchRow>
           <OptionList>
             {filtered.length === 0 ? (
-              <EmptyMsg>{t('filter.no-options')}</EmptyMsg>
+              <EmptyMsg>{t(awaitingQuery ? 'search.type-to-search' : 'filter.no-options')}</EmptyMsg>
             ) : (
               filtered.map((opt, idx) => {
                 const selected = values.includes(opt.value);

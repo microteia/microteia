@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.287.2] — 2026-11-20
+
+- Os campos de escolha que buscam registros enquanto se digita — como o filtro de registro de um painel — agora abrem pedindo "Digite para pesquisar…", em vez de dizer que não há nenhuma opção antes mesmo de qualquer busca.
+
 #### [9.287.1] — 2026-11-20
 
 - Registros que se chamam pelo nome de outro registro — uma conta identificada pelo titular, por exemplo — agora aparecem com esse nome em todo lugar: no campo de quem aponta para eles, que antes mostrava "Sem título", e na busca rápida, que mostrava um código no lugar do nome.
