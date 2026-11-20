@@ -3,7 +3,7 @@ import type { QualifiedContribution } from '../../domain/schema/plugin/contribut
 import {
   declaredNavGroups,
   groupNavSections,
-  homePageKey,
+  homePageKeys,
   navigablePages,
   resolvePageContribution,
   splitFavoriteNavItems,
@@ -29,20 +29,28 @@ const navContribution = (metadata: Partial<UiNavMetadata>): QualifiedContributio
   metadata: { key: 'x', label: 'X', icon: 'apps', order: 0, ...metadata } as unknown as Record<string, unknown>,
 });
 
-describe('homePageKey', () => {
+describe('homePageKeys', () => {
   const allowAll = () => true;
 
   it('sem página declarada como inicial, não há tela inicial', () => {
-    expect(homePageKey([pageContribution('a', { key: 'reports' })], allowAll, false)).toBeUndefined();
+    expect(homePageKeys([pageContribution('a', { key: 'reports' })], allowAll, false)).toEqual([]);
   });
 
-  it('devolve a chave da primeira página declarada como inicial', () => {
+  it('devolve todas as páginas declaradas como iniciais, na ordem de carga', () => {
     const pages = [
       pageContribution('a', { key: 'reports' }),
       pageContribution('b', { key: 'painel', home: true }),
       pageContribution('c', { key: 'outra', home: true }),
     ];
-    expect(homePageKey(pages, allowAll, false)).toBe('painel');
+    expect(homePageKeys(pages, allowAll, false)).toEqual(['painel', 'outra']);
+  });
+
+  it('a mesma chave declarada duas vezes abre uma aba só', () => {
+    const pages = [
+      pageContribution('a', { key: 'painel', home: true }),
+      pageContribution('b', { key: 'painel', home: true }),
+    ];
+    expect(homePageKeys(pages, allowAll, false)).toEqual(['painel']);
   });
 
   it('ignora a página inicial que a pessoa não pode ver', () => {
@@ -51,11 +59,11 @@ describe('homePageKey', () => {
       pageContribution('b', { key: 'admin', home: true, requiresSystemAdmin: true }),
       pageContribution('c', { key: 'livre', home: true }),
     ];
-    expect(homePageKey(pages, () => false, false)).toBe('livre');
+    expect(homePageKeys(pages, () => false, false)).toEqual(['livre']);
   });
 
   it('ignora página paramétrica, que não tem aba própria a abrir', () => {
-    expect(homePageKey([pageContribution('a', { keyPrefix: 'view:', home: true })], allowAll, false)).toBeUndefined();
+    expect(homePageKeys([pageContribution('a', { keyPrefix: 'view:', home: true })], allowAll, false)).toEqual([]);
   });
 });
 

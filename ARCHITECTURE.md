@@ -10289,7 +10289,7 @@ acessos é do administrador GLOBAL — por isso o `ui.nav` ganhou `requiresSyste
 |---|---|
 | nenhum grupo declarado | uma seção solta — o menu de antes, intacto |
 | item sem `group`, ou com `group` que ninguém declarou | solto, na posição do `order` dele: um item nunca some por causa do grupo |
-| mesma `key` declarada por duas extensões | um grupo só; vale a primeira na ordem de carga (`declaredNavGroups`), a mesma regra de `home` |
+| mesma `key` declarada por duas extensões | um grupo só; vale a primeira na ordem de carga (`declaredNavGroups`) |
 | grupo com um único item visível | sem título: o item fica solto, na posição do grupo |
 | grupo sem item visível | não aparece |
 
@@ -10596,11 +10596,26 @@ repositório. O painel de um escritório é exatamente o que ele instalou.
 
 **A tela inicial é declarada, não sabida.** O `WorkspaceStore` começava com a aba `dashboard` aberta
 de cor — e o escritório sem a extensão ganhava uma aba vazia com a chave crua no título. Hoje o espaço
-de trabalho nasce sem aba, e a página que declarar `home: true` no `ui.page` é aberta quando a
-contribuição chega (`homePageKey`, em `resolveUiContributions`): só página de chave própria, só se a
-pessoa pode vê-la, e só num espaço de trabalho ainda vazio — um deep link aberto antes não perde o
-foco. A decisão é tomada uma vez: fechar todas as abas depois não reabre a inicial. Sem nenhuma
-declarada, não há tela inicial. A extensão Dashboard declara a dela.
+de trabalho nasce sem aba, e as páginas que declararem `home: true` no `ui.page` são abertas na
+entrada (`homePageKeys`, em `resolveUiContributions`): só página de chave própria, só se a pessoa pode
+vê-la, e só num espaço de trabalho ainda vazio — um deep link aberto antes não perde o foco. A
+decisão é tomada uma vez: fechar todas as abas depois não reabre as iniciais. Sem nenhuma declarada,
+não há tela inicial. A extensão Dashboard declara a dela.
+
+**Todas as declaradas abrem, não só a primeira (#14).** Era `.find()`: duas extensões, cada uma com a
+sua tela inicial, e a segunda sumia sem aviso. Hoje abrem todas, na ordem de carga, de uma vez só
+(`openTabs`, que ativa a PRIMEIRA — `openTab` em sequência ativaria a última); com uma só, nada muda.
+Não há `homeOrder`: a ordem só pesa na primeira entrada.
+
+**A decisão espera o que a muda.** Ela era tomada no primeiro render em que uma chave aparecia, e uma
+tela inicial com `requiredPermissions` podia ser pulada para sempre enquanto as permissões carregavam.
+Com várias, decidir cedo abriria só parte delas. Hoje o `WorkspaceShell` espera quatro sinais: a
+lista instalada DESTE escritório (`useInstalledExtensions().isLoaded` — o `isLoading` começa `false` e,
+na troca, a lista do anterior fica até a nova chegar), a confiança de código (o hash é assíncrono, e
+página com código só existe depois dele), a autorização carregada e o documento de membro deste
+escritório (ou acesso irrestrito): antes dele, `canAny` diz não a tudo. O último é conferido ali, e não
+no `isLoading` da autorização, porque uma falha na leitura dos membros deixaria todo consumidor dela
+esperando para sempre — aqui, o pior caso é não abrir a tela inicial.
 
 **A primitiva de gráfico ficou; o gráfico de prazos foi junto com Prazos.** `DeadlineCharts` sabia o
 que era vencimento, conclusão e prioridade — conhecimento de domínio dentro de `components/ui/`. Foi

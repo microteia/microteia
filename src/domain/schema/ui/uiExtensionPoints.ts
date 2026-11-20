@@ -32,7 +32,8 @@ export interface UiPageMetadata {
    * vazia. Sem nenhuma declarada, o espaço de trabalho começa sem aba.
    *
    * Vale só para página de chave própria (sem `keyPrefix`) e que a pessoa pode ver. Se mais de uma
-   * declarar, vence a primeira na ordem de carga.
+   * declarar, abrem todas, na ordem de carga, com a primeira em foco — duas extensões que trazem cada
+   * uma a sua tela inicial não podem se anular em silêncio (#14).
    */
   home?: boolean;
 /**

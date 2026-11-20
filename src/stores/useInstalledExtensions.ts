@@ -29,6 +29,12 @@ export interface InstalledExtensionStoreValue {
   installed: InstalledExtension[];
   isLoading: boolean;
   /**
+   * A lista do escritório CORRENTE já chegou. `isLoading` não responde isso: começa `false` antes da
+   * primeira leitura, e na troca de escritório a lista do anterior continua ali até a nova chegar. Quem
+   * decide algo uma vez por entrada (as telas iniciais, #14) precisa saber que está olhando a lista certa.
+   */
+  isLoaded: boolean;
+  /**
    * O que cada extensão instalada JÁ MIGROU neste escritório, por `pluginId`. Vive junto das
    * instaladas porque é a mesma pergunta em duas metades: o pacote diz o que a extensão exige do
    * dado, e este mapa diz o que o dado já recebeu. Ver `extensionMigrationState`.
