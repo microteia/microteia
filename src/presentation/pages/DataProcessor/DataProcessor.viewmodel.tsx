@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuthorization } from '../../../stores/useAuthorization';
@@ -13,6 +14,7 @@ import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
 import type { AIConnection } from '../../../domain/entities';
 import type { WorkflowDefinition, WorkflowExecution, WorkflowParameter } from '../../../domain/entities/Workflow';
 import { pdfPageText } from '../../../domain/schema/pdfText';
+import { READ_DOCUMENT_PAGE_SEPARATOR, parsePageSelection } from '../../../domain/schema/documentRead';
 import {
   MAX_SOURCE_TEXT_CHARACTERS,
   isParameterFillFrom,
@@ -94,6 +96,13 @@ export interface DataProcessorViewModel {
   pdfPage: number;
   pdfPageOptions: { value: string; label: string }[];
   onSelectPdfPage: (page: string) => void;
+  /** As páginas mandadas à automação (`1`, `1-3`, `2,4`), independentes da que está na prévia. */
+  pdfPagesSpec: string;
+  onPdfPagesSpecChange: (value: string) => void;
+  onSelectAllPdfPages: () => void;
+  pdfPagesError: string | null;
+  /** Quantas páginas a seleção válida manda — 0 enquanto ela for inválida. */
+  pdfPagesSelectedCount: number;
   onPdfSelected: (file: File) => void;
   onClearPdf: () => void;
 
@@ -162,6 +171,12 @@ const needsAI = (w: WorkflowDefinition): boolean => parametersForAI(w.parameters
 const receivesSource = (w: WorkflowDefinition): boolean =>
   (w.parameters ?? []).some((parameter) => isParameterFillFrom(parameter.fillFrom));
 
+/**
+ * Apara o texto sem tocar no form feed: é o separador de páginas, e um `\f` inicial comido pelo `trim`
+ * deslocaria o `text.split('\f')` de quem lê a página 1 em branco de um PDF de várias.
+ */
+const trimSourceText = (value: string): string => value.replace(/^[^\S\f]+|[^\S\f]+$/g, '');
+
 let logSeq = 0;
 const makeLog = (level: ProcessorLogLevel, message: string, workflowId?: string): ProcessorLogEntry => {
   logSeq += 1;
@@ -190,10 +205,13 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
   const [freeText, setFreeText] = useState('');
   const [pdfFileName, setPdfFileName] = useState<string | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [pdfExtracting, setPdfExtracting] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPageCount, setPdfPageCount] = useState(0);
   const [pdfPage, setPdfPage] = useState(1);
+  // Guardado com o arquivo de origem: o documento de um PDF já trocado nunca é lido como se fosse o atual.
+  const [loadedPdf, setLoadedPdf] = useState<{ file: File; pdf: PDFDocumentProxy | null } | null>(null);
+  const [extractedPages, setExtractedPages] = useState<{ pdf: PDFDocumentProxy; key: string } | null>(null);
+  const [pdfPagesSpec, setPdfPagesSpec] = useState('1');
 
   const [connections, setConnections] = useState<AIConnection[]>([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
@@ -249,32 +267,61 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
   useEffect(() => {
     if (!pdfFile) return;
     let cancelled = false;
-    let destroyTask: (() => Promise<void>) | null = null;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- inicializa o estado de carregamento antes da operação assíncrona
-    setPdfExtracting(true);
+    let loading: ReturnType<typeof pdfjsLib.getDocument> | null = null;
+
+    pdfFile
+      .arrayBuffer()
+      .then((buffer) => {
+        if (cancelled) return null;
+        loading = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+        return loading.promise;
+      })
+      .then((pdf) => {
+        if (pdf && !cancelled) {
+          setLoadedPdf({ file: pdfFile, pdf });
+          setPdfPageCount(pdf.numPages);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoadedPdf({ file: pdfFile, pdf: null });
+        notify(t('processor.pdf.read-failed'), 'error');
+      });
+
+    return () => {
+      cancelled = true;
+      void loading?.destroy();
+    };
+  }, [pdfFile, notify, t]);
+
+  const pdfDoc = pdfFile && loadedPdf?.file === pdfFile ? loadedPdf.pdf : null;
+  const pdfLoading = !!pdfFile && loadedPdf?.file !== pdfFile;
+
+  const pdfPageSelection = useMemo(() => {
+    if (!pdfDoc) return null;
+    if (pdfPagesSpec.trim() === '') return { ok: false as const, message: '@core.admin/processor.pages.empty' };
+    return parsePageSelection(pdfPagesSpec, pdfDoc.numPages);
+  }, [pdfDoc, pdfPagesSpec]);
+
+  const selectedPages = pdfPageSelection?.ok ? pdfPageSelection.pages : null;
+  const selectedPagesKey = selectedPages ? selectedPages.join(',') : '';
+
+  const pdfExtracting = pdfLoading
+    || (!!pdfDoc && !!selectedPagesKey && (extractedPages?.pdf !== pdfDoc || extractedPages.key !== selectedPagesKey));
+
+  useEffect(() => {
+    if (!pdfDoc || !selectedPagesKey) return;
+    let cancelled = false;
 
     const extract = async () => {
-      const buffer = await pdfFile.arrayBuffer();
-      const task = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
-      destroyTask = () => task.destroy();
-      const pdf = await task.promise;
-      if (!cancelled) setPdfPageCount(pdf.numPages);
-
-      const pageNumber = Math.min(Math.max(pdfPage, 1), pdf.numPages);
-      const page = await pdf.getPage(pageNumber);
-      const content = await page.getTextContent();
-      const text = pdfPageText(content.items.map((item) => ('str' in item ? { str: item.str, hasEOL: item.hasEOL } : {})));
-      if (!cancelled) setFreeText(text);
-
-      const canvas = document.createElement('canvas');
-      const viewport = page.getViewport({ scale: 1.1 });
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-        if (!cancelled) setPdfPreviewUrl(canvas.toDataURL('image/png'));
+      const texts: string[] = [];
+      for (const pageNumber of selectedPagesKey.split(',').map(Number)) {
+        const page = await pdfDoc.getPage(pageNumber);
+        const content = await page.getTextContent();
+        texts.push(pdfPageText(content.items.map((item) => ('str' in item ? { str: item.str, hasEOL: item.hasEOL } : {}))));
       }
+      // O mesmo separador do `text` do passo "Ler documento": um leitor escrito para uma origem lê a outra.
+      if (!cancelled) setFreeText(texts.join(READ_DOCUMENT_PAGE_SEPARATOR));
     };
 
     extract()
@@ -282,14 +329,38 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
         if (!cancelled) notify(t('processor.pdf.read-failed'), 'error');
       })
       .finally(() => {
-        void destroyTask?.();
-        if (!cancelled) setPdfExtracting(false);
+        if (!cancelled) setExtractedPages({ pdf: pdfDoc, key: selectedPagesKey });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [pdfFile, pdfPage, notify, t]);
+  }, [pdfDoc, selectedPagesKey, notify, t]);
+
+  useEffect(() => {
+    if (!pdfDoc) return;
+    let cancelled = false;
+
+    const render = async () => {
+      const page = await pdfDoc.getPage(Math.min(Math.max(pdfPage, 1), pdfDoc.numPages));
+      const canvas = document.createElement('canvas');
+      const viewport = page.getViewport({ scale: 1.1 });
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+      if (!cancelled) setPdfPreviewUrl(canvas.toDataURL('image/png'));
+    };
+
+    render().catch(() => {
+      if (!cancelled) notify(t('processor.pdf.read-failed'), 'error');
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfDoc, pdfPage, notify, t]);
 
   const onFreeTextChange = useCallback((value: string) => setFreeText(value), []);
 
@@ -298,6 +369,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     setPdfPreviewUrl(null);
     setPdfPageCount(0);
     setPdfPage(1);
+    setPdfPagesSpec('1');
     setPdfFile(file);
   }, []);
 
@@ -307,12 +379,28 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     setPdfPreviewUrl(null);
     setPdfPageCount(0);
     setPdfPage(1);
+    setPdfPagesSpec('1');
   }, []);
 
+  // Mudar a página da prévia continua mandando aquela página, como sempre foi; quem quer várias digita
+  // a seleção depois.
   const onSelectPdfPage = useCallback((page: string) => {
     const parsed = Number(page);
-    if (Number.isFinite(parsed) && parsed > 0) setPdfPage(parsed);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      setPdfPage(parsed);
+      setPdfPagesSpec(String(parsed));
+    }
   }, []);
+
+  const onPdfPagesSpecChange = useCallback((value: string) => setPdfPagesSpec(value), []);
+
+  const onSelectAllPdfPages = useCallback(() => {
+    if (pdfPageCount > 0) setPdfPagesSpec(pdfPageCount === 1 ? '1' : `1-${pdfPageCount}`);
+  }, [pdfPageCount]);
+
+  const pdfPagesError = pdfPageSelection && !pdfPageSelection.ok
+    ? label(pdfPageSelection.message, 'messageParams' in pdfPageSelection ? pdfPageSelection.messageParams : undefined)
+    : null;
 
   const pdfPageOptions = useMemo(
     () =>
@@ -377,7 +465,8 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
   );
 
   const hasNoConnections = !connectionsLoading && connections.length === 0;
-  const trimmedText = freeText.trim();
+  const trimmedText = /\S/.test(freeText) ? trimSourceText(freeText) : '';
+  const sourceReady = trimmedText.length > 0 && !pdfPagesError && !pdfExtracting;
 
   const canDetect =
     !!selectedConnectionId &&
@@ -394,18 +483,20 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     isEligible(selectedWorkflow) &&
     !running &&
     !textTooLarge &&
+    !pdfPagesError &&
+    !pdfExtracting &&
     (trimmedText.length > 0 || (selectedWorkflow.parameters ?? []).length === 0) &&
     (!!selectedConnectionId || !needsAI(selectedWorkflow));
 
   const completedSteps = useMemo<Record<StepKey, boolean>>(
     () => ({
-      source: trimmedText.length > 0 && !textTooLarge,
+      source: sourceReady && !textTooLarge,
       // Sem IA cadastrada ainda se segue: a automação que recebe o texto direto roda sem ela.
       ai: !!selectedConnectionId || hasNoConnections,
       workflow: !!selectedWorkflow && isEligible(selectedWorkflow),
       run: !!resultExecution && resultExecution.status === 'SUCCESS',
     }),
-    [trimmedText, textTooLarge, selectedConnectionId, hasNoConnections, selectedWorkflow, resultExecution],
+    [sourceReady, textTooLarge, selectedConnectionId, hasNoConnections, selectedWorkflow, resultExecution],
   );
 
   const furthestReachableIndex = useMemo(() => {
@@ -613,6 +704,7 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     setPdfPreviewUrl(null);
     setPdfPageCount(0);
     setPdfPage(1);
+    setPdfPagesSpec('1');
     setSelectedWorkflowId('');
     setDetectedOrder([]);
     setLogs([]);
@@ -649,6 +741,11 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     pdfPage,
     pdfPageOptions,
     onSelectPdfPage,
+    pdfPagesSpec,
+    onPdfPagesSpecChange,
+    onSelectAllPdfPages,
+    pdfPagesError,
+    pdfPagesSelectedCount: selectedPages?.length ?? 0,
     onPdfSelected,
     onClearPdf,
 

@@ -9161,7 +9161,7 @@ Um `String` da raiz declara o papel, e o recebe sem passar pelo modelo:
 
 | `fillFrom` | O parâmetro recebe |
 |---|---|
-| `sourceText` | o texto, como chegou (o colado, ou a página do PDF; o `text` do passo) |
+| `sourceText` | o texto, como chegou (o colado, ou as páginas do PDF escolhidas — separadas por `\f`; o `text` do passo) |
 | `sourceName` | o nome do arquivo de onde ele saiu — vazio para texto colado e no passo |
 
 Decisões que não são detalhe:
@@ -9182,6 +9182,14 @@ Decisões que não são detalhe:
 um `Object` e repetido; vale no salvar da tela (o erro aparece no parâmetro da raiz) e no pacote
 (`issue.workflow.fill-from-invalid`), que também exige `PARAMETER_FILL_FROM_SINCE_KERNEL` (2.134.0) — num
 kernel anterior a propriedade seria ignorada e a IA voltaria a copiar o texto.
+
+**As páginas do Processador seguem a gramática e o separador do `read-document`** (issue #7). A pessoa
+escolhe as páginas enviadas (`1`, `1-3`, `2,4`, ou "Todas"), validadas por `parsePageSelection` — a mesma
+função do passo —, e o texto vai na ordem das páginas, separado por `READ_DOCUMENT_PAGE_SEPARATOR`. O padrão
+continua sendo a página 1, e trocar a página da PRÉVIA continua mandando aquela página: quem nunca mexeu na
+seleção não vê diferença. Seleção vazia é recusa (no passo, vazio é "todas"; na tela, uma caixa apagada não
+pode virar o documento inteiro sem a pessoa ver). O `trim` do texto poupa o `\f`: uma página 1 em branco
+comida pelo `trim` deslocaria o `split` de quem lê a página 2.
 
 **A junção do texto do PDF é uma só** (`domain/schema/pdfText.ts`, `pdfPageText`): o Processador a usa no
 navegador, e o passo que lê documento no servidor vai usar a mesma. Duas junções do mesmo PDF quebrariam em

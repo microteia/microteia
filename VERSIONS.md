@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.287.0] — 2026-11-19
+
+- No Processador de Dados, dá para escolher quais páginas do PDF enviar — por exemplo, a primeira e a última, ou o documento inteiro. Sem mexer na escolha, continua indo só a primeira página, como antes.
+
 #### [9.286.1] — 2026-11-19
 
 - Automações que leem um PDF anexado a um registro deixaram de parar no meio: o servidor passou a ter memória suficiente para ler o arquivo, e vários anexos chegando juntos são lidos um de cada vez.

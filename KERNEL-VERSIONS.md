@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.287.0] — 2026-11-19
+
+- feat(data-processor): the person picks which PDF pages are sent (`1`, `1-3`, `2,4`, or all), validated by the same `parsePageSelection` as `read-document`; the pages go in page order, separated by a form feed, exactly like the step's `text`. Page 1 stays the default, and moving the preview still sends that page. Documents with the header on page 1 and the totals on the last one used to reach a `fillFrom: 'sourceText'` flow half-read, with no error (#7).
+- fix(data-processor): trimming the text no longer eats a leading form feed — a blank first page would shift `text.split('\f')` for whoever reads page 2.
+
 #### [9.286.1] — 2026-11-19
 
 - fix(functions): every function that runs workflow steps declares `memory: WORKFLOW_RUNNER_MEMORY` (1 GiB) — `onWorkflowEventCreated`, `runAction`, `runWorkflowClock`, `completeWorkflowTask`, `decidePortalTask`, `portalRecordActions` (#6). At the 256 MiB default, loading the functions code already took more than half, `pdfjs-dist` adds ~50 MiB on first use, and a `read-document` on a 270 KB PDF got the instance killed for memory. `workflowRunners.test.ts` pins the memory and the timeout ceiling of each one. `agentMcp` and `assistantChat` stay at 512 MiB.

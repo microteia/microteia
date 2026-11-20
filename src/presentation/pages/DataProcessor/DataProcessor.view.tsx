@@ -15,6 +15,7 @@ import {
 } from 'react-icons/ri';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { SearchSelect } from '../../components/ui/SearchSelect';
+import { ErrorMessage, Input, InputGroup, Label } from '../../components/ui/Input';
 import { useDataProcessorViewModel } from './DataProcessor.viewmodel';
 import type { StepKey } from './DataProcessor.viewmodel';
 import { S } from './DataProcessor.styles';
@@ -122,6 +123,26 @@ export const DataProcessorView: React.FC = () => {
                     label={t('processor.page.label')}
                   />
                 </S.PageSelectorField>
+                <S.PageSelectorField>
+                  <InputGroup>
+                    <Label htmlFor="dp-pages-input">{t('processor.pages.label')}</Label>
+                    <S.PagesRow>
+                      <Input
+                        id="dp-pages-input"
+                        value={vm.pdfPagesSpec}
+                        $hasError={!!vm.pdfPagesError}
+                        onChange={(e) => vm.onPdfPagesSpecChange(e.target.value)}
+                        placeholder={t('processor.pages.placeholder')}
+                      />
+                      <S.Button type="button" $variant="ghost" onClick={vm.onSelectAllPdfPages}>
+                        {t('processor.pages.all')}
+                      </S.Button>
+                    </S.PagesRow>
+                    {vm.pdfPagesError
+                      ? <ErrorMessage>{vm.pdfPagesError}</ErrorMessage>
+                      : <S.FooterHint>{t('processor.pages.hint', { count: vm.pdfPagesSelectedCount })}</S.FooterHint>}
+                  </InputGroup>
+                </S.PageSelectorField>
               </S.PageSelector>
             )}
 
@@ -228,7 +249,7 @@ export const DataProcessorView: React.FC = () => {
                 <S.SummaryLabel>{t('processor.summary.source')}</S.SummaryLabel>
                 <S.SummaryValue>
                   {vm.pdfFileName
-                    ? t('processor.summary.pdf', { file: vm.pdfFileName, page: vm.pdfPage })
+                    ? t('processor.summary.pdf', { file: vm.pdfFileName, pages: vm.pdfPagesSpec.trim(), count: vm.pdfPagesSelectedCount })
                     : t('processor.summary.text', { count: vm.textCharCount })}
                 </S.SummaryValue>
               </S.SummaryRow>
