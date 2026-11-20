@@ -909,6 +909,7 @@ const FieldEditor: React.FC<{ vm: ScreenBuilderViewModel }> = ({ vm }) => {
                 </InputGroup>
               )}
             </Section>
+            {(vm.fieldSupportsFilter || vm.fieldSupportsSearch) && (
             <Section title={t('field.section.list')}>
               <S.CheckboxStack>
                 {vm.fieldSupportsFilter && (
@@ -926,12 +927,31 @@ const FieldEditor: React.FC<{ vm: ScreenBuilderViewModel }> = ({ vm }) => {
                     onChange={(next) => vm.updateFieldForm({ searchable: next })}
                   />
                 )}
+              </S.CheckboxStack>
+            </Section>
+            )}
+            <Section title={t('field.section.visibility')}>
+              <S.CheckboxStack>
+                <Checkbox
+                  label={t('field.visible.form')}
+                  checked={vm.fieldLockedInForm || vm.fieldForm.visibleInForm}
+                  disabled={vm.fieldLockedInForm}
+                  onChange={(next) => vm.updateFieldForm({ visibleInForm: next })}
+                />
                 <Checkbox
                   label={t('field.show-in-list')}
                   checked={vm.fieldForm.showInList}
                   onChange={(next) => vm.updateFieldForm({ showInList: next })}
                 />
+                {vm.fieldOffersPortalVisibility && (
+                  <Checkbox
+                    label={t('field.visible.portal')}
+                    checked={vm.fieldForm.visibleInPortal}
+                    onChange={(next) => vm.updateFieldForm({ visibleInPortal: next })}
+                  />
+                )}
               </S.CheckboxStack>
+              <S.FieldHint>{t(vm.fieldLockedInForm ? 'field.visible.form-locked' : 'field.visible.hint')}</S.FieldHint>
               {vm.fieldForm.showInList && (
                 <InputGroup>
                   <Label>{t('field.card-label')}</Label>

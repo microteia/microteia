@@ -874,6 +874,29 @@ describe('contexto do portal', () => {
     });
   });
 
+  describe('onde o campo exposto é desenhado (`visibleIn`, #12)', () => {
+    const contextOf = async (visibleIn: PortalScreen['fields'][number]['visibleIn']) => {
+      const screens = CITY_SCREENS.map((screen) => (screen.id === 'invoices'
+        ? { ...screen, fields: screen.fields.map((field) => (field.key === 'amount' ? { ...field, visibleIn } : field)) }
+        : screen));
+      const fake = makeFakePortalRepository(screens);
+      fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+      const context = await makeGetPortalContextUseCase(fake.repo).execute({
+        tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
+      });
+      return context.screens.find((screen) => screen.id === 'invoices')!.fields.find((field) => field.key === 'amount');
+    };
+
+    it('sem visibleIn, ou com portal na lista, o campo exposto é desenhado como sempre', async () => {
+      expect(await contextOf(undefined)).not.toHaveProperty('hidden');
+      expect(await contextOf(['form', 'portal'])).not.toHaveProperty('hidden');
+    });
+
+    it('fora do portal, continua exposto — para o template que o nomeie — e sai do desenho padrão', async () => {
+      expect(await contextOf(['form', 'card'])).toMatchObject({ key: 'amount', hidden: true });
+    });
+  });
+
   describe('opções de lista', () => {
     const select = (key: string, extra: Partial<PortalScreen['fields'][number]> = {}) =>
       ({ key, label: key, type: 'select', ...extra });

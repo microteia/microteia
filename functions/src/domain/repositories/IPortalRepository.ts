@@ -6,6 +6,7 @@ import type { PortalVerifiedIdentity } from '../schema/portalIdentity';
 import type { PortalSubjectRole } from '../schema/portalRole';
 import type { RecordDocumentLinkState } from '../services/recordDocumentLinks';
 import type { FieldLookupBinding } from '../schema/fieldRules';
+import type { FieldSurface } from '../entities/entitySchemas';
 
 export type { PortalReprojectionState };
 
@@ -35,6 +36,8 @@ export interface PortalScreen extends PortalScreenLike {
      * `portalOptionsFilter`, que só o deixa passar quando o portal consegue respondê-lo.
      */
     optionsFilter?: unknown;
+    /** Onde o campo é desenhado (`FieldDefinition.visibleIn`) — no portal, só o desenho padrão do exposto. */
+    visibleIn?: FieldSurface[] | null;
   }>;
   /** A ordem da listagem (`listOrder`) como está no documento — quem a leva ao convidado é `guestListOrder`. */
   listOrder?: unknown;

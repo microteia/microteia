@@ -62,6 +62,7 @@ export const usePortalRecordFormat = () => {
   }, [t, formatDate, formatMoney, formatNumber, theme]);
 
   const summaryOf = useCallback((screen: PortalScreenInfo, record: PortalRecord): string => screen.fields
+    .filter((field) => !field.hidden)
     .map((field) => formatValue(field, record))
     .filter((field) => field.value !== '' && field.href === null)
     .slice(0, SUMMARY_FIELDS)
@@ -94,7 +95,8 @@ export const usePortalRecordFormat = () => {
         const field = screen.fields.find((candidate) => candidate.key === fieldKey);
         return field ? view(field) : null;
       },
-      fields: screen.fields.map(view).filter((field) => field.value !== ''),
+      // A grade padrão pula o campo que `visibleIn` tira do portal; o nó `field` acima ainda o acha.
+      fields: screen.fields.filter((field) => !field.hidden).map(view).filter((field) => field.value !== ''),
       summary: summaryOf(screen, record),
       updated: updatedOf(record),
       editLabel: extras.editLabel,

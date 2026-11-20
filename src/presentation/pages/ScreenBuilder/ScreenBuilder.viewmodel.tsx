@@ -59,6 +59,7 @@ import {
   type PortalSubjectKind,
 } from './components/ScreenPortalPanel/screenPortalForm';
 import { PERMISSION_SCREENS_MANAGE } from '../../../domain/schema/access';
+import { fieldShownIn, fieldVisibilityDeclaration } from '../../../domain/schema/fieldVisibility';
 import { isSearchableFieldType } from '../../../domain/schema/recordSearch';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
@@ -296,6 +297,11 @@ export interface FieldFormState {
   optionInput: string;
   optionColorInput: string;
   showInList: boolean;
+  /** As outras duas caixas de "onde aparece"; o cartão é `showInList`. */
+  visibleInForm: boolean;
+  visibleInPortal: boolean;
+  /** O campo já trazia `visibleIn`: a lista continua sendo gravada, mesmo que os atalhos bastassem. */
+  hadVisibleIn: boolean;
   listLabel: string;
   filterable: boolean;
   searchable: boolean;
@@ -590,6 +596,10 @@ export interface ScreenBuilderViewModel {
   formatPresetOptions: SearchSelectOption[];
   validateCheckOptions: SearchSelectOption[];
   fieldSupportsRules: boolean;
+  /** A tela tem portal: a caixa "no portal" de onde o campo aparece faz sentido. */
+  fieldOffersPortalVisibility: boolean;
+  /** O campo não pode sair do formulário (título ou obrigatório): a caixa fica marcada e travada. */
+  fieldLockedInForm: boolean;
   /** Campo `file` não filtra: não há URL que alguém digite num filtro. */
   fieldSupportsFilter: boolean;
   /** O tipo é um que a busca lê (`SEARCHABLE_FIELD_TYPES`); o campo do título entra sempre. */
@@ -731,6 +741,9 @@ const EMPTY_FIELD_FORM: FieldFormState = {
   optionInput: '',
   optionColorInput: '',
   showInList: false,
+  visibleInForm: true,
+  visibleInPortal: true,
+  hadVisibleIn: false,
   listLabel: '',
   filterable: false,
   searchable: false,
@@ -2188,7 +2201,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       staticOptions: (field.options ?? []).map((o) => ({ label: o.label, color: o.color })),
       optionInput: '',
       optionColorInput: defaultTagColor,
-      showInList: field.showInList ?? false,
+      showInList: fieldShownIn(field, 'card'),
+      visibleInForm: fieldShownIn(field, 'form'),
+      visibleInPortal: fieldShownIn(field, 'portal'),
+      hadVisibleIn: Array.isArray(field.visibleIn),
       listLabel: field.listLabel ?? '',
       filterable: field.filterable ?? false,
       searchable: field.searchable === true,
@@ -2242,6 +2258,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
 
   const fieldSupportsFilter = fieldForm.type !== 'file';
   const fieldSupportsSearch = isSearchableFieldType(fieldForm.type);
+  const fieldOffersPortalVisibility = !!fieldModal && !!getDefinitionByKey(fieldModal.screenKey)?.portal;
 
   /**
    * Chave sobre um campo cujo valor NÃO fica gravado é reserva órfã: `logic.derive` é avaliado na
@@ -2797,6 +2814,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       const baseInput = existing ? toSaveInput(existing) : builtinSaveInput(fieldModal.screenKey);
       const fields = sortFieldsByOrder(baseInput.fields);
       let nextFields: FieldDefinition[];
+      // O campo-título e o obrigatório não saem do formulário: ninguém conseguiria salvar o registro.
+      const visibility = fieldVisibilityDeclaration({
+        form: fieldModalIsTitleField || fieldForm.required || fieldForm.visibleInForm,
+        card: fieldForm.showInList,
+        portal: fieldForm.visibleInPortal,
+      }, fieldForm.hadVisibleIn);
       if (fieldModal.fieldKey) {
         // Um campo do kernel só entra em `fields[]` quando o usuário o ajusta pela primeira vez:
         // a declaração inteira é materializada aqui, e a partir daí o documento é a verdade.
@@ -2823,7 +2846,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
             options: fieldForm.type === 'select'
               ? fieldForm.staticOptions.map((o) => ({ key: o.label, label: o.label, isStatic: true, color: o.color }))
               : [],
-            showInList: fieldForm.showInList,
+            ...visibility,
             listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
             filterable,
             searchable,
@@ -2865,7 +2888,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           options: fieldForm.type === 'select'
             ? fieldForm.staticOptions.map((o) => ({ key: o.label, label: o.label, isStatic: true, color: o.color }))
             : [],
-          showInList: fieldForm.showInList,
+          ...visibility,
           listLabel: fieldForm.showInList ? (fieldForm.listLabel.trim() || null) : null,
           filterable,
           searchable,
@@ -3238,6 +3261,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     fieldSupportsRules,
     fieldSupportsFilter,
     fieldSupportsSearch,
+    fieldOffersPortalVisibility,
+    fieldLockedInForm: fieldModalIsTitleField || fieldForm.required,
     fieldSupportsUnique,
     fieldSupportsContact,
     contactOptions,

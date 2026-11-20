@@ -1,4 +1,5 @@
 import { FieldPath, FieldValue } from 'firebase-admin/firestore';
+import type { FieldSurface } from '../../domain/entities/entitySchemas';
 import type { DocumentData, Firestore, Query } from 'firebase-admin/firestore';
 import type { Auth } from 'firebase-admin/auth';
 import type {
@@ -105,6 +106,7 @@ const toScreen = (id: string, data: DocumentData): PortalScreen => ({
       ...(asString(field.mask) ? { mask: asString(field.mask) } : {}),
       ...lookupBindingOf(field.logic),
       ...(field.optionsFilter !== undefined && field.optionsFilter !== null ? { optionsFilter: field.optionsFilter } : {}),
+      ...(Array.isArray(field.visibleIn) ? { visibleIn: (field.visibleIn as unknown[]).filter((one): one is FieldSurface => typeof one === 'string') as FieldSurface[] } : {}),
     })),
 });
 

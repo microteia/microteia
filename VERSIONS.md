@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.289.0] — 2026-11-20
+
+- No desenho de telas, cada campo ganhou o grupo "Onde aparece": marque se ele fica no formulário, no cartão da lista e, nas telas com portal, no portal. Um campo preenchido por uma automação pode sair do formulário e continuar aparecendo no cartão.
+- No portal, um campo pode continuar disponível para o desenho personalizado da tela sem aparecer na lista padrão de campos.
+
 #### [9.288.0] — 2026-11-20
 
 - Quem cria extensões pode dizer, em cada campo, onde ele aparece: no formulário, no cartão da lista, nos dois ou em nenhum. Um código preenchido por uma automação, por exemplo, pode aparecer no cartão sem nunca ser digitado.

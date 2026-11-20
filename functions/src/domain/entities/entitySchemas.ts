@@ -36,7 +36,7 @@ import type { ContactKind } from '../schema/notificationContacts';
 export type { CustomFieldType, CustomFieldMask, CustomFieldOption, FieldOrigin } from '../schema/fieldRules';
 
 /** Uma superfície onde um campo é desenhado (`FieldDefinition.visibleIn`). */
-export type FieldSurface = 'form' | 'card';
+export type FieldSurface = 'form' | 'card' | 'portal';
 export type {
   RecordKeyKind,
   RecordKeyNormalization,
@@ -157,7 +157,8 @@ export interface FieldDefinition {
   /** Esconde o campo do formulário sem excluí-lo — a alternativa para os campos não-excluíveis. */
   hiddenInForm?: boolean | null;
   /**
-   * ONDE o campo é desenhado: `form` (o formulário do registro), `card` (o cartão da lista). Ausente, valem
+   * ONDE o campo é desenhado: `form` (o formulário do registro), `card` (o cartão da lista), `portal` (o
+   * desenho padrão do portal, entre os campos que `portal.fields` já expõe). Ausente, valem
    * `hiddenInForm` e `showInList`/`listIcon`; presente, vence os dois — `[]` guarda o valor e não o desenha
    * em lugar nenhum. Ver `schema/fieldVisibility.ts`.
    */
