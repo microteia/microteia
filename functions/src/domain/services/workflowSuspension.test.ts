@@ -89,6 +89,7 @@ const setup = (stored: WorkflowDefinition | null, deactivated: string[] = []) =>
       create: async (execution) => {
         executions.set(execution.id, execution);
       },
+      markRunning: async () => undefined,
       findById: async (_tenantId, id) => executions.get(id) ?? null,
       findByEventId: async () => [],
     },

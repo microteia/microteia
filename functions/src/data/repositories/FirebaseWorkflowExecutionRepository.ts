@@ -81,6 +81,19 @@ export class FirebaseWorkflowExecutionRepository implements IWorkflowExecutionRe
     }
   }
 
+  async markRunning(execution: WorkflowExecution): Promise<void> {
+    await this.executionRef(execution.tenantId, execution.id).set({
+      schema: EXECUTION_HISTORY_SCHEMA,
+      workflowDefinitionId: execution.workflowDefinitionId,
+      eventId: execution.eventId,
+      status: 'RUNNING',
+      startedAt: Timestamp.fromDate(execution.startedAt),
+      finishedAt: null,
+      resumeAt: null,
+      actorId: execution.actorId ?? null,
+    });
+  }
+
   /**
    * Os dois num lote: um resumo sem detalhe mostraria a quem gerencia uma execução sem passo nenhum, e
    * um detalhe sem resumo não seria achado por consulta alguma.
@@ -174,5 +187,32 @@ export class FirebaseWorkflowExecutionRepository implements IWorkflowExecutionRe
       cursor = page.docs[page.docs.length - 1];
     }
     return { deleted, complete: false };
+  }
+
+  /**
+   * Cada execução no seu lote, com a hora da última gravação como condição: a que a function terminou
+   * de gravar depois da consulta faz o lote falhar, e fica com o desfecho de verdade. O detalhe é
+   * escrito inteiro porque a execução `RUNNING` nunca teve um — as linhas só existiam na instância.
+   */
+  async closeAbandoned(startedBefore: Date, now: Date, message: string, limit: number): Promise<number> {
+    const page = await this.db
+      .collectionGroup(EXECUTIONS_COLLECTION)
+      .where('status', '==', 'RUNNING')
+      .where('startedAt', '<=', Timestamp.fromDate(startedBefore))
+      .orderBy('startedAt')
+      .limit(limit)
+      .get();
+    const at = Timestamp.fromDate(now);
+    const outcomes = await Promise.allSettled(
+      page.docs
+        .filter((doc) => TENANT_EXECUTION_PATH.test(doc.ref.path))
+        .map(async (doc) => {
+          const batch = this.db.batch();
+          batch.update(doc.ref, { status: 'FAILED', finishedAt: at }, { lastUpdateTime: doc.updateTime });
+          batch.set(this.detailRef(doc.ref), { logs: [{ level: 'ERROR', message, at }], outputs: {} });
+          await batch.commit();
+        }),
+    );
+    return outcomes.filter((outcome) => outcome.status === 'fulfilled').length;
   }
 }

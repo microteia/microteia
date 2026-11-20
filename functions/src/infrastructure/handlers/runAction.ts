@@ -12,6 +12,7 @@ import {
   workflowBudgetProperty,
   workflowDeadlineAt,
 } from '../../domain/schema/workflowBudget';
+import { WORKFLOW_RUNNER_MEMORY } from '../workflow/workflowRunnerOptions';
 
 interface RunActionRequest {
   tenantId: string;
@@ -31,7 +32,7 @@ const failure = (message: string): RunActionResponse => ({
 
 export const runAction = onCall(
   // O TETO; quanto dele o escritório usa é `automation.budget.actionSeconds`. Ver `workflowBudget.ts`.
-  { region: 'southamerica-east1', cors: true, timeoutSeconds: WORKFLOW_ACTION_TIMEOUT_CEILING_SECONDS },
+  { region: 'southamerica-east1', cors: true, timeoutSeconds: WORKFLOW_ACTION_TIMEOUT_CEILING_SECONDS, memory: WORKFLOW_RUNNER_MEMORY },
   async (request): Promise<RunActionResponse> => {
     const startedAt = Date.now();
     if (!request.auth) {

@@ -43,6 +43,35 @@ const pdfjs = (): Promise<PdfjsModule> => {
   return loaded;
 };
 
+/**
+ * Um PDF aberto por vez na instância. A instância atende várias execuções ao mesmo tempo, e cada PDF
+ * aberto pesa o arquivo e o que a biblioteca monta dele: sem a fila, a memória crescia com quantos
+ * anexos chegassem juntos — um e-mail com dez PDFs viraria dez leituras simultâneas —, e a instância
+ * que estoura não falha a execução: some com ela (issue #6). A leitura é CPU pura, numa vCPU só, e por
+ * isso a fila não atrasa o total, só a ordem.
+ */
+let pdfSlot: Promise<void> = Promise.resolve();
+
+/**
+ * A espera pela vez tem fim: um PDF cuja leitura nunca termina prenderia a fila pelo resto da vida da
+ * instância — a plataforma encerra a requisição no `timeoutSeconds`, mas a promessa pendente fica. Passado
+ * o limite, quem espera segue sem a vez; é o mesmo risco de memória de antes da fila, só que raro.
+ */
+const PDF_SLOT_MAX_WAIT_MS = 60_000;
+
+const takePdfSlot = async (): Promise<() => void> => {
+  let release!: () => void;
+  const previous = pdfSlot;
+  pdfSlot = new Promise<void>((resolve) => { release = resolve; });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    previous,
+    new Promise<void>((resolve) => { timer = setTimeout(resolve, PDF_SLOT_MAX_WAIT_MS); }),
+  ]);
+  clearTimeout(timer);
+  return release;
+};
+
 const asTextItem = (item: unknown): PdfTextItem => {
   if (typeof item !== 'object' || item === null || !('str' in item)) return {};
   const { str, hasEOL } = item as { str: unknown; hasEOL?: unknown };
@@ -56,18 +85,27 @@ const asTextItem = (item: unknown): PdfTextItem => {
  */
 export class PdfjsTextExtractor implements IPdfTextExtractor {
   async open(data: Uint8Array): Promise<OpenedPdf> {
-    const library = await pdfjs();
-    // `eval` desligado: o PDF é do escritório, mas chega por e-mail e pelo portal — é conteúdo de fora.
-    const task = library.getDocument({ data, isEvalSupported: false, disableFontFace: true, useSystemFonts: false, verbosity: 0 });
+    const release = await takePdfSlot();
+    let task: ReturnType<PdfjsModule['getDocument']>;
     let document;
+    try {
+      const library = await pdfjs();
+      // `eval` desligado: o PDF é do escritório, mas chega por e-mail e pelo portal — é conteúdo de fora.
+      task = library.getDocument({ data, isEvalSupported: false, disableFontFace: true, useSystemFonts: false, verbosity: 0 });
+    } catch (error) {
+      release();
+      throw error;
+    }
     try {
       document = await task.promise;
     } catch (error) {
       await task.destroy().catch(() => undefined);
+      release();
       if (error instanceof Error && error.name === 'PasswordException') throw new PdfPasswordError();
       throw new PdfUnreadableError(error instanceof Error ? error.message : String(error));
     }
     const opened = document;
+    let closed = false;
     return {
       pageCount: opened.numPages,
       pageItems: async (pageNumber) => {
@@ -75,7 +113,15 @@ export class PdfjsTextExtractor implements IPdfTextExtractor {
         const content = await page.getTextContent();
         return content.items.map(asTextItem);
       },
-      close: () => task.destroy(),
+      close: async () => {
+        if (closed) return;
+        closed = true;
+        try {
+          await task.destroy();
+        } finally {
+          release();
+        }
+      },
     };
   }
 }

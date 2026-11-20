@@ -18,6 +18,15 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.286.1] — 2026-11-19
+
+- fix(functions): every function that runs workflow steps declares `memory: WORKFLOW_RUNNER_MEMORY` (1 GiB) — `onWorkflowEventCreated`, `runAction`, `runWorkflowClock`, `completeWorkflowTask`, `decidePortalTask`, `portalRecordActions` (#6). At the 256 MiB default, loading the functions code already took more than half, `pdfjs-dist` adds ~50 MiB on first use, and a `read-document` on a 270 KB PDF got the instance killed for memory. `workflowRunners.test.ts` pins the memory and the timeout ceiling of each one. `agentMcp` and `assistantChat` stay at 512 MiB.
+- fix(read-document): `PdfjsTextExtractor` opens one PDF at a time per instance and releases the turn on `close()` (now mandatory, in a `finally`). An instance serves up to 80 concurrent requests; without the queue, memory grew with how many attachments arrived together. Text extraction is CPU-bound on a single vCPU, so the queue changes the order, not the total. The wait is bounded (`PDF_SLOT_MAX_WAIT_MS`, 60 s) so a read that never ends cannot hold the queue for the life of the instance.
+- fix(workflow): a new run is written as `RUNNING` (summary only) once it passes the gate and before its first step — `RunWorkflowParams.onAdmitted` → `IWorkflowExecutionRepository.markRunning`, in `RunWorkflowsForEventUseCase` and `RunCalledWorkflowUseCase`; the final `create` overwrites it. Runs refused by the condition are not written twice, and a failing `markRunning` does not stop the run. Until now the history was written only at the end, so an instance killed mid-run left no trace at all.
+- fix(workflow): `runWorkflowClock` closes as `FAILED` with `@core.automation/run.interrupted` every run still `RUNNING` after `ABANDONED_RUN_AFTER_MS` (twice `WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS`), across tenants (`closeAbandoned`). Each one in its own batch with `lastUpdateTime` as precondition, so a run that finished between the query and the write keeps its real outcome. Once closed, "Run again" accepts it — it refused a run that still said `RUNNING`.
+- chore(indexes): composite collection-group index `workflow_executions` `status` ASC + `startedAt` ASC, for the sweep. Run `microteia deploy` (indexes) before the functions.
+- feat(locale-pt-br): `run.interrupted` translated; package bumped to 1.234.0.
+
 #### [9.286.0] — 2026-11-19
 
 - feat(reports/design): the layout tab edits `presentation.drillDown.columns` and the first `orderBy` criterion. Before, the only way to set them was the `.json`; the designer already carried them through a save, but nobody could see or change them there. `enabled: false` and further tie-break criteria still pass through unchanged, and removing a dimension prunes it from both lists.

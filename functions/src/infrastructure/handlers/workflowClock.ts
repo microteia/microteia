@@ -4,12 +4,17 @@ import { getDI } from '../di/container';
 import { isClockedDefinition, runWorkflowClockRound, syncWorkflowClockEntry } from '../../domain/services/workflowClock';
 import type { ClockedDefinition } from '../../domain/services/workflowClock';
 import { WORKFLOW_CLOCK_TICK_MINUTES } from '../../domain/schema/workflowClock';
-import { isHistoryPurgeTick } from '../../domain/services/executionHistory';
+import {
+  ABANDONED_RUN_MESSAGE,
+  abandonedRunStartedBefore,
+  isHistoryPurgeTick,
+} from '../../domain/services/executionHistory';
 import { versionArtifactOnWrite, versionWorkflowOnWrite } from '../../domain/services/workflowVersions';
 import { SCRIPT_VERSION_CONTENT_KEYS } from '../../domain/schema/workflowVersion';
 import { escalateDueApprovals, remindDueApprovals } from '../../domain/services/approvalReminders';
 import { FirestoreNotificationDirectory } from '../../data/repositories/FirestoreNotificationRepositories';
 import { getDb } from '../firebase/initFirebase';
+import { WORKFLOW_RUNNER_MEMORY } from '../workflow/workflowRunnerOptions';
 
 const REGION = 'southamerica-east1';
 
@@ -31,6 +36,9 @@ const APPROVAL_REMINDER_SWEEP_LIMIT = 100;
 
 /** Quantos pedidos HTTP vencidos uma volta devolve à fila. O resto fica para a próxima. */
 const HTTP_DISPATCH_SWEEP_LIMIT = 200;
+
+/** Quantas execuções abandonadas uma volta fecha. O resto fica para a próxima. */
+const ABANDONED_RUN_SWEEP_LIMIT = 100;
 
 /**
  * Teto da varredura do histórico vencido numa passada. Ela roda DEPOIS das voltas do relógio, e o que
@@ -118,7 +126,7 @@ export const versionScript = onDocumentWritten(
  * Onde a extensão não está instalada não há definição, e onde está desativada o motor recusa o evento.
  */
 export const runWorkflowClock = onSchedule(
-  { schedule: `every ${WORKFLOW_CLOCK_TICK_MINUTES} minutes`, region: REGION, timeoutSeconds: 240 },
+  { schedule: `every ${WORKFLOW_CLOCK_TICK_MINUTES} minutes`, region: REGION, timeoutSeconds: 240, memory: WORKFLOW_RUNNER_MEMORY },
   async () => {
     // A fila do passo HTTP assíncrono pega carona neste relógio em vez de ter um agendador próprio: é
     // uma consulta e algumas gravações, e o escritório que não usa a fila paga só a consulta vazia.
@@ -158,6 +166,18 @@ export const runWorkflowClock = onSchedule(
       if (escalated > 0) console.log(`[workflow-clock] ${escalated} aprovação(ões) escalonada(s)`);
     } catch (error) {
       console.error('[workflow-clock] Falha ao escalonar aprovações:', error);
+    }
+
+    // A execução que a plataforma derrubou (memória, tempo) ficava `RUNNING` sem fim, e sem o motivo:
+    // fechada aqui, ela aparece como falha no histórico, e "Reexecutar" — que recusa a que ainda corre —
+    // volta a valer para ela. Mesma carona, mesmo isolamento.
+    try {
+      const now = new Date();
+      const closed = await getDI().getExecutionHistoryRetention()
+        .closeAbandoned(abandonedRunStartedBefore(now), now, ABANDONED_RUN_MESSAGE, ABANDONED_RUN_SWEEP_LIMIT);
+      if (closed > 0) console.log(`[workflow-clock] ${closed} execução(ões) interrompida(s) fechada(s) como falha`);
+    } catch (error) {
+      console.error('[workflow-clock] Falha ao fechar execuções interrompidas:', error);
     }
 
     const deps = getDI().getWorkflowClockDeps();

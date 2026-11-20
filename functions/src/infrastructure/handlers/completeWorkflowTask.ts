@@ -3,6 +3,7 @@ import { grantedPermissions, isOfficeMember } from './shared/requirePermission';
 import { identifyActor } from '../workflow/identifyActor';
 import { decideWorkflowTask } from '../workflow/decideWorkflowTask';
 import { WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS } from '../../domain/schema/workflowBudget';
+import { WORKFLOW_RUNNER_MEMORY } from '../workflow/workflowRunnerOptions';
 
 interface CompleteWorkflowTaskRequest {
   tenantId: string;
@@ -19,7 +20,7 @@ interface CompleteWorkflowTaskRequest {
  * administrador que decidisse por ela apagaria justamente o que a aprovação registra.
  */
 export const completeWorkflowTask = onCall(
-  { region: 'southamerica-east1', cors: true, timeoutSeconds: WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS },
+  { region: 'southamerica-east1', cors: true, timeoutSeconds: WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS, memory: WORKFLOW_RUNNER_MEMORY },
   async (request): Promise<{ status: 'decided' | 'voted' }> => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');

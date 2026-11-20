@@ -123,6 +123,7 @@ export const makeRunWorkflowsForEventUseCase = (
           cache: hydrationCache,
           ...(actor ? { actor } : {}),
           suspendable: !!clockRepository,
+          onAdmitted: (started) => executionRepository.markRunning(started),
         });
         if (clockRepository) {
           await recordWorkflowRun(execution, { definition, event, ...(actor ? { actor } : {}) }, {
