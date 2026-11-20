@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.287.1] — 2026-11-20
+
+- fix(search): a screen whose `titleFieldKey` is a `reference` is now titled by the record it points to, one hop (the portal's limit), in the search terms of whoever points at it. `recordSearchTitle` takes the already-read `referenceTitle`; the round reads the second hop in one read per collection. A `searchable` reference to such a screen used to contribute nothing, so the record pointing at it was never found by the name (#8).
+- fix(search): propagation compares `recordSearchTitleSource` (the pointed ids, for a reference title), so changing the pointed record re-derives the referrers; a propagation scan over records whose title is the scanned field also propagates each of them — they are renamed without being written. The signature of a collection pointing at a reference-titled screen includes the second-hop collection (only then), so existing records are re-derived once; `useRecordSearchReconcile` computes the same signature.
+- fix(records): `useEnsureReferencedRecords` also fetches the second-hop record (`titleReferenceNeeds`), so a reference field pointing at a reference-titled record no longer reads "Untitled"; Cmd+K names records through `buildRecordTitleResolver` instead of the raw title value, which was the pointed id (#8).
+
 #### [9.287.0] — 2026-11-19
 
 - feat(data-processor): the person picks which PDF pages are sent (`1`, `1-3`, `2,4`, or all), validated by the same `parsePageSelection` as `read-document`; the pages go in page order, separated by a form feed, exactly like the step's `text`. Page 1 stays the default, and moving the preview still sends that page. Documents with the header on page 1 and the totals on the last one used to reach a `fillFrom: 'sourceText'` flow half-read, with no error (#7).

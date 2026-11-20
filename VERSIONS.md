@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.287.1] — 2026-11-20
+
+- Registros que se chamam pelo nome de outro registro — uma conta identificada pelo titular, por exemplo — agora aparecem com esse nome em todo lugar: no campo de quem aponta para eles, que antes mostrava "Sem título", e na busca rápida, que mostrava um código no lugar do nome.
+- A busca rápida passa a encontrar também os registros que apontam para eles pelo nome do titular, e acompanha quando esse nome muda.
+
 #### [9.287.0] — 2026-11-19
 
 - No Processador de Dados, dá para escolher quais páginas do PDF enviar — por exemplo, a primeira e a última, ou o documento inteiro. Sem mexer na escolha, continua indo só a primeira página, como antes.

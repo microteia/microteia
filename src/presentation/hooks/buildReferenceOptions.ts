@@ -52,7 +52,7 @@ const definitionsByCollection = (dynamicScreens: ScreenDefinition[]): Map<string
  * segue a relação. Duas telas cujos títulos apontam uma para a outra não podem girar para sempre: o
  * registro já em resolução responde vazio, e quem o pediu cai no "sem título".
  */
-export const buildReferenceOptions = (sources: ReferenceOptionSources): Record<string, ReferenceOption[]> => {
+const makeRecordNaming = (sources: ReferenceOptionSources) => {
   const { recordsByCollection, dynamicScreens, members, getOptions, label, untitled } = sources;
   const definitionByCollection = definitionsByCollection(dynamicScreens);
 
@@ -131,6 +131,26 @@ export const buildReferenceOptions = (sources: ReferenceOptionSources): Record<s
       : keys.map((id) => pointedName(field.refEntity ?? '', id));
     return texts.filter(Boolean).join(', ');
   };
+
+  return { definitionByCollection, titleOf, fieldText };
+};
+
+/**
+ * O título que se LÊ de um registro qualquer — inclusive o que não está entre os carregados, como o que
+ * a busca do servidor trouxe para o ⌘K. O título que é referência sai pelo nome do apontado, nunca pelo
+ * id gravado no campo; vazio quando não há título a mostrar.
+ */
+export const buildRecordTitleResolver = (sources: ReferenceOptionSources): ((record: EntityRecord) => string) => {
+  const { definitionByCollection, fieldText } = makeRecordNaming(sources);
+  return (record) => {
+    const definition = definitionByCollection.get(record.collection);
+    return fieldText(record, definition, definition?.titleFieldKey ?? '');
+  };
+};
+
+export const buildReferenceOptions = (sources: ReferenceOptionSources): Record<string, ReferenceOption[]> => {
+  const { recordsByCollection, dynamicScreens, members, untitled } = sources;
+  const { definitionByCollection, titleOf, fieldText } = makeRecordNaming(sources);
 
   // Só o que NÃO é tela do escritório fica nomeado aqui. Toda coleção descrita por uma tela entra
   // pelo caminho genérico abaixo: o rótulo sai do campo-título e o complemento, do subtítulo.

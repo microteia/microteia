@@ -5,13 +5,15 @@ import { getScreenIcon } from '../../../../shared/screenIcons';
 import { resolveRecordTitle } from '../../../../../domain/services/customFieldValues';
 import { isOwnedByParentScreen, screenReadPermission } from '../../../../../domain/services/screenDataCollection';
 
+const UNTITLED = '@core.records/record.untitled';
+
 const contains = (text: string | null | undefined, query: string) =>
   !!text && text.toLowerCase().includes(query.toLowerCase());
 
 export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
   group: '@core.records/command.group',
 
-  getItems(query: string, { screenDefinitions, records, recordMatches, openTab, close, label, can }: CommandPaletteAppContext): CommandPaletteItem[] {
+  getItems(query: string, { screenDefinitions, records, recordMatches, recordTitle, openTab, close, label, can }: CommandPaletteAppContext): CommandPaletteItem[] {
     if (!query) return [];
 
     // Telas filhas existem só dentro do registro-pai: ficam fora do ⌘K, e como `screenByKey`
@@ -52,9 +54,16 @@ export const DynamicRecordCommandProvider: ICommandPaletteProvider = {
     const recordItems: CommandPaletteItem[] = records
       .map((record) => {
         const screen = screenByKey.get(record.collection);
-        return { record, screen, title: resolveRecordTitle(record, screen?.titleFieldKey ?? '') };
+        // O valor cru do campo-título é o id quando o título é uma referência: a conta aparecia como
+        // `O7aUqpiiVsn6yBTfd7Bi` em vez do nome do titular. Sem nome a mostrar, é "sem título" — e
+        // a busca pelo título não casa com o texto desse aviso.
+        if (!recordTitle) {
+          const title = resolveRecordTitle(record, screen?.titleFieldKey ?? '');
+          return { record, screen, title, byTitle: contains(title, query) };
+        }
+        const name = recordTitle(record);
+        return { record, screen, title: name || UNTITLED, byTitle: contains(name, query) };
       })
-      .map((entry) => ({ ...entry, byTitle: contains(entry.title, query) }))
       .filter(({ record, screen, byTitle }) => !!screen && (byTitle || recordMatches.has(`${record.collection}/${record.id}`)))
       // O que casa pelo título vem antes: é o que a pessoa reconhece de relance. O que o servidor achou
       // por outro campo vem depois, e é o que antes não aparecia de jeito nenhum.

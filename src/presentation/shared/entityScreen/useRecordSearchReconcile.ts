@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { useTenant } from '../../../stores/useTenant';
-import { planRecordSearchBackfill, recordSearchSignature } from '../../../domain/schema/recordSearch';
+import { planRecordSearchBackfill, recordSearchSignature, searchTitleReferenceField } from '../../../domain/schema/recordSearch';
+import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import type { RecordSearchJobState } from '../../../domain/schema/recordSearch';
 import type { ScreenDefinition } from '../../../domain/entities';
 import { screenDataCollection } from '../../../domain/services/screenDataCollection';
@@ -22,6 +23,7 @@ interface JobSnapshot {
 export const useRecordSearchReconcile = (definition: ScreenDefinition | null): void => {
   const { recordSearchJobRepository } = useDI();
   const { currentTenant } = useTenant();
+  const { dynamicScreens } = useScreenDefinitions();
 
   const tenantId = currentTenant?.id ?? null;
   // O job é da COLEÇÃO, que é a chave que o servidor grava — não da chave da tela.
@@ -37,10 +39,17 @@ export const useRecordSearchReconcile = (definition: ScreenDefinition | null): v
   }, [recordSearchJobRepository, tenantId, collection, jobKey]);
 
   const job = snapshot && snapshot.key === jobKey ? snapshot : null;
-  const signature = useMemo(
-    () => (definition ? recordSearchSignature({ titleFieldKey: definition.titleFieldKey, fields: definition.fields }) : null),
-    [definition],
-  );
+  // A mesma conta do servidor, inclusive o segundo salto: uma assinatura que só o servidor soubesse
+  // calcular pediria a conferência a cada abertura da lista.
+  const signature = useMemo(() => {
+    if (!definition) return null;
+    const titleReferenceOf = (collection: string): string | null => {
+      const target = dynamicScreens.find((screen) => screen.id === collection)
+        ?? dynamicScreens.find((screen) => screenDataCollection(screen) === collection);
+      return target ? searchTitleReferenceField({ titleFieldKey: target.titleFieldKey, fields: target.fields })?.refEntity ?? null : null;
+    };
+    return recordSearchSignature({ titleFieldKey: definition.titleFieldKey, fields: definition.fields }, titleReferenceOf);
+  }, [definition, dynamicScreens]);
 
   useEffect(() => {
     if (!tenantId || !job || !signature) return;

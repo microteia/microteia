@@ -17,6 +17,8 @@ import { useWorkspaceDock } from '../../../../stores/useWorkspaceDock';
 import { useDockPanels } from '../../../shared/useDockPanels';
 import type { CommandPaletteItem } from './providers/ICommandPaletteProvider';
 import { useServerRecordSearch } from '../../../shared/useServerRecordSearch';
+import { useEnsureTitleReferences } from '../../../shared/useEnsureReferencedRecords';
+import { useRecordTitleResolver } from '../../../hooks/useReferenceOptions';
 import { isOwnedByParentScreen, screenDataCollection, screenReadPermission } from '../../../../domain/services/screenDataCollection';
 
 /** Por coleção: o ⌘K mostra oito registros ao todo, e a janela por tela não precisa ser maior. */
@@ -108,6 +110,9 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
     [screenDefinitions, can],
   );
   const serverSearch = useServerRecordSearch(query, searchCollections, PALETTE_SEARCH_LIMIT);
+  // O que o servidor achou e se chama por outra referência só tem nome com o apontado carregado.
+  useEnsureTitleReferences(serverSearch.results);
+  const recordTitle = useRecordTitleResolver();
   const records = useMemo(() => {
     if (serverSearch.results.length === 0) return allRecords;
     const loaded = new Set(allRecords.map((record) => `${record.collection}/${record.id}`));
@@ -128,6 +133,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       close,
       records,
       recordMatches: serverSearch.matches,
+      recordTitle,
       screenDefinitions,
       workflows,
       reports: paletteReports,
@@ -143,7 +149,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
       dockPanels,
       openDock,
     }),
-    [openTab, close, records, serverSearch.matches, screenDefinitions, workflows, paletteReports, themeId, themes, setTheme, signOut, userRole, can, navigablePages, t, label, dockPanels, openDock],
+    [openTab, close, records, serverSearch.matches, recordTitle, screenDefinitions, workflows, paletteReports, themeId, themes, setTheme, signOut, userRole, can, navigablePages, t, label, dockPanels, openDock],
   );
 
   const groups = useMemo<CommandPaletteGroup[]>(() => {

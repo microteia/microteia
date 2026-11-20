@@ -296,24 +296,64 @@ export const searchLookupReferrersOf = (
 
 // ─── O título que vai para quem aponta ────────────────────────────────────────
 
+/** O campo-título da tela, quando ele é uma referência — o título do registro é o do apontado. */
+export const searchTitleReferenceField = (screen: SearchScreen): FieldDefinition | undefined => {
+  if (!screen.titleFieldKey) return undefined;
+  const field = screen.fields.find((candidate) => candidate.key === screen.titleFieldKey);
+  return field?.type === 'reference' && field.refEntity ? field : undefined;
+};
+
 /**
- * O texto do título de um registro, como ele entra nos termos de QUEM o aponta. Um nível só: o título
- * que é ele mesmo uma referência não é seguido — a cadeia não tem fim conhecido, e cada salto seria uma
- * leitura por registro derivado.
+ * Os registros que o TÍTULO aponta — o segundo salto de quem lê o título deste registro. Vazio quando o
+ * título não é referência.
+ */
+export const searchTitleReferenceIds = (screen: SearchScreen, data: Record<string, unknown> | null | undefined): string[] =>
+  data && searchTitleReferenceField(screen) ? idsOf(data[screen.titleFieldKey as string]) : [];
+
+/**
+ * O texto do título de um registro, como ele entra nos termos de QUEM o aponta.
+ *
+ * O título que é uma referência é o título do registro apontado (`referenceTitle`, já lido por quem
+ * chama) — a conta cujo título é o titular se chama pelo nome do titular, e não pelo id dele, que era o
+ * que a carta que aponta a conta guardava. Um salto só, como no portal: quem resolve `referenceTitle`
+ * chama esta função SEM ele, e o título que de novo é referência fica vazio — a cadeia não tem fim
+ * conhecido, e cada salto seria uma leitura por registro derivado.
  */
 export const recordSearchTitle = (
   screen: SearchScreen,
   data: Record<string, unknown> | null | undefined,
   optionLabel: (field: FieldDefinition, key: string) => string | undefined = () => undefined,
+  referenceTitle?: (collection: string, id: string) => string | undefined,
 ): string => {
   if (!data || !screen.titleFieldKey) return '';
   const field = screen.fields.find((candidate) => candidate.key === screen.titleFieldKey);
   const value = data[screen.titleFieldKey];
-  if (field?.type === 'reference') return '';
+  if (field?.type === 'reference') {
+    if (!field.refEntity || !referenceTitle) return '';
+    const collection = field.refEntity;
+    return idsOf(value)
+      .map((id) => referenceTitle(collection, id))
+      .filter((title): title is string => !!title)
+      .join(', ');
+  }
   if (field?.type === 'select') return idsOf(value).map((key) => optionLabel(field, key) ?? key).join(' ');
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number') return String(value);
   return '';
+};
+
+/**
+ * O que, no registro, decide o título que quem o aponta lê — e portanto o que, mudando, pede a
+ * propagação. Com o título por referência o nome não está no registro: o que o muda é TROCAR o
+ * apontado (o nome deste é conferido quando ele mesmo é gravado).
+ */
+export const recordSearchTitleSource = (
+  screen: SearchScreen,
+  data: Record<string, unknown> | null | undefined,
+  optionLabel: (field: FieldDefinition, key: string) => string | undefined = () => undefined,
+): string => {
+  if (searchTitleReferenceField(screen)) return `ref:${searchTitleReferenceIds(screen, data).join('\u0000')}`;
+  return recordSearchTitle(screen, data, optionLabel);
 };
 
 // ─── A passada sobre os registros que já existem ──────────────────────────────
@@ -351,18 +391,32 @@ export const recordSearchPropagationJobId = (collection: string, id: string): st
 /**
  * A identidade do que entra na busca de uma coleção: só o que muda os TERMOS. Rótulo do campo, ordem e
  * seção ficam fora — renomear um rótulo não pode rederivar uma coleção de milhares de registros.
+ *
+ * `titleReferenceOf` diz, de uma coleção apontada, para onde aponta o título dela quando ele é uma
+ * referência (a coleção do segundo salto), ou `null`. O servidor e a listagem conferem a mesma conta:
+ * uma assinatura que só um dos dois soubesse calcular pediria a conferência a cada abertura de lista.
  */
-export const recordSearchSignature = (screen: SearchScreen): string =>
+export const recordSearchSignature = (
+  screen: SearchScreen,
+  titleReferenceOf: (collection: string) => string | null = () => null,
+): string =>
   JSON.stringify([
     RECORD_SEARCH_VERSION,
     screen.titleFieldKey ?? '',
-    searchFieldsOf(screen).map((field) => [
-      field.key,
-      field.type,
-      field.refEntity ?? null,
-      field.lookupCollection ?? null,
-      (field.options ?? []).map((option) => [option.key, option.label]),
-    ]),
+    searchFieldsOf(screen).map((field) => {
+      const entry: unknown[] = [
+        field.key,
+        field.type,
+        field.refEntity ?? null,
+        field.lookupCollection ?? null,
+        (field.options ?? []).map((option) => [option.key, option.label]),
+      ];
+      // O texto que a referência leva depende de a tela APONTADA se chamar por outra referência. Só
+      // entra quando é o caso — a assinatura de quem aponta para um título comum não muda, e nenhuma
+      // coleção é rederivada à toa; a que aponta para um título por referência é rederivada uma vez.
+      const through = field.type === 'reference' && field.refEntity ? titleReferenceOf(field.refEntity) : null;
+      return through ? [...entry, through] : entry;
+    }),
   ]);
 
 /**
