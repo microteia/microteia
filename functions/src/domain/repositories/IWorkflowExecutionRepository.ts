@@ -2,6 +2,11 @@ import type { WorkflowExecution } from '../entities/Workflow';
 
 export interface IWorkflowExecutionRepository {
   create(execution: WorkflowExecution): Promise<void>;
+  /**
+   * Grava só o RESUMO da execução que começou (`RUNNING`), sem detalhe: as linhas vêm no `create` do fim,
+   * que o substitui. É o rastro que sobra quando a plataforma derruba a instância no meio.
+   */
+  markRunning(execution: WorkflowExecution): Promise<void>;
   findById(tenantId: string, id: string): Promise<WorkflowExecution | null>;
   /**
    * As execuções que um evento disparou.

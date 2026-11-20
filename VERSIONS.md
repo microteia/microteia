@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.286.1] — 2026-11-19
+
+- Automações que leem um PDF anexado a um registro deixaram de parar no meio: o servidor passou a ter memória suficiente para ler o arquivo, e vários anexos chegando juntos são lidos um de cada vez.
+- Quando o servidor interrompe uma automação antes do fim, ela não desaparece mais: a execução aparece na aba de execuções como falha, explicando o que aconteceu, e pode ser executada de novo.
+
 #### [9.286.0] — 2026-11-19
 
 - No desenho de relatórios, a aba de layout ganhou a seção "Registros por trás de um número": escolha ali as colunas e a ordem da lista que se abre ao clicar num número, sem precisar editar o relatório à mão.

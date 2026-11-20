@@ -16,6 +16,7 @@ import { DEFAULT_LOCALE } from '../../domain/schema/i18n/localeNegotiation';
 import { resolveTimeZone } from '../../domain/schema/i18n/timeZone';
 import { ensurePortalProjectionRevision } from '../portal/portalProjectionRevision';
 import { identifyPortalActor } from '../portal/identifyPortalActor';
+import { WORKFLOW_RUNNER_MEMORY } from '../workflow/workflowRunnerOptions';
 
 const REGION = 'southamerica-east1';
 
@@ -216,7 +217,7 @@ const guestCatalog = async (tenantId: string, userId: string, browserLocale: str
  * ele, dispara a ação e devolve o desfecho e os botões refeitos. Uma callable só para as duas coisas
  * de propósito: a consulta que desenha os botões acorda a mesma instância que o clique vai usar.
  */
-export const portalRecordActions = onCall({ region: REGION, cors: true }, async (request) => {
+export const portalRecordActions = onCall({ region: REGION, cors: true, memory: WORKFLOW_RUNNER_MEMORY }, async (request) => {
   const userId = authenticated(request.auth);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const tenantId = requireString(data.tenantId, '@core.automation/handler.tenant.missing');

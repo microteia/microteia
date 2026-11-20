@@ -1685,6 +1685,7 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'step.http.done': '{method} {target} respondeu {status} em {ms} ms.',
   'step.http.done-not-ok': '{method} {target} respondeu {status} em {ms} ms — o fluxo continua.',
   'run.budget-exceeded': 'A automação esgotou o orçamento de tempo e parou antes deste passo. O orçamento é definido em Configurações › Automações.',
+  'run.interrupted': 'O servidor interrompeu esta execução antes do fim (falta de memória ou de tempo), e os passos em andamento não foram registrados. O que já foi aplicado permanece; nada depois disso rodou. Você pode executá-la de novo com o mesmo evento.',
   'http.method': 'Método',
   'http.url': 'Endereço',
   'http.url.hint': 'Marque as partes do endereço que mudam com um nome entre chaves, e preencha-as em "Parâmetros de caminho" — a codificação é feita automaticamente.',

@@ -3,6 +3,7 @@ import { PERMISSION_AUTOMATION_MANAGE } from '../schema/access/kernelPermissions
 import { grants } from '../schema/access/memberPermissions';
 import { EXECUTION_HISTORY_RETENTION_DAYS } from '../schema/executionHistory';
 import { WORKFLOW_CLOCK_TICK_MINUTES } from '../schema/workflowClock';
+import { WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS } from '../schema/workflowBudget';
 
 /**
  * O histórico é a EVIDÊNCIA do que aconteceu, não o depósito dos dados: a execução recebe o texto
@@ -143,3 +144,15 @@ export const historyStartedBefore = (now: Date): Date =>
  * tarefa que tolera horas de atraso.
  */
 export const isHistoryPurgeTick = (now: Date): boolean => now.getUTCMinutes() < WORKFLOW_CLOCK_TICK_MINUTES;
+
+/**
+ * A execução que a plataforma derrubou no meio — memória, tempo, a instância trocada — fica `RUNNING`
+ * para sempre: o histórico é gravado no fim, e o fim não chegou. Nenhuma porta que executa automação
+ * passa de `WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS`, e o dobro dá folga ao relógio do servidor e à
+ * gravação final que demora. Depois disso, `RUNNING` só pode ser uma execução morta.
+ */
+export const ABANDONED_RUN_AFTER_MS = 2 * WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS * 1000;
+
+export const ABANDONED_RUN_MESSAGE = '@core.automation/run.interrupted';
+
+export const abandonedRunStartedBefore = (now: Date): Date => new Date(now.getTime() - ABANDONED_RUN_AFTER_MS);

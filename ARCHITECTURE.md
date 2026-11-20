@@ -8161,6 +8161,40 @@ couber fica para a hora seguinte. Um agendador próprio seria mais um job do Clo
 cada projeto instalado, para uma tarefa que tolera horas de atraso. Na primeira hora depois da
 atualização, a varredura começa pelo histórico antigo — o que for de antes de 90 dias sai.
 
+### Execução interrompida pela plataforma — `RUNNING` primeiro, falha nomeada depois
+
+O histórico é gravado no FIM da execução. Quando a plataforma derruba a instância no meio — memória
+estourada, `timeoutSeconds`, instância trocada —, o fim não chega: não havia execução nenhuma na aba,
+o caminho de falha do fluxo (`onError: continue`, um `notify` no ramo do erro) nunca rodava, e o anexo
+"não fazia nada" (issue #6: um `read-document` sobre um PDF de 270 KB estourava os 256 MiB de
+`onWorkflowEventCreated`). O orçamento (`deadlineAt`) não cobre esse caso: ele recusa o próximo passo
+quando o TEMPO acaba, e a memória acaba no meio de um passo.
+
+São três peças, e cada uma tem o seu motivo:
+
+- **A execução nasce gravada.** Passada a porta (condição, filtros, parâmetros), o executor chama
+  `onAdmitted` e a porta grava só o RESUMO, `RUNNING` (`markRunning`), antes do primeiro passo. O
+  `create` do fim o substitui com o detalhe. Só depois da porta: a execução que a condição recusa é a
+  maioria dos `.saved`, e gravá-la duas vezes dobraria a escrita do caso mais comum. A retomada de uma
+  espera não passa por aqui — ela já tem resumo (`WAITING`). As duas portas que começam execução nova
+  fazem isso: o barramento (`RunWorkflowsForEventUseCase`) e o fluxo chamado (`RunCalledWorkflowUseCase`).
+  Falhar ao gravar o resumo não impede a execução.
+- **O relógio fecha a que morreu.** A cada passada, `runWorkflowClock` procura, em todos os escritórios,
+  a execução `RUNNING` que começou há mais de `ABANDONED_RUN_AFTER_MS` (o dobro de
+  `WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS`: nenhuma porta que executa automação passa desse teto) e a
+  grava `FAILED` com `run.interrupted` (`closeAbandoned`, índice `status` + `startedAt` de grupo). Cada uma
+  no seu lote, com a hora da última gravação como condição — a que terminou entre a consulta e a gravação
+  fica com o desfecho de verdade. Fechada, ela deixa de ser "ainda correndo" para o "Reexecutar", que
+  recusava justamente essa.
+- **A memória de quem executa passos é `WORKFLOW_RUNNER_MEMORY` (1 GiB)** — o barramento, o relógio (retoma
+  `delay`), a caixa e o portal (decidem aprovação), o botão (`runAction`) e as ações do portal. Carregar o
+  código das functions já ocupa mais da metade dos 256 MiB padrão, e a `pdfjs-dist` soma ~50 MiB na
+  primeira leitura. O agente (`agentMcp`, `assistantChat`) segue em 512 MiB.
+
+Os efeitos que a execução já aplicou antes de morrer ficam — a mensagem diz isso. O que o relógio não
+recupera é o caminho de falha do próprio fluxo: quem precisa de aviso numa falha dessas lê a aba
+Execuções, ou monta uma automação sobre ela.
+
 ### Resolução lazy de FKs — WorkflowContextHydrator
 
 O payload publicado é **cru** (só os dados do documento). Quem materializa FKs é o
@@ -9187,6 +9221,14 @@ Decisões que não são detalhe:
   não existir. É o que deixa a automação reconhecer a conta que já importou.
 - **A mesma biblioteca e a mesma junção do navegador.** `pdfjs-dist` (mesma versão do Processador) e
   `pdfPageText` — um leitor escrito contra o texto do Processador lê igual o texto do passo.
+
+**Um PDF aberto por vez na instância.** `PdfjsTextExtractor` enfileira as aberturas e só libera a vez no
+`close` (por isso `OpenedPdf.close` é obrigatório, num `finally`). A instância atende várias execuções ao
+mesmo tempo, e cada PDF aberto pesa o arquivo e o que a biblioteca monta dele; sem a fila, a memória
+crescia com quantos anexos chegassem juntos — e a instância que estoura não falha a execução, some com
+ela (ver "Execução interrompida pela plataforma"). A leitura é CPU pura numa vCPU só: a fila não atrasa o
+total, só a ordem. A espera tem limite (`PDF_SLOT_MAX_WAIT_MS`, 60 s): um PDF cuja leitura nunca termina
+prenderia a fila pelo resto da vida da instância, e passado o limite quem espera segue sem a vez.
 
 **A `pdfjs-dist` é só ESM, e as functions compilam para CommonJS.** O TypeScript reescreveria um `import()`
 como `require()`. `PdfjsTextExtractor` carrega a biblioteca pelo `require` de ESM do Node (sem flag desde o
@@ -17844,6 +17886,7 @@ Além dos compostos, o arquivo declara dezenove `fieldOverrides`:
 | `registrationRefusals` | `expiresAt` | TTL — a recusa de conta nova só serve à tentativa em curso (1 dia); sem índice, porque só é lida pelo id |
 | `http_dispatches` (collectionGroup) | `nextAttemptAt` ASC | `runWorkflowClock` devolve à fila, em todos os escritórios de uma vez, o pedido HTTP assíncrono cuja espera venceu, cuja entrega morreu no meio ou que ninguém pegou |
 | `http_dispatches` | `expiresAt` | TTL — o pedido HTTP assíncrono fica 7 dias depois de criado; o resultado já foi para o callback |
+| `workflow_executions` (collectionGroup) | `status` ASC, `startedAt` ASC | `runWorkflowClock` fecha como falha, em todos os escritórios de uma vez, a execução que ainda diz `RUNNING` muito depois do teto de qualquer function — a instância morreu no meio. Ver "Execução interrompida pela plataforma" |
 | `workflow_tasks` (collectionGroup) | `status` ASC, `escalateAt` ASC | `runWorkflowClock` acha, em todos os escritórios de uma vez, as aprovações abertas cujo escalonamento venceu |
 | `workflow_tasks` (collectionGroup) | `status` ASC, `nextReminderAt` ASC | `runWorkflowClock` acha, em todos os escritórios de uma vez, as aprovações abertas com lembrete vencido |
 | `workflow_tasks` | `guestIds` CONTAINS, `status` ASC, `createdAt` DESC | O portal acompanha as aprovações abertas em que o convidado decide |

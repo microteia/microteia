@@ -79,6 +79,7 @@ export const makeRunCalledWorkflowUseCase = (
       services: runServices,
       hydrator,
       ...(actor ? { actor } : {}),
+      onAdmitted: (started) => executionRepository.markRunning(started),
     });
     await executionRepository.create(execution);
 

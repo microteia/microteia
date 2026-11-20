@@ -4,6 +4,7 @@ import type { PdfTextItem } from '../schema/pdfText';
 export interface OpenedPdf {
   pageCount: number;
   pageItems(pageNumber: number): Promise<PdfTextItem[]>;
+  /** Obrigatório, num `finally`: a instância abre um PDF por vez, e o que não fecha prende a fila. */
   close(): Promise<void>;
 }
 

@@ -27,3 +27,27 @@ describe('PdfjsTextExtractor', () => {
       .rejects.toBeInstanceOf(PdfUnreadableError);
   }, 30_000);
 });
+
+describe('PdfjsTextExtractor — um PDF aberto por vez (#6)', () => {
+  it('o segundo só abre depois que o primeiro fecha, e a recusa de um arquivo não prende a fila', async () => {
+    const pdf = new Uint8Array(await reportTableToPdf({ header: ['Item'], rows: [['A']] }, 'Fila'));
+    const extractor = new PdfjsTextExtractor();
+
+    await expect(extractor.open(new Uint8Array(Buffer.from('não sou um pdf')))).rejects.toBeInstanceOf(PdfUnreadableError);
+
+    const first = await extractor.open(pdf.slice());
+    let secondOpened = false;
+    const second = extractor.open(pdf.slice()).then((opened) => {
+      secondOpened = true;
+      return opened;
+    });
+    await new Promise((resolve) => { setTimeout(resolve, 50); });
+    expect(secondOpened).toBe(false);
+
+    await first.close();
+    await first.close();
+    const opened = await second;
+    expect(secondOpened).toBe(true);
+    await opened.close();
+  }, 30_000);
+});

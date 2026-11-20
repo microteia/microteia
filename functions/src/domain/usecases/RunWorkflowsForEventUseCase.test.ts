@@ -45,6 +45,7 @@ const event = (overrides: Partial<WorkflowEvent>): WorkflowEvent => ({
 
 const setup = (definitions: WorkflowDefinition[], deactivated: string[] = []) => {
   const executed: string[] = [];
+  const journal: string[] = [];
   const dateChecked: string[] = [];
   const queried: string[] = [];
   const definitionRepository: IWorkflowDefinitionRepository = {
@@ -62,6 +63,10 @@ const setup = (definitions: WorkflowDefinition[], deactivated: string[] = []) =>
   const executionRepository: IWorkflowExecutionRepository = {
     create: async (execution: WorkflowExecution) => {
       executed.push(execution.workflowDefinitionId);
+      journal.push(`${execution.status}:${execution.id}`);
+    },
+    markRunning: async (execution: WorkflowExecution) => {
+      journal.push(`${execution.status}:${execution.id}`);
     },
   } as IWorkflowExecutionRepository;
   const useCase = makeRunWorkflowsForEventUseCase(
@@ -77,7 +82,7 @@ const setup = (definitions: WorkflowDefinition[], deactivated: string[] = []) =>
       },
     },
   );
-  return { useCase, executed, queried, dateChecked };
+  return { useCase, executed, queried, dateChecked, journal };
 };
 
 describe('RunWorkflowsForEventUseCase — alvo', () => {
@@ -181,5 +186,16 @@ describe('RunWorkflowsForEventUseCase — orçamento de tempo da invocação', (
     const { useCase, runs } = capture();
     await useCase.execute(event({ name: 'medico.saved' }));
     expect(runs[0].logs.map((entry) => entry.message)).not.toContain('@core.automation/run.budget-exceeded');
+  });
+});
+
+describe('RunWorkflowsForEventUseCase — a execução nasce gravada (#6)', () => {
+  it('grava RUNNING antes de rodar e o desfecho por cima, na mesma execução', async () => {
+    const { useCase, journal } = setup([definition({ id: 'a' })]);
+    await useCase.execute(event({ target: 'a' }));
+    expect(journal).toHaveLength(2);
+    const [started, finished] = journal;
+    expect(started.startsWith('RUNNING:')).toBe(true);
+    expect(finished).toBe(`SUCCESS:${started.slice('RUNNING:'.length)}`);
   });
 });

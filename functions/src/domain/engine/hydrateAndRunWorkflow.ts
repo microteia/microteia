@@ -3,7 +3,7 @@ import type { WorkflowContext } from '../entities/WorkflowContext';
 import type { WorkflowServices } from '../entities/WorkflowContext';
 import type { StepRegistry } from './StepRegistry';
 import { runWorkflow } from './WorkflowExecutor';
-import type { WorkflowRun } from './WorkflowExecutor';
+import type { RunWorkflowParams, WorkflowRun } from './WorkflowExecutor';
 import { WorkflowContextHydrator, createHydrationCache, type HydrationCache } from './WorkflowContextHydrator';
 import { SCHEMA_VERSION } from '../schema/entityRegistry';
 import { withBusinessCalendars } from '../services/businessCalendarScope';
@@ -19,6 +19,8 @@ export interface HydrateAndRunWorkflowDeps {
   actor?: WorkflowContext['actor'];
   /** A execução pode pausar num `delay`. Ver `RunWorkflowParams.suspendable`. */
   suspendable?: boolean;
+  /** Ver `RunWorkflowParams.onAdmitted`. */
+  onAdmitted?: RunWorkflowParams['onAdmitted'];
 }
 
 /**
@@ -78,5 +80,6 @@ export const hydrateAndRunWorkflow = async (
     services,
     ...(deps.actor ? { actor: deps.actor } : {}),
     ...(deps.suspendable ? { suspendable: true } : {}),
+    ...(deps.onAdmitted ? { onAdmitted: deps.onAdmitted } : {}),
   });
 };

@@ -10,6 +10,7 @@ import {
   workflowBudgetProperty,
   workflowDeadlineAt,
 } from '../../domain/schema/workflowBudget';
+import { WORKFLOW_RUNNER_MEMORY } from '../workflow/workflowRunnerOptions';
 
 /**
  * Escuta a criação de documentos em `tenants/{tenantId}/workflow_events/{eventId}` — o Event
@@ -25,6 +26,7 @@ export const onWorkflowEventCreated = onDocumentCreated(
     // O TETO, igual para todo escritório; quanto dele cada um usa é a configuração
     // `automation.budget.eventSeconds`. Ver `workflowBudget.ts`.
     timeoutSeconds: WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS,
+    memory: WORKFLOW_RUNNER_MEMORY,
   },
   async (rawEvent) => {
     const startedAt = Date.now();

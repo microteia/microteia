@@ -80,6 +80,7 @@ const makeTarget = (overrides: Partial<WorkflowDefinition> = {}): WorkflowDefini
 
 const makeDeps = (target: WorkflowDefinition | null) => {
   const created: WorkflowExecution[] = [];
+  const running: WorkflowExecution[] = [];
   const definitionRepository: IWorkflowDefinitionRepository = {
     findById: async () => target,
     findByRef: async () => target,
@@ -90,8 +91,12 @@ const makeDeps = (target: WorkflowDefinition | null) => {
     create: async (execution: WorkflowExecution) => {
       created.push(execution);
     },
+    markRunning: async (execution: WorkflowExecution) => {
+      expect(created).toHaveLength(0);
+      running.push(execution);
+    },
   } as unknown as IWorkflowExecutionRepository;
-  return { created, definitionRepository, executionRepository };
+  return { created, running, definitionRepository, executionRepository };
 };
 
 describe('RunCalledWorkflowUseCase', () => {
@@ -114,6 +119,29 @@ describe('RunCalledWorkflowUseCase', () => {
     }
     expect(created).toHaveLength(1);
     expect(created[0].outputs).toEqual({ value: 'B-out' });
+  });
+
+  it('grava a execução como RUNNING antes do primeiro passo, com a mesma identidade do desfecho (#6)', async () => {
+    const { created, running, definitionRepository, executionRepository } = makeDeps(makeTarget());
+    const useCase = makeRunCalledWorkflowUseCase(definitionRepository, executionRepository, registry, services, passthroughHydrator);
+
+    await useCase.execute({ tenantId: 't1', targetWorkflowId: 'wf-b', params: {}, callDepth: 1 });
+
+    expect(running).toHaveLength(1);
+    expect(running[0]).toMatchObject({ id: created[0].id, status: 'RUNNING', logs: [], outputs: {} });
+    expect(running[0].finishedAt).toBeUndefined();
+  });
+
+  it('a execução que a condição recusa não é gravada como RUNNING — só o desfecho', async () => {
+    const { created, running, definitionRepository, executionRepository } = makeDeps(
+      makeTarget({ condition: { kind: 'Expression', expression: 'false' } }),
+    );
+    const useCase = makeRunCalledWorkflowUseCase(definitionRepository, executionRepository, registry, services, passthroughHydrator);
+
+    await useCase.execute({ tenantId: 't1', targetWorkflowId: 'wf-b', params: {}, callDepth: 1 });
+
+    expect(running).toHaveLength(0);
+    expect(created).toHaveLength(1);
   });
 
   it('retorna found:false quando o alvo está desativado', async () => {

@@ -333,6 +333,20 @@
       ]
     },
     {
+      "collectionGroup": "workflow_executions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "assistantConversations",
       "queryScope": "COLLECTION",
       "fields": [

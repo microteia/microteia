@@ -1102,3 +1102,54 @@ describe('runWorkflow — o contexto de entrada no histórico', () => {
     expect(historyBytes(record)).toBeLessThan(50_000);
   });
 });
+
+describe('runWorkflow — onAdmitted (a execução nasce gravada, #6)', () => {
+  it('avisa a porta uma vez, depois da condição e antes do primeiro passo, com a identidade do desfecho', async () => {
+    const order: string[] = [];
+    const started: { id: string; status: string; at: number }[] = [];
+    const run = await runWorkflow({
+      definition: makeDefinition(withOrder([recordStep('a'), recordStep('b')])),
+      event: makeEvent({}),
+      registry: makeRegistry(order),
+      services,
+      onAdmitted: async (execution) => {
+        started.push({ id: execution.id, status: execution.status, at: order.length });
+        expect(execution.finishedAt).toBeUndefined();
+        expect(execution.logs).toEqual([]);
+      },
+    });
+
+    expect(started).toEqual([{ id: run.id, status: 'RUNNING', at: 0 }]);
+    expect(order).toEqual(['a', 'b']);
+    expect(run.status).toBe('SUCCESS');
+  });
+
+  it('não avisa quando a condição da automação recusa o evento', async () => {
+    let calls = 0;
+    const definition = { ...makeDefinition([recordStep('a')]), condition: takeIf('yes') };
+    const run = await runWorkflow({
+      definition,
+      event: makeEvent({ branch: 'no' }),
+      registry: makeRegistry([]),
+      services,
+      onAdmitted: async () => { calls += 1; },
+    });
+
+    expect(calls).toBe(0);
+    expect(run.skipped).toBe('condition');
+  });
+
+  it('a falha ao gravar o começo não impede a execução', async () => {
+    const order: string[] = [];
+    const run = await runWorkflow({
+      definition: makeDefinition([recordStep('a')]),
+      event: makeEvent({}),
+      registry: makeRegistry(order),
+      services,
+      onAdmitted: async () => { throw new Error('firestore fora do ar'); },
+    });
+
+    expect(order).toEqual(['a']);
+    expect(run.status).toBe('SUCCESS');
+  });
+});

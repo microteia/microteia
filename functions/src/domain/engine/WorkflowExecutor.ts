@@ -86,6 +86,13 @@ export interface RunWorkflowParams {
   suspendable?: boolean;
   /** Continua uma execução que esperou, a partir do passo seguinte ao `delay`. */
   resume?: WorkflowResume;
+  /**
+   * Chamado quando a execução NOVA passou pela porta e vai rodar o primeiro passo. É o que deixa a porta
+   * gravar a execução como `RUNNING` antes de qualquer efeito: o histórico só é escrito no fim, e uma
+   * instância que a plataforma derruba no meio (memória, tempo) não deixava rastro nenhum — nem para
+   * quem gerencia, nem para o relógio fechá-la (ver `closeAbandoned`). Falhar aqui não impede a execução.
+   */
+  onAdmitted?: (started: WorkflowExecution) => Promise<void>;
 }
 
 export const runWorkflow = async ({
@@ -96,6 +103,7 @@ export const runWorkflow = async ({
   actor,
   suspendable,
   resume,
+  onAdmitted,
 }: RunWorkflowParams): Promise<WorkflowRun> => {
   const executionId = resume?.executionId ?? crypto.randomUUID();
   const startedAt = resume?.startedAt ?? services.now();
@@ -306,6 +314,25 @@ export const runWorkflow = async ({
   }
   const { context } = admission;
   if (resume) log('INFO', '@core.automation/run.delay.resumed');
+  if (!resume && onAdmitted) {
+    try {
+      await onAdmitted({
+        id: executionId,
+        tenantId: definition.tenantId,
+        workflowDefinitionId: definition.id,
+        eventId: event.id,
+        status: 'RUNNING',
+        startedAt,
+        logs: [],
+        outputs: {},
+        ...(actor ? { actorId: actor.userId } : {}),
+      });
+    } catch (error) {
+      services.logger.warn(
+        `Falha ao marcar a execução ${executionId} como em andamento: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
 
   // Monta context.input a partir do flatten das saídas acumuladas (só Steps já executados) —
   // igual para Steps normais e para nós de controle StepCondition.

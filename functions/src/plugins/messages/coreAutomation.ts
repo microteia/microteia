@@ -1688,6 +1688,7 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'step.http.done': '{method} {target} answered {status} in {ms} ms.',
   'step.http.done-not-ok': '{method} {target} answered {status} in {ms} ms — the workflow continues.',
   'run.budget-exceeded': 'The automation used up its time budget and stopped before this step. The budget is set in Settings › Automations.',
+  'run.interrupted': 'The server stopped this run before it finished (out of memory or time), and the steps it was running were not recorded. Effects already applied stay; nothing after them ran. You can run it again with the same event.',
   'http.method': 'Method',
   'http.url': 'Address',
   'http.url.hint': 'Mark the parts of the address that change with a name between braces, and fill them in "Path parameters" — they are encoded automatically.',

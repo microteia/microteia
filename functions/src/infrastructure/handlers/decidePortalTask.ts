@@ -3,6 +3,7 @@ import { getDI } from '../di/container';
 import { decideWorkflowTask } from '../workflow/decideWorkflowTask';
 import { makeResolvePortalGuestsUseCase } from '../../domain/usecases/ResolvePortalGuestsUseCase';
 import { WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS } from '../../domain/schema/workflowBudget';
+import { WORKFLOW_RUNNER_MEMORY } from '../workflow/workflowRunnerOptions';
 
 interface DecidePortalTaskRequest {
   tenantId: string;
@@ -23,7 +24,7 @@ interface DecidePortalTaskRequest {
  *    vale também para quem perdeu a visão do registro (dizer outra coisa contaria que a tarefa existe).
  */
 export const decidePortalTask = onCall(
-  { region: 'southamerica-east1', cors: true, timeoutSeconds: WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS },
+  { region: 'southamerica-east1', cors: true, timeoutSeconds: WORKFLOW_EVENT_TIMEOUT_CEILING_SECONDS, memory: WORKFLOW_RUNNER_MEMORY },
   async (request): Promise<{ status: 'decided' | 'voted' }> => {
     if (!request.auth) throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     const { tenantId, taskId, outcome, comment } = (request.data ?? {}) as DecidePortalTaskRequest;

@@ -207,3 +207,89 @@ describe('FirebaseWorkflowExecutionRepository.purgeExpired', () => {
     expect(once.queries).toHaveLength(1);
   });
 });
+
+describe('FirebaseWorkflowExecutionRepository — execução interrompida (#6)', () => {
+  /** Só o que `markRunning` e `closeAbandoned` tocam; a consulta e a precondição de verdade foram exercitadas no emulador. */
+  const makeSweepDb = (docs: { path: string; updateTime: string; stale?: boolean }[]) => {
+    const writes: { op: string; path: string; data: Record<string, unknown>; precondition?: unknown }[] = [];
+    const filters: unknown[][] = [];
+    const ref = (path: string): unknown => ({
+      path,
+      collection: (name: string) => ({ doc: (id: string) => ref(`${path}/${name}/${id}`) }),
+      set: async (data: Record<string, unknown>) => { writes.push({ op: 'set', path, data }); },
+    });
+    const query = {
+      where: (...args: unknown[]) => { filters.push(args); return query; },
+      orderBy: () => query,
+      limit: (n: number) => { filters.push(['limit', n]); return query; },
+      get: async () => ({ docs: docs.map((doc) => ({ ref: ref(doc.path), updateTime: doc.updateTime })) }),
+    };
+    const db = {
+      collectionGroup: () => query,
+      collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
+      batch: () => {
+        const pending: typeof writes = [];
+        return {
+          update: (target: { path: string }, data: Record<string, unknown>, precondition: unknown) => {
+            pending.push({ op: 'update', path: target.path, data, precondition });
+          },
+          set: (target: { path: string }, data: Record<string, unknown>) => { pending.push({ op: 'set', path: target.path, data }); },
+          commit: async () => {
+            const stale = pending.some((write) => docs.find((doc) => doc.path === write.path)?.stale);
+            if (stale) throw Object.assign(new Error('FAILED_PRECONDITION'), { code: 9 });
+            writes.push(...pending);
+          },
+        };
+      },
+    } as unknown as Firestore;
+    return { db, writes, filters };
+  };
+
+  it('markRunning grava só o resumo, RUNNING e sem fim — o detalhe vem no desfecho', async () => {
+    const { db, writes } = makeSweepDb([]);
+    await new FirebaseWorkflowExecutionRepository(db).markRunning({
+      id: 'ex1', tenantId: 't1', workflowDefinitionId: 'wf', eventId: 'ev', status: 'RUNNING', startedAt: at, logs: [], outputs: {},
+    });
+    expect(writes).toEqual([{
+      op: 'set',
+      path: SUMMARY,
+      data: {
+        schema: EXECUTION_HISTORY_SCHEMA,
+        workflowDefinitionId: 'wf',
+        eventId: 'ev',
+        status: 'RUNNING',
+        startedAt: Timestamp.fromDate(at),
+        finishedAt: null,
+        resumeAt: null,
+        actorId: null,
+      },
+    }]);
+  });
+
+  it('closeAbandoned fecha como falha a RUNNING antiga, ignora o homônimo e deixa a que terminou entre a consulta e a gravação', async () => {
+    const { db, writes, filters } = makeSweepDb([
+      { path: 'tenants/t1/workflow_executions/dead', updateTime: 'u1' },
+      { path: 'tenants/t1/things/x/workflow_executions/homonym', updateTime: 'u2' },
+      { path: 'tenants/t2/workflow_executions/finished-meanwhile', updateTime: 'u3', stale: true },
+    ]);
+    const before = new Date('2026-11-17T11:42:00Z');
+
+    const closed = await new FirebaseWorkflowExecutionRepository(db).closeAbandoned(before, at, '@core.automation/run.interrupted', 50);
+
+    expect(closed).toBe(1);
+    expect(filters).toEqual([['status', '==', 'RUNNING'], ['startedAt', '<=', Timestamp.fromDate(before)], ['limit', 50]]);
+    expect(writes).toEqual([
+      {
+        op: 'update',
+        path: 'tenants/t1/workflow_executions/dead',
+        data: { status: 'FAILED', finishedAt: Timestamp.fromDate(at) },
+        precondition: { lastUpdateTime: 'u1' },
+      },
+      {
+        op: 'set',
+        path: 'tenants/t1/workflow_executions/dead/detail/run',
+        data: { logs: [{ level: 'ERROR', message: '@core.automation/run.interrupted', at: Timestamp.fromDate(at) }], outputs: {} },
+      },
+    ]);
+  });
+});
