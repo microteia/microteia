@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { fieldShownIn } from '../../domain/schema/fieldVisibility';
 import { useTheme } from 'styled-components';
 import { useLookups } from '../../stores/useLookups';
 import { useReferenceOptions } from './useReferenceOptions';
@@ -83,7 +84,8 @@ export const useCustomFieldListing = (
   const referenceSearch = useReferenceSearch();
   const theme = useTheme();
 
-  const listFields = useMemo(() => fields.filter((f) => f.showInList), [fields]);
+  // O bloco de campos adicionais do cartão: `showInList`, ou `card` em `visibleIn` — que vence o atalho.
+  const listFields = useMemo(() => fields.filter((f) => fieldShownIn(f, 'card')), [fields]);
   // Campo `file` NÃO filtra, e a exclusão é aqui e não no `switch`: o `default` de `filterDefs` cai
   // em `type: 'text'`, então um campo de arquivo viraria — em silêncio — um filtro de texto sobre
   // URLs de download, que ninguém digita. Excluído na origem, `filterDefs` e `matchesFilters` já

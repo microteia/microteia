@@ -60,4 +60,15 @@ describe('hiddenInForm no formulário do registro (#10)', () => {
     expect(result.current.groups.flatMap((group) => group.fields).map((one) => one.key)).toEqual(['name', 'code']);
     expect(result.current.getString('code')).toBe('X-1');
   });
+
+  it('visibleIn sem "form" também tira o campo do formulário, e vence o atalho (#12)', () => {
+    const { result } = renderHook(() => useCustomFieldsSectionViewModel({
+      fields: [field('name', { visibleIn: ['form', 'card'] }), field('code', { order: 1, visibleIn: ['card'] })],
+      values: { name: 'Item', code: 'X-1' },
+      onChange: vi.fn(),
+    }));
+    const shown = result.current.groups.flatMap((group) => group.fields).filter((one) => !result.current.isFieldHidden(one));
+    expect(shown.map((one) => one.key)).toEqual(['name']);
+  });
 });
+

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.288.0] — 2026-11-20
+
+- Quem cria extensões pode dizer, em cada campo, onde ele aparece: no formulário, no cartão da lista, nos dois ou em nenhum. Um código preenchido por uma automação, por exemplo, pode aparecer no cartão sem nunca ser digitado.
+
 #### [9.287.4] — 2026-11-20
 
 - Ao atualizar uma extensão, os relatórios e as automações que ela instalou passam a ser trocados pela versão nova. Antes, em alguns casos, o escritório continuava com a versão antiga sem nenhum aviso.

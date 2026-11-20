@@ -13,6 +13,7 @@ import { BUILTIN_ENTITY_KEYS, ENTITY_REGISTRY, SCHEMA_VERSION } from './entityRe
 import { LOOKUP_REGISTRY_LIST } from './lookupRegistry';
 import type { FieldRulePreset, FieldRulePresetCatalog } from './fieldRulePresets';
 import { buildFieldRulePresetCatalog } from './fieldRulePresets';
+import { fieldListedOnCard, fieldShownIn } from './fieldVisibility';
 import type { RecordKeySpec, ScopedRecordKeySpec } from './recordKeys';
 import type { EditWindowSpec } from './editWindow';
 import type { MemberVisibilitySpec } from './memberVisibility';
@@ -329,7 +330,7 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
       ...(undefinedIfNull(field.placeholder) ? { placeholder: field.placeholder as string } : {}),
       // O ÍCONE basta para o campo virar linha do card: é o que a declaração de `listIcon` promete,
       // e exigir junto o "exibir na listagem" fazia a declaração da extensão virar um silêncio.
-      ...(field.showInList || undefinedIfNull(field.listIcon)
+      ...(fieldListedOnCard(field)
         ? {
             list: {
               order: undefinedIfNull(field.listOrder) ?? field.order,
@@ -339,9 +340,9 @@ export const fieldDefinitionToNativeSpec = (field: FieldDefinition): NativeField
         : {}),
       ...(field.filterable ? { filter: true } : {}),
       ...(field.searchable ? { search: true } : {}),
-      // `hiddenInForm` vira `ui.form: false`, o mesmo sinal que o registro usa para os campos que
-      // nunca vão ao formulário — um caminho só para as duas origens.
-      ...(field.hiddenInForm ? { form: false } : {}),
+      // `hiddenInForm` (ou `visibleIn` sem `form`) vira `ui.form: false`, o mesmo sinal que o registro
+      // usa para os campos que nunca vão ao formulário — um caminho só para as duas origens.
+      ...(fieldShownIn(field, 'form') ? {} : { form: false }),
     },
   };
   if (field.required) spec.required = true;
