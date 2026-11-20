@@ -13,14 +13,28 @@
  * precisa dar o mesmo resultado no front e no back.
  */
 
+import type { FieldDefinition } from '../entities/entitySchemas';
+import { evaluateFieldBoolean } from './fieldExpression';
+
+/**
+ * ONDE a expressão do campo está sendo avaliada (issue #12) — a mesma ideia do `surface` das ações:
+ *
+ * - `form` — o formulário do registro (o padrão quando não se diz nada).
+ * - `card` — o cartão da lista. Só avalia o `hiddenWhen` dos campos que declaram `visibleIn`: os pacotes
+ *   de antes escreveram a condição para o formulário, e o cartão deles continua como sempre foi.
+ */
+export type FieldUiSurface = 'form' | 'card';
+
 export interface FieldUiState {
   /** O registro ainda não existe no servidor — o formulário está em modo de criação. */
   isNew: boolean;
   /** O usuário já alterou algum campo desde que o formulário abriu, e ainda não salvou. */
   isDirty: boolean;
+  /** Ausente, `form`. */
+  surface?: FieldUiSurface;
 }
 
-export const FIELD_UI_RESERVED_VARIABLES = ['isNew', 'isDirty'] as const;
+export const FIELD_UI_RESERVED_VARIABLES = ['isNew', 'isDirty', 'surface'] as const;
 
 export const EMPTY_FIELD_UI_STATE: FieldUiState = { isNew: false, isDirty: false };
 
@@ -33,4 +47,25 @@ export const EMPTY_FIELD_UI_STATE: FieldUiState = { isNew: false, isDirty: false
 export const buildFieldUiScope = (
   scope: Record<string, unknown>,
   ui: FieldUiState,
-): Record<string, unknown> => ({ ...scope, isNew: ui.isNew, isDirty: ui.isDirty });
+): Record<string, unknown> => ({ ...scope, isNew: ui.isNew, isDirty: ui.isDirty, surface: ui.surface ?? 'form' });
+
+/**
+ * O campo some do CARTÃO deste registro? Só pergunta ao campo que declara `visibleIn` — a adesão ao
+ * contrato em que o `hiddenWhen` também vale no cartão, com `surface == "card"`. O de antes foi escrito
+ * para o formulário, e avaliá-lo aqui mudaria em silêncio o cartão de quem já tem a extensão instalada.
+ * No cartão não há edição: `isNew` e `isDirty` são falsos.
+ */
+export const isFieldHiddenOnCard = (
+  field: FieldDefinition,
+  values: Record<string, unknown>,
+  extras: { permissions?: string[]; entity?: string } = {},
+): boolean => {
+  const hiddenWhen = field.logic?.hiddenWhen;
+  if (!Array.isArray(field.visibleIn) || !hiddenWhen?.trim()) return false;
+  return evaluateFieldBoolean(hiddenWhen, {
+    value: values[field.key],
+    data: buildFieldUiScope(values, { isNew: false, isDirty: false, surface: 'card' }),
+    ...extras,
+  });
+};
+

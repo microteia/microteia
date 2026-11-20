@@ -156,6 +156,7 @@ export const fieldToDefinition = (
   if (field.filterable === true) definition.filterable = true;
   if (field.searchable === true) definition.searchable = true;
   if (field.showInList === true) definition.showInList = true;
+  if (field.visibleIn) definition.visibleIn = [...field.visibleIn];
   // O atalho atravessa como atalho: `resolveScreenKeys` o desaçucara na plataforma, e traduzi-lo
   // aqui para uma entrada em `keys` produziria a MESMA chave por dois caminhos — e a de cá venceria
   // uma declaração explícita que o autor tenha escrito com o mesmo nome.

@@ -2622,6 +2622,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     const definedBy: Record<(typeof FIELD_UI_RESERVED_VARIABLES)[number], string> = {
       isNew: t('field.expression.is-new'),
       isDirty: t('field.expression.is-dirty'),
+      surface: t('field.expression.surface'),
     };
     const reserved = new Set<string>(FIELD_UI_RESERVED_VARIABLES);
     return [

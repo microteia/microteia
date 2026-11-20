@@ -6121,6 +6121,15 @@ As duas são as **mesmas** do escopo das Actions, com a mesma semântica — a p
 - **Onde entra:** `CustomFieldsSectionProps.isNew`/`isDirty` (opcionais; ausentes = registro existente e formulário intocado) atravessam `isFieldHidden`/`isFieldDisabled` e o `resolveOnChangePatch` do `onChange`. `RecordDetailSurface` e `ViewDynamicRecord` passam os dois do próprio view model — `EntityDetail.isDirty` passou a ser devolvido para isso, em vez de ficar só no `useState`. A API curada expõe as duas props no `EntityForm` e os dois campos no retorno de `useEntityForm`: expor `isNew` sem `isDirty` deixaria o autor de extensão com metade da capacidade e nenhum jeito de completar a outra.
 - **Autoria:** o `ScreenBuilder` oferece as duas no autocomplete de **três** dos cinco editores — `fieldUiExpressionVariables`, usado em Ocultar, Desabilitar e Ao alterar. Em Validação e Valor calculado a lista continua sendo `fieldExpressionVariables`: sugerir ali um nome que o backend não resolve é exatamente o defeito que esta seção corrige, com o sinal invertido.
 - **`FIELD_UI_RESERVED_VARIABLES`** é a lista única — o teste confronta nome por nome contra o escopo que `buildFieldUiScope` monta, então a lista não pode virar prosa desatualizada. É onde uma variável de situação nova (`role`, `user`, `surface` — as que a Action já tem) entraria sem precisar de caminho novo.
+- **`surface`** (issue #12) entrou por esse caminho: `form` no formulário, `card` no cartão da lista.
+  O CARTÃO só avalia o `hiddenWhen` do campo que declara `visibleIn` (`isFieldHiddenOnCard`) — a
+  declaração é a adesão ao contrato em que a condição vale fora do formulário. Os pacotes de antes
+  escreveram `hiddenWhen` pensando no formulário, e avaliá-lo no cartão deles mudaria em silêncio o que
+  já está instalado. No cartão, `isNew`/`isDirty` são falsos; a condição tira o campo do bloco de
+  adicionais e da meta-linha do `listIcon` (`isCardFieldHidden` no `useRecordListViewModel`). O nó
+  `field` de um `cardTemplate` continua desenhando o que nomeia, como no portal. O portal NÃO avalia
+  condição de campo: ali decide `visibleIn` (`hidden` no contexto) e o `hiddenWhen` do `portal.template`.
+  Como nome reservado, `surface` passa a vencer um campo de mesma chave no escopo de UI.
 
 ### Filtro de opções (`optionsFilter`) — a raça pelo tipo do animal
 
@@ -6418,6 +6427,13 @@ nunca diverge da tela. (A `key` e o `type` seguem fixos: definem como o valor é
   que já a trazia (`fieldVisibilityDeclaration`): gravá-la em todo campo faria toda extensão exportada pelo
   escritório exigir o kernel 2.141.0 por uma caixa que ninguém tocou. Título e obrigatório não saem do
   formulário.
+  **Quem não desenha também lê** (fase 3): `describe_screen` marca `notInForm` no campo que o formulário
+  nunca mostra (`ui.form === false`, de `hiddenInForm` ou de `visibleIn`) — o agente sabe que ninguém o
+  digita, e continua podendo gravá-lo, o que o separa de `readOnly`. O modelo de domínio do SDK lê
+  `visibleIn` (`parseDomainModel` descarta superfície desconhecida em vez de derrubar o plano), o leva à
+  tela (`modelScreenInputs`) e o `screenPlan` põe na listagem o campo com `card`. A **importação em
+  massa** não muda: ela é entrada de dado, como uma automação — o campo fora do formulário é justamente o
+  que costuma chegar por ela.
 - **Lista unificada:** `useEntityFormFields(collection)` → `deriveFormFields(ctx, collection)`. As 5
   telas fixas renderizam **um** `CustomFieldsSection` com todos os campos; `addedFields`
   (`origin !== 'builtin'`) é o que os viewmodels tipados espalham na raiz do payload.

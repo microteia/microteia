@@ -39,3 +39,25 @@ describe('describeScreen — o campo numerado pelo sistema', () => {
     expect(byKey.assunto.readOnly).toBeUndefined();
   });
 });
+
+describe('describeScreen — o campo fora do formulário (#12)', () => {
+  it('diz ao agente que ninguém o digita, sem torná-lo somente leitura', () => {
+    const ctx = createSchemaContext([{
+      id: 'comunicacoes',
+      titleSingular: 'Comunicação',
+      titleFieldKey: 'assunto',
+      fields: [
+        { key: 'assunto', label: 'Assunto', type: 'text', required: true, order: 0, origin: 'plugin', visibleIn: ['form', 'card'] },
+        { key: 'codigo', label: 'Código', type: 'text', required: false, order: 1, origin: 'plugin', visibleIn: ['card'] },
+        { key: 'legado', label: 'Legado', type: 'text', required: false, order: 2, origin: 'plugin', hiddenInForm: true },
+      ],
+    }]);
+    const fields = describeScreen(ctx, { locale: 'en', messages: {} }, session, 'comunicacoes')?.fields ?? [];
+    const byKey = Object.fromEntries(fields.map((field) => [field.key, field]));
+    expect(byKey.codigo.notInForm).toBe(true);
+    expect(byKey.codigo.readOnly).toBeUndefined();
+    expect(byKey.legado.notInForm).toBe(true);
+    expect(byKey.assunto.notInForm).toBeUndefined();
+  });
+});
+

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildFieldUiScope, EMPTY_FIELD_UI_STATE, FIELD_UI_RESERVED_VARIABLES } from './fieldUiScope';
+import { buildFieldUiScope, EMPTY_FIELD_UI_STATE, FIELD_UI_RESERVED_VARIABLES, isFieldHiddenOnCard } from './fieldUiScope';
+import type { FieldDefinition } from '../entities/entitySchemas';
 import type { FieldUiState } from './fieldUiScope';
 import { evaluateFieldBoolean } from './fieldExpression';
 
@@ -16,7 +17,7 @@ const hidden = (
 describe('buildFieldUiScope', () => {
   it('mantém os campos do registro e acrescenta a situação', () => {
     const scope = buildFieldUiScope({ status: 'ativo' }, { isNew: true, isDirty: true });
-    expect(scope).toEqual({ status: 'ativo', isNew: true, isDirty: true });
+    expect(scope).toEqual({ status: 'ativo', isNew: true, isDirty: true, surface: 'form' });
   });
 
   it('não muta o escopo recebido', () => {
@@ -39,7 +40,7 @@ describe('buildFieldUiScope', () => {
   });
 
   it('a lista de reservados é o que o autocomplete oferece', () => {
-    expect([...FIELD_UI_RESERVED_VARIABLES]).toEqual(['isNew', 'isDirty']);
+    expect([...FIELD_UI_RESERVED_VARIABLES]).toEqual(['isNew', 'isDirty', 'surface']);
   });
 
   it('cada reservado está de fato no escopo — a lista não é prosa solta', () => {
@@ -88,3 +89,27 @@ describe('`isDirty` na expressão de campo', () => {
     expect(hidden(expr, {}, { isNew: false, isDirty: true })).toBe(false);
   });
 });
+
+describe('surface — onde a expressão do campo é avaliada (#12)', () => {
+  it('no formulário vale "form", sem precisar dizer', () => {
+    expect(hidden('surface == "form"', {})).toBe(true);
+    expect(hidden('surface == "card"', {}, { surface: 'card' })).toBe(true);
+  });
+
+  const field = (extra: Partial<FieldDefinition>): FieldDefinition =>
+    ({ key: 'code', label: 'Code', type: 'text', required: false, order: 0, origin: 'plugin', ...extra }) as FieldDefinition;
+
+  it('o cartão só pergunta ao campo que declara visibleIn — o pacote antigo segue como sempre', () => {
+    const logic = { hiddenWhen: 'status == "closed"' };
+    expect(isFieldHiddenOnCard(field({ logic }), { status: 'closed' })).toBe(false);
+    expect(isFieldHiddenOnCard(field({ logic, visibleIn: ['card'] }), { status: 'closed' })).toBe(true);
+    expect(isFieldHiddenOnCard(field({ logic, visibleIn: ['card'] }), { status: 'open' })).toBe(false);
+  });
+
+  it('a mesma condição distingue o formulário do cartão pela superfície', () => {
+    const onlyInForm = field({ visibleIn: ['form', 'card'], logic: { hiddenWhen: 'surface == "card"' } });
+    expect(isFieldHiddenOnCard(onlyInForm, {})).toBe(true);
+    expect(hidden('surface == "card"', {})).toBe(false);
+  });
+});
+

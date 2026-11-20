@@ -1234,6 +1234,12 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     openNewRecord: () => void;
     openRecord: (record: any) => void;
     getCardItems: (record: any) => CustomFieldMetaRowsProps['items'];
+    /**
+     * Whether a field is hidden on this record's card: the field's \`hiddenWhen\`, evaluated with
+     * \`surface == "card"\`, for fields that declare \`visibleIn\`. \`getCardItems\` already applies it;
+     * use it for the rows you draw yourself.
+     */
+    isCardFieldHidden: (record: any, fieldKey: string) => boolean;
     getCardTitle: (record: any) => string;
     getCardSubtitle: (record: any) => string;
     cardSubtitleIconKey: string | null;

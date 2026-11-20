@@ -11,6 +11,7 @@ import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { useRecords } from '../../../stores/useRecords';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useAuthorization } from '../../../stores/useAuthorization';
+import { isFieldHiddenOnCard } from '../../../domain/schema/fieldUiScope';
 import { useNotification } from '../../../stores/useNotification';
 import { useActions } from '../../../stores/useActions';
 import { useRecordDialog } from '../../../stores/useRecordDialog';
@@ -151,6 +152,11 @@ export interface RecordListViewModel {
   openNewRecord: () => void;
   openRecord: (record: EntityRecord) => void;
   getCardItems: (record: EntityRecord) => CustomFieldCardItem[];
+  /**
+   * O campo some do cartão deste registro — o `hiddenWhen` de quem declara `visibleIn`, com
+   * `surface == "card"`. Vale para o bloco de adicionais e para a meta-linha do `listIcon`.
+   */
+  isCardFieldHidden: (record: EntityRecord, fieldKey: string) => boolean;
   getCardTitle: (record: EntityRecord) => string;
   /** Texto do campo declarado como subtítulo (`subtitleFieldKey`), já resolvido para rótulo. */
   getCardSubtitle: (record: EntityRecord) => string;
@@ -432,12 +438,21 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
 
   useEnsureReferencedRecords(filteredRecords, allFields);
 
+  const isCardFieldHidden = useCallback((record: EntityRecord, fieldKey: string): boolean => {
+    const field = sortedFields.find((candidate) => candidate.key === fieldKey);
+    return !!field && isFieldHiddenOnCard(field, recordExpressionValues(sortedFields, record), {
+      permissions: effectivePermissions,
+      entity: collection,
+    });
+  }, [sortedFields, effectivePermissions, collection]);
+
   const getCardItems = useCallback(
     (record: EntityRecord): CustomFieldCardItem[] =>
       listing
         .cardItems(record)
-        .filter((item) => item.key !== definition?.titleFieldKey && !listRowKeys.has(item.key)),
-    [listing, definition, listRowKeys],
+        .filter((item) => item.key !== definition?.titleFieldKey && !listRowKeys.has(item.key))
+        .filter((item) => !isCardFieldHidden(record, item.key)),
+    [listing, definition, listRowKeys, isCardFieldHidden],
   );
 
   const subtitleField = useMemo(
@@ -763,6 +778,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     openNewRecord,
     openRecord,
     getCardItems,
+    isCardFieldHidden,
     getCardTitle,
     getCardSubtitle,
     cardSubtitleIconKey: subtitleField?.listIcon ?? null,

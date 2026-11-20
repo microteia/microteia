@@ -248,6 +248,7 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'field.expression.own-value': 'Value of the field itself',
   'field.expression.is-new': 'The record is being created (it does not exist yet)',
   'field.expression.is-dirty': 'Some field was changed and not saved yet',
+  'field.expression.surface': 'Where it is drawn: "form", or "card" for a field that declares where it appears',
   'field.expression.compute': 'Computed value (fills the field automatically)',
   'field.expression.derive': 'Value derived on read (answers about the present, and is never stored)',
   'field.expression.validate': 'Validation (returns the error message, or empty/null if valid)',

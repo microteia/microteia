@@ -42,6 +42,7 @@ const vm = {
   openNewRecord: vi.fn(),
   openRecord: vi.fn(),
   getCardItems: () => [{ key: 'cidade', label: 'Cidade', value: 'Recife', type: 'text' }],
+  isCardFieldHidden: () => false,
   getCardTitle: () => 'Ana',
   getCardSubtitle: () => 'Cliente antiga',
   cardSubtitleIconKey: null,

@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.290.0] — 2026-11-20
+
+- As regras de ocultar um campo podem distinguir o formulário do cartão da lista: um campo pode aparecer no cartão só em certas situações, por exemplo apenas enquanto o registro estiver aberto.
+- O assistente e as integrações que consultam as telas passam a saber quais campos são preenchidos por automação, e não digitados por uma pessoa.
+
 #### [9.289.0] — 2026-11-20
 
 - No desenho de telas, cada campo ganhou o grupo "Onde aparece": marque se ele fica no formulário, no cartão da lista e, nas telas com portal, no portal. Um campo preenchido por uma automação pode sair do formulário e continuar aparecendo no cartão.
