@@ -299,9 +299,9 @@ export interface WorkflowDefinition extends WorkflowChangeFilter {
   contentOrigin?: WorkflowContentOrigin;
   /** Id UNIVERSAL de origem (GUID do artefato no tenant autor) — chave de deduplicação na instalação. */
   sourceId?: string;
-  /** Revisão de ORIGEM do artefato (epoch ms do `updatedAt` no autor), carimbada no empacotamento.
-   * Monotônica por artefato e independente da extensão que o empacota — a instalação/atualização só
-   * reescreve o conteúdo quando a revisão que chega é estritamente maior que a materializada. */
+  /** Revisão de ORIGEM do artefato, carimbada no empacotamento. A atualização da extensão DONA reescreve
+   * o conteúdo, a não ser que a revisão que chega seja MENOR (reimportar um pacote antigo não regride);
+   * outra extensão com o mesmo `sourceId` só o reescreve com revisão estritamente maior. */
   sourceRev?: number | null;
   enabled: boolean;
   version: number;

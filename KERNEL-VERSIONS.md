@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.287.4] — 2026-11-20
+
+- fix(extensions/update): an update of the owning extension (`ownerPluginId`) rewrites its scripts, workflows, actions and reports unless the incoming `sourceRev` is LOWER (re-importing an older package still does not regress). With both revisions present, the rule used to demand a strictly greater one from the owner too, so an author who kept `sourceRev` constant shipped report changes that reached only fresh installs; updated organizations kept the old report silently while the Extensions screen showed the new version (#11). Between different extensions sharing a `sourceId` the rule is unchanged. AUTHORING and the `sourceRev` type docs say so.
+
 #### [9.287.3] — 2026-11-20
 
 - fix(records): the record form honours `hiddenInForm` — `isFieldHidden` checks it beside `logic.hiddenWhen`. Screens that declare their own fields (every extension) read `definition.fields` and never went through `deriveFormFields`, so the property passed `check` and the package and the field was drawn anyway. The field stays in the form's fields, so its stored value is kept on save (#10).

@@ -14112,6 +14112,14 @@ que comparar, ou quando a que chega é maior; um pacote SEM revisão não sobres
 versionada, que é o caso para o qual a revisão existe — duas extensões carregando o mesmo `sourceId`,
 e a mais velha não pode regredir a mais nova.
 
+**A mesma trava, do outro lado (issue #11).** Com revisão dos dois lados, a regra exigia a ESTRITAMENTE
+maior também da extensão DONA do artefato. O autor que mantinha `sourceRev` fixo entre versões mudava o
+relatório, e o escritório que atualizava ficava com o antigo para sempre — quem instalava do zero via o
+novo, e a tela de extensões mostrava a versão nova instalada. Hoje, quando a extensão aplicada é a dona
+principal (`ownerPluginId`), só uma revisão MENOR segura o conteúdo — reimportar um pacote antigo não
+regride; igual, ou sem revisão, reescreve. Entre extensões DIFERENTES a regra é a de antes. Vale para os
+quatro artefatos de id gerado (script, workflow, action, relatório); a tela nunca teve a trava.
+
 O MESMO pacote também é distribuível como `.json` em `extension-templates/`, para escritórios que não
 rodam este bundle. O arquivo é **gerado**, nunca editado à mão:
 

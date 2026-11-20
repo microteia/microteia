@@ -946,6 +946,25 @@ describe('Atualização por sourceRev — reescrita in-place, sem duplicar nem r
     expect((await scripts.getScripts('t1'))[0].name).toBe('V2-s');
   });
 
+  it('a DONA com a mesma revisão reescreve; outra extensão com a mesma revisão não (#11)', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V1'), actor);
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V2'), actor);
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].name).toBe('V2');
+    expect((await actions.getAll('t1'))[0].title).toBe('V2');
+    expect((await scripts.getScripts('t1'))[0].name).toBe('V2-s');
+
+    await applyPackageArtifacts(d, rev('com.b', 100, 'DA OUTRA'), actor);
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].name).toBe('V2');
+  });
+
+  it('a DONA que deixou de carimbar revisão ainda atualiza a própria cópia versionada (#11)', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V1'), actor);
+    await applyPackageArtifacts(d, rev('com.a', undefined, 'V2'), actor);
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].name).toBe('V2');
+  });
+
   it('pacote SEM revisão não sobrescreve uma cópia versionada — não há como saber qual é a mais nova', async () => {
     const d = deps();
     await applyPackageArtifacts(d, rev('com.a', 200, 'VERSIONADO'), actor);
@@ -1548,6 +1567,26 @@ describe('Relatórios do pacote', () => {
     await applyPackageArtifacts(d, reportPlugin('com.acme.vendas'), actor);
 
     expect(reports.items).toHaveLength(1);
+  });
+
+  /**
+   * Issue #11: a versão nova da extensão mudava o relatório e mantinha `sourceRev`. Quem instalava do
+   * zero via a nova; quem ATUALIZAVA ficava com a antiga para sempre, sem aviso nenhum.
+   */
+  it('a atualização da DONA com a mesma revisão troca o relatório; uma revisão menor não regride (#11)', async () => {
+    const d = deps();
+    const versao = (title: string, sourceRev: number): MarketplacePlugin => {
+      const plugin = reportPlugin('com.acme.vendas');
+      return { ...plugin, reports: plugin.reports?.map((report) => ({ ...report, title, sourceRev })) };
+    };
+    await applyPackageArtifacts(d, versao('V1', 1), actor);
+    await applyPackageArtifacts(d, versao('V2', 1), actor);
+    expect(reports.items).toHaveLength(1);
+    expect(reports.items[0].title).toBe('V2');
+
+    await applyPackageArtifacts(d, versao('V3', 2), actor);
+    await applyPackageArtifacts(d, versao('ANTIGO', 1), actor);
+    expect(reports.items[0].title).toBe('V3');
   });
 
   it('a dependente trazendo o MESMO relatório da dependência soma donos, sem duplicar', async () => {
