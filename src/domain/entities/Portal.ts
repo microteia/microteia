@@ -83,6 +83,11 @@ export interface PortalFieldInfo extends PortalFieldInput {
   key: string;
   label: string;
   type?: string;
+  /**
+   * Exposto, mas fora do desenho PADRÃO — a grade de campos e o resumo (`visibleIn` sem `portal`). O nó
+   * `field` de um `portal.template` que o nomeie ainda o desenha.
+   */
+  hidden?: true;
   required?: boolean;
   /** As do campo e as da lista do escritório; a cor é token do tema ou hex, e só existe quando há. */
   options?: Array<{ key: string; label: string; color?: string }>;

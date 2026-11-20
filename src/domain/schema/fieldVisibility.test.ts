@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fieldListedOnCard, fieldShownIn, fieldVisibilityIssues } from './fieldVisibility';
+import { fieldListedOnCard, fieldShownIn, fieldVisibilityDeclaration, fieldVisibilityIssues } from './fieldVisibility';
 import { fieldDefinitionToNativeSpec } from './screenEntity';
 import type { FieldDefinition } from '../entities/entitySchemas';
 
@@ -45,4 +45,24 @@ describe('visibleIn — onde o campo é desenhado (#12)', () => {
     expect(fieldVisibilityIssues({ visibleIn: ['card'], hiddenInForm: true, showInList: true })).toEqual([]);
     expect(fieldVisibilityIssues({})).toEqual([]);
   });
+
+  it('no portal, sem visibleIn tudo o que está exposto é desenhado; com ele, só se a lista disser', () => {
+    expect(fieldShownIn(field({ hiddenInForm: true }), 'portal')).toBe(true);
+    expect(fieldShownIn(field({ visibleIn: ['form', 'card'] }), 'portal')).toBe(false);
+    expect(fieldShownIn(field({ visibleIn: ['portal'] }), 'portal')).toBe(true);
+  });
+
+  it('o Form Design só grava a lista quando os atalhos não bastam — ou quando ela já existia', () => {
+    expect(fieldVisibilityDeclaration({ form: false, card: true, portal: true }, false))
+      .toEqual({ visibleIn: null, hiddenInForm: true, showInList: true });
+    expect(fieldVisibilityDeclaration({ form: true, card: false, portal: false }, false))
+      .toEqual({ visibleIn: ['form'], hiddenInForm: null, showInList: false });
+    expect(fieldVisibilityDeclaration({ form: true, card: true, portal: true }, true))
+      .toEqual({ visibleIn: ['form', 'card', 'portal'], hiddenInForm: null, showInList: true });
+    // O que se grava nunca contradiz a si mesmo.
+    for (const form of [true, false]) for (const card of [true, false]) for (const portal of [true, false]) {
+      expect(fieldVisibilityIssues(fieldVisibilityDeclaration({ form, card, portal }, true))).toEqual([]);
+    }
+  });
 });
+

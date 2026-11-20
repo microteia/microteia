@@ -6399,7 +6399,7 @@ nunca diverge da tela. (A `key` e o `type` seguem fixos: definem como o valor é
   do `hiddenWhen` — sem isso a propriedade era aceita pelo `check` e ignorada na tela (issue #10). O
   campo continua em `fields`, e o valor gravado atravessa o salvar intacto.
 - **Onde o campo é desenhado — `visibleIn`** (issue #12, kernel 2.141.0). Lista de superfícies
-  (`form`, `card`; o portal entra na fase 2). Ausente, valem `hiddenInForm` e `showInList`/`listIcon`;
+  (`form`, `card`, `portal`). Ausente, valem `hiddenInForm` e `showInList`/`listIcon`;
   presente, VENCE os dois, e `[]` guarda o valor sem desenhá-lo. Uma resolução só
   (`schema/fieldVisibility.ts`): `fieldShownIn` (formulário e bloco de campos adicionais do cartão) e
   `fieldListedOnCard` (qualquer caminho até o cartão, inclusive a meta-linha do `listIcon`), usadas por
@@ -6409,6 +6409,15 @@ nunca diverge da tela. (A `key` e o `type` seguem fixos: definem como o valor é
   expressão (Form Design, `describe_screen`, importação, `check`) também precisa lê-la. O atalho declarado
   ao lado que CONTRADIZ `visibleIn` é recusa no pacote (`packageFieldVisibilityIssues`) — o autor que lê
   só a metade antiga esperaria o contrário do que a tela faz —; o que concorda passa.
+  **No portal** (`portal`), `visibleIn` NUNCA expõe: decide só o desenho PADRÃO do que `portal.fields` já
+  expõe. O contexto do portal manda o campo com `hidden: true`, e a grade de campos e o resumo do cartão
+  (`usePortalRecordFormat`) o pulam; o nó `field` de um `portal.template` que o nomeia ainda o desenha —
+  ali a escolha é explícita, e tirar o campo do contexto a apagaria. `create.fields`/`edit.fields` seguem
+  como declarados. **No Form Design**, o grupo "Onde aparece" (formulário, cartão e, se a tela tem portal,
+  portal) grava pelos atalhos e só escreve a lista quando eles não bastam — portal desmarcado, ou campo
+  que já a trazia (`fieldVisibilityDeclaration`): gravá-la em todo campo faria toda extensão exportada pelo
+  escritório exigir o kernel 2.141.0 por uma caixa que ninguém tocou. Título e obrigatório não saem do
+  formulário.
 - **Lista unificada:** `useEntityFormFields(collection)` → `deriveFormFields(ctx, collection)`. As 5
   telas fixas renderizam **um** `CustomFieldsSection` com todos os campos; `addedFields`
   (`origin !== 'builtin'`) é o que os viewmodels tipados espalham na raiz do payload.

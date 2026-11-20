@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.289.0] — 2026-11-20
+
+- feat(fields/portal): `visibleIn` accepts `portal` (still contract 2.141.0). It never exposes anything: among the fields `portal.fields` exposes, one whose `visibleIn` lacks `portal` reaches the portal context with `hidden: true`, and the default drawing (field grid, card summary) skips it, while a `field` node of a `portal.template` that names it still draws it. `create.fields`/`edit.fields` are unchanged (#12, phase 2).
+- feat(form-design): a "Where it appears" group (form, card and, on screens with a portal, portal). It saves through the shorthands and writes `visibleIn` only when they cannot say it (portal unchecked) or the field already had it (`fieldVisibilityDeclaration`), so packages exported by the office do not demand kernel 2.141.0 for a box nobody touched. The title field and required fields stay in the form.
+
 #### [9.288.0] — 2026-11-20
 
 - feat(fields): `visibleIn` on a field (kernel contract 2.141.0) — a list of the surfaces it is drawn on, `form` and `card` for now. Absent, `hiddenInForm` and `showInList`/`listIcon` decide as before; present, it wins over them, and `[]` keeps the value without drawing it. One resolution in `schema/fieldVisibility.ts` (`fieldShownIn`, `fieldListedOnCard`), used by `fieldDefinitionToNativeSpec` (same `ui.form`/`ui.list` signals as before), the record form and the card's extra-fields block (#12, phase 1).

@@ -25,11 +25,11 @@ describe('visibleIn no pacote (#12)', () => {
 
   it('recusa a superfície desconhecida e a contradição com o atalho', () => {
     const issues = packageFieldVisibilityIssues(pkg('^2.141.0', [
-      field('a', { visibleIn: ['portal'] as never }),
+      field('a', { visibleIn: ['grid'] as never }),
       field('b', { visibleIn: ['form'], hiddenInForm: true }),
     ]));
     expect(issues).toEqual([
-      { message: '@core.marketplace/issue.field.visible-in.surface', messageParams: { screen: 'items', field: 'a', surface: 'portal' } },
+      { message: '@core.marketplace/issue.field.visible-in.surface', messageParams: { screen: 'items', field: 'a', surface: 'grid' } },
       { message: '@core.marketplace/issue.field.visible-in.contradicts', messageParams: { screen: 'items', field: 'b', flag: 'hiddenInForm' } },
     ]);
   });

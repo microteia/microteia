@@ -1,4 +1,5 @@
 import { portalOptionsFilter } from '../schema/optionsFilter';
+import { fieldShownIn } from '../schema/fieldVisibility';
 import type { OptionsFilterSpec } from '../schema/optionsFilter';
 import type {
   IPortalAccountService,
@@ -1016,6 +1017,9 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
               label: resolve(field.label),
               type: field.type,
               ...optionsOf(field),
+              // Exposto, mas fora do desenho padrão (`visibleIn` sem `portal`): o valor segue para o nó
+              // `field` de um `portal.template` que o nomeie — tirá-lo daqui apagaria essa escolha.
+              ...(fieldShownIn(field, 'portal') ? {} : { hidden: true as const }),
             })),
           create: fillable.size > 0 && linkTarget
             ? {

@@ -21,7 +21,7 @@ import type { FieldDefinition, FieldSurface } from '../entities/entitySchemas';
  * `visibleIn` AUSENTE é o comportamento de sempre, e `hiddenInForm`/`showInList` continuam valendo como
  * atalhos. Presente, ele VENCE: `[]` é o campo guardado no registro e desenhado em lugar nenhum.
  */
-export const FIELD_SURFACES: readonly FieldSurface[] = ['form', 'card'];
+export const FIELD_SURFACES: readonly FieldSurface[] = ['form', 'card', 'portal'];
 
 /** O kernel a partir do qual `visibleIn` é obedecido. */
 export const FIELD_VISIBLE_IN_SINCE_KERNEL = '2.141.0';
@@ -34,11 +34,18 @@ const declared = (field: VisibilityFields): readonly FieldSurface[] | null =>
 /**
  * O campo vai a esta superfície? No cartão, é o "exibir na listagem" (o bloco de campos adicionais) —
  * a meta-linha com ícone é `fieldListedOnCard`.
+ *
+ * No PORTAL, é o desenho padrão — a grade de campos e o resumo do cartão — entre os campos que
+ * `portal.fields` já expõe: `visibleIn` nunca alarga o que sai do escritório. O nó `field` de um
+ * `portal.template` que nomeia o campo continua o desenhando: ali a escolha é explícita. Sem `visibleIn`,
+ * todo campo exposto é desenhado, como sempre foi.
  */
-export const fieldShownIn = (field: VisibilityFields, surface: FieldSurface): boolean => {
-  const surfaces = declared(field);
+export const fieldShownIn = (field: Partial<VisibilityFields>, surface: FieldSurface): boolean => {
+  const surfaces = declared(field as VisibilityFields);
   if (surfaces) return surfaces.includes(surface);
-  return surface === 'form' ? field.hiddenInForm !== true : field.showInList === true;
+  if (surface === 'form') return field.hiddenInForm !== true;
+  if (surface === 'card') return field.showInList === true;
+  return true;
 };
 
 /**
@@ -73,3 +80,24 @@ export const fieldVisibilityIssues = (field: Partial<VisibilityFields> & { visib
   if (field.showInList === true && !surfaces.includes('card')) issues.push({ kind: 'contradicts', flag: 'showInList' });
   return issues;
 };
+
+export interface FieldVisibilityChoice {
+  form: boolean;
+  card: boolean;
+  portal: boolean;
+}
+
+/**
+ * O que o Form Design grava a partir das caixas "onde aparece". Os atalhos dizem formulário e cartão; só o
+ * PORTAL desmarcado precisa da lista — e por isso ela só é escrita então, ou quando o campo já a tinha.
+ * Gravar `visibleIn` em todo campo salvo faria toda extensão exportada pelo escritório exigir o kernel que
+ * o lê, por uma caixa que ninguém tocou. Os atalhos vão sempre coerentes com a lista: nunca a contradizem.
+ */
+export const fieldVisibilityDeclaration = (
+  choice: FieldVisibilityChoice,
+  keepList: boolean,
+): Pick<FieldDefinition, 'visibleIn' | 'hiddenInForm' | 'showInList'> => ({
+  visibleIn: keepList || !choice.portal ? FIELD_SURFACES.filter((surface) => choice[surface]) : null,
+  hiddenInForm: choice.form ? null : true,
+  showInList: choice.card,
+});
