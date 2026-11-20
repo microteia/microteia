@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.287.3] — 2026-11-20
+
+- fix(records): the record form honours `hiddenInForm` — `isFieldHidden` checks it beside `logic.hiddenWhen`. Screens that declare their own fields (every extension) read `definition.fields` and never went through `deriveFormFields`, so the property passed `check` and the package and the field was drawn anyway. The field stays in the form's fields, so its stored value is kept on save (#10).
+
 #### [9.287.2] — 2026-11-20
 
 - fix(ui/pickers): `SearchSelect` and `MultiSearchSelect` with server search (`onQueryChange`) show `search.type-to-search` ("Type to search…") when the list is empty and nothing was typed; the "nothing found" text is kept for an actual search with no match, and for pickers that do not search the server. The `control: 'record'` filter of a dashboard opened saying "No option found" before any search (#9).

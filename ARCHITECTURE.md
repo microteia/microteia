@@ -6393,7 +6393,11 @@ nunca diverge da tela. (A `key` e o `type` seguem fixos: definem como o valor é
   estrutura do documento.
 - **Forma canônica:** `NativeFieldSpec`. `FieldDefinition` é a forma de autoria/UI, convertida nos
   dois sentidos por `fieldDefinitionToNativeSpec`/`nativeSpecToFieldDefinition`. `hiddenInForm` vira
-  `ui.form: false`, o mesmo sinal que o registro usa para o que nunca vai ao formulário.
+  `ui.form: false`, o mesmo sinal que o registro usa para o que nunca vai ao formulário. A tela que
+  declara os próprios campos (toda extensão) não passa por `deriveFormFields`: o formulário dela lê
+  `definition.fields`, e por isso `isFieldHidden` (`CustomFieldsSection`) confere `hiddenInForm` ao lado
+  do `hiddenWhen` — sem isso a propriedade era aceita pelo `check` e ignorada na tela (issue #10). O
+  campo continua em `fields`, e o valor gravado atravessa o salvar intacto.
 - **Lista unificada:** `useEntityFormFields(collection)` → `deriveFormFields(ctx, collection)`. As 5
   telas fixas renderizam **um** `CustomFieldsSection` com todos os campos; `addedFields`
   (`origin !== 'builtin'`) é o que os viewmodels tipados espalham na raiz do payload.
