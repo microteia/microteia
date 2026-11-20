@@ -18,6 +18,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.288.0] — 2026-11-20
+
+- feat(fields): `visibleIn` on a field (kernel contract 2.141.0) — a list of the surfaces it is drawn on, `form` and `card` for now. Absent, `hiddenInForm` and `showInList`/`listIcon` decide as before; present, it wins over them, and `[]` keeps the value without drawing it. One resolution in `schema/fieldVisibility.ts` (`fieldShownIn`, `fieldListedOnCard`), used by `fieldDefinitionToNativeSpec` (same `ui.form`/`ui.list` signals as before), the record form and the card's extra-fields block (#12, phase 1).
+- feat(extensions/check): `packageFieldVisibilityIssues` refuses a `visibleIn` that is not a list, a surface that does not exist, a shorthand declared beside it that contradicts it, and a package that declares it without `kernel: "^2.141.0"`.
+
 #### [9.287.4] — 2026-11-20
 
 - fix(extensions/update): an update of the owning extension (`ownerPluginId`) rewrites its scripts, workflows, actions and reports unless the incoming `sourceRev` is LOWER (re-importing an older package still does not regress). With both revisions present, the rule used to demand a strictly greater one from the owner too, so an author who kept `sourceRev` constant shipped report changes that reached only fresh installs; updated organizations kept the old report silently while the Extensions screen showed the new version (#11). Between different extensions sharing a `sourceId` the rule is unchanged. AUTHORING and the `sourceRev` type docs say so.

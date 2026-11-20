@@ -13,6 +13,7 @@ import { buildHydratedFieldScope } from '../../../../domain/schema/referenceScop
 import { formOptionsFilter, matchesOptionsFilter, optionsFilterCascade } from '../../../../domain/schema/optionsFilter';
 import { buildFieldUiScope } from '../../../../domain/schema/fieldUiScope';
 import { isSequenceField } from '../../../../domain/schema/recordSequence';
+import { fieldShownIn } from '../../../../domain/schema/fieldVisibility';
 import { useRecordResolver } from '../../../shared/useRecordResolver';
 import { useOptionsFilterCandidate } from '../../../shared/useOptionsFilterCandidate';
 import { useOptionsFilterQueries } from '../../../shared/useOptionsFilterQueries';
@@ -388,12 +389,13 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [effectivePermissions, entity],
   );
 
-  // `hiddenInForm` é a forma declarada de "nunca vai ao formulário" — o campo que uma automação preenche.
+  // `hiddenInForm` (ou `visibleIn` sem `form`) é a forma declarada de "nunca vai ao formulário" — o campo
+  // que uma automação preenche.
   // Ele passava pela validação e pelo pacote e era ignorado aqui (#10). Esconder pelo mesmo caminho do
   // `hiddenWhen` mantém o valor gravado intacto no salvar: o campo continua em `fields`, só não é desenhado.
   const isFieldHidden = useCallback(
     (field: FieldDefinition): boolean =>
-      field.hiddenInForm === true ||
+      !fieldShownIn(field, 'form') ||
       evaluateFieldBoolean(field.logic?.hiddenWhen, {
         value: hydratedScope[field.key],
         data: uiScope,

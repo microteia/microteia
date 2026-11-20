@@ -31,6 +31,7 @@ import { packageFieldSearchIssues } from './pluginFieldSearch';
 import { packageOptionsFilterIssues } from './pluginOptionsFilter';
 import { packageCardTemplateIssues } from './pluginCardTemplates';
 import { packageListOrderIssues } from './pluginListOrder';
+import { packageFieldVisibilityIssues } from './pluginFieldVisibility';
 import { fieldPresetIssues } from './fieldPresetRefs';
 import { packageIconIssues } from './pluginIcons';
 import { packageActionIssues } from './pluginActions';
@@ -498,6 +499,7 @@ export const packageIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => [
   ...packageOptionsFilterIssues(pkg),
   ...packageCardTemplateIssues(pkg),
   ...packageListOrderIssues(pkg),
+  ...packageFieldVisibilityIssues(pkg),
   ...fieldPresetIssues(pkg),
   ...packagePrefixIssues(pkg),
   ...packageBackendSourceIssues(pkg),

@@ -6398,6 +6398,17 @@ nunca diverge da tela. (A `key` e o `type` seguem fixos: definem como o valor é
   `definition.fields`, e por isso `isFieldHidden` (`CustomFieldsSection`) confere `hiddenInForm` ao lado
   do `hiddenWhen` — sem isso a propriedade era aceita pelo `check` e ignorada na tela (issue #10). O
   campo continua em `fields`, e o valor gravado atravessa o salvar intacto.
+- **Onde o campo é desenhado — `visibleIn`** (issue #12, kernel 2.141.0). Lista de superfícies
+  (`form`, `card`; o portal entra na fase 2). Ausente, valem `hiddenInForm` e `showInList`/`listIcon`;
+  presente, VENCE os dois, e `[]` guarda o valor sem desenhá-lo. Uma resolução só
+  (`schema/fieldVisibility.ts`): `fieldShownIn` (formulário e bloco de campos adicionais do cartão) e
+  `fieldListedOnCard` (qualquer caminho até o cartão, inclusive a meta-linha do `listIcon`), usadas por
+  `fieldDefinitionToNativeSpec` — que traduz para os mesmos `ui.form`/`ui.list` de sempre, então
+  `deriveFormFields` e `deriveListRows` seguem sem mudança — e por `isFieldHidden` e
+  `useCustomFieldListing`. Declaração estática, e não `hiddenWhen: 'true'`, porque quem não avalia
+  expressão (Form Design, `describe_screen`, importação, `check`) também precisa lê-la. O atalho declarado
+  ao lado que CONTRADIZ `visibleIn` é recusa no pacote (`packageFieldVisibilityIssues`) — o autor que lê
+  só a metade antiga esperaria o contrário do que a tela faz —; o que concorda passa.
 - **Lista unificada:** `useEntityFormFields(collection)` → `deriveFormFields(ctx, collection)`. As 5
   telas fixas renderizam **um** `CustomFieldsSection` com todos os campos; `addedFields`
   (`origin !== 'builtin'`) é o que os viewmodels tipados espalham na raiz do payload.

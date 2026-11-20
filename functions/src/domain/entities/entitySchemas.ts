@@ -34,6 +34,9 @@ import type { ContactKind } from '../schema/notificationContacts';
 // ─── Tipos de Campos Customizados ─────────────────────────────────────────────
 
 export type { CustomFieldType, CustomFieldMask, CustomFieldOption, FieldOrigin } from '../schema/fieldRules';
+
+/** Uma superfície onde um campo é desenhado (`FieldDefinition.visibleIn`). */
+export type FieldSurface = 'form' | 'card';
 export type {
   RecordKeyKind,
   RecordKeyNormalization,
@@ -153,6 +156,12 @@ export interface FieldDefinition {
   origin: FieldOrigin;
   /** Esconde o campo do formulário sem excluí-lo — a alternativa para os campos não-excluíveis. */
   hiddenInForm?: boolean | null;
+  /**
+   * ONDE o campo é desenhado: `form` (o formulário do registro), `card` (o cartão da lista). Ausente, valem
+   * `hiddenInForm` e `showInList`/`listIcon`; presente, vence os dois — `[]` guarda o valor e não o desenha
+   * em lugar nenhum. Ver `schema/fieldVisibility.ts`.
+   */
+  visibleIn?: FieldSurface[] | null;
   /**
    * Presente quando o campo foi trazido por uma extensão (`origin: 'plugin'`): identifica QUAL
    * extensão, o que dirige o upgrade (substitui os do plugin, preserva os do usuário) e o refcount
