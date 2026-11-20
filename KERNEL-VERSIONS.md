@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.290.0] — 2026-11-20
+
+- feat(fields): `surface` in the UI scope of field expressions (`hiddenWhen`, `disabledWhen`, `onChange`) — `form` in the record form, `card` on the list card (contract 2.141.0, unpublished until now). The card evaluates `hiddenWhen` only for fields that declare `visibleIn`, so installed packages whose conditions were written for the form keep their cards as they were; there it hides the field from the extra-fields block and the `listIcon` meta row (`isFieldHiddenOnCard`, `isCardFieldHidden`). As a reserved name, `surface` now wins over a field with that key in the UI scope (#12, phase 3).
+- feat(agent): `describe_screen` marks `notInForm` on fields the form never shows (`hiddenInForm` or `visibleIn` without `form`): not typed by a person, still writable.
+- feat(sdk/domain): the domain model reads `visibleIn` (unknown surfaces dropped), carries it to the screen and puts a `card` field in the planned list columns; the JSON Schema documents it.
+
 #### [9.289.0] — 2026-11-20
 
 - feat(fields/portal): `visibleIn` accepts `portal` (still contract 2.141.0). It never exposes anything: among the fields `portal.fields` exposes, one whose `visibleIn` lacks `portal` reaches the portal context with `hidden: true`, and the default drawing (field grid, card summary) skips it, while a `field` node of a `portal.template` that names it still draws it. `create.fields`/`edit.fields` are unchanged (#12, phase 2).

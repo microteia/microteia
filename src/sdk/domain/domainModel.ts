@@ -1,4 +1,6 @@
 import type { AggregationOp, CustomFieldType } from '../../domain/schema/fieldRules';
+import { FIELD_SURFACES } from '../../domain/schema/fieldVisibility';
+import type { FieldSurface } from '../../domain/entities/entitySchemas';
 import type { QueryOrderBy } from '../../domain/schema/querySpec';
 import { CUSTOM_FIELD_TYPES } from '../../domain/schema/fieldRules';
 import type {
@@ -163,6 +165,11 @@ export interface DomainField {
   /** O registro é achado pelo valor do campo na busca — o título entra sempre. */
   searchable?: boolean;
   showInList?: boolean;
+  /**
+   * ONDE o campo é desenhado (`form`, `card`, `portal`); ausente, valem os atalhos. O campo que uma
+   * automação preenche é `['card']` — mostrado, nunca digitado.
+   */
+  visibleIn?: FieldSurface[];
   section?: string;
 }
 
@@ -451,6 +458,11 @@ const readField = (raw: unknown, entityName: string, issues: DomainIssue[]): Dom
   if (bool(raw.filterable) !== undefined) field.filterable = bool(raw.filterable) as boolean;
   if (bool(raw.searchable) !== undefined) field.searchable = bool(raw.searchable) as boolean;
   if (bool(raw.showInList) !== undefined) field.showInList = bool(raw.showInList) as boolean;
+  // Só as superfícies que existem: uma desconhecida cairia na recusa do pacote, e o modelo que errou um
+  // nome não deve derrubar o plano inteiro.
+  if (Array.isArray(raw.visibleIn)) {
+    field.visibleIn = raw.visibleIn.filter((one): one is FieldSurface => FIELD_SURFACES.includes(one as FieldSurface));
+  }
   if (str(raw.section) !== undefined) field.section = str(raw.section) as string;
   return field;
 };

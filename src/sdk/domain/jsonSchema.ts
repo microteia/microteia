@@ -1,4 +1,5 @@
 import { CUSTOM_FIELD_TYPES } from '../../domain/schema/fieldRules';
+import { FIELD_SURFACES } from '../../domain/schema/fieldVisibility';
 import { RECORD_KEY_KINDS, RECORD_KEY_SCOPES } from '../../domain/schema/recordKeys';
 import {
   AGGREGATION_OPS,
@@ -125,6 +126,13 @@ export const domainModelJsonSchema = (): Record<string, unknown> => ({
             + 'Only text, textarea, masked, select and reference.',
         },
         showInList: { type: 'boolean' },
+        visibleIn: {
+          type: 'array',
+          items: { enum: [...FIELD_SURFACES] },
+          uniqueItems: true,
+          description: 'Where the field is drawn: form, card, portal. Absent, as before. A field an automation fills is '
+            + '["card"] — shown, never typed; [] keeps the value and draws it nowhere.',
+        },
         section: { type: 'string' },
       },
     },

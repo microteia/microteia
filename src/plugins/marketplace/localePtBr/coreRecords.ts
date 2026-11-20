@@ -241,6 +241,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'field.expression.own-value': 'Valor do próprio campo',
   'field.expression.is-new': 'O registro está sendo criado (ainda não existe)',
   'field.expression.is-dirty': 'Algum campo foi alterado e ainda não foi salvo',
+  'field.expression.surface': 'Onde está sendo desenhado: "form", ou "card" num campo que declara onde aparece',
   'field.expression.compute': 'Valor calculado (preenche o campo automaticamente)',
   'field.expression.derive': 'Valor derivado na leitura (responde sobre o presente, e nunca é gravado)',
   'field.expression.validate': 'Validação (retorna a mensagem de erro, ou vazio/null se válido)',

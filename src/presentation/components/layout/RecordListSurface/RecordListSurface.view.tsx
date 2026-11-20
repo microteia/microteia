@@ -170,6 +170,7 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
         const metaRows = [
           ...(renderMetaRows?.(record) ?? []),
           ...listRows
+            .filter((row) => !vm.isCardFieldHidden(record, row.key))
             .map((row) => ({
               key: row.key,
               icon: getScreenIcon(row.icon, 12),

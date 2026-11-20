@@ -45,6 +45,11 @@ interface AgentField {
   example?: unknown;
   /** Gravar não é possível: o valor é calculado, derivado ou numerado pelo sistema ao criar. */
   readOnly?: true;
+  /**
+   * O formulário nunca o mostra (`visibleIn` sem `form`, ou `hiddenInForm`): é o campo que uma automação
+   * preenche, e não o que uma pessoa digita. Gravá-lo continua possível — é o que separa de `readOnly`.
+   */
+  notInForm?: true;
   /** O valor de partida de um registro novo. */
   default?: unknown;
 }
@@ -182,6 +187,7 @@ const describeField = (catalog: MessageCatalog, field: NativeFieldSpec): AgentFi
   ...(field.rules?.validate?.minLength === undefined ? {} : { minLength: field.rules.validate.minLength }),
   ...(field.rules?.validate?.maxLength === undefined ? {} : { maxLength: field.rules.validate.maxLength }),
   ...(isWritable(field) ? {} : { readOnly: true as const }),
+  ...(field.ui?.form === false ? { notInForm: true as const } : {}),
   ...(field.defaultValue === undefined ? {} : { default: field.defaultValue }),
   ...(isWritable(field) && exampleOf(field) !== undefined ? { example: exampleOf(field) } : {}),
 });

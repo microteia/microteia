@@ -397,7 +397,9 @@ const listColumns = (
     }
   }
   for (const definition of screen.fields) {
-    if (declared.get(definition.key)?.showInList === true) add(definition.key, 'the model asked for it with showInList');
+    const field = declared.get(definition.key);
+    if (field?.visibleIn?.includes('card')) add(definition.key, 'the model put it on the card with visibleIn');
+    else if (!field?.visibleIn && field?.showInList === true) add(definition.key, 'the model asked for it with showInList');
   }
   return columns;
 };
