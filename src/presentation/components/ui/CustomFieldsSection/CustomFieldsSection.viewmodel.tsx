@@ -388,8 +388,12 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [effectivePermissions, entity],
   );
 
+  // `hiddenInForm` é a forma declarada de "nunca vai ao formulário" — o campo que uma automação preenche.
+  // Ele passava pela validação e pelo pacote e era ignorado aqui (#10). Esconder pelo mesmo caminho do
+  // `hiddenWhen` mantém o valor gravado intacto no salvar: o campo continua em `fields`, só não é desenhado.
   const isFieldHidden = useCallback(
     (field: FieldDefinition): boolean =>
+      field.hiddenInForm === true ||
       evaluateFieldBoolean(field.logic?.hiddenWhen, {
         value: hydratedScope[field.key],
         data: uiScope,

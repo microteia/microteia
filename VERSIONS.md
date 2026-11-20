@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.287.3] — 2026-11-20
+
+- Campos marcados para ficar fora do formulário — como um código preenchido por uma automação — deixaram de aparecer na tela de cadastro e de edição. O valor deles continua guardado no registro.
+
 #### [9.287.2] — 2026-11-20
 
 - Os campos de escolha que buscam registros enquanto se digita — como o filtro de registro de um painel — agora abrem pedindo "Digite para pesquisar…", em vez de dizer que não há nenhuma opção antes mesmo de qualquer busca.
