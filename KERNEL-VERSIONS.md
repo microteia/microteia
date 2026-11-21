@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.295.2] — 2026-11-21
+
+- fix(agent/oauth): the consent screen shows the signed-in account with a "Use another account" action (sign-out; `ProtectedRoute` brings the person back to the same request) and an organization selector (`SearchSelect` over `availableTenants`, switched through `selectTenant`, so the permission picker lists what the person holds in the chosen organization). The consent opens on the `web.app` issuer origin, whose session may hold another last organization — or another account — than the origin the person works on; the access used to land in the organization the account owns (#18).
+- fix(agent/oauth): ticked permissions are bound to the organization they were ticked in. A switch made in another tab (cross-tab `storage` sync) used to keep them, and *Authorize* sent one organization's id with the other's choice; they are now dropped, with a notice (#18).
+- i18n: `agent.oauth.account`, `agent.oauth.account.switch`, `agent.oauth.tenant.changed`; `agent.oauth.tenant.hint` reworded. `com.microteia.locale-pt-br` 1.242.0.
+
 #### [9.295.1] — 2026-11-21
 
 - fix(documents): the template preview demands the template's collection (`useRecordDemand`, 50 records) and searches it server-side through `useReferenceSearch`, instead of offering only the records another tab had already loaded. The "this screen has no records yet" notice now waits until the collection has actually loaded empty (#17).

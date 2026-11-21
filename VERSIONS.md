@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.295.2] — 2026-11-21
+
+- Ao conectar um assistente de IA pelo login, a tela de autorização agora mostra com qual conta você está autorizando, permite usar outra conta e escolher o escritório que será conectado. As permissões oferecidas são as que você tem no escritório escolhido.
+- Corrigido um problema em que a autorização podia ir para um escritório diferente do que aparecia na tela quando o escritório era trocado em outra aba.
+
 #### [9.295.1] — 2026-11-21
 
 - A prévia de um modelo de documento agora oferece os registros da tela mesmo que ela ainda não tenha sido aberta, e permite procurar qualquer registro pelo nome. O aviso de que a tela não tem registros só aparece quando ela de fato está vazia.

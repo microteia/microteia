@@ -79,6 +79,25 @@ const Tenant = styled.div`
   color: ${({ theme }) => theme.colors.text};
 `;
 
+const Account = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.md};
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+  background: ${({ theme }) => theme.colors.surfaceHover};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+`;
+
+const AccountEmail = styled.span`
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  color: ${({ theme }) => theme.colors.text};
+`;
+
 const Actions = styled.div`
   display: flex;
   justify-content: flex-end;
@@ -96,5 +115,7 @@ export const S = {
   FieldLabel,
   Hint,
   Tenant,
+  Account,
+  AccountEmail,
   Actions,
 };

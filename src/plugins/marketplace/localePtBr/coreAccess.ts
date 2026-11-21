@@ -143,9 +143,14 @@ export const CORE_ACCESS: Record<string, string> = {
   'agent.oauth.loopback':
     'Este cliente roda no seu próprio computador. Qualquer programa nesta máquina poderia dizer que '
     + 'é ele, então só continue se foi você quem iniciou a conexão.',
+  'agent.oauth.account': 'Autorizando como',
+  'agent.oauth.account.switch': 'Usar outra conta',
   'agent.oauth.tenant': 'Escritório',
   'agent.oauth.tenant.hint':
-    'O acesso vale só para este escritório. Troque de escritório antes, se você quis outro.',
+    'O acesso vale só neste escritório, com as permissões que você tem nele.',
+  'agent.oauth.tenant.changed':
+    'O escritório mudou para {tenant} em outra aba, e as permissões que você tinha escolhido foram '
+    + 'descartadas. Escolha-as de novo para este escritório.',
   'agent.oauth.allow': 'Autorizar',
   'agent.oauth.deny': 'Cancelar',
   'agent.oauth.working': 'Autorizando...',

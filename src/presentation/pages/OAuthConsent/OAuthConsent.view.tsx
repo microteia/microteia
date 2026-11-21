@@ -50,10 +50,36 @@ export const OAuthConsentView: React.FC = () => {
         )}
 
         <S.Field>
+          <S.FieldLabel>{t('agent.oauth.account')}</S.FieldLabel>
+          <S.Account>
+            <S.AccountEmail>{vm.accountEmail}</S.AccountEmail>
+            <Button variant="ghost" size="sm" onClick={() => void vm.switchAccount()} disabled={vm.isWorking}>
+              {t('agent.oauth.account.switch')}
+            </Button>
+          </S.Account>
+        </S.Field>
+
+        <S.Field>
           <S.FieldLabel>{t('agent.oauth.tenant')}</S.FieldLabel>
-          <S.Tenant>{vm.tenantName}</S.Tenant>
+          {vm.tenantChoices.length > 0 ? (
+            <SearchSelect
+              options={vm.tenantChoices}
+              value={vm.tenantId}
+              onChange={(value) => void vm.chooseTenant(value)}
+              disabled={vm.isWorking || vm.isSwitchingTenant}
+            />
+          ) : (
+            <S.Tenant>{vm.tenantName}</S.Tenant>
+          )}
           <S.Hint>{t('agent.oauth.tenant.hint')}</S.Hint>
         </S.Field>
+
+        {vm.tenantChangedElsewhere && (
+          <InfoBanner
+            message={t('agent.oauth.tenant.changed', { tenant: vm.tenantName })}
+            variant="warning"
+          />
+        )}
 
         <S.Field>
           <S.FieldLabel>{t('agent.form.permissions')}</S.FieldLabel>
