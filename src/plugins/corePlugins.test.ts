@@ -41,6 +41,7 @@ const PAGE_KEYS_ANTES_DA_MIGRACAO = [
   'reports', 'settings', 'translations',
   'license', 'document-templates', 'downloads', 'settings:', 'notifications',
   'workflow-tasks', 'mailboxes',
+  'document-template-design', 'document-template-design:', 'document-template-clone:',
 ].sort();
 
 describe('core plugins — carga', () => {
@@ -154,6 +155,10 @@ describe('core plugins — resolução de aba', () => {
     ['rep:faturamento', 'ViewReportView'],
     ['report-design', 'ReportDesignView'],
     ['report-design:faturamento', 'ReportDesignView'],
+    ['document-templates', 'DocumentTemplatesView'],
+    ['document-template-design', 'DocumentTemplateDesignView'],
+    ['document-template-design:recibo', 'DocumentTemplateDesignView'],
+    ['document-template-clone:recibo', 'DocumentTemplateDesignView'],
   ])('resolve "%s" para %s', (tabKey, implKey) => {
     const contribution = resolvePageContribution(pages(), tabKey);
     expect(contribution?.impl).toMatchObject({ kind: 'code', key: implKey });

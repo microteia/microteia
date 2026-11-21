@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.295.0] — 2026-11-21
+
+- A tela de modelos de documento ficou igual à de relatórios: uma lista com os botões de cada modelo na própria linha (personalizar, editar, clonar, desativar, restaurar, excluir), e cada modelo abre na sua própria aba, permitindo editar vários ao mesmo tempo.
+- Na aba do modelo, as configurações ficam organizadas em Geral, Saída e Dados, e cada uma mostra quantos problemas ainda precisam de atenção, para nenhum passar despercebido.
+- O texto do modelo e a pré-visualização ficam lado a lado, sem janela por cima: dá para escrever e conferir o documento ao mesmo tempo. A referência de como escrever os campos fica no mesmo painel, a um clique.
+
 #### [9.294.0] — 2026-11-21
 
 - Em relatórios sobre um cadastro principal, como clientes, o filtro "quais clientes" passa a mostrar a lista de registros para escolher, em vez de uma caixa de texto que só aceitava um código interno.

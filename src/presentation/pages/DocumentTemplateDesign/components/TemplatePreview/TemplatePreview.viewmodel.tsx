@@ -8,13 +8,15 @@ import { useReferenceOptions } from '../../../../hooks/useReferenceOptions';
 import { useLabel } from '../../../../shared/i18n/useT';
 import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
-export interface TemplatePreviewDialogProps {
-  /** O modelo como está no editor — o rascunho, gravado ou não. */
+export interface TemplatePreviewProps {
+  /**
+   * O modelo como estava no editor quando a pessoa pediu a prévia — o rascunho, gravado ou não. Um
+   * objeto novo é um pedido novo; digitar não dispara mesclagem nenhuma.
+   */
   template: DocumentTemplateSpec;
-  onClose: () => void;
 }
 
-export interface TemplatePreviewDialogViewModel {
+export interface TemplatePreviewViewModel {
   isPayload: boolean;
   /** O modelo de dados não tem exemplo: não há o que mesclar. */
   missingSample: boolean;
@@ -41,11 +43,11 @@ interface PreviewState {
 }
 
 /**
- * A pré-visualização do editor de modelos: o RASCUNHO mesclado no servidor, pelo mesmo caso de uso que
+ * A pré-visualização da autoria de modelos: o RASCUNHO mesclado no servidor, pelo mesmo caso de uso que
  * gera — contra um registro escolhido aqui (modelo de tela) ou contra o exemplo do modelo (de dados).
  * Cada escolha de registro dispara uma nova mesclagem; nada é gravado.
  */
-export const useTemplatePreviewDialogViewModel = (props: TemplatePreviewDialogProps): TemplatePreviewDialogViewModel => {
+export const useTemplatePreviewViewModel = (props: TemplatePreviewProps): TemplatePreviewViewModel => {
   const { template } = props;
   const { previewDocument } = useDocumentTemplates();
   const { getDefinition } = useScreenDefinitions();

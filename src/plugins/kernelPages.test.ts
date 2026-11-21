@@ -35,10 +35,12 @@ describe('as páginas do kernel que não voltam numa sessão reaberta (#15)', ()
       .map((contribution) => addressOf(contribution.metadata));
 
     expect(transient.sort()).toEqual([
+      'key:document-template-design',
       'key:new-action',
       'key:new-script',
       'key:new-workflow',
       'key:report-design',
+      'prefix:document-template-clone:',
       'prefix:edit-workflow-step:',
       'prefix:new-dyn:',
       'prefix:new-workflow:clone:',

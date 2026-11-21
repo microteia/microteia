@@ -14,6 +14,11 @@ import {
 } from '../../domain/schema/document/documentDownloads';
 import { coreMessage, CORE_DOCUMENTS_MESSAGES } from '../coreMessages';
 import { generateDocumentCommand } from './generateDocumentCommand';
+import {
+  DOCUMENT_TEMPLATE_CLONE_TAB_PREFIX,
+  DOCUMENT_TEMPLATE_DESIGN_TAB,
+  DOCUMENT_TEMPLATE_DESIGN_TAB_PREFIX,
+} from '../../shared/constants/documentTemplateKeys';
 
 /**
  * **Os documentos** — procuração, contrato, recibo, notificação gerados a partir de um registro.
@@ -30,6 +35,10 @@ export const coreDocumentsPlugin: PluginRecord = {
     DocumentTemplatesView: lazyView(
       () => import('../../presentation/pages/DocumentTemplates/DocumentTemplates.view'),
       'DocumentTemplatesView',
+    ),
+    DocumentTemplateDesignView: lazyView(
+      () => import('../../presentation/pages/DocumentTemplateDesign/DocumentTemplateDesign.view'),
+      'DocumentTemplateDesignView',
     ),
     DownloadsView: lazyView(() => import('../../presentation/pages/Downloads/Downloads.view'), 'DownloadsView'),
     GenerateDocumentRecordAction: generateDocumentCommand,
@@ -54,6 +63,41 @@ export const coreDocumentsPlugin: PluginRecord = {
           requiredPermissions: [PERMISSION_DOCUMENT_TEMPLATES_MANAGE],
         },
         'DocumentTemplatesView',
+      ),
+      // A autoria de UM modelo, numa aba própria — como a de relatório. Sem sufixo, ela cria um novo:
+      // reaberta, seria um formulário vazio.
+      page(
+        {
+          key: DOCUMENT_TEMPLATE_DESIGN_TAB,
+          title: '@core.documents/page.template-design',
+          icon: 'fileText',
+          requiredPermissions: [PERMISSION_DOCUMENT_TEMPLATES_MANAGE],
+          restore: false,
+        },
+        'DocumentTemplateDesignView',
+      ),
+      // A de um modelo que JÁ EXISTE: a chave dele vem no nome da aba.
+      page(
+        {
+          key: '',
+          keyPrefix: DOCUMENT_TEMPLATE_DESIGN_TAB_PREFIX,
+          title: '@core.documents/page.template-design',
+          icon: 'fileText',
+          requiredPermissions: [PERMISSION_DOCUMENT_TEMPLATES_MANAGE],
+        },
+        'DocumentTemplateDesignView',
+      ),
+      // O clone: um rascunho que só existe enquanto a aba está aberta.
+      page(
+        {
+          key: '',
+          keyPrefix: DOCUMENT_TEMPLATE_CLONE_TAB_PREFIX,
+          title: '@core.documents/page.template-design',
+          icon: 'fileText',
+          requiredPermissions: [PERMISSION_DOCUMENT_TEMPLATES_MANAGE],
+          restore: false,
+        },
+        'DocumentTemplateDesignView',
       ),
       nav({ key: 'document-templates', label: '@core.documents/page.templates', icon: 'fileText', order: 103, group: CUSTOMIZATION_NAV_GROUP, requiredPermissions: [PERMISSION_DOCUMENT_TEMPLATES_MANAGE] }),
       recordAction(RECORD_ACTION_METADATA.generateDocument, 'GenerateDocumentRecordAction'),
