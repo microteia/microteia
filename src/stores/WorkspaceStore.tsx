@@ -1,28 +1,60 @@
-import React, { useReducer, useCallback } from 'react';
+import React, { useReducer, useCallback, useEffect, useMemo } from 'react';
 import { WorkspaceContext } from './useWorkspace';
 import type { SplitDirection } from './useWorkspace';
-import { initialWorkspaceState, workspaceReducer } from './workspaceReducer';
+import { useAuth } from './useAuth';
+import { useTenant } from './useTenant';
+import {
+  emptyWorkspaceSession,
+  workspaceSessionReducer,
+  type WorkspaceAction,
+  type WorkspaceSnapshot,
+} from './workspaceReducer';
+import { loadWorkspaceSession, saveWorkspaceSession, workspaceSessionScope } from './workspaceSession';
 
 export const WorkspaceStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(workspaceReducer, initialWorkspaceState);
+  const { user } = useAuth();
+  const { currentTenant } = useTenant();
+  const scope = workspaceSessionScope(user?.id, currentTenant?.id);
+  const [state, dispatch] = useReducer(workspaceSessionReducer, scope, emptyWorkspaceSession);
 
-  const openTab = useCallback((key: string) => dispatch({ type: 'OPEN_TAB', key }), []);
-  const openTabs = useCallback((keys: string[]) => dispatch({ type: 'OPEN_TABS', keys }), []);
-  const closeTab = useCallback((key: string, panelId: string) => dispatch({ type: 'CLOSE_TAB', key, panelId }), []);
-  const closeOtherTabs = useCallback((keepKey: string, panelId: string) => dispatch({ type: 'CLOSE_OTHER_TABS', keepKey, panelId }), []);
-  const activateTab = useCallback((key: string, panelId: string) => dispatch({ type: 'ACTIVATE_TAB', key, panelId }), []);
-  const setActivePanelId = useCallback((panelId: string) => dispatch({ type: 'SET_ACTIVE_PANEL', panelId }), []);
-  const closePanel = useCallback((panelId: string) => dispatch({ type: 'CLOSE_PANEL', panelId }), []);
-  const splitPanel = useCallback((panelId: string, direction: SplitDirection) => dispatch({ type: 'SPLIT_PANEL', panelId, direction }), []);
-  const updateSplitRatio = useCallback((splitId: string, ratio: number) => dispatch({ type: 'UPDATE_SPLIT_RATIO', splitId, ratio }), []);
-  const setTabTitle = useCallback((key: string, title: string) => dispatch({ type: 'SET_TAB_TITLE', key, title }), []);
+  // Trocou o escritório: até a primeira ação do novo escopo, o que vale é o espaço vazio dele — nada
+  // do anterior chega a ser desenhado, nem por um render.
+  const emptySession = useMemo(() => emptyWorkspaceSession(scope), [scope]);
+  const session = state.scope === scope ? state : emptySession;
+  const { workspace } = session;
+
+  useEffect(() => {
+    if (!session.scope || !session.hydrated || !session.persist) return;
+    saveWorkspaceSession(session.scope, session.workspace);
+  }, [session]);
+
+  const act = useCallback((action: WorkspaceAction) => dispatch({ ...action, scope }), [scope]);
+
+  const openTab = useCallback((key: string) => act({ type: 'OPEN_TAB', key }), [act]);
+  const openTabs = useCallback((keys: string[]) => act({ type: 'OPEN_TABS', keys }), [act]);
+  const closeTab = useCallback((key: string, panelId: string) => act({ type: 'CLOSE_TAB', key, panelId }), [act]);
+  const closeOtherTabs = useCallback((keepKey: string, panelId: string) => act({ type: 'CLOSE_OTHER_TABS', keepKey, panelId }), [act]);
+  const activateTab = useCallback((key: string, panelId: string) => act({ type: 'ACTIVATE_TAB', key, panelId }), [act]);
+  const setActivePanelId = useCallback((panelId: string) => act({ type: 'SET_ACTIVE_PANEL', panelId }), [act]);
+  const closePanel = useCallback((panelId: string) => act({ type: 'CLOSE_PANEL', panelId }), [act]);
+  const splitPanel = useCallback((panelId: string, direction: SplitDirection) => act({ type: 'SPLIT_PANEL', panelId, direction }), [act]);
+  const updateSplitRatio = useCallback((splitId: string, ratio: number) => act({ type: 'UPDATE_SPLIT_RATIO', splitId, ratio }), [act]);
+  const setTabTitle = useCallback((key: string, title: string) => act({ type: 'SET_TAB_TITLE', key, title }), [act]);
+
+  const loadSavedSession = useCallback(() => (scope ? loadWorkspaceSession(scope) : null), [scope]);
+  const hydrate = useCallback(
+    (snapshot: WorkspaceSnapshot | null, homeKeys: string[]) =>
+      dispatch({ type: 'HYDRATE', snapshot, homeKeys, persist: true, scope }),
+    [scope],
+  );
 
   return (
     <WorkspaceContext.Provider value={{
-      panels: state.panels,
-      layout: state.layout,
-      activePanelId: state.activePanelId,
-      tabTitleOverrides: state.tabTitleOverrides,
+      panels: workspace.panels,
+      layout: workspace.layout,
+      activePanelId: workspace.activePanelId,
+      tabTitleOverrides: workspace.tabTitleOverrides,
+      hydrated: session.hydrated,
       openTab,
       openTabs,
       closeTab,
@@ -33,6 +65,8 @@ export const WorkspaceStoreProvider: React.FC<{ children: React.ReactNode }> = (
       splitPanel,
       updateSplitRatio,
       setTabTitle,
+      loadSavedSession,
+      hydrate,
     }}>
       {children}
     </WorkspaceContext.Provider>

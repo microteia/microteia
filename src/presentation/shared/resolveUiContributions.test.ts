@@ -4,6 +4,7 @@ import {
   declaredNavGroups,
   groupNavSections,
   homePageKeys,
+  isRestorableTab,
   navigablePages,
   resolvePageContribution,
   splitFavoriteNavItems,
@@ -64,6 +65,29 @@ describe('homePageKeys', () => {
 
   it('ignora página paramétrica, que não tem aba própria a abrir', () => {
     expect(homePageKeys([pageContribution('a', { keyPrefix: 'view:', home: true })], allowAll, false)).toEqual([]);
+  });
+});
+
+describe('isRestorableTab (#15)', () => {
+  const pages = [
+    pageContribution('lista', { keyPrefix: 'dyn:' }),
+    pageContribution('restrita', { key: 'auditoria', requiredPermissions: ['audit.read'] }),
+    pageContribution('global', { key: 'acessos', requiresSystemAdmin: true }),
+  ];
+  const allowAll = () => true;
+
+  it('volta a aba que alguma página ainda desenha, inclusive por prefixo', () => {
+    expect(isRestorableTab(pages, 'dyn:clientes', allowAll, false)).toBe(true);
+  });
+
+  it('não volta a aba cuja página sumiu (extensão desinstalada)', () => {
+    expect(isRestorableTab(pages, 'noticias', allowAll, false)).toBe(false);
+  });
+
+  it('não volta a aba que esta pessoa deixou de poder ver', () => {
+    expect(isRestorableTab(pages, 'auditoria', () => false, false)).toBe(false);
+    expect(isRestorableTab(pages, 'acessos', allowAll, false)).toBe(false);
+    expect(isRestorableTab(pages, 'acessos', allowAll, true)).toBe(true);
   });
 });
 
