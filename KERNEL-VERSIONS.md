@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.295.0] — 2026-11-21
+
+- feat(documents): document templates follow the Reports layout (#16). `document-templates` becomes a list with per-row actions by state — extension: customize, clone, turn off; customized: edit, clone, restore original; turned off: turn on, clone; organization: edit, clone, delete — and every template opens in its own workspace tab. New pages of `core.documents`: `document-template-design` (a new template, `restore: false`), `document-template-design:<key>` (an existing one) and `document-template-clone:<key>` (an unsaved copy, `restore: false`; a prefix of its own, so whatever follows `document-template-design:` is always a template key). All three are in `KERNEL_PAGES` and pinned in `kernelPages.test.ts` / `corePlugins.test.ts`.
+- feat(documents): the template tab has settings tabs General / Output / Data with a count of the lists or parameters declared and of the validation issues each one holds (red when one blocks saving, amber for grammar warnings); content issues stay under the editor. Below, full width, the editor sits beside a panel switching between an inline preview — on demand, with a notice when the text changed since — and the grammar reference. The preview modal is gone; the merge still goes through the same callable.
+- refactor(documents): the catalog of templates and the state gestures (customize, keep copy, turn off/on, delete/restore) move to `useDocumentTemplateCatalog`, shared by the list and the tab. Nothing stored changes; the contract does not change.
+- chore(locale-pt-br): `1.241.0`, with the new strings; eight keys no screen reads any more are removed from `core.documents`.
+
 #### [9.294.0] — 2026-11-21
 
 - fix(reports): a reader prompt whose `path` ends in `id` is asked with the record chooser of the collection the path ends on — `path: 'id'` on a report over `customers` asks with the chooser of customers, `order.id` with the chooser of orders (#13). `id` is not a declared field, so the field walk returned nothing and the prompt fell back to a text box that only took a raw document id. Only the way of asking changed: the server already filtered `id` (`isDocumentIdPath`, including `eq` with a list) and `validateReportSpec` already accepted the path. A declared field keyed `id` still wins; a collection with no screen gets no chooser. The contract does not change.

@@ -96,7 +96,6 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
 
   'page.templates': 'Document templates',
   'page.no-permission': 'Only people who manage document templates can see this screen.',
-  'page.templates.subtitle': 'Turn a record into a document, ready to download or attach.',
 
   'page.downloads': 'Downloads',
   'downloads.subtitle': 'Generated files ready to download. Each one is deleted when it expires.',
@@ -167,7 +166,6 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
 
   'template.new': 'New template',
   'template.empty': 'No templates yet.',
-  'template.pick': 'Choose a template on the left, or create a new one.',
   'template.customize': 'Customize',
   'template.enable': 'Turn on',
   'template.disable': 'Turn off',
@@ -190,16 +188,13 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
   'template.clone.title': '{title} (copy)',
   'template.clone.hint': 'This is a copy of “{title}”. Adjust the key and the name, then save to create it.',
   'template.restore.short': 'Restore original',
-  'template.from-extension': 'From {extension}',
   'template.outdated.keep': 'Keep my copy',
   'template.outdated.kept': 'Your copy is marked as reviewed against the new version.',
   'filter.state': 'Status',
-  'section.general.hint': 'Name, screen and how the file is produced.',
   'section.content.hint': 'Write the text with the fields of the record, or upload a Word file.',
 
   'source.payload': 'Data (no screen)',
   'preview.open': 'Preview',
-  'preview.title': 'Preview',
   'preview.record': 'Record',
   'preview.sample': 'Merged with the example of the template.',
   'preview.sample-missing': 'This template has no example yet. Add one under Data to see the preview.',
@@ -233,9 +228,7 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
   'state.outdated': 'Update available',
   'state.outdated.hint': 'The extension changed this template after you customized it. Your copy is still the one in use: restore to get the new version, or keep your copy.',
 
-  'section.general': 'General',
   'section.content': 'Content',
-  'section.datasets': 'Lists',
   'section.datasets.hint': 'Records of another screen linked to this one — the installments of a contract, the items of an order — that the template repeats with {{#each name}}.',
 
   'field.title': 'Name',
@@ -271,7 +264,6 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
   'dataset.remove': 'Remove list',
   'dataset.add': 'Add list',
 
-  'help.title': 'How to write fields',
   'help.group.fields': 'Fields',
   'help.field': 'a field of the record, by its key',
   'help.path': 'follows a link to the field of the linked record',
@@ -312,4 +304,25 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
   'starter.yes': 'Yes',
   'starter.no': 'No',
   'starter.generated-on': 'Generated on',
+
+  'page.template-design': 'Document template',
+  'template.edit': 'Edit',
+  'template.not-found': 'This template no longer exists. It may have been deleted, or its extension removed.',
+  'design.settings.show': 'Show settings',
+  'design.settings.hide': 'Hide settings',
+  'tab.general': 'General',
+  'tab.output': 'Output',
+  'tab.data': 'Data',
+  'tab.issues': '{count} issue(s) to review',
+  'section.identity': 'Name and key',
+  'section.source': 'Source and format',
+  'section.file': 'File',
+  'section.destination': 'Where it goes',
+  'dataset.empty': 'No lists yet. Add one to repeat the records of another screen in the document.',
+  'dataset.title': 'List {position}',
+  'panel.preview': 'Preview',
+  'panel.reference': 'Reference',
+  'preview.empty': 'Preview merges the template as it is now, saved or not. Nothing is saved.',
+  'preview.refresh': 'Refresh',
+  'preview.stale': 'The template changed after this preview. Refresh to see the current version.',
 };

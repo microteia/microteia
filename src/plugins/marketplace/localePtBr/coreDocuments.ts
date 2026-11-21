@@ -95,7 +95,6 @@ export const CORE_DOCUMENTS: Record<string, string> = {
 
   'page.templates': 'Modelos de documento',
   'page.no-permission': 'Só quem gerencia modelos de documento vê esta tela.',
-  'page.templates.subtitle': 'Transformam um registro em documento, pronto para baixar ou anexar.',
 
   'page.downloads': 'Downloads',
   'downloads.subtitle': 'Arquivos gerados prontos para baixar. Cada um é excluído quando vence.',
@@ -166,7 +165,6 @@ export const CORE_DOCUMENTS: Record<string, string> = {
 
   'template.new': 'Novo modelo',
   'template.empty': 'Nenhum modelo ainda.',
-  'template.pick': 'Escolha um modelo à esquerda, ou crie um novo.',
   'template.customize': 'Personalizar',
   'template.enable': 'Religar',
   'template.disable': 'Desligar',
@@ -189,16 +187,13 @@ export const CORE_DOCUMENTS: Record<string, string> = {
   'template.clone.title': '{title} (cópia)',
   'template.clone.hint': 'Esta é uma cópia de “{title}”. Ajuste a chave e o nome e salve para criá-la.',
   'template.restore.short': 'Restaurar original',
-  'template.from-extension': 'Da extensão {extension}',
   'template.outdated.keep': 'Manter minha cópia',
   'template.outdated.kept': 'A sua cópia foi marcada como conferida diante da versão nova.',
   'filter.state': 'Situação',
-  'section.general.hint': 'Nome, tela e como o arquivo é produzido.',
   'section.content.hint': 'Escreva o texto com os campos do registro, ou envie um arquivo Word.',
 
   'source.payload': 'Dados (sem tela)',
   'preview.open': 'Pré-visualizar',
-  'preview.title': 'Pré-visualização',
   'preview.record': 'Registro',
   'preview.sample': 'Mesclado com o exemplo do modelo.',
   'preview.sample-missing': 'Este modelo ainda não tem exemplo. Adicione um em Dados para ver a pré-visualização.',
@@ -232,9 +227,7 @@ export const CORE_DOCUMENTS: Record<string, string> = {
   'state.outdated': 'Atualização disponível',
   'state.outdated.hint': 'A extensão alterou este modelo depois que você o personalizou. A sua cópia continua valendo: restaure para usar a versão nova, ou mantenha a sua cópia.',
 
-  'section.general': 'Geral',
   'section.content': 'Conteúdo',
-  'section.datasets': 'Listas',
   'section.datasets.hint': 'Registros de outra tela ligados a esta — as parcelas de um contrato, os itens de um pedido — que o modelo repete com {{#each nome}}.',
 
   'field.title': 'Nome',
@@ -270,7 +263,6 @@ export const CORE_DOCUMENTS: Record<string, string> = {
   'dataset.remove': 'Remover lista',
   'dataset.add': 'Adicionar lista',
 
-  'help.title': 'Como escrever os campos',
   'help.group.fields': 'Campos',
   'help.field': 'um campo do registro, pela chave dele',
   'help.path': 'segue um vínculo até o campo do registro ligado',
@@ -311,4 +303,25 @@ export const CORE_DOCUMENTS: Record<string, string> = {
   'starter.yes': 'Sim',
   'starter.no': 'Não',
   'starter.generated-on': 'Gerado em',
+
+  'page.template-design': 'Modelo de documento',
+  'template.edit': 'Editar',
+  'template.not-found': 'Este modelo não existe mais. Ele pode ter sido excluído, ou a extensão dele removida.',
+  'design.settings.show': 'Mostrar configurações',
+  'design.settings.hide': 'Ocultar configurações',
+  'tab.general': 'Geral',
+  'tab.output': 'Saída',
+  'tab.data': 'Dados',
+  'tab.issues': '{count} problema(s) para revisar',
+  'section.identity': 'Nome e chave',
+  'section.source': 'Origem e formato',
+  'section.file': 'Arquivo',
+  'section.destination': 'Para onde vai',
+  'dataset.empty': 'Nenhuma lista ainda. Adicione uma para repetir no documento os registros de outra tela.',
+  'dataset.title': 'Lista {position}',
+  'panel.preview': 'Prévia',
+  'panel.reference': 'Referência',
+  'preview.empty': 'A prévia mescla o modelo como está agora, salvo ou não. Nada é gravado.',
+  'preview.refresh': 'Atualizar',
+  'preview.stale': 'O modelo mudou depois desta prévia. Atualize para ver a versão atual.',
 };

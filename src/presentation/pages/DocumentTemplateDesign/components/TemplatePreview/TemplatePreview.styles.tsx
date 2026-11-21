@@ -21,10 +21,7 @@ export const S = {
   `,
 
   Field: styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: ${({ theme }) => theme.spacing.xs};
-    min-width: 280px;
+    min-width: 200px;
     flex: 1;
   `,
 
@@ -40,20 +37,19 @@ export const S = {
     white-space: nowrap;
   `,
 
+  /* Sem teto próprio: quem rola é o painel ao lado do editor, que já tem a altura da aba. */
   Desk: styled.div`
     background: ${({ theme }) => theme.colors.background};
     border: 1px solid ${({ theme }) => theme.colors.borderSubtle};
     border-radius: ${({ theme }) => theme.borderRadius.lg};
-    padding: ${({ theme }) => theme.spacing.xl};
-    max-height: 62vh;
-    overflow-y: auto;
+    padding: ${({ theme }) => theme.spacing.lg};
   `,
 
   Paper: styled.article`
     max-width: 760px;
     min-height: 320px;
     margin: 0 auto;
-    padding: ${({ theme }) => theme.spacing['2xl']};
+    padding: ${({ theme }) => theme.spacing.xl};
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.sm};
