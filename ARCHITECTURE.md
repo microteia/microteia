@@ -12146,6 +12146,14 @@ Executados no SERVIDOR (`runReportQuery.ts`), não só na tela — o widget e o 
   ao lado do seletor de clientes que o relatório de pedidos mostrava para `cliente` (#2). O salto por
   referência de VÁRIOS também ganha o seletor: o servidor responde por pertinência. Na autoria, o
   seletor de caminho do FILTRO (só dele) oferece a referência um salto adiante (`hopReferences`).
+- **`id` no fim do caminho é o PRÓPRIO registro** (`recordIdFieldAt`, #13): o filtro é perguntado como
+  referência à coleção onde o caminho chega — `path: 'id'` num relatório sobre clientes dá o seletor de
+  clientes; `pedido.id`, o de pedidos. `id` não é campo declarado, e a busca nos campos voltava vazia: o
+  "quais clientes" de um relatório SOBRE clientes era um texto que só aceitava o id cru, enquanto o
+  mesmo filtro sobre os filhos ganhava o seletor — e reportar sobre os filhos somava o mesmo saldo
+  `latest` uma vez por filho. Só a forma de perguntar mudou: o servidor já filtrava `id`
+  (`isDocumentIdPath`, inclusive `eq` com lista) e `validateReportSpec` já aceitava o caminho. Campo
+  declarado com a chave `id` continua vencendo; coleção sem tela não ganha seletor.
 - **`in` respondido com UM valor vale como a lista de um** (`promptOperand`). O passo `run-report` pede
   cada filtro num campo de texto, o MCP repassa o que o agente escreveu, e a tela cai num texto quando o
   caminho não descreve campo: com o texto solto, o `in` não achava nada — nem com o id certo. É regra do

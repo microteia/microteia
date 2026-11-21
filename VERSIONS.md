@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.294.0] — 2026-11-21
+
+- Em relatórios sobre um cadastro principal, como clientes, o filtro "quais clientes" passa a mostrar a lista de registros para escolher, em vez de uma caixa de texto que só aceitava um código interno.
+
 #### [9.293.0] — 2026-11-21
 
 - Nas Configurações, a nova seção "Espaço de trabalho" permite desligar a reabertura das abas. O escritório escolhe o padrão, e cada pessoa decide o seu. Desligada, nada fica guardado no aparelho.

@@ -868,3 +868,19 @@ describe('validateReportSpec — o filtro de período (#4)', () => {
     }));
   });
 });
+
+describe('validateReportSpec — filtro do leitor sobre o próprio registro (#13)', () => {
+  it('`id` da tabela do relatório e `id` depois de atravessar uma referência não são caminho desconhecido', () => {
+    const spec: ReportSpec = {
+      ...valid,
+      presentation: {
+        prompts: [
+          { key: 'lancamento', path: 'id', op: 'in' },
+          { key: 'cliente', path: 'cliente.id', op: 'eq' },
+        ],
+      },
+    };
+
+    expect(validateReportSpec(spec, ctx)).toEqual([]);
+  });
+});
