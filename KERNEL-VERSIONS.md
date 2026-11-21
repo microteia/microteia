@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.295.1] — 2026-11-21
+
+- fix(documents): the template preview demands the template's collection (`useRecordDemand`, 50 records) and searches it server-side through `useReferenceSearch`, instead of offering only the records another tab had already loaded. The "this screen has no records yet" notice now waits until the collection has actually loaded empty (#17).
+
 #### [9.295.0] — 2026-11-21
 
 - feat(documents): document templates follow the Reports layout (#16). `document-templates` becomes a list with per-row actions by state — extension: customize, clone, turn off; customized: edit, clone, restore original; turned off: turn on, clone; organization: edit, clone, delete — and every template opens in its own workspace tab. New pages of `core.documents`: `document-template-design` (a new template, `restore: false`), `document-template-design:<key>` (an existing one) and `document-template-clone:<key>` (an unsaved copy, `restore: false`; a prefix of its own, so whatever follows `document-template-design:` is always a template key). All three are in `KERNEL_PAGES` and pinned in `kernelPages.test.ts` / `corePlugins.test.ts`.
