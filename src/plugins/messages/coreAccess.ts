@@ -143,9 +143,14 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'agent.oauth.loopback':
     'This client runs on your own computer. Any program on this machine could claim to be it, so '
     + 'only continue if you started the connection yourself.',
+  'agent.oauth.account': 'Authorizing as',
+  'agent.oauth.account.switch': 'Use another account',
   'agent.oauth.tenant': 'Organization',
   'agent.oauth.tenant.hint':
-    'The access is for this organization only. Switch organizations first if you meant another one.',
+    'The access works in this organization only, with the permissions you hold in it.',
+  'agent.oauth.tenant.changed':
+    'The organization changed to {tenant} in another tab, so the permissions you had chosen were '
+    + 'cleared. Choose them again for this organization.',
   'agent.oauth.allow': 'Authorize',
   'agent.oauth.deny': 'Cancel',
   'agent.oauth.working': 'Authorizing...',

@@ -13618,6 +13618,23 @@ Os quatro caminhos do Hosting são reescritos para uma function só (`agentOAuth
 são constantes compartilhadas em vez de strings repetidas no `firebase.json`: os metadados ANUNCIAM
 os endereços que a própria function serve, e duas listas separadas divergiriam calado.
 
+#### A tela de consentimento não presume conta nem escritório
+
+O consentimento abre SEMPRE no emissor (`<projectId>.web.app`), e essa é outra origem para o
+navegador: outra sessão do Firebase Auth e outro `microteia:lastTenantId`. Quem trabalha em
+`firebaseapp.com` ou num domínio próprio chega aqui sem último escritório — e o `TenantStore` cai no
+escritório de que a conta é DONA — ou logado com OUTRA conta. Por isso a tela mostra a conta (com
+"Usar outra conta", que sai e volta ao mesmo pedido) e um seletor de escritório. Escolher passa pelo
+`selectTenant` de sempre: é ele que troca o catálogo e o que esta pessoa tem naquele escritório, que é
+o que o seletor de permissões oferece e o que `issueAgentGrant` confere de novo (#18).
+
+As permissões marcadas ficam amarradas ao escritório em que foram marcadas. O escritório corrente
+acompanha as outras abas pelo `storage`, e uma troca feita lá chegava com as marcações intactas — o
+Autorizar mandava o id de um escritório com a escolha feita no outro.
+
+Mover o emissor para o `brand.url` e servir o MCP pelo Hosting foram descartados: a tela resolve o
+dano sem efeito colateral, e o Hosting repassa à function com limite de tempo próprio.
+
 #### O que o cliente da Anthropic exige além da spec
 
 Cada um destes já custou a alguém um "couldn't reach the MCP server" sem pista:
