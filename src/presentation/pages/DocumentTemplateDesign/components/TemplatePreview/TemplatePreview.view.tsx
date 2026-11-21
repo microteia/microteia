@@ -31,6 +31,8 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = (props) => {
               value={vm.recordId}
               onChange={vm.setRecordId}
               label={t('preview.record')}
+              onQueryChange={vm.onRecordQuery}
+              searchMatches={vm.recordMatches}
             />
           </S.Field>
         )}
@@ -39,7 +41,7 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = (props) => {
         )}
       </S.Toolbar>
 
-      {!vm.isPayload && vm.recordOptions.length === 0 && (
+      {vm.noRecords && (
         <InfoBanner variant="info" message={t('preview.no-records')} />
       )}
       {vm.error && <InfoBanner message={vm.error} />}

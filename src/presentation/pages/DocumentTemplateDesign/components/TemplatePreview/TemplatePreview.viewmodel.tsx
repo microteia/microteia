@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDocumentTemplates } from '../../../../../stores/useDocumentTemplates';
+import { useRecordDemand } from '../../../../../stores/useRecordDemand';
+import { useRecords } from '../../../../../stores/useRecords';
 import { useScreenDefinitions } from '../../../../../stores/useScreenDefinitions';
 import type { DocumentTemplateSpec } from '../../../../../domain/schema/document/documentTemplate';
 import { isPayloadTemplate } from '../../../../../domain/schema/document/documentTemplate';
 import { screenDataCollection } from '../../../../../domain/services/screenDataCollection';
 import { useReferenceOptions } from '../../../../hooks/useReferenceOptions';
+import { useReferenceSearch } from '../../../../shared/useReferenceSearch';
 import { useLabel } from '../../../../shared/i18n/useT';
 import type { SearchSelectOption } from '../../../../components/ui/SearchSelect';
 
@@ -23,6 +26,12 @@ export interface TemplatePreviewViewModel {
   recordOptions: SearchSelectOption[];
   recordId: string;
   setRecordId: (recordId: string) => void;
+  /** O texto digitado no seletor, para buscar no servidor o registro fora da janela carregada. */
+  onRecordQuery: (text: string) => void;
+  /** Os registros que o servidor achou para o texto atual — valem mesmo sem o título conter o texto. */
+  recordMatches: ReadonlySet<string>;
+  /** A coleção já respondeu e não tem registro nenhum — só então "não há registros" é verdade. */
+  noRecords: boolean;
   isLoading: boolean;
   /** O texto mesclado, ou `null` antes da resposta e quando ela é uma recusa. */
   text: string | null;
@@ -32,6 +41,15 @@ export interface TemplatePreviewViewModel {
   error: string | null;
   emptyFields: string[];
 }
+
+/**
+ * Quantos registros recentes a prévia mantém carregados para escolher. Ela só precisa de UM: a janela
+ * é o atalho dos mais recentes, e o resto se acha pela busca no servidor.
+ */
+const PREVIEW_RECORD_WINDOW = 50;
+
+/** A busca da prévia: um seletor só, e por isso uma chave só no `useReferenceSearch`. */
+const PREVIEW_SEARCH_SLOT = 'preview-record';
 
 interface PreviewState {
   /** O pedido a que esta resposta corresponde — uma resposta velha não pinta o pedido novo. */
@@ -57,6 +75,16 @@ export const useTemplatePreviewViewModel = (props: TemplatePreviewProps): Templa
   const isPayload = isPayloadTemplate(template);
   const definition = isPayload ? undefined : getDefinition(template.collection);
   const collection = definition ? screenDataCollection(definition) : template.collection;
+
+  // A prévia PEDE a coleção, em vez de depender de outra tela tê-la carregado (#17): sem isso, quem
+  // chegava direto aos modelos ouvia que a tela não tinha registros, e ela tinha.
+  useRecordDemand(isPayload ? [] : [collection], PREVIEW_RECORD_WINDOW);
+  const { loadedCollections } = useRecords();
+  const search = useReferenceSearch();
+  const onRecordQuery = useCallback(
+    (text: string) => search.onQuery(PREVIEW_SEARCH_SLOT, isPayload ? null : collection, text),
+    [search, isPayload, collection],
+  );
 
   const recordOptions = useMemo(
     () => (isPayload ? [] : referenceOptions[collection] ?? []),
@@ -102,6 +130,9 @@ export const useTemplatePreviewViewModel = (props: TemplatePreviewProps): Templa
     recordOptions,
     recordId,
     setRecordId,
+    onRecordQuery,
+    recordMatches: search.matchesFor(PREVIEW_SEARCH_SLOT),
+    noRecords: !isPayload && collection !== '' && loadedCollections.has(collection) && recordOptions.length === 0,
     isLoading: canAsk && shown === null,
     text: shown?.text ?? null,
     isWord: template.format === 'docx',

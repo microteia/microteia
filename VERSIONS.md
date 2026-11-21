@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.295.1] — 2026-11-21
+
+- A prévia de um modelo de documento agora oferece os registros da tela mesmo que ela ainda não tenha sido aberta, e permite procurar qualquer registro pelo nome. O aviso de que a tela não tem registros só aparece quando ela de fato está vazia.
+
 #### [9.295.0] — 2026-11-21
 
 - A tela de modelos de documento ficou igual à de relatórios: uma lista com os botões de cada modelo na própria linha (personalizar, editar, clonar, desativar, restaurar, excluir), e cada modelo abre na sua própria aba, permitindo editar vários ao mesmo tempo.
