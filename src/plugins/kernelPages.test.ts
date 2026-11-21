@@ -21,3 +21,27 @@ describe('KERNEL_PAGES', () => {
     expect([...KERNEL_PAGES.map(addressOf)].sort()).toEqual([...contributed].sort());
   });
 });
+
+describe('as páginas do kernel que não voltam numa sessão reaberta (#15)', () => {
+  /**
+   * A decisão fica escrita aqui: são as abas que só fazem sentido no gesto que as abriu — criar algo
+   * novo, clonar, editar um passo a partir do workflow. Uma página nova desse tipo que esqueça o
+   * `restore: false` reapareceria vazia na próxima entrada; esta lista é onde a omissão é vista.
+   */
+  it('são exatamente as transitórias', () => {
+    const transient = CORE_PLUGINS
+      .flatMap((record) => record.manifest.contributes ?? [])
+      .filter((contribution) => contribution.point === UI_PAGE_POINT && contribution.metadata.restore === false)
+      .map((contribution) => addressOf(contribution.metadata));
+
+    expect(transient.sort()).toEqual([
+      'key:new-action',
+      'key:new-script',
+      'key:new-workflow',
+      'key:report-design',
+      'prefix:edit-workflow-step:',
+      'prefix:new-dyn:',
+      'prefix:new-workflow:clone:',
+    ]);
+  });
+});

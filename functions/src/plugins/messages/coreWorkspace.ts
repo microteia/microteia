@@ -7,6 +7,12 @@
 /** Os textos do espaço de trabalho: perfil, sessão e as telas públicas. */
 export const CORE_WORKSPACE_MESSAGES: Record<string, string> = {
   'page.profile': 'My Profile',
+
+  'settings.section.title': 'Workspace',
+  'settings.section.description': 'How the workspace opens when you enter the organization.',
+  'settings.restore-tabs.label': 'Reopen the tabs from the last session',
+  'settings.restore-tabs.description':
+    'On entering the organization, the tabs left open last time on this device come back. When turned off, nothing is kept on the device and the start pages open.',
   'action.back': 'Back',
 
   'login.tagline':

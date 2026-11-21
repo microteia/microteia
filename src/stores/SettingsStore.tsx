@@ -5,6 +5,7 @@ import { useTenant } from './useTenant';
 import { SettingsContext } from './useSettings';
 import {
   emptySettingsValues,
+  SETTINGS_SCOPES,
   type SettingsScope,
   type SettingsValues,
   type SettingsValuesByScope,
@@ -26,7 +27,7 @@ export const SettingsStoreProvider: React.FC<{ children: React.ReactNode }> = ({
   const { user } = useAuth();
   const { currentTenant } = useTenant();
 
-  const [loaded, setLoaded] = useState<{ owner: string; values: SettingsValuesByScope } | null>(null);
+  const [loaded, setLoaded] = useState<{ owner: string; values: SettingsValuesByScope; scopes: SettingsScope[] } | null>(null);
 
   const uc = useMemo(() => ({
     subscribe: makeSubscribeSettingsUseCase(settingsRepository),
@@ -44,15 +45,20 @@ export const SettingsStoreProvider: React.FC<{ children: React.ReactNode }> = ({
    */
   const values = loaded?.owner === owner ? loaded.values : EMPTY_VALUES;
   const isLoading = Boolean(tenantId && userId) && loaded?.owner !== owner;
+  const allScopesLoaded = loaded?.owner === owner && SETTINGS_SCOPES.every((scope) => loaded.scopes.includes(scope));
 
   useEffect(() => {
     if (!tenantId || !userId) return;
     const current = `${tenantId}:${userId}`;
     const unsubscribe = uc.subscribe.execute(tenantId, userId, (scope, scopeValues) => {
-      setLoaded((prev) => ({
-        owner: current,
-        values: { ...(prev?.owner === current ? prev.values : EMPTY_VALUES), [scope]: scopeValues },
-      }));
+      setLoaded((prev) => {
+        const same = prev?.owner === current;
+        return {
+          owner: current,
+          values: { ...(same ? prev.values : EMPTY_VALUES), [scope]: scopeValues },
+          scopes: same && prev.scopes.includes(scope) ? prev.scopes : [...(same ? prev.scopes : []), scope],
+        };
+      });
     });
     return () => unsubscribe();
   }, [tenantId, userId, uc]);
@@ -63,6 +69,7 @@ export const SettingsStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     setLoaded((prev) => ({
       owner: current,
       values: { ...(prev?.owner === current ? prev.values : EMPTY_VALUES), [scope]: next },
+      scopes: prev?.owner === current ? prev.scopes : [],
     }));
     await uc.save.execute(tenantId, userId, scope, next);
   }, [tenantId, userId, uc]);
@@ -80,10 +87,11 @@ export const SettingsStoreProvider: React.FC<{ children: React.ReactNode }> = ({
   const value = useMemo(() => ({
     values,
     isLoading,
+    allScopesLoaded,
     setValue,
     clearValue,
     replaceScope,
-  }), [values, isLoading, setValue, clearValue, replaceScope]);
+  }), [values, isLoading, allScopesLoaded, setValue, clearValue, replaceScope]);
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 };

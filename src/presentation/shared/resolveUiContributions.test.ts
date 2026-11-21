@@ -84,6 +84,12 @@ describe('isRestorableTab (#15)', () => {
     expect(isRestorableTab(pages, 'noticias', allowAll, false)).toBe(false);
   });
 
+  it('não volta a aba cuja página se declarou transitória, casada pelo prefixo', () => {
+    const comNovo = [...pages, pageContribution('novo', { keyPrefix: 'new-dyn:', restore: false })];
+    expect(isRestorableTab(comNovo, 'new-dyn:clientes', allowAll, false)).toBe(false);
+    expect(isRestorableTab(comNovo, 'dyn:clientes', allowAll, false)).toBe(true);
+  });
+
   it('não volta a aba que esta pessoa deixou de poder ver', () => {
     expect(isRestorableTab(pages, 'auditoria', () => false, false)).toBe(false);
     expect(isRestorableTab(pages, 'acessos', allowAll, false)).toBe(false);

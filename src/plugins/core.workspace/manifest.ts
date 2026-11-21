@@ -1,10 +1,10 @@
 import type { PluginRecord } from '../../kernel';
-import { command, lazyView, menuItem, page } from '../contributionBuilders';
+import { command, lazyView, menuItem, page, settingsSection } from '../contributionBuilders';
 import { NavigationCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/NavigationCommandProvider';
 import { SystemCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/SystemCommandProvider';
 import { DockCommandProvider } from '../../presentation/components/ui/CommandPalette/providers/DockCommandProvider';
 import { messageBundleContribution } from '../../domain/schema/i18n/extensionPoints';
-import { USER_MENU_SURFACE } from '../../domain/schema/ui/uiExtensionPoints';
+import { USER_MENU_SURFACE, WORKSPACE_RESTORE_TABS_SETTING } from '../../domain/schema/ui/uiExtensionPoints';
 import { coreMessage, CORE_WORKSPACE_MESSAGES } from '../coreMessages';
 
 export const coreWorkspacePlugin: PluginRecord = {
@@ -36,6 +36,23 @@ export const coreWorkspacePlugin: PluginRecord = {
       command('navigation', { group: '@core.workspace/command.group.navigation' }, 'NavigationCommandProvider'),
       command('system', { group: '@core.workspace/command.group.system' }, 'SystemCommandProvider'),
       command('dock', { group: '@core.workspace/command.group.panels' }, 'DockCommandProvider'),
+      settingsSection({
+        key: 'workspace',
+        title: '@core.workspace/settings.section.title',
+        description: '@core.workspace/settings.section.description',
+        icon: 'layoutGrid',
+        order: 9,
+        properties: [
+          {
+            key: WORKSPACE_RESTORE_TABS_SETTING,
+            label: '@core.workspace/settings.restore-tabs.label',
+            description: '@core.workspace/settings.restore-tabs.description',
+            type: 'boolean',
+            default: true,
+            scopes: ['tenant', 'user'],
+          },
+        ],
+      }),
     ],
   },
 };

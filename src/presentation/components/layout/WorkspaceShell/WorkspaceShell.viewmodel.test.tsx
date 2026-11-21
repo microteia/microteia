@@ -14,9 +14,12 @@ const state = {
   pages: [] as unknown[],
   hydrated: false,
   saved: null as unknown,
+  settingsLoaded: true,
+  restoreTabs: undefined as unknown,
 };
 const openLink = vi.fn();
-const hydrate = vi.fn<(snapshot: unknown, homeKeys: string[]) => void>(() => { state.hydrated = true; });
+const hydrate = vi.fn<(snapshot: unknown, homeKeys: string[], persist: boolean) => void>(() => { state.hydrated = true; });
+const setPersist = vi.fn<(persist: boolean) => void>();
 const navigate = vi.fn();
 const selectTenant = vi.fn(async () => undefined);
 
@@ -25,8 +28,10 @@ vi.mock('react-router-dom', () => ({
   useLocation: () => ({ pathname: window.location.pathname, search: window.location.search }),
 }));
 vi.mock('../../../../stores/useWorkspace', () => ({
-  useWorkspace: () => ({ hydrated: state.hydrated, hydrate, loadSavedSession: () => state.saved }),
+  useWorkspace: () => ({ hydrated: state.hydrated, hydrate, setPersist, loadSavedSession: () => state.saved }),
 }));
+vi.mock('../../../../stores/useSettings', () => ({ useSettings: () => ({ allScopesLoaded: state.settingsLoaded }) }));
+vi.mock('../../../shared/settings/useSettingValue', () => ({ useSettingValue: () => state.restoreTabs }));
 vi.mock('../../../../stores/useAuth', () => ({ useAuth: () => ({ user: { id: 'u1' }, userRole: 'USER' }) }));
 vi.mock('../../../../stores/useAuthorization', () => ({
   useAuthorization: () => ({ canAny: state.canAny, isLoading: state.authorizationLoading, isUnrestricted: false }),
@@ -103,6 +108,7 @@ const panelOf = (tabKeys: string[]) => ({
 describe('a abertura do escritório: telas iniciais (#14) e sessão restaurada (#15)', () => {
   beforeEach(() => {
     hydrate.mockClear();
+    setPersist.mockClear();
     visit('/app');
     state.currentTenant = { id: 't1' };
     state.members = [{ tenantId: 't1', userId: 'u1' }];
@@ -112,13 +118,15 @@ describe('a abertura do escritório: telas iniciais (#14) e sessão restaurada (
     state.canAny = () => true;
     state.hydrated = false;
     state.saved = null;
+    state.settingsLoaded = true;
+    state.restoreTabs = undefined;
     state.pages = [homePage('painel'), homePage('caixa')];
   });
 
   it('sem sessão guardada, decide pelas telas iniciais — todas, de uma vez', () => {
     renderHook(() => useWorkspaceShellViewModel());
     expect(hydrate).toHaveBeenCalledTimes(1);
-    expect(hydrate).toHaveBeenCalledWith(null, ['painel', 'caixa']);
+    expect(hydrate).toHaveBeenCalledWith(null, ['painel', 'caixa'], true);
   });
 
   it('espera extensões, confiança de código, autorização e o membro deste escritório', () => {
@@ -138,7 +146,7 @@ describe('a abertura do escritório: telas iniciais (#14) e sessão restaurada (
     }
     state.members = [{ tenantId: 't1', userId: 'u1' }];
     rerender();
-    expect(hydrate).toHaveBeenCalledWith(null, ['painel', 'caixa']);
+    expect(hydrate).toHaveBeenCalledWith(null, ['painel', 'caixa'], true);
   });
 
   it('a tela inicial restrita não é pulada enquanto as permissões carregam', () => {
@@ -149,7 +157,7 @@ describe('a abertura do escritório: telas iniciais (#14) e sessão restaurada (
     state.authorizationLoading = false;
     state.canAny = () => true;
     rerender();
-    expect(hydrate).toHaveBeenCalledWith(null, ['restrita', 'livre']);
+    expect(hydrate).toHaveBeenCalledWith(null, ['restrita', 'livre'], true);
   });
 
   it('reabre a sessão guardada, sem a aba cuja página sumiu ou deixou de ser permitida', () => {
@@ -157,7 +165,37 @@ describe('a abertura do escritório: telas iniciais (#14) e sessão restaurada (
     state.canAny = (permissions) => !permissions.includes('x.read');
     state.saved = panelOf(['painel', 'restrita', 'extensao-removida']);
     renderHook(() => useWorkspaceShellViewModel());
-    expect(hydrate).toHaveBeenCalledWith(panelOf(['painel']), ['painel']);
+    expect(hydrate).toHaveBeenCalledWith(panelOf(['painel']), ['painel'], true);
+  });
+
+  it('espera a preferência pessoal chegar, e não decide pelo padrão do escritório antes dela', () => {
+    state.settingsLoaded = false;
+    state.saved = panelOf(['painel']);
+    const { rerender } = renderHook(() => useWorkspaceShellViewModel());
+    expect(hydrate).not.toHaveBeenCalled();
+    state.settingsLoaded = true;
+    state.restoreTabs = false;
+    rerender();
+    expect(hydrate).toHaveBeenCalledWith(null, ['painel', 'caixa'], false);
+  });
+
+  it('desligado: não reabre nem grava, apaga o guardado e abre as telas iniciais', () => {
+    state.restoreTabs = false;
+    state.saved = panelOf(['dyn:x']);
+    renderHook(() => useWorkspaceShellViewModel());
+    expect(setPersist).toHaveBeenCalledWith(false);
+    expect(hydrate).toHaveBeenCalledWith(null, ['painel', 'caixa'], false);
+  });
+
+  it('mudar a escolha com o escritório aberto liga ou desliga a gravação na hora', () => {
+    const { rerender } = renderHook(() => useWorkspaceShellViewModel());
+    setPersist.mockClear();
+    state.restoreTabs = false;
+    rerender();
+    expect(setPersist).toHaveBeenLastCalledWith(false);
+    state.restoreTabs = true;
+    rerender();
+    expect(setPersist).toHaveBeenLastCalledWith(true);
   });
 
   it('decidida a abertura, não decide de novo', () => {

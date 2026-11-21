@@ -38,7 +38,7 @@ export const coreRecordsPlugin: PluginRecord = {
       messageBundleContribution(coreMessage('core.records', CORE_RECORDS_MESSAGES)),
       page({ key: 'screen-builder', title: '@core.records/page.screen-builder', icon: 'layoutGrid' }, 'ScreenBuilderView'),
       page({ key: '', keyPrefix: 'dyn:', title: '@core.records/page.dynamic-list', icon: 'layoutGrid' }, 'DynamicRecordListView'),
-      page({ key: '', keyPrefix: 'new-dyn:', title: '@core.records/page.dynamic-new', icon: 'layoutGrid' }, 'ViewDynamicRecordView'),
+      page({ key: '', keyPrefix: 'new-dyn:', title: '@core.records/page.dynamic-new', icon: 'layoutGrid', restore: false }, 'ViewDynamicRecordView'),
       page({ key: '', keyPrefix: 'view-dyn:', title: '@core.records/page.dynamic-record', icon: 'layoutGrid' }, 'ViewDynamicRecordView'),
       command('dynamic-record', { group: '@core.records/command.group' }, 'DynamicRecordCommandProvider'),
       nav({ key: 'screen-builder', label: '@core.records/page.screen-builder', icon: 'layoutGrid', order: 102, group: CUSTOMIZATION_NAV_GROUP, requiredPermissions: [PERMISSION_SCREENS_MANAGE] }),

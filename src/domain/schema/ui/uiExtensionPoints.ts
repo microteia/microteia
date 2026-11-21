@@ -15,6 +15,12 @@ export const UI_API_VERSION = '1.0.0';
 export const DYNAMIC_SCREEN_NAV_ORDER = 100;
 
 /**
+ * Reabrir, na entrada, as abas da sessão anterior naquele escritório (#15). Escopos `tenant` e `user`:
+ * o escritório escolhe o padrão, e a pessoa decide o dela — ela é quem sabe se aquele aparelho é só seu.
+ */
+export const WORKSPACE_RESTORE_TABS_SETTING = 'workspace.restoreTabs';
+
+/**
  * Uma aba do workspace. `key` casa exatamente; `keyPrefix` casa por prefixo (abas paramétricas
  * como `view-person:123`). O `icon` é uma chave do conjunto curado de `screenIcons` — nunca um
  * componente, para que a metadata continue serializável e viaje até o Marketplace.
@@ -36,6 +42,16 @@ export interface UiPageMetadata {
    * uma a sua tela inicial não podem se anular em silêncio (#14).
    */
   home?: boolean;
+  /**
+   * `false` = a aba desta página NÃO volta quando o escritório reabre a sessão anterior (#15).
+   * Ausente = volta.
+   *
+   * É para a aba TRANSITÓRIA — o formulário de um registro novo, um clone, um editor aberto a partir de
+   * outra tela —, que reaberta vazia só confunde. É declaração da página, e não lista de prefixos no
+   * kernel, porque o kernel não sabe que aba é transitória: a decisão casa a aba com a página pelo
+   * mesmo `key`/`keyPrefix` que a desenha e lê este campo dela.
+   */
+  restore?: boolean;
 /**
  * As PERMISSÕES exigidas para esta contribuição aparecer. Ausente = aparece para todo membro.
  *
