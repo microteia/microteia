@@ -27,7 +27,7 @@ export type WorkspaceAction =
   | { type: 'UPDATE_SPLIT_RATIO'; splitId: string; ratio: number }
   | { type: 'SET_TAB_TITLE'; key: string; title: string };
 
-const findPanelForTab = (key: string, panels: Record<string, WorkspacePanel>): string | null => {
+export const findPanelForTab = (key: string, panels: Record<string, WorkspacePanel>): string | null => {
   for (const [id, panel] of Object.entries(panels)) {
     if (panel.tabKeys.includes(key)) return id;
   }
@@ -43,7 +43,7 @@ const replacePanelInLayout = (node: PanelNode, targetId: string, replacement: Pa
   };
 };
 
-const removePanelFromLayout = (node: PanelNode, targetId: string): PanelNode | null => {
+export const removePanelFromLayout = (node: PanelNode, targetId: string): PanelNode | null => {
   if (node.type === 'panel') return node.panelId === targetId ? null : node;
   if (node.first.type === 'panel' && node.first.panelId === targetId) return node.second;
   if (node.second.type === 'panel' && node.second.panelId === targetId) return node.first;
@@ -230,4 +230,83 @@ export const initialWorkspaceState: WorkspaceState = {
   layout: { type: 'panel', panelId: ROOT_PANEL_ID },
   activePanelId: ROOT_PANEL_ID,
   tabTitleOverrides: {},
+};
+
+/** O que sobrevive à sessão: abas, divisões e foco. Os títulos ficam de fora — são dado do escritório. */
+export type WorkspaceSnapshot = Pick<WorkspaceState, 'panels' | 'layout' | 'activePanelId'>;
+
+const openTabKeysOf = (state: WorkspaceState): string[] => Object.values(state.panels).flatMap((panel) => panel.tabKeys);
+
+/**
+ * A abertura do espaço de trabalho ao entrar no escritório (#15): o que ficou da última sessão, ou as
+ * telas iniciais (#14) quando não há nada a reabrir. O que JÁ está aberto veio de um link (push, e-mail)
+ * aberto antes da decisão — ele entra junto e mantém o foco, em vez de ser engolido pela restauração.
+ */
+export const hydrateWorkspace = (
+  state: WorkspaceState,
+  snapshot: WorkspaceSnapshot | null,
+  homeKeys: string[],
+): WorkspaceState => {
+  const openKeys = openTabKeysOf(state);
+  if (!snapshot) return openKeys.length === 0 ? workspaceReducer(state, { type: 'OPEN_TABS', keys: homeKeys }) : state;
+  const focusKey = state.panels[state.activePanelId]?.activeTabKey ?? null;
+  const restored: WorkspaceState = { ...snapshot, tabTitleOverrides: state.tabTitleOverrides };
+  const merged = workspaceReducer(restored, { type: 'OPEN_TABS', keys: openKeys });
+  return focusKey ? workspaceReducer(merged, { type: 'OPEN_TAB', key: focusKey }) : merged;
+};
+
+/**
+ * O espaço de trabalho é de UMA pessoa num escritório (`scope` = `<uid>:<tenantId>`). Trocar de
+ * escritório zera tudo na hora — antes, as abas de um ficavam abertas no outro, apontando para telas
+ * e registros que lá não existem.
+ *
+ * `hydrated` diz que a abertura já foi decidida: até lá nada é gravado, para que o espaço vazio da
+ * entrada não sobrescreva a sessão que ainda vai ser lida. `persist` é a escolha da pessoa.
+ */
+export interface WorkspaceSessionState {
+  scope: string | null;
+  hydrated: boolean;
+  persist: boolean;
+  workspace: WorkspaceState;
+}
+
+export type WorkspaceSessionAction = { scope: string | null } & (
+  | WorkspaceAction
+  | { type: 'HYDRATE'; snapshot: WorkspaceSnapshot | null; homeKeys: string[]; persist: boolean }
+  | { type: 'SET_PERSIST'; persist: boolean }
+);
+
+export const emptyWorkspaceSession = (scope: string | null): WorkspaceSessionState => ({
+  scope,
+  hydrated: false,
+  persist: false,
+  workspace: initialWorkspaceState,
+});
+
+/**
+ * Toda ação carrega o escopo de quem a disparou. Uma ação de outro escopo começa de um espaço vazio —
+ * é assim que a troca de escritório zera o estado sem efeito nem `dispatch` durante o render, e sem
+ * que um link aberto logo após a troca seja apagado por um reset que chegasse depois dele.
+ */
+export const workspaceSessionReducer = (
+  current: WorkspaceSessionState,
+  action: WorkspaceSessionAction,
+): WorkspaceSessionState => {
+  const session = current.scope === action.scope ? current : emptyWorkspaceSession(action.scope);
+  switch (action.type) {
+    case 'HYDRATE':
+      if (session.hydrated) return session;
+      return {
+        ...session,
+        hydrated: true,
+        persist: action.persist,
+        workspace: hydrateWorkspace(session.workspace, action.snapshot, action.homeKeys),
+      };
+    case 'SET_PERSIST':
+      return session.persist === action.persist ? session : { ...session, persist: action.persist };
+    default: {
+      const workspace = workspaceReducer(session.workspace, action);
+      return workspace === session.workspace && session === current ? current : { ...session, workspace };
+    }
+  }
 };

@@ -18,6 +18,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.292.0] — 2026-11-20
+
+- feat(workspace): entering an organization (sign-in or switch) reopens the tabs left open there last time — per panel, with splits and focus (#15). The session is kept on the device (`localStorage`, `microteia:workspace:<uid>:<tenantId>`), as tab KEYS only: titles carry organization data and are rebuilt by each page. With nothing to restore, the `home` pages open (#14). Decided once per entry by `WorkspaceShell`, applied by `WorkspaceStore.hydrate`; saving starts only after that decision, so the empty entry state never overwrites the session about to be read.
+- feat(workspace): a saved tab comes back only if some `ui.page` still resolves it and the person may see it (`isRestorableTab`, metadata only — no extension code is evaluated). At most 15 tabs (`MAX_RESTORED_TABS`), each panel's active tab first; a panel left empty collapses; an incoherent or other-version session is discarded whole. A link opened before the decision is merged in and keeps the focus.
+- fix(workspace): switching organizations did not reset the workspace — the previous organization's tabs stayed open, pointing at screens and records that do not exist in the new one. The workspace state now has an owner (`scope` = `<uid>:<tenantId>`); every action carries its dispatcher's scope, and an action from another scope starts from an empty workspace (`workspaceSessionReducer`). No reset effect: a provider effect runs after its children's and would wipe the link `WorkspaceShell` had just opened.
+
 #### [9.291.0] — 2026-11-20
 
 - feat(ui.page): every page declaring `home: true` opens on entering the workspace, in load order, with the first one focused (#14). It used to be `.find()`: a second extension bringing its own start page was ignored with no warning. `homePageKey` became `homePageKeys`; the workspace gained `openTabs(keys)`, which focuses the FIRST key (successive `openTab` calls would focus the last). With a single home page nothing changes. `KERNEL_VERSION` goes to `2.142.0` (the same field now means something else).

@@ -10617,6 +10617,30 @@ escritório (ou acesso irrestrito): antes dele, `canAny` diz não a tudo. O últ
 no `isLoading` da autorização, porque uma falha na leitura dos membros deixaria todo consumidor dela
 esperando para sempre — aqui, o pior caso é não abrir a tela inicial.
 
+**O escritório reabre como a pessoa o deixou (#15).** A abertura deixou de ser "telas iniciais" e
+passou a ser uma decisão só, por entrada (login ou troca): a sessão da última vez naquele escritório,
+ou, sem ela, as telas iniciais. Quem decide é o `WorkspaceShell` (o filtro depende de contribuições e de
+autorização, que o store não conhece); quem aplica é o `WorkspaceStore` (`hydrate`).
+
+| Decisão | Por quê |
+|---|---|
+| Guardada **no aparelho** (`localStorage`, `microteia:workspace:<uid>:<tenantId>`) | É conveniência de quem senta naquela máquina. No Firestore, cada troca de aba seria uma escrita, com regra e teste de regra para isso |
+| Guarda **chaves**, divisões e foco — **nunca o título** | O título de uma aba de registro é dado do escritório; a página o recompõe ao montar |
+| Gravada só **depois** da abertura decidida (`hydrated`) | O espaço vazio da entrada sobrescreveria a sessão que ainda vai ser lida |
+| A aba volta só se **alguma página ainda a desenha e a pessoa pode vê-la** (`isRestorableTab`) | Extensão desinstalada, permissão retirada. Resolve só a metadata: decidir não avalia código de extensão. Registro apagado fica com a própria página, como num link |
+| No máximo **15 abas** (`MAX_RESTORED_TABS`), a ativa de cada painel primeiro | Todas as abas montam juntas; sem teto, cada aba guardada seria uma leitura na entrada |
+| Painel que ficou vazio **fecha** | Reaproveita `removePanelFromLayout`; sem nenhuma aba, não há sessão e abrem as telas iniciais |
+| Um **link** aberto antes da decisão entra junto e fica em foco | O push ou o e-mail é o motivo da entrada; a restauração não pode engoli-lo |
+| Sessão **incoerente** (árvore × painéis, versão) é descartada inteira | Outra versão do app ou outra aba do navegador pode ter escrito ali; entrar pelas telas iniciais é melhor que num layout quebrado |
+
+**A troca de escritório zera o espaço — antes, não zerava.** O `WorkspaceStoreProvider` não era
+remontado nem limpo no `selectTenant`: as abas de um escritório continuavam abertas no outro, apontando
+para telas e registros que lá não existem. Hoje o estado tem dono (`scope` = `<uid>:<tenantId>`) e toda
+ação leva o escopo de quem a disparou: a de outro escopo começa de um espaço vazio
+(`workspaceSessionReducer`), e até ela chegar o provider desenha o vazio do novo escopo. Não há efeito de
+reset nem `dispatch` no render — um efeito do provider rodaria DEPOIS dos efeitos dos filhos e apagaria o
+link que o `WorkspaceShell` acabou de abrir no escritório novo.
+
 **A primitiva de gráfico ficou; o gráfico de prazos foi junto com Prazos.** `DeadlineCharts` sabia o
 que era vencimento, conclusão e prioridade — conhecimento de domínio dentro de `components/ui/`. Foi
 substituído por `TimeSeriesChart`/`DonutChart` (`components/ui/Chart/`), que recebem séries prontas

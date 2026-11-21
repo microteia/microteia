@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { WorkspaceSnapshot } from './workspaceReducer';
 
 export type SplitDirection = 'horizontal' | 'vertical';
 
@@ -24,6 +25,8 @@ export interface WorkspaceContextValue {
   layout: PanelNode;
   activePanelId: string;
   tabTitleOverrides: Record<string, string>;
+  /** A abertura deste escritório já foi decidida (sessão restaurada ou telas iniciais) — ver `hydrate`. */
+  hydrated: boolean;
   openTab: (key: string) => void;
   /**
    * Abre várias abas de uma vez e ativa a PRIMEIRA. Existe porque `openTab` em sequência ativaria a
@@ -38,6 +41,14 @@ export interface WorkspaceContextValue {
   splitPanel: (panelId: string, direction: SplitDirection) => void;
   updateSplitRatio: (splitId: string, ratio: number) => void;
   setTabTitle: (key: string, title: string) => void;
+  /** A sessão guardada da última vez neste escritório, já validada — ainda sem o filtro de permissão. */
+  loadSavedSession: () => WorkspaceSnapshot | null;
+  /**
+   * Decide a abertura do escritório, uma vez por entrada: reabre `snapshot` ou, sem ele, abre `homeKeys`.
+   * O filtro (página que sumiu, que deixou de ser permitida) é de quem chama, porque depende das
+   * contribuições e da autorização, que este store não conhece.
+   */
+  hydrate: (snapshot: WorkspaceSnapshot | null, homeKeys: string[]) => void;
 }
 
 export const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);

@@ -74,6 +74,24 @@ export const homePageKeys = (
   ),
 ];
 
+/**
+ * A aba guardada de outra sessão pode voltar? Só se ainda há página que a desenhe (a extensão pode ter
+ * saído) e se esta pessoa ainda pode vê-la (#15). O registro apagado ou sem leitura fica com a própria
+ * página, como num link. Resolve só a METADATA: decidir não exige avaliar o código de extensão nenhuma.
+ */
+export const isRestorableTab = (
+  contributions: QualifiedContribution[],
+  tabKey: string,
+  canAny: CanAny,
+  isSystemAdmin: boolean,
+): boolean => {
+  const contribution = resolvePageContribution(contributions, tabKey);
+  if (!contribution) return false;
+  const metadata = pageMetadataOf(contribution);
+  if (metadata.requiresSystemAdmin && !isSystemAdmin) return false;
+  return isPermitted(canAny, metadata.requiredPermissions);
+};
+
 export const visibleNavItems = (
   contributions: QualifiedContribution[],
   canAny: CanAny,

@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.292.0] — 2026-11-20
+
+- Ao entrar num escritório, as abas que estavam abertas da última vez voltam sozinhas, inclusive os registros, as divisões de tela e a aba em destaque. Na primeira entrada, ou se tudo tiver sido fechado, abrem as telas iniciais.
+- Trocar de escritório agora leva às abas daquele escritório. Antes, as abas do escritório anterior continuavam abertas no novo.
+- Um aviso aberto por e-mail ou notificação ao entrar continua em destaque, junto das abas reabertas.
+
 #### [9.291.0] — 2026-11-20
 
 - Quando mais de uma extensão traz a própria tela inicial, todas passam a abrir ao entrar no escritório, com a primeira em destaque. Antes, só uma delas aparecia.

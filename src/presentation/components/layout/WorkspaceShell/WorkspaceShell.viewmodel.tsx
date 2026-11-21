@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useWorkspace } from '../../../../stores/useWorkspace';
 import { useAuth } from '../../../../stores/useAuth';
@@ -7,7 +7,8 @@ import { useTenant } from '../../../../stores/useTenant';
 import { PORTAL_PATH } from '../../../pages/Portal/portalPaths';
 import { parseDeepLink, parseDeepLinkFromPath } from '../../../../infrastructure/deeplink/deepLinkUtils';
 import { usePageContributions } from '../../../shared/useUiContributions';
-import { homePageKeys } from '../../../shared/resolveUiContributions';
+import { homePageKeys, isRestorableTab } from '../../../shared/resolveUiContributions';
+import { sanitizeWorkspaceSnapshot } from '../../../../stores/workspaceSession';
 import { useInstalledExtensions } from '../../../../stores/useInstalledExtensions';
 import { useInstalledCodeTrust } from '../../../../stores/useExtensionCodeTrust';
 import { useOpenLink } from '../../../shared/useOpenLink';
@@ -15,7 +16,7 @@ import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { parseRecordLinkTabKey, TENANT_LINK_PARAM } from '../../../../domain/schema/recordLink';
 
 export const useWorkspaceShellViewModel = () => {
-  const { openTabs, panels } = useWorkspace();
+  const { hydrated, hydrate, loadSavedSession } = useWorkspace();
   const openLink = useOpenLink();
   const { isLoaded: screensLoaded } = useScreenDefinitions();
   const { user, userRole } = useAuth();
@@ -25,37 +26,33 @@ export const useWorkspaceShellViewModel = () => {
   const pageContributions = usePageContributions();
   const location = useLocation();
   const navigate = useNavigate();
-  const homeOpenedRef = useRef(false);
   const { portalOnly, currentTenant, availableTenants, selectTenant, members } = useTenant();
 
   useEffect(() => {
     if (portalOnly) navigate(PORTAL_PATH, { replace: true });
   }, [portalOnly, navigate]);
 
+  const isSystemAdmin = userRole === 'SYSTEM';
   const homeKeys = useMemo(
-    () => homePageKeys(pageContributions, canAny, userRole === 'SYSTEM'),
-    [pageContributions, canAny, userRole],
+    () => homePageKeys(pageContributions, canAny, isSystemAdmin),
+    [pageContributions, canAny, isSystemAdmin],
   );
   // As permissões só respondem de verdade quando o documento de membro DESTE escritório chegou: até lá
-  // `canAny` diz não, e uma tela inicial restrita seria pulada para sempre. As páginas de extensão só
-  // existem depois da lista instalada e da confiança de código (o hash é assíncrono).
+  // `canAny` diz não, e uma tela restrita seria pulada para sempre. As páginas de extensão só existem
+  // depois da lista instalada e da confiança de código (o hash é assíncrono).
   const memberLoaded = isUnrestricted || members.some(
     (member) => member.tenantId === currentTenant?.id && member.userId === user?.id,
   );
-  const homeReady = extensionsLoaded && codeTrustReady && !authorizationLoading && memberLoaded;
-  const isWorkspaceEmpty = useMemo(
-    () => Object.values(panels).every((panel) => panel.tabKeys.length === 0),
-    [panels],
-  );
+  const openingReady = extensionsLoaded && codeTrustReady && !authorizationLoading && memberLoaded;
 
-  // As telas iniciais são decididas uma vez só, quando tudo que as declara ou as restringe já chegou —
-  // decidir com metade das extensões abriria metade delas. Só entram num espaço de trabalho ainda vazio,
-  // para não roubar o foco de um deep link, e fechar todas as abas depois não as reabre.
+  // A abertura do escritório é decidida uma vez por entrada (login ou troca), quando tudo que a muda já
+  // chegou: a sessão da última vez, filtrada pelo que ainda existe e é permitido, ou as telas iniciais.
+  // Um link aberto antes entra junto e mantém o foco; fechar todas as abas depois não reabre nada.
   useEffect(() => {
-    if (homeOpenedRef.current || !homeReady) return;
-    homeOpenedRef.current = true;
-    if (isWorkspaceEmpty) openTabs(homeKeys);
-  }, [homeReady, homeKeys, isWorkspaceEmpty, openTabs]);
+    if (hydrated || !openingReady) return;
+    const restorable = (tabKey: string) => isRestorableTab(pageContributions, tabKey, canAny, isSystemAdmin);
+    hydrate(sanitizeWorkspaceSnapshot(loadSavedSession(), restorable), homeKeys);
+  }, [hydrated, openingReady, pageContributions, canAny, isSystemAdmin, homeKeys, hydrate, loadSavedSession]);
 
   // O link pode trazer o ESCRITÓRIO (`?tenant=`): o push e o e-mail de um escritório não podem abrir
   // o registro no outro. E um link de registro espera as telas carregarem — é por elas que se sabe

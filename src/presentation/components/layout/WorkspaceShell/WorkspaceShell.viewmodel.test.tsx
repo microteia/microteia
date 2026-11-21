@@ -12,10 +12,11 @@ const state = {
   authorizationLoading: false,
   canAny: (() => true) as (permissions: string[]) => boolean,
   pages: [] as unknown[],
-  panels: {} as Record<string, { tabKeys: string[] }>,
+  hydrated: false,
+  saved: null as unknown,
 };
 const openLink = vi.fn();
-const openTabs = vi.fn();
+const hydrate = vi.fn<(snapshot: unknown, homeKeys: string[]) => void>(() => { state.hydrated = true; });
 const navigate = vi.fn();
 const selectTenant = vi.fn(async () => undefined);
 
@@ -23,7 +24,9 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => navigate,
   useLocation: () => ({ pathname: window.location.pathname, search: window.location.search }),
 }));
-vi.mock('../../../../stores/useWorkspace', () => ({ useWorkspace: () => ({ openTabs, panels: state.panels }) }));
+vi.mock('../../../../stores/useWorkspace', () => ({
+  useWorkspace: () => ({ hydrated: state.hydrated, hydrate, loadSavedSession: () => state.saved }),
+}));
 vi.mock('../../../../stores/useAuth', () => ({ useAuth: () => ({ user: { id: 'u1' }, userRole: 'USER' }) }));
 vi.mock('../../../../stores/useAuthorization', () => ({
   useAuthorization: () => ({ canAny: state.canAny, isLoading: state.authorizationLoading, isUnrestricted: false }),
@@ -91,9 +94,15 @@ const homePage = (key: string, extra: Record<string, unknown> = {}) => ({
   metadata: { key, title: key, icon: 'apps', home: true, ...extra },
 });
 
-describe('as telas iniciais (#14)', () => {
+const panelOf = (tabKeys: string[]) => ({
+  panels: { root: { id: 'root', tabKeys, activeTabKey: tabKeys[0] ?? null } },
+  layout: { type: 'panel', panelId: 'root' },
+  activePanelId: 'root',
+});
+
+describe('a abertura do escritório: telas iniciais (#14) e sessão restaurada (#15)', () => {
   beforeEach(() => {
-    openTabs.mockClear();
+    hydrate.mockClear();
     visit('/app');
     state.currentTenant = { id: 't1' };
     state.members = [{ tenantId: 't1', userId: 'u1' }];
@@ -101,14 +110,15 @@ describe('as telas iniciais (#14)', () => {
     state.codeTrustReady = true;
     state.authorizationLoading = false;
     state.canAny = () => true;
-    state.panels = {};
+    state.hydrated = false;
+    state.saved = null;
     state.pages = [homePage('painel'), homePage('caixa')];
   });
 
-  it('abre TODAS as páginas declaradas como iniciais, de uma vez', () => {
+  it('sem sessão guardada, decide pelas telas iniciais — todas, de uma vez', () => {
     renderHook(() => useWorkspaceShellViewModel());
-    expect(openTabs).toHaveBeenCalledTimes(1);
-    expect(openTabs).toHaveBeenCalledWith(['painel', 'caixa']);
+    expect(hydrate).toHaveBeenCalledTimes(1);
+    expect(hydrate).toHaveBeenCalledWith(null, ['painel', 'caixa']);
   });
 
   it('espera extensões, confiança de código, autorização e o membro deste escritório', () => {
@@ -124,11 +134,11 @@ describe('as telas iniciais (#14)', () => {
     ]) {
       step();
       rerender();
-      expect(openTabs).not.toHaveBeenCalled();
+      expect(hydrate).not.toHaveBeenCalled();
     }
     state.members = [{ tenantId: 't1', userId: 'u1' }];
     rerender();
-    expect(openTabs).toHaveBeenCalledWith(['painel', 'caixa']);
+    expect(hydrate).toHaveBeenCalledWith(null, ['painel', 'caixa']);
   });
 
   it('a tela inicial restrita não é pulada enquanto as permissões carregam', () => {
@@ -139,19 +149,20 @@ describe('as telas iniciais (#14)', () => {
     state.authorizationLoading = false;
     state.canAny = () => true;
     rerender();
-    expect(openTabs).toHaveBeenCalledWith(['restrita', 'livre']);
+    expect(hydrate).toHaveBeenCalledWith(null, ['restrita', 'livre']);
   });
 
-  it('não entra num espaço de trabalho que já tem aba (um deep link chegou antes)', () => {
-    state.panels = { root: { tabKeys: ['downloads'] } };
+  it('reabre a sessão guardada, sem a aba cuja página sumiu ou deixou de ser permitida', () => {
+    state.pages = [homePage('painel'), homePage('restrita', { home: false, requiredPermissions: ['x.read'] })];
+    state.canAny = (permissions) => !permissions.includes('x.read');
+    state.saved = panelOf(['painel', 'restrita', 'extensao-removida']);
     renderHook(() => useWorkspaceShellViewModel());
-    expect(openTabs).not.toHaveBeenCalled();
+    expect(hydrate).toHaveBeenCalledWith(panelOf(['painel']), ['painel']);
   });
 
-  it('é decidida uma vez só: esvaziar o espaço depois não reabre', () => {
+  it('decidida a abertura, não decide de novo', () => {
     const { rerender } = renderHook(() => useWorkspaceShellViewModel());
-    state.panels = { root: { tabKeys: [] } };
     rerender();
-    expect(openTabs).toHaveBeenCalledTimes(1);
+    expect(hydrate).toHaveBeenCalledTimes(1);
   });
 });
