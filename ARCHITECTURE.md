@@ -10641,6 +10641,23 @@ ação leva o escopo de quem a disparou: a de outro escopo começa de um espaço
 reset nem `dispatch` no render — um efeito do provider rodaria DEPOIS dos efeitos dos filhos e apagaria o
 link que o `WorkspaceShell` acabou de abrir no escritório novo.
 
+**A aba transitória se declara (`restore: false`).** O formulário de um registro novo, um clone, o
+editor de um passo aberto a partir do workflow: reabertos vazios, só confundem. O kernel não lista
+prefixos — ele não sabe que aba é transitória. Quem sabe é a página que desenha a aba, e por isso o
+campo mora no `ui.page`: `isRestorableTab` casa a aba guardada com a página pelo mesmo `key`/`keyPrefix`
+de `resolvePageContribution` e lê `restore` dela. As do kernel estão escritas em `kernelPages.test.ts`
+(`new-dyn:`, `new-workflow`, `new-workflow:clone:`, `new-script`, `new-action`, `edit-workflow-step:`,
+`report-design` sem sufixo); uma extensão marca as dela do mesmo jeito.
+
+**Desligar é escolha da pessoa (`workspace.restoreTabs`).** Configuração declarada por `core.workspace`
+(`settingsSection`), `boolean`, padrão ligado, escopos `tenant` e `user`: o escritório escolhe o padrão e
+a pessoa — que é quem sabe se aquele aparelho é só dela — decide o seu. Desligado, a entrada abre as
+telas iniciais, nada é gravado e o que estava guardado daquele escritório é apagado (`setPersist(false)`).
+Mudar com o escritório aberto vale na hora. A decisão espera os DOIS escopos de configuração
+(`useSettings().allScopesLoaded`): o `isLoading` cai com o primeiro que chega, e decidir pelo padrão do
+escritório enquanto o valor da pessoa está a caminho reabriria as abas de quem desligou. O sinal é
+separado de `isLoading` porque tema e idioma não devem esperar — uma leitura que falhasse os prenderia.
+
 **A primitiva de gráfico ficou; o gráfico de prazos foi junto com Prazos.** `DeadlineCharts` sabia o
 que era vencimento, conclusão e prioridade — conhecimento de domínio dentro de `components/ui/`. Foi
 substituído por `TimeSeriesChart`/`DonutChart` (`components/ui/Chart/`), que recebem séries prontas

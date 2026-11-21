@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.293.0] — 2026-11-21
+
+- feat(ui.page): `restore?: boolean` (#15). `false` keeps a page's tabs out of a reopened session — a *new record* form, a clone, an editor opened from another screen would otherwise come back empty. `isRestorableTab` matches the saved tab to its page by the same `key`/`keyPrefix` that draws it; the kernel never lists prefixes. First-party transient pages (pinned in `kernelPages.test.ts`): `new-dyn:`, `new-workflow`, `new-workflow:clone:`, `new-script`, `new-action`, `edit-workflow-step:`, and `report-design` without a suffix. `KERNEL_VERSION` goes to `2.143.0` (additive).
+- feat(settings): `workspace.restoreTabs` (boolean, default `true`, scopes `tenant` and `user`), declared by `core.workspace`. Off: the entry opens the home pages, nothing is saved, and the organization's saved session is removed from the device; a change while the organization is open applies at once.
+- fix(settings): `useSettings().allScopesLoaded`, new. `isLoading` drops with the first scope to arrive, so a one-shot decision taken on it could follow the organization default while the person's own value was still on its way — reopening the tabs of someone who had turned it off. Kept apart from `isLoading`, which theme and locale wait on and which a failed read would otherwise hold forever.
+- chore(locale-pt-br): `1.240.0`, with the new settings strings.
+
 #### [9.292.0] — 2026-11-20
 
 - feat(workspace): entering an organization (sign-in or switch) reopens the tabs left open there last time — per panel, with splits and focus (#15). The session is kept on the device (`localStorage`, `microteia:workspace:<uid>:<tenantId>`), as tab KEYS only: titles carry organization data and are rebuilt by each page. With nothing to restore, the `home` pages open (#14). Decided once per entry by `WorkspaceShell`, applied by `WorkspaceStore.hydrate`; saving starts only after that decision, so the empty entry state never overwrites the session about to be read.

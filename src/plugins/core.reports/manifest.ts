@@ -60,6 +60,8 @@ export const coreReportsPlugin: PluginRecord = {
           title: '@core.reports/page.design',
           icon: 'fileList2',
           requiredPermissions: [PERMISSION_REPORTS_MANAGE, PERMISSION_REPORTS_PERSONAL],
+          // Sem sufixo, a autoria cria um relatório NOVO: reaberta, seria um formulário vazio.
+          restore: false,
         },
         'ReportDesignView',
       ),

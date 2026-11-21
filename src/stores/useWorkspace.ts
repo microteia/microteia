@@ -45,10 +45,13 @@ export interface WorkspaceContextValue {
   loadSavedSession: () => WorkspaceSnapshot | null;
   /**
    * Decide a abertura do escritório, uma vez por entrada: reabre `snapshot` ou, sem ele, abre `homeKeys`.
+   * `persist` diz se a sessão passa a ser gravada a partir daí (a escolha da pessoa, #15).
    * O filtro (página que sumiu, que deixou de ser permitida) é de quem chama, porque depende das
    * contribuições e da autorização, que este store não conhece.
    */
-  hydrate: (snapshot: WorkspaceSnapshot | null, homeKeys: string[]) => void;
+  hydrate: (snapshot: WorkspaceSnapshot | null, homeKeys: string[], persist: boolean) => void;
+  /** Liga ou desliga a gravação da sessão neste escritório; desligar apaga o que estava guardado. */
+  setPersist: (persist: boolean) => void;
 }
 
 export const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);

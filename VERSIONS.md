@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.293.0] — 2026-11-21
+
+- Nas Configurações, a nova seção "Espaço de trabalho" permite desligar a reabertura das abas. O escritório escolhe o padrão, e cada pessoa decide o seu. Desligada, nada fica guardado no aparelho.
+- Formulários de cadastro novo, cópias e editores abertos a partir de outra tela não voltam mais vazios quando as abas da última sessão são reabertas.
+
 #### [9.292.0] — 2026-11-20
 
 - Ao entrar num escritório, as abas que estavam abertas da última vez voltam sozinhas, inclusive os registros, as divisões de tela e a aba em destaque. Na primeira entrada, ou se tudo tiver sido fechado, abrem as telas iniciais.

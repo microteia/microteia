@@ -1885,6 +1885,12 @@ Two things follow from the same wiring:
   organization is entered and nothing else is open. The platform names no start page of its own: with
   none declared, the workspace starts with no tab. If several are declared, every one the person may
   see opens, in load order, and the first one is focused.
+- **\`restore: false\`** keeps the page's tabs out of a reopened session. Entering an organization
+  reopens the tabs left open there last time; a tab that only makes sense in the gesture that opened it
+  — a *new record* form, a clone, an editor launched from another screen — would come back empty. The
+  platform matches the saved tab to your page by the same \`key\`/\`keyPrefix\` that draws it, so
+  \`page({ key: '', keyPrefix: 'invoice-new:', title, icon, restore: false }, 'invoice-new')\` covers
+  every \`invoice-new:…\` tab. Absent, the tab comes back.
 - **\`nav().badge\`** counts records without any code: \`badge: { collection: 'invoices', when: 'status
   == "open"' }\`. The expression sees each record's fields plus \`user\` (§9), which is what lets a badge
   count what *this* person has not dealt with. Give the entry the same slice as a \`filter\` (above, "The

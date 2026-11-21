@@ -10,6 +10,13 @@ import type { SettingsScope, SettingsValues, SettingsValuesByScope } from '../do
 export interface SettingsContextValue {
   values: SettingsValuesByScope;
   isLoading: boolean;
+  /**
+   * Os DOIS escopos já chegaram. `isLoading` cai com o primeiro: quem precisa da preferência PESSOAL
+   * antes de agir uma vez só (reabrir ou não as abas, #15) não pode decidir pelo padrão do escritório
+   * enquanto o valor da pessoa ainda está a caminho. Separado de `isLoading` porque tema e idioma não
+   * devem esperar — uma leitura que falhasse os deixaria presos.
+   */
+  allScopesLoaded: boolean;
   /** O usuário pode gravar no escopo do escritório (é administrador do tenant). */
   setValue: (scope: SettingsScope, key: string, value: unknown) => Promise<void>;
   /** Remove a chave daquele escopo, fazendo o valor voltar a ser herdado. */

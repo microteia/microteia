@@ -1,5 +1,11 @@
 export const CORE_WORKSPACE: Record<string, string> = {
   'page.profile': 'Meu Perfil',
+
+  'settings.section.title': 'Espaço de trabalho',
+  'settings.section.description': 'Como o espaço de trabalho abre quando você entra no escritório.',
+  'settings.restore-tabs.label': 'Reabrir as abas da última sessão',
+  'settings.restore-tabs.description':
+    'Ao entrar no escritório, voltam as abas que ficaram abertas da última vez neste aparelho. Desligado, nada fica guardado no aparelho e abrem as telas iniciais.',
   'action.back': 'Voltar',
 
   'login.tagline':

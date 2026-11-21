@@ -9,7 +9,7 @@ import {
   type WorkspaceAction,
   type WorkspaceSnapshot,
 } from './workspaceReducer';
-import { loadWorkspaceSession, saveWorkspaceSession, workspaceSessionScope } from './workspaceSession';
+import { clearWorkspaceSession, loadWorkspaceSession, saveWorkspaceSession, workspaceSessionScope } from './workspaceSession';
 
 export const WorkspaceStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
@@ -43,10 +43,16 @@ export const WorkspaceStoreProvider: React.FC<{ children: React.ReactNode }> = (
 
   const loadSavedSession = useCallback(() => (scope ? loadWorkspaceSession(scope) : null), [scope]);
   const hydrate = useCallback(
-    (snapshot: WorkspaceSnapshot | null, homeKeys: string[]) =>
-      dispatch({ type: 'HYDRATE', snapshot, homeKeys, persist: true, scope }),
+    (snapshot: WorkspaceSnapshot | null, homeKeys: string[], persist: boolean) =>
+      dispatch({ type: 'HYDRATE', snapshot, homeKeys, persist, scope }),
     [scope],
   );
+  // Desligar apaga o que já estava guardado: quem desliga está dizendo que aquele aparelho não deve
+  // lembrar das abas dele, e o que ficou de antes contradiria isso.
+  const setPersist = useCallback((persist: boolean) => {
+    dispatch({ type: 'SET_PERSIST', persist, scope });
+    if (!persist && scope) clearWorkspaceSession(scope);
+  }, [scope]);
 
   return (
     <WorkspaceContext.Provider value={{
@@ -67,6 +73,7 @@ export const WorkspaceStoreProvider: React.FC<{ children: React.ReactNode }> = (
       setTabTitle,
       loadSavedSession,
       hydrate,
+      setPersist,
     }}>
       {children}
     </WorkspaceContext.Provider>

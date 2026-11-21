@@ -93,3 +93,13 @@ describe('workspaceSessionReducer — o espaço é de uma pessoa num escritório
     expect(volta.hydrated).toBe(false);
   });
 });
+
+describe('workspaceSessionReducer — a escolha de gravar (#15)', () => {
+  it('SET_PERSIST liga e desliga sem mexer nas abas', () => {
+    const hidratado = workspaceSessionReducer(emptyWorkspaceSession('u1:t1'), { type: 'HYDRATE', snapshot: null, homeKeys: ['painel'], persist: true, scope: 'u1:t1' });
+    const desligado = workspaceSessionReducer(hidratado, { type: 'SET_PERSIST', persist: false, scope: 'u1:t1' });
+    expect(desligado.persist).toBe(false);
+    expect(desligado.workspace).toBe(hidratado.workspace);
+    expect(workspaceSessionReducer(desligado, { type: 'SET_PERSIST', persist: false, scope: 'u1:t1' })).toBe(desligado);
+  });
+});
