@@ -213,6 +213,32 @@ describe('promptFieldOf', () => {
     expect(filterLiteralOf(asked, 'c1')).toEqual(['c1']);
   });
 
+  it('`id` do próprio registro pergunta com o seletor da coleção do relatório, escolhendo vários (#13)', () => {
+    const asked = promptFieldOf(ctx, 'customers', 'id');
+
+    expect(asked?.type).toBe('reference');
+    expect(asked?.refEntity).toBe('customers');
+    expect(asked?.multi).toBe(true);
+    expect(filterLiteralOf(asked, 'c1,c2')).toEqual(['c1', 'c2']);
+  });
+
+  it('`id` depois de atravessar referências pergunta com o seletor da coleção apontada (#13)', () => {
+    expect(promptFieldOf(ctx, 'orderItems', 'order.id')?.refEntity).toBe('orders');
+    expect(promptFieldOf(ctx, 'orderItems', 'order.customer.id')?.refEntity).toBe('customers');
+  });
+
+  it('um campo declarado com a chave `id` continua vencendo', () => {
+    const comCampoId = {
+      screens: new Map([['codes', { fields: [field({ key: 'id', type: 'text' })] }]]),
+    } as never;
+    expect(promptFieldOf(comCampoId, 'codes', 'id')?.type).toBe('text');
+  });
+
+  it('`id` de coleção sem tela, ou depois de um salto que não é referência, fica sem campo', () => {
+    expect(promptFieldOf(ctx, 'semTela', 'id')).toBeUndefined();
+    expect(promptFieldOf(ctx, 'orderItems', 'amount.id')).toBeUndefined();
+  });
+
   it('caminho que o esquema não descreve fica sem campo, e a tela pede texto', () => {
     expect(promptFieldOf(ctx, 'orderItems', 'order.nada')).toBeUndefined();
     expect(promptFieldOf(ctx, 'orderItems', 'amount.customer')).toBeUndefined();

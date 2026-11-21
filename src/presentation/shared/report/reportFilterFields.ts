@@ -12,22 +12,44 @@ const fieldsOf = (ctx: SchemaContext, collection: string): FieldDefinition[] =>
  * que sabe se `pending` se escreve "Pendente". O salto é feito pelo `refDenormKey` (o nome pelo qual
  * o registro apontado é navegado) ou pela própria chave do campo de referência.
  */
-export const fieldAtPath = (
-  ctx: SchemaContext,
-  table: string,
-  path: string,
-): FieldDefinition | undefined => {
-  const segments = path.split('.').filter(Boolean);
+/** A coleção onde o caminho chega antes do último segmento — `undefined` se um salto não é referência. */
+const collectionBeforeLast = (ctx: SchemaContext, table: string, segments: string[]): string | undefined => {
   let collection = table;
-
   for (let index = 0; index < segments.length - 1; index += 1) {
     const hop = fieldsOf(ctx, collection).find((field) =>
       (field.refDenormKey ?? field.key) === segments[index] || field.key === segments[index]);
     if (!hop?.refEntity) return undefined;
     collection = hop.refEntity;
   }
+  return collection;
+};
 
+export const fieldAtPath = (
+  ctx: SchemaContext,
+  table: string,
+  path: string,
+): FieldDefinition | undefined => {
+  const segments = path.split('.').filter(Boolean);
+  const collection = collectionBeforeLast(ctx, table, segments);
+  if (collection === undefined) return undefined;
   return fieldsOf(ctx, collection).find((field) => field.key === segments[segments.length - 1]);
+};
+
+/**
+ * O PRÓPRIO registro, quando o caminho termina em `id`: uma referência à coleção onde ele chega.
+ *
+ * `id` não é campo declarado — é o endereço do documento —, e a busca nos campos voltava vazia: o
+ * filtro "quais clientes" de um relatório SOBRE clientes caía num texto livre que só aceitava o id
+ * cru, enquanto o mesmo filtro num relatório sobre os filhos (`customer`) ganhava o seletor (#13). O
+ * servidor já filtrava `id` certo; faltava só a forma de perguntar. Um campo declarado com a chave `id`
+ * continua vencendo, e a coleção sem tela não ganha seletor — não haveria o que listar.
+ */
+const recordIdFieldAt = (ctx: SchemaContext, table: string, path: string): FieldDefinition | undefined => {
+  const segments = path.split('.').filter(Boolean);
+  if (segments[segments.length - 1] !== 'id') return undefined;
+  const collection = collectionBeforeLast(ctx, table, segments);
+  if (collection === undefined || !ctx.screens.has(collection)) return undefined;
+  return { key: 'id', label: '', type: 'reference', required: false, order: 0, refEntity: collection, origin: 'design' };
 };
 
 /** Um texto longo é um controle de FORMULÁRIO; num filtro ele é uma linha como outra qualquer. */
@@ -82,7 +104,7 @@ export const promptFieldOf = (
   table: string,
   path: string,
 ): FieldDefinition | undefined => {
-  const field = fieldAtPath(ctx, table, path);
+  const field = fieldAtPath(ctx, table, path) ?? recordIdFieldAt(ctx, table, path);
   return field ? filterFieldOf(field) : undefined;
 };
 

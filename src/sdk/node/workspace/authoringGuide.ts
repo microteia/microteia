@@ -4537,6 +4537,12 @@ organization already knows from the screen the data came from. The path may cros
 report over \`orderItems\`, \`path: 'order.customer'\` asks with the chooser of customers, the same as
 \`path: 'customer'\` on a report over \`orders\`.
 
+To let the reader pick some of the records the report itself reads, point the prompt at \`id\`: on a
+report over \`customers\`, \`{ key: 'customer', path: 'id', op: 'in' }\` asks with the chooser of
+customers, and \`path: 'order.id'\` on a report over \`orderItems\` asks with the chooser of orders.
+It is the way to filter a report over a top-level entity — where \`op: 'latest'\` aggregates live —
+without reporting over its children and adding the same balance once per child.
+
 A reference or an option list is answered as a LIST of the chosen ones, so declare it with
 \`op: 'in'\`. A single value sent to an \`in\` prompt — a \`run-report\` step parameter, an agent's
 \`run_report\` — counts as a list of one.

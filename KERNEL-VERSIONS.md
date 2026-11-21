@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.294.0] — 2026-11-21
+
+- fix(reports): a reader prompt whose `path` ends in `id` is asked with the record chooser of the collection the path ends on — `path: 'id'` on a report over `customers` asks with the chooser of customers, `order.id` with the chooser of orders (#13). `id` is not a declared field, so the field walk returned nothing and the prompt fell back to a text box that only took a raw document id. Only the way of asking changed: the server already filtered `id` (`isDocumentIdPath`, including `eq` with a list) and `validateReportSpec` already accepted the path. A declared field keyed `id` still wins; a collection with no screen gets no chooser. The contract does not change.
+
 #### [9.293.0] — 2026-11-21
 
 - feat(ui.page): `restore?: boolean` (#15). `false` keeps a page's tabs out of a reopened session — a *new record* form, a clone, an editor opened from another screen would otherwise come back empty. `isRestorableTab` matches the saved tab to its page by the same `key`/`keyPrefix` that draws it; the kernel never lists prefixes. First-party transient pages (pinned in `kernelPages.test.ts`): `new-dyn:`, `new-workflow`, `new-workflow:clone:`, `new-script`, `new-action`, `edit-workflow-step:`, and `report-design` without a suffix. `KERNEL_VERSION` goes to `2.143.0` (additive).
