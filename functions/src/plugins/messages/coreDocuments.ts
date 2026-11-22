@@ -234,7 +234,6 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
   'state.outdated': 'Update available',
   'state.outdated.hint': 'The extension changed this template after you customized it. Your copy is still the one in use: restore to get the new version, or keep your copy.',
 
-  'section.content': 'Content',
   'section.datasets.hint': 'Records of another screen linked to this one — the installments of a contract, the items of an order — that the template repeats with {{#each name}}.',
 
   'field.title': 'Name',
@@ -314,11 +313,10 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
   'page.template-design': 'Document template',
   'template.edit': 'Edit',
   'template.not-found': 'This template no longer exists. It may have been deleted, or its extension removed.',
-  'design.settings.show': 'Show settings',
-  'design.settings.hide': 'Hide settings',
   'tab.general': 'General',
   'tab.output': 'Output',
   'tab.data': 'Data',
+  'tab.content': 'Content',
   'tab.issues': '{count} issue(s) to review',
   'section.identity': 'Name and key',
   'section.source': 'Source and format',

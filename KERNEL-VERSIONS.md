@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.297.2] — 2026-11-22
+
+- fix(documents): the template authoring tab moves the editor and the Preview/Reference panel into a fourth tab, Content, side by side at full height. Below the settings tabs they were left a strip of about 250px on smaller viewports. The "collapse settings" toggle and its keys are gone; the Content tab carries the content issue count; an existing template opens on Content, a new one on General. `locale-pt-br` 1.245.0 (#22).
+
 #### [9.297.1] — 2026-11-22
 
 - fix(monaco): JSON code editors had no language service — `MonacoEnvironment.getWorker` takes precedence over each language's `createWorker` and sent the `json` label to the generic `editor.worker`, so validation, completion, folding, symbols and "Format" never worked and the console logged `Missing requestHandler or method: …`. Routing now lives in `monacoWorkerRoute.ts` (`json` → `json.worker`), with a test that fails when a `CodeEditor` language has no worker of its own (#21).

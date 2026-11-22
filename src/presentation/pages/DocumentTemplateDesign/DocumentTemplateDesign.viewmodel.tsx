@@ -39,7 +39,11 @@ import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import { useLabel, useT } from '../../shared/i18n/useT';
 import { useArtifactPrefix } from '../../shared/settings/useArtifactPrefix';
 
-export type TemplateSettingsTab = 'general' | 'output' | 'data';
+/**
+ * As abas da autoria. As três primeiras configuram; a de CONTEÚDO é a bancada — o editor e, ao lado,
+ * a prévia, com a altura inteira. Embaixo das configurações eles ficavam numa faixa estreita (#22).
+ */
+export type TemplateDesignTab = 'general' | 'output' | 'data' | 'content';
 
 /** O painel ao lado do editor: o resultado mesclado, ou a referência da gramática. */
 export type TemplateSidePanel = 'preview' | 'reference';
@@ -50,8 +54,8 @@ export interface TemplateIssueLine {
   isGrammar: boolean;
 }
 
-export interface TemplateSettingsTabItem {
-  key: TemplateSettingsTab;
+export interface TemplateDesignTabItem {
+  key: TemplateDesignTab;
   label: string;
   /** Quantos itens a aba declara — listas ou parâmetros. 0 = sem contador. */
   count: number;
@@ -117,11 +121,9 @@ export interface DocumentTemplateDesignViewModel {
   /** Os parâmetros e o exemplo de um modelo de dados. */
   payload: TemplatePayloadEditor;
 
-  settingsOpen: boolean;
-  toggleSettings: () => void;
-  tabs: TemplateSettingsTabItem[];
-  activeTab: TemplateSettingsTab;
-  setActiveTab: (tab: TemplateSettingsTab) => void;
+  tabs: TemplateDesignTabItem[];
+  activeTab: TemplateDesignTab;
+  setActiveTab: (tab: TemplateDesignTab) => void;
 
   sidePanel: TemplateSidePanel;
   setSidePanel: (panel: TemplateSidePanel) => void;
@@ -164,7 +166,9 @@ export interface DocumentTemplateDesignViewModel {
   confirmRemove: () => Promise<void>;
 }
 
-/** Os campos que cada aba desenha. O que não está em nenhuma aparece sob o editor. */
+type TemplateSettingsTab = Exclude<TemplateDesignTab, 'content'>;
+
+/** Os campos que cada aba de configuração desenha. O que não está em nenhuma é da aba de conteúdo. */
 const TAB_FIELDS: Record<TemplateSettingsTab, readonly string[]> = {
   general: ['title', 'key', 'source', 'collection', 'format'],
   output: ['fileName', 'documentType', 'destination', 'retentionDays'],
@@ -219,8 +223,8 @@ export const useDocumentTemplateDesignViewModel = (tabKey: string): DocumentTemp
   const [isRemoveOpen, setIsRemoveOpen] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [isStarterConfirmOpen, setIsStarterConfirmOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<TemplateSettingsTab>('general');
+  /** O modelo que já existe abre no texto, que é o que se veio mudar; o novo, no nome e na origem. */
+  const [activeTab, setActiveTab] = useState<TemplateDesignTab>(target.mode === 'edit' ? 'content' : 'general');
   const [sidePanel, setSidePanel] = useState<TemplateSidePanel>('preview');
   const [previewTemplate, setPreviewTemplate] = useState<DocumentTemplateSpec | null>(null);
 
@@ -296,21 +300,30 @@ export const useDocumentTemplateDesignViewModel = (tabKey: string): DocumentTemp
   const isPayload = isPayloadTemplate(form);
   const payload = useTemplatePayloadEditor(form, setForm);
 
-  const tabs = useMemo<TemplateSettingsTabItem[]>(
-    () => SETTINGS_TABS.map((tab) => {
-      const own = issues.filter((one) => isFieldOf(one.field, TAB_FIELDS[tab]));
-      const sampleBroken = tab === 'data' && payload.sampleInvalid;
-      return {
-        key: tab,
-        label: t(`tab.${tab}`),
-        count: tab === 'data'
-          ? (isPayload ? payload.parameters.length : (form.datasets ?? []).length)
-          : 0,
-        issueCount: own.length + (sampleBroken ? 1 : 0),
-        hasBlockingIssue: sampleBroken || own.some((one) => !one.isGrammar),
-      };
-    }),
-    [issues, payload.sampleInvalid, payload.parameters.length, isPayload, form.datasets, t],
+  const tabs = useMemo<TemplateDesignTabItem[]>(
+    () => [
+      ...SETTINGS_TABS.map((tab) => {
+        const own = issues.filter((one) => isFieldOf(one.field, TAB_FIELDS[tab]));
+        const sampleBroken = tab === 'data' && payload.sampleInvalid;
+        return {
+          key: tab,
+          label: t(`tab.${tab}`),
+          count: tab === 'data'
+            ? (isPayload ? payload.parameters.length : (form.datasets ?? []).length)
+            : 0,
+          issueCount: own.length + (sampleBroken ? 1 : 0),
+          hasBlockingIssue: sampleBroken || own.some((one) => !one.isGrammar),
+        };
+      }),
+      {
+        key: 'content' as const,
+        label: t('tab.content'),
+        count: 0,
+        issueCount: contentIssues.length,
+        hasBlockingIssue: contentIssues.some((one) => !one.isGrammar),
+      },
+    ],
+    [issues, contentIssues, payload.sampleInvalid, payload.parameters.length, isPayload, form.datasets, t],
   );
 
   const screenOptions = useMemo(
@@ -624,8 +637,6 @@ export const useDocumentTemplateDesignViewModel = (tabKey: string): DocumentTemp
     setSidePanel('preview');
   }, [form]);
 
-  const toggleSettings = useCallback(() => setSettingsOpen((open) => !open), []);
-
   const screenLabel = isPayload
     ? t('source.payload')
     : form.collection ? row?.screenLabel ?? label(getDefinition(form.collection)?.titlePlural ?? form.collection) : null;
@@ -663,8 +674,6 @@ export const useDocumentTemplateDesignViewModel = (tabKey: string): DocumentTemp
     sourceOptions,
     setSource,
     payload,
-    settingsOpen,
-    toggleSettings,
     tabs,
     activeTab,
     setActiveTab,
