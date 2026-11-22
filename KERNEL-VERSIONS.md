@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.297.1] — 2026-11-22
+
+- fix(monaco): JSON code editors had no language service — `MonacoEnvironment.getWorker` takes precedence over each language's `createWorker` and sent the `json` label to the generic `editor.worker`, so validation, completion, folding, symbols and "Format" never worked and the console logged `Missing requestHandler or method: …`. Routing now lives in `monacoWorkerRoute.ts` (`json` → `json.worker`), with a test that fails when a `CodeEditor` language has no worker of its own (#21).
+
 #### [9.297.0] — 2026-11-21
 
 - feat(form-design/portal): visual designer for `portal.template.card` and `portal.template.detail` — `PORTAL_CARD_DESIGNER_VOCABULARY` (no `edit`/`actions`) and `PORTAL_DETAIL_DESIGNER_VOCABULARY`, offering only the fields the design can reach (exposed, minus withheld file fields); `portalTemplateIssues` mapped per surface to nodes and properties, declaration issues stay listed at the bottom of the tab. Tested against the portal DSL like the card vocabulary (#20).

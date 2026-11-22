@@ -2,6 +2,10 @@ import * as monaco from 'monaco-editor';
 import { loader } from '@monaco-editor/react';
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
+import { monacoWorkerKind } from './monacoWorkerRoute';
+
+const WORKERS = { typescript: tsWorker, json: jsonWorker, editor: editorWorker };
 
 let configured = false;
 
@@ -10,8 +14,7 @@ export const setupMonaco = (): void => {
   configured = true;
 
   (self as unknown as { MonacoEnvironment: monaco.Environment }).MonacoEnvironment = {
-    getWorker: (_workerId: string, label: string) =>
-      label === 'typescript' || label === 'javascript' ? new tsWorker() : new editorWorker(),
+    getWorker: (_workerId: string, label: string) => new WORKERS[monacoWorkerKind(label)](),
   };
 
   loader.config({ monaco });
