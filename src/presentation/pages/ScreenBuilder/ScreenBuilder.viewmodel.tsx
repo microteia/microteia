@@ -36,6 +36,7 @@ import {
 } from './components/ScreenCardTemplatePanel/screenCardTemplateForm';
 import type { CardTemplateFormState } from './components/ScreenCardTemplatePanel/screenCardTemplateForm';
 import type { CardTemplatePanelField } from './components/ScreenCardTemplatePanel';
+import type { CardTemplateIssue } from '../../../domain/schema/ui/cardTemplateIssues';
 import { fromListOrderForm, toListOrderForm } from './components/ScreenListOrderPanel/screenListOrderForm';
 import type { ListOrderPanelField } from './components/ScreenListOrderPanel';
 import { listOrderIssues } from '../../../domain/schema/ui/listOrder';
@@ -519,7 +520,14 @@ export interface ScreenBuilderViewModel {
     hasParent: boolean;
     hasDocuments: boolean;
     readOnly: boolean;
+    /** Tudo o que impede gravar — a declaração e os desenhos. */
     issues: string[];
+    /** Só os da declaração: os dos desenhos aparecem no próprio designer, no nó que os causa. */
+    declarationIssues: string[];
+    /** Os campos que o desenho alcança: os expostos, menos os de arquivo retidos. */
+    templateFields: CardTemplatePanelField[];
+    templateCardIssues: CardTemplateIssue[];
+    templateDetailIssues: CardTemplateIssue[];
     /** A coleção da tela — é por ela que a aba mostra o andamento da atualização do portal. */
     collection: string;
   };
@@ -549,8 +557,6 @@ export interface ScreenBuilderViewModel {
   updatePortalTemplate: (patch: Partial<PortalTemplateFormState>) => void;
   setPortalCardCustom: (custom: boolean) => void;
   setPortalDetailCustom: (custom: boolean) => void;
-  resetPortalCardTemplate: () => void;
-  resetPortalDetailTemplate: () => void;
   toggleChildScreen: (childKey: string) => void;
   setChildLinkField: (childKey: string, fieldKey: string) => void;
   iconOptions: SearchSelectOption[];
@@ -1707,18 +1713,23 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       : [];
     // O desenho só alcança o que SAI: o servidor descartaria o resto, e aqui o autor fica sabendo antes.
     const withheld = new Set(current ? portalWithheldFileFields(current) : []);
-    const templateIssues = def && declaration
-      ? portalTemplateFormIssues(
-        screenForm.portal.template,
-        fields
-          .filter((field) => declaration.fields.includes(field.key) && !withheld.has(field.key))
-          .map((field) => ({ key: field.key, type: field.type })),
-      ).map((issue) => {
+    const templateFields = declaration
+      ? fields
+        .filter((field) => declaration.fields.includes(field.key) && !withheld.has(field.key))
+        .map((field) => ({ key: field.key, type: field.type, label: field.label }))
+      : [];
+    // Crus (chave + parâmetros, com o `where`): o designer põe cada um no nó e na propriedade que o
+    // causa. O campo já chega pelo nome que a pessoa conhece, e não pela chave.
+    const rawTemplateIssues = def && declaration
+      ? portalTemplateFormIssues(screenForm.portal.template, templateFields).map((issue) => {
         const params = { ...issue.messageParams };
         if (params.field) params.field = label(fields.find((one) => one.key === params.field)?.label ?? params.field);
-        return label(issue.message, params);
+        return { message: issue.message, messageParams: params };
       })
       : [];
+    const templateIssues = rawTemplateIssues.map((issue) => label(issue.message, issue.messageParams));
+    const onSurface = (surface: 'card' | 'detail') =>
+      rawTemplateIssues.filter((issue) => (issue.messageParams.where ?? '').startsWith(`portal.template.${surface}`));
     // A chave declarada que deixou de servir (saiu da aba Ações, virou comando) continua marcada aqui, com
     // o aviso acima: sem a caixa, não haveria como desmarcá-la.
     const offerable = current ? portalOfferableActions(current, actions) : [];
@@ -1752,6 +1763,10 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       hasDocuments: !!def?.hasDocuments,
       readOnly: def?.managed === true,
       issues: [...issues, ...templateIssues],
+      declarationIssues: issues,
+      templateFields,
+      templateCardIssues: onSurface('card'),
+      templateDetailIssues: onSurface('detail'),
       collection: def ? def.dataCollection || def.id : '',
     };
   }, [screenModal, getDefinitionByKey, definitions, screenForm.portal, screenForm.viewActionIds, actions, label, documentTypes]);
@@ -1872,14 +1887,6 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       ? { detailCustom, detailSource: defaultPortalDetailSource() }
       : { detailCustom },
   ), [updatePortalTemplate, screenForm.portal.template.detailSource]);
-  const resetPortalCardTemplate = useCallback(
-    () => updatePortalTemplate({ cardSource: defaultPortalCardSource() }),
-    [updatePortalTemplate],
-  );
-  const resetPortalDetailTemplate = useCallback(
-    () => updatePortalTemplate({ detailSource: defaultPortalDetailSource() }),
-    [updatePortalTemplate],
-  );
 
   const activeScreenModalTab = useMemo<ScreenModalTab>(
     () => (screenModalTabs.some((tab) => tab.key === screenModalTab)
@@ -3226,8 +3233,6 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     updatePortalTemplate,
     setPortalCardCustom,
     setPortalDetailCustom,
-    resetPortalCardTemplate,
-    resetPortalDetailTemplate,
     toggleChildScreen,
     setChildLinkField,
     iconOptions,

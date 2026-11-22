@@ -5,12 +5,17 @@ import { RadioGroup } from '../../../../components/ui/RadioButton';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
 import { InfoBanner } from '../../../../components/ui/InfoBanner';
 import { Input } from '../../../../components/ui/Input';
-import { Button } from '../../../../components/ui/Button';
-import { CodeEditor } from '../../../../components/ui/CodeEditor';
+import { TemplateSourceEditor } from '../../../../components/ui/TemplateSourceEditor';
+import type { TemplateDesignerField, TemplateDesignerIssue } from '../../../../components/ui/TemplateDesigner';
+import {
+  PORTAL_CARD_DESIGNER_VOCABULARY,
+  PORTAL_DETAIL_DESIGNER_VOCABULARY,
+} from '../../../../shared/templateDesigner/portalDesignerVocabulary';
 import { PortalReprojectionStatus } from '../../../../components/ui/PortalReprojectionStatus';
 import { useT } from '../../../../shared/i18n/useT';
 import { PORTAL_VIEW_REPEAT_MINUTES } from '../../../../../domain/schema/portal';
 import type { PortalFormState, PortalSubjectKind } from './screenPortalForm';
+import { defaultPortalCardSource, defaultPortalDetailSource } from './portalTemplateForm';
 import type { PortalTemplateFormState } from './portalTemplateForm';
 
 export interface ScreenPortalPanelProps {
@@ -31,8 +36,12 @@ export interface ScreenPortalPanelProps {
   hasDocuments: boolean;
   /** Declarado por uma extensão: o escritório vê, e quem muda é ela. */
   readOnly: boolean;
-  /** Já traduzidos. */
+  /** Os da declaração, já traduzidos — os dos desenhos aparecem no designer, no nó que os causa. */
   issues: string[];
+  /** Os campos que o desenho alcança: os expostos, com o rótulo declarativo. */
+  templateFields: readonly TemplateDesignerField[];
+  templateCardIssues: readonly TemplateDesignerIssue[];
+  templateDetailIssues: readonly TemplateDesignerIssue[];
   /** A coleção da tela: o andamento da atualização do portal é o dela. */
   collection: string;
   onToggleEnabled: (enabled: boolean) => void;
@@ -60,8 +69,6 @@ export interface ScreenPortalPanelProps {
   onTemplateChange: (patch: Partial<PortalTemplateFormState>) => void;
   onTemplateCardCustom: (custom: boolean) => void;
   onTemplateDetailCustom: (custom: boolean) => void;
-  onTemplateResetCard: () => void;
-  onTemplateResetDetail: () => void;
 }
 
 /** A aba "Portal" da tela: o que sai do escritório, e para quem. Só desenha o que recebe. */
@@ -390,22 +397,19 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
               disabled={readOnly}
             />
             {form.template.cardCustom && (
-              <>
-                <S.EditorHeader>
-                  <S.Hint>{t('portal-template.card.custom.hint')}</S.Hint>
-                  {!readOnly && (
-                    <Button variant="secondary" size="sm" onClick={props.onTemplateResetCard}>
-                      {t('portal-template.reset')}
-                    </Button>
-                  )}
-                </S.EditorHeader>
-                <CodeEditor
-                  language="json"
-                  value={form.template.cardSource}
-                  onChange={(cardSource) => props.onTemplateChange({ cardSource })}
-                  minHeight="220px"
-                />
-              </>
+              <TemplateSourceEditor
+                testId="portal-card-editor"
+                vocabulary={PORTAL_CARD_DESIGNER_VOCABULARY}
+                source={form.template.cardSource}
+                onSourceChange={(cardSource) => props.onTemplateChange({ cardSource })}
+                defaultSource={defaultPortalCardSource()}
+                resetLabel={t('portal-template.reset')}
+                jsonHint={t('portal-template.card.custom.hint')}
+                issues={props.templateCardIssues}
+                fields={props.templateFields}
+                readOnly={readOnly}
+                jsonMinHeight="220px"
+              />
             )}
 
             <Checkbox
@@ -415,22 +419,18 @@ export const ScreenPortalPanel: React.FC<ScreenPortalPanelProps> = (props) => {
               disabled={readOnly}
             />
             {form.template.detailCustom && (
-              <>
-                <S.EditorHeader>
-                  <S.Hint>{t('portal-template.detail.custom.hint')}</S.Hint>
-                  {!readOnly && (
-                    <Button variant="secondary" size="sm" onClick={props.onTemplateResetDetail}>
-                      {t('portal-template.reset')}
-                    </Button>
-                  )}
-                </S.EditorHeader>
-                <CodeEditor
-                  language="json"
-                  value={form.template.detailSource}
-                  onChange={(detailSource) => props.onTemplateChange({ detailSource })}
-                  minHeight="320px"
-                />
-              </>
+              <TemplateSourceEditor
+                testId="portal-detail-editor"
+                vocabulary={PORTAL_DETAIL_DESIGNER_VOCABULARY}
+                source={form.template.detailSource}
+                onSourceChange={(detailSource) => props.onTemplateChange({ detailSource })}
+                defaultSource={defaultPortalDetailSource()}
+                resetLabel={t('portal-template.reset')}
+                jsonHint={t('portal-template.detail.custom.hint')}
+                issues={props.templateDetailIssues}
+                fields={props.templateFields}
+                readOnly={readOnly}
+              />
             )}
           </S.Section>
 

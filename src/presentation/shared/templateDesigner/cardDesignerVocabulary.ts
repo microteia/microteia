@@ -1,27 +1,26 @@
 import {
   RiApps2Line,
   RiCursorLine,
-  RiDivideLine,
   RiFontSize,
-  RiHeading,
   RiImageCircleLine,
-  RiLayoutColumnLine,
-  RiLayoutRowLine,
   RiListCheck2,
   RiListUnordered,
   RiPriceTag3Line,
-  RiSpace,
-  RiStarSmileLine,
-  RiText,
-  RiInputField,
 } from 'react-icons/ri';
 import {
   CARD_TEMPLATE_MAX_DEPTH,
   CARD_TEMPLATE_MAX_NODES,
   DEFAULT_CARD_BODY,
 } from '../../../domain/schema/ui/cardTemplate';
-import type { TemplateNode } from './templateTree';
-import type { TemplateOption, TemplatePropertySpec, TemplateVocabulary } from './templateVocabulary';
+import type { TemplateVocabulary } from './templateVocabulary';
+import {
+  PLACEMENT_OPTIONS,
+  WIDTH_OPTIONS,
+  enumProperty,
+  fieldNodeOf,
+  hiddenWhenProperty,
+  sharedNodeSpecs,
+} from './templateDesignerParts';
 
 /**
  * O vocabulário do cartão da listagem (`ScreenDefinition.cardTemplate`) para o designer visual.
@@ -31,68 +30,11 @@ import type { TemplateOption, TemplatePropertySpec, TemplateVocabulary } from '.
  * (`defaultValue`) são os que `resolveCardNodes` e o estilo do cartão aplicam quando a chave falta.
  */
 
-const option = (value: string, label: string): TemplateOption => ({ value, label });
-
-const SIZE_OPTIONS = {
-  xs: option('xs', '@core.records/template-designer.option.size.xs'),
-  sm: option('sm', '@core.records/template-designer.option.size.sm'),
-  md: option('md', '@core.records/template-designer.option.size.md'),
-  lg: option('lg', '@core.records/template-designer.option.size.lg'),
-  xl: option('xl', '@core.records/template-designer.option.size.xl'),
-};
-
-const GAP_OPTIONS = [SIZE_OPTIONS.xs, SIZE_OPTIONS.sm, SIZE_OPTIONS.md, SIZE_OPTIONS.lg];
-const WIDTH_OPTIONS = [SIZE_OPTIONS.sm, SIZE_OPTIONS.md, SIZE_OPTIONS.lg];
-const TEXT_SIZE_OPTIONS = [SIZE_OPTIONS.xs, SIZE_OPTIONS.sm, SIZE_OPTIONS.md, SIZE_OPTIONS.lg, SIZE_OPTIONS.xl];
-
-const TONE_OPTIONS = [
-  option('default', '@core.records/template-designer.option.tone.default'),
-  option('muted', '@core.records/template-designer.option.tone.muted'),
-  option('primary', '@core.records/template-designer.option.tone.primary'),
-  option('success', '@core.records/template-designer.option.tone.success'),
-  option('warning', '@core.records/template-designer.option.tone.warning'),
-  option('danger', '@core.records/template-designer.option.tone.danger'),
-];
-
-const ALIGN_OPTIONS = [
-  option('start', '@core.records/template-designer.option.align.start'),
-  option('center', '@core.records/template-designer.option.align.center'),
-  option('end', '@core.records/template-designer.option.align.end'),
-];
-
-const JUSTIFY_OPTIONS = [
-  option('start', '@core.records/template-designer.option.justify.start'),
-  option('between', '@core.records/template-designer.option.justify.between'),
-  option('end', '@core.records/template-designer.option.justify.end'),
-];
-
-const VARIANT_OPTIONS = [
-  option('text', '@core.records/template-designer.option.variant.text'),
-  option('muted', '@core.records/template-designer.option.variant.muted'),
-  option('strong', '@core.records/template-designer.option.variant.strong'),
-  option('badge', '@core.records/template-designer.option.variant.badge'),
-];
-
-const PLACEMENT_OPTIONS = [
-  option('hover', '@core.records/template-designer.option.placement.hover'),
-  option('inline', '@core.records/template-designer.option.placement.inline'),
-];
-
-const HIDDEN_WHEN: TemplatePropertySpec = {
-  kind: 'expression',
-  key: 'hiddenWhen',
-  label: '@core.records/template-designer.property.hidden-when',
-};
-
-const enumProperty = (key: string, label: string, options: readonly TemplateOption[], defaultValue: string): TemplatePropertySpec =>
-  ({ kind: 'enum', key, label, options, defaultValue });
-
-const GAP = enumProperty('gap', '@core.records/template-designer.property.gap', GAP_OPTIONS, 'sm');
-
-const summaryOfField = (node: TemplateNode, context: { fieldLabel: (key: string) => string | undefined }) =>
-  typeof node.field === 'string' ? context.fieldLabel(node.field) ?? node.field : undefined;
+const HIDDEN_WHEN = hiddenWhenProperty('@core.records/card-template.designer.hidden-when.hint');
+const shared = sharedNodeSpecs(HIDDEN_WHEN);
 
 export const CARD_DESIGNER_VOCABULARY: TemplateVocabulary = {
+  rootLabel: '@core.records/card-template.designer.root',
   nodes: [
     {
       type: 'avatar',
@@ -102,14 +44,7 @@ export const CARD_DESIGNER_VOCABULARY: TemplateVocabulary = {
       create: () => ({ type: 'avatar' }),
       properties: [enumProperty('size', '@core.records/template-designer.property.size', WIDTH_OPTIONS, 'md'), HIDDEN_WHEN],
     },
-    {
-      type: 'title',
-      label: '@core.records/card-template.designer.node.title',
-      icon: RiHeading,
-      group: 'record',
-      create: () => ({ type: 'title' }),
-      properties: [enumProperty('size', '@core.records/template-designer.property.size', TEXT_SIZE_OPTIONS, 'md'), HIDDEN_WHEN],
-    },
+    shared.title,
     {
       type: 'subtitle',
       label: '@core.records/card-template.designer.node.subtitle',
@@ -155,94 +90,18 @@ export const CARD_DESIGNER_VOCABULARY: TemplateVocabulary = {
         HIDDEN_WHEN,
       ],
     },
-    {
-      type: 'field',
-      label: '@core.records/card-template.designer.node.field',
-      icon: RiInputField,
-      group: 'content',
-      create: () => ({ type: 'field', field: '' }),
-      properties: [
-        { kind: 'field', key: 'field', label: '@core.records/template-designer.property.field', required: true },
-        { kind: 'fieldLabel', key: 'label', label: '@core.records/template-designer.property.label' },
-        enumProperty('variant', '@core.records/template-designer.property.variant', VARIANT_OPTIONS, 'text'),
-        enumProperty('size', '@core.records/template-designer.property.size', TEXT_SIZE_OPTIONS, 'sm'),
-        { kind: 'icon', key: 'icon', label: '@core.records/template-designer.property.icon' },
-        { kind: 'boolean', key: 'showEmpty', label: '@core.records/template-designer.property.show-empty' },
-        HIDDEN_WHEN,
-      ],
-      summary: summaryOfField,
-    },
-    {
-      type: 'text',
-      label: '@core.records/card-template.designer.node.text',
-      icon: RiText,
-      group: 'content',
-      create: () => ({ type: 'text', text: '' }),
-      properties: [
-        { kind: 'text', key: 'text', label: '@core.records/template-designer.property.text', required: true },
-        enumProperty('tone', '@core.records/template-designer.property.tone', TONE_OPTIONS, 'default'),
-        enumProperty('size', '@core.records/template-designer.property.size', TEXT_SIZE_OPTIONS, 'sm'),
-        HIDDEN_WHEN,
-      ],
-      summary: (node, context) => (typeof node.text === 'string' && node.text.trim() ? context.label(node.text) : undefined),
-    },
-    {
-      type: 'icon',
-      label: '@core.records/card-template.designer.node.icon',
-      icon: RiStarSmileLine,
-      group: 'content',
-      create: () => ({ type: 'icon', icon: 'star' }),
-      properties: [
-        { kind: 'icon', key: 'icon', label: '@core.records/template-designer.property.icon', required: true },
-        enumProperty('tone', '@core.records/template-designer.property.tone', TONE_OPTIONS, 'muted'),
-        HIDDEN_WHEN,
-      ],
-    },
-    {
-      type: 'row',
-      label: '@core.records/card-template.designer.node.row',
-      icon: RiLayoutColumnLine,
-      group: 'structure',
-      container: 'row',
-      create: () => ({ type: 'row', gap: 'sm', children: [] }),
-      properties: [
-        GAP,
-        enumProperty('align', '@core.records/template-designer.property.align', ALIGN_OPTIONS, 'center'),
-        enumProperty('justify', '@core.records/template-designer.property.justify', JUSTIFY_OPTIONS, 'start'),
-        { kind: 'boolean', key: 'wrap', label: '@core.records/template-designer.property.wrap' },
-        HIDDEN_WHEN,
-      ],
-    },
-    {
-      type: 'stack',
-      label: '@core.records/card-template.designer.node.stack',
-      icon: RiLayoutRowLine,
-      group: 'structure',
-      container: 'column',
-      create: () => ({ type: 'stack', gap: 'xs', children: [] }),
-      properties: [GAP, HIDDEN_WHEN],
-    },
-    {
-      type: 'spacer',
-      label: '@core.records/card-template.designer.node.spacer',
-      icon: RiSpace,
-      group: 'structure',
-      create: () => ({ type: 'spacer' }),
-      properties: [HIDDEN_WHEN],
-    },
-    {
-      type: 'divider',
-      label: '@core.records/card-template.designer.node.divider',
-      icon: RiDivideLine,
-      group: 'structure',
-      create: () => ({ type: 'divider' }),
-      properties: [HIDDEN_WHEN],
-    },
+    shared.field,
+    shared.text,
+    shared.icon,
+    shared.row,
+    shared.stack,
+    shared.spacer,
+    shared.divider,
   ],
   rootProperties: [
     { kind: 'field', key: 'accent.field', label: '@core.records/card-template.designer.accent', fieldTypes: ['select'] },
   ],
-  fieldNode: (fieldKey) => ({ type: 'field', field: fieldKey }),
+  fieldNode: fieldNodeOf,
   defaultBody: () => JSON.parse(JSON.stringify(DEFAULT_CARD_BODY)) as unknown[],
   rootDepth: 2,
   maxDepth: CARD_TEMPLATE_MAX_DEPTH,

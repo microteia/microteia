@@ -74,7 +74,7 @@ const CanvasNode: React.FC<{ node: DesignerCanvasNode; vm: TemplateDesignerViewM
         data-testid={`designer-node-${node.key}`}
         role="button"
         aria-pressed={node.selected}
-        draggable
+        draggable={!vm.readOnly}
         $direction={node.container}
         $selected={node.selected}
         $invalid={node.invalid}
@@ -100,7 +100,7 @@ const CanvasNode: React.FC<{ node: DesignerCanvasNode; vm: TemplateDesignerViewM
       data-testid={`designer-node-${node.key}`}
       role="button"
       aria-pressed={node.selected}
-      draggable
+      draggable={!vm.readOnly}
       $selected={node.selected}
       $invalid={node.invalid}
       $dragging={node.dragging}
@@ -119,12 +119,18 @@ const CanvasNode: React.FC<{ node: DesignerCanvasNode; vm: TemplateDesignerViewM
 
 const PropertyEditor: React.FC<{ property: DesignerProperty; vm: TemplateDesignerViewModel }> = ({ property, vm }) => {
   const t = useT('core.records');
-  const errors = property.errors.map((error) => <S.PropertyError key={error}>{error}</S.PropertyError>);
+  const disabled = vm.readOnly;
+  const errors = (
+    <>
+      {property.hint && <S.Hint>{property.hint}</S.Hint>}
+      {property.errors.map((error) => <S.PropertyError key={error}>{error}</S.PropertyError>)}
+    </>
+  );
   switch (property.kind) {
     case 'boolean':
       return (
         <S.Property>
-          <Checkbox label={property.label} checked={property.checked} onChange={(checked) => vm.setProperty(property.key, checked)} />
+          <Checkbox label={property.label} checked={property.checked} disabled={disabled} onChange={(checked) => vm.setProperty(property.key, checked)} />
           {errors}
         </S.Property>
       );
@@ -137,6 +143,7 @@ const PropertyEditor: React.FC<{ property: DesignerProperty; vm: TemplateDesigne
               <S.Segment
                 key={choice.value}
                 type="button"
+                disabled={disabled}
                 $active={choice.active}
                 aria-pressed={choice.active}
                 onClick={() => vm.setEnum(property.key, choice.value)}
@@ -157,6 +164,7 @@ const PropertyEditor: React.FC<{ property: DesignerProperty; vm: TemplateDesigne
             options={property.options}
             value={property.value}
             onChange={(value) => vm.setProperty(property.key, value)}
+            disabled={disabled}
             placeholder={t(property.kind === 'field' ? 'template-designer.field.placeholder' : 'template-designer.icon.placeholder')}
           />
           {errors}
@@ -169,6 +177,7 @@ const PropertyEditor: React.FC<{ property: DesignerProperty; vm: TemplateDesigne
           <LabelInput
             value={property.value}
             onChange={(value) => vm.setProperty(property.key, value)}
+            disabled={disabled}
             placeholder={t('template-designer.text.placeholder')}
             hasError={property.errors.length > 0}
           />
@@ -184,9 +193,9 @@ const PropertyEditor: React.FC<{ property: DesignerProperty; vm: TemplateDesigne
             onChange={(event) => vm.setProperty(property.key, event.target.value)}
             placeholder={t('template-designer.expression.placeholder')}
             $hasError={property.errors.length > 0}
+            disabled={disabled}
             spellCheck={false}
           />
-          <S.Hint>{t('template-designer.expression.hint')}</S.Hint>
           {errors}
         </S.Property>
       );
@@ -199,6 +208,7 @@ const PropertyEditor: React.FC<{ property: DesignerProperty; vm: TemplateDesigne
               <S.Segment
                 key={choice.value}
                 type="button"
+                disabled={disabled}
                 $active={choice.active}
                 aria-pressed={choice.active}
                 onClick={() => vm.setFieldLabelMode(property.key, choice.value)}
@@ -211,6 +221,7 @@ const PropertyEditor: React.FC<{ property: DesignerProperty; vm: TemplateDesigne
             <LabelInput
               value={property.text}
               onChange={(value) => vm.setFieldLabelText(property.key, value)}
+              disabled={disabled}
               placeholder={t('template-designer.text.placeholder')}
               hasError={property.errors.length > 0}
             />
@@ -219,6 +230,7 @@ const PropertyEditor: React.FC<{ property: DesignerProperty; vm: TemplateDesigne
         </S.Property>
       );
     case 'actionKeys':
+    case 'fieldKeys':
       return (
         <S.Property>
           <S.PropertyLabel>{property.label}</S.PropertyLabel>
@@ -226,7 +238,8 @@ const PropertyEditor: React.FC<{ property: DesignerProperty; vm: TemplateDesigne
             options={property.options}
             values={property.values}
             onChange={(values) => vm.setProperty(property.key, values)}
-            placeholder={t('template-designer.actions.placeholder')}
+            disabled={disabled}
+            placeholder={t(property.kind === 'actionKeys' ? 'template-designer.actions.placeholder' : 'template-designer.fields.placeholder')}
           />
           {errors}
         </S.Property>
@@ -240,13 +253,13 @@ const Inspector: React.FC<{ vm: TemplateDesignerViewModel }> = ({ vm }) => {
   const t = useT('core.records');
   const { inspector } = vm;
   return (
-    <S.Side $active={vm.sideTab === 'properties'} $area="inspector" data-testid="designer-inspector">
+    <S.Side $active={vm.readOnly || vm.sideTab === 'properties'} $area="inspector" data-testid="designer-inspector">
       <S.SideTitle>{t('template-designer.tab.properties')}</S.SideTitle>
       <S.InspectorHeader>
         {inspector.icon && <inspector.icon size={16} />}
         <span>{inspector.title}</span>
       </S.InspectorHeader>
-      {inspector.isRoot && <S.Hint>{t('template-designer.inspector.root-hint')}</S.Hint>}
+      {inspector.isRoot && <S.Hint>{t(vm.readOnly ? 'template-designer.inspector.read-only' : 'template-designer.inspector.root-hint')}</S.Hint>}
       {inspector.tools && (
         <S.Tools>
           <S.Tool type="button" title={t('template-designer.tool.before')} disabled={!inspector.tools.canMoveUp} onClick={() => vm.moveSelected(-1)}>
@@ -297,6 +310,7 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = (props) => {
     <S.Designer onKeyDown={vm.keyDown}>
       {vm.globalIssues.map((issue) => <InfoBanner key={issue} variant="warning" message={issue} />)}
       <S.Workspace>
+        {!vm.readOnly && (
         <S.SideTabs role="tablist">
           <S.SideTab type="button" role="tab" aria-selected={vm.sideTab === 'palette'} $active={vm.sideTab === 'palette'} onClick={() => vm.setSideTab('palette')}>
             {t('template-designer.tab.palette')}
@@ -305,7 +319,9 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = (props) => {
             {t('template-designer.tab.properties')}
           </S.SideTab>
         </S.SideTabs>
+        )}
 
+        {!vm.readOnly && (
         <S.Side $active={vm.sideTab === 'palette'} $area="palette" data-testid="designer-palette">
           <S.SideTitle>{t('template-designer.tab.palette')}</S.SideTitle>
           <S.Hint>{t(vm.paletteFull ? 'template-designer.palette.full' : 'template-designer.palette.hint')}</S.Hint>
@@ -333,6 +349,7 @@ export const TemplateDesigner: React.FC<TemplateDesignerProps> = (props) => {
             </S.PaletteGroup>
           ))}
         </S.Side>
+        )}
 
         <S.CanvasColumn>
           <S.Canvas

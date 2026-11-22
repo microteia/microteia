@@ -65,6 +65,11 @@ export interface TemplateDesignerProps {
   onRedo?: () => void;
   /** O que aparece abaixo do canvas — a pré-visualização sobre um registro de verdade. */
   preview?: React.ReactNode;
+  /**
+   * Só olhar: a declaração é de uma extensão, e o que se mudasse aqui não seria gravado. Sem paleta,
+   * sem arrasto, sem ferramentas e com as propriedades desabilitadas — mas o desenho continua legível.
+   */
+  readOnly?: boolean;
 }
 
 export interface DesignerSlot {
@@ -111,6 +116,7 @@ interface DesignerChoice {
 interface DesignerPropertyBase {
   key: string;
   label: string;
+  hint?: string;
   errors: string[];
 }
 
@@ -120,7 +126,7 @@ export type DesignerProperty =
   | DesignerPropertyBase & { kind: 'field' | 'icon'; value: string; options: SearchSelectOption[] }
   | DesignerPropertyBase & { kind: 'text' | 'expression'; value: string }
   | DesignerPropertyBase & { kind: 'fieldLabel'; choices: DesignerChoice[]; custom: boolean; text: string }
-  | DesignerPropertyBase & { kind: 'actionKeys'; values: string[]; options: TemplateDesignerOption[] };
+  | DesignerPropertyBase & { kind: 'actionKeys' | 'fieldKeys'; values: string[]; options: TemplateDesignerOption[] };
 
 export interface DesignerWrapOption {
   type: string;
@@ -148,6 +154,7 @@ export interface DesignerInspector {
 export type DesignerSideTab = 'palette' | 'properties';
 
 export interface TemplateDesignerViewModel {
+  readOnly: boolean;
   nodes: DesignerCanvasNode[];
   rootSlots: DesignerSlot[];
   empty: boolean;
@@ -229,6 +236,7 @@ export const useTemplateDesignerViewModel = ({
   onUndo,
   onRedo,
   preview,
+  readOnly = false,
 }: TemplateDesignerProps): TemplateDesignerViewModel => {
   const t = useT('core.records');
   const label = useLabel();
@@ -306,11 +314,11 @@ export const useTemplateDesignerViewModel = ({
           label(issue.message, { ...issue.messageParams, where }),
         ]);
       } else {
-        global.push(label(issue.message, { ...issue.messageParams, where: t('template-designer.root') }));
+        global.push(label(issue.message, { ...issue.messageParams, where: label(vocabulary.rootLabel) }));
       }
     }
     return { byNode, byRootProperty, global };
-  }, [issues, vocabulary, body, specOf, propertyLabelOf, typeLabelOf, label, t]);
+  }, [issues, vocabulary, body, specOf, propertyLabelOf, typeLabelOf, label]);
 
   const canPlace = useCallback((source: DragSource, parentPath: TreePath): boolean => {
     if (parentPath.length > 0) {
@@ -397,10 +405,16 @@ export const useTemplateDesignerViewModel = ({
     return vocabularyNode(vocabulary, value)?.create() ?? null;
   }, [vocabulary]);
 
+  // Toda escrita passa por aqui ou por `emitDesign`: é o único lugar que o modo só-leitura precisa vigiar.
+  const emitDesign = useCallback((next: TemplateNode) => {
+    if (!readOnly) onChange(next);
+  }, [readOnly, onChange]);
+
   const commitBody = useCallback((nextBody: unknown[], nextSelected: TreePath | null) => {
-    onChange(setIn(design, vocabulary.bodyKey, nextBody));
+    if (readOnly) return;
+    emitDesign(setIn(design, vocabulary.bodyKey, nextBody));
     setSelectedKey(nextSelected ? pathKey(nextSelected) : null);
-  }, [onChange, design, vocabulary.bodyKey]);
+  }, [readOnly, emitDesign, design, vocabulary.bodyKey]);
 
   /** Onde o clique na paleta acrescenta: dentro do contêiner escolhido, depois da folha escolhida, ou no fim. */
   const clickTarget = useCallback((node: TemplateNode): DropTarget => {
@@ -433,9 +447,9 @@ export const useTemplateDesignerViewModel = ({
     if (selectedPath) {
       commitBody(updateNode(body, selectedPath, key, cleared), selectedPath);
     } else {
-      onChange(setIn(design, key, cleared));
+      emitDesign(setIn(design, key, cleared));
     }
-  }, [selectedPath, body, commitBody, onChange, design]);
+  }, [selectedPath, body, commitBody, emitDesign, design]);
 
   const propertySpecs = useMemo(
     () => (selectedPath ? selectedSpec?.properties ?? [] : vocabulary.rootProperties),
@@ -471,7 +485,7 @@ export const useTemplateDesignerViewModel = ({
 
     const properties = propertySpecs.map((spec): DesignerProperty => {
       const raw = getIn(owner, spec.key);
-      const base = { key: spec.key, label: label(spec.label), errors: errorsOf(spec.key) };
+      const base = { key: spec.key, label: label(spec.label), hint: spec.hint ? label(spec.hint) : undefined, errors: errorsOf(spec.key) };
       switch (spec.kind) {
         case 'enum': {
           const current = typeof raw === 'string' ? raw : spec.defaultValue;
@@ -512,6 +526,12 @@ export const useTemplateDesignerViewModel = ({
           const unknown = values.filter((value) => !actionOptions.some((entry) => entry.value === value)).map((value) => ({ value, label: value }));
           return { ...base, kind: 'actionKeys', values, options: [...actionOptions, ...unknown] };
         }
+        case 'fieldKeys': {
+          const values = Array.isArray(raw) ? raw.filter((entry): entry is string => typeof entry === 'string') : [];
+          const options = fields.map((field) => ({ value: field.key, label: label(field.label) }));
+          const unknown = values.filter((value) => !options.some((entry) => entry.value === value)).map((value) => ({ value, label: value }));
+          return { ...base, kind: 'fieldKeys', values, options: [...options, ...unknown] };
+        }
         default:
           return { ...base, kind: 'text', value: '' };
       }
@@ -519,7 +539,7 @@ export const useTemplateDesignerViewModel = ({
 
     if (!selectedPath) {
       // Os problemas globais já aparecem acima do designer; repeti-los aqui seria ruído.
-      return { title: t('template-designer.root'), icon: null, isRoot: true, issues: [], properties, tools: null };
+      return { title: label(vocabulary.rootLabel), icon: null, isRoot: true, issues: [], properties, tools: null };
     }
     const siblings = selectedPath.length > 1 ? childrenOf(nodeAt(body, parentOf(selectedPath))) ?? [] : body;
     const index = selectedPath[selectedPath.length - 1];
@@ -531,7 +551,7 @@ export const useTemplateDesignerViewModel = ({
       isRoot: false,
       issues: [...(nodeIssues?.general ?? []), ...stray],
       properties,
-      tools: {
+      tools: readOnly ? null : {
         canMoveUp: index > 0,
         canMoveDown: index < siblings.length - 1,
         canUnwrap: !!selectedSpec?.container,
@@ -545,7 +565,7 @@ export const useTemplateDesignerViewModel = ({
         })),
       },
     };
-  }, [selectedPath, selectedNode, selectedSpec, design, issueIndex, propertySpecs, label, t, fields, iconOptions, actionOptions, body, typeLabelOf, paletteFull, limits, nodeCount, vocabulary]);
+  }, [selectedPath, selectedNode, selectedSpec, design, issueIndex, propertySpecs, label, t, fields, iconOptions, actionOptions, body, typeLabelOf, paletteFull, limits, nodeCount, vocabulary, readOnly]);
 
   const select = useCallback((key: string, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -600,10 +620,14 @@ export const useTemplateDesignerViewModel = ({
 
   const startNodeDrag = useCallback((key: string, event: React.DragEvent<HTMLElement>) => {
     event.stopPropagation();
+    if (readOnly) {
+      event.preventDefault();
+      return;
+    }
     event.dataTransfer.setData('text/plain', key);
     event.dataTransfer.effectAllowed = 'move';
     setDrag({ source: { kind: 'node', path: parsePathKey(key) }, over: null });
-  }, []);
+  }, [readOnly]);
 
   const hover = useCallback((target: DropTarget, event: React.DragEvent<HTMLElement>) => {
     event.stopPropagation();
@@ -683,6 +707,7 @@ export const useTemplateDesignerViewModel = ({
   }, [onUndo, onRedo, selectedPath, removeSelected]);
 
   return {
+    readOnly,
     nodes,
     rootSlots,
     empty: body.length === 0,

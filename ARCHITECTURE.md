@@ -2465,8 +2465,13 @@ formatados, linha de resumo, data) e `resolvePortalNodes` (puro, testado sem Rea
 `PortalCardList` serve a lista de topo e `PortalChildList`, e `PortalTemplateNodes` só desenha. No cartão,
 que inteiro é um botão, o campo de arquivo sai como texto, e não como link dentro do botão.
 
-**Autoria — aba Portal, seção "Aparência no portal".** Arranjo em botões, cartão e registro aberto em
-JSON (`CodeEditor`), cada um começando do padrão. `portalTemplateIssues` (front, como
+**Autoria — aba Portal, seção "Aparência no portal".** Arranjo em botões; cartão e registro aberto no
+mesmo editor Visual/JSON da aba Cartão (`TemplateSourceEditor`, issue #20), cada um com o seu
+vocabulário — `PORTAL_CARD_DESIGNER_VOCABULARY` (sem `edit`/`actions`) e
+`PORTAL_DETAIL_DESIGNER_VOCABULARY` —, cada um começando do padrão. O designer só oferece os campos que
+o desenho alcança (os expostos, menos os de arquivo retidos), e os problemas do desenho aparecem no nó
+que os causa; a lista do fim da aba fica com os da declaração. Portal declarado por extensão abre o
+designer só-leitura: o que se mudasse ali não seria gravado. `portalTemplateIssues` (front, como
 `cardTemplateIssues`) é o portão: forma, opção, ícone, sintaxe, tetos, nó só-de-registro no cartão e —
 o que é do portal — campo nomeado ou lido por condição que não está exposto (`portal-template.issue.*`).
 Os problemas entram na lista da aba e barram o salvamento, como os da declaração. No pacote, o mesmo
@@ -5969,13 +5974,19 @@ propriedade que os causam (`issueTarget`). Desfazer/refazer (`useTemplateHistory
 visuais e o "começar do padrão"; quando o texto muda por fora (digitado no JSON), o histórico deixa de
 valer — derivado na leitura, sem efeito.
 
+**O par Visual/JSON é um componente só** (`TemplateSourceEditor`): modo, desfazer, "começar do padrão"
+e a trava do JSON inválido ligados a um TEXTO. A aba Cartão e os dois desenhos do portal o usam, e por
+isso se comportam igual; cada superfície entrega só o vocabulário, o padrão, os problemas e — no
+cartão — a pré-visualização.
+
 **O designer é genérico; o cartão é um vocabulário.** `TemplateDesigner` (`components/ui`) não conhece
 tipo de nó nenhum: recebe um `TemplateVocabulary` — nós, quais são contêineres e em que direção, grupo
 na paleta, descritores de propriedade (`enum` cujo padrão APAGA a chave, `field` com filtro de tipo,
 `icon`, `text`, `fieldLabel`, `actionKeys`, `expression`), propriedades do template inteiro, tetos e o
 prefixo do `where`. `CARD_DESIGNER_VOCABULARY` é o do cartão, e `cardDesignerVocabulary.test.ts` reprova
-um tipo da DSL sem descrição ou uma lista de opção que divirja de `cardTemplate.ts`. Os desenhos do
-portal (com `section` e os nós só-de-detalhe) entram com outro vocabulário, sem reescrever o designer.
+um tipo da DSL sem descrição ou uma lista de opção que divirja de `cardTemplate.ts`; os do portal têm o
+teste espelho (`portalDesignerVocabulary.test.ts`). As peças comuns às duas DSLs (listas de opção, os
+nós declarados igual) moram em `templateDesignerParts.ts`.
 Arrastar e soltar é o nativo do HTML5 (como o resto do Form Design), com botão equivalente para cada
 operação; o layout se arranja por `@container`, pela largura que a aba TEM, e não pela da janela. A pré-visualização usa um
 `useRecordListViewModel` com `ignoreNavigationIntent` (não rouba o "abrir já filtrada" da listagem de

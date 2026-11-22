@@ -20,6 +20,8 @@ interface PropertyBase {
   /** A chave no nó — com ponto para aninhar (`accent.field`). */
   key: string;
   label: string;
+  /** Explicação sob o controle — a mesma propriedade pode significar coisas diferentes em cada DSL. */
+  hint?: string;
 }
 
 export type TemplatePropertySpec =
@@ -36,6 +38,8 @@ export type TemplatePropertySpec =
   | PropertyBase & { kind: 'fieldLabel' }
   /** Chaves de ação, escolhidas entre as ações da tela. */
   | PropertyBase & { kind: 'actionKeys' }
+  /** Vários campos da tela (`fields.exclude` do portal). */
+  | PropertyBase & { kind: 'fieldKeys' }
   /** Expressão de campo (`hiddenWhen`). */
   | PropertyBase & { kind: 'expression' };
 
@@ -65,6 +69,8 @@ export interface TemplateNodeSpec {
 }
 
 export interface TemplateVocabulary {
+  /** O nome do desenho inteiro, no painel de propriedades quando nada está escolhido ("Cartão"). */
+  rootLabel: string;
   nodes: readonly TemplateNodeSpec[];
   /** As propriedades do template inteiro, mostradas quando nenhum nó está escolhido. */
   rootProperties: readonly TemplatePropertySpec[];

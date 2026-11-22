@@ -1,16 +1,13 @@
 import React from 'react';
-import { RiArrowGoBackLine, RiArrowGoForwardLine } from 'react-icons/ri';
 import { S } from './ScreenCardTemplatePanel.styles';
 import { useScreenCardTemplatePanelViewModel } from './ScreenCardTemplatePanel.viewmodel';
 import type { ScreenCardTemplatePanelProps, ScreenCardTemplatePanelViewModel } from './ScreenCardTemplatePanel.viewmodel';
-import { Button } from '../../../../components/ui/Button';
 import { Checkbox } from '../../../../components/ui/Checkbox';
-import { CodeEditor } from '../../../../components/ui/CodeEditor';
 import { InfoBanner } from '../../../../components/ui/InfoBanner';
 import { RadioGroup } from '../../../../components/ui/RadioButton';
 import { RecordCardTemplate } from '../../../../components/ui/RecordCardTemplate';
 import { SearchSelect } from '../../../../components/ui/SearchSelect';
-import { TemplateDesigner } from '../../../../components/ui/TemplateDesigner';
+import { TemplateSourceEditor } from '../../../../components/ui/TemplateSourceEditor';
 import { useT } from '../../../../shared/i18n/useT';
 
 /** A pré-visualização sobre um registro de verdade — o comportamento real, inclusive o que some vazio. */
@@ -51,7 +48,8 @@ const Preview: React.FC<{ vm: ScreenCardTemplatePanelViewModel }> = ({ vm }) => 
 
 /**
  * A seção "Cartão da listagem" da aba Cartão: o arranjo da lista e, se preciso, o desenho do cartão —
- * no designer visual (o padrão) ou no JSON, que editam o mesmo texto gravado.
+ * no editor Visual/JSON compartilhado com os desenhos do portal, com a pré-visualização sobre um
+ * registro de verdade.
  */
 export const ScreenCardTemplatePanel: React.FC<ScreenCardTemplatePanelProps> = (props) => {
   const vm = useScreenCardTemplatePanelViewModel(props);
@@ -80,63 +78,19 @@ export const ScreenCardTemplatePanel: React.FC<ScreenCardTemplatePanelProps> = (
       <Checkbox label={t('card-template.panel.custom')} checked={vm.form.custom} onChange={vm.setCustom} />
 
       {vm.form.custom ? (
-        <S.Editor>
-          <S.Toolbar>
-            <S.ModeSwitch role="tablist" aria-label={t('card-template.panel.mode')}>
-              <S.ModeButton type="button" role="tab" aria-selected={vm.mode === 'visual'} $active={vm.mode === 'visual'} onClick={() => vm.setMode('visual')}>
-                {t('card-template.panel.mode.visual')}
-              </S.ModeButton>
-              <S.ModeButton type="button" role="tab" aria-selected={vm.mode === 'json'} $active={vm.mode === 'json'} onClick={() => vm.setMode('json')}>
-                {t('card-template.panel.mode.json')}
-              </S.ModeButton>
-            </S.ModeSwitch>
-            <S.ToolbarActions>
-              {vm.mode === 'visual' && (
-                <>
-                  <S.IconButton type="button" title={t('card-template.panel.undo')} disabled={!vm.canUndo} onClick={vm.undo}>
-                    <RiArrowGoBackLine size={16} />
-                  </S.IconButton>
-                  <S.IconButton type="button" title={t('card-template.panel.redo')} disabled={!vm.canRedo} onClick={vm.redo}>
-                    <RiArrowGoForwardLine size={16} />
-                  </S.IconButton>
-                </>
-              )}
-              <Button variant="secondary" size="sm" onClick={vm.resetToDefault}>
-                {t('card-template.panel.reset')}
-              </Button>
-            </S.ToolbarActions>
-          </S.Toolbar>
-
-          {vm.mode === 'visual' && vm.design && (
-            <TemplateDesigner
-              vocabulary={vm.vocabulary}
-              design={vm.design}
-              onChange={vm.setDesign}
-              issues={vm.designIssues}
-              fields={props.fields}
-              actionOptions={vm.actionOptions}
-              onUndo={vm.undo}
-              onRedo={vm.redo}
-              preview={<Preview vm={vm} />}
-            />
-          )}
-          {vm.mode === 'visual' && vm.visualLocked && (
-            <S.Section>
-              <InfoBanner variant="warning" message={t('card-template.panel.visual-locked', { problem: vm.visualLocked })} />
-              <S.Actions>
-                <Button variant="secondary" size="sm" onClick={() => vm.setMode('json')}>{t('card-template.panel.open-json')}</Button>
-              </S.Actions>
-            </S.Section>
-          )}
-          {vm.mode === 'json' && (
-            <>
-              <S.Hint>{t('card-template.panel.custom.hint')}</S.Hint>
-              <CodeEditor language="json" value={vm.form.source} onChange={vm.setSource} minHeight="320px" />
-              {vm.issues.map((issue) => <InfoBanner key={issue} variant="warning" message={issue} />)}
-              <Preview vm={vm} />
-            </>
-          )}
-        </S.Editor>
+        <TemplateSourceEditor
+          testId="card-template-editor"
+          vocabulary={vm.vocabulary}
+          source={vm.form.source}
+          onSourceChange={vm.setSource}
+          defaultSource={vm.defaultSource}
+          resetLabel={t('card-template.panel.reset')}
+          jsonHint={t('card-template.panel.custom.hint')}
+          issues={vm.designIssues}
+          fields={props.fields}
+          actionOptions={vm.actionOptions}
+          preview={<Preview vm={vm} />}
+        />
       ) : (
         <Preview vm={vm} />
       )}
