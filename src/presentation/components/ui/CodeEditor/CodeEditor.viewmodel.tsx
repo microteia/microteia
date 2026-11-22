@@ -3,6 +3,7 @@ import { useTheme } from 'styled-components';
 import type * as Monaco from 'monaco-editor';
 import type { OnChange, OnMount } from '@monaco-editor/react';
 import type { Theme } from '../../../../shared/styles/theme';
+import type { CodeEditorLanguage } from '../../../../infrastructure/monaco/monacoWorkerRoute';
 
 const AUTO_FORMAT_KEY = 'microteia:scriptEditorAutoFormat';
 const THEME_NAME = 'microteia-script';
@@ -56,13 +57,13 @@ export interface CodeEditorProps {
   onChange: (value: string) => void;
   extraLib?: string;
   minHeight?: string;
-  language?: 'typescript' | 'json';
+  language?: CodeEditorLanguage;
 }
 
 export interface CodeEditorViewModel {
   value: string;
   modelPath: string;
-  language: 'typescript' | 'json';
+  language: CodeEditorLanguage;
   autoFormat: boolean;
   toggleAutoFormat: () => void;
   handleFormat: () => void;

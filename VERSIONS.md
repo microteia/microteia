@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.297.1] — 2026-11-22
+
+- Os editores de JSON voltaram a apontar erros enquanto se digita, a sugerir o que completar, a recolher blocos e a formatar o texto pelo botão "Formatar".
+
 #### [9.297.0] — 2026-11-21
 
 - A aparência do portal também passou a ser desenhada visualmente: o cartão das listas e o registro aberto que o convidado vê são montados arrastando os campos expostos, seções, a linha de resumo, a data da atualização e, no registro aberto, o botão de alterar e as ações. O JSON continua disponível.
