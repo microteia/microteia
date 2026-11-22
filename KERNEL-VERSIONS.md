@@ -18,6 +18,14 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.296.0] — 2026-11-21
+
+- feat(form-design/card): visual designer for `cardTemplate` — palette (record elements, one entry per screen field, content, layout), canvas mirroring the tree, properties panel, native HTML5 drag and drop with button equivalents (move, duplicate, wrap in row/column, ungroup, remove), Delete/Esc on the canvas and Ctrl/Cmd+Z / Shift+Z. Visual is the default mode; JSON stays as the advanced mode and both edit the same saved text. Invalid JSON locks the visual mode instead of dropping content; unknown nodes stay on the canvas as "unknown element" (#19).
+- feat(ui): generic `TemplateDesigner` driven by a `TemplateVocabulary` (node specs, containers, property descriptors, root properties, depth/node limits, issue path prefix). The card is the first vocabulary (`CARD_DESIGNER_VOCABULARY`, tested against `CARD_NODE_TYPES` and every option list of the DSL); the portal card/detail templates can plug in their own vocabulary. Pure tree operations in `templateTree.ts`; undo/redo over the template text in `useTemplateHistory` (#19).
+- feat(form-design/card): issues from `cardTemplateIssues` are mapped from their `where` path to the node and the property that caused them; the preview record can be chosen. No change to the `cardTemplate` shape — `KERNEL_VERSION` unchanged (#19).
+- refactor(form-design): the Card tab is a single column (the designer takes the full width) and the screen editor modal is maximizable; the designer arranges itself with container queries (three columns, two with Elements/Properties tabs, or stacked) (#19).
+- i18n: `card-template.panel.*` (title, mode, undo/redo, visual-locked, open-json, preview.record), `card-template.designer.*`, `template-designer.*`. `com.microteia.locale-pt-br` 1.243.0.
+
 #### [9.295.2] — 2026-11-21
 
 - fix(agent/oauth): the consent screen shows the signed-in account with a "Use another account" action (sign-out; `ProtectedRoute` brings the person back to the same request) and an organization selector (`SearchSelect` over `availableTenants`, switched through `selectTenant`, so the permission picker lists what the person holds in the chosen organization). The consent opens on the `web.app` issuer origin, whose session may hold another last organization — or another account — than the origin the person works on; the access used to land in the organization the account owns (#18).

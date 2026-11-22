@@ -5954,9 +5954,30 @@ cartão padrão, e por isso o `check` não exige faixa de `kernel`. `firestore.r
 documento de `screenDefinitions`, sob `screens.manage`.
 
 **Form Design — aba "Cartão"** (`ScreenCardTemplatePanel`, só em tela que já existe): arranjo e
-largura em botões, desenho em JSON (`CodeEditor`), "Começar do cartão padrão" (`DEFAULT_CARD_BODY`, que
-é o cartão fixo escrito na DSL — e a prova de que ela o alcança inteiro), os problemas em `InfoBanner`
-e a pré-visualização sobre o primeiro registro da tela. A pré-visualização usa um
+largura em botões, desenho no **designer visual** (o padrão) ou em JSON (`CodeEditor`, o modo
+avançado), "Começar do cartão padrão" (`DEFAULT_CARD_BODY`, que é o cartão fixo escrito na DSL — e a
+prova de que ela o alcança inteiro) e a pré-visualização sobre um registro da tela, à escolha.
+A aba é uma coluna só — o designer precisa da largura inteira — e o editor de tela pode ser maximizado.
+
+**O designer visual edita o MESMO texto que o JSON** (issue #19). Não há segundo estado: cada edição
+visual reescreve o JSON formatado, e o JSON que não parseia trava o modo visual com um aviso e o atalho
+para o JSON. O designer trabalha sobre a árvore CRUA (`templateTree.ts`, puro e testado), e não sobre
+`readCardTemplate`: a leitura tolerante descartaria o nó desconhecido, e alternar de modo apagaria o
+que a pessoa escreveu — por isso ele aparece no canvas como "elemento desconhecido". Os problemas de
+`cardTemplateIssues` são levados do `where` (`cardTemplate.body[1].children[0].field`) ao nó e à
+propriedade que os causam (`issueTarget`). Desfazer/refazer (`useTemplateHistory`) guarda só os passos
+visuais e o "começar do padrão"; quando o texto muda por fora (digitado no JSON), o histórico deixa de
+valer — derivado na leitura, sem efeito.
+
+**O designer é genérico; o cartão é um vocabulário.** `TemplateDesigner` (`components/ui`) não conhece
+tipo de nó nenhum: recebe um `TemplateVocabulary` — nós, quais são contêineres e em que direção, grupo
+na paleta, descritores de propriedade (`enum` cujo padrão APAGA a chave, `field` com filtro de tipo,
+`icon`, `text`, `fieldLabel`, `actionKeys`, `expression`), propriedades do template inteiro, tetos e o
+prefixo do `where`. `CARD_DESIGNER_VOCABULARY` é o do cartão, e `cardDesignerVocabulary.test.ts` reprova
+um tipo da DSL sem descrição ou uma lista de opção que divirja de `cardTemplate.ts`. Os desenhos do
+portal (com `section` e os nós só-de-detalhe) entram com outro vocabulário, sem reescrever o designer.
+Arrastar e soltar é o nativo do HTML5 (como o resto do Form Design), com botão equivalente para cada
+operação; o layout se arranja por `@container`, pela largura que a aba TEM, e não pela da janela. A pré-visualização usa um
 `useRecordListViewModel` com `ignoreNavigationIntent` (não rouba o "abrir já filtrada" da listagem de
 verdade) e é inerte: as ações dela não executam. Como `editWindow`, só é gravado quando a aba foi
 tocada; voltar tudo ao padrão grava `null`.

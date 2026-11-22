@@ -246,6 +246,9 @@ const ScreenEditor: React.FC<{ vm: ScreenBuilderViewModel }> = ({ vm }) => {
       onClose={vm.closeScreenModal}
       size="xlarge"
       fixedHeight
+      maximizable
+      maximized={vm.screenModalMaximized}
+      onToggleMaximize={vm.toggleScreenModalMaximized}
       actions={<SaveButton saving={vm.savingScreen} onSave={() => void vm.handleSaveScreen()} />}
     >
       <EditorTabs
@@ -498,7 +501,7 @@ const ScreenEditor: React.FC<{ vm: ScreenBuilderViewModel }> = ({ vm }) => {
           </S.ModalForm>
         )}
         {vm.screenModalTab === 'card' && vm.cardTemplateScreenKey && (
-          <S.ModalForm>
+          <S.CardTab>
             <ScreenListOrderPanel
               keys={vm.screenForm.listOrder}
               fields={vm.listOrderFields}
@@ -506,6 +509,7 @@ const ScreenEditor: React.FC<{ vm: ScreenBuilderViewModel }> = ({ vm }) => {
               fromExtension={vm.editWindowFromExtension}
               onChange={vm.updateListOrderForm}
             />
+            <S.TabDivider />
             <ScreenCardTemplatePanel
               screenKey={vm.cardTemplateScreenKey}
               form={vm.screenForm.cardTemplate}
@@ -513,7 +517,7 @@ const ScreenEditor: React.FC<{ vm: ScreenBuilderViewModel }> = ({ vm }) => {
               fromExtension={vm.editWindowFromExtension}
               onChange={vm.updateCardTemplateForm}
             />
-          </S.ModalForm>
+          </S.CardTab>
         )}
         {vm.screenModalTab === 'actions' && (
           <>

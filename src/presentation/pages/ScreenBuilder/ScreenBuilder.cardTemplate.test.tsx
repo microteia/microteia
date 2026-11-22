@@ -98,7 +98,7 @@ describe('ScreenBuilder — cartão da listagem', () => {
     act(() => result.current.openEditScreen('mensagens'));
     expect(result.current.screenModalTabs.map((tab) => tab.key)).toContain('card');
     expect(result.current.cardTemplateScreenKey).toBe('mensagens');
-    expect(result.current.cardTemplateFields).toEqual([{ key: 'texto', type: 'text' }]);
+    expect(result.current.cardTemplateFields).toEqual([{ key: 'texto', type: 'text', label: 'Texto' }]);
   });
 
   it('só o arranjo: grava `{ layout }`', async () => {

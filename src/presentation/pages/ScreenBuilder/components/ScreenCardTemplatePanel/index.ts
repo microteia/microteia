@@ -1,2 +1,2 @@
 export { ScreenCardTemplatePanel } from './ScreenCardTemplatePanel.view';
-export type { ScreenCardTemplatePanelProps } from './ScreenCardTemplatePanel.viewmodel';
+export type { CardTemplatePanelField, ScreenCardTemplatePanelProps } from './ScreenCardTemplatePanel.viewmodel';

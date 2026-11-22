@@ -342,6 +342,24 @@ export const S = {
     justify-content: flex-start;
   `,
 
+  /**
+   * A aba Cartão é UMA coluna: o designer do cartão precisa da largura inteira, e na grade de duas
+   * colunas das outras abas ele ficava espremido na metade, ao lado da ordem dos registros.
+   */
+  CardTab: styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.lg};
+    min-width: 0;
+  `,
+
+  TabDivider: styled.hr`
+    width: 100%;
+    margin: 0;
+    border: none;
+    border-top: 1px solid ${({ theme }) => theme.colors.borderSubtle};
+  `,
+
   ModalForm: styled.div`
     display: grid;
     grid-template-columns: 1fr 1fr;

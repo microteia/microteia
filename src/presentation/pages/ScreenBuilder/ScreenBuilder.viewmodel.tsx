@@ -35,7 +35,7 @@ import {
   toCardTemplateForm,
 } from './components/ScreenCardTemplatePanel/screenCardTemplateForm';
 import type { CardTemplateFormState } from './components/ScreenCardTemplatePanel/screenCardTemplateForm';
-import type { CardTemplateFieldInfo } from '../../../domain/schema/ui/cardTemplateIssues';
+import type { CardTemplatePanelField } from './components/ScreenCardTemplatePanel';
 import { fromListOrderForm, toListOrderForm } from './components/ScreenListOrderPanel/screenListOrderForm';
 import type { ListOrderPanelField } from './components/ScreenListOrderPanel';
 import { listOrderIssues } from '../../../domain/schema/ui/listOrder';
@@ -489,7 +489,7 @@ export interface ScreenBuilderViewModel {
   /** O que impede gravar a ordem, já como frase. */
   listOrderIssues: string[];
   /** Os campos da tela aberta, para a aba "Cartão" conferir o que o template nomeia. */
-  cardTemplateFields: CardTemplateFieldInfo[];
+  cardTemplateFields: CardTemplatePanelField[];
   /** A chave da tela aberta no modal — a aba "Cartão" pré-visualiza um registro dela. */
   cardTemplateScreenKey: string | null;
   /** A tela aberta veio de uma extensão — o prazo que ela declarar vence na atualização. */
@@ -557,6 +557,9 @@ export interface ScreenBuilderViewModel {
   openCreateScreen: () => void;
   openEditScreen: (screenKey: string) => void;
   closeScreenModal: () => void;
+  /** O editor de tela maximizado — é o espaço que o designer do cartão pede para ter as três colunas. */
+  screenModalMaximized: boolean;
+  toggleScreenModalMaximized: () => void;
   handleSaveScreen: () => Promise<void>;
   savingScreen: boolean;
   toggleScreenEnabled: (screenKey: string) => Promise<void>;
@@ -1093,6 +1096,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const screenModalIsBuiltin = !!screenModal?.screenKey
     && BUILTIN_SCREENS.some((b) => b.key === screenModal.screenKey);
   const [screenModalTab, setScreenModalTab] = useState<ScreenModalTab>('general');
+  const [screenModalMaximized, setScreenModalMaximized] = useState(false);
+  const toggleScreenModalMaximized = useCallback(() => setScreenModalMaximized((previous) => !previous), []);
   const [fieldModalTab, setFieldModalTab] = useState<FieldModalTab>('general');
   const [screenForm, setScreenForm] = useState<ScreenFormState>(EMPTY_SCREEN_FORM);
   const [savingScreen, setSavingScreen] = useState(false);
@@ -1654,9 +1659,9 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     };
   }, [screenModal, getDefinitionByKey, catalog, screenForm.memberVisibility, label, t]);
 
-  const cardTemplateFields = useMemo<CardTemplateFieldInfo[]>(() => {
+  const cardTemplateFields = useMemo<CardTemplatePanelField[]>(() => {
     const def = screenModal?.screenKey ? getDefinitionByKey(screenModal.screenKey) : undefined;
-    return (def?.fields ?? []).map((field) => ({ key: field.key, type: field.type }));
+    return (def?.fields ?? []).map((field) => ({ key: field.key, type: field.type, label: field.label }));
   }, [screenModal, getDefinitionByKey]);
 
   const listOrderFields = useMemo<ListOrderPanelField[]>(() => {
@@ -3174,6 +3179,8 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
     listOrderFields,
     listOrderIssues: listOrderIssueTexts,
     cardTemplateFields,
+    screenModalMaximized,
+    toggleScreenModalMaximized,
     cardTemplateScreenKey: screenModal?.screenKey ?? null,
     editWindowFromExtension: !!screenModal?.screenKey && getDefinitionByKey(screenModal.screenKey)?.managed === true,
     memberVisibilityPanel,
