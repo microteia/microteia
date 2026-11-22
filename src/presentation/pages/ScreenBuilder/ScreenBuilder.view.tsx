@@ -446,7 +446,10 @@ const ScreenEditor: React.FC<{ vm: ScreenBuilderViewModel }> = ({ vm }) => {
               hasParent={vm.portalPanel.hasParent}
               hasDocuments={vm.portalPanel.hasDocuments}
               readOnly={vm.portalPanel.readOnly}
-              issues={vm.portalPanel.issues}
+              issues={vm.portalPanel.declarationIssues}
+              templateFields={vm.portalPanel.templateFields}
+              templateCardIssues={vm.portalPanel.templateCardIssues}
+              templateDetailIssues={vm.portalPanel.templateDetailIssues}
               collection={vm.portalPanel.collection}
               onToggleEnabled={vm.setPortalEnabled}
               onSubjectKind={vm.setPortalSubjectKind}
@@ -473,8 +476,6 @@ const ScreenEditor: React.FC<{ vm: ScreenBuilderViewModel }> = ({ vm }) => {
               onTemplateChange={vm.updatePortalTemplate}
               onTemplateCardCustom={vm.setPortalCardCustom}
               onTemplateDetailCustom={vm.setPortalDetailCustom}
-              onTemplateResetCard={vm.resetPortalCardTemplate}
-              onTemplateResetDetail={vm.resetPortalDetailTemplate}
             />
           </S.ModalForm>
         )}

@@ -360,5 +360,10 @@ export const S = {
     color: ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.text)};
     background: ${({ theme, $active }) => ($active ? theme.colors.primaryLight : theme.colors.surface)};
     font-weight: ${({ $active }) => ($active ? 600 : 400)};
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.6;
+    }
   `,
 };

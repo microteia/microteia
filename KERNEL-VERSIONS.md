@@ -18,6 +18,13 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.297.0] — 2026-11-21
+
+- feat(form-design/portal): visual designer for `portal.template.card` and `portal.template.detail` — `PORTAL_CARD_DESIGNER_VOCABULARY` (no `edit`/`actions`) and `PORTAL_DETAIL_DESIGNER_VOCABULARY`, offering only the fields the design can reach (exposed, minus withheld file fields); `portalTemplateIssues` mapped per surface to nodes and properties, declaration issues stay listed at the bottom of the tab. Tested against the portal DSL like the card vocabulary (#20).
+- refactor(ui): the Visual/JSON pair (mode, undo/redo, reset, invalid-JSON lock) moved from the card panel into `TemplateSourceEditor`, bound to a source string and used by the Card tab and both portal editors; shared vocabulary pieces in `templateDesignerParts.ts` (#20).
+- feat(ui/template-designer): read-only mode (no palette, drag or tools; disabled properties; nothing emitted) used for a portal declared by an extension — the JSON editor there used to accept edits that were never saved; vocabulary-provided `rootLabel` and per-property `hint`; `fieldKeys` property kind (`fields.exclude`) (#20).
+- i18n: `template-designer.mode*`, `undo`, `redo`, `visual-locked*`, `open-json`, `inspector.read-only`, `fields.placeholder`, `property.title`; `card-template.designer.root`, `card-template.designer.hidden-when.hint`; `portal-template.designer.*`. Removed the `card-template.panel.mode*`/`undo`/`redo`/`visual-locked`/`open-json` keys of 9.296.0 and `template-designer.root`/`expression.hint`; generic designer texts reworded without "card". `com.microteia.locale-pt-br` 1.244.0.
+
 #### [9.296.0] — 2026-11-21
 
 - feat(form-design/card): visual designer for `cardTemplate` — palette (record elements, one entry per screen field, content, layout), canvas mirroring the tree, properties panel, native HTML5 drag and drop with button equivalents (move, duplicate, wrap in row/column, ungroup, remove), Delete/Esc on the canvas and Ctrl/Cmd+Z / Shift+Z. Visual is the default mode; JSON stays as the advanced mode and both edit the same saved text. Invalid JSON locks the visual mode instead of dropping content; unknown nodes stay on the canvas as "unknown element" (#19).

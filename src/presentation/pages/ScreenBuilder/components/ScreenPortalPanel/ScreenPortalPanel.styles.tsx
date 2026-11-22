@@ -32,13 +32,6 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.sm};
   `,
 
-  EditorHeader: styled.div`
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: ${({ theme }) => theme.spacing.sm};
-  `,
-
   Issues: styled.div`
     display: flex;
     flex-direction: column;

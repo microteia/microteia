@@ -11,6 +11,11 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.297.0] — 2026-11-21
+
+- A aparência do portal também passou a ser desenhada visualmente: o cartão das listas e o registro aberto que o convidado vê são montados arrastando os campos expostos, seções, a linha de resumo, a data da atualização e, no registro aberto, o botão de alterar e as ações. O JSON continua disponível.
+- O designer só oferece os campos que o portal mostra, e os problemas aparecem no próprio elemento. Quando o portal vem de uma extensão, o desenho pode ser visto, mas não alterado.
+
 #### [9.296.0] — 2026-11-21
 
 - O cartão da listagem agora é desenhado visualmente, sem precisar escrever JSON: arraste os campos da tela, o título, as ações e as etiquetas para dentro do cartão, organize-os em linhas e colunas e ajuste cada parte (estilo, tamanho, cor, rótulo, quando esconder) num painel de propriedades. A pré-visualização mostra o resultado num registro de verdade, que você pode escolher.

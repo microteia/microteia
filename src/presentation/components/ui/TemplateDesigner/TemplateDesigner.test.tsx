@@ -5,6 +5,8 @@ import { ThemeProvider } from 'styled-components';
 import { baseDarkTheme } from '../../../../shared/styles/theme';
 import { TemplateDesigner } from './TemplateDesigner.view';
 import { CARD_DESIGNER_VOCABULARY } from '../../../shared/templateDesigner/cardDesignerVocabulary';
+import { PORTAL_DETAIL_DESIGNER_VOCABULARY } from '../../../shared/templateDesigner/portalDesignerVocabulary';
+import type { TemplateVocabulary } from '../../../shared/templateDesigner/templateVocabulary';
 import type { TemplateDesignerIssue } from './TemplateDesigner.viewmodel';
 
 vi.mock('../../../shared/i18n/useT', () => ({
@@ -18,11 +20,22 @@ const fields = [
   { key: 'due', label: 'Due date', type: 'date' },
 ];
 
-const draw = (design: Record<string, unknown>, issues: TemplateDesignerIssue[] = []) => {
+const draw = (
+  design: Record<string, unknown>,
+  issues: TemplateDesignerIssue[] = [],
+  options: { vocabulary?: TemplateVocabulary; readOnly?: boolean } = {},
+) => {
   const onChange = vi.fn();
   render(
     <ThemeProvider theme={baseDarkTheme}>
-      <TemplateDesigner vocabulary={CARD_DESIGNER_VOCABULARY} design={design} onChange={onChange} issues={issues} fields={fields} />
+      <TemplateDesigner
+        vocabulary={options.vocabulary ?? CARD_DESIGNER_VOCABULARY}
+        design={design}
+        onChange={onChange}
+        issues={issues}
+        fields={fields}
+        readOnly={options.readOnly}
+      />
     </ThemeProvider>,
   );
   return onChange;
@@ -119,5 +132,30 @@ describe('TemplateDesigner', () => {
     fireEvent.click(screen.getByTestId('designer-node-0'));
     fireEvent.keyDown(screen.getByTestId('designer-canvas'), { key: 'Delete' });
     expect(lastDesign(onChange).body).toEqual([{ type: 'tags' }]);
+  });
+
+  it('só-leitura: sem paleta e sem ferramentas, propriedades desabilitadas, nada é emitido', () => {
+    const onChange = draw({ body: [{ type: 'title' }, { type: 'tags' }] }, [], { readOnly: true });
+    expect(screen.queryByTestId('designer-palette')).toBeNull();
+    fireEvent.click(screen.getByTestId('designer-node-0'));
+    const inspector = screen.getByTestId('designer-inspector');
+    expect(screen.queryByTitle('template-designer.tool.remove')).toBeNull();
+    const segment = within(inspector).getByText('@core.records/template-designer.option.size.xl');
+    expect((segment as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.keyDown(screen.getByTestId('designer-canvas'), { key: 'Delete' });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByTestId('designer-node-0').getAttribute('draggable')).toBe('false');
+  });
+
+  it('com o vocabulário do registro aberto do portal, oferece alterar, ações e seção — e o rótulo da raiz é o dele', () => {
+    draw({ body: [{ type: 'fields' }] }, [], { vocabulary: PORTAL_DETAIL_DESIGNER_VOCABULARY });
+    expect(screen.getByTestId('designer-palette-node:edit')).toBeTruthy();
+    expect(screen.getByTestId('designer-palette-node:actions')).toBeTruthy();
+    expect(screen.getByTestId('designer-palette-node:section')).toBeTruthy();
+    expect(screen.queryByTestId('designer-palette-node:avatar')).toBeNull();
+    expect(within(screen.getByTestId('designer-inspector')).getByText('@core.records/portal-template.designer.root.detail')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('designer-node-0'));
+    expect(within(screen.getByTestId('designer-inspector')).getByText('@core.records/portal-template.designer.fields-exclude')).toBeTruthy();
+    expect(within(screen.getByTestId('designer-inspector')).getByText('@core.records/portal-template.designer.hidden-when.hint')).toBeTruthy();
   });
 });
