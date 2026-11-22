@@ -1277,9 +1277,9 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     confirmDelete: () => Promise<void>;
     isDeleting: boolean;
     /**
-     * Bulk import INTO THIS TAB, or null. Present only when options.parent locks the list by ONE field that
-     * references a single record, and the person holds record-import.run plus create or update on the
-     * collection. RecordListSurface shows the Import button and EntityListModals the dialog by themselves;
+     * Bulk import INTO THIS TAB, or null. Present only when the screen declares allowImport, options.parent
+     * locks the list by ONE field that references a single record, and the person holds record-import.run
+     * plus create or update on the collection. RecordListSurface shows the Import button and EntityListModals the dialog by themselves;
      * a list drawn by hand calls open() and mounts EntityListModals. The server writes the parent link on
      * every row - it is never a column of the file - and refuses a row that would change a record linked to
      * another parent.
@@ -1328,8 +1328,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
      * is multi), and Unlink removes recordId from every field that points at it - from the list, on a
      * multi field, leaving the other ids where they are.
      *
-     * Locked by ONE single (not multi) reference, the list also offers bulk import into the tab - see
-     * RecordListViewModel.recordImport.
+     * Locked by ONE single (not multi) reference, on a screen that declares allowImport, the list also
+     * offers bulk import into the tab - see RecordListViewModel.recordImport.
      */
     parent?: { fieldKey: string; recordId: string } | { fieldKeys: string[]; recordId: string };
   }

@@ -113,6 +113,11 @@ export interface SchemaScreen {
    */
   tracksPortalViews?: boolean;
   /**
+   * A coleção aceita a importação por arquivo (`ScreenDefinition.allowImport`). Está no schema porque é
+   * o servidor quem a cobra: esconder o botão não impede a chamada direta à importação.
+   */
+  allowImport?: boolean | null;
+  /**
    * De onde a tela veio. Só `builtin` importa aqui: é o que distingue a ÂNCORA de uma coleção (ver
    * `isCollectionAnchor`) de uma tela que alguém de fato declarou.
    */
@@ -233,6 +238,9 @@ const mergeSchemaScreens = (base: SchemaScreen, next: SchemaScreen, collection: 
     hasNotes: base.hasNotes === true || next.hasNotes === true,
     // O portal é da COLEÇÃO: a tela que o declara costuma não ser a dona do nome (`dataCollection`).
     tracksPortalViews: base.tracksPortalViews === true || next.tracksPortalViews === true,
+    // Pela razão de `hasDocuments`: se alguma tela da coleção oferece a importação, é por ela que os
+    // registros entram, e recusar na porta seria desmentir o botão que a pessoa acabou de usar.
+    allowImport: base.allowImport === true || next.allowImport === true,
   };
 };
 

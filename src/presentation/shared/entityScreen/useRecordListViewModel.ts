@@ -752,6 +752,7 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     parent,
     screenTitle: definition ? label(definition.titlePlural) : '',
     isAvailable,
+    allowImport: definition?.allowImport === true,
     canCreate,
     canUpdate,
   });

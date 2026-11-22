@@ -2616,6 +2616,7 @@ every member who reads the collection would read every record, so \`check\` refu
 | \`dataCollection\` | install the screen over a collection that already exists, instead of creating one. \`fields\` is still the complete schema of it |
 | \`eventPrefix\` | the prefix of the events this collection emits, which is what workflows subscribe to (§10) |
 | \`listActions\`, \`viewActionIds\`, \`cardActionIds\` | the platform's own record gestures by key; your \`actions\` by \`templateId\` |
+| \`allowImport\` | the list of this screen — and its tab inside the parent — offers **Import** from a file. Absent = not offered, and the server refuses the import. See "Bulk import" below |
 | \`memberWritableFields\` | fields ANY member may write on a record someone else created — the door for per-person state (read, liked, saved) that the default permission would close |
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |
 | \`editWindow\` | how long after creation the record may still be changed — and, with \`delete: true\`, deleted. Its documents freeze with it. Enforced by the security rules, not only the form; see "Edit window" above |
@@ -2749,11 +2750,18 @@ exist, because after the package converges the old one is no longer writable.
 
 ### Bulk import — what a file does to your screen
 
-Anyone with \`${PERMISSION_RECORD_IMPORT_RUN}\` sees **Import** on the list of a screen where they can create
-or change records. They pick a CSV or JSON file (up to ${RECORD_IMPORT_MAX_ROWS} rows), map each column to a
-field, simulate, and import. You declare nothing to get this, and you cannot turn it off for a screen: the
-gate is the permission, given by the organization, plus \`<collection>.create\` / \`.update\` charged on
-EVERY row.
+A screen offers **Import** only when it declares \`allowImport: true\` — absent, there is no button and the
+server refuses the import, whoever asks. The organization can turn it on or off for any screen, yours
+included, in Form Design ("Actions" tab); an update of your package that does not declare \`allowImport\`
+keeps the organization's choice, and one that declares it wins. Declare it on the screens whose records
+someone brings in bulk (a customer base, a product catalog), never on the ones a machine fills or whose
+records only make sense one at a time.
+
+Where it is declared, anyone with \`${PERMISSION_RECORD_IMPORT_RUN}\` who can create or change records there
+sees the button. They pick a CSV or JSON file (up to ${RECORD_IMPORT_MAX_ROWS} rows), map each column to a
+field, simulate, and import. The declaration does not replace the permission: the gate is still
+\`${PERMISSION_RECORD_IMPORT_RUN}\`, given by the organization, plus \`<collection>.create\` / \`.update\`
+charged on EVERY row.
 
 Each row is written on the server, in batches of ${RECORD_IMPORT_BATCH_SIZE}, through the same path as the
 "Upsert record" step and \`create_record\` over MCP. So everything you declared holds, with no code of yours:
@@ -2778,8 +2786,8 @@ Each row is written on the server, in batches of ${RECORD_IMPORT_BATCH_SIZE}, th
 
 **Importing into a parent's tab.** The same **Import** shows on the tab of child records inside a parent —
 the native child-screen tab, and a contributed tab drawn with \`useEntityList(sourceId, { parent })\` and
-\`RecordListSurface\` — when the list is locked by ONE \`reference\` field to a single record (not \`multi\`,
-not several fields). Nothing to declare:
+\`RecordListSurface\` — when the CHILD screen declares \`allowImport\` and the list is locked by ONE
+\`reference\` field to a single record (not \`multi\`, not several fields). Nothing else to declare:
 
 - **The link to the parent is not a column.** It is left out of the mapping, and the server writes it on
   every row with the record that is open, after checking that the person can read that record (the parent's

@@ -60,6 +60,10 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'screen.detail-actions': 'Detail screen actions',
   'screen.card-actions': 'List card actions',
   'screen.actions.none': 'No action',
+  'screen.list-actions': 'List actions',
+  'screen.allow-import': 'Import records from a file',
+  'screen.allow-import.hint':
+    'Shows the Import button on the list of this screen and on its tab inside the parent record. Only members with the permission to import records, and to create or change them here, see it.',
   'screen.gestures': 'Platform gestures on the card',
   'screen.gestures.badge': 'Platform',
   'screen.gestures.hint':
@@ -644,6 +648,7 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'import.error.batch-malformed': 'The batch is malformed.',
   'import.error.too-many-rows': 'The import has more rows than it declared, or than the limit allows.',
   'import.error.not-a-screen': 'Only the records of a screen can be imported.',
+  'import.error.not-allowed': 'This screen does not accept imports. Turn it on in Form Design, in the Actions tab.',
   'import.error.not-found': 'This import does not exist.',
   'import.error.closed': 'This import has already been closed.',
   'import.error.row-failed': 'The row could not be written. Try importing it again.',

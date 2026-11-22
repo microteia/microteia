@@ -359,6 +359,16 @@ export interface ScreenDefinition {
   /** Ids de `ActionDefinition` exibidos no card da listagem. */
   cardActionIds: string[];
   /**
+   * A listagem desta tela — e a aba que ela vira dentro do pai — oferece a importação por arquivo.
+   * Ausente (o normal) = não oferece.
+   *
+   * Era decidido só pela permissão `record-import.run`, e a permissão é do MEMBRO, não da tela: quem
+   * importa clientes uma vez via o botão também na coleção que uma integração enche e na tela filha que
+   * só faz sentido preencher um a um. Tirar a permissão tirava o botão de todas. A declaração não
+   * substitui a permissão — soma-se a ela —, e vale no servidor (`importRecords`), não só no botão.
+   */
+  allowImport?: boolean | null;
+  /**
    * O DESENHO do cartão da listagem e o arranjo da lista (grade ou um por linha), declarados — ver
    * `domain/schema/ui/cardTemplate.ts`. Ausente (o normal) = o cartão de sempre.
    *

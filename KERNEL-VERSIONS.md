@@ -18,6 +18,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.298.0] — 2026-11-22
+
+- feat(records/import): bulk import is now a screen declaration, `allowImport` (default false), on `ScreenDefinition` and `ScreenModuleTemplate`. The Import button was offered on every screen to whoever held `record-import.run`, and the only way to hide it on one screen was to take the permission away from all of them. The button on the screen's list and on the parent tab (`vm.recordImport`, which follows the CHILD screen) now also requires the declaration; the `importRecords` callable refuses `start` and `rows` with `import.error.not-allowed` when no screen of the collection declares it (`SchemaScreen.allowImport`, OR-merged across screens of the same collection, like `hasDocuments`). Form Design gets the checkbox under Actions → List actions on every screen. A package update that does not declare it keeps the office's choice. Existing screens read as false: offices that import must turn it on. `KERNEL_VERSION` 2.144.0, `locale-pt-br` 1.246.0 (#23).
+
 #### [9.297.2] — 2026-11-22
 
 - fix(documents): the template authoring tab moves the editor and the Preview/Reference panel into a fourth tab, Content, side by side at full height. Below the settings tabs they were left a strip of about 250px on smaller viewports. The "collapse settings" toggle and its keys are gone; the Content tab carries the content issue count; an existing template opens on Content, a new one on General. `locale-pt-br` 1.245.0 (#22).

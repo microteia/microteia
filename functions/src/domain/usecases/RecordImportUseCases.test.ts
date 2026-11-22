@@ -21,6 +21,7 @@ const contribuintes: SchemaScreen = {
   titleSingular: 'Contribuinte',
   titlePlural: 'Contribuintes',
   titleFieldKey: 'nome',
+  allowImport: true,
   fields: [
     { key: 'documento', label: 'Documento', type: 'text', required: true, order: 0, origin: 'design' },
     { key: 'nome', label: 'Nome', type: 'text', required: true, order: 1, origin: 'design' },
@@ -32,6 +33,7 @@ const contribuintes: SchemaScreen = {
   ],
 };
 
+/** A tela que não declara `allowImport` — onde a importação é recusada mesmo para quem pode tudo. */
 const anotacoes: SchemaScreen = {
   id: 'anotacoes',
   titleSingular: 'Anotação',
@@ -48,6 +50,7 @@ const domicilios: SchemaScreen = {
   id: 'domicilios',
   titleSingular: 'Domicílio',
   titleFieldKey: 'nome',
+  allowImport: true,
   fields: [
     { key: 'documento', label: 'Documento', type: 'text', required: true, order: 0, origin: 'design' },
     { key: 'nome', label: 'Nome', type: 'text', required: true, order: 1, origin: 'design' },
@@ -63,6 +66,7 @@ const lotes: SchemaScreen = {
   id: 'lotes',
   titleSingular: 'Lote',
   titleFieldKey: 'nome',
+  allowImport: true,
   fields: [{ key: 'nome', label: 'Nome', type: 'text', required: true, order: 0, origin: 'design' }],
 };
 
@@ -70,6 +74,7 @@ const destinatarios: SchemaScreen = {
   id: 'destinatarios',
   titleSingular: 'Destinatário',
   titleFieldKey: 'domicilio',
+  allowImport: true,
   parentFieldKey: 'lote',
   fields: [
     { key: 'lote', label: 'Lote', type: 'reference', refEntity: 'lotes', required: true, order: 0, origin: 'design' },
@@ -84,6 +89,7 @@ const inscricoes: SchemaScreen = {
   id: 'inscricoes',
   titleSingular: 'Inscrição',
   titleFieldKey: 'domicilio',
+  allowImport: true,
   parentFieldKey: 'lote',
   fields: [
     { key: 'lote', label: 'Lote', type: 'reference', refEntity: 'lotes', required: true, order: 0, origin: 'design' },
@@ -95,12 +101,12 @@ const inscricoes: SchemaScreen = {
 const TENANT = 't1';
 const ana: RecordImportActor = { userId: 'u-ana', name: 'Ana', photoURL: '', permissions: ['*'] };
 
-const setup = () => {
+const setup = (extraScreens: SchemaScreen[] = []) => {
   const repo = new FakeMutationRepository();
   const jobs = new FakeRecordImportJobs();
   const audit: CreateAuditLogInput[] = [];
   const screenProvider = fakeScreenProvider(
-    [contribuintes, anotacoes, domicilios, lotes, destinatarios, inscricoes],
+    [contribuintes, anotacoes, domicilios, lotes, destinatarios, inscricoes, ...extraScreens],
     [{ collection: 'situacoes', label: 'Situação' }],
   );
   const upsertFor = async (tenantId: string, actor: RecordImportActor): Promise<RecordImportUpsert> => {
@@ -265,6 +271,22 @@ describe('importação — o que é recusado antes de qualquer linha', () => {
     const reader = { ...ana, permissions: ['contribuintes.read'] };
     expect(await refusal(useCases.start({ tenantId: TENANT, table: 'contribuintes', fileName: 'a.csv', totalRows: 1, actor: reader })))
       .toBe('@core.access/permission.denied');
+  });
+
+  it('tela que não declara `allowImport` recusa o início e o lote — mesmo a quem pode tudo', async () => {
+    const { useCases, repo } = setup();
+    expect(await refusal(useCases.start({ tenantId: TENANT, table: 'anotacoes', fileName: 'a.csv', totalRows: 1, actor: ana })))
+      .toBe('@core.records/import.error.not-allowed');
+    const rows = [{ line: 2, data: { texto: 'oi' } }];
+    expect(await refusal(useCases.rows({ tenantId: TENANT, table: 'anotacoes', dryRun: true, rows, actor: ana })))
+      .toBe('@core.records/import.error.not-allowed');
+    expect(repo.createCalls).toHaveLength(0);
+  });
+
+  it('basta UMA tela da coleção declarar `allowImport` — a que a descreve por `collection` também conta', async () => {
+    const { useCases } = setup([{ ...anotacoes, id: 'recados', collection: 'anotacoes', allowImport: true }]);
+    await expect(useCases.start({ tenantId: TENANT, table: 'anotacoes', fileName: 'a.csv', totalRows: 1, actor: ana }))
+      .resolves.toMatchObject({ importId: expect.any(String) });
   });
 
   it('lista de opções não é tela, e tabela desconhecida não existe', async () => {

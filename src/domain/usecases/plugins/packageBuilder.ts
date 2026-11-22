@@ -143,6 +143,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     hideFromSidebar: screen.hideFromSidebar ?? undefined,
     hideFromParentTabs: screen.hideFromParentTabs ?? undefined,
     hideRecordsFromCommandPalette: screen.hideRecordsFromCommandPalette ?? undefined,
+    allowImport: screen.allowImport ?? undefined,
     parentEntity: screen.parentEntity ?? undefined,
     parentFieldKey: screen.parentFieldKey ?? undefined,
     parentRelation: screen.parentRelation ?? undefined,
