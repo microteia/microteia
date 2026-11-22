@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.297.2] — 2026-11-22
+
+- Na edição de um modelo de documento, o texto e a prévia agora ficam numa aba própria, "Conteúdo", lado a lado e com a altura inteira da tela. Antes, abaixo das configurações, eles ficavam espremidos e era difícil editar ou ler o resultado. O modelo que já existe abre direto nessa aba.
+
 #### [9.297.1] — 2026-11-22
 
 - Os editores de JSON voltaram a apontar erros enquanto se digita, a sugerir o que completar, a recolher blocos e a formatar o texto pelo botão "Formatar".

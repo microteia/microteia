@@ -264,12 +264,10 @@ export const S = {
    * eles precisam continuar à vista enquanto se mexe no que os produz.
    */
   Settings: styled.div`
-    flex: 0 1 auto;
+    flex: 1;
     min-height: 0;
-    max-height: 45%;
     overflow-y: auto;
     padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   `,
 
   /** As partes de uma aba lado a lado quando há largura; uma embaixo da outra quando não há. */
@@ -377,8 +375,8 @@ export const S = {
   `,
 
   /*
-   * O editor e o painel ao lado ocupam o que sobra da altura, e cada um rola por dentro. Estreito,
-   * o painel desce para baixo do editor — e a página inteira passa a rolar.
+   * A aba de conteúdo: o editor e o painel ao lado ocupam a altura inteira, e cada um rola por
+   * dentro. Estreito, o painel desce para baixo do editor — e a aba inteira passa a rolar.
    */
   Workbench: styled.div`
     flex: 1;
@@ -422,13 +420,6 @@ export const S = {
     gap: ${({ theme }) => theme.spacing.md};
     flex-shrink: 0;
     min-height: 32px;
-  `,
-
-  PaneTitle: styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
   `,
 
   TemplateText: styled(fieldText)`

@@ -227,7 +227,6 @@ export const CORE_DOCUMENTS: Record<string, string> = {
   'state.outdated': 'Atualização disponível',
   'state.outdated.hint': 'A extensão alterou este modelo depois que você o personalizou. A sua cópia continua valendo: restaure para usar a versão nova, ou mantenha a sua cópia.',
 
-  'section.content': 'Conteúdo',
   'section.datasets.hint': 'Registros de outra tela ligados a esta — as parcelas de um contrato, os itens de um pedido — que o modelo repete com {{#each nome}}.',
 
   'field.title': 'Nome',
@@ -307,11 +306,10 @@ export const CORE_DOCUMENTS: Record<string, string> = {
   'page.template-design': 'Modelo de documento',
   'template.edit': 'Editar',
   'template.not-found': 'Este modelo não existe mais. Ele pode ter sido excluído, ou a extensão dele removida.',
-  'design.settings.show': 'Mostrar configurações',
-  'design.settings.hide': 'Ocultar configurações',
   'tab.general': 'Geral',
   'tab.output': 'Saída',
   'tab.data': 'Dados',
+  'tab.content': 'Conteúdo',
   'tab.issues': '{count} problema(s) para revisar',
   'section.identity': 'Nome e chave',
   'section.source': 'Origem e formato',
