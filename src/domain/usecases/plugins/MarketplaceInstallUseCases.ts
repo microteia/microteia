@@ -405,6 +405,9 @@ const upsertPluginScreens = async (
           // sem isso, reinstalar/atualizar as apagaria, já que o template não as traz.
           viewActionIds: unionIds(input.viewActionIds, existing.viewActionIds),
           cardActionIds: unionIds(input.cardActionIds, existing.cardActionIds),
+          // Pela mesma razão das ações: a importação que o escritório ligou sobrevive à versão que não
+          // diz nada sobre ela. A que DECLARA — ligando ou desligando — vence.
+          allowImport: input.allowImport ?? existing.allowImport ?? null,
           // A janela que o PACOTE declara vence; sem declaração, fica a que já valia — inclusive a que
           // o escritório pôs no Form Design. Retirar uma trava de prova é gesto de pessoa, com
           // `screens.edit-window`, nunca efeito colateral de atualizar uma extensão.

@@ -17511,8 +17511,31 @@ ela — só o dono e o `SYSTEM`, que já supervisionam, os alcançam depois que 
 Carregar o cadastro de um sistema anterior, ou corrigir mil registros de uma vez a partir de uma planilha.
 Até aqui não havia caminho: a migração de extensão tem teto por execução (é para o dado DA extensão, entre
 versões dela), e o formulário e o agente gravam um registro por vez. A importação é um recurso de EXCEÇÃO
-— e por isso não é declarado pela tela nem ligado por padrão para ninguém além do dono: ele exige a
-permissão própria `record-import.run`.
+— e por isso é DUPLAMENTE fechado por padrão: a tela precisa declará-la (`allowImport`) e o membro precisa
+da permissão própria `record-import.run` (que ninguém além do dono tem sem perfil).
+
+### A tela declara; a permissão continua cobrando (#23)
+
+Até a 9.297 a importação não era declarada pela tela: o botão aparecia em toda listagem — e em toda aba de
+pai presa por uma referência — para quem tivesse `record-import.run` e pudesse criar ou alterar ali. Mas a
+permissão é do MEMBRO, não da tela: quem importa o cadastro de clientes via o botão também na coleção que
+uma integração enche e na filha que só faz sentido preencher um a um, e a única forma de tirá-lo de uma era
+tirá-lo de todas.
+
+`ScreenDefinition.allowImport` (padrão falso, também em `ScreenModuleTemplate`) é a declaração. Ela SOMA-SE à
+permissão, não a substitui, e vale nas duas pontas:
+
+| Onde | O que cobra |
+|---|---|
+| Lista da tela (`DynamicRecordList`) | `allowImport` + `record-import.run` + `<coleção>.create` ou `.update` |
+| Aba do pai (`useParentRecordImport` → `vm.recordImport`) | o mesmo, com a declaração da tela FILHA, mais a trava por UMA referência não `multi` |
+| `importRecords` (`resolveImportTable`, em `start` e `rows`) | `SchemaScreen.allowImport` da coleção; ausente, `import.error.not-allowed` |
+
+No schema, `allowImport` se soma por coleção como `hasDocuments`: basta UMA tela da coleção oferecê-la — a
+que a descreve por `dataCollection` inclusive —, porque recusar na porta desmentiria o botão que a pessoa
+acabou de usar. Na atualização de uma extensão, a ausência no pacote mantém o que o escritório ligou no Form
+Design (aba Ações → "Ações da listagem"); a versão que declara vence. Sem migração: o documento antigo sem a
+propriedade lê como falso, que é exatamente o padrão pedido.
 
 ### A decisão que organiza o resto: nenhum caminho de gravação novo
 

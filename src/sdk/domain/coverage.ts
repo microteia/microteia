@@ -363,6 +363,7 @@ const SCREEN_REACH: Record<keyof ScreenModuleTemplate, string | null> = {
   parentRelation: 'the ownership of that relationship',
   viewActionIds: 'the actions the screen plan places in the detail header',
   cardActionIds: 'the actions the screen plan places on the list card',
+  allowImport: null,
   cardTemplate: null,
   listOrder: null,
   seed: null,
@@ -390,6 +391,8 @@ const SCREEN_NOTES: Record<string, string> = {
     + 'again, and an exposure decision the model cannot make on behalf of the organization',
   listActions: 'the built-in gestures of the card, in the order it shows them — copy link, manage tags, delete',
   sidebarOrder: 'HUMAN: an order is a statement about what matters most here',
+  allowImport: 'whether the list offers bulk import from a file. Which records arrive in bulk is a fact about how '
+    + 'the organization brings its data in, and no rule of the model implies it',
   hideFromParentTabs: 'a child that should NOT show up as a tab. The model has one reading of "child" and it is the tab',
   hideRecordsFromCommandPalette: 'whether the records of this collection stay out of the command palette search. Like '
     + 'auditActions, it is what a collection a machine writes needs, and the model cannot say the collection is '

@@ -608,10 +608,11 @@ describe('useRecordListViewModel — trava por campo multi e por vários campos'
  * coleção da tela (um prazo que aponta para o prazo de origem).
  */
 describe('useRecordListViewModel — importar na aba do pai', () => {
-  const comOrigem = () => {
+  const comOrigem = (allowImport: boolean | null = true) => {
     const base = definition();
     state.definition = {
       ...base,
+      allowImport,
       fields: [
         ...base.fields,
         { key: 'originId', label: 'Origem', type: 'reference', refEntity: 'deadlines', required: false, order: 2, origin: 'plugin' },
@@ -630,6 +631,13 @@ describe('useRecordListViewModel — importar na aba do pai', () => {
     expect(result.current.recordImport?.isOpen).toBe(true);
     act(() => result.current.recordImport?.close());
     expect(result.current.recordImport?.isOpen).toBe(false);
+  });
+
+  it('não oferece onde a tela filha não declara `allowImport`, mesmo com a permissão', () => {
+    comOrigem(null);
+    expect(naAba(['originId']).current.recordImport).toBeNull();
+    comOrigem(false);
+    expect(naAba(['originId']).current.recordImport).toBeNull();
   });
 
   it('não oferece numa trava multi, por vários campos, nem na lista própria da tela', () => {

@@ -93,6 +93,7 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
         hasDocuments: data.hasDocuments === true,
         hasNotes: data.hasNotes === true,
         tracksPortalViews: asPortalDeclaration(data.portal)?.trackViews === true,
+        allowImport: data.allowImport === true,
         origin: typeof data.origin === 'string' ? (data.origin as FieldOrigin) : null,
         sourceId: typeof data.sourceId === 'string' ? data.sourceId : null,
         // Sem `keys`, a automação, o agente, o portal e a adoção viam só o açúcar `unique` de campo: a

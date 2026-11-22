@@ -20,8 +20,9 @@ export interface DynamicRecordListViewModel extends RecordListViewModel {
   /** O que o recálculo dos agregados e a adoção das chaves desta tela têm a dizer — ou nada. */
   notices: DynamicRecordListNotice[];
   /**
-   * A importação por arquivo: de quem tem `record-import.run` e pode criar OU alterar nesta tela. Cada
-   * linha ainda cobra a permissão do que ela fizer — aqui é só não oferecer o que viria todo recusado.
+   * A importação por arquivo: na tela que a declara (`allowImport`), para quem tem `record-import.run` e
+   * pode criar OU alterar nela. Cada linha ainda cobra a permissão do que ela fizer — aqui é só não
+   * oferecer o que viria todo recusado.
    */
   canImport: boolean;
   importOpen: boolean;
@@ -63,7 +64,7 @@ export const useDynamicRecordListViewModel = (tabKey: string): DynamicRecordList
   return {
     ...vm,
     notices,
-    canImport: can(PERMISSION_RECORD_IMPORT_RUN) && (vm.canCreate || vm.canUpdate),
+    canImport: definition?.allowImport === true && can(PERMISSION_RECORD_IMPORT_RUN) && (vm.canCreate || vm.canUpdate),
     importOpen,
     openImport,
     closeImport,

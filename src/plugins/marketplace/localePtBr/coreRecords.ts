@@ -59,6 +59,10 @@ export const CORE_RECORDS: Record<string, string> = {
   'screen.detail-actions': 'Ações da tela de detalhe',
   'screen.card-actions': 'Ações do card na listagem',
   'screen.actions.none': 'Nenhuma ação',
+  'screen.list-actions': 'Ações da listagem',
+  'screen.allow-import': 'Importar registros de arquivo',
+  'screen.allow-import.hint':
+    'Mostra o botão Importar na listagem desta tela e na aba dela dentro do registro-pai. Só o veem os membros com a permissão de importar registros e de criá-los ou alterá-los aqui.',
   'screen.gestures': 'Gestos da plataforma no card',
   'screen.gestures.badge': 'Plataforma',
   'screen.gestures.hint':
@@ -642,6 +646,7 @@ export const CORE_RECORDS: Record<string, string> = {
   'import.error.batch-malformed': 'O lote está malformado.',
   'import.error.too-many-rows': 'A importação tem mais linhas do que declarou, ou do que o limite permite.',
   'import.error.not-a-screen': 'Só os registros de uma tela podem ser importados.',
+  'import.error.not-allowed': 'Esta tela não aceita importação. Ative-a no Form Design, na aba Ações.',
   'import.error.not-found': 'Esta importação não existe.',
   'import.error.closed': 'Esta importação já foi encerrada.',
   'import.error.row-failed': 'Não foi possível gravar a linha. Tente importá-la de novo.',

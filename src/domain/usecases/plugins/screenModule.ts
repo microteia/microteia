@@ -181,6 +181,9 @@ export const materializeScreen = (
     listActions: template.listActions ?? [],
     viewActionIds: mapActionIds(template.viewActionIds),
     cardActionIds: mapActionIds(template.cardActionIds),
+    // Nulo, e não `false`, quando o pacote não declara: na atualização, a ausência deixa valer o que o
+    // escritório ligou no Form Design (`upsertPluginScreens`).
+    allowImport: template.allowImport ?? null,
     cardTemplate: template.cardTemplate ?? null,
     listOrder: template.listOrder ?? null,
     parentEntity: rewriteRef(template.parentEntity, keyMap) ?? null,

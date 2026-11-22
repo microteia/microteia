@@ -83,6 +83,7 @@ export const mapScreenDefinition = (
   listActions: (d.listActions as ScreenDefinition['listActions'] | undefined) ?? [],
   viewActionIds: (d.viewActionIds as string[] | undefined) ?? [],
   cardActionIds: (d.cardActionIds as string[] | undefined) ?? [],
+  allowImport: (d.allowImport as boolean | null | undefined) ?? null,
   cardTemplate: (d.cardTemplate as ScreenDefinition['cardTemplate']) ?? null,
   // Como está gravado: quem ordena passa por `readListOrder`, que descarta a chave que a tela não responde mais.
   listOrder: Array.isArray(d.listOrder) ? (d.listOrder as ScreenDefinition['listOrder']) : null,

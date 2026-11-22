@@ -103,6 +103,11 @@ const resolveImportTable = async (
     throw new RecordImportRefusal('@core.records/import.error.not-a-screen', { table });
   }
   const collection = resolved.value.physicalCollection;
+  // A tela declara se aceita importação; sem isto, o botão escondido seria a única barreira, e a
+  // chamada direta a esta porta entraria em qualquer coleção onde o membro pode criar.
+  if (ctx.screens.get(collection)?.allowImport !== true) {
+    throw new RecordImportRefusal('@core.records/import.error.not-allowed', { table });
+  }
   const wanted = [collectionPermissionId(collection, 'create'), collectionPermissionId(collection, 'update')];
   if (!grantsAny(actor.permissions, wanted)) {
     throw new RecordImportRefusal('@core.access/permission.denied', { permission: wanted.join(', ') });

@@ -11,6 +11,10 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.298.0] — 2026-11-22
+
+- O botão Importar deixou de aparecer em todas as telas. Agora cada tela decide se aceita importação de registros por arquivo, na aba Ações do Form Design, em "Ações da listagem". A opção vem desligada: se você importava registros em alguma tela, ative-a ali para o botão voltar. Quem importa continua precisando da permissão de importar registros.
+
 #### [9.297.2] — 2026-11-22
 
 - Na edição de um modelo de documento, o texto e a prévia agora ficam numa aba própria, "Conteúdo", lado a lado e com a altura inteira da tela. Antes, abaixo das configurações, eles ficavam espremidos e era difícil editar ou ler o resultado. O modelo que já existe abre direto nessa aba.

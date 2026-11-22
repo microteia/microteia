@@ -145,6 +145,7 @@ const LACUNAS_CONFERIDAS = [
   'screen-property\tsidebarOrder',
   'screen-property\thideFromParentTabs',
   'screen-property\thideRecordsFromCommandPalette',
+  'screen-property\tallowImport',
   'screen-property\tcardTemplate',
   'screen-property\tlistOrder',
   'screen-property\tseed',

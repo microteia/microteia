@@ -542,6 +542,13 @@ const ScreenEditor: React.FC<{ vm: ScreenBuilderViewModel }> = ({ vm }) => {
                 />
               </InputGroup>
             </Section>
+            <Section title={t('screen.list-actions')} lead={t('screen.allow-import.hint')}>
+              <Checkbox
+                label={t('screen.allow-import')}
+                checked={vm.screenForm.allowImport}
+                onChange={(next) => vm.updateScreenForm({ allowImport: next })}
+              />
+            </Section>
             {vm.gestureRows.length > 0 && (
               <Section title={t('screen.gestures')} lead={t('screen.gestures.hint')}>
                 <S.FullRow>

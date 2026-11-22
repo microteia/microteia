@@ -105,6 +105,8 @@ export interface ScreenModuleTemplate {
   parentRelation?: 'owned' | 'related' | null;
   viewActionIds?: string[];
   cardActionIds?: string[];
+  /** A listagem oferece a importação por arquivo. Ver `ScreenDefinition.allowImport`. */
+  allowImport?: boolean | null;
   /** O desenho do cartão da listagem. Ver `ScreenDefinition.cardTemplate`. */
   cardTemplate?: CardTemplate | null;
   /** A ordem da listagem e da aba no pai. Ver `ScreenDefinition.listOrder`. */

@@ -174,6 +174,7 @@ export interface ScreenFormState {
   listActions: ScreenListAction[];
   viewActionIds: string[];
   cardActionIds: string[];
+  allowImport: boolean;
   /** telaFilha -> campo de vínculo. A relação é sempre configurada de dentro do PAI. */
   childLinks: Record<string, string>;
   enabled: boolean;
@@ -716,6 +717,7 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   listActions: [],
   viewActionIds: [],
   cardActionIds: [],
+  allowImport: false,
   childLinks: {},
   enabled: true,
   titleFieldKey: '',
@@ -1429,6 +1431,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
         listActions: resolveListActions(screenKey, def?.listActions),
         viewActionIds: def?.viewActionIds ?? [],
         cardActionIds: def?.cardActionIds ?? [],
+        allowImport: def?.allowImport === true,
       });
       setScreenModal({ screenKey });
       return;
@@ -1445,6 +1448,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       listActions: def.hasTags ? def.listActions : def.listActions.filter((a) => !tagDependentSlots.has(a)),
       viewActionIds: def.viewActionIds,
       cardActionIds: def.cardActionIds,
+      allowImport: def.allowImport === true,
       childLinks,
       enabled: def.enabled,
       titleFieldKey: def.titleFieldKey,
@@ -1979,6 +1983,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           listActions: screenForm.listActions,
           viewActionIds: screenForm.viewActionIds,
           cardActionIds: screenForm.cardActionIds,
+          allowImport: screenForm.allowImport,
         });
         await persistChildLinks(screenModal.screenKey);
         notify(t('screen.children-updated'), 'success');
@@ -2035,6 +2040,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           listActions: screenForm.listActions,
           viewActionIds: screenForm.viewActionIds,
           cardActionIds: screenForm.cardActionIds,
+          allowImport: screenForm.allowImport,
           enabled: screenForm.enabled,
           titleFieldKey,
           subtitleFieldKey,
@@ -2112,6 +2118,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           listActions: screenForm.listActions,
           viewActionIds: screenForm.viewActionIds,
           cardActionIds: screenForm.cardActionIds,
+          allowImport: screenForm.allowImport,
           parentEntity: null,
           parentFieldKey: null,
           sidebarOrder: maxOrder + 1,

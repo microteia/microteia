@@ -24,18 +24,21 @@ export interface ParentRecordImportSource {
   parent?: { fieldKeys: string[]; recordId: string };
   screenTitle: string;
   isAvailable: boolean;
+  /** A tela FILHA declara a importação (`allowImport`): a aba mostra os registros dela. */
+  allowImport: boolean;
   canCreate: boolean;
   canUpdate: boolean;
 }
 
 /**
  * Só a trava por UM campo de referência a um registro só: com vários campos, a linha não diria por qual
- * deles o pai entra; num `multi`, gravar o pai substituiria os outros ids da lista. Fora disso — e para
- * quem não tem `record-import.run`, ou não pode criar NEM alterar na coleção — não há botão: oferecer o
- * que viria todo recusado é fazer a pessoa descobrir o próprio acesso por tentativa.
+ * deles o pai entra; num `multi`, gravar o pai substituiria os outros ids da lista. Fora disso — na tela
+ * filha que não declara `allowImport`, para quem não tem `record-import.run`, ou não pode criar NEM
+ * alterar na coleção — não há botão: oferecer o que viria todo recusado é fazer a pessoa descobrir o
+ * próprio acesso por tentativa.
  */
 export const useParentRecordImport = (source: ParentRecordImportSource): RecordListImport | null => {
-  const { collection, parent, screenTitle, isAvailable, canCreate, canUpdate } = source;
+  const { collection, parent, screenTitle, isAvailable, allowImport, canCreate, canUpdate } = source;
   const { can } = useAuthorization();
   const ctx = useSchemaContext();
   const [isOpen, setIsOpen] = useState(false);
@@ -45,6 +48,7 @@ export const useParentRecordImport = (source: ParentRecordImportSource): RecordL
   const fieldKey = parent?.fieldKeys.length === 1 ? parent.fieldKeys[0] : null;
   const recordId = parent?.recordId ?? '';
   const eligible = isAvailable
+    && allowImport
     && fieldKey !== null
     && recordId !== ''
     && (canCreate || canUpdate)
