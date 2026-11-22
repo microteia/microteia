@@ -11,6 +11,12 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.296.0] — 2026-11-21
+
+- O cartão da listagem agora é desenhado visualmente, sem precisar escrever JSON: arraste os campos da tela, o título, as ações e as etiquetas para dentro do cartão, organize-os em linhas e colunas e ajuste cada parte (estilo, tamanho, cor, rótulo, quando esconder) num painel de propriedades. A pré-visualização mostra o resultado num registro de verdade, que você pode escolher.
+- Problemas no desenho aparecem destacados no próprio elemento, com a explicação ao lado de onde corrigir. Há desfazer e refazer, e o JSON continua disponível para quem preferir, sempre igual ao que o editor visual mostra.
+- A aba Cartão da edição de tela foi reorganizada para dar espaço ao desenho, e a janela de edição de tela agora pode ser maximizada.
+
 #### [9.295.2] — 2026-11-21
 
 - Ao conectar um assistente de IA pelo login, a tela de autorização agora mostra com qual conta você está autorizando, permite usar outra conta e escolher o escritório que será conectado. As permissões oferecidas são as que você tem no escritório escolhido.

@@ -56,6 +56,18 @@ const parseDesign = (form: CardTemplateFormState): Parsed => {
 };
 
 /**
+ * O desenho que o modo visual edita — `accent` e `body`, sem o arranjo, que tem controle próprio.
+ * JSON que não parseia trava o modo visual: devolve o problema, para a tela mandar a pessoa ao JSON.
+ */
+export const cardDesignOf = (
+  form: CardTemplateFormState,
+): { design: Record<string, unknown>; issue: null } | { design: null; issue: CardTemplateIssue } =>
+  parseDesign({ ...form, custom: true });
+
+/** O texto do JSON para um desenho editado no modo visual — o mesmo formato do "começar do padrão". */
+export const cardDesignSource = (design: Record<string, unknown>): string => JSON.stringify(design, null, 2);
+
+/**
  * O que gravar. O arranjo padrão (grade, largura média) não é escrito; nada além dele = `null`, que
  * apaga a declaração e devolve o cartão de sempre. JSON que não parseia não tem o que gravar: quem
  * chama confere `cardTemplateFormIssues` antes.
