@@ -7,6 +7,7 @@ import { blank, bullets, heading, info, step, success } from '../shared/ui.js';
 import { CONSOLE_CHANGELOG, readChangelog } from './changelogs.js';
 import { consolePackageJson, consoleReadme } from './packageTemplates.js';
 import { assertInsideRepository } from './repository.js';
+import { assertReleased } from './release.js';
 
 /**
  * O Console pronto para rodar em outra pasta — ou em outra máquina — sem o repositório.
@@ -48,6 +49,7 @@ export const packConsole = async (args: ParsedArgs): Promise<void> => {
    */
   step(2, total, 'Checking the changelog');
   const changelog = await readChangelog(consoleRoot, CONSOLE_CHANGELOG, CLI_VERSION);
+  await assertReleased(repoRoot, 'console');
   success(`${CONSOLE_CHANGELOG} covers ${CLI_VERSION}`);
 
   step(3, total, 'Assembling the folder');

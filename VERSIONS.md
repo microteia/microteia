@@ -1,15 +1,12 @@
 # Notas de Versão — Microteia
 
+> **Encerrado na 9.299.0.** A versão passou a nascer no release, a partir das mensagens dos commits, e o
+> histórico de cada versão está no `KERNEL-VERSIONS.md`. Destaques para quem usa o sistema, quando
+> houver, vão nas notas do release no GitHub. Este arquivo fica como registro do que veio antes.
+
 > Histórico de novidades, melhorias e correções da Microteia, escrito para quem usa o sistema no dia a dia. Para o histórico técnico de alterações, consulte o log de commits do git.
 
 Cada versão corresponde ao campo `version` de `package.json`. A mais recente fica no topo.
-
-<!-- Nova entrada vai aqui, acima das anteriores, no formato:
-
-#### [0.0.9] — AAAA-MM-DD
-
-- Descrição elegante da mudança, em linguagem simples.
--->
 
 #### [9.299.0] — 2026-11-22
 

@@ -34,6 +34,7 @@ import { KERNEL_CHANGELOG, readChangelog } from './changelogs.js';
 import { assertInsideRepository } from './repository.js';
 import { SDK_TARBALL } from './pluginWorkspaceTemplates.js';
 import { stageExamples } from './exampleSources.js';
+import { assertReleased } from './release.js';
 import { firstPartyTemplates } from './firstPartyTemplates.js';
 import {
   packageCustomIndexTs,
@@ -201,6 +202,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
    * passa a ser contornada com `--skip-verify`.
    */
   const changelog = await readChangelog(root, KERNEL_CHANGELOG, version);
+  await assertReleased(root, 'kernel');
   const kernelVersion = parseKernelVersion(
     await readFile(join(root, 'src/domain/schema/plugin/kernelVersion.ts'), 'utf8'),
   );

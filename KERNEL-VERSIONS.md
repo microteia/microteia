@@ -1,7 +1,9 @@
 # Microteia — kernel changelog
 
 > Technical history of the Microteia platform package, newest first. One entry per `package.json`
-> version, written in the language of the change itself: what moved, where, and why it had to.
+> version, written in the language of the change itself: what moved, where, and why it had to. From
+> 9.299.0 on, each entry is assembled by `microteia release` from the Conventional Commit titles since
+> the previous version.
 >
 > **This file travels inside the package**, and `microteia unpack` replaces the copy next to your
 > `microteia.yaml` on every version. Do not edit that copy — put your own notes in `README.md`.
@@ -10,7 +12,7 @@
 > one. Release notes written for the people who use the application are a separate document and are
 > not distributed with the package.
 
-<!-- A new entry goes here, above the previous ones, in this format:
+<!-- Entries are written by `microteia release`, above the previous ones, in this format:
 
 #### [9.9.9] — YYYY-MM-DD
 

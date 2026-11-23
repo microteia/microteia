@@ -1,0 +1,36 @@
+# Com squash merge, o título do pull request é a mensagem do commit que chega à `main` — e é dela que o
+# `microteia release` tira o número da versão e a entrada do histórico. Título fora do formato é mudança
+# que não entra em versão nenhuma.
+#
+# Fica fora do ci.yml de propósito: renomear o pull request dispara `edited`, e ali isso cancelaria (pelo
+# `concurrency` de lá) o verify que estivesse rodando, para conferir uma linha de texto.
+#
+# A lista de tipos é a de `COMMIT_TYPES` (cli/src/vendor/release.ts), e o release.test.ts reprova se as
+# duas divergirem. O título vai por variável de ambiente, nunca interpolado no script: quem abre o pull
+# request escreve o que quiser ali.
+name: Pull request title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: pr-title-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  title:
+    name: Conventional Commit title
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check the pull request title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if ! printf '%s' "$TITLE" | grep -Eq '^(feat|fix|perf|refactor|docs|test|build|ci|chore|style|revert)(\([^)]+\))?!?: [^ ].*$'; then
+            echo "::error::The title becomes the commit message on main. Use Conventional Commits in English, e.g. 'fix(access): the member-limit column no longer clips'."
+            exit 1
+          fi

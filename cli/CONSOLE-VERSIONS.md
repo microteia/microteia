@@ -14,7 +14,7 @@
 > Semver on the TOOL's side: major when a command changes contract, minor when it gains a capability,
 > patch when what it writes changes without the package coming to depend on it.
 
-<!-- A new entry goes here, above the previous ones, in this format:
+<!-- Entries are written by `microteia release`, from the commits that touched the Console, in this format:
 
 #### [9.9.9] — YYYY-MM-DD
 

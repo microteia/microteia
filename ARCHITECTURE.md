@@ -4280,9 +4280,9 @@ instalação, ao lado do `microteia.yaml`:
 
 **Os dois são em inglês**, pela mesma regra que já valia para o `AUTHORING.md` e o `AGENTS.md`: o que é
 entregue a um escritório que pode estar em qualquer lugar é superfície de produto, e o produto fala
-inglês. O `VERSIONS.md` da raiz é outro documento, com outro leitor — o usuário do escritório —, é em
-português e **não viaja no pacote**. Um commit que sobe a `version` escreve nos dois: o benefício
-percebido em português, a alteração técnica em inglês.
+inglês. O `VERSIONS.md` da raiz — notas em português para o usuário do escritório, que nunca viajaram no
+pacote — foi encerrado na 9.299.0, junto com a regra de subir a versão em todo commit (ver "A versão nasce
+no release").
 
 **Cada histórico sai do artefato que ele descreve, e essa é a decisão inteira.** Não é organização: é o
 que impede qualquer um dos dois de descrever uma versão que não está ali. O Console é distribuído
@@ -4313,8 +4313,8 @@ interrompe: trocar de kernel não pode falhar por causa de um documento.
 
 **A cobrança é dupla, e nenhuma das duas é opcional.** `changelogs.test.ts` reprova a versão sem entrada,
 a entrada fora do topo, a duplicada e a ordem invertida; e `microteia pack` / `pack-console` **recusam
-empacotar** uma versão que o histórico não menciona — a conferência roda ANTES do `verify` e dos três
-builds, porque uma entrada que falta se escreve em um minuto e descobri-la dez minutos depois é como uma
+empacotar** uma versão que o histórico não menciona, ou trabalho que ainda não tem versão — a conferência
+roda ANTES do `verify` e dos três builds, porque descobrir a falta dez minutos depois é como uma
 conferência passa a ser contornada com `--skip-verify`. O formato é o dos outros históricos do produto
 (`#### [versão] — AAAA-MM-DD`, mais recente no topo); o molde dentro do comentário HTML do topo é ignorado
 pelo parser, senão ele seria lido como a entrada mais recente do arquivo.
@@ -4340,6 +4340,34 @@ que o canal já apontava e a que está subindo. Antes ela punha sempre a recém-
 linha antiga (`9.180.1` depois da `9.191.0`) fazia `latest` entregar a versão mais velha a todo
 `unpack --version latest`. O `publish` diz, no `--dry-run` e no fim, se a versão virou `latest` ou só
 entrou na lista. E o `pack --output <dir>` avisa que o `publish` lê só `distributions/kernel/<versão>/`.
+
+### A versão nasce no release — `microteia release`
+
+O commit não carrega versão: carrega a MENSAGEM, em inglês, no formato Conventional Commits, e é dela que
+o número e a entrada do histórico saem. Enquanto cada commit subia a `version` e escrevia o topo de três
+arquivos, dois branches em paralelo brigavam sempre pelas mesmas linhas e pelo mesmo número, e a entrada
+técnica repetia o que a mensagem já dizia. Com mais de uma pessoa commitando, a regra virou o que se faz
+nos projetos open source: pull request com *squash merge* (o título vira a mensagem, e o
+`pr-title.yml` reprova título fora do formato) e o número decidido uma vez, no release.
+
+`microteia release` (`npm run release`, com `--dry-run` para ver o plano), antes do `pack`:
+
+| Decisão | Regra | Por quê |
+|---|---|---|
+| Desde quando | o último commit que mudou a `version` (kernel) ou o `CLI_VERSION` (Console) — `git log -G` | a tag marca o que foi PUBLICADO, e um clone sem as tags baixadas contaria desde versões atrás. Foi também o que fez a transição não ter caso especial: a 9.299.0, última numerada à mão, já é a base |
+| De qual artefato | pelo CAMINHO: `cli/` é o Console; o resto que viaja é o kernel; documentos da raiz, `.github/` e `.claude/` não são de nenhum | o escopo do título é escolhido por quem escreve; o caminho não esquece |
+| Quanto sobe | quebra (`!` ou rodapé `BREAKING CHANGE:`) → major; `feat` → minor; `fix`/`perf` → patch; o resto não lança | SemVer pelo tipo, sem ninguém escolher o número |
+| O que escreve | UMA entrada por artefato, com os títulos dos commits (quebras, depois `feat`, depois `fix`), o número novo, e um commit `chore(release): …` só com esses arquivos | outras pessoas e outras sessões mexem no mesmo checkout; o release recusa se um desses arquivos tiver alteração pendente |
+
+O `pack` e o `pack-console` chamam `assertReleased` logo depois de conferir o histórico: um commit que
+lança depois da base significa que o pacote levaria código sob um número que não o descreve.
+
+**Ficam no commit**, porque alguém pode depender deles no MESMO commit: o `KERNEL_VERSION` (uma extensão
+do repositório pode passar a exigir o contrato novo ali mesmo) e o `manifest.version` de uma extensão
+embutida com o `VERSAO_CONFERIDA`.
+
+A lista de tipos existe em duas pontas — `COMMIT_TYPES` em `release.ts` e a expressão do
+`pr-title.yml` —, e `release.test.ts` reprova se elas divergirem.
 
 ### SDK de autoria — escrever extensão em TypeScript, sem o source do kernel
 
@@ -10222,7 +10250,7 @@ Arquivos **compartilhados**: fonte única em `src/domain/schema/plugin/`, cópia
 
 | Eixo | Onde | Sobe quando |
 |---|---|---|
-| Versão do produto | `package.json` / `VERSIONS.md` / `KERNEL-VERSIONS.md` | Toda release, pela regra de commit |
+| Versão do produto | `package.json` / `KERNEL-VERSIONS.md` | No `microteia release`, pelo tipo dos commits desde a versão anterior |
 | `KERNEL_VERSION` | `kernelVersion.ts` | Major: um Extension Point muda de forma incompatível. Minor: algo é adicionado |
 | `apiVersion` do ponto | cada `ExtensionPointDefinition` | Contrato daquele ponto específico |
 

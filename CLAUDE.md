@@ -91,60 +91,65 @@ Use o atalho do `package.json` quando existir: `npm run verify` (= `typecheck` +
 
 ## Versionamento — NÃO-NEGOCIÁVEL
 
-**Todo commit é precedido, sem exceção, por estes passos:**
+**O commit não carrega versão. A versão nasce no RELEASE, a partir das mensagens dos commits.** É o fluxo
+dos projetos open source, e existe porque mais de uma pessoa commita aqui: enquanto cada commit subia a
+`version` e escrevia o topo de três arquivos, dois branches em paralelo brigavam sempre pelas mesmas
+linhas e pelo mesmo número.
 
-1. Incrementar `version` em `package.json` (SemVer: `patch` para correções, `minor` para funcionalidades novas, `major` para mudanças que quebram compatibilidade).
-2. Adicionar uma entrada nova no **topo** de `VERSIONS.md` (raiz do projeto) para essa versão.
-3. Adicionar a entrada TÉCNICA correspondente no **topo** de `KERNEL-VERSIONS.md` (raiz), **em inglês** — e, se a alteração tocou `cli/`, também no topo de `cli/CONSOLE-VERSIONS.md`, com o `CLI_VERSION` incrementado.
+### O commit
 
-### Três históricos, três leitores — e dois deles são EM INGLÊS
+1. **Uma mudança é um commit na `main`** — pull request com *squash merge*; o título do PR vira a
+   mensagem. O workflow `pr-title.yml` reprova título fora do formato.
+2. **Mensagem em inglês, Conventional Commits:** `feat(scope): …`, `fix(scope): …`, `perf(scope): …`,
+   com `(#N)` da issue no fim. `!` depois do tipo/escopo, ou um rodapé `BREAKING CHANGE: …`, marca
+   quebra de compatibilidade. `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `style` e `revert`
+   não lançam nada.
+3. **Nunca** toque `version` do `package.json`, `CLI_VERSION`, `KERNEL-VERSIONS.md` nem
+   `cli/CONSOLE-VERSIONS.md` num commit de trabalho. São do release.
 
-| Arquivo | Quem lê | Idioma | Tom | Sobe quando |
-|---|---|---|---|---|
-| Mensagem de commit (git) | nós | **português** | Conventional Commits (`feat:`, `fix:`, `docs:`…) | sempre |
-| `VERSIONS.md` (raiz) | o usuário do escritório | **português** | elegante, direto, sem jargão de código | `version` do `package.json` |
-| `KERNEL-VERSIONS.md` (raiz) | quem mantém ou integra uma instalação | **inglês** | técnico, no modelo do git | `version` do `package.json` |
-| `cli/CONSOLE-VERSIONS.md` | idem | **inglês** | técnico, no modelo do git | `CLI_VERSION` |
+O título É a entrada do histórico — escreva o que a mudança torna possível ou o que estava quebrado,
+não o nome do arquivo.
 
-**Os dois últimos são EM INGLÊS porque são dos PACOTES, e pacote é universal — NÃO-NEGOCIÁVEL.** Eles
-viajam para escritórios que podem estar em qualquer lugar: o `KERNEL-VERSIONS.md` dentro do tarball do
-kernel, o `CONSOLE-VERSIONS.md` com o binário do Console, e o `unpack` põe os dois na raiz da instalação
-a cada troca de versão. É a mesma regra de idioma que já valia para `AUTHORING.md` e `AGENTS.md`: o que é
-entregue é produto e fala inglês; o que é comunicação nossa — commit, `VERSIONS.md` da raiz,
-`ARCHITECTURE.md`, `CLAUDE.md`, comentário de código — continua em português, e continua sendo o que
-melhor serve a quem desenvolve aqui.
+### O release
 
-**Cada histórico viaja no artefato que ele descreve**, e é isso que impede qualquer um deles de falar de
-uma versão que não está instalada. Nunca escreva a alteração do Console no histórico do kernel, nem o
-contrário.
+`npm run release` (`microteia release [--dry-run]`), antes do `pack`:
 
-O gate cobra sozinho: `changelogs.test.ts` reprova a versão sem entrada, a entrada fora do topo, a
-duplicada e a ordem invertida; e `microteia pack` / `pack-console` **recusam empacotar** — antes de
-qualquer build — uma versão que o histórico não menciona. Detalhes: "O histórico técnico viaja com o
-pacote" no `ARCHITECTURE.md`.
+- junta os commits desde o último que mudou a versão de cada artefato (`version` para o kernel,
+  `CLI_VERSION` para o Console) — **não** desde a última tag, que um clone novo pode não ter baixado;
+- o artefato sai do CAMINHO: `cli/` é o Console; o resto que viaja é o kernel (documentos da raiz,
+  `.github/` e `.claude/` não são de nenhum); um commit que toca os dois entra nos dois;
+- salto: quebra → major, `feat` → minor, `fix`/`perf` → patch;
+- escreve UMA entrada no topo de cada histórico com os títulos dos commits, sobe o número e commita só
+  esses arquivos (`chore(release): kernel x.y.z, console a.b.c`).
 
-A entrada em `VERSIONS.md` é **escrita para o usuário comum do escritório**, não para desenvolvedores — e é sempre **diferente** da mensagem de commit do git.
+Depois: push, `npm run pack:kernel` / `pack:console`, `npm run publish:packages`. O `pack` e o
+`pack-console` **recusam** enquanto houver commit que lança depois da base — o pacote levaria código sob
+um número que não o descreve.
 
-Formato de cada entrada (mais recente no topo do arquivo):
+**Continuam no commit, porque alguém pode depender deles no mesmo commit:** o `KERNEL_VERSION` (contrato,
+ver "SDK de autoria") e o `manifest.version` de uma extensão embutida com o `VERSAO_CONFERIDA`.
 
-```markdown
-#### [0.0.9] — 2026-07-02
+### Os históricos dos pacotes são EM INGLÊS
 
-- Adicionada a aba de Documentos na tela de Financeiro, para anexar recibos e notas fiscais aos lançamentos.
-- Corrigido um problema que impedia a análise de intimações recebidas por e-mail.
-```
+| Arquivo | Quem lê | Escrito por | Sobe quando |
+|---|---|---|---|
+| Mensagem de commit (git) | nós, e o release | quem commita | sempre |
+| `KERNEL-VERSIONS.md` (raiz) | quem mantém ou integra uma instalação | `microteia release` | `version` do `package.json` |
+| `cli/CONSOLE-VERSIONS.md` | idem | `microteia release` | `CLI_VERSION` |
 
-Cada item descreve o **benefício ou a mudança percebida**, não a implementação (nunca cite nomes de arquivo, componente, hook ou camada). Se `VERSIONS.md` não existir, crie-o com esse formato antes da primeira entrada.
+Eles viajam para escritórios que podem estar em qualquer lugar: o `KERNEL-VERSIONS.md` dentro do tarball
+do kernel, o `CONSOLE-VERSIONS.md` com o binário do Console, e o `unpack` põe os dois na raiz da
+instalação. **Cada histórico viaja no artefato que ele descreve**, e é isso que impede qualquer um deles
+de falar de uma versão que não está instalada.
 
-Nos dois históricos dos pacotes vale o inverso: ali o item é a implementação, no formato do commit — e o
-cabeçalho é o mesmo dos outros históricos do produto, `#### [versão] — AAAA-MM-DD`, mais recente no topo.
+O `VERSIONS.md` da raiz (notas em português para o usuário do escritório) foi **encerrado na 9.299.0**.
+Nenhum código o lia e ele nunca viajou no pacote; destaques para quem usa o sistema, quando fizerem falta,
+são escritos à mão nas notas do release no GitHub.
 
-```markdown
-#### [9.5.0] — 2026-08-23
-
-- feat(cli/unpack): what the change makes possible, and what it cost not to have it.
-- fix(cli/pack): what was broken, and what it did to whoever hit it.
-```
+O gate cobra sozinho: `changelogs.test.ts` reprova a versão sem entrada, fora do topo, duplicada ou fora
+de ordem; `release.test.ts` guarda as regras do salto e que a lista de tipos do CI é a mesma do release;
+e `microteia pack` / `pack-console` recusam empacotar — antes de qualquer build — uma versão sem entrada
+ou com trabalho ainda sem versão. Detalhes: "O histórico técnico viaja com o pacote" no `ARCHITECTURE.md`.
 
 ---
 
@@ -297,9 +302,10 @@ exclusivamente no pacote `com.microteia.locale-pt-br` — nunca no núcleo.
 | Tradução desse texto | português | `src/plugins/marketplace/localePtBr/` |
 | Comentário de código, JSDoc | **português** | código |
 | Comentário das extensões que viajam como exemplo de autoria | **inglês** | `marketplace/{calendar,dashboard,news}*.ts` e as views delas |
-| `ARCHITECTURE.md`, `CLAUDE.md`, `VERSIONS.md`, README | **português** | raiz |
+| `ARCHITECTURE.md`, `CLAUDE.md`, README | **português** | raiz |
 | Histórico técnico dos PACOTES (viaja para o escritório) | **inglês** | `KERNEL-VERSIONS.md` e `cli/CONSOLE-VERSIONS.md` |
-| Mensagem de commit, nome de teste (`describe`/`it`) | **português** | git / `*.test.ts` |
+| Mensagem de commit (vira o histórico do pacote) | **inglês** | git |
+| Nome de teste (`describe`/`it`) | **português** | `*.test.ts` |
 
 A regra separa **produto** de **comunicação**. O produto é falado em inglês porque tem de poder ser
 falado em qualquer idioma; a comunicação entre nós continua em português porque é nossa.
@@ -566,12 +572,11 @@ Leia com `gh issue view <n> --comments`. Três regras valem para qualquer issue:
 - [ ] **Nenhuma frase solta destinada ao usuário, em idioma nenhum**: todo texto novo nasce como chave em inglês no catálogo `en` E ganha a tradução pt-BR no mesmo commit; texto que não puder ser traduzido não entra (ver "Idioma")
 - [ ] `npx tsc -b --force` sem erros (ou `npm run typecheck`)
 - [ ] `npx eslint . --max-warnings 0` sem erros **nem warnings**
-- [ ] **Antes de commitar:** `version` incrementada em `package.json` + entrada nova no topo de `VERSIONS.md` (linguagem de usuário, diferente da mensagem de commit) + entrada técnica **em inglês** no topo de `KERNEL-VERSIONS.md`
+- [ ] **Mensagem do commit:** Conventional Commits **em inglês**, com `(#N)`; nenhum número de versão nem histórico de pacote tocado (é do `npm run release`)
 - [ ] **Mexeu em `hostApi.ts`?** `extensionTypeDefs.ts` atualizado na mesma alteração, **em inglês** — é o que o autor de extensão lê como API
 - [ ] **Fonte de view/startup nova?** Arquivo `.tsx` em `src/plugins/marketplace/views/<plugin>/` + import `?raw`. Nunca template literal
 - [ ] **Símbolo novo (ou a menos) em `src/sdk/index.ts`?** As DUAS listas de `sdkSurface.test.ts` atualizadas; `KERNEL_VERSION` só se o pacote INSTALADO muda de forma (ver "SDK de autoria")
 - [ ] **Texto novo em `extensions/`?** Mora em `src/sdk/node/workspace/`, nunca em `cli/`; se ele afirma algo sobre o kernel, o número ou a lista é DERIVADA do código, com teste
-- [ ] **Mexeu em `cli/`?** `CLI_VERSION` incrementado em `cli/src/shared/paths.ts`, com a entrada técnica **em inglês** no topo de `cli/CONSOLE-VERSIONS.md` (o JSDoc do `CLI_VERSION` guarda só a política de semver e a narrativa até a `2.5.0` — não escreva a entrada nova lá)
 - [ ] **Nova coleção Firestore ou permissão alterada:** editar `firestore.rules` (raiz) e avisar que precisa de `npm run deploy:rules`
 - [ ] **Novo path no Storage:** editar `storage.rules` (raiz) e avisar que precisa de `npm run deploy:rules`
 - [ ] **Nova query Firestore:** `where` máximo + `orderBy` no servidor + `limit()` + índice em `firestore.indexes.json` (raiz) e na tabela do `ARCHITECTURE.md`, com aviso de `npm run deploy:indexes`; coleções de crescimento ilimitado exigem paginação por cursor

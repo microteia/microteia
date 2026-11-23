@@ -97,5 +97,9 @@ export const consoleRoot = resolve(here, '..', '..');
  * viaja com o Console e chega à raiz da instalação a cada `unpack`. Um histórico dentro de um comentário
  * de código nunca chegou a quem instala. Este bloco fica sendo o que ele já era antes de crescer: a
  * política de semver da ferramenta, mais o registro do que motivou as versões até a `2.5.0`.
+ *
+ * **Quem sobe o número é o `microteia release`**, a partir dos commits que tocaram `cli/` — nunca o
+ * commit de trabalho. A linha abaixo precisa continuar sendo uma só: é por ela que o release acha a
+ * versão atual e o commit que a fixou.
  */
 export const CLI_VERSION = '2.47.1';

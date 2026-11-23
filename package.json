@@ -15,6 +15,7 @@
   },
   "scripts": {
     "build:cli": "tsc -b cli",
+    "release": "npm run build:cli && node cli/lib/index.js release",
     "pack:kernel": "npm run build:cli && node cli/lib/index.js pack",
     "pack:console": "npm run build:cli && node cli/lib/index.js pack-console",
     "publish:packages": "npm run build:cli && node cli/lib/index.js publish",

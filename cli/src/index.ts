@@ -6,6 +6,7 @@ import { blank, failure, heading, info } from './shared/ui.js';
 import { pack } from './vendor/pack.js';
 import { packConsole } from './vendor/packConsole.js';
 import { publish } from './vendor/publish.js';
+import { release } from './vendor/release.js';
 import { init } from './console/init.js';
 import { connect } from './console/connect.js';
 import { unpack } from './console/unpack.js';
@@ -81,6 +82,13 @@ const COMMANDS: Command[] = [
     summary: 'Prepare "extensions/", to author extensions in TypeScript in your editor.',
     audience: 'office',
     execute: pluginInit,
+  },
+  {
+    name: 'release',
+    usage: 'microteia release [--dry-run]',
+    summary: 'Version the kernel and the Console from the commits since their last version, and commit the changelogs.',
+    audience: 'publisher',
+    execute: release,
   },
   {
     name: 'pack',
