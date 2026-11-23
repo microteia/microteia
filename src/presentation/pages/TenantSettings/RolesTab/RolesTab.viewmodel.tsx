@@ -33,6 +33,12 @@ export interface PermissionRow {
   roles: RoleBinding[];
   /** Só os nomes dos que a concedem — a coluna da lista. */
   grantedBy: string[];
+  /**
+   * O plano do escritório não inclui esta permissão (#24). Os perfis continuam podendo marcá-la — não
+   * faz mal, e volta a valer se o plano mudar —, mas a tela diz que ela não concede nada hoje. Sem o
+   * aviso, o administrador vincula, nada acontece, e não há como descobrir por quê.
+   */
+  excludedByPlan: boolean;
 }
 
 export interface PermissionGroup {
@@ -88,7 +94,8 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
   const label = useLabel();
   const { notify } = useNotification();
   const { roles, isLoading, createRole, updateRole, deleteRole } = useRoles();
-  const { catalog, can } = useAuthorization();
+  const { catalog, can, planDeniedPermissions } = useAuthorization();
+  const planDenied = useMemo(() => new Set(planDeniedPermissions), [planDeniedPermissions]);
 
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -163,9 +170,10 @@ export const useRolesTabViewModel = (): RolesTabViewModel => {
         includes: dependenciesOf(catalog, permission.id).map(nameOf),
         roles: bindings,
         grantedBy: bindings.filter((binding) => binding.granted).map((binding) => binding.roleName),
+        excludedByPlan: planDenied.has(permission.id),
       };
     },
-    [roles, impliedByRole, catalog, label, nameOf, canManage],
+    [roles, impliedByRole, catalog, label, nameOf, canManage, planDenied],
   );
 
   const allGroups = useMemo<PermissionGroup[]>(() => {

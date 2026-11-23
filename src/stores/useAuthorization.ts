@@ -17,8 +17,13 @@ export interface AuthorizationContextValue {
   /** O fecho transitivo — o que de fato vale. */
   effectivePermissions: string[];
   catalog: PermissionCatalog;
-  /** Acesso irrestrito: administrador global (`SYSTEM`) ou dono do escritório. */
+  /**
+   * Sem limite de PERFIL: administrador global (`SYSTEM`) ou dono do escritório. Não quer dizer "pode
+   * tudo" — o plano ainda nega ao dono o que `planDeniedPermissions` lista. Pergunte sempre a `can()`.
+   */
   isUnrestricted: boolean;
+  /** O que o plano do escritório nega, com o que cai junto (#24). Não alcança o `SYSTEM`. */
+  planDeniedPermissions: string[];
   isLoading: boolean;
 }
 

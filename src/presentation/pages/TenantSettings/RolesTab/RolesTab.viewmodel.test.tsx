@@ -58,8 +58,10 @@ vi.mock('../../../../stores/useNotification', () => ({
   useNotification: () => ({ notify: vi.fn() }),
 }));
 
+let planDeniedPermissions: string[] = [];
+
 vi.mock('../../../../stores/useAuthorization', () => ({
-  useAuthorization: () => ({ can: () => true, canAny: () => true, canAll: () => true, catalog }),
+  useAuthorization: () => ({ can: () => true, canAny: () => true, canAll: () => true, catalog, planDeniedPermissions }),
 }));
 
 vi.mock('../../../shared/i18n/useT', () => ({
@@ -74,6 +76,7 @@ const rowOf = (vm: ReturnType<typeof useRolesTabViewModel>, id: string) =>
 
 describe('RolesTabViewModel — a tela por PERMISSÃO', () => {
   beforeEach(() => {
+    planDeniedPermissions = [];
     updateRole.mockClear();
     createRole.mockClear();
     roles = [
@@ -102,6 +105,13 @@ describe('RolesTabViewModel — a tela por PERMISSÃO', () => {
     const binding = rowOf(result.current, 'person.read').roles.find((r) => r.roleId === 'r-fin')!;
     expect(binding).toMatchObject({ granted: true, locked: true });
     expect(binding.impliedBy).toEqual(['Edit finance']);
+  });
+
+  it('a permissão que o plano do escritório nega aparece como fora do plano (#24)', () => {
+    planDeniedPermissions = ['person.read'];
+    const { result } = renderHook(() => useRolesTabViewModel());
+    expect(rowOf(result.current, 'person.read').excludedByPlan).toBe(true);
+    expect(rowOf(result.current, 'finance.read').excludedByPlan).toBe(false);
   });
 
   it('o perfil do SISTEMA fica travado em qualquer permissão', () => {

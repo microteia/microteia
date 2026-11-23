@@ -1,7 +1,7 @@
 import type { IUserRepository } from '../repositories/IUserRepository';
 import type { ITenantRepository } from '../repositories/ITenantRepository';
 import type { CreateAuditLogUseCase } from './CreateAuditLogUseCase';
-import { openOwnedTenant } from './BootstrapUserUseCase';
+import { openOwnedTenant, type NewTenantPlans } from './BootstrapUserUseCase';
 import type { StageOfficeDefaultsUseCase } from './StageOfficeDefaultsUseCase';
 import { failedPrecondition, invalidArgument, notFound } from '../errors/DomainError';
 
@@ -32,6 +32,7 @@ export const makeCreateOrganizationUseCase = (deps: {
   audit: CreateAuditLogUseCase;
   random: () => number;
   officeDefaults?: StageOfficeDefaultsUseCase;
+  plans?: NewTenantPlans;
 }): CreateOrganizationUseCase => ({
   execute: async ({ name, ownerEmail, actor }) => {
     const trimmed = typeof name === 'string' ? name.trim() : '';
@@ -43,7 +44,7 @@ export const makeCreateOrganizationUseCase = (deps: {
     if (!owner) throw notFound('@core.admin/access.offices.create.owner-not-found');
     if (owner.origin === 'portal') throw failedPrecondition('@core.admin/access.offices.create.owner-portal');
 
-    const tenant = await openOwnedTenant(deps.tenants, owner, trimmed, actor.userId, deps.random, deps.officeDefaults);
+    const tenant = await openOwnedTenant(deps.tenants, owner, trimmed, actor.userId, deps.random, deps.officeDefaults, deps.plans);
     await deps.audit.execute({
       tenantId: tenant.id,
       ...actor,

@@ -1089,7 +1089,11 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     id: string;
     name: string;
     photoURL: string | null;
-    /** The EFFECTIVE permissions of the viewer. To ask about one of them, use useCan(). */
+    /**
+     * The EFFECTIVE permissions of the viewer. To ask about one of them, use useCan(). Do not read the
+     * list yourself: the tenant owner holds '*', and what the tenant's plan excludes comes as '!<id>'
+     * entries that take precedence over it.
+     */
     permissions: string[];
     /** The current organization - what a server function receives to know where to act. */
     tenantId: string;

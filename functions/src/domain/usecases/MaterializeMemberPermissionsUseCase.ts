@@ -1,6 +1,14 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { AssignedRole } from '../schema/access';
-import { KERNEL_CATALOG_FINGERPRINT, UNRESTRICTED_PERMISSION, memberPermissions } from '../schema/access';
+import {
+  KERNEL_CATALOG_FINGERPRINT,
+  UNRESTRICTED_PERMISSION,
+  applyPlanCeiling,
+  memberPermissions,
+  planDeniedClosure,
+} from '../schema/access';
+import { planStamp } from '../schema/plans';
+import type { IPlanRepository } from '../repositories/IPlanRepository';
 import type { PermissionCatalogCache } from '../../data/services/PermissionCatalogCache';
 import type { IMemberMfaPolicyRepository } from '../repositories/IMemberMfaPolicyRepository';
 import { memberMfaRequirementFrom, memberMfaRequirementOf, sameMfaRequirement } from '../schema/memberMfa';
@@ -36,12 +44,16 @@ const sameSet = (a: readonly string[], b: readonly string[]): boolean =>
  * 4. **A exigência de segundo fator vem junto** (`mfa`), calculada da política do escritório sobre o
  *    MESMO conjunto efetivo — quem recebe uma permissão por dependência a recebe também para a política.
  *    Ela entra na guarda de idempotência como o resto, e ausente continua ausente: num escritório sem
- *    política, nenhum documento de membro ganha campo novo.
+ *    política, nenhum documento de membro ganha campo novo. * 5. **O teto do PLANO entra no conjunto** (#24): o que o plano do escritório nega sai da lista, com o
+ *    que depende dele, e vira entrada `!<id>` — inclusive para o dono, cujo curinga passa a ter
+ *    exceções. A digital do que foi negado (`permissionsPlan`) é carimbada na mesma escrita, pelo
+ *    mesmo motivo da digital do catálogo: é por ela que o navegador percebe um plano alterado.
  */
 export const makeMaterializeMemberPermissionsUseCase = (
   db: Firestore,
   catalogCache: PermissionCatalogCache,
   mfaPolicies: Pick<IMemberMfaPolicyRepository, 'get'>,
+  plans: Pick<IPlanRepository, 'getPlan'>,
 ): MaterializeMemberPermissionsUseCase => ({
   execute: async ({ tenantId, userIds }) => {
     const [tenantSnap, roleSnap, memberSnap, catalog, mfaPolicy] = await Promise.all([
@@ -54,6 +66,11 @@ export const makeMaterializeMemberPermissionsUseCase = (
 
     if (!tenantSnap.exists) return 0;
     const ownerId = tenantSnap.data()?.ownerId as string | undefined;
+    const planId = tenantSnap.data()?.plan;
+    const plan = typeof planId === 'string' && planId !== '' ? await plans.getPlan(planId) : null;
+    const planDenied = plan?.deniedPermissions ?? [];
+    const deniedClosure = planDeniedClosure(catalog, planDenied);
+    const stampedPlanWanted = planStamp(planDenied);
 
     const roles: AssignedRole[] = roleSnap.docs.map((doc) => ({
       id: doc.id,
@@ -74,10 +91,15 @@ export const makeMaterializeMemberPermissionsUseCase = (
         // gatilho de membro voltaria a recalcular o escritório a cada escrita nele.
         const current = Array.isArray(doc.data().permissions) ? (doc.data().permissions as string[]) : null;
         const stamped = doc.data().permissionsCatalog as string | undefined;
-        const next =
+        // Ausente é o mesmo que vazio: o membro de antes do plano configurável não tem o campo, e não
+        // pode ser regravado por isso — seria reescrever todos os escritórios no deploy.
+        const stampedPlan = typeof doc.data().permissionsPlan === 'string' ? doc.data().permissionsPlan as string : '';
+        const next = applyPlanCeiling(
           userId === ownerId
             ? [UNRESTRICTED_PERMISSION]
-            : memberPermissions(catalog, roles, roleIds).effective;
+            : memberPermissions(catalog, roles, roleIds).effective,
+          deniedClosure,
+        );
 
         const mfa = memberMfaRequirementOf(mfaPolicy, { roleIds, permissions: next });
         const mfaUnchanged = sameMfaRequirement(memberMfaRequirementFrom(doc.data().mfa), mfa);
@@ -85,10 +107,17 @@ export const makeMaterializeMemberPermissionsUseCase = (
         // O carimbo entra na guarda junto com o conjunto: sem isso, um kernel que mudou uma
         // dependência SEM mudar o resultado deste membro deixaria o documento com a digital velha, e
         // o front pediria a mesma recomposição a cada sessão, para sempre.
-        if (current !== null && sameSet(current, next) && stamped === KERNEL_CATALOG_FINGERPRINT && mfaUnchanged) return;
+        if (
+          current !== null
+          && sameSet(current, next)
+          && stamped === KERNEL_CATALOG_FINGERPRINT
+          && stampedPlan === stampedPlanWanted
+          && mfaUnchanged
+        ) return;
         await doc.ref.update({
           permissions: next,
           permissionsCatalog: KERNEL_CATALOG_FINGERPRINT,
+          permissionsPlan: stampedPlanWanted,
           ...(mfaUnchanged ? {} : { mfa }),
         });
         written += 1;

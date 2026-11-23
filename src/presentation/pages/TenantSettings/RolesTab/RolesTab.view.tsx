@@ -61,6 +61,12 @@ export const RolesTabView: React.FC = () => {
                     <S.PermissionId>{permission.id}</S.PermissionId>
                   </S.PermissionText>
                   <S.Chips>
+                    {permission.excludedByPlan && (
+                      <S.PlanChip>
+                        <RiLockLine size={12} />
+                        {t('role.plan.excluded')}
+                      </S.PlanChip>
+                    )}
                     {permission.grantedBy.length === 0 && <S.NoChip>{t('role.granted.none')}</S.NoChip>}
                     {permission.grantedBy.slice(0, CHIP_LIMIT).map((name) => (
                       <S.Chip key={name}>{name}</S.Chip>
@@ -87,6 +93,9 @@ export const RolesTabView: React.FC = () => {
               </Button>
             </S.PanelHeader>
 
+            {vm.selected.excludedByPlan && (
+              <InfoBanner message={t('role.plan.excluded.hint')} variant="info" />
+            )}
             {vm.selected.description && <S.PermissionHint>{vm.selected.description}</S.PermissionHint>}
             {vm.selected.includes.length > 0 && (
               <S.PermissionHint>

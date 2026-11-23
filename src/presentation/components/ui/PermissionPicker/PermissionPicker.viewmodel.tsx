@@ -51,6 +51,12 @@ export interface PermissionPickerViewModel {
 export interface PermissionPickerInput {
   selected: string[];
   onChange: (ids: string[]) => void;
+  /**
+   * Estreita o que se oferece, além do que a pessoa pode. A aba de Planos oferece só as permissões
+   * DECLARADAS (kernel e extensões): as de coleção variam de escritório para escritório. Precisa ter
+   * identidade estável (`useCallback` ou constante de módulo), ou o catálogo é refiltrado a cada render.
+   */
+  restrictTo?: (permission: CatalogPermission) => boolean;
 }
 
 /**
@@ -69,7 +75,7 @@ export interface PermissionPickerInput {
 export const usePermissionPickerViewModel = (
   input: PermissionPickerInput,
 ): PermissionPickerViewModel => {
-  const { catalog, effectivePermissions, isUnrestricted } = useAuthorization();
+  const { catalog, can } = useAuthorization();
   const label = useLabel();
   const t = useT('core.access');
 
@@ -91,10 +97,11 @@ export const usePermissionPickerViewModel = (
    * A mesma conta que `issueAgentGrant` refaz no servidor. Aqui ela existe para a tela não oferecer
    * o que seria recusado, e não como garantia — a garantia é a de lá.
    */
-  const offerable = useMemo<CatalogPermission[]>(() => {
-    const held = new Set(effectivePermissions);
-    return catalog.list.filter((permission) => isUnrestricted || held.has(permission.id));
-  }, [catalog, effectivePermissions, isUnrestricted]);
+  const { restrictTo } = input;
+  const offerable = useMemo<CatalogPermission[]>(
+    () => catalog.list.filter((permission) => can(permission.id) && (!restrictTo || restrictTo(permission))),
+    [catalog, can, restrictTo],
+  );
 
   const resourceName = useCallback(
     (resource: string): string => {

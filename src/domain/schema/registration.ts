@@ -65,6 +65,12 @@ export interface RegistrationPolicy {
    * Validado pela FORMA, nunca contra os pacotes instalados — a mesma regra de `i18n.locale`.
    */
   defaultLocale: LocaleCode | null;
+  /**
+   * O plano com que nasce o escritório novo — o do autocadastro e o que o `SYSTEM` abre em nome de
+   * alguém (#24). O escritório recebe também o limite de membros do plano. `null`, ou um plano que não
+   * existe ou foi arquivado, abre o escritório sem plano e com o limite de antes (`NO_PLAN_MEMBER_LIMIT`).
+   */
+  defaultPlanId: string | null;
 }
 
 const defaultExtensionsOf = (value: unknown): string[] =>
@@ -86,5 +92,6 @@ export const registrationPolicyOf = (data: unknown): RegistrationPolicy => {
     selfServiceTenants: fields.selfServiceTenants !== false,
     defaultExtensions: defaultExtensionsOf(fields.defaultExtensions),
     defaultLocale: defaultLocaleOf(fields.defaultLocale),
+    defaultPlanId: typeof fields.defaultPlanId === 'string' && fields.defaultPlanId.trim() !== '' ? fields.defaultPlanId : null,
   };
 };

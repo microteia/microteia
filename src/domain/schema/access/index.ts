@@ -88,6 +88,16 @@ export {
 } from './memberPermissions';
 
 export {
+  PLAN_DENIAL_PREFIX,
+  applyPlanCeiling,
+  deniedByPlan,
+  grantedEntries,
+  isPlanDenialEntry,
+  planDenialEntry,
+  planDeniedClosure,
+} from './planCeiling';
+
+export {
   ambientEntity,
   ambientPermissions,
   resetAmbientPermissions,

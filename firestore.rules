@@ -134,10 +134,18 @@ service cloud.firestore {
         && isPortalUser(tenantId);
     }
 
+    // O que o PLANO do escritório nega a este membro (#24): a entrada `!<permissão>` que a
+    // materialização grava na MESMA lista de `permissions`. É o que faz o teto alcançar o dono — o
+    // curinga `*` ganha exceções —, e mora ali para custar zero: o documento de membro já é lido.
+    function deniedByPlan(tenantId, permission) {
+      return belongsToTenant(tenantId) && memberPermissions(tenantId).hasAny(['!' + permission]);
+    }
+
     function can(tenantId, permission) {
       return isSystemAdmin()
-        || (isTenantMember(tenantId) && memberPermissions(tenantId).hasAny([permission, '*']))
-        || isTenantOwner(tenantId);
+        || (!deniedByPlan(tenantId, permission)
+          && ((isTenantMember(tenantId) && memberPermissions(tenantId).hasAny([permission, '*']))
+            || isTenantOwner(tenantId)));
     }
 
     // ─── Usuários ─────────────────────────────────────────────────────────────
@@ -203,7 +211,7 @@ service cloud.firestore {
     match /system/registration {
       allow get: if isSystemAdmin();
       allow create, update: if isSystemAdmin()
-        && request.resource.data.keys().hasOnly(['acceptNewAccounts', 'selfServiceTenants', 'defaultExtensions', 'defaultLocale', 'updatedBy', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['acceptNewAccounts', 'selfServiceTenants', 'defaultExtensions', 'defaultLocale', 'defaultPlanId', 'updatedBy', 'updatedAt'])
         && request.resource.data.get('acceptNewAccounts', true) is bool
         && request.resource.data.get('selfServiceTenants', true) is bool
         && request.resource.data.get('defaultExtensions', []) is list
@@ -212,8 +220,33 @@ service cloud.firestore {
         && (request.resource.data.get('defaultLocale', null) == null
           || (request.resource.data.defaultLocale is string
             && request.resource.data.defaultLocale.matches('^[a-z]{2,3}(-[A-Za-z0-9]+)*$')))
+        // O plano do escritório novo (#24): nenhum, ou o id de um documento de `plans`.
+        && (request.resource.data.get('defaultPlanId', null) == null
+          || request.resource.data.defaultPlanId is string)
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.updatedAt == request.time;
+    }
+
+    // ─── Planos (#24) ─────────────────────────────────────────────────────────
+    // O que o SYSTEM vende, como dado da instalação. O membro LÊ um plano pelo id — o navegador precisa
+    // do teto e do nome do plano do próprio escritório —, mas só o SYSTEM LISTA os planos: a vitrine
+    // inteira (nomes, tetos, arquivados) não é assunto de escritório. Só o SYSTEM grava; o servidor
+    // recompõe os membros quando o teto muda.
+    match /plans/{planId} {
+      allow get: if request.auth != null;
+      allow list: if isSystemAdmin();
+      allow create, update: if isSystemAdmin()
+        && request.resource.data.keys().hasOnly(['name', 'memberLimit', 'deniedPermissions', 'archived', 'createdAt', 'updatedAt', 'updatedBy'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && (request.resource.data.get('memberLimit', null) == null
+          || (request.resource.data.memberLimit is int && request.resource.data.memberLimit >= 1))
+        && request.resource.data.get('deniedPermissions', []) is list
+        && request.resource.data.get('deniedPermissions', []).size() <= 500
+        && request.resource.data.get('archived', false) is bool
+        && request.resource.data.updatedBy == request.auth.uid;
+      allow delete: if isSystemAdmin();
     }
 
     // A recusa que o gatilho de criação grava antes de apagar a conta: só quem foi recusado a lê, e é
@@ -347,9 +380,12 @@ service cloud.firestore {
         //
         // `mfa` é a exigência de segundo fator, materializada pelo mesmo servidor e pelo mesmo motivo:
         // quem pudesse apagá-la do próprio documento entraria só com a senha.
+        //
+        // `permissionsPlan` é a digital do que o plano nega (#24), carimbada com o conjunto — negada
+        // pelo mesmo motivo de `permissionsCatalog`.
         allow update: if can(tenantId, 'members.manage')
           && !request.resource.data.diff(resource.data).affectedKeys()
-               .hasAny(['permissions', 'permissionsCatalog', 'mfa']);
+               .hasAny(['permissions', 'permissionsCatalog', 'permissionsPlan', 'mfa']);
       }
 
       // ─── Portal ──────────────────────────────────────────────────────────────

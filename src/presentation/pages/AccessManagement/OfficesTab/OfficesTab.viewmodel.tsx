@@ -6,8 +6,8 @@ import { makeUpdateTenantMemberLimitUseCase } from '../../../../domain/usecases/
 import { makeUpdateTenantUseCase } from '../../../../domain/usecases/tenants/UpdateTenantUseCase';
 import { makeCreateOrganizationUseCase } from '../../../../domain/usecases/tenants/CreateOrganizationUseCase';
 import { errorParamsOf } from '../../../../domain/errors/LocalizedError';
-import { TENANT_PLANS, TENANT_PLAN_LABELS, TENANT_PLAN_MEMBER_LIMITS } from '../../../../domain/entities';
-import type { Tenant, TenantPlan } from '../../../../domain/entities';
+import { makeListPlansUseCase } from '../../../../domain/usecases/plans/PlanUseCases';
+import type { Plan, Tenant } from '../../../../domain/entities';
 import type { FilterDef, FilterToken } from '../../../components/ui/CompositeFilter';
 import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
 
@@ -22,11 +22,12 @@ export interface OfficesTabViewModel {
   filteredTenants: Tenant[];
   totalCount: number;
   savingTenantId: string | null;
-  planOptions: SearchSelectOption[];
-  planDrafts: Record<string, TenantPlan>;
+  /** Por escritório: os planos oferecidos mais o atual dele, mesmo arquivado ou não cadastrado. */
+  planOptionsByTenant: Record<string, SearchSelectOption[]>;
+  planDrafts: Record<string, string>;
   memberLimitDrafts: Record<string, string>;
   setFilterTokens: (tokens: FilterToken[]) => void;
-  handlePlanChange: (tenantId: string, plan: TenantPlan) => Promise<void>;
+  handlePlanChange: (tenantId: string, plan: string) => Promise<void>;
   handleMemberLimitDraftChange: (tenantId: string, value: string) => void;
   handleMemberLimitCommit: (tenantId: string) => Promise<void>;
   createOpen: boolean;
@@ -42,10 +43,13 @@ export interface OfficesTabViewModel {
   submitCreate: () => void;
 }
 
+/** O valor do seletor para "sem plano" — `SearchSelect` não distingue `null` de "nada escolhido". */
+const NO_PLAN = '__no-plan__';
+
 export const useOfficesTabViewModel = (): OfficesTabViewModel => {
   const t = useT('core.admin');
   const label = useLabel();
-  const { tenantRepository } = useDI();
+  const { tenantRepository, planRepository } = useDI();
   const { notify } = useNotification();
 
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -53,10 +57,12 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
   const [error, setError] = useState<string | null>(null);
   const [filterTokens, setFilterTokens] = useState<FilterToken[]>([]);
   const [savingTenantId, setSavingTenantId] = useState<string | null>(null);
-  const [planDrafts, setPlanDrafts] = useState<Record<string, TenantPlan>>({});
+  const [planDrafts, setPlanDrafts] = useState<Record<string, string>>({});
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [memberLimitDrafts, setMemberLimitDrafts] = useState<Record<string, string>>({});
 
   const getAllTenantsUseCase = useMemo(() => makeGetAllTenantsUseCase(tenantRepository), [tenantRepository]);
+  const listPlansUseCase = useMemo(() => makeListPlansUseCase(planRepository), [planRepository]);
   const updateMemberLimitUseCase = useMemo(() => makeUpdateTenantMemberLimitUseCase(tenantRepository), [tenantRepository]);
   const updateTenantUseCase = useMemo(() => makeUpdateTenantUseCase(tenantRepository), [tenantRepository]);
   const createOrganizationUseCase = useMemo(() => makeCreateOrganizationUseCase(tenantRepository), [tenantRepository]);
@@ -68,25 +74,47 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const planOptions = useMemo<SearchSelectOption[]>(
-    () => TENANT_PLANS.map((plan) => ({ value: plan, label: label(TENANT_PLAN_LABELS[plan]) })),
-    [ label],
-  );
+  /**
+   * O plano arquivado não é OFERECIDO (#24), mas o escritório que já está nele continua vendo o nome
+   * dele — senão o seletor ficaria em branco e pareceria sem plano. O mesmo para um id que nenhum
+   * documento explica: aparece como está, para o `SYSTEM` saber que precisa escolher outro.
+   */
+  const planOptionsByTenant = useMemo<Record<string, SearchSelectOption[]>>(() => {
+    const byId = new Map(plans.map((plan) => [plan.id, plan]));
+    const offered: SearchSelectOption[] = [
+      { value: NO_PLAN, label: t('access.plan.none') },
+      ...plans
+        .filter((plan) => !plan.archived)
+        .map((plan) => ({ value: plan.id, label: label(plan.name) }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    ];
+    return Object.fromEntries(tenants.map((tenant) => {
+      if (!tenant.plan || offered.some((option) => option.value === tenant.plan)) return [tenant.id, offered];
+      const current = byId.get(tenant.plan);
+      const extra = current
+        ? { value: current.id, label: t('access.plans.archived-suffix', { name: label(current.name) }) }
+        : { value: tenant.plan, label: t('access.plans.unknown', { id: tenant.plan }) };
+      return [tenant.id, [...offered, extra]];
+    }));
+  }, [plans, tenants, t, label]);
 
   const applyList = useCallback((list: Tenant[]) => {
     setTenants(list);
-    setPlanDrafts(Object.fromEntries(list.map((t) => [t.id, t.plan])));
+    setPlanDrafts(Object.fromEntries(list.map((t) => [t.id, t.plan ?? NO_PLAN])));
     setMemberLimitDrafts(
       Object.fromEntries(list.map((t) => [t.id, t.memberLimit === null ? '' : String(t.memberLimit)])),
     );
   }, []);
 
   useEffect(() => {
-    getAllTenantsUseCase.execute()
-      .then(applyList)
+    Promise.all([getAllTenantsUseCase.execute(), listPlansUseCase.execute()])
+      .then(([list, registered]) => {
+        setPlans(registered);
+        applyList(list);
+      })
       .catch(() => setError(t('access.offices.load-failed')))
       .finally(() => setLoading(false));
-  }, [getAllTenantsUseCase, applyList, t]);
+  }, [getAllTenantsUseCase, listPlansUseCase, applyList, t]);
 
   const filterDefs = useMemo<FilterDef[]>(() => [
     {
@@ -109,25 +137,32 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
     return tenants.filter((t) => t.name.toLowerCase().includes(searchQ));
   }, [tenants, tokenMap]);
 
-  const handlePlanChange = useCallback(async (tenantId: string, plan: TenantPlan) => {
+  /**
+   * Trocar o plano SUGERE o limite padrão dele, gravado junto — e o limite continua editável ao lado.
+   * Sair de todo plano mantém o limite que o escritório tinha: "sem plano" não diz limite nenhum.
+   */
+  const handlePlanChange = useCallback(async (tenantId: string, choice: string) => {
     const tenant = tenants.find((t) => t.id === tenantId);
+    const plan = choice === NO_PLAN ? null : choice;
     if (!tenant || tenant.plan === plan) return;
 
-    const memberLimit = TENANT_PLAN_MEMBER_LIMITS[plan];
-    setPlanDrafts((prev) => ({ ...prev, [tenantId]: plan }));
+    const memberLimit = plan === null
+      ? tenant.memberLimit
+      : plans.find((candidate) => candidate.id === plan)?.memberLimit ?? null;
+    setPlanDrafts((prev) => ({ ...prev, [tenantId]: choice }));
     setSavingTenantId(tenantId);
     try {
       await updateTenantUseCase.execute(tenantId, { plan, memberLimit });
       setTenants((prev) => prev.map((t) => (t.id === tenantId ? { ...t, plan, memberLimit } : t)));
-      setMemberLimitDrafts((prev) => ({ ...prev, [tenantId]: String(memberLimit) }));
+      setMemberLimitDrafts((prev) => ({ ...prev, [tenantId]: memberLimit === null ? '' : String(memberLimit) }));
       notify(t('access.plan.updated'), 'success');
     } catch {
       notify(t('access.plan.update-failed'), 'error');
-      setPlanDrafts((prev) => ({ ...prev, [tenantId]: tenant.plan }));
+      setPlanDrafts((prev) => ({ ...prev, [tenantId]: tenant.plan ?? NO_PLAN }));
     } finally {
       setSavingTenantId(null);
     }
-  }, [tenants, updateTenantUseCase, notify, t]);
+  }, [tenants, plans, updateTenantUseCase, notify, t]);
 
   const handleMemberLimitDraftChange = useCallback((tenantId: string, value: string) => {
     setMemberLimitDrafts((prev) => ({ ...prev, [tenantId]: value }));
@@ -198,7 +233,7 @@ export const useOfficesTabViewModel = (): OfficesTabViewModel => {
     filteredTenants,
     totalCount: tenants.length,
     savingTenantId,
-    planOptions,
+    planOptionsByTenant,
     planDrafts,
     memberLimitDrafts,
     setFilterTokens,

@@ -4,6 +4,7 @@ import { resolvePluginService } from './pluginServices';
 import { FirebaseAuthRepository } from '../../data/repositories/FirebaseAuthRepository';
 import { FirebaseUserRepository } from '../../data/repositories/FirebaseUserRepository';
 import { FirebaseRegistrationPolicyRepository } from '../../data/repositories/FirebaseRegistrationPolicyRepository';
+import { FirebasePlanRepository } from '../../data/repositories/FirebasePlanRepository';
 import { FirebaseExtensionOnboardingRepository } from '../../data/repositories/FirebaseExtensionOnboardingRepository';
 import { FirebaseUserProfileRepository } from '../../data/repositories/FirebaseUserProfileRepository';
 import { FirebaseAIConnectionRepository } from '../../data/repositories/FirebaseAIConnectionRepository';
@@ -77,6 +78,7 @@ export const DIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     authRepository:           new FirebaseAuthRepository(),
     userRepository:           new FirebaseUserRepository(),
     registrationPolicyRepository: new FirebaseRegistrationPolicyRepository(),
+    planRepository:           new FirebasePlanRepository(),
     extensionOnboardingRepository: new FirebaseExtensionOnboardingRepository(),
     userProfileRepository:    new FirebaseUserProfileRepository(),
     aiConnectionRepository:   new FirebaseAIConnectionRepository(),

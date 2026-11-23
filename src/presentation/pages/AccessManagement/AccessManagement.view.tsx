@@ -3,6 +3,8 @@ import { RiLockLine } from 'react-icons/ri';
 import { useAccessManagementViewModel } from './AccessManagement.viewmodel';
 import { UsersTab } from './UsersTab';
 import { OfficesTab } from './OfficesTab';
+import { PlansTab } from './PlansTab';
+import { Spinner } from '../../components/ui/Spinner';
 import { S } from './AccessManagement.styles';
 
 import { useT } from '../../shared/i18n/useT';
@@ -34,10 +36,16 @@ export const AccessManagementView: React.FC = () => {
         <S.Tab $active={vm.activeTab === 'offices'} onClick={() => vm.setActiveTab('offices')}>
           {t('access.tab.offices')}
         </S.Tab>
+        <S.Tab $active={vm.activeTab === 'plans'} onClick={() => vm.setActiveTab('plans')}>
+          {t('access.tab.plans')}
+        </S.Tab>
       </S.TabsBar>
 
       <S.Content>
-        {vm.activeTab === 'users' ? <UsersTab /> : <OfficesTab />}
+        {vm.activeTab === 'users' && <UsersTab />}
+        {vm.activeTab !== 'users' && !vm.plansReady && <Spinner size={32} />}
+        {vm.activeTab === 'offices' && vm.plansReady && <OfficesTab />}
+        {vm.activeTab === 'plans' && vm.plansReady && <PlansTab />}
       </S.Content>
     </S.Page>
   );

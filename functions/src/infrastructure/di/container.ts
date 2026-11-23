@@ -277,6 +277,8 @@ import {
 import { makeManageMemberMfaUseCase, makeSecondFactorUseCase } from '../../domain/usecases/MemberMfaUseCases';
 import type { ManageMemberMfaUseCase, SecondFactorUseCase } from '../../domain/usecases/MemberMfaUseCases';
 import { FirebaseRegistrationRepository } from '../../data/repositories/FirebaseRegistrationRepository';
+import { FirebasePlanRepository } from '../../data/repositories/FirebasePlanRepository';
+import type { IPlanRepository } from '../../domain/repositories/IPlanRepository';
 import { makeCreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
 import type { CreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
 import { SafeHttpClient } from '../http/SafeHttpClient';
@@ -320,6 +322,7 @@ class DIContainer {
   private permissionCatalogCache?: PermissionCatalogCache;
   private materializeMemberPermissionsUC?: MaterializeMemberPermissionsUseCase;
   private memberMfaPolicyRepo?: IMemberMfaPolicyRepository;
+  private planRepo?: IPlanRepository;
   private mfaFactorRepo?: IMfaFactorRepository;
   private tenantRepo?: ITenantRepository;
   private tenantSettingsRepo?: ITenantSettingsRepository;
@@ -442,6 +445,7 @@ class DIContainer {
         this.getPortalRepository(),
         new FirebaseRegistrationRepository(getDb(), getAuth()),
         this.getStageOfficeDefaultsUseCase(),
+        this.getPlanRepository(),
       );
     }
     return this.bootstrapUserUC;
@@ -899,9 +903,15 @@ class DIContainer {
         getDb(),
         this.getPermissionCatalogCache(),
         this.getMemberMfaPolicyRepository(),
+        this.getPlanRepository(),
       );
     }
     return this.materializeMemberPermissionsUC;
+  }
+
+  getPlanRepository(): IPlanRepository {
+    if (!this.planRepo) this.planRepo = new FirebasePlanRepository(getDb());
+    return this.planRepo;
   }
 
   getMemberMfaPolicyRepository(): IMemberMfaPolicyRepository {
@@ -944,6 +954,7 @@ class DIContainer {
       audit: this.getCreateAuditLogUseCase(),
       random: Math.random,
       officeDefaults: this.getStageOfficeDefaultsUseCase(),
+      plans: this.getPlanRepository(),
     });
   }
 

@@ -17,7 +17,7 @@ import { makeSumRecordsUseCase } from '../domain/usecases/records/SumRecordsUseC
 import { screenDataCollection } from '../domain/services/screenDataCollection';
 import { memberVisibilityFilter, readMemberVisibility } from '../domain/schema/memberVisibility';
 import type { MemberVisibilityFilter, RecordReader } from '../domain/schema/memberVisibility';
-import { UNRESTRICTED_PERMISSION } from '../domain/schema/access';
+import { UNRESTRICTED_PERMISSION, isUnrestricted } from '../domain/schema/access';
 import type { DeletionActor, EntityRecord, EntityRecordValues } from '../domain/entities';
 import type { RecordCountSpec, RecordQuerySpec } from '../domain/services/recordListQuery';
 import { RECORD_WINDOW_DEFAULT } from '../domain/repositories/IRecordRepository';
@@ -81,9 +81,13 @@ export const RecordStoreProvider: React.FC<{ children: React.ReactNode }> = ({ c
    */
   const reader = useMemo<RecordReader | null>(() => {
     if (!user) return null;
-    const unrestricted = userRole === 'SYSTEM' || currentTenant?.ownerId === user.id;
     const member = members.find((candidate) => candidate.userId === user.id);
-    return { uid: user.id, permissions: unrestricted ? [UNRESTRICTED_PERMISSION] : (member?.permissions ?? []) };
+    if (userRole === 'SYSTEM') return { uid: user.id, permissions: [UNRESTRICTED_PERMISSION] };
+    // O dono materializado traz as exceções do plano (`!<id>`, #24) junto com o curinga.
+    if (currentTenant?.ownerId === user.id && !isUnrestricted(member?.permissions ?? [])) {
+      return { uid: user.id, permissions: [UNRESTRICTED_PERMISSION] };
+    }
+    return { uid: user.id, permissions: member?.permissions ?? [] };
   }, [user, userRole, currentTenant, members]);
 
   /**

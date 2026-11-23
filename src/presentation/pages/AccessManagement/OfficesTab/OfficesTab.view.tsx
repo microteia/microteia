@@ -7,7 +7,6 @@ import { Spinner } from '../../../components/ui/Spinner';
 import { useOfficesTabViewModel } from './OfficesTab.viewmodel';
 import { CompositeFilter } from '../../../components/ui/CompositeFilter';
 import { SearchSelect } from '../../../components/ui/SearchSelect';
-import type { TenantPlan } from '../../../../domain/entities';
 import { S } from './OfficesTab.styles';
 
 import { useT, useLocaleFormat } from '../../../shared/i18n/useT';
@@ -100,10 +99,10 @@ export const OfficesTabView: React.FC = () => {
                   <S.Td>
                     <S.PlanCell>
                       <SearchSelect
-                        options={vm.planOptions}
-                        value={vm.planDrafts[tenant.id] ?? tenant.plan}
+                        options={vm.planOptionsByTenant[tenant.id] ?? []}
+                        value={vm.planDrafts[tenant.id] ?? ''}
                         onChange={(val) => {
-                          if (val) void vm.handlePlanChange(tenant.id, val as TenantPlan);
+                          if (val) void vm.handlePlanChange(tenant.id, val);
                         }}
                         placeholder={t('access.plan.placeholder')}
                       />

@@ -7,6 +7,7 @@ import { useScreenDefinitions } from './useScreenDefinitions';
 import { useLookups } from './useLookups';
 import { useTags } from './useTags';
 import { useContributions } from './useKernel';
+import { usePlan } from './usePlan';
 import {
   ACCESS_PERMISSION_POINT,
   ACCESS_REQUIREMENT_POINT,
@@ -17,10 +18,14 @@ import {
   declaredRequirementsOf,
   declaredResourcesOf,
   UNRESTRICTED_PERMISSION,
+  applyPlanCeiling,
+  grants,
   isUnrestricted as grantsEverything,
   memberPermissions,
+  planDeniedClosure,
   setAmbientPermissions,
 } from '../domain/schema/access';
+import { planStamp } from '../domain/schema/plans';
 import { tenantCollectionPermissionResources } from '../domain/schema/tenantCollections';
 
 /**
@@ -37,6 +42,7 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
   const { user, userRole } = useAuth();
   const { currentTenant, members, isLoading: tenantLoading } = useTenant();
   const { roles, isLoading: rolesLoading, syncPermissions } = useRoles();
+  const { currentPlan, isLoading: planLoading } = usePlan();
   const { definitions, isLoading: screensLoading } = useScreenDefinitions();
   const { availableLookups } = useLookups();
   const { availableTagLists } = useTags();
@@ -80,10 +86,21 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
    * Cloud Function de materialização rodar pela primeira vez, enquanto o servidor já o deixava
    * passar: a UI esconderia o que a regra aceita, que é o pior dos dois erros possíveis aqui.
    */
-  const isUnrestricted =
-    userRole === 'SYSTEM'
-    || grantsEverything(member?.permissions ?? [])
+  const isSystem = userRole === 'SYSTEM';
+  const isOwner =
+    grantsEverything(member?.permissions ?? [])
     || (!!user && !!currentTenant && currentTenant.ownerId === user.id);
+  const isUnrestricted = isSystem || isOwner;
+
+  /**
+   * O que o PLANO do escritório nega, com o que cai junto (#24) — a mesma conta da materialização, sobre
+   * o mesmo catálogo. Sai daqui também para a tela de Perfis travar o que o plano não inclui, e por isso
+   * é calculada mesmo para o `SYSTEM`, que não é alcançado por ela.
+   */
+  const planDeniedPermissions = useMemo(
+    () => planDeniedClosure(catalog, currentPlan?.deniedPermissions ?? []),
+    [catalog, currentPlan],
+  );
 
   const resolved = useMemo(
     () => memberPermissions(catalog, roles, member?.roleIds ?? []),
@@ -92,7 +109,7 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
 
   /**
    * O conjunto EFETIVO inclui o curinga de quem não tem limite — o administrador global e o DONO do
-   * escritório. Ele é o que de fato vale, e é o que sai daqui para todo lugar que não passa por
+   * escritório —, e o teto do plano (`!<id>`), que alcança o dono e nunca o `SYSTEM`. Ele é o que de fato vale, e é o que sai daqui para todo lugar que não passa por
    * `can()`: a expressão de uma ação (`hasPermission`), o `ExtensionViewer` de uma extensão, o
    * escopo de um campo.
    *
@@ -100,17 +117,16 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
    * que não — a mesma pergunta com duas respostas, conforme por onde se perguntasse. O backend já
    * materializava `*` para o dono; faltava o front dizer a mesma coisa.
    */
-  const effectivePermissions = useMemo(
-    () => (isUnrestricted ? [UNRESTRICTED_PERMISSION] : resolved.effective),
-    [isUnrestricted, resolved],
-  );
-
-  const effectiveSet = useMemo(() => new Set(effectivePermissions), [effectivePermissions]);
+  const effectivePermissions = useMemo(() => {
+    if (isSystem) return [UNRESTRICTED_PERMISSION];
+    return applyPlanCeiling(isOwner ? [UNRESTRICTED_PERMISSION] : resolved.effective, planDeniedPermissions);
+  }, [isSystem, isOwner, resolved, planDeniedPermissions]);
 
   const healedTenants = useRef(new Set<string>());
 
   /**
-   * O conjunto materializado se recompõe sozinho quando o CATÁLOGO DE CÓDIGO muda.
+   * O conjunto materializado se recompõe sozinho quando o CATÁLOGO DE CÓDIGO muda — ou quando o teto do
+   * PLANO mudou e a recomposição do servidor não chegou a este escritório (#24).
    *
    * Uma versão nova do kernel pode alterar de que uma permissão depende, e nesse dia nenhuma escrita
    * acontece no banco — então nenhum dos gatilhos de materialização acorda. Quem fica velho é só o
@@ -126,12 +142,13 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
    * que já se tinha. A tentativa volta na sessão seguinte.
    */
   useEffect(() => {
-    if (!currentTenant || !member) return;
-    if (member.permissionsCatalog === KERNEL_CATALOG_FINGERPRINT) return;
+    if (!currentTenant || !member || planLoading) return;
+    const planInStep = (member.permissionsPlan ?? '') === planStamp(currentPlan?.deniedPermissions ?? []);
+    if (member.permissionsCatalog === KERNEL_CATALOG_FINGERPRINT && planInStep) return;
     if (healedTenants.current.has(currentTenant.id)) return;
     healedTenants.current.add(currentTenant.id);
     void syncPermissions().catch(() => healedTenants.current.delete(currentTenant.id));
-  }, [currentTenant, member, syncPermissions]);
+  }, [currentTenant, member, syncPermissions, planLoading, currentPlan]);
 
   /**
    * O gate de módulo é o CAMINHO DE RESERVA de `hasPermission(...)`: quem avalia uma expressão de
@@ -144,18 +161,18 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
   }, [effectivePermissions]);
 
   const can = useCallback(
-    (permission: string) => isUnrestricted || effectiveSet.has(permission),
-    [isUnrestricted, effectiveSet],
+    (permission: string) => grants(effectivePermissions, permission),
+    [effectivePermissions],
   );
 
   const canAny = useCallback(
-    (permissions: string[]) => isUnrestricted || permissions.some((permission) => effectiveSet.has(permission)),
-    [isUnrestricted, effectiveSet],
+    (permissions: string[]) => permissions.some((permission) => grants(effectivePermissions, permission)),
+    [effectivePermissions],
   );
 
   const canAll = useCallback(
-    (permissions: string[]) => isUnrestricted || permissions.every((permission) => effectiveSet.has(permission)),
-    [isUnrestricted, effectiveSet],
+    (permissions: string[]) => permissions.every((permission) => grants(effectivePermissions, permission)),
+    [effectivePermissions],
   );
 
   const value = useMemo(
@@ -167,7 +184,8 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
       effectivePermissions,
       catalog,
       isUnrestricted,
-      isLoading: Boolean(currentTenant) && (tenantLoading || rolesLoading || screensLoading),
+      planDeniedPermissions,
+      isLoading: Boolean(currentTenant) && (tenantLoading || rolesLoading || screensLoading || planLoading),
     }),
     [
       can,
@@ -177,8 +195,10 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
       effectivePermissions,
       catalog,
       isUnrestricted,
+      planDeniedPermissions,
       currentTenant,
       tenantLoading,
+      planLoading,
       rolesLoading,
       screensLoading,
     ],

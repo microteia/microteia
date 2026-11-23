@@ -77,8 +77,11 @@ service firebase.storage {
       return firestore.exists(memberPath)
         && (memberDataCan(firestore.get(memberPath).data, first) || memberDataCan(firestore.get(memberPath).data, second));
     }
+    // A negação do plano (`!<permissão>`, #24) vem no MESMO documento de membro, e por isso não conta
+    // leitura nenhuma contra o teto de duas.
     function memberDataCan(member, permission) {
       return member.get('permissions', []).hasAny([permission, '*'])
+        && !member.get('permissions', []).hasAny(['!' + permission])
         && sessionSatisfiesMfa(member, !permission.matches('.*[.]read$'));
     }
     // O SYSTEM entra quando o membro não respondeu — e é o que o dispensa da política do escritório

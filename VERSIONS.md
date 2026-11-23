@@ -11,6 +11,14 @@ Cada versão corresponde ao campo `version` de `package.json`. A mais recente fi
 - Descrição elegante da mudança, em linguagem simples.
 -->
 
+#### [9.299.0] — 2026-11-22
+
+- Os planos agora são cadastrados pelo administrador do sistema, na nova aba Planos de Gestão de Acessos. Dá para criar quantos planos quiser, renomeá-los, definir o limite padrão de membros de cada um e arquivar um plano: ele deixa de ser oferecido e continua valendo para os escritórios que já estão nele.
+- Cada plano pode deixar de fora as funcionalidades que não inclui, como o Form Design, os modelos de documentos ou as extensões. O bloqueio vale na hora para todos os escritórios do plano, inclusive para o dono do escritório. O administrador do sistema continua com acesso a tudo. Por padrão, todo plano tem acesso a tudo.
+- Agora dá para escolher em qual plano nasce cada escritório novo. Ele já recebe o limite de membros desse plano.
+- Na tela de Perfis de Acesso, a permissão que o plano do escritório não inclui aparece marcada como "Fora do plano".
+- Os planos Solo, Escritório, Professional e Enterprise continuam existindo para os escritórios que já estão neles, com o mesmo limite e sem nenhuma restrição.
+
 #### [9.298.0] — 2026-11-22
 
 - O botão Importar deixou de aparecer em todas as telas. Agora cada tela decide se aceita importação de registros por arquivo, na aba Ações do Form Design, em "Ações da listagem". A opção vem desligada: se você importava registros em alguma tela, ative-a ali para o botão voltar. Quem importa continua precisando da permissão de importar registros.

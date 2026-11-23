@@ -191,8 +191,8 @@ interface Tenant {
   logoURL?: string | null;
   allowedSenders?: string[];
   allowedSubjects?: string[];
-  plan: 'solo' | 'office' | 'professional' | 'enterprise'; // valor gravado em inglês; exibição em pt-BR via TENANT_PLAN_LABELS ('Solo'/'Escritório'/'Professional'/'Enterprise'). Padrão 'solo' no bootstrap; só SYSTEM altera depois (aba "Escritórios" de Gestão de Acessos)
-  memberLimit: number | null; // null = sem limite; padrão 1 no bootstrap (só o dono); mudar o plano sugere um novo limite (TENANT_PLAN_MEMBER_LIMITS), mas o valor continua editável manualmente; só SYSTEM altera (aba "Escritórios" de Gestão de Acessos)
+  plan: string | null;       // id de um documento de `plans` (#24), ou null = sem plano, sem restrição. Nasce com `system/registration.defaultPlanId`; só SYSTEM altera depois (aba "Escritórios" de Gestão de Acessos). Ver "O teto do PLANO"
+  memberLimit: number | null; // null = sem limite; nasce com o limite padrão do plano (sem plano: 1, só o dono); trocar o plano sugere o limite dele, mas o valor continua editável manualmente; só SYSTEM altera (aba "Escritórios" de Gestão de Acessos)
   memberCount: number;        // denormalizado, mantido pelas Cloud Functions addTenantMember/removeTenantMember/onUserCreated
   createdAt: Date;
   updatedAt: Date;
@@ -204,7 +204,7 @@ interface Tenant {
 Todo o onboarding de um usuário novo (`users/{uid}`, `userProfiles/{uid}` e o tenant próprio, do qual o usuário é o `ownerId`) é feito **inteiramente no servidor**, nunca pelo client:
 
 - `functions/src/infrastructure/handlers/onUserCreated.ts` — trigger `functions.auth.user().onCreate()` (API **v1** do `firebase-functions`; triggers de Auth `onCreate`/`onDelete` ainda não têm equivalente em v2). Dispara automaticamente logo após a criação da conta no Firebase Auth (Google, Facebook ou e-mail/senha — antes mesmo da verificação de e-mail).
-- `BootstrapUserUseCase` (`functions/src/domain/usecases/BootstrapUserUseCase.ts`), idempotente: `createUserIfMissing` cria `users/{uid}` (role `USER`) só se ainda não existir — se já existir (reexecução do trigger), a função **retorna sem fazer nada**, para não duplicar tenant; `createUserProfileIfMissing` cria `userProfiles/{uid}` vazio; em seguida cria o tenant (`ITenantRepository.createTenant`, com o nome `${displayName}(${email})` e `memberLimit: 1, memberCount: 0`) e adiciona o próprio usuário **sem perfil algum** (`roleIds: []`) via `addMemberIfWithinLimit` (mesma transação atômica descrita abaixo) — resultado final: `memberLimit: 1`, `memberCount: 1`. Todo usuário sempre tem exatamente 1 tenant (o seu) ao final do bootstrap; todo tenant sempre tem um `ownerId`.
+- `BootstrapUserUseCase` (`functions/src/domain/usecases/BootstrapUserUseCase.ts`), idempotente: `createUserIfMissing` cria `users/{uid}` (role `USER`) só se ainda não existir — se já existir (reexecução do trigger), a função **retorna sem fazer nada**, para não duplicar tenant; `createUserProfileIfMissing` cria `userProfiles/{uid}` vazio; em seguida cria o tenant (`ITenantRepository.createTenant`, com o nome `${displayName}(${email})`, o plano e o limite do plano padrão da instalação — `IPlanRepository.newTenantPlan` sobre `system/registration.defaultPlanId`; sem padrão, ou padrão arquivado, `plan: null, memberLimit: 1` — e `memberCount: 0`) e adiciona o próprio usuário **sem perfil algum** (`roleIds: []`) via `addMemberIfWithinLimit` (mesma transação atômica descrita abaixo) — resultado final: o limite do plano, `memberCount: 1`. O escritório que o `SYSTEM` abre em nome de alguém (`createOrganization`) passa pelo mesmo `openOwnedTenant`. Todo usuário sempre tem exatamente 1 tenant (o seu) ao final do bootstrap; todo tenant sempre tem um `ownerId`.
 - **Contas novas podem ser travadas pelo `SYSTEM`** (`system/registration`, Gestão de Acessos › Usuários): fechada a trava, o bootstrap grava a recusa em `registrationRefusals/{uid}` e APAGA a conta do Firebase Auth antes de criar qualquer documento; o `waitForProvisioning` lê a recusa e a tela de entrada explica o motivo. Instalação nova já nasce fechada — a transação que promove a primeira conta a `SYSTEM` fecha a trava. Ver "Trava de contas novas".
 - **O autocadastro de escritório pode ser desligado pelo `SYSTEM`** (`system/registration.selfServiceTenants`, Gestão de Acessos › Usuários): a conta nova não ganha escritório, recebe `origin: 'invitation'` (o sinal de "provisionado" para o `waitForProvisioning`) e espera ser adicionada. A primeira conta da instalação ganha o dela de qualquer jeito. Ver "Segundo fator de membro e autocadastro de escritório (EV-07)".
 - **Client não cria mais nada disso.** `users`/`tenants` negam `create` do client nas Security Rules (`allow create: if false`). O `AuthContext` (`src/stores/AuthContext.tsx`) não faz mais `createUserProfile` — em vez disso, `IUserRepository.waitForProvisioning` (`src/data/repositories/FirebaseUserRepository.ts`) abre um `onSnapshot` em `users/{uid}` e só resolve quando o documento existir **e** `tenantIds` não estiver vazio (sinal de que o bootstrap terminou), com timeout de 20s. Para quem já loga há tempos isso resolve quase instantaneamente (documento já existe); no primeiro login, cobre a espera pela Cloud Function. `TenantStore` (`src/stores/TenantStore.tsx`) não cria mais tenant algum — se `getTenantsForUser` retornar vazio nesse ponto (não deveria, dado o `waitForProvisioning`), trata como falha de provisionamento (`initError`) em vez de criar um tenant no client.
@@ -691,8 +691,9 @@ dessas restrições.
 > código. É um número só, vale só para a sessão que provou o fator, e nenhuma das quatro restrições se
 > aplica. O que diz SE o fator é exigido continua no documento de membro (`mfa`).
 
-A materialização é recalculada por quatro gatilhos — membro (quando `roleIds` muda), perfil, tela e
-extensão instalada (os dois últimos mudam o catálogo). Ela **não grava quando o resultado é igual**,
+A materialização é recalculada por seis gatilhos — membro (quando `roleIds` muda), perfil, tela,
+extensão instalada (os dois últimos mudam o catálogo), a troca de plano do escritório e o teto de um
+plano (ver "O teto do PLANO"). Ela **não grava quando o resultado é igual**,
 o que a torna idempotente e, sobretudo, impede o laço: gravar no documento de membro dispara o
 gatilho de membro, e a segunda passada não grava.
 
@@ -735,6 +736,58 @@ mora a segunda regra: **coleção RESERVADA não deriva CRUD.** O curinga do `fi
 `<coleção>.create` exige `!isReservedCollection(name)` — uma reservada tem regra e permissão próprias
 (`documentTypes` é guardada por `document-types.manage`), e derivar as quatro para ela dava um grupo
 inteiro de permissões que nenhuma regra lê, ao lado do grupo verdadeiro.
+
+### O teto do PLANO — acima de todo perfil, inclusive do dono (#24)
+
+O plano do escritório (`Tenant.plan` → `plans/{planId}`) é DADO da instalação, criado e arquivado pelo
+`SYSTEM` em Gestão de Acessos › Planos — a união fechada `solo | office | professional | enterprise` e as
+tabelas de rótulo e limite saíram do kernel. O plano guarda o que ele **nega** (`deniedPermissions`), e
+não o que permite: o padrão é "tudo", e uma permissão que um kernel ou uma extensão acrescentar depois
+nasce liberada até alguém bloqueá-la.
+
+| Peça | O que faz |
+|---|---|
+| `planDeniedClosure` (`domain/schema/access/planCeiling.ts`) | a negada mais tudo cujo fecho a exige — negar `extensions.read` derruba `extensions.manage` |
+| `applyPlanCeiling` | tira as negadas do conjunto e acrescenta as entradas `!<id>` |
+| `MaterializeMemberPermissionsUseCase` | grava o conjunto sob o teto e carimba `permissionsPlan` (`planStamp`) na MESMA escrita |
+| `grants` / `matchesPermission` / `readerSeesAll` / `effectiveAgentPermissions` | a negação vem ANTES do curinga |
+| `can()` (`firestore.rules`) e `memberDataCan` (`storage.rules`) | `!hasAny(['!' + permissão])` sobre o documento de membro já lido |
+| `requirePermission` / `grantedPermissions` | o dono passa pelo `ownerId` menos no que o plano lhe nega |
+| `AuthorizationStore` + `PlanStore` | a mesma conta na tela, com o plano assinado ao vivo |
+
+**A negação mora DENTRO de `permissions`, como `!<id>`, e não num campo ao lado.** O dono tem `*`, e "tudo
+menos X" não se escreve como lista de concedidas — a entrada é a exceção do curinga. E as regras já leem
+o documento de membro em todo `can()`: ler o plano custaria uma leitura a mais em toda regra, e o Storage
+tem teto de DUAS por avaliação. `!` não é caractere válido num id de permissão, então nunca colide.
+
+**O `SYSTEM` nunca é alcançado** — é o primeiro termo de `can()`, de `requirePermission` e do
+`AuthorizationStore`, antes de qualquer negação.
+
+**Duas recomposições, e a reserva.** Trocar o plano de um escritório acorda
+`materializePermissionsOnTenantPlanChange`; mudar o teto de um plano acorda
+`materializePermissionsOnPlanChange`, que recompõe os escritórios dele um a um (nome, limite e arquivo não
+mudam o teto e não acordam nada). Uma falha no meio não fica para sempre: o `AuthorizationStore` compara
+`permissionsPlan` com o plano ao vivo e chama `syncTenantPermissions`, como já fazia com a digital do
+catálogo.
+
+**O limite de membros do plano é PADRÃO, não regra.** Ele é copiado para o escritório quando ele nasce
+(`system/registration.defaultPlanId`, ver "Bootstrap do usuário") ou troca de plano, e continua editável
+no escritório; mudar o padrão do plano não toca quem já existe. A cobrança do limite não mudou.
+
+**Arquivar em vez de excluir.** O plano arquivado continua valendo para os escritórios dele e deixa de
+ser oferecido (nem como padrão). Excluir só o plano que ninguém usa: o escritório que apontasse para um
+plano apagado ficaria sem restrição em silêncio.
+
+**O que o plano restringe é o que é DECLARADO** (kernel e extensões). As permissões de coleção
+(`<coleção>.read` …) nascem de cada tela do escritório, e um plano global não tem como falar delas — o
+seletor da aba Planos só as oferece filtradas (`PermissionPicker.restrictTo`). A tela de Perfis marca como
+"Fora do plano" o que o plano exclui: o perfil pode mantê-la, e ela volta a valer se o plano mudar.
+
+**Migração dos planos fixos.** Ao abrir Gestão de Acessos, o `SYSTEM` roda
+`MigrateLegacyPlansUseCase`: cria documento só para os ids de plano que algum escritório USA (mesmo id,
+nome e limite, nenhuma restrição) e põe `solo` como padrão quando foi ela que o criou. Instalação nova
+não ganha plano nenhum — semear nossos nomes comerciais seria o defeito que tirar o plano do código
+corrige. Escritório sem plano, ou apontando para um que não existe, não tem restrição.
 
 ### `SYSTEM` e o DONO — as duas exceções, e por que não são perfis
 
@@ -923,6 +976,7 @@ regra que tem uma decisão a defender:
 | `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid — ou, a pública, por `public == true`, a mesma para dois convidados de sujeitos diferentes e para ninguém de fora; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
 | `memberMfa.test.ts` | o segundo fator: sem `mfa` no membro, nada muda; exigido, a sessão sem `mfaAt` não lê nem grava (mas lê o próprio escritório e o próprio documento de membro); a prova vencida lê e não grava; o curinga do dono não pula o fator; o `SYSTEM` não é alcançado — nem como DONO, no sino, no voto e no logo, e a conta rebaixada volta a ser cobrada sem rematerializar (EV-36); ninguém apaga `mfa` do membro; política e fator fechados ao cliente; o Storage segue a mesma conta |
 | `storage.test.ts` | o arquivo de registro segue a permissão da coleção; o dono envia, lê e apaga pelo `*` do documento de membro e NÃO pelo `ownerId` (sem o curinga, recusa); o `SYSTEM` que não é membro envia e lê; ninguém grava por cima; logo e área de espera do portal. O teto de duas leituras não é cobrado pelo emulador — ver "O teto de DUAS leituras" |
+| `plans.test.ts` | o teto do plano: o dono perde o que a entrada `!<id>` nega e mantém o resto do curinga; o dono sem materialização passa pelo `ownerId`; o `SYSTEM` não é alcançado; o Storage segue a mesma conta; o plano lido pelo id por qualquer conta e listado/gravado só pelo `SYSTEM`; `defaultPlanId` em `system/registration` |
 | `memberVisibility.test.ts` | a visibilidade por registro: só o registro que nomeia o membro, pelo campo simples ou pelo `multi` (e o mapa forjado não passa); a consulta sem filtro recusada e a do repositório aceita, inclusive com o filtro do pai; supervisão derivada, nomeada, dono e `SYSTEM`; declaração malformada fecha; alterar e excluir pedem ver, criar não; anotações, documentos e arquivos seguem o registro; quem só desenha telas não muda nem exclui a declaração |
 
 Ela fica **fora do `npm test`**, com configuração própria (`vitest.rules.config.ts`), porque exige um
@@ -2890,7 +2944,7 @@ verdade — `scripts/deployLists.test.ts` cobra que toda function exportada este
 | **documents** | Modelos de documento e geração de arquivos | Quando os documentos mudam |
 | **audit** | Sistema de auditoria | Quando a auditoria muda |
 | **auth** | Autenticação e usuários | Raras alterações |
-| **access** | Perfis e permissões | Quando o RBAC muda |
+| **access** | Perfis, permissões e o teto do plano | Quando o RBAC ou o plano muda |
 | **tenant** | Gestão de membros | Raras alterações |
 | **portal** | Convidados externos: convite, projeção e acesso a documentos | Quando o portal muda |
 | **agent** | MCP de execução e as concessões do agente | Quando o agente muda |

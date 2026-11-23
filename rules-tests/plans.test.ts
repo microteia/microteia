@@ -1,0 +1,124 @@
+import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { getMetadata, ref, uploadString, type FirebaseStorage } from 'firebase/storage';
+import { TENANT, asUser, seed, testEnv } from './helpers';
+
+/**
+ * O teto do PLANO (#24). A materialização grava `!<permissão>` na mesma lista de `permissions`, e as
+ * regras a leem ANTES do curinga: é o que faz o plano alcançar o dono, sem custar leitura nenhuma.
+ */
+let env: RulesTestEnvironment;
+
+const SCREEN = { titleSingular: 'Pet', titlePlural: 'Pets', fields: [] };
+const FILE = `tenants/${TENANT}/pet1/r1/1700000000_foto.png`;
+
+beforeAll(async () => { env = await testEnv(); });
+afterAll(async () => { await env.cleanup(); });
+
+beforeEach(async () => {
+  await env.clearFirestore();
+  await env.clearStorage();
+  await seed(env, {
+    users: { dono: {}, ana: {}, sys: { role: 'SYSTEM' } },
+    owners: { [TENANT]: 'dono' },
+    members: {
+      [TENANT]: {
+        // O dono como a materialização o grava num plano que nega a escrita de Pets.
+        dono: ['*', '!pet1.create', '!pet1.update'],
+        ana: ['pet1.read', '!pet1.create'],
+        // O SYSTEM que também é membro carrega a mesma negação — e passa por cima dela.
+        sys: ['*', '!pet1.create'],
+      },
+    },
+    screens: { [TENANT]: { pet1: SCREEN } },
+    records: { [TENANT]: { 'pet1/r1': { nome: 'Rex' } } },
+    root: { 'plans/starter': { name: 'Starter', memberLimit: 1, deniedPermissions: ['pet1.create'], archived: false } },
+  });
+  await env.withSecurityRulesDisabled(async (context) => {
+    await uploadString(ref(context.storage() as unknown as FirebaseStorage, FILE), 'png');
+  });
+});
+
+const pets = (uid: string) => collection(asUser(env, uid), `tenants/${TENANT}/pet1`);
+const pet = (uid: string) => doc(asUser(env, uid), `tenants/${TENANT}/pet1/r1`);
+const storageOf = (uid: string) => env.authenticatedContext(uid).storage() as unknown as FirebaseStorage;
+
+describe('o teto do plano nas regras do Firestore', () => {
+  it('o DONO perde o que o plano nega, e mantém o resto do curinga', async () => {
+    await assertFails(addDoc(pets('dono'), { nome: 'Bob' }));
+    await assertFails(updateDoc(pet('dono'), { nome: 'Rex II' }));
+    await assertSucceeds(getDoc(pet('dono')));
+    await assertSucceeds(deleteDoc(pet('dono')));
+  });
+
+  it('o dono SEM conjunto materializado passa pelo `ownerId`, como antes', async () => {
+    await seed(env, { members: { [TENANT]: { dono: [] } } });
+    await assertSucceeds(addDoc(pets('dono'), { nome: 'Bob' }));
+  });
+
+  it('o membro com a permissão negada não grava', async () => {
+    await assertFails(addDoc(pets('ana'), { nome: 'Bob' }));
+    await assertSucceeds(getDoc(pet('ana')));
+  });
+
+  it('o SYSTEM nunca é alcançado pelo plano', async () => {
+    await assertSucceeds(addDoc(pets('sys'), { nome: 'Bob' }));
+  });
+
+  it('ninguém carimba a digital do plano do próprio documento de membro', async () => {
+    await seed(env, { members: { [TENANT]: { ana: ['pet1.read', 'members.manage'] } } });
+    const self = doc(asUser(env, 'ana'), `tenants/${TENANT}/members/ana`);
+    await assertFails(updateDoc(self, { permissionsPlan: '' }));
+  });
+});
+
+describe('o teto do plano nas regras do Storage', () => {
+  it('o dono não envia arquivo onde o plano nega a escrita, e continua lendo', async () => {
+    await assertFails(uploadString(ref(storageOf('dono'), `tenants/${TENANT}/pet1/r1/1700000001_x.png`), 'x'));
+    await assertSucceeds(getMetadata(ref(storageOf('dono'), FILE)));
+  });
+});
+
+describe('a coleção de planos', () => {
+  const plan = (uid: string, id = 'starter') => doc(asUser(env, uid), `plans/${id}`);
+  const valid = (uid: string) => ({
+    name: 'Pro',
+    memberLimit: 10,
+    deniedPermissions: [],
+    archived: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    updatedBy: uid,
+  });
+
+  it('qualquer conta lê um plano pelo id — o navegador precisa do teto e do nome', async () => {
+    await assertSucceeds(getDoc(plan('ana')));
+  });
+
+  it('só o SYSTEM lista os planos', async () => {
+    await assertFails(getDocs(collection(asUser(env, 'dono'), 'plans')));
+    await assertSucceeds(getDocs(collection(asUser(env, 'sys'), 'plans')));
+  });
+
+  it('só o SYSTEM grava e exclui', async () => {
+    await assertFails(setDoc(plan('dono', 'pro'), valid('dono')));
+    await assertSucceeds(setDoc(plan('sys', 'pro'), valid('sys')));
+    await assertFails(deleteDoc(plan('dono')));
+    await assertSucceeds(deleteDoc(plan('sys')));
+  });
+
+  it('limite abaixo de 1 e campo desconhecido são recusados', async () => {
+    await assertFails(setDoc(plan('sys', 'pro'), { ...valid('sys'), memberLimit: 0 }));
+    await assertFails(setDoc(plan('sys', 'pro'), { ...valid('sys'), price: 10 }));
+    await assertSucceeds(setDoc(plan('sys', 'pro'), { ...valid('sys'), memberLimit: null }));
+  });
+});
+
+describe('o plano padrão do escritório novo', () => {
+  it('o SYSTEM grava `defaultPlanId` em `system/registration`', async () => {
+    const registration = doc(asUser(env, 'sys'), 'system/registration');
+    await assertSucceeds(setDoc(registration, { defaultPlanId: 'starter', updatedBy: 'sys', updatedAt: serverTimestamp() }, { merge: true }));
+    await assertSucceeds(setDoc(registration, { defaultPlanId: null, updatedBy: 'sys', updatedAt: serverTimestamp() }, { merge: true }));
+  });
+});

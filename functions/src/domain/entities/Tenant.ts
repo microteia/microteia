@@ -8,7 +8,8 @@ export interface Tenant {
   logoURL?: string | null;
   allowedSenders?: string[];
   allowedSubjects?: string[];
-  plan: string;
+  /** Id de um documento de `plans`, ou `null` — o escritório sem plano, sem restrição nenhuma. */
+  plan: string | null;
   memberLimit: number | null;
   memberCount: number;
   createdAt: Date;
