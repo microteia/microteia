@@ -99,7 +99,8 @@ linhas e pelo mesmo número.
 ### O commit
 
 1. **Uma mudança é um commit na `main`** — pull request com *squash merge*; o título do PR vira a
-   mensagem. O workflow `pr-title.yml` reprova título fora do formato.
+   mensagem. O workflow `pr-title.yml` reprova título fora do formato, e o merge exige a aprovação do
+   dono do código (`.github/CODEOWNERS`) e o CI verde.
 2. **Mensagem em inglês, Conventional Commits:** `feat(scope): …`, `fix(scope): …`, `perf(scope): …`,
    com `(#N)` da issue no fim. `!` depois do tipo/escopo, ou um rodapé `BREAKING CHANGE: …`, marca
    quebra de compatibilidade. `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `style` e `revert`

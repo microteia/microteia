@@ -4348,7 +4348,8 @@ o número e a entrada do histórico saem. Enquanto cada commit subia a `version`
 arquivos, dois branches em paralelo brigavam sempre pelas mesmas linhas e pelo mesmo número, e a entrada
 técnica repetia o que a mensagem já dizia. Com mais de uma pessoa commitando, a regra virou o que se faz
 nos projetos open source: pull request com *squash merge* (o título vira a mensagem, e o
-`pr-title.yml` reprova título fora do formato) e o número decidido uma vez, no release.
+`pr-title.yml` reprova título fora do formato), aprovado pelo dono do código (`.github/CODEOWNERS`, com
+a proteção da `main` exigindo essa revisão e o CI verde), e o número decidido uma vez, no release.
 
 `microteia release` (`npm run release`, com `--dry-run` para ver o plano), antes do `pack`:
 

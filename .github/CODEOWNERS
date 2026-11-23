@@ -1,0 +1,4 @@
+# Todo pull request precisa da aprovação do dono do código antes do merge na `main` — a proteção do
+# branch exige "review from Code Owners". Quem entra no repositório recebe o papel Write: só um
+# administrador passa por cima da proteção.
+* @alexnaldosantos
