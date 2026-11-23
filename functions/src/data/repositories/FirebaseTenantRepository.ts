@@ -59,7 +59,7 @@ export class FirebaseTenantRepository implements ITenantRepository {
         logoURL: data.logoURL ?? null,
         allowedSenders: data.allowedSenders ?? [],
         allowedSubjects: data.allowedSubjects ?? [],
-        plan: data.plan ?? 'solo',
+        plan: typeof data.plan === 'string' && data.plan !== '' ? data.plan : null,
         memberLimit: data.memberLimit ?? null,
         memberCount: data.memberCount ?? 0,
         createdAt: data.createdAt?.toDate() ?? new Date(),

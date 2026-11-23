@@ -9,6 +9,15 @@ export interface TenantMemberInfo {
  * O que decide o acesso de um membro, numa leitura só do documento dele: o conjunto materializado e a
  * exigência de segundo fator — os dois campos que as Security Rules também leem.
  */
+/**
+ * As duas digitais carimbadas com o conjunto materializado: a do catálogo de código e a do que o plano
+ * nega. `plan` ausente é vazio — o membro de antes do plano configurável.
+ */
+export interface MemberPermissionStamps {
+  catalog: string | null;
+  plan: string;
+}
+
 export interface MemberAccess {
   userId: string;
   displayName: string;
@@ -29,11 +38,11 @@ export interface ITenantMemberRepository {
    */
   getMemberPermissions(tenantId: string, userId: string): Promise<string[]>;
   /**
-   * A digital do catálogo de código com que este membro foi materializado pela última vez. `null`
-   * quando ele nunca o foi — e a ausência é o que faz um escritório recém-criado se compor sozinho.
-   * Ver `KERNEL_CATALOG_FINGERPRINT`.
+   * As digitais com que este membro foi materializado pela última vez: a do catálogo de código (`null`
+   * quando ele nunca o foi — e a ausência é o que faz um escritório recém-criado se compor sozinho; ver
+   * `KERNEL_CATALOG_FINGERPRINT`) e a do que o plano do escritório nega (`planStamp`).
    */
-  getMemberCatalogStamp(tenantId: string, userId: string): Promise<string | null>;
+  getMemberStamps(tenantId: string, userId: string): Promise<MemberPermissionStamps>;
   /** `null` quando não é membro. */
   getMemberAccess(tenantId: string, userId: string): Promise<MemberAccess | null>;
   listMemberAccess(tenantId: string): Promise<MemberAccess[]>;

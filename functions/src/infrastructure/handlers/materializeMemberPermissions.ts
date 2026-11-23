@@ -2,6 +2,7 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import type { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
 import type { DocumentSnapshot } from 'firebase-admin/firestore';
 import { getDI } from '../di/container';
+import { planDefinitionOf, planStamp } from '../../domain/schema/plans';
 
 const REGION = 'southamerica-east1';
 
@@ -70,5 +71,53 @@ export const materializePermissionsOnExtensionChange = onDocumentWritten(
   { document: 'tenants/{tenantId}/installed_extensions/{extensionId}', region: REGION },
   async (event: WriteEvent) => {
     await rebuild(event.params.tenantId);
+  },
+);
+
+/**
+ * O escritório trocou de PLANO (#24): o teto mudou para todos os membros dele.
+ *
+ * Só a troca acorda a recomposição. O documento do escritório muda por muitos motivos — nome, logo,
+ * contador de membros a cada entrada —, e recompor o escritório inteiro a cada um seria pagar a
+ * leitura de todos os membros por nada.
+ */
+export const materializePermissionsOnTenantPlanChange = onDocumentWritten(
+  { document: 'tenants/{tenantId}', region: REGION },
+  async (event: WriteEvent) => {
+    const after = event.data?.after;
+    if (!after?.exists) return;
+    if (event.data?.before?.data()?.plan === after.data()?.plan) return;
+    await rebuild(event.params.tenantId);
+  },
+);
+
+type PlanWriteEvent = FirestoreEvent<Change<DocumentSnapshot> | undefined, { planId: string }>;
+
+const deniedStampOf = (snapshot: DocumentSnapshot | undefined): string =>
+  snapshot?.exists ? planStamp(planDefinitionOf(snapshot.id, snapshot.data()).deniedPermissions) : '';
+
+/**
+ * O teto de um PLANO mudou: vale na hora para todos os escritórios que estão nele (#24).
+ *
+ * Renomear, arquivar ou mudar o limite padrão não muda o teto, e não acorda nada — o limite é copiado
+ * para o escritório só quando ele nasce ou troca de plano. Excluir o plano conta como deixar de negar:
+ * o escritório que ainda apontasse para ele fica sem restrição, como o escritório sem plano.
+ *
+ * Os escritórios são recompostos um a um, de propósito: em paralelo, um plano popular abriria centenas
+ * de leituras de escritório inteiro ao mesmo tempo. O que falhar no meio não fica para sempre: a
+ * digital do plano no membro diverge, e o navegador pede a recomposição (`syncTenantPermissions`).
+ */
+export const materializePermissionsOnPlanChange = onDocumentWritten(
+  { document: 'plans/{planId}', region: REGION, timeoutSeconds: 540 },
+  async (event: PlanWriteEvent) => {
+    if (deniedStampOf(event.data?.before) === deniedStampOf(event.data?.after)) return;
+    const tenantIds = await getDI().getPlanRepository().tenantIdsOnPlan(event.params.planId);
+    for (const tenantId of tenantIds) {
+      try {
+        await rebuild(tenantId);
+      } catch (cause) {
+        console.error('[materializePermissionsOnPlanChange]', tenantId, cause);
+      }
+    }
   },
 );

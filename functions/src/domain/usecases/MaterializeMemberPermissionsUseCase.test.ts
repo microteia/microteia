@@ -7,11 +7,13 @@ import { KERNEL_CATALOG_FINGERPRINT } from '../schema/access';
 import { makeMaterializeMemberPermissionsUseCase } from './MaterializeMemberPermissionsUseCase';
 import type { MemberMfaPolicy } from '../schema/memberMfa';
 import { DEFAULT_MEMBER_MFA_POLICY } from '../schema/memberMfa';
+import { planDefinitionOf } from '../schema/plans';
 
 type Doc = Record<string, unknown>;
 
 interface FakeState {
   mfaPolicy?: MemberMfaPolicy;
+  plans?: Record<string, Doc>;
   tenants: Record<string, Doc>;
   roles: Record<string, Record<string, Doc>>;
   members: Record<string, Record<string, Doc>>;
@@ -80,6 +82,8 @@ const baseState = (): FakeState => ({
 const run = async (state: FakeState, tenantId = 't1', userIds?: string[]) =>
   makeMaterializeMemberPermissionsUseCase(fakeDb(state), cache(), {
     get: async () => state.mfaPolicy ?? DEFAULT_MEMBER_MFA_POLICY,
+  }, {
+    getPlan: async (planId: string) => (state.plans?.[planId] ? planDefinitionOf(planId, state.plans[planId]) : null),
   }).execute({
     tenantId,
     ...(userIds ? { userIds } : {}),
@@ -210,6 +214,72 @@ describe('MaterializeMemberPermissionsUseCase', () => {
       state.mfaPolicy = policy({ everyone: true, reverifyMinutes: 15 });
       expect(await run(state, 't1', ['ana'])).toBe(1);
       expect(state.members.t1.ana.mfa).toEqual({ maxAgeSeconds: 900 });
+    });
+  });
+
+  describe('teto do plano (#24)', () => {
+    const withPlan = (denied: string[]): FakeState => {
+      const state = baseState();
+      state.tenants.t1 = { ownerId: 'owner', plan: 'starter' };
+      state.plans = { starter: { name: 'Starter', deniedPermissions: denied } };
+      return state;
+    };
+
+    it('o dono mantém o curinga, com a exceção do que o plano nega', async () => {
+      const state = withPlan(['person.read']);
+      await run(state);
+      expect(state.members.t1.owner.permissions).toEqual([
+        '*',
+        '!finance.write',
+        '!person.create',
+        '!person.delete',
+        '!person.read',
+        '!person.update',
+      ]);
+    });
+
+    it('o que depende da negada cai junto, e sai do conjunto do membro', async () => {
+      const state = withPlan(['person.read']);
+      await run(state);
+      expect(state.members.t1.ana.permissions).toEqual([
+        'finance.read',
+        '!finance.write',
+        '!person.create',
+        '!person.delete',
+        '!person.read',
+        '!person.update',
+      ]);
+    });
+
+    it('carimba a digital do que o plano nega', async () => {
+      const state = withPlan(['person.read', 'finance.write']);
+      await run(state);
+      expect(state.members.t1.ana.permissionsPlan).toBe('finance.write,person.read');
+    });
+
+    it('plano sem negação, ou escritório sem plano, não acrescenta nada nem regrava quem já está certo', async () => {
+      const state = withPlan([]);
+      expect(await run(state)).toBe(3);
+      expect(state.members.t1.owner.permissions).toEqual(['*']);
+      expect(state.members.t1.owner.permissionsPlan).toBe('');
+      delete state.members.t1.ana.permissionsPlan;
+      expect(await run(state)).toBe(0);
+    });
+
+    it('o plano que deixa de negar devolve o que tinha tirado', async () => {
+      const state = withPlan(['person.read']);
+      await run(state);
+      state.plans = { starter: { name: 'Starter', deniedPermissions: [] } };
+      await run(state);
+      expect(state.members.t1.ana.permissions).toEqual(['finance.read', 'finance.write', 'person.read']);
+      expect(state.members.t1.ana.permissionsPlan).toBe('');
+    });
+
+    it('escritório apontando para um plano que não existe fica sem restrição', async () => {
+      const state = baseState();
+      state.tenants.t1 = { ownerId: 'owner', plan: 'apagado' };
+      await run(state);
+      expect(state.members.t1.owner.permissions).toEqual(['*']);
     });
   });
 });

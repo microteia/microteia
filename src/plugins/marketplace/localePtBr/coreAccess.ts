@@ -302,6 +302,8 @@ export const CORE_ACCESS: Record<string, string> = {
   'role.description': 'Descrição',
   'role.description.placeholder': 'Para que serve este perfil…',
   'role.empty': 'Nenhum perfil de acesso ainda. Crie o primeiro para começar a conceder acesso.',
+  'role.plan.excluded': 'Fora do plano',
+  'role.plan.excluded.hint': 'O plano do escritório não inclui esta permissão. Os perfis podem mantê-la, mas ela não concede nada enquanto o plano a excluir.',
   'role.included-by': 'Incluída por: {names}',
   'role.identifier.hint': 'O identificador para usar em hasPermission(\'…\') dentro de uma expressão',
   'role.includes': 'Inclui automaticamente: {names}',

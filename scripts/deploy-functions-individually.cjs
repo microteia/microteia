@@ -129,6 +129,8 @@ const ALL_FUNCTIONS = [
   'materializePermissionsOnRoleChange',
   'materializePermissionsOnScreenChange',
   'materializePermissionsOnExtensionChange',
+  'materializePermissionsOnTenantPlanChange',
+  'materializePermissionsOnPlanChange',
   'countExtensionInstalls',
   'aggregateExtensionRatings',
   'publishExtension',

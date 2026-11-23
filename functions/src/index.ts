@@ -58,8 +58,10 @@ export {
 export {
   materializePermissionsOnExtensionChange,
   materializePermissionsOnMemberChange,
+  materializePermissionsOnPlanChange,
   materializePermissionsOnRoleChange,
   materializePermissionsOnScreenChange,
+  materializePermissionsOnTenantPlanChange,
 } from './infrastructure/handlers/materializeMemberPermissions';
 export { syncTenantPermissions } from './infrastructure/handlers/syncTenantPermissions';
 export { auditFlatEntityChange } from './infrastructure/handlers/auditFlatEntityChange';

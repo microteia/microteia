@@ -7,6 +7,7 @@
 import type { PluginDiagnostic } from '../plugin/diagnostics';
 import type { PermissionCatalog } from './resolvePermissions';
 import { resolveEffective } from './resolvePermissions';
+import { deniedByPlan } from './planCeiling';
 
 /**
  * Acesso irrestrito DENTRO de um escritório. Não é um perfil, e ninguém o atribui: o Admin SDK o
@@ -63,11 +64,18 @@ export const memberPermissions = (
 export const isUnrestricted = (granted: readonly string[]): boolean =>
   granted.includes(UNRESTRICTED_PERMISSION);
 
+/**
+ * A negação do plano vem ANTES do curinga: é ela que faz o teto alcançar o dono (`*`). Ver
+ * `planCeiling.ts`.
+ */
 export const grants = (granted: readonly string[], permission: string): boolean =>
-  isUnrestricted(granted) || granted.includes(permission);
+  !deniedByPlan(granted, permission) && (isUnrestricted(granted) || granted.includes(permission));
 
+/** Lista vazia: só o curinga responde sim — a resposta de antes do plano, que quem chama espera. */
 export const grantsAny = (granted: readonly string[], permissions: readonly string[]): boolean =>
-  isUnrestricted(granted) || permissions.some((permission) => granted.includes(permission));
+  permissions.length === 0
+    ? isUnrestricted(granted)
+    : permissions.some((permission) => grants(granted, permission));
 
 export const grantsAll = (granted: readonly string[], permissions: readonly string[]): boolean =>
-  isUnrestricted(granted) || permissions.every((permission) => granted.includes(permission));
+  permissions.every((permission) => grants(granted, permission));

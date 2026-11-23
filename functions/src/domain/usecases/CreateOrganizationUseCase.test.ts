@@ -6,7 +6,7 @@ import { DomainError } from '../errors/DomainError';
 
 const ACTOR = { userId: 'sys', userName: 'System', photoURL: '' };
 
-const setup = (users: StoredUser[]) => {
+const setup = (users: StoredUser[], plans?: { newTenantPlan: () => Promise<{ plan: string | null; memberLimit: number | null }> }) => {
   const created: CreateTenantInput[] = [];
   const tenants = {
     createTenant: vi.fn(async (input: CreateTenantInput) => { created.push(input); return { id: 'novo' }; }),
@@ -18,6 +18,7 @@ const setup = (users: StoredUser[]) => {
     tenants,
     audit,
     random: () => 0,
+    ...(plans ? { plans } : {}),
   });
   return { useCase, tenants, audit, created };
 };
@@ -35,9 +36,15 @@ describe('CreateOrganizationUseCase', () => {
 
     await expect(useCase.execute({ name: '  Prefeitura de X ', ownerEmail: 'ana@x.com', actor: ACTOR })).resolves.toEqual({ tenantId: 'novo' });
 
-    expect(created[0]).toMatchObject({ name: 'Prefeitura de X', ownerId: 'ana', memberLimit: 1 });
+    expect(created[0]).toMatchObject({ name: 'Prefeitura de X', ownerId: 'ana', plan: null, memberLimit: 1 });
     expect(tenants.addMemberIfWithinLimit).toHaveBeenCalledWith('novo', expect.objectContaining({ userId: 'ana', roleIds: [], addedBy: 'sys' }));
     expect(audit.execute).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'novo', action: 'CREATE', textParams: { name: 'Prefeitura de X', owner: 'ana@x.com' } }));
+  });
+
+  it('abre o escritório no plano padrão da instalação, com o limite dele (#24)', async () => {
+    const { useCase, created } = setup([ANA], { newTenantPlan: async () => ({ plan: 'starter', memberLimit: 3 }) });
+    await useCase.execute({ name: 'Prefeitura de X', ownerEmail: 'ana@x.com', actor: ACTOR });
+    expect(created[0]).toMatchObject({ plan: 'starter', memberLimit: 3 });
   });
 
   it('recusa nome vazio, e dono sem conta', async () => {

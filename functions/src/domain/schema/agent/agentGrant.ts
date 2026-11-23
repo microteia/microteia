@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { UNRESTRICTED_PERMISSION } from '../access/memberPermissions';
+import { deniedByPlan } from '../access/planCeiling';
 
 /**
  * A coleção dos acessos de agente. Reservada, como toda coleção que o kernel serve por regra
@@ -224,7 +225,8 @@ export const grantRefusal = (
  *
  * O curinga do dono (`*` no conjunto CONCEDIDO) é a AUSÊNCIA de limite, não uma permissão — então ele
  * interseca para exatamente o teto declarado. Sem este caso, o dono do escritório receberia acesso
- * irrestrito em todo token que emitisse, que é o oposto de declarar um teto.
+ * irrestrito em todo token que emitisse, que é o oposto de declarar um teto. O que o PLANO nega ao
+ * dono (`!<id>`) sai do teto também: o agente não passa do que o escritório contratou.
  *
  * O curinga do LADO do teto é recusado na emissão, e não aqui: um teto irrestrito é uma decisão de
  * quem emite, não um detalhe de resolução.
@@ -234,7 +236,9 @@ export const effectiveAgentPermissions = (
   ceiling: readonly string[],
 ): string[] => {
   const declared = [...new Set(ceiling)].filter((permission) => permission !== UNRESTRICTED_PERMISSION);
-  if (granted.includes(UNRESTRICTED_PERMISSION)) return declared.sort();
+  if (granted.includes(UNRESTRICTED_PERMISSION)) {
+    return declared.filter((permission) => !deniedByPlan(granted, permission)).sort();
+  }
   const held = new Set(granted);
   return declared.filter((permission) => held.has(permission)).sort();
 };

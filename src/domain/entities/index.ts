@@ -79,23 +79,12 @@ export interface AIConnection {
 
 // ─── Tenant (Escritório) ──────────────────────────────────────────────────────
 
-export type TenantPlan = 'solo' | 'office' | 'professional' | 'enterprise';
-
-export const TENANT_PLANS: TenantPlan[] = ['solo', 'office', 'professional', 'enterprise'];
-
-export const TENANT_PLAN_LABELS: Record<TenantPlan, string> = {
-  solo: 'Solo',
-  office: '@core.admin/plan.office',
-  professional: 'Professional',
-  enterprise: 'Enterprise',
-};
-
-export const TENANT_PLAN_MEMBER_LIMITS: Record<TenantPlan, number> = {
-  solo: 1,
-  office: 5,
-  professional: 15,
-  enterprise: 100,
-};
+/**
+ * O plano é DADO da instalação (`plans/{id}`, #24), e `Tenant.plan` guarda o id dele. A união fechada
+ * de antes (`solo` | `office` | …) e as tabelas de rótulo e limite saíram do kernel — ver
+ * `domain/schema/plans.ts`.
+ */
+export type { PlanDefinition as Plan } from '../schema/plans';
 
 export interface Tenant {
   id: string;
@@ -105,7 +94,8 @@ export interface Tenant {
   phone?: string | null;
   address?: string | null;
   logoURL?: string | null;
-  plan: TenantPlan;
+  /** Id de um documento de `plans`, ou `null` — o escritório sem plano, sem restrição nenhuma. */
+  plan: string | null;
   memberLimit: number | null;
   memberCount: number;
   createdAt: Date;
@@ -141,7 +131,8 @@ export interface TenantMember {
    * e recalcula o conjunto por conta própria em vez de confiar no que está gravado.
    *
    * O curinga `*` aparece para o DONO do escritório, e só para ele: é o que impede que um escritório
-   * recém-criado nasça sem ninguém capaz de configurá-lo.
+   * recém-criado nasça sem ninguém capaz de configurá-lo. As entradas `!<permissão>` são o que o PLANO
+   * nega (#24) — as exceções do curinga. Ver `planCeiling.ts`.
    */
   permissions: string[];
   /**
@@ -153,6 +144,11 @@ export interface TenantMember {
    * escrita no banco acontece nesse dia, então nenhum gatilho acorda. Ver `KERNEL_CATALOG_FINGERPRINT`.
    */
   permissionsCatalog?: string;
+  /**
+   * A digital do que o PLANO do escritório nega (`planStamp`), carimbada com `permissions` (#24). É por
+   * ela que o app percebe que o plano mudou e o conjunto que as rules leem ficou velho. Ausente é vazio.
+   */
+  permissionsPlan?: string;
   displayName: string;
   email: string;
   photoURL: string | null;

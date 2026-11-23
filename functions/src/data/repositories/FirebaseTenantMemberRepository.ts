@@ -1,5 +1,10 @@
 import type { DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
-import type { ITenantMemberRepository, MemberAccess, TenantMemberInfo } from '../../domain/repositories/ITenantMemberRepository';
+import type {
+  ITenantMemberRepository,
+  MemberAccess,
+  MemberPermissionStamps,
+  TenantMemberInfo,
+} from '../../domain/repositories/ITenantMemberRepository';
 import { memberMfaRequirementFrom } from '../../domain/schema/memberMfa';
 
 const stringsOf = (value: unknown): string[] =>
@@ -59,7 +64,7 @@ export class FirebaseTenantMemberRepository implements ITenantMemberRepository {
     return Array.isArray(permissions) ? (permissions as string[]) : [];
   }
 
-  async getMemberCatalogStamp(tenantId: string, userId: string): Promise<string | null> {
+  async getMemberStamps(tenantId: string, userId: string): Promise<MemberPermissionStamps> {
     const memberSnap = await this.db
       .collection('tenants')
       .doc(tenantId)
@@ -67,8 +72,12 @@ export class FirebaseTenantMemberRepository implements ITenantMemberRepository {
       .doc(userId)
       .get();
 
-    const stamp = memberSnap.data()?.permissionsCatalog;
-    return typeof stamp === 'string' ? stamp : null;
+    const catalog = memberSnap.data()?.permissionsCatalog;
+    const plan = memberSnap.data()?.permissionsPlan;
+    return {
+      catalog: typeof catalog === 'string' ? catalog : null,
+      plan: typeof plan === 'string' ? plan : '',
+    };
   }
 
   async getMember(tenantId: string, userId: string): Promise<TenantMemberInfo | null> {

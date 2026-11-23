@@ -125,6 +125,13 @@ const NoChip = styled.span`
   white-space: nowrap;
 `;
 
+const PlanChip = styled(NoChip)`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  color: ${({ theme }) => theme.colors.warning};
+`;
+
 const Panel = styled.aside`
   display: flex;
   flex-direction: column;
@@ -253,6 +260,7 @@ export const S = {
   Chips,
   Chip,
   NoChip,
+  PlanChip,
   Panel,
   PanelHeader,
   PanelTitleGroup,

@@ -75,7 +75,7 @@ describe('BootstrapUserUseCase', () => {
   });
 
   const policy = (acceptNewAccounts: boolean, selfServiceTenants: boolean) => ({
-    getPolicy: vi.fn(async () => ({ acceptNewAccounts, selfServiceTenants, defaultExtensions: [], defaultLocale: null })),
+    getPolicy: vi.fn(async () => ({ acceptNewAccounts, selfServiceTenants, defaultExtensions: [], defaultLocale: null, defaultPlanId: null })),
     refuse: vi.fn(async () => undefined),
   } satisfies IRegistrationRepository);
 

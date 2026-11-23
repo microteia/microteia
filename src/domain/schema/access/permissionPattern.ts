@@ -1,4 +1,5 @@
 import { UNRESTRICTED_PERMISSION } from './memberPermissions';
+import { deniedByPlan, grantedEntries } from './planCeiling';
 
 /**
  * O PADRÃO que `hasPermission(...)` aceita, e por que ele existe.
@@ -51,7 +52,10 @@ const resolveEntity = (pattern: string, entity: string): string | null => {
  * O padrão casa com ALGUMA das permissões concedidas?
  *
  * O curinga do dono do escritório (`*` sozinho no conjunto CONCEDIDO) responde sim a tudo — ele não
- * é padrão, é a ausência de limite.
+ * é padrão, é a ausência de limite. A exceção é o que o PLANO nega (`!<id>`, ver `planCeiling.ts`): o
+ * identificador exato negado responde não, mesmo com o curinga. Um padrão com curinga sobre um conjunto
+ * com `*` continua respondendo sim — haverá permissão não negada que case, e enumerá-las exigiria o
+ * catálogo, que esta conta não tem.
  */
 export const matchesPermission = (
   granted: readonly string[],
@@ -60,10 +64,13 @@ export const matchesPermission = (
 ): boolean => {
   const resolved = resolveEntity(pattern.trim(), entity.trim());
   if (resolved === null || resolved === '') return false;
+  if (!hasWildcard(resolved)) {
+    if (deniedByPlan(granted, resolved)) return false;
+    return granted.includes(UNRESTRICTED_PERMISSION) || granted.includes(resolved);
+  }
   if (granted.includes(UNRESTRICTED_PERMISSION)) return true;
-  if (!hasWildcard(resolved)) return granted.includes(resolved);
 
   const source = `^${resolved.split('.').map(segmentToRegex).join('\\.')}$`;
   const matcher = new RegExp(source);
-  return granted.some((permission) => matcher.test(permission));
+  return grantedEntries(granted).some((permission) => matcher.test(permission));
 };

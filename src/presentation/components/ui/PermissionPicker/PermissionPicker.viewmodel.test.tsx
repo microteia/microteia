@@ -27,12 +27,13 @@ let unrestricted = false;
 
 vi.mock('../../../../stores/useAuthorization', () => ({
   useAuthorization: () => ({
-    can: () => true,
+    can: (id: string) => unrestricted || held.includes(id),
     canAny: () => true,
     canAll: () => true,
     catalog,
     effectivePermissions: held,
     isUnrestricted: unrestricted,
+    planDeniedPermissions: [],
   }),
 }));
 

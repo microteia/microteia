@@ -28,6 +28,7 @@
 
 import type { SchemaContext } from './screenEntity';
 import { isValidAccessPermissionId } from './access/permission';
+import { deniedByPlan } from './access/planCeiling';
 
 /**
  * O kernel a partir do qual `memberVisibility` é lido. Um kernel anterior DESCARTA a chave ao
@@ -115,7 +116,10 @@ export const readerSeesAll = (
   spec: MemberVisibilitySpec,
   collection: string,
   permissions: readonly string[],
-): boolean => permissions.includes(UNRESTRICTED) || permissions.includes(memberVisibilityBypass(spec, collection));
+): boolean => {
+  const bypass = memberVisibilityBypass(spec, collection);
+  return !deniedByPlan(permissions, bypass) && (permissions.includes(UNRESTRICTED) || permissions.includes(bypass));
+};
 
 /**
  * O registro nomeia o membro num dos campos: o uid gravado no campo simples, ou contido no `multi`.

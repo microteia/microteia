@@ -13,6 +13,7 @@ import { TenantStoreProvider } from './stores/TenantStore';
 import { TagStoreProvider } from './stores/TagStore';
 import { RoleStoreProvider } from './stores/RoleStore';
 import { AuthorizationStoreProvider } from './stores/AuthorizationStore';
+import { PlanStoreProvider } from './stores/PlanStore';
 import { LookupStoreProvider } from './stores/LookupStore';
 import { SavedFilterStoreProvider } from './stores/SavedFilterStore';
 import { SettingsStoreProvider } from './stores/SettingsStore';
@@ -119,6 +120,7 @@ const App: React.FC = () => {
                       <TenantEntryGate>
                         <ScreenDefinitionStoreProvider>
                         <RoleStoreProvider>
+                        <PlanStoreProvider>
                         <TagStoreProvider>
                         <LookupStoreProvider>
                                         <SettingsStoreProvider>
@@ -195,6 +197,7 @@ const App: React.FC = () => {
                                         </SettingsStoreProvider>
                         </LookupStoreProvider>
                         </TagStoreProvider>
+                        </PlanStoreProvider>
                         </RoleStoreProvider>
                         </ScreenDefinitionStoreProvider>
                       </TenantEntryGate>

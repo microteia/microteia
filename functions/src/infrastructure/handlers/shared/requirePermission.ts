@@ -1,6 +1,6 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../../di/container';
-import { UNRESTRICTED_PERMISSION, grants, grantsAny } from '../../../domain/schema/access';
+import { UNRESTRICTED_PERMISSION, deniedByPlan, grants, grantsAny, isUnrestricted } from '../../../domain/schema/access';
 import { mfaSessionIssue, mfaVerifiedAtOf } from '../../../domain/schema/memberMfa';
 import type { MfaSessionIssue } from '../../../domain/schema/memberMfa';
 import type { MemberAccess } from '../../../domain/repositories/ITenantMemberRepository';
@@ -35,6 +35,14 @@ const isSystemAdmin = async (userId: string): Promise<boolean> =>
  */
 const isTenantOwner = async (tenantId: string, userId: string): Promise<boolean> =>
   (await getDI().getTenantRepository().getById(tenantId))?.ownerId === userId;
+
+/**
+ * O conjunto do DONO: o materializado quando já traz o curinga — é ele que carrega as exceções do plano
+ * (`!<id>`, #24) —, ou o curinga puro enquanto a materialização não rodou. A janela é a mesma das
+ * Security Rules, que também deixam o dono passar pelo `ownerId` antes de o membro ser materializado.
+ */
+const ownerGranted = (access: MemberAccess | null): string[] =>
+  access && isUnrestricted(access.permissions) ? access.permissions : [UNRESTRICTED_PERMISSION];
 
 /**
  * A sessão prova o segundo fator que o escritório exige deste membro, e há pouco o bastante para AGIR —
@@ -74,7 +82,7 @@ const accessOf = (tenantId: string, userId: string): Promise<MemberAccess | null
  */
 export const grantedPermissions = async (tenantId: string, userId: string): Promise<string[]> => {
   if (await isSystemAdmin(userId)) return [UNRESTRICTED_PERMISSION];
-  if (await isTenantOwner(tenantId, userId)) return [UNRESTRICTED_PERMISSION];
+  if (await isTenantOwner(tenantId, userId)) return ownerGranted(await accessOf(tenantId, userId));
   return getDI().getTenantMemberRepository().getMemberPermissions(tenantId, userId);
 };
 
@@ -104,9 +112,10 @@ export const requirePermission = async (
     return access.permissions;
   }
   if (await isSystemAdmin(caller.uid)) return [UNRESTRICTED_PERMISSION];
-  if (await isTenantOwner(tenantId, caller.uid)) {
+  // O dono passa pelo `ownerId`, MENOS no que o plano do escritório lhe nega (#24).
+  if (!(access && deniedByPlan(access.permissions, permission)) && await isTenantOwner(tenantId, caller.uid)) {
     if (access) await assertMemberSession(access, caller);
-    return [UNRESTRICTED_PERMISSION];
+    return ownerGranted(access);
   }
   throw new HttpsError('permission-denied', '@core.access/permission.denied', { permission });
 };
@@ -123,7 +132,8 @@ export const requireAnyPermission = async (
     return;
   }
   if (await isSystemAdmin(caller.uid)) return;
-  if (await isTenantOwner(tenantId, caller.uid)) {
+  const ownerMayUse = !access || permissions.some((permission) => !deniedByPlan(access.permissions, permission));
+  if (ownerMayUse && await isTenantOwner(tenantId, caller.uid)) {
     if (access) await assertMemberSession(access, caller);
     return;
   }

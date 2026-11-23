@@ -1,10 +1,12 @@
 import type { IUserRepository } from '../repositories/IUserRepository';
 import type { ITenantRepository } from '../repositories/ITenantRepository';
 import type { IRegistrationRepository } from '../repositories/IRegistrationRepository';
+import type { IPlanRepository } from '../repositories/IPlanRepository';
 import { NO_OFFICE_DEFAULTS, type StageOfficeDefaultsUseCase } from './StageOfficeDefaultsUseCase';
 import { generateArtifactPrefix } from '../schema/plugin/artifactPrefix';
 import { normalizePortalEmail } from '../schema/portal';
 import { isPortalIdentityAccount } from '../schema/portalIdentity';
+import { NO_PLAN_MEMBER_LIMIT } from '../schema/plans';
 
 export interface BootstrapUserInput {
   userId: string;
@@ -20,6 +22,13 @@ export interface TenantOwner {
   photoURL: string | null;
 }
 
+export type NewTenantPlans = Pick<IPlanRepository, 'newTenantPlan'>;
+
+/** A instalação sem plano padrão: o escritório nasce sem plano e com o limite de antes de existir plano. */
+export const NO_DEFAULT_PLAN: NewTenantPlans = {
+  newTenantPlan: async () => ({ plan: null, memberLimit: NO_PLAN_MEMBER_LIMIT }),
+};
+
 /**
  * Abre um escritório com DONO — o mesmo caminho para o autocadastro e para o escritório que o
  * administrador global cria em nome de alguém. Duas cópias divergiriam justamente no que importa: o
@@ -32,13 +41,17 @@ export const openOwnedTenant = async (
   addedBy: string,
   random: () => number,
   officeDefaults: StageOfficeDefaultsUseCase = NO_OFFICE_DEFAULTS,
+  plans: NewTenantPlans = NO_DEFAULT_PLAN,
 ) => {
+  // O plano padrão é do `SYSTEM` (#24): o escritório nasce nele e com o limite dele, copiado — mudar o
+  // padrão do plano depois não toca o escritório, que tem o próprio limite.
+  const { plan, memberLimit } = await plans.newTenantPlan();
   const tenant = await tenantRepo.createTenant({
     name,
     ownerId: owner.userId,
     email: owner.email,
-    plan: 'solo',
-    memberLimit: 1,
+    plan,
+    memberLimit,
     // Sorteado: o escritório ainda não escolheu nada, e quatro letras ao acaso bastam para que o que
     // ele criar não colida com o de outro. Quem tem a permissão troca depois, em Configurações.
     artifactPrefix: generateArtifactPrefix(random),
@@ -68,8 +81,8 @@ export type BootstrapUserUseCase = {
 
 // Provisiona um usuário recém-criado no Firebase Auth: documento em users/,
 // documento em userProfiles/ e um Tenant próprio com o usuário como admin.
-// Limite padrão de 1 membro (o próprio dono) — SYSTEM aumenta depois, se quiser,
-// na aba "Escritórios" de Gestão de Acessos.
+// Plano e limite vêm do plano padrão da instalação (`system/registration.defaultPlanId`); sem ele, sem
+// plano e com limite de 1 membro (o próprio dono). O SYSTEM ajusta depois na aba "Escritórios".
 //
 // O que fazer com quem chega pela primeira vez é do `SYSTEM` (`system/registration`, Gestão de Acessos),
 // ver `domain/schema/registration.ts`:
@@ -81,7 +94,7 @@ export type BootstrapUserUseCase = {
 //   ser adicionada a um. A exceção é a primeira conta da instalação — a do `SYSTEM` —, sem a qual não
 //   haveria escritório nenhum nem quem criasse o primeiro.
 const ALWAYS_OPEN: IRegistrationRepository = {
-  getPolicy: async () => ({ acceptNewAccounts: true, selfServiceTenants: true, defaultExtensions: [], defaultLocale: null }),
+  getPolicy: async () => ({ acceptNewAccounts: true, selfServiceTenants: true, defaultExtensions: [], defaultLocale: null, defaultPlanId: null }),
   refuse: async () => undefined,
 };
 
@@ -92,6 +105,7 @@ export const makeBootstrapUserUseCase = (
   portalInvites: { hasInvite: (email: string) => Promise<boolean> } = { hasInvite: async () => false },
   registration: IRegistrationRepository = ALWAYS_OPEN,
   officeDefaults: StageOfficeDefaultsUseCase = NO_OFFICE_DEFAULTS,
+  plans: NewTenantPlans = NO_DEFAULT_PLAN,
 ): BootstrapUserUseCase => ({
   execute: async ({ userId, email, displayName, photoURL }) => {
     // Quem chegou por um convite do PORTAL é de fora: entra no escritório que o convidou, como
@@ -126,6 +140,6 @@ export const makeBootstrapUserUseCase = (
     // o renomeia quando quiser — traduzi-lo depois mudaria o nome que ele escolheu manter. Por
     // isso é montado só com o que o usuário trouxe: sem palavra nossa, não há idioma para ficar
     // preso. O e-mail entra porque dois usuários homônimos precisam se distinguir na lista.
-    await openOwnedTenant(tenantRepo, { userId, email, displayName, photoURL }, `${displayName}(${email})`, userId, random, officeDefaults);
+    await openOwnedTenant(tenantRepo, { userId, email, displayName, photoURL }, `${displayName}(${email})`, userId, random, officeDefaults, plans);
   },
 });

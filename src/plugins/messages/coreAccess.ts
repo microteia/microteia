@@ -307,6 +307,8 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'role.description': 'Description',
   'role.description.placeholder': 'What this profile is for…',
   'role.empty': 'No access profile yet. Create the first one to start granting access.',
+  'role.plan.excluded': 'Not in the plan',
+  'role.plan.excluded.hint': 'The organization\'s plan does not include this permission. Roles may keep it, but it grants nothing while the plan excludes it.',
   'role.included-by': 'Included by: {names}',
   'role.identifier.hint': 'The identifier to use in hasPermission(\'…\') inside an expression',
   'role.includes': 'Includes automatically: {names}',

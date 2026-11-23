@@ -41,7 +41,7 @@ import {
   NOTIFICATION_EMAIL_LAYOUT_SETTING,
   NOTIFICATION_TEMPLATES_SETTING,
 } from '../../domain/schema/notificationTemplate';
-import { UNRESTRICTED_PERMISSION } from '../../domain/schema/access';
+import { UNRESTRICTED_PERMISSION, deniedByPlan, grants } from '../../domain/schema/access';
 import { preferredLocale, settingsValuesOf } from '../../domain/services/tenantSettings';
 
 export class FirestoreNotificationDirectory implements INotificationDirectory {
@@ -114,15 +114,23 @@ export class FirestoreNotificationDirectory implements INotificationDirectory {
         .collection('members')
         .where('permissions', 'array-contains-any', [permission, UNRESTRICTED_PERMISSION])
         .limit(limit)
-        .select()
+        .select('permissions')
         .get(),
       tenantRef.get(),
     ]);
-    const ids = granted.docs.map((doc) => doc.id);
+    // O curinga casa a consulta mesmo quando o plano nega a permissão (`!<id>`, #24): quem recebe o
+    // aviso é conferido de novo pela mesma conta das rules.
+    const permissionsOf = (data: Record<string, unknown> | undefined): string[] =>
+      Array.isArray(data?.permissions) ? (data.permissions as string[]) : [];
+    const ids = granted.docs
+      .filter((doc) => grants(permissionsOf(doc.data()), permission))
+      .map((doc) => doc.id);
+    const deniedToOwner = granted.docs.some((doc) =>
+      doc.id === tenant.data()?.ownerId && deniedByPlan(permissionsOf(doc.data()), permission));
     const ownerId = tenant.data()?.ownerId;
     // O dono tem tudo, e não pode depender de a materialização já ter rodado — a mesma exceção das
     // Security Rules. A conferência de que ele é membro fica com `recipients`.
-    if (typeof ownerId === 'string' && ownerId && !ids.includes(ownerId)) ids.push(ownerId);
+    if (typeof ownerId === 'string' && ownerId && !ids.includes(ownerId) && !deniedToOwner) ids.push(ownerId);
     return ids;
   }
 }
