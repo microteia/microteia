@@ -20,6 +20,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.300.0] — 2026-11-23
+
+- feat(release): versions are decided at release time from Conventional Commits (#25)
+- feat(access): grant or revoke every filtered permission to a profile at once (#27)
+- fix(access): organization and user tables scroll instead of clipping the member-limit column (#26)
+
 #### [9.299.0] — 2026-11-22
 
 - feat(access/plans): plans are installation data — `plans/{planId}` (`name`, `memberLimit`, `deniedPermissions`, `archived`), created, archived and deleted by `SYSTEM` in Access Management › Plans. `Tenant.plan` becomes the id of a plan (or `null`); the closed union and `TENANT_PLANS` / `TENANT_PLAN_LABELS` / `TENANT_PLAN_MEMBER_LIMITS` leave the kernel. Members `get` their plan; only `SYSTEM` lists or writes. A plan in use cannot be deleted, only archived (#24).

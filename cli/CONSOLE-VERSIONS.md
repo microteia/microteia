@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.48.0] — 2026-11-23
+
+- feat(release): versions are decided at release time from Conventional Commits (#25)
+
 #### [2.47.1] — 2026-11-19
 
 - docs(installation): `MICROTEIA.md` gains "The product identity" — each `brand:` field and where it shows, the image rules (relative paths beside `microteia.yaml`, the first PNG as home-screen and notification icon), translation through `login.extensions`, what stays the platform's, why it is not an extension, and that link previews are cached by the apps that show them.
