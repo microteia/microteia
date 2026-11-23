@@ -234,6 +234,24 @@ const Summary = styled.span`
   color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
+const PreviewList = styled.ul`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin: 0;
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+  list-style: none;
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+`;
+
+const PreviewItem = styled.li<{ $primary?: boolean }>`
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  font-weight: ${({ $primary }) => ($primary ? 600 : 400)};
+  color: ${({ theme, $primary }) => ($primary ? theme.colors.text : theme.colors.textSecondary)};
+`;
+
 const EmptyState = styled.div`
   display: flex;
   flex-direction: column;
@@ -275,5 +293,7 @@ export const S = {
   Field,
   Footer,
   Summary,
+  PreviewList,
+  PreviewItem,
   EmptyState,
 };

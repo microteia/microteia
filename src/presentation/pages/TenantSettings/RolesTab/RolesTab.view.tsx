@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiAddLine, RiCloseLine, RiDeleteBinLine, RiEdit2Line, RiLockLine, RiShieldUserLine } from 'react-icons/ri';
+import { RiAddLine, RiCheckboxMultipleLine, RiCloseLine, RiDeleteBinLine, RiEdit2Line, RiLockLine, RiShieldUserLine } from 'react-icons/ri';
 import { useRolesTabViewModel } from './RolesTab.viewmodel';
 import { S } from './RolesTab.styles';
 import { Button } from '../../../components/ui/Button';
@@ -8,6 +8,8 @@ import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import { InfoBanner } from '../../../components/ui/InfoBanner';
 import { Input, Label } from '../../../components/ui/Input';
 import { Modal } from '../../../components/ui/Modal';
+import { RadioGroup } from '../../../components/ui/RadioButton';
+import { SearchSelect } from '../../../components/ui/SearchSelect';
 import { Spinner } from '../../../components/ui/Spinner';
 import { useT } from '../../../shared/i18n/useT';
 
@@ -32,6 +34,10 @@ export const RolesTabView: React.FC = () => {
           />
         </S.SearchWrapper>
         <S.RoleActions>
+          <Button variant="secondary" onClick={vm.openBulk} disabled={!vm.canBulk}>
+            <RiCheckboxMultipleLine size={16} />
+            {t('role.bulk.open')}
+          </Button>
           <Button variant="secondary" onClick={vm.openRoles}>
             <RiShieldUserLine size={16} />
             {t('role.count', { count: String(vm.roles.length) })}
@@ -189,6 +195,77 @@ export const RolesTabView: React.FC = () => {
             <Button variant="secondary" onClick={vm.cancelRoleModal}>{t('core.ui/action.cancel')}</Button>
             <Button onClick={() => void vm.saveRole()} disabled={vm.isSavingRole}>
               {t(vm.isSavingRole ? 'core.ui/action.saving' : 'core.ui/action.save')}
+            </Button>
+          </S.Footer>
+        </S.Container>
+      </Modal>
+      )}
+
+      {vm.isBulkOpen && (
+      <Modal onClose={vm.closeBulk} title={t('role.bulk.title')}>
+        <S.Container>
+          <S.PermissionHint>
+            {vm.bulkScope.query
+              ? t('role.bulk.scope.filtered', { count: String(vm.bulkScope.count), query: vm.bulkScope.query })
+              : t('role.bulk.scope.all', { count: String(vm.bulkScope.count) })}
+          </S.PermissionHint>
+          <S.Field>
+            <Label>{t('role.bulk.profile')}</Label>
+            <SearchSelect
+              options={vm.bulkRoleOptions}
+              value={vm.bulkRoleId}
+              onChange={vm.setBulkRoleId}
+              placeholder={t('role.bulk.profile.placeholder')}
+            />
+          </S.Field>
+          <S.Field>
+            <Label>{t('role.bulk.mode')}</Label>
+            <RadioGroup
+              name="role-bulk-mode"
+              direction="horizontal"
+              value={vm.bulkMode}
+              onChange={vm.setBulkMode}
+              options={[
+                { value: 'grant', label: t('role.bulk.mode.grant') },
+                { value: 'revoke', label: t('role.bulk.mode.revoke') },
+              ]}
+            />
+          </S.Field>
+          {vm.bulkPreview && (
+            <S.PreviewList>
+              {vm.bulkPreview.affected === 0 ? (
+                <S.PreviewItem $primary>{t('role.bulk.preview.nothing')}</S.PreviewItem>
+              ) : (
+                <S.PreviewItem $primary>
+                  {t(vm.bulkMode === 'grant' ? 'role.bulk.preview.grant' : 'role.bulk.preview.revoke', {
+                    count: String(vm.bulkPreview.affected),
+                    profile: vm.bulkPreview.profile,
+                  })}
+                </S.PreviewItem>
+              )}
+              {vm.bulkPreview.kept > 0 && (
+                <S.PreviewItem>{t('role.bulk.preview.kept', { count: String(vm.bulkPreview.kept) })}</S.PreviewItem>
+              )}
+              {vm.bulkPreview.unchanged > 0 && (
+                <S.PreviewItem>
+                  {t(vm.bulkMode === 'grant' ? 'role.bulk.preview.already' : 'role.bulk.preview.not-granted', {
+                    count: String(vm.bulkPreview.unchanged),
+                  })}
+                </S.PreviewItem>
+              )}
+              {vm.bulkPreview.planExcluded > 0 && (
+                <S.PreviewItem>{t('role.bulk.preview.plan', { count: String(vm.bulkPreview.planExcluded) })}</S.PreviewItem>
+              )}
+            </S.PreviewList>
+          )}
+          <S.Footer>
+            <Button variant="secondary" onClick={vm.closeBulk}>{t('core.ui/action.cancel')}</Button>
+            <Button
+              variant={vm.bulkMode === 'revoke' ? 'danger' : 'primary'}
+              onClick={() => void vm.applyBulk()}
+              disabled={!vm.bulkPreview || vm.bulkPreview.affected === 0 || vm.isApplyingBulk}
+            >
+              {t(vm.isApplyingBulk ? 'core.ui/action.saving' : 'role.bulk.apply')}
             </Button>
           </S.Footer>
         </S.Container>

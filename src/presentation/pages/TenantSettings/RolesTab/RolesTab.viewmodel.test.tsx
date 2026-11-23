@@ -194,3 +194,120 @@ describe('RolesTabViewModel — a tela por PERMISSÃO', () => {
     await waitFor(() => expect(result.current.roleModal).toBeNull());
   });
 });
+
+/**
+ * Aplicar a um perfil, de uma vez, o que a lista mostra (#27). O alcance é o filtro; a prévia diz o que
+ * vai mudar antes de gravar; e a gravação é UMA, pela mesma validação do vínculo individual.
+ */
+describe('RolesTabViewModel — aplicar a lista a um perfil', () => {
+  beforeEach(() => {
+    planDeniedPermissions = [];
+    updateRole.mockClear();
+    roles = [
+      role({ id: 'r-fin', name: 'Financeiro', permissions: ['finance.write'] }),
+      role({ id: 'r-rec', name: 'Recepção', permissions: [] }),
+      role({ id: 'r-sys', name: 'Sistema', permissions: [], system: true }),
+    ];
+  });
+
+  const visible = (vm: ReturnType<typeof useRolesTabViewModel>) =>
+    vm.groups.flatMap((group) => group.permissions.map((permission) => permission.id));
+
+  it('o perfil do sistema não é oferecido', () => {
+    const { result } = renderHook(() => useRolesTabViewModel());
+    expect(result.current.bulkRoleOptions.map((option) => option.value)).toEqual(['r-fin', 'r-rec']);
+  });
+
+  it('sem perfil escolhido não há prévia, e nada é gravado', async () => {
+    const { result } = renderHook(() => useRolesTabViewModel());
+    act(() => result.current.openBulk());
+    expect(result.current.bulkPreview).toBeNull();
+    await act(() => result.current.applyBulk());
+    expect(updateRole).not.toHaveBeenCalled();
+  });
+
+  it('sem filtro, conceder alcança todas as permissões, numa gravação só', async () => {
+    const { result } = renderHook(() => useRolesTabViewModel());
+    const all = visible(result.current);
+    act(() => result.current.openBulk());
+    act(() => result.current.setBulkRoleId('r-rec'));
+
+    expect(result.current.bulkScope).toEqual({ count: all.length, query: '' });
+    expect(result.current.bulkPreview).toMatchObject({ scope: all.length, affected: all.length, unchanged: 0 });
+
+    await act(() => result.current.applyBulk());
+    expect(updateRole).toHaveBeenCalledTimes(1);
+    expect(updateRole).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'r-rec' }),
+      catalog,
+      expect.objectContaining({ permissions: expect.arrayContaining(all) }),
+    );
+  });
+
+  it('com filtro, só o que a lista mostra; o que o perfil já tinha conta como já concedido', async () => {
+    const { result } = renderHook(() => useRolesTabViewModel());
+    act(() => result.current.setQuery('people'));
+    const shown = visible(result.current);
+    act(() => result.current.openBulk());
+    act(() => result.current.setBulkRoleId('r-fin'));
+
+    // person.read já chega ao Financeiro por finance.write.
+    expect(result.current.bulkPreview).toMatchObject({ scope: shown.length, unchanged: 1, affected: shown.length - 1 });
+
+    await act(() => result.current.applyBulk());
+    const written = (updateRole.mock.calls[0] as unknown[])[2] as { permissions: string[] };
+    expect(written.permissions).toEqual(expect.arrayContaining(['finance.write', ...shown]));
+    expect(written.permissions).not.toContain('finance.read');
+  });
+
+  it('retirar mantém o que outra permissão restante do perfil exige, e diz quantas são', async () => {
+    roles = [role({ id: 'r-fin', name: 'Financeiro', permissions: ['finance.write', 'person.read', 'person.delete'] })];
+    const { result } = renderHook(() => useRolesTabViewModel());
+    act(() => result.current.setQuery('people'));
+    act(() => result.current.openBulk());
+    act(() => result.current.setBulkRoleId('r-fin'));
+    act(() => result.current.setBulkMode('revoke'));
+
+    // person.read sai do explícito mas continua exigida por finance.write; person.delete sai de fato.
+    expect(result.current.bulkPreview).toMatchObject({ affected: 1, kept: 1 });
+
+    await act(() => result.current.applyBulk());
+    expect(updateRole).toHaveBeenCalledWith(
+      expect.anything(),
+      catalog,
+      expect.objectContaining({ permissions: ['finance.write'] }),
+    );
+  });
+
+  it('filtrar pelo nome do perfil e retirar dele esvazia o perfil', async () => {
+    const { result } = renderHook(() => useRolesTabViewModel());
+    act(() => result.current.setQuery('Financeiro'));
+    act(() => result.current.openBulk());
+    act(() => result.current.setBulkRoleId('r-fin'));
+    act(() => result.current.setBulkMode('revoke'));
+
+    expect(result.current.bulkPreview?.kept).toBe(0);
+    await act(() => result.current.applyBulk());
+    expect(updateRole).toHaveBeenCalledWith(expect.anything(), catalog, expect.objectContaining({ permissions: [] }));
+  });
+
+  it('a prévia de conceder conta o que o plano do escritório exclui (#24)', () => {
+    planDeniedPermissions = ['person.read', 'person.delete'];
+    const { result } = renderHook(() => useRolesTabViewModel());
+    act(() => result.current.openBulk());
+    act(() => result.current.setBulkRoleId('r-rec'));
+    expect(result.current.bulkPreview?.planExcluded).toBe(2);
+  });
+
+  it('nada a mudar não grava', async () => {
+    const { result } = renderHook(() => useRolesTabViewModel());
+    act(() => result.current.setQuery('people'));
+    act(() => result.current.openBulk());
+    act(() => result.current.setBulkRoleId('r-rec'));
+    act(() => result.current.setBulkMode('revoke'));
+
+    expect(result.current.bulkPreview?.affected).toBe(0);
+    await act(() => result.current.applyBulk());
+    expect(updateRole).not.toHaveBeenCalled();
+  });
+});
