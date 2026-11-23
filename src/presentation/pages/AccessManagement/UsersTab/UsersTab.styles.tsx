@@ -56,7 +56,7 @@ export const S = {
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.lg};
-    overflow: hidden;
+    overflow-x: auto;
   `,
 
   Table: styled.table`

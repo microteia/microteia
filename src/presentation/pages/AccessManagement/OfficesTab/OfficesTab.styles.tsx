@@ -23,7 +23,7 @@ export const S = {
     background: ${({ theme }) => theme.colors.surface};
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.borderRadius.lg};
-    overflow: hidden;
+    overflow-x: auto;
   `,
 
   Table: styled.table`
@@ -69,9 +69,12 @@ export const S = {
     vertical-align: middle;
   `,
 
+  /* O nome padrão do escritório é `[displayName]([email])`, sem espaço quando o displayName é o e-mail:
+     sem quebra em qualquer ponto ele alargava a tabela até cortar a última coluna. */
   OfficeName: styled.span`
     font-weight: 500;
     color: ${({ theme }) => theme.colors.text};
+    overflow-wrap: anywhere;
   `,
 
   DateText: styled.span`
