@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AuthorizationContext } from './useAuthorization';
 import { useAuth } from './useAuth';
 import { useTenant } from './useTenant';
@@ -26,6 +26,9 @@ import {
   setAmbientPermissions,
 } from '../domain/schema/access';
 import { planStamp } from '../domain/schema/plans';
+import { onboardingPlanWindowDeadline, type DefaultExtensionsOnboarding } from '../domain/schema/plugin/defaultExtensions';
+import { makeSubscribeDefaultExtensionsOnboardingUseCase } from '../domain/usecases/plugins/DefaultExtensionsOnboardingUseCases';
+import { useDI } from '../infrastructure/di/useDI';
 import { tenantCollectionPermissionResources } from '../domain/schema/tenantCollections';
 
 /**
@@ -43,6 +46,7 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
   const { currentTenant, members, isLoading: tenantLoading } = useTenant();
   const { roles, isLoading: rolesLoading, syncPermissions } = useRoles();
   const { currentPlan, isLoading: planLoading } = usePlan();
+  const { extensionOnboardingRepository } = useDI();
   const { definitions, isLoading: screensLoading } = useScreenDefinitions();
   const { availableLookups } = useLookups();
   const { availableTagLists } = useTags();
@@ -117,10 +121,54 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
    * que não — a mesma pergunta com duas respostas, conforme por onde se perguntasse. O backend já
    * materializava `*` para o dono; faltava o front dizer a mesma coisa.
    */
+  /**
+   * A janela de instalação das extensões padrão do escritório novo (#28): enquanto ela vale, o teto do
+   * plano não alcança o DONO — a mesma conta que o servidor grava em `planDeferredUntil`. Sem ela, o
+   * portão não aparecia para o dono cujo plano nega `extensions.manage`, e a instalação esbarrava em cada
+   * automação ou relatório que o plano nega.
+   *
+   * Só o dono de um escritório cujo plano nega algo assina a lista — para todo o resto ela não muda nada.
+   */
+  const tenantId = currentTenant?.id ?? null;
+  const watchesOnboarding = isOwner && !isSystem && planDeniedPermissions.length > 0 && tenantId !== null;
+  const [onboarding, setOnboarding] = useState<{ tenantId: string; state: DefaultExtensionsOnboarding | null } | null>(null);
+  const subscribeOnboarding = useMemo(
+    () => makeSubscribeDefaultExtensionsOnboardingUseCase(extensionOnboardingRepository),
+    [extensionOnboardingRepository],
+  );
+  useEffect(() => {
+    if (!watchesOnboarding || tenantId === null) return undefined;
+    return subscribeOnboarding.execute(
+      tenantId,
+      (state) => setOnboarding({ tenantId, state }),
+      () => setOnboarding({ tenantId, state: null }),
+    );
+  }, [watchesOnboarding, tenantId, subscribeOnboarding]);
+
+  const windowDeadline = useMemo(
+    () => (watchesOnboarding && onboarding?.tenantId === tenantId ? onboardingPlanWindowDeadline(onboarding.state) : null),
+    [watchesOnboarding, onboarding, tenantId],
+  );
+  /**
+   * O prazo vencido é marcado por um temporizador, e não lendo a hora no render: o React Compiler recusa
+   * função impura ali. Até ele disparar, a tela pode oferecer por um instante o que a regra já recusa —
+   * quem decide é a regra, que compara com a hora da requisição.
+   */
+  const [expiredDeadline, setExpiredDeadline] = useState<number | null>(null);
+  useEffect(() => {
+    if (windowDeadline === null) return undefined;
+    const timer = setTimeout(() => setExpiredDeadline(windowDeadline), Math.max(0, windowDeadline - Date.now()));
+    return () => clearTimeout(timer);
+  }, [windowDeadline]);
+  const onboardingWindowOpen = windowDeadline !== null && expiredDeadline !== windowDeadline;
+
   const effectivePermissions = useMemo(() => {
     if (isSystem) return [UNRESTRICTED_PERMISSION];
-    return applyPlanCeiling(isOwner ? [UNRESTRICTED_PERMISSION] : resolved.effective, planDeniedPermissions);
-  }, [isSystem, isOwner, resolved, planDeniedPermissions]);
+    return applyPlanCeiling(
+      isOwner ? [UNRESTRICTED_PERMISSION] : resolved.effective,
+      onboardingWindowOpen ? [] : planDeniedPermissions,
+    );
+  }, [isSystem, isOwner, resolved, planDeniedPermissions, onboardingWindowOpen]);
 
   const healedTenants = useRef(new Set<string>());
 

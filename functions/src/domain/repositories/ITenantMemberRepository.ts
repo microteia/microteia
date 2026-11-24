@@ -25,6 +25,11 @@ export interface MemberAccess {
   roleIds: string[];
   permissions: string[];
   mfa: MemberMfaRequirement | null;
+  /**
+   * Até quando (epoch em ms) o teto do plano não vale para este membro — a janela de instalação das
+   * extensões padrão do escritório novo, só do dono (#28). Ausente fora dela.
+   */
+  planDeferredUntil?: number;
 }
 
 export interface ITenantMemberRepository {

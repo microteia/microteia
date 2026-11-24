@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTenant } from '../../../../stores/useTenant';
+import { useAuth } from '../../../../stores/useAuth';
 import { useAuthorization } from '../../../../stores/useAuthorization';
 import { useInstalledExtensions, type InstallExtensionInput } from '../../../../stores/useInstalledExtensions';
 import { usePublicExtensions } from '../../../../stores/usePublicExtensions';
@@ -9,6 +10,7 @@ import { KERNEL_PLUGIN_PREFIX } from '../../../../domain/schema/plugin/publicati
 import type { DefaultExtensionsOnboarding } from '../../../../domain/schema/plugin/defaultExtensions';
 import {
   makeSettleDefaultExtensionUseCase,
+  makeStartDefaultExtensionsOnboardingUseCase,
   makeSubscribeDefaultExtensionsOnboardingUseCase,
 } from '../../../../domain/usecases/plugins/DefaultExtensionsOnboardingUseCases';
 import type { MarketplacePlugin } from '../../../../domain/entities/MarketplacePlugin';
@@ -75,6 +77,7 @@ const builtinInput = (plugin: MarketplacePlugin): InstallExtensionInput => ({
  */
 export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewModel => {
   const { currentTenant } = useTenant();
+  const { user } = useAuth();
   const { can } = useAuthorization();
   const { installed, isLoading: installedLoading, install } = useInstalledExtensions();
   const { publicExtensions, isLoading: catalogLoading } = usePublicExtensions();
@@ -82,6 +85,15 @@ export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewMo
 
   const tenantId = currentTenant?.id ?? null;
   const canManage = can(PERMISSION_EXTENSIONS_MANAGE);
+  const isOwner = !!user && !!currentTenant && currentTenant.ownerId === user.id;
+  /**
+   * O escritório em que o DONO já começou a instalação NESTA sessão (#28). O começo abre a janela em que
+   * o teto do plano não vale para ele, e o servidor só responde depois de o conjunto dele estar
+   * recomposto — instalar antes disso esbarraria no que o plano nega. Vale também ao voltar no dia
+   * seguinte: o servidor não reabre a janela, só confirma o que já está gravado.
+   */
+  const [startedFor, setStartedFor] = useState<string | null>(null);
+  const starting = useRef<string | null>(null);
 
   const [onboarding, setOnboarding] = useState<{ tenantId: string; state: DefaultExtensionsOnboarding | null } | null>(null);
   // Um CONJUNTO, e não um contador: a mesma extensão concluída duas vezes (a resposta do servidor
@@ -104,6 +116,10 @@ export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewMo
     () => makeSettleDefaultExtensionUseCase(extensionOnboardingRepository),
     [extensionOnboardingRepository],
   );
+  const startUseCase = useMemo(
+    () => makeStartDefaultExtensionsOnboardingUseCase(extensionOnboardingRepository),
+    [extensionOnboardingRepository],
+  );
 
   useEffect(() => {
     if (!tenantId) return undefined;
@@ -120,7 +136,11 @@ export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewMo
     [onboarding, tenantId],
   );
   const current = pending[0] ?? null;
-  const active = canManage && current !== null;
+  const ownerMustStart = isOwner && startedFor !== tenantId;
+  // O dono aparece no portão ANTES de começar, mesmo sem `extensions.manage`: é o começo que pode
+  // concedê-la. Depois, só fica quem pode instalar — a janela vencida não prende o dono numa tela que
+  // não vai terminar.
+  const active = current !== null && (canManage || ownerMustStart);
 
   /** De onde a extensão da lista vem: do catálogo, se aprovada lá; senão, do bundle. */
   const sourceOf = useCallback((id: string): InstallExtensionInput | null => {
@@ -161,7 +181,21 @@ export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewMo
   }, [tenantId, settleUseCase]);
 
   useEffect(() => {
-    if (!active || current === null || installedLoading || catalogLoading || failure !== null) return;
+    if (!ownerMustStart || current === null || tenantId === null || failure !== null) return;
+    if (starting.current === tenantId) return;
+    starting.current = tenantId;
+    startUseCase.execute(tenantId)
+      .then(() => setStartedFor(tenantId))
+      .catch((err: unknown) => {
+        console.error('[defaultExtensions] start failed:', err);
+        starting.current = null;
+        setFailure({ id: current, params: wrappedErrorParams(err) });
+      });
+  }, [ownerMustStart, current, tenantId, failure, startUseCase]);
+
+  useEffect(() => {
+    if (!active || ownerMustStart || !canManage || current === null) return;
+    if (installedLoading || catalogLoading || failure !== null) return;
     if (running.current === current) return;
     running.current = current;
 
@@ -204,7 +238,7 @@ export const useDefaultExtensionsGateViewModel = (): DefaultExtensionsGateViewMo
         if (running.current === current) running.current = null;
         setRound((value) => value + 1);
       });
-  }, [active, current, installedLoading, catalogLoading, failure, installed, sourceOf, install, settle, round]);
+  }, [active, ownerMustStart, canManage, current, installedLoading, catalogLoading, failure, installed, sourceOf, install, settle, round]);
 
   const retry = useCallback(() => setFailure(null), []);
 

@@ -278,6 +278,8 @@ import { makeManageMemberMfaUseCase, makeSecondFactorUseCase } from '../../domai
 import type { ManageMemberMfaUseCase, SecondFactorUseCase } from '../../domain/usecases/MemberMfaUseCases';
 import { FirebaseRegistrationRepository } from '../../data/repositories/FirebaseRegistrationRepository';
 import { FirebasePlanRepository } from '../../data/repositories/FirebasePlanRepository';
+import { makeStartDefaultExtensionsOnboardingUseCase } from '../../domain/usecases/StartDefaultExtensionsOnboardingUseCase';
+import type { StartDefaultExtensionsOnboardingUseCase } from '../../domain/usecases/StartDefaultExtensionsOnboardingUseCase';
 import type { IPlanRepository } from '../../domain/repositories/IPlanRepository';
 import { makeCreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
 import type { CreateOrganizationUseCase } from '../../domain/usecases/CreateOrganizationUseCase';
@@ -907,6 +909,17 @@ class DIContainer {
       );
     }
     return this.materializeMemberPermissionsUC;
+  }
+
+  getStartDefaultExtensionsOnboardingUseCase(): StartDefaultExtensionsOnboardingUseCase {
+    return makeStartDefaultExtensionsOnboardingUseCase({
+      tenants: this.getTenantRepository(),
+      defaults: new FirebaseOfficeDefaultsRepository(getDb()),
+      materialize: (tenantId, userIds) => {
+        this.getPermissionCatalogCache().invalidate(tenantId);
+        return this.getMaterializeMemberPermissionsUseCase().execute({ tenantId, userIds });
+      },
+    });
   }
 
   getPlanRepository(): IPlanRepository {

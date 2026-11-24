@@ -30,13 +30,62 @@ export interface DefaultExtensionsOnboarding {
    * de o escritório nascer. Ficam como registro; instalá-las depois é pela tela de Extensões, como qualquer outra.
    */
   failed: string[];
+  /**
+   * Quando o DONO entrou pela primeira vez para instalar a lista (#28) — epoch em ms. Só o servidor o
+   * grava (`startDefaultExtensionsOnboarding`), uma vez. É o começo da janela em que o teto do plano não
+   * vale para o dono: ver `onboardingPlanWindowEnd`. Ausente enquanto ninguém começou.
+   */
+  startedAt?: number;
 }
+
+/**
+ * Quanto dura, no máximo, a janela de instalação (#28).
+ *
+ * A janela existe porque a instalação das padrão roda com a sessão do dono e grava telas, automações,
+ * ações e relatórios — o que o plano padrão pode justamente negar. O normal é ela fechar em minutos,
+ * quando a lista esvazia. O prazo é o teto para o caso em que ela não esvazia: a instalação abandonada
+ * no meio, ou alguém segurando a lista cheia por chamada direta à API para ficar sem o limite do plano.
+ */
+export const PLAN_ONBOARDING_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Até quando (epoch em ms) o teto do plano fica suspenso para o dono, ou `null` se não está.
+ *
+ * Três condições, e as três valem juntas: há extensão pendente, o dono já começou (`startedAt`, gravado
+ * pelo servidor) e o prazo não passou. Contar do COMEÇO, e não da criação do escritório, é o que cobre o
+ * escritório que o `SYSTEM` abre em nome de alguém que só entra dias depois. Sem `startedAt` não há
+ * janela: se a ausência abrisse a janela, bastaria nunca chamar o começo para ficar sem limite.
+ */
+export const onboardingPlanWindowEnd = (
+  onboarding: DefaultExtensionsOnboarding | null,
+  now: number,
+): number | null => {
+  const end = onboardingPlanWindowDeadline(onboarding);
+  return end !== null && now < end ? end : null;
+};
+
+/**
+ * O prazo da janela, sem perguntar se ele já passou — para quem não pode ler a hora onde calcula (o
+ * render do React) e agenda a expiração à parte.
+ */
+export const onboardingPlanWindowDeadline = (onboarding: DefaultExtensionsOnboarding | null): number | null =>
+  !onboarding || onboarding.pending.length === 0 || onboarding.startedAt === undefined
+    ? null
+    : onboarding.startedAt + PLAN_ONBOARDING_WINDOW_MS;
+
+/** `Timestamp` do Firestore (cliente ou Admin SDK) ou número — o que vier do documento. */
+const millisOf = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const toMillis = (value as { toMillis?: unknown } | null)?.toMillis;
+  return typeof toMillis === 'function' ? (toMillis as () => number).call(value) : undefined;
+};
 
 export const defaultExtensionsOnboardingOf = (data: unknown): DefaultExtensionsOnboarding => {
   const fields = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {};
   const ids = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
-  return { pending: ids(fields.pending), failed: ids(fields.failed) };
+  const startedAt = millisOf(fields.startedAt);
+  return { pending: ids(fields.pending), failed: ids(fields.failed), ...(startedAt === undefined ? {} : { startedAt }) };
 };
 
 /** Um teto para a lista: cada uma é uma instalação que a pessoa espera, na primeira entrada. */

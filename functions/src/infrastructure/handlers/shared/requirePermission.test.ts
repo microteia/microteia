@@ -7,6 +7,7 @@ const permissionsByUser: Record<string, string[]> = {};
 const mfaByUser: Record<string, MemberMfaRequirement> = {};
 const roleByUser: Record<string, string | null> = {};
 const tenantOwner: { id: string | null } = { id: null };
+const deferredUntilByUser: Record<string, number> = {};
 
 vi.mock('../../di/container', () => ({
   getDI: () => ({
@@ -20,6 +21,7 @@ vi.mock('../../di/container', () => ({
           roleIds: [],
           permissions: permissionsByUser[userId] ?? [],
           mfa: mfaByUser[userId] ?? null,
+          ...(deferredUntilByUser[userId] === undefined ? {} : { planDeferredUntil: deferredUntilByUser[userId] }),
         }
         : null),
     }),
@@ -185,5 +187,30 @@ describe('segundo fator exigido pelo escritório', () => {
     expect((await denied(requireMemberSession('t1', caller('ana')))).message).toBe('@core.access/mfa.session.missing');
     await expect(isOfficeMember('t1', caller('ana', now()))).resolves.toBe(true);
     await expect(requireMemberSession('t1', caller('quem-nao-e-membro'))).resolves.toBeUndefined();
+  });
+});
+
+describe('teto do plano e janela de instalação (#28)', () => {
+  beforeEach(() => {
+    for (const key of Object.keys(permissionsByUser)) delete permissionsByUser[key];
+    for (const key of Object.keys(deferredUntilByUser)) delete deferredUntilByUser[key];
+    tenantOwner.id = 'dona';
+  });
+
+  it('fora da janela, o dono não passa no que o plano nega', async () => {
+    permissionsByUser.dona = ['*', '!automation.manage'];
+    expect((await denied(requirePermission('t1', caller('dona'), 'automation.manage'))).code).toBe('permission-denied');
+  });
+
+  it('dentro da janela, a negação do plano não vale para o dono', async () => {
+    permissionsByUser.dona = ['*', '!automation.manage'];
+    deferredUntilByUser.dona = Date.now() + 60_000;
+    await expect(requirePermission('t1', caller('dona'), 'automation.manage')).resolves.toEqual(['*']);
+  });
+
+  it('a janela vencida volta a negar, sem precisar de recomposição', async () => {
+    permissionsByUser.dona = ['*', '!automation.manage'];
+    deferredUntilByUser.dona = Date.now() - 1;
+    expect((await denied(requirePermission('t1', caller('dona'), 'automation.manage'))).code).toBe('permission-denied');
   });
 });

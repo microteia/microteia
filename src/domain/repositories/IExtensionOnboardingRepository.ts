@@ -17,4 +17,9 @@ export interface IExtensionOnboardingRepository {
    * sem ela, ou saiu do catálogo depois de o escritório nascer — e fica registrada em `failed`.
    */
   settle(tenantId: string, pluginId: string, outcome: 'installed' | 'deferred'): Promise<void>;
+  /**
+   * O DONO começa a instalação: o servidor marca o começo uma vez só e abre a janela em que o teto do
+   * plano não vale para ele (#28). Resolve depois de o conjunto do dono já estar recomposto.
+   */
+  start(tenantId: string): Promise<{ windowEndsAt: number | null }>;
 }

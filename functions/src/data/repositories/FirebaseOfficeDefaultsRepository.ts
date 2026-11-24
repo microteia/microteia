@@ -1,11 +1,13 @@
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { IOfficeDefaultsRepository, OfficeDefaultsIntent } from '../../domain/repositories/IOfficeDefaultsRepository';
 import type { LocaleCode } from '../../domain/schema/i18n/localeNegotiation';
 import {
   DEFAULT_EXTENSIONS_ONBOARDING_DOC,
   EXTENSION_ONBOARDING_COLLECTION,
+  defaultExtensionsOnboardingOf,
   type DefaultCatalogSide,
+  type DefaultExtensionsOnboarding,
 } from '../../domain/schema/plugin/defaultExtensions';
 import type { PluginDependency } from '../../domain/schema/plugin/pluginManifest';
 import { REGISTRATION_POLICY_PATH, registrationPolicyOf } from '../../domain/schema/registration';
@@ -61,5 +63,20 @@ export class FirebaseOfficeDefaultsRepository implements IOfficeDefaultsReposito
       .collection('tenants').doc(tenantId)
       .collection(EXTENSION_ONBOARDING_COLLECTION).doc(DEFAULT_EXTENSIONS_ONBOARDING_DOC)
       .set({ pending: [...pending], failed: [], stagedAt: FieldValue.serverTimestamp() });
+  }
+
+  /** Em transação: duas abas do dono entrando juntas não podem empurrar o começo para frente. */
+  async startOnboarding(tenantId: string, now: number): Promise<DefaultExtensionsOnboarding | null> {
+    const ref = this.db
+      .collection('tenants').doc(tenantId)
+      .collection(EXTENSION_ONBOARDING_COLLECTION).doc(DEFAULT_EXTENSIONS_ONBOARDING_DOC);
+    return this.db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists) return null;
+      const onboarding = defaultExtensionsOnboardingOf(snapshot.data());
+      if (onboarding.pending.length === 0 || onboarding.startedAt !== undefined) return onboarding;
+      transaction.update(ref, { startedAt: Timestamp.fromMillis(now) });
+      return { ...onboarding, startedAt: now };
+    });
   }
 }

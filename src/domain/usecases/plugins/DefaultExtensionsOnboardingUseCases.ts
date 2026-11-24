@@ -22,3 +22,13 @@ export type SettleDefaultExtensionUseCase = {
 export const makeSettleDefaultExtensionUseCase = (repo: IExtensionOnboardingRepository): SettleDefaultExtensionUseCase => ({
   execute: (tenantId, pluginId, outcome) => repo.settle(tenantId, pluginId, outcome),
 });
+
+export type StartDefaultExtensionsOnboardingUseCase = {
+  execute: (tenantId: string) => Promise<{ windowEndsAt: number | null }>;
+};
+
+export const makeStartDefaultExtensionsOnboardingUseCase = (
+  repo: IExtensionOnboardingRepository,
+): StartDefaultExtensionsOnboardingUseCase => ({
+  execute: (tenantId) => repo.start(tenantId),
+});

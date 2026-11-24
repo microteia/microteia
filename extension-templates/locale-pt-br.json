@@ -3,7 +3,7 @@
   "workflows": [],
   "manifest": {
     "id": "com.microteia.locale-pt-br",
-    "version": "1.248.0",
+    "version": "1.249.0",
     "kernel": "^2.0.0",
     "name": "Português (Brasil)",
     "description": "Tradução da Microteia para português do Brasil.",
@@ -1782,6 +1782,7 @@
             "extension.default.unmarked": "Os escritórios novos deixam de receber esta extensão.",
             "default.not-approved": "Só uma extensão aprovada no catálogo pode ser instalada em todo escritório novo.",
             "default.unproven": "A versão do catálogo foi publicada antes de a instalação ser comprovada. O escritório que a publicou precisa comprová-la (ou publicar uma versão nova) antes.",
+            "default.onboarding.start-failed": "Não foi possível começar a instalar as extensões padrão deste escritório. Tente de novo em instantes.",
             "default.too-many": "No máximo {max} extensões são instaladas em todo escritório novo.",
             "default.dependency-not-default": "Ela depende de \"{dependency}\", que os escritórios novos não recebem. Torne aquela padrão antes.",
             "default.required-by": "A extensão padrão \"{dependent}\" depende desta. Deixe de instalar aquela antes.",

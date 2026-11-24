@@ -1,4 +1,4 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import { Timestamp, type Firestore } from 'firebase-admin/firestore';
 import type { AssignedRole } from '../schema/access';
 import {
   KERNEL_CATALOG_FINGERPRINT,
@@ -8,6 +8,12 @@ import {
   planDeniedClosure,
 } from '../schema/access';
 import { planStamp } from '../schema/plans';
+import {
+  DEFAULT_EXTENSIONS_ONBOARDING_DOC,
+  EXTENSION_ONBOARDING_COLLECTION,
+  defaultExtensionsOnboardingOf,
+  onboardingPlanWindowEnd,
+} from '../schema/plugin/defaultExtensions';
 import type { IPlanRepository } from '../repositories/IPlanRepository';
 import type { PermissionCatalogCache } from '../../data/services/PermissionCatalogCache';
 import type { IMemberMfaPolicyRepository } from '../repositories/IMemberMfaPolicyRepository';
@@ -48,20 +54,26 @@ const sameSet = (a: readonly string[], b: readonly string[]): boolean =>
  *    que depende dele, e vira entrada `!<id>` — inclusive para o dono, cujo curinga passa a ter
  *    exceções. A digital do que foi negado (`permissionsPlan`) é carimbada na mesma escrita, pelo
  *    mesmo motivo da digital do catálogo: é por ela que o navegador percebe um plano alterado.
+ * 6. **A janela de instalação suspende o teto para o DONO** (#28): enquanto o escritório novo instala as
+ *    extensões padrão, `planDeferredUntil` diz até quando as entradas `!<id>` não valem. Elas continuam
+ *    gravadas — quem as ignora é quem lê, comparando com a hora — para o prazo vencer sozinho, sem
+ *    depender de uma recomposição que talvez nunca venha. A lista esvaziar recompõe, e o campo sai.
  */
 export const makeMaterializeMemberPermissionsUseCase = (
   db: Firestore,
   catalogCache: PermissionCatalogCache,
   mfaPolicies: Pick<IMemberMfaPolicyRepository, 'get'>,
   plans: Pick<IPlanRepository, 'getPlan'>,
+  now: () => number = Date.now,
 ): MaterializeMemberPermissionsUseCase => ({
   execute: async ({ tenantId, userIds }) => {
-    const [tenantSnap, roleSnap, memberSnap, catalog, mfaPolicy] = await Promise.all([
+    const [tenantSnap, roleSnap, memberSnap, catalog, mfaPolicy, onboardingSnap] = await Promise.all([
       db.doc(`tenants/${tenantId}`).get(),
       db.collection(`tenants/${tenantId}/roles`).get(),
       db.collection(`tenants/${tenantId}/members`).get(),
       catalogCache.get(tenantId),
       mfaPolicies.get(tenantId),
+      db.doc(`tenants/${tenantId}/${EXTENSION_ONBOARDING_COLLECTION}/${DEFAULT_EXTENSIONS_ONBOARDING_DOC}`).get(),
     ]);
 
     if (!tenantSnap.exists) return 0;
@@ -71,6 +83,10 @@ export const makeMaterializeMemberPermissionsUseCase = (
     const planDenied = plan?.deniedPermissions ?? [];
     const deniedClosure = planDeniedClosure(catalog, planDenied);
     const stampedPlanWanted = planStamp(planDenied);
+    // Só importa quando o plano nega algo: sem negação não há o que suspender, e o campo não nasce.
+    const windowEnd = deniedClosure.length > 0
+      ? onboardingPlanWindowEnd(onboardingSnap.exists ? defaultExtensionsOnboardingOf(onboardingSnap.data()) : null, now())
+      : null;
 
     const roles: AssignedRole[] = roleSnap.docs.map((doc) => ({
       id: doc.id,
@@ -101,6 +117,10 @@ export const makeMaterializeMemberPermissionsUseCase = (
           deniedClosure,
         );
 
+        const deferredWanted = userId === ownerId ? windowEnd : null;
+        const deferredValue = doc.data().planDeferredUntil as { toMillis?: () => number } | null | undefined;
+        const deferredCurrent = typeof deferredValue?.toMillis === 'function' ? deferredValue.toMillis() : null;
+
         const mfa = memberMfaRequirementOf(mfaPolicy, { roleIds, permissions: next });
         const mfaUnchanged = sameMfaRequirement(memberMfaRequirementFrom(doc.data().mfa), mfa);
 
@@ -112,12 +132,16 @@ export const makeMaterializeMemberPermissionsUseCase = (
           && sameSet(current, next)
           && stamped === KERNEL_CATALOG_FINGERPRINT
           && stampedPlan === stampedPlanWanted
+          && deferredCurrent === deferredWanted
           && mfaUnchanged
         ) return;
         await doc.ref.update({
           permissions: next,
           permissionsCatalog: KERNEL_CATALOG_FINGERPRINT,
           permissionsPlan: stampedPlanWanted,
+          ...(deferredCurrent === deferredWanted
+            ? {}
+            : { planDeferredUntil: deferredWanted === null ? null : Timestamp.fromMillis(deferredWanted) }),
           ...(mfaUnchanged ? {} : { mfa }),
         });
         written += 1;

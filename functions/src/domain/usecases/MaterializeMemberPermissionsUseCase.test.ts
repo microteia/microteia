@@ -13,6 +13,7 @@ type Doc = Record<string, unknown>;
 
 interface FakeState {
   mfaPolicy?: MemberMfaPolicy;
+  onboarding?: Record<string, Doc>;
   plans?: Record<string, Doc>;
   tenants: Record<string, Doc>;
   roles: Record<string, Record<string, Doc>>;
@@ -29,8 +30,9 @@ const fakeDb = (state: FakeState): Firestore => {
 
   return {
     doc: (path: string) => {
-      const [, tenantId] = path.split('/');
-      return { get: async () => snapshot(tenantId, state.tenants[tenantId], () => undefined) };
+      const [, tenantId, sub] = path.split('/');
+      const data = sub === 'extension_onboarding' ? state.onboarding?.[tenantId] : state.tenants[tenantId];
+      return { get: async () => snapshot(tenantId, data, () => undefined) };
     },
     collection: (path: string) => {
       const [, tenantId, kind] = path.split('/');
@@ -79,12 +81,14 @@ const baseState = (): FakeState => ({
   },
 });
 
+const NOW = 1_800_000_000_000;
+
 const run = async (state: FakeState, tenantId = 't1', userIds?: string[]) =>
   makeMaterializeMemberPermissionsUseCase(fakeDb(state), cache(), {
     get: async () => state.mfaPolicy ?? DEFAULT_MEMBER_MFA_POLICY,
   }, {
     getPlan: async (planId: string) => (state.plans?.[planId] ? planDefinitionOf(planId, state.plans[planId]) : null),
-  }).execute({
+  }, () => NOW).execute({
     tenantId,
     ...(userIds ? { userIds } : {}),
   });
@@ -280,6 +284,59 @@ describe('MaterializeMemberPermissionsUseCase', () => {
       state.tenants.t1 = { ownerId: 'owner', plan: 'apagado' };
       await run(state);
       expect(state.members.t1.owner.permissions).toEqual(['*']);
+    });
+  });
+
+  describe('janela de instalação das extensões padrão (#28)', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const onboardingState = (onboarding: Doc): FakeState => {
+      const state = baseState();
+      state.tenants.t1 = { ownerId: 'owner', plan: 'starter' };
+      state.plans = { starter: { name: 'Starter', deniedPermissions: ['person.read'] } };
+      state.onboarding = { t1: onboarding };
+      return state;
+    };
+    const deferredOf = (member: Doc): number | null =>
+      (member.planDeferredUntil as { toMillis: () => number } | null | undefined)?.toMillis() ?? null;
+
+    it('o dono que começou recebe o prazo da janela; as negações continuam gravadas', async () => {
+      const state = onboardingState({ pending: ['com.acme.crm'], startedAt: NOW - 1000 });
+      await run(state);
+      expect(deferredOf(state.members.t1.owner)).toBe(NOW - 1000 + DAY);
+      expect(state.members.t1.owner.permissions).toContain('!person.read');
+    });
+
+    it('só o dono: o membro comum não ganha janela', async () => {
+      const state = onboardingState({ pending: ['com.acme.crm'], startedAt: NOW - 1000 });
+      await run(state);
+      expect(state.members.t1.ana.planDeferredUntil).toBeUndefined();
+    });
+
+    it('sem começo, com a lista vazia ou com o prazo vencido, não há janela', async () => {
+      for (const onboarding of [
+        { pending: ['com.acme.crm'] },
+        { pending: [], startedAt: NOW - 1000 },
+        { pending: ['com.acme.crm'], startedAt: NOW - DAY },
+      ]) {
+        const state = onboardingState(onboarding);
+        await run(state);
+        expect(deferredOf(state.members.t1.owner)).toBeNull();
+      }
+    });
+
+    it('a lista esvaziar tira o prazo do dono na recomposição seguinte', async () => {
+      const state = onboardingState({ pending: ['com.acme.crm'], startedAt: NOW - 1000 });
+      await run(state);
+      state.onboarding = { t1: { pending: [], startedAt: NOW - 1000 } };
+      expect(await run(state)).toBe(1);
+      expect(state.members.t1.owner.planDeferredUntil).toBeNull();
+    });
+
+    it('plano sem negação não precisa de janela', async () => {
+      const state = onboardingState({ pending: ['com.acme.crm'], startedAt: NOW - 1000 });
+      state.plans = { starter: { name: 'Starter', deniedPermissions: [] } };
+      await run(state);
+      expect(state.members.t1.owner.planDeferredUntil).toBeUndefined();
     });
   });
 });

@@ -58,12 +58,14 @@ export {
 export {
   materializePermissionsOnExtensionChange,
   materializePermissionsOnMemberChange,
+  materializePermissionsOnOnboardingChange,
   materializePermissionsOnPlanChange,
   materializePermissionsOnRoleChange,
   materializePermissionsOnScreenChange,
   materializePermissionsOnTenantPlanChange,
 } from './infrastructure/handlers/materializeMemberPermissions';
 export { syncTenantPermissions } from './infrastructure/handlers/syncTenantPermissions';
+export { startDefaultExtensionsOnboarding } from './infrastructure/handlers/startDefaultExtensionsOnboarding';
 export { auditFlatEntityChange } from './infrastructure/handlers/auditFlatEntityChange';
 export { auditNestedEntityChange } from './infrastructure/handlers/auditNestedEntityChange';
 export { auditTenantDeleted } from './infrastructure/handlers/auditTenantDeleted';

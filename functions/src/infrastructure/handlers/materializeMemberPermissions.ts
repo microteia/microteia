@@ -3,6 +3,7 @@ import type { Change, FirestoreEvent } from 'firebase-functions/v2/firestore';
 import type { DocumentSnapshot } from 'firebase-admin/firestore';
 import { getDI } from '../di/container';
 import { planDefinitionOf, planStamp } from '../../domain/schema/plans';
+import { defaultExtensionsOnboardingOf } from '../../domain/schema/plugin/defaultExtensions';
 
 const REGION = 'southamerica-east1';
 
@@ -119,5 +120,27 @@ export const materializePermissionsOnPlanChange = onDocumentWritten(
         console.error('[materializePermissionsOnPlanChange]', tenantId, cause);
       }
     }
+  },
+);
+
+type OnboardingWriteEvent = FirestoreEvent<Change<DocumentSnapshot> | undefined, { tenantId: string; documentId: string }>;
+
+/** O que, na lista de instalação, decide a janela do teto: ainda há pendente, e quando o dono começou. */
+const onboardingWindowKey = (snapshot: DocumentSnapshot | undefined): string => {
+  if (!snapshot?.exists) return '';
+  const onboarding = defaultExtensionsOnboardingOf(snapshot.data());
+  return `${onboarding.pending.length > 0}:${onboarding.startedAt ?? ''}`;
+};
+
+/**
+ * A janela de instalação das extensões padrão abriu ou fechou (#28). Fechar é o que importa: a lista
+ * esvaziou, e o teto do plano tem de valer para o dono na hora — não só quando o prazo vencer. Tirar
+ * uma extensão da lista sem esvaziá-la não muda a janela, e não acorda nada.
+ */
+export const materializePermissionsOnOnboardingChange = onDocumentWritten(
+  { document: 'tenants/{tenantId}/extension_onboarding/{documentId}', region: REGION },
+  async (event: OnboardingWriteEvent) => {
+    if (onboardingWindowKey(event.data?.before) === onboardingWindowKey(event.data?.after)) return;
+    await rebuild(event.params.tenantId);
   },
 );

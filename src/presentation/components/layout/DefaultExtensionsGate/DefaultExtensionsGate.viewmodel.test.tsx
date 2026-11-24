@@ -31,6 +31,12 @@ vi.mock('../../../../stores/useInstalledExtensions', () => ({
   },
 }));
 
+// ─── O começo da instalação pelo dono (#28) ──────────────────────────────────────────────────────
+const startCalls: string[] = [];
+let startHold: Promise<void> = Promise.resolve();
+let windowOpens = true;
+let ownerId = 'outra-pessoa';
+
 // ─── A lista do servidor ──────────────────────────────────────────────────────────────────────────
 let onboardingState: DefaultExtensionsOnboarding | null = null;
 const onboardingListeners = new Set<(state: DefaultExtensionsOnboarding | null) => void>();
@@ -51,6 +57,13 @@ const onboardingRepo: IExtensionOnboardingRepository = {
     publishOnboarding();
     await new Promise((resolve) => setTimeout(resolve, 20));
   },
+  start: async () => {
+    startCalls.push('t1');
+    await startHold;
+    // O servidor abre a janela: o teto do plano deixa de valer para o dono.
+    if (windowOpens) canManage = true;
+    return { windowEndsAt: windowOpens ? Date.now() + 1000 : null };
+  },
 };
 
 let canManage = true;
@@ -61,7 +74,8 @@ const pkg = (id: string, dependencies?: Record<string, string>) => ({
 });
 let catalogEntries: { domain: string; status: string; package: ReturnType<typeof pkg> }[] = [];
 
-vi.mock('../../../../stores/useTenant', () => ({ useTenant: () => ({ currentTenant: { id: 't1' } }) }));
+vi.mock('../../../../stores/useTenant', () => ({ useTenant: () => ({ currentTenant: { id: 't1', ownerId } }) }));
+vi.mock('../../../../stores/useAuth', () => ({ useAuth: () => ({ user: { id: 'dona' } }) }));
 vi.mock('../../../../stores/useAuthorization', () => ({ useAuthorization: () => ({ can: () => canManage }) }));
 vi.mock('../../../../stores/usePublicExtensions', () => ({
   usePublicExtensions: () => ({
@@ -91,6 +105,10 @@ beforeEach(() => {
   onboardingState = null;
   canManage = true;
   catalogEntries = [];
+  startCalls.length = 0;
+  startHold = Promise.resolve();
+  windowOpens = true;
+  ownerId = 'outra-pessoa';
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -216,5 +234,57 @@ describe('DefaultExtensionsGate — a primeira entrada de um escritório novo', 
     const { result } = renderHook(() => useDefaultExtensionsGateViewModel());
     expect(result.current.active).toBe(false);
     expect(install).not.toHaveBeenCalled();
+  });
+
+  describe('o dono e o teto do plano (#28)', () => {
+    it('o dono cujo plano nega extensões começa a instalação no servidor e instala dentro da janela', async () => {
+      ownerId = 'dona';
+      canManage = false;
+      catalogEntries = [{ domain: 'com.acme.crm', status: 'approved', package: pkg('com.acme.crm') }];
+      stage(['com.acme.crm']);
+      const { result } = renderHook(() => useDefaultExtensionsGateViewModel());
+      expect(result.current.active).toBe(true);
+
+      await waitFor(() => expect(result.current.active).toBe(false));
+      expect(startCalls).toEqual(['t1']);
+      expect(installCalls).toEqual(['public:com.acme.crm']);
+    });
+
+    it('nada é instalado antes de o servidor abrir a janela', async () => {
+      ownerId = 'dona';
+      let release = () => {};
+      startHold = new Promise<void>((resolve) => { release = resolve; });
+      catalogEntries = [{ domain: 'com.acme.crm', status: 'approved', package: pkg('com.acme.crm') }];
+      stage(['com.acme.crm']);
+      const { result } = renderHook(() => useDefaultExtensionsGateViewModel());
+
+      await waitFor(() => expect(startCalls).toEqual(['t1']));
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(install).not.toHaveBeenCalled();
+
+      release();
+      await waitFor(() => expect(result.current.active).toBe(false));
+      expect(installCalls).toEqual(['public:com.acme.crm']);
+    });
+
+    it('com a janela vencida e sem a permissão, o dono não fica preso no portão', async () => {
+      ownerId = 'dona';
+      canManage = false;
+      windowOpens = false;
+      stage(['com.acme.crm']);
+      const { result } = renderHook(() => useDefaultExtensionsGateViewModel());
+
+      await waitFor(() => expect(startCalls).toEqual(['t1']));
+      await waitFor(() => expect(result.current.active).toBe(false));
+      expect(install).not.toHaveBeenCalled();
+    });
+
+    it('quem não é o dono não começa nada', async () => {
+      catalogEntries = [{ domain: 'com.acme.crm', status: 'approved', package: pkg('com.acme.crm') }];
+      stage(['com.acme.crm']);
+      const { result } = renderHook(() => useDefaultExtensionsGateViewModel());
+      await waitFor(() => expect(result.current.active).toBe(false));
+      expect(startCalls).toEqual([]);
+    });
   });
 });

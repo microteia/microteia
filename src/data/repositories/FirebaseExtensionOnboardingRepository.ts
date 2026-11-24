@@ -1,5 +1,6 @@
 import { arrayRemove, arrayUnion, doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { db } from '../../infrastructure/firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../infrastructure/firebase/config';
 import type { IExtensionOnboardingRepository } from '../../domain/repositories/IExtensionOnboardingRepository';
 import {
   DEFAULT_EXTENSIONS_ONBOARDING_DOC,
@@ -30,5 +31,10 @@ export class FirebaseExtensionOnboardingRepository implements IExtensionOnboardi
       ...(outcome === 'deferred' ? { failed: arrayUnion(pluginId) } : {}),
       updatedAt: serverTimestamp(),
     });
+  }
+
+  async start(tenantId: string): Promise<{ windowEndsAt: number | null }> {
+    const call = httpsCallable<{ tenantId: string }, { windowEndsAt: number | null }>(functions, 'startDefaultExtensionsOnboarding');
+    return (await call({ tenantId })).data;
   }
 }

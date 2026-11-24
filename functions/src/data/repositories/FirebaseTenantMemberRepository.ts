@@ -19,6 +19,7 @@ const accessOf = (snap: DocumentSnapshot): MemberAccess => {
     roleIds: stringsOf(data.roleIds),
     permissions: stringsOf(data.permissions),
     mfa: memberMfaRequirementFrom(data.mfa),
+    ...(typeof data.planDeferredUntil?.toMillis === 'function' ? { planDeferredUntil: data.planDeferredUntil.toMillis() as number } : {}),
   };
 };
 

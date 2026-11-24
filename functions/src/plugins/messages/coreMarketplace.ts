@@ -359,6 +359,7 @@ export const CORE_MARKETPLACE_MESSAGES: Record<string, string> = {
   'default.unproven':
     'The version in the catalog was published before installation was proven. The publishing organization '
     + 'must prove it (or publish a new version) first.',
+  'default.onboarding.start-failed': 'Could not start installing the default extensions of this organization. Try again in a moment.',
   'default.too-many': 'At most {max} extensions are installed in every new organization.',
   'default.dependency-not-default':
     'It depends on "{dependency}", which new organizations do not receive. Make that one default first.',

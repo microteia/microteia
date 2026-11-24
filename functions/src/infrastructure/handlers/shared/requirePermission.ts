@@ -1,6 +1,6 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../../di/container';
-import { UNRESTRICTED_PERMISSION, deniedByPlan, grants, grantsAny, isUnrestricted } from '../../../domain/schema/access';
+import { UNRESTRICTED_PERMISSION, deniedByPlan, grantedEntries, grants, grantsAny, isUnrestricted } from '../../../domain/schema/access';
 import { mfaSessionIssue, mfaVerifiedAtOf } from '../../../domain/schema/memberMfa';
 import type { MfaSessionIssue } from '../../../domain/schema/memberMfa';
 import type { MemberAccess } from '../../../domain/repositories/ITenantMemberRepository';
@@ -63,8 +63,16 @@ const assertMemberSession = async (access: MemberAccess, caller: CallerAuth): Pr
   throw new HttpsError('permission-denied', SESSION_REFUSAL[issue], { secondFactor: issue });
 };
 
-const accessOf = (tenantId: string, userId: string): Promise<MemberAccess | null> =>
-  getDI().getTenantMemberRepository().getMemberAccess(tenantId, userId);
+/**
+ * O acesso como ele vale AGORA. Na janela de instalação do escritório novo (#28), as entradas `!<id>` do
+ * plano não valem para o dono — a mesma conta que as rules fazem com `planDeferredUntil`. Feita aqui, na
+ * leitura, toda pergunta abaixo (`grants`, `deniedByPlan`, o conjunto devolvido) já a recebe pronta.
+ */
+const accessOf = async (tenantId: string, userId: string): Promise<MemberAccess | null> => {
+  const access = await getDI().getTenantMemberRepository().getMemberAccess(tenantId, userId);
+  if (!access || access.planDeferredUntil === undefined || Date.now() >= access.planDeferredUntil) return access;
+  return { ...access, permissions: grantedEntries(access.permissions) };
+};
 
 /**
  * O conjunto concedido, SEM exigir permissão nenhuma — e sem lançar.

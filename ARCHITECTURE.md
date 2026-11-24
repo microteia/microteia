@@ -691,9 +691,9 @@ dessas restrições.
 > código. É um número só, vale só para a sessão que provou o fator, e nenhuma das quatro restrições se
 > aplica. O que diz SE o fator é exigido continua no documento de membro (`mfa`).
 
-A materialização é recalculada por seis gatilhos — membro (quando `roleIds` muda), perfil, tela,
-extensão instalada (os dois últimos mudam o catálogo), a troca de plano do escritório e o teto de um
-plano (ver "O teto do PLANO"). Ela **não grava quando o resultado é igual**,
+A materialização é recalculada por sete gatilhos — membro (quando `roleIds` muda), perfil, tela,
+extensão instalada (os dois últimos mudam o catálogo), a troca de plano do escritório, o teto de um
+plano e a janela de instalação do escritório novo (ver "O teto do PLANO"). Ela **não grava quando o resultado é igual**,
 o que a torna idempotente e, sobretudo, impede o laço: gravar no documento de membro dispara o
 gatilho de membro, e a segunda passada não grava.
 
@@ -788,6 +788,32 @@ seletor da aba Planos só as oferece filtradas (`PermissionPicker.restrictTo`). 
 nome e limite, nenhuma restrição) e põe `solo` como padrão quando foi ela que o criou. Instalação nova
 não ganha plano nenhum — semear nossos nomes comerciais seria o defeito que tirar o plano do código
 corrige. Escritório sem plano, ou apontando para um que não existe, não tem restrição.
+
+**A janela de instalação do escritório novo (#28).** As extensões padrão são instaladas pelo navegador do
+DONO, e gravam telas, automações, ações e relatórios — justamente o que o plano padrão pode negar. Com o
+teto valendo desde o primeiro segundo, a instalação esbarrava na primeira automação, e o portão nem
+aparecia quando o plano negava `extensions.manage`. Por isso, enquanto o escritório ainda tem extensão
+padrão pendente, o teto do plano não vale para o dono:
+
+| Peça | O que faz |
+|---|---|
+| `startDefaultExtensionsOnboarding` (callable) | o portão chama antes de instalar; só o dono; grava `startedAt` na lista UMA vez e recompõe o dono antes de responder |
+| `onboardingPlanWindowEnd` (`schema/plugin/defaultExtensions.ts`) | a janela vale com pendente, depois de `startedAt` e por no máximo `PLAN_ONBOARDING_WINDOW_MS` (24 h) |
+| `MaterializeMemberPermissionsUseCase` | grava `planDeferredUntil` no membro do dono; as entradas `!<id>` CONTINUAM gravadas |
+| `can()` / `memberDataCan` / `requirePermission` | ignoram as entradas `!<id>` enquanto `request.time < planDeferredUntil` — mesmo documento, zero leitura a mais |
+| `materializePermissionsOnOnboardingChange` | a lista esvaziou (ou começou): recompõe, e o teto volta na hora |
+| `AuthorizationStore` + `DefaultExtensionsGate` | a mesma conta na tela; o dono vê o portão antes de começar, mesmo sem `extensions.manage` |
+
+Três decisões seguram a janela fechada para quem quisesse abusar dela:
+
+- **O prazo conta do COMEÇO, gravado pelo servidor**, e não da criação do escritório — o escritório que o
+  `SYSTEM` abre em nome de alguém que só entra dias depois também instala. Sem `startedAt` não há janela:
+  se a ausência a abrisse, bastaria nunca chamar o começo.
+- **O prazo vence sozinho.** As negações ficam gravadas e quem lê compara com a hora; nenhuma
+  recomposição precisa acontecer para o teto voltar.
+- **Pelo navegador a lista só diminui** (`pending` novo ⊆ antigo) e `startedAt`/`stagedAt` não mudam:
+  quem devolvesse itens à lista ficaria sem limite. E o portão bloqueia o uso do sistema enquanto há
+  pendente — abandonar a instalação não dá acesso pela interface.
 
 ### `SYSTEM` e o DONO — as duas exceções, e por que não são perfis
 
@@ -976,7 +1002,7 @@ regra que tem uma decisão a defender:
 | `portal.test.ts` | o convidado não é membro: não lê registro original, membros, perfis, telas nem configurações; a projeção só se lista filtrada pelo próprio uid — ou, a pública, por `public == true`, a mesma para dois convidados de sujeitos diferentes e para ninguém de fora; revogar fecha na hora; ninguém grava projeção nem convite do cliente |
 | `memberMfa.test.ts` | o segundo fator: sem `mfa` no membro, nada muda; exigido, a sessão sem `mfaAt` não lê nem grava (mas lê o próprio escritório e o próprio documento de membro); a prova vencida lê e não grava; o curinga do dono não pula o fator; o `SYSTEM` não é alcançado — nem como DONO, no sino, no voto e no logo, e a conta rebaixada volta a ser cobrada sem rematerializar (EV-36); ninguém apaga `mfa` do membro; política e fator fechados ao cliente; o Storage segue a mesma conta |
 | `storage.test.ts` | o arquivo de registro segue a permissão da coleção; o dono envia, lê e apaga pelo `*` do documento de membro e NÃO pelo `ownerId` (sem o curinga, recusa); o `SYSTEM` que não é membro envia e lê; ninguém grava por cima; logo e área de espera do portal. O teto de duas leituras não é cobrado pelo emulador — ver "O teto de DUAS leituras" |
-| `plans.test.ts` | o teto do plano: o dono perde o que a entrada `!<id>` nega e mantém o resto do curinga; o dono sem materialização passa pelo `ownerId`; o `SYSTEM` não é alcançado; o Storage segue a mesma conta; o plano lido pelo id por qualquer conta e listado/gravado só pelo `SYSTEM`; `defaultPlanId` em `system/registration` |
+| `plans.test.ts` | o teto do plano: o dono perde o que a entrada `!<id>` nega e mantém o resto do curinga; o dono sem materialização passa pelo `ownerId`; o `SYSTEM` não é alcançado; o Storage segue a mesma conta; o plano lido pelo id por qualquer conta e listado/gravado só pelo `SYSTEM`; `defaultPlanId` em `system/registration`; a janela de instalação (`planDeferredUntil`) que suspende e vence sozinha, e a lista que o navegador só encurta |
 | `memberVisibility.test.ts` | a visibilidade por registro: só o registro que nomeia o membro, pelo campo simples ou pelo `multi` (e o mapa forjado não passa); a consulta sem filtro recusada e a do repositório aceita, inclusive com o filtro do pai; supervisão derivada, nomeada, dono e `SYSTEM`; declaração malformada fecha; alterar e excluir pedem ver, criar não; anotações, documentos e arquivos seguem o registro; quem só desenha telas não muda nem exclui a declaração |
 
 Ela fica **fora do `npm test`**, com configuração própria (`vitest.rules.config.ts`), porque exige um
@@ -11274,7 +11300,9 @@ coleção é reservada (`RESERVED_COLLECTIONS` e `isReservedCollection`), todo m
 `extensions.manage` a altera, e nenhum cliente a cria.
 
 **Quem instala é o navegador**, no `DefaultExtensionsGate` (em volta das `Routes`, dentro de toda a pilha
-de providers do escritório): enquanto há pendência e quem entrou pode `extensions.manage`, a tela é
+de providers do escritório): enquanto há pendência e quem entrou pode `extensions.manage` — ou é o DONO,
+que antes de instalar abre a janela em que o teto do plano não vale para ele (ver "A janela de instalação
+do escritório novo") —, a tela é
 "Aguarde… adicionando extensões — 2 de 5: Nome". A instalação passa pela MESMA `install()` da tela de
 Extensões, com `source: 'public'` — instalar no servidor exigiria uma segunda porta, e ela divergiria
 das recusas de dependência, prefixo e colisão que só a primeira tem.

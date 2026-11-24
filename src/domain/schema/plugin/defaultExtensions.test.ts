@@ -5,6 +5,7 @@ import {
   defaultInstallPlan,
   defaultMarkIssues,
   defaultUnmarkIssues,
+  onboardingPlanWindowEnd,
   type DefaultCatalogSide,
 } from './defaultExtensions';
 import { registrationPolicyOf } from '../registration';
@@ -144,5 +145,23 @@ describe('defaultExtensionsOnboardingOf', () => {
 
   it('só texto entra', () => {
     expect(defaultExtensionsOnboardingOf({ pending: ['com.acme.a', 7], failed: 'x' })).toEqual({ pending: ['com.acme.a'], failed: [] });
+  });
+});
+
+describe('janela de instalação do teto do plano (#28)', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it('lê o começo como Timestamp do Firestore ou número', () => {
+    expect(defaultExtensionsOnboardingOf({ pending: [], startedAt: { toMillis: () => 42 } }).startedAt).toBe(42);
+    expect(defaultExtensionsOnboardingOf({ pending: [], startedAt: 7 }).startedAt).toBe(7);
+    expect(defaultExtensionsOnboardingOf({ pending: [], startedAt: 'x' }).startedAt).toBeUndefined();
+  });
+
+  it('vale com pendente, depois do começo e antes do prazo', () => {
+    expect(onboardingPlanWindowEnd({ pending: ['a'], failed: [], startedAt: 1000 }, 2000)).toBe(1000 + DAY);
+    expect(onboardingPlanWindowEnd({ pending: ['a'], failed: [], startedAt: 1000 }, 1000 + DAY)).toBeNull();
+    expect(onboardingPlanWindowEnd({ pending: ['a'], failed: [] }, 2000)).toBeNull();
+    expect(onboardingPlanWindowEnd({ pending: [], failed: [], startedAt: 1000 }, 2000)).toBeNull();
+    expect(onboardingPlanWindowEnd(null, 2000)).toBeNull();
   });
 });

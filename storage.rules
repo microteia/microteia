@@ -79,9 +79,11 @@ service firebase.storage {
     }
     // A negação do plano (`!<permissão>`, #24) vem no MESMO documento de membro, e por isso não conta
     // leitura nenhuma contra o teto de duas.
+    // A janela de instalação do escritório novo (`planDeferredUntil`, #28) suspende a negação para o dono.
     function memberDataCan(member, permission) {
       return member.get('permissions', []).hasAny([permission, '*'])
-        && !member.get('permissions', []).hasAny(['!' + permission])
+        && (!member.get('permissions', []).hasAny(['!' + permission])
+          || (member.get('planDeferredUntil', null) is timestamp && request.time < member.planDeferredUntil))
         && sessionSatisfiesMfa(member, !permission.matches('.*[.]read$'));
     }
     // O SYSTEM entra quando o membro não respondeu — e é o que o dispensa da política do escritório

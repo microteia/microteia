@@ -351,6 +351,7 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'default.unproven':
     'A versão do catálogo foi publicada antes de a instalação ser comprovada. O escritório que a publicou '
     + 'precisa comprová-la (ou publicar uma versão nova) antes.',
+  'default.onboarding.start-failed': 'Não foi possível começar a instalar as extensões padrão deste escritório. Tente de novo em instantes.',
   'default.too-many': 'No máximo {max} extensões são instaladas em todo escritório novo.',
   'default.dependency-not-default':
     'Ela depende de "{dependency}", que os escritórios novos não recebem. Torne aquela padrão antes.',

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { Timestamp, addDoc, arrayRemove, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, type Firestore } from 'firebase/firestore';
 import { getMetadata, ref, uploadString, type FirebaseStorage } from 'firebase/storage';
 import { TENANT, asUser, seed, testEnv } from './helpers';
 
@@ -120,5 +120,46 @@ describe('o plano padrão do escritório novo', () => {
     const registration = doc(asUser(env, 'sys'), 'system/registration');
     await assertSucceeds(setDoc(registration, { defaultPlanId: 'starter', updatedBy: 'sys', updatedAt: serverTimestamp() }, { merge: true }));
     await assertSucceeds(setDoc(registration, { defaultPlanId: null, updatedBy: 'sys', updatedAt: serverTimestamp() }, { merge: true }));
+  });
+});
+
+describe('a janela de instalação das extensões padrão (#28)', () => {
+  const withWindow = async (untilMs: number) => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore() as unknown as Firestore;
+      await updateDoc(doc(db, `tenants/${TENANT}/members/dono`), { planDeferredUntil: Timestamp.fromMillis(untilMs) });
+      await setDoc(doc(db, `tenants/${TENANT}/extension_onboarding/defaults`), {
+        pending: ['com.acme.crm'], failed: [], stagedAt: Timestamp.fromMillis(1), startedAt: Timestamp.fromMillis(2),
+      });
+    });
+  };
+  const onboarding = (uid: string) => doc(asUser(env, uid), `tenants/${TENANT}/extension_onboarding/defaults`);
+
+  it('dentro da janela, o dono grava o que o plano nega', async () => {
+    await withWindow(Date.now() + 60 * 60 * 1000);
+    await assertSucceeds(addDoc(pets('dono'), { nome: 'Bob' }));
+  });
+
+  it('com a janela vencida, o plano volta a negar sozinho', async () => {
+    await withWindow(Date.now() - 1000);
+    await assertFails(addDoc(pets('dono'), { nome: 'Bob' }));
+  });
+
+  it('o Storage segue a mesma janela', async () => {
+    await withWindow(Date.now() + 60 * 60 * 1000);
+    await assertSucceeds(uploadString(ref(storageOf('dono'), `tenants/${TENANT}/pet1/r1/1700000001_x.png`), 'x'));
+  });
+
+  it('o navegador só tira itens da lista — nunca devolve, nem mexe no começo', async () => {
+    await withWindow(Date.now() + 60 * 60 * 1000);
+    await assertFails(updateDoc(onboarding('dono'), { pending: arrayUnion('com.acme.outra') }));
+    await assertFails(updateDoc(onboarding('dono'), { startedAt: Timestamp.now() }));
+    await assertSucceeds(updateDoc(onboarding('dono'), { pending: arrayRemove('com.acme.crm'), updatedAt: serverTimestamp() }));
+  });
+
+  it('ninguém grava o prazo da janela no próprio documento de membro', async () => {
+    await seed(env, { members: { [TENANT]: { ana: ['pet1.read', 'members.manage'] } } });
+    const self = doc(asUser(env, 'ana'), `tenants/${TENANT}/members/ana`);
+    await assertFails(updateDoc(self, { planDeferredUntil: Timestamp.fromMillis(Date.now() + 60_000) }));
   });
 });

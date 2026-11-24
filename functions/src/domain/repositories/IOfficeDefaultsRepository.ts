@@ -1,5 +1,5 @@
 import type { LocaleCode } from '../schema/i18n/localeNegotiation';
-import type { DefaultCatalogSide } from '../schema/plugin/defaultExtensions';
+import type { DefaultCatalogSide, DefaultExtensionsOnboarding } from '../schema/plugin/defaultExtensions';
 
 /** O que o `SYSTEM` decidiu que todo escritório novo recebe — `system/registration`. */
 export interface OfficeDefaultsIntent {
@@ -16,4 +16,9 @@ export interface IOfficeDefaultsRepository {
   setLocale(tenantId: string, locale: LocaleCode): Promise<void>;
   /** Grava a lista do que o escritório tem a instalar, na ordem. */
   stage(tenantId: string, pending: readonly string[]): Promise<void>;
+  /**
+   * Marca o começo da instalação (`startedAt`) — uma vez só, e só se ainda há o que instalar (#28).
+   * Devolve a lista como ficou, ou `null` se o escritório não tem lista.
+   */
+  startOnboarding(tenantId: string, now: number): Promise<DefaultExtensionsOnboarding | null>;
 }

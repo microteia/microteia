@@ -137,8 +137,18 @@ service cloud.firestore {
     // O que o PLANO do escritório nega a este membro (#24): a entrada `!<permissão>` que a
     // materialização grava na MESMA lista de `permissions`. É o que faz o teto alcançar o dono — o
     // curinga `*` ganha exceções —, e mora ali para custar zero: o documento de membro já é lido.
+    //
+    // A janela de instalação do escritório novo (#28) suspende a negação para o DONO até
+    // `planDeferredUntil` — gravado pelo servidor no mesmo documento, e por isso também sem custo. O
+    // prazo vence sozinho, pela hora da requisição, sem depender de uma recomposição.
     function deniedByPlan(tenantId, permission) {
-      return belongsToTenant(tenantId) && memberPermissions(tenantId).hasAny(['!' + permission]);
+      return belongsToTenant(tenantId)
+        && memberPermissions(tenantId).hasAny(['!' + permission])
+        && !planDeferred(memberData(tenantId));
+    }
+    function planDeferred(member) {
+      return member.get('planDeferredUntil', null) is timestamp
+        && request.time < member.planDeferredUntil;
     }
 
     function can(tenantId, permission) {
@@ -385,7 +395,7 @@ service cloud.firestore {
         // pelo mesmo motivo de `permissionsCatalog`.
         allow update: if can(tenantId, 'members.manage')
           && !request.resource.data.diff(resource.data).affectedKeys()
-               .hasAny(['permissions', 'permissionsCatalog', 'permissionsPlan', 'mfa']);
+               .hasAny(['permissions', 'permissionsCatalog', 'permissionsPlan', 'planDeferredUntil', 'mfa']);
       }
 
       // ─── Portal ──────────────────────────────────────────────────────────────
@@ -599,10 +609,16 @@ service cloud.firestore {
       match /extension_onboarding/{document} {
         allow read: if isMember(tenantId);
         allow create: if false;
+        // Pelo navegador a lista só DIMINUI, e o começo da instalação (`startedAt`) é do servidor (#28):
+        // enquanto há pendente, o teto do plano não vale para o dono — quem pudesse devolver itens à
+        // lista, ou reescrever o começo, ficaria sem limite pelo tempo que quisesse.
         allow update: if can(tenantId, 'extensions.manage')
-          && request.resource.data.keys().hasOnly(['pending', 'failed', 'stagedAt', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['pending', 'failed', 'stagedAt', 'startedAt', 'updatedAt'])
           && request.resource.data.pending is list
-          && request.resource.data.failed is list;
+          && request.resource.data.failed is list
+          && request.resource.data.pending.toSet().difference(resource.data.get('pending', []).toSet()).size() == 0
+          && request.resource.data.get('startedAt', null) == resource.data.get('startedAt', null)
+          && request.resource.data.get('stagedAt', null) == resource.data.get('stagedAt', null);
         allow delete: if can(tenantId, 'extensions.manage');
       }
 

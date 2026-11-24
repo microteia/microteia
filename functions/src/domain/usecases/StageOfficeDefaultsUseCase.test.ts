@@ -9,6 +9,7 @@ const setup = (intent: Partial<OfficeDefaultsIntent>, over: Partial<IOfficeDefau
     readCatalog: vi.fn(async (ids: readonly string[]) => ids.map((id) => ({ id, status: 'approved', proven: true }))),
     setLocale: vi.fn(async (_tenantId: string, locale: string) => { order.push(`locale:${locale}`); }),
     stage: vi.fn(async (_tenantId: string, pending: readonly string[]) => { order.push(`stage:${pending.join(',')}`); }),
+    startOnboarding: vi.fn(async () => null),
     ...over,
   } satisfies IOfficeDefaultsRepository;
   const logger = { error: vi.fn() };
