@@ -113,6 +113,7 @@ import type { MaterializeMemberPermissionsUseCase } from '../../domain/usecases/
 import { makeApplyAccessUpgradesUseCase } from '../../domain/usecases/ApplyAccessUpgradesUseCase';
 import type { ApplyAccessUpgradesUseCase } from '../../domain/usecases/ApplyAccessUpgradesUseCase';
 import { makeCreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
+import { SYSTEM_ACTOR_NAME } from '../../domain/repositories/IUserProfileLookupService';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import { makeLogClientErrorUseCase } from '../../domain/usecases/LogClientErrorUseCase';
 import type { LogClientErrorUseCase } from '../../domain/usecases/LogClientErrorUseCase';
@@ -195,7 +196,7 @@ import type { RecordSearchDeps } from '../../domain/services/recordSearchEngine'
 import type { ScreenSeedDeps } from '../../domain/services/screenSeeds';
 import { FirebaseScreenSeedRepository } from '../../data/repositories/FirebaseScreenSeedRepository';
 import { makeScreenSeedWriter } from '../screenSeeds/screenSeedWriter';
-import { RECORD_SEED_AUTHOR, EXTENSION_SEEDS_COLLECTION } from '../../domain/schema/screenSeed';
+import { EXTENSION_SEEDS_COLLECTION } from '../../domain/schema/screenSeed';
 import { catalogWithFallback, translate } from '../../domain/schema/i18n/messages';
 import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import { packageMessageCatalog } from '../../domain/schema/i18n/extensionPoints';
@@ -1128,7 +1129,7 @@ class DIContainer {
               title: '@core.admin/audit.extension-seed.title',
               titleParams: { extension: summary.pluginId },
               userId: 'system',
-              userName: RECORD_SEED_AUTHOR,
+              userName: SYSTEM_ACTOR_NAME,
               photoURL: '',
               action: 'SYSTEM',
               severity: summary.failed > 0 ? 'HIGH' : 'LOW',
@@ -1214,7 +1215,7 @@ class DIContainer {
               tenantId,
               title: '@core.admin/audit.record-key-adoption.title',
               userId: 'system',
-              userName: 'record-key-adoption',
+              userName: SYSTEM_ACTOR_NAME,
               photoURL: '',
               action: 'SYSTEM',
               severity: adopting.length > 0 ? 'HIGH' : 'LOW',

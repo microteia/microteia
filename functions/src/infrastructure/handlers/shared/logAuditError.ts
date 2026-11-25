@@ -1,5 +1,6 @@
 import { getDI } from '../../di/container';
 import { buildErrorText } from '../../../domain/services/auditDiff';
+import { SYSTEM_ACTOR_NAME } from '../../../domain/repositories/IUserProfileLookupService';
 
 /**
  * Log de auditoria best-effort para falhas no próprio pipeline de auditoria.
@@ -20,7 +21,7 @@ export const logAuditError = async (
       tenantId: tenantId || 'SYSTEM',
       title: '@core.admin/audit.error.title',
       userId: 'system',
-      userName: 'Sistema',
+      userName: SYSTEM_ACTOR_NAME,
       photoURL: '',
       action: 'SYSTEM',
       severity: 'CRITICAL',

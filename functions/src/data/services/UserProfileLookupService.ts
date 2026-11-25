@@ -1,5 +1,6 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { IUserProfileLookupService, ResolvedActor } from '../../domain/repositories/IUserProfileLookupService';
+import { SYSTEM_ACTOR_NAME } from '../../domain/repositories/IUserProfileLookupService';
 
 /**
  * Ordem de prioridade oficial do "nome efetivo" de um usuário em todo o sistema
@@ -10,7 +11,7 @@ export class UserProfileLookupService implements IUserProfileLookupService {
   constructor(private readonly db: Firestore) {}
 
   async resolveActor(uid: string): Promise<ResolvedActor> {
-    if (!uid) return { name: 'Sistema', photoURL: '' };
+    if (!uid) return { name: SYSTEM_ACTOR_NAME, photoURL: '' };
     const identity = await this.resolveIdentity(uid);
     return { name: identity.name || '@core.workspace/user.unknown', photoURL: identity.photoURL };
   }

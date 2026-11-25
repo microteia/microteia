@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ScreenDefinition } from '../../../domain/entities';
-import { entityLabel, entityFilterOptions } from './auditLogLabels';
+import type { AuditLog, ScreenDefinition } from '../../../domain/entities';
+import { entityLabel, entityFilterOptions, presentAuditLog } from './auditLogLabels';
 import type { TranslateFn } from '../../shared/i18n/useT';
 
 /**
@@ -84,3 +84,36 @@ describe('entityFilterOptions', () => {
     expect(values).not.toContain('contracts#notes');
   });
 });
+
+describe('presentAuditLog — o autor (#30)', () => {
+  const catalogo: Record<string, string> = {
+    '@core.admin/audit.entity.system': 'System',
+    '@core.workspace/user.unknown': 'Unknown user',
+  };
+  const label = (value: string | null | undefined) => catalogo[value ?? ''] ?? value ?? '';
+  const log = (userName: string): AuditLog => ({
+    id: 'a1',
+    tenantId: 't1',
+    title: 'x',
+    text: 'y',
+    userId: 'u1',
+    userName,
+    photoURL: '',
+    action: 'SYSTEM',
+    severity: 'LOW',
+    type: 'AUDIT',
+    entity: 'roles',
+    entityId: 'r1',
+    createdAt: new Date(),
+  }) as AuditLog;
+
+  it('o autor que é referência é resolvido — o avatar e a busca leem o nome, não a chave', () => {
+    expect(presentAuditLog(t, label, log('@core.admin/audit.entity.system')).log.userName).toBe('System');
+    expect(presentAuditLog(t, label, log('@core.workspace/user.unknown')).log.userName).toBe('Unknown user');
+  });
+
+  it('o nome de uma pessoa passa intacto', () => {
+    expect(presentAuditLog(t, label, log('Ana Lima')).log.userName).toBe('Ana Lima');
+  });
+});
+

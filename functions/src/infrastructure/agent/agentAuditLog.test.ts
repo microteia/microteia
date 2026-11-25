@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { matchesAuditFilters, parseAuditBound } from './agentAuditLog';
+import { describeEntry, matchesAuditFilters, parseAuditBound } from './agentAuditLog';
+import { SYSTEM_ACTOR_NAME } from '../../domain/repositories/IUserProfileLookupService';
 import { agentToolByName } from '../../domain/schema/agent/agentOps';
 import { PERMISSION_AUDIT_READ } from '../../domain/schema/access/kernelPermissions';
 
@@ -35,3 +36,21 @@ describe('search_audit_log', () => {
     expect(matchesAuditFilters(entry, { severity: 'CRITICAL' })).toBe(false);
   });
 });
+
+describe('search_audit_log — o autor da linha (#30)', () => {
+  const catalog = {
+    locale: 'en' as const,
+    messages: { 'core.admin/audit.entity.system': 'System', 'core.workspace/user.unknown': 'Unknown user' },
+  };
+  const entry = (userName: string) => ({ userId: 'u1', userName, title: '', text: '' });
+
+  it('o autor que é referência chega ao agente como nome, no idioma do escritório', () => {
+    expect(describeEntry('a1', entry(SYSTEM_ACTOR_NAME), catalog).user).toEqual({ id: 'u1', name: 'System' });
+    expect(describeEntry('a1', entry('@core.workspace/user.unknown'), catalog).user).toEqual({ id: 'u1', name: 'Unknown user' });
+  });
+
+  it('o nome de uma pessoa passa intacto', () => {
+    expect(describeEntry('a1', entry('Ana Lima'), catalog).user).toEqual({ id: 'u1', name: 'Ana Lima' });
+  });
+});
+

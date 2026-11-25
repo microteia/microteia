@@ -123,6 +123,9 @@ export const presentAuditLog = (
       ...log,
       title: label(log.title, { ...log.titleParams, entity }),
       text: label(log.text, { ...log.textParams, entity }),
+      // O autor pode ser referência (o sistema, o usuário que já não existe). Resolvido aqui, o avatar e
+      // a busca veem o nome, e não a chave (#30).
+      userName: label(log.userName),
     },
     entityLabel: entity,
   };

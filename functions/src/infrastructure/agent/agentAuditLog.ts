@@ -44,7 +44,7 @@ export const matchesAuditFilters = (
 const toIso = (value: unknown): string | null =>
   value instanceof Timestamp ? value.toDate().toISOString() : null;
 
-const describeEntry = (
+export const describeEntry = (
   id: string,
   data: Record<string, unknown>,
   catalog: MessageCatalog,
@@ -57,7 +57,8 @@ const describeEntry = (
   entity: data.entity,
   entityId: data.entityId,
   ...(data.linkCollection ? { collection: data.linkCollection, recordId: data.linkRecordId } : {}),
-  user: { id: data.userId, name: data.userName },
+  // O autor também pode ser referência (o sistema, o usuário que já não existe): o agente lê o nome.
+  user: { id: data.userId, name: agentText(catalog, String(data.userName ?? '')).text },
   // O título e o texto são gravados como REFERÊNCIA; resolvidos aqui, como o log do motor em
   // `get_workflow_run` — sem isto o agente leria a chave do catálogo como se fosse o fato.
   title: agentText(catalog, String(data.title ?? ''), data.titleParams as Record<string, string> | undefined),
