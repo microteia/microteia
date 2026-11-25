@@ -110,6 +110,8 @@ import { InstalledExtensionCache } from '../../data/services/InstalledExtensionC
 import { BusinessCalendarLoader } from '../../data/services/BusinessCalendarLoader';
 import { makeMaterializeMemberPermissionsUseCase } from '../../domain/usecases/MaterializeMemberPermissionsUseCase';
 import type { MaterializeMemberPermissionsUseCase } from '../../domain/usecases/MaterializeMemberPermissionsUseCase';
+import { makeApplyAccessUpgradesUseCase } from '../../domain/usecases/ApplyAccessUpgradesUseCase';
+import type { ApplyAccessUpgradesUseCase } from '../../domain/usecases/ApplyAccessUpgradesUseCase';
 import { makeCreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import { makeLogClientErrorUseCase } from '../../domain/usecases/LogClientErrorUseCase';
@@ -909,6 +911,10 @@ class DIContainer {
       );
     }
     return this.materializeMemberPermissionsUC;
+  }
+
+  getApplyAccessUpgradesUseCase(): ApplyAccessUpgradesUseCase {
+    return makeApplyAccessUpgradesUseCase(getDb(), this.getPermissionCatalogCache(), this.getCreateAuditLogUseCase());
   }
 
   getStartDefaultExtensionsOnboardingUseCase(): StartDefaultExtensionsOnboardingUseCase {

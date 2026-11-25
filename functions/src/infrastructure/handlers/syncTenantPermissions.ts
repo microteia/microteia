@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
-import { KERNEL_CATALOG_FINGERPRINT } from '../../domain/schema/access';
+import { KERNEL_CATALOG_FINGERPRINT, pendingAccessUpgrades } from '../../domain/schema/access';
+import type { Tenant } from '../../domain/entities/Tenant';
 import { planStamp } from '../../domain/schema/plans';
 import { isOfficeMember } from './shared/requirePermission';
 
@@ -28,10 +29,13 @@ import { isOfficeMember } from './shared/requirePermission';
  * próprio, mas o do plano recompõe N escritórios numa invocação só, e uma falha no meio deixaria
  * alguns com o teto velho sem sintoma. A digital do que o plano nega cobre esse caso pelo mesmo
  * caminho do catálogo: o navegador compara, e o primeiro membro que abrir o app cura o escritório.
+ *
+ * **E a atualização de acesso pendente** (#29, `ACCESS_UPGRADES`). Ela muda os PERFIS, não só o conjunto
+ * materializado, e por isso é a única coisa aqui que grava fora do documento de membro — uma vez por
+ * escritório, marcada no próprio escritório, e sem nada que quem chama possa escolher.
  */
-const wantedPlanStamp = async (tenantId: string): Promise<string> => {
-  const planId = (await getDI().getTenantRepository().getById(tenantId))?.plan;
-  const plan = planId ? await getDI().getPlanRepository().getPlan(planId) : null;
+const wantedPlanStamp = async (tenant: Tenant | null): Promise<string> => {
+  const plan = tenant?.plan ? await getDI().getPlanRepository().getPlan(tenant.plan) : null;
   return planStamp(plan?.deniedPermissions ?? []);
 };
 
@@ -48,11 +52,15 @@ export const syncTenantPermissions = onCall(
     }
 
     const uid = request.auth.uid;
-    const [stamps, wantedPlan] = await Promise.all([
+    const [stamps, tenant] = await Promise.all([
       getDI().getTenantMemberRepository().getMemberStamps(tenantId, uid),
-      wantedPlanStamp(tenantId),
+      getDI().getTenantRepository().getById(tenantId),
     ]);
-    if (stamps.catalog === KERNEL_CATALOG_FINGERPRINT && stamps.plan === wantedPlan) return { updated: 0 };
+    const wantedPlan = await wantedPlanStamp(tenant);
+    const upgradesPending = tenant !== null && pendingAccessUpgrades(tenant.accessUpgrades).length > 0;
+    if (stamps.catalog === KERNEL_CATALOG_FINGERPRINT && stamps.plan === wantedPlan && !upgradesPending) {
+      return { updated: 0 };
+    }
 
     if (!(await isOfficeMember(tenantId, request.auth))) {
       throw new HttpsError('permission-denied', '@core.access/permission.denied', {
@@ -60,6 +68,7 @@ export const syncTenantPermissions = onCall(
       });
     }
 
+    if (upgradesPending) await getDI().getApplyAccessUpgradesUseCase().execute(tenantId);
     getDI().getPermissionCatalogCache().invalidate(tenantId);
     const updated = await getDI().getMaterializeMemberPermissionsUseCase().execute({ tenantId });
     return { updated };

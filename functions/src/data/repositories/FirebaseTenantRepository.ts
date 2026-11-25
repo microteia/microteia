@@ -4,6 +4,7 @@ import type { ITenantRepository, AddTenantMemberInput, CreateTenantInput } from 
 import type { Tenant } from '../../domain/entities/Tenant';
 import { alreadyExists, notFound } from '../../domain/errors/DomainError';
 import { ARTIFACT_PREFIX_SETTING } from '../../domain/schema/plugin/artifactPrefix';
+import { ACCESS_UPGRADES } from '../../domain/schema/access';
 
 export class FirebaseTenantRepository implements ITenantRepository {
   constructor(private readonly db: Firestore) {}
@@ -23,6 +24,8 @@ export class FirebaseTenantRepository implements ITenantRepository {
       plan: data.plan,
       memberLimit: data.memberLimit,
       memberCount: 0,
+      // O escritório novo não tem perfil que dependa do que o kernel exigia antes: nasce com todas.
+      accessUpgrades: [...ACCESS_UPGRADES] as string[],
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     };
@@ -62,6 +65,7 @@ export class FirebaseTenantRepository implements ITenantRepository {
         plan: typeof data.plan === 'string' && data.plan !== '' ? data.plan : null,
         memberLimit: data.memberLimit ?? null,
         memberCount: data.memberCount ?? 0,
+        accessUpgrades: Array.isArray(data.accessUpgrades) ? (data.accessUpgrades as string[]) : [],
         createdAt: data.createdAt?.toDate() ?? new Date(),
         updatedAt: data.updatedAt?.toDate() ?? new Date(),
       };

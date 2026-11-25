@@ -578,6 +578,8 @@ exigir `company.read` amanhã, e nenhuma Role gravada muda.
 
 Toda coleção do escritório (tela do Form Design, tela de extensão, lista de opções, conjunto de
 etiquetas) rende **quatro permissões de graça**: `<coleção>.read`, `.create`, `.update`, `.delete`.
+A tela que declara uma capacidade que precisa de dono rende mais uma, só ela: `<coleção>.read-all` (ver
+"Visibilidade por registro") e `<coleção>.import` (ver "Importação em massa de registros").
 É o que faz o RBAC valer para a tela que alguém criou cinco minutos atrás, sem plugin nenhum atrás
 dela.
 
@@ -725,6 +727,27 @@ Um número que alguém precisa lembrar de subir ficaria para trás justamente na
 
 O primeiro que abrir o app depois do upgrade cura o escritório inteiro, e nenhum administrador precisa
 saber que algo aconteceu.
+
+#### Atualizações de acesso — `accessUpgrades`
+
+A digital recompõe o conjunto a partir dos perfis. Ela não serve quando o kernel passa a exigir uma permissão
+NOVA para o que o perfil já fazia — foi o caso de `<coleção>.import` (#29): sem mexer nos perfis, quem
+importava deixaria de importar no dia do upgrade. Aí o que muda são os PRÓPRIOS perfis, e uma vez só: depois
+dela, a permissão que falta é escolha de quem administra, e devolvê-la a cada versão desfaria essa escolha.
+
+| Peça | O que faz |
+|---|---|
+| `ACCESS_UPGRADES` + `upgradeRolePermissions` (`domain/schema/access/accessUpgrades.ts`, sincronizado) | a lista das atualizações e, para cada uma, o que um perfil recebe — conta pura, sobre o catálogo do escritório |
+| `Tenant.accessUpgrades` | as que o escritório já recebeu. O escritório NOVO nasce com todas (`FirebaseTenantRepository.createTenant`, o único ponto onde um nasce): nele não há perfil a preservar |
+| `ApplyAccessUpgradesUseCase` | numa transação, relê a marca, regrava os perfis (`updatedBy: 'kernel-upgrade'`) e marca o escritório; com perfil alterado, grava UMA linha `SYSTEM` na Auditoria dizendo por quê |
+| `syncTenantPermissions` | aplica as pendentes antes de recompor — o mesmo pedido da digital, pelo mesmo pertencimento |
+| `AuthorizationStore` | pede a recomposição também quando o documento do escritório (já assinado) tem atualização pendente. Não dá para depender só da digital do membro: um gatilho pode recarimbar todos antes de alguém abrir o app |
+
+**Só o servidor grava a marca, nem o `SYSTEM`** (`firestore.rules`, `rules-tests/tenantDocument.test.ts`):
+marcar sem aplicar tiraria a permissão de quem a tinha; desmarcar a devolveria a quem o administrador tirou.
+
+Uma atualização nova é um id novo em `ACCESS_UPGRADES` e uma função em `upgradeRolePermissions` — o resto do
+caminho já existe. O id é gravado nos escritórios: renomeá-lo é aplicá-lo de novo em todos.
 
 #### O rótulo de um recurso viaja com os parâmetros dele
 
@@ -17622,8 +17645,9 @@ ela — só o dono e o `SYSTEM`, que já supervisionam, os alcançam depois que 
 Carregar o cadastro de um sistema anterior, ou corrigir mil registros de uma vez a partir de uma planilha.
 Até aqui não havia caminho: a migração de extensão tem teto por execução (é para o dado DA extensão, entre
 versões dela), e o formulário e o agente gravam um registro por vez. A importação é um recurso de EXCEÇÃO
-— e por isso é DUPLAMENTE fechado por padrão: a tela precisa declará-la (`allowImport`) e o membro precisa
-da permissão própria `record-import.run` (que ninguém além do dono tem sem perfil).
+— e por isso é fechado por padrão em duas camadas: a tela precisa declará-la (`allowImport`) e o membro precisa
+da permissão própria `record-import.run` MAIS a da tela, `<coleção>.import` (que ninguém além do dono tem sem
+perfil).
 
 ### A tela declara; a permissão continua cobrando (#23)
 
@@ -17638,15 +17662,33 @@ permissão, não a substitui, e vale nas duas pontas:
 
 | Onde | O que cobra |
 |---|---|
-| Lista da tela (`DynamicRecordList`) | `allowImport` + `record-import.run` + `<coleção>.create` ou `.update` |
-| Aba do pai (`useParentRecordImport` → `vm.recordImport`) | o mesmo, com a declaração da tela FILHA, mais a trava por UMA referência não `multi` |
-| `importRecords` (`resolveImportTable`, em `start` e `rows`) | `SchemaScreen.allowImport` da coleção; ausente, `import.error.not-allowed` |
+| Lista da tela (`DynamicRecordList`) | `allowImport` + `record-import.run` + `<coleção>.import` + `<coleção>.create` ou `.update` |
+| Aba do pai (`useParentRecordImport` → `vm.recordImport`) | o mesmo, com a declaração e a permissão da tela FILHA, mais a trava por UMA referência não `multi` |
+| `importRecords` (`requirePermission` + `resolveImportTable`, em `start` e `rows`) | `record-import.run`; `SchemaScreen.allowImport` da coleção (ausente, `import.error.not-allowed`); `<coleção>.import` (ausente, `permission.denied`) |
 
 No schema, `allowImport` se soma por coleção como `hasDocuments`: basta UMA tela da coleção oferecê-la — a
 que a descreve por `dataCollection` inclusive —, porque recusar na porta desmentiria o botão que a pessoa
 acabou de usar. Na atualização de uma extensão, a ausência no pacote mantém o que o escritório ligou no Form
 Design (aba Ações → "Ações da listagem"); a versão que declara vence. Sem migração: o documento antigo sem a
 propriedade lê como falso, que é exatamente o padrão pedido.
+
+### Quem importa EM QUAL tela — `<coleção>.import` (#29)
+
+`allowImport` diz se a tela oferece a importação; `record-import.run` diz se a PESSOA importa — e as duas,
+sozinhas, não respondiam "esta pessoa importa nesta tela e não naquela". A única alavanca por tela era
+`<coleção>.create`/`.update`, e tirá-la tirava também o cadastro à mão.
+
+A coleção cuja tela declara `allowImport` rende `<coleção>.import` ("Importar de um arquivo", exige
+`<coleção>.read`), derivada como o `read-all` (`PermissionResource.deriveImport`, pela mesma
+`tenantCollectionPermissionResources` das duas contas). A regra de soma é a do schema: basta UMA tela da coleção
+declarar, a vinculada inclusive. Sem a declaração a permissão não existe — Perfis não oferece o que a porta
+recusaria —, e o perfil que a guardava a mantém, sem efeito, até a tela voltar a importar.
+
+`record-import.run` **fica**, como chave do escritório: o administrador tira a importação de alguém de uma
+vez, sem percorrer tela por tela. Ligar `allowImport` depois não concede nada a ninguém — o dono importa
+(curinga), e o resto recebe `<coleção>.import` em Perfis.
+
+Quem importava antes não perde a importação: ver "Atualizações de acesso — `accessUpgrades`" em RBAC.
 
 ### A decisão que organiza o resto: nenhum caminho de gravação novo
 

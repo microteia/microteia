@@ -283,6 +283,24 @@ describe('importação — o que é recusado antes de qualquer linha', () => {
     expect(repo.createCalls).toHaveLength(0);
   });
 
+  it('quem cria e altera, mas não tem `<coleção>.import`, é recusado no início e no lote (#29)', async () => {
+    const { useCases, repo } = setup();
+    const writer = { ...ana, permissions: ['contribuintes.create', 'contribuintes.update', 'domicilios.import'] };
+    expect(await refusal(useCases.start({ tenantId: TENANT, table: 'contribuintes', fileName: 'a.csv', totalRows: 1, actor: writer })))
+      .toBe('@core.access/permission.denied');
+    const rows = [{ line: 2, data: { documento: '1', nome: 'A' } }];
+    await expect(useCases.rows({ tenantId: TENANT, table: 'contribuintes', dryRun: true, rows, actor: writer }))
+      .rejects.toMatchObject({ params: { permission: 'contribuintes.import' } });
+    expect(repo.createCalls).toHaveLength(0);
+  });
+
+  it('`<coleção>.import` não abre a tela que não declara `allowImport`', async () => {
+    const { useCases } = setup();
+    const importer = { ...ana, permissions: ['anotacoes.create', 'anotacoes.import'] };
+    expect(await refusal(useCases.start({ tenantId: TENANT, table: 'anotacoes', fileName: 'a.csv', totalRows: 1, actor: importer })))
+      .toBe('@core.records/import.error.not-allowed');
+  });
+
   it('basta UMA tela da coleção declarar `allowImport` — a que a descreve por `collection` também conta', async () => {
     const { useCases } = setup([{ ...anotacoes, id: 'recados', collection: 'anotacoes', allowImport: true }]);
     await expect(useCases.start({ tenantId: TENANT, table: 'anotacoes', fileName: 'a.csv', totalRows: 1, actor: ana }))
@@ -346,7 +364,7 @@ describe('importação — a permissão é cobrada linha a linha', () => {
   it('quem só cria vê recusada a linha que alteraria, e a que cria passa', async () => {
     const { useCases } = setup();
     await runImport(useCases, [{ line: 2, data: { documento: '1', nome: 'A' } }]);
-    const creator = { ...ana, permissions: ['contribuintes.create'] };
+    const creator = { ...ana, permissions: ['contribuintes.create', 'contribuintes.import'] };
     const { importId } = await useCases.start({ tenantId: TENANT, table: 'contribuintes', fileName: 'b.csv', totalRows: 2, actor: creator });
     const { results } = await useCases.rows({
       tenantId: TENANT,
@@ -521,7 +539,7 @@ describe('importação na aba do pai — o vínculo vem do servidor e a referên
     expect(await refusal(start({ fieldKey: 'lote', recordId: 'nao-existe' }))).toBe('@core.records/import.error.parent-not-found');
     expect(await refusal(start({ fieldKey: 'lote', recordId: 'a/b' }))).toBe('@core.records/import.error.batch-malformed');
 
-    const writer = { ...ana, permissions: ['destinatarios.create', 'destinatarios.update', 'domicilios.read'] };
+    const writer = { ...ana, permissions: ['destinatarios.create', 'destinatarios.update', 'destinatarios.import', 'domicilios.read'] };
     expect(await refusal(start({ fieldKey: 'lote', recordId: loteA }, writer))).toBe('@core.records/import.error.parent-not-found');
   });
 
@@ -543,7 +561,7 @@ describe('importação na aba do pai — o vínculo vem do servidor e a referên
     expect(await refusal(simulateWith([{ fieldKey: 'domicilio', key: 'documento' }, { fieldKey: 'domicilio', key: 'documento' }])))
       .toBe('@core.records/import.error.batch-malformed');
 
-    const blind = { ...ana, permissions: ['destinatarios.create', 'destinatarios.update', 'lotes.read'] };
+    const blind = { ...ana, permissions: ['destinatarios.create', 'destinatarios.update', 'destinatarios.import', 'lotes.read'] };
     expect(await refusal(simulateWith(BY_DOCUMENT, blind))).toBe('@core.access/permission.denied');
   });
 

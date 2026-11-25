@@ -6,7 +6,9 @@ export type {
 } from './permission';
 export {
   CRUD_ACTIONS,
+  IMPORT_ACTION,
   collectionPermissionId,
+  importPermissionId,
   isValidAccessPermissionId,
   parseAccessPermission,
   validateAccessPermission,
@@ -106,3 +108,11 @@ export {
 } from './permissionGate';
 
 export { ENTITY_PLACEHOLDER, matchesPermission } from './permissionPattern';
+
+export type { AccessUpgradeId } from './accessUpgrades';
+export {
+  ACCESS_UPGRADES,
+  ACCESS_UPGRADE_AUTHOR,
+  pendingAccessUpgrades,
+  upgradeRolePermissions,
+} from './accessUpgrades';

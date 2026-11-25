@@ -649,12 +649,18 @@ describe('useRecordListViewModel — importar na aba do pai', () => {
 
   it('não oferece a quem não tem `record-import.run`, nem a quem não cria NEM altera', () => {
     comOrigem();
-    auth.granted = ['deadlines.read', 'deadlines.create'];
+    auth.granted = ['deadlines.read', 'deadlines.create', 'deadlines.import'];
     expect(naAba(['originId']).current.recordImport).toBeNull();
-    auth.granted = ['deadlines.read', 'record-import.run'];
+    auth.granted = ['deadlines.read', 'record-import.run', 'deadlines.import'];
     expect(naAba(['originId']).current.recordImport).toBeNull();
-    auth.granted = ['deadlines.read', 'deadlines.update', 'record-import.run'];
+    auth.granted = ['deadlines.read', 'deadlines.update', 'record-import.run', 'deadlines.import'];
     expect(naAba(['originId']).current.recordImport).not.toBeNull();
+  });
+
+  it('não oferece a quem importa e grava, mas não tem a importação DESTA tela (#29)', () => {
+    comOrigem();
+    auth.granted = ['deadlines.read', 'deadlines.update', 'record-import.run', 'outra.import'];
+    expect(naAba(['originId']).current.recordImport).toBeNull();
   });
 });
 

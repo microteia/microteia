@@ -116,3 +116,30 @@ describe('a supervisão derivada da visibilidade por registro', () => {
       .toBe(false);
   });
 });
+
+describe('a importação por tela no catálogo (#29)', () => {
+  it('a tela que declara `allowImport` rende `<coleção>.import`, que exige ver', () => {
+    const catalog = catalogoDe([tela({ allowImport: true })]);
+    expect(catalog.byId.get('consultas.import')).toMatchObject({
+      requires: ['consultas.read'],
+      resource: 'consultas',
+      action: 'import',
+      name: '@core.access/action.import',
+      description: '@core.access/action.import.description',
+      derived: true,
+    });
+  });
+
+  it('sem a declaração, a permissão não existe — Perfis não oferece o que a porta recusaria', () => {
+    expect(catalogoDe([tela()]).byId.has('consultas.import')).toBe(false);
+    expect(catalogoDe([tela({ allowImport: false })]).byId.has('consultas.import')).toBe(false);
+  });
+
+  it('basta UMA tela da coleção declarar — a vinculada também conta, como na porta', () => {
+    const ancora = tela({ id: 'atendimentos', origin: 'builtin' });
+    const caixa = tela({ id: 'caixa', dataCollection: 'atendimentos', allowImport: true });
+    expect(catalogoDe([ancora, caixa]).byId.has('atendimentos.import')).toBe(true);
+    expect(catalogoDe([ancora, caixa]).byId.has('caixa.import')).toBe(false);
+  });
+});
+

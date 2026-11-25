@@ -1,6 +1,9 @@
 export const CORE_ACCESS: Record<string, string> = {
   'action.create': 'Criar',
   'action.delete': 'Excluir',
+  'action.import': 'Importar de um arquivo',
+  'action.import.description':
+    'Criar ou alterar registros desta tela em massa, a partir de um arquivo CSV ou JSON. Exige também "Importar registros de um arquivo", e cada linha continua exigindo a permissão de criar ou de alterar registros aqui.',
   'action.read': 'Visualizar',
   'action.read-all': 'Ver todos os registros',
   'action.read-all.description':
@@ -241,7 +244,7 @@ export const CORE_ACCESS: Record<string, string> = {
     'Convidar pessoas de fora do escritório para o portal e revogar o acesso delas. Cada convidado vê só os registros vinculados a ele, e só os campos que cada tela escolheu expor. Vincular um convidado a um registro continua exigindo poder ver esse registro.',
   'permission.record-import.run': 'Importar registros de um arquivo',
   'permission.record-import.run.description':
-    'Criar ou alterar muitos registros de uma tela de uma vez, a partir de um arquivo CSV ou JSON. Cada linha continua exigindo a permissão de criar ou de alterar registros daquela tela, e passa pelas mesmas conferências do formulário.',
+    'Criar ou alterar muitos registros de uma tela de uma vez, a partir de um arquivo CSV ou JSON. Cada tela que oferece a importação exige também a própria permissão "Importar de um arquivo", cada linha continua exigindo a permissão de criar ou de alterar registros daquela tela, e todas passam pelas mesmas conferências do formulário.',
   'permission.reports.manage': 'Gerenciar relatórios',
   'permission.reports.manage.description':
     'Criar, editar e remover os relatórios do escritório. Para EXECUTAR um relatório continua sendo preciso poder ler cada cadastro que ele cobre.',
@@ -477,4 +480,8 @@ export const CORE_ACCESS: Record<string, string> = {
   'permission.mailboxes.manage': 'Gerenciar caixas de e-mail',
   'permission.mailboxes.manage.description': 'Ver, configurar e desconectar as caixas do escritório e de todos os membros, e ligá-las a qualquer automação de e-mail. As senhas nunca são mostradas.',
   'resource.mailboxes': 'Caixas de e-mail',
+  'upgrade.author': 'Atualização do sistema',
+  'upgrade.audit.title': 'Perfis atualizados por uma atualização do sistema',
+  'upgrade.audit.text':
+    '{roles} perfil(is) receberam as permissões que uma atualização do sistema passou a exigir para o que eles já podiam fazer ({upgrades}). Nada do que eles podiam fazer foi acrescentado nem retirado.',
 };

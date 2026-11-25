@@ -284,9 +284,12 @@ service cloud.firestore {
       // Quem tem `tenant.update` altera os dados do escritório, mas nunca memberCount/memberLimit/ownerId/plan.
       // memberCount só é escrito pelas Cloud Functions addTenantMember/removeTenantMember (Admin SDK,
       // ignora estas regras); memberLimit e plan só por admin global (SYSTEM), na aba "Escritórios" de Gestão de Acessos.
-      allow update: if isSystemAdmin()
+      // accessUpgrades só pelo servidor, e nem pelo SYSTEM: marcar uma atualização como recebida sem
+      // aplicá-la tiraria a permissão de quem a tinha, e desmarcá-la a devolveria a quem o administrador tirou.
+      allow update: if (isSystemAdmin()
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['accessUpgrades']))
         || (can(tenantId, 'tenant.update')
-            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberCount', 'memberLimit', 'ownerId', 'plan']));
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberCount', 'memberLimit', 'ownerId', 'plan', 'accessUpgrades']));
       // Tenant é criado pela Cloud Function onUserCreated (Admin SDK, trigger de Auth)
       // junto com o bootstrap do usuário — nunca pelo client.
       allow create: if false;

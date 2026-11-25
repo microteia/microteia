@@ -4,7 +4,9 @@ import type { AccessPermission, AccessRequirement, CrudAction } from './permissi
 import { READ_ALL_ACTION, readAllPermissionId } from '../memberVisibility';
 import {
   CRUD_ACTIONS,
+  IMPORT_ACTION,
   collectionPermissionId,
+  importPermissionId,
   parseAccessPermission,
   validateAccessPermission,
   validateAccessRequirement,
@@ -79,6 +81,11 @@ export interface PermissionResource {
    * supervisão que o escritório concede em Perfis, sem extensão nenhuma declarar permissão.
    */
   deriveReadAll?: boolean;
+  /**
+   * Uma tela da coleção declara `allowImport`: o catálogo deriva `<coleção>.import`, que exige ver. Sem a
+   * declaração ela não existe — oferecer em Perfis o que a porta recusaria seria uma permissão sem efeito.
+   */
+  deriveImport?: boolean;
   source?: string;
 }
 
@@ -102,6 +109,9 @@ const DERIVED_ACTION_NAMES: Record<CrudAction, string> = {
 
 const READ_ALL_NAME = '@core.access/action.read-all';
 const READ_ALL_DESCRIPTION = '@core.access/action.read-all.description';
+
+const IMPORT_NAME = '@core.access/action.import';
+const IMPORT_DESCRIPTION = '@core.access/action.import.description';
 
 /**
  * O catálogo unificado: o que as telas dão de graça mais o que os plugins declaram.
@@ -155,6 +165,19 @@ export const buildPermissionCatalog = (
         requires: [readId],
         resource: resource.id,
         action: READ_ALL_ACTION,
+        source: resource.source ?? '',
+        derived: true,
+      });
+    }
+    if (resource.deriveImport === true) {
+      const id = importPermissionId(resource.id);
+      byId.set(id, {
+        id,
+        name: IMPORT_NAME,
+        description: IMPORT_DESCRIPTION,
+        requires: [readId],
+        resource: resource.id,
+        action: IMPORT_ACTION,
         source: resource.source ?? '',
         derived: true,
       });

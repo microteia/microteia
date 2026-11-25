@@ -2757,11 +2757,15 @@ keeps the organization's choice, and one that declares it wins. Declare it on th
 someone brings in bulk (a customer base, a product catalog), never on the ones a machine fills or whose
 records only make sense one at a time.
 
-Where it is declared, anyone with \`${PERMISSION_RECORD_IMPORT_RUN}\` who can create or change records there
-sees the button. They pick a CSV or JSON file (up to ${RECORD_IMPORT_MAX_ROWS} rows), map each column to a
-field, simulate, and import. The declaration does not replace the permission: the gate is still
-\`${PERMISSION_RECORD_IMPORT_RUN}\`, given by the organization, plus \`<collection>.create\` / \`.update\`
-charged on EVERY row.
+Where it is declared, the screen's collection gains its own permission, \`<collection>.import\` ("Import from
+a file", which requires \`<collection>.read\`), offered in Profiles next to the four of every collection. A
+person sees the button with \`${PERMISSION_RECORD_IMPORT_RUN}\` AND \`<collection>.import\` AND permission to
+create or change records there. They pick a CSV or JSON file (up to ${RECORD_IMPORT_MAX_ROWS} rows), map each
+column to a field, simulate, and import. The declaration does not replace the permissions, and the server
+charges all of them: \`${PERMISSION_RECORD_IMPORT_RUN}\` says the person uses bulk import at all,
+\`<collection>.import\` says on WHICH screens, and \`<collection>.create\` / \`.update\` is charged on EVERY row.
+A screen without \`allowImport\` has no \`<collection>.import\` — granting it is not possible, so a rule like
+\`hasPermission('<entity>.import')\` is false there for everyone but the owner.
 
 Each row is written on the server, in batches of ${RECORD_IMPORT_BATCH_SIZE}, through the same path as the
 "Upsert record" step and \`create_record\` over MCP. So everything you declared holds, with no code of yours:

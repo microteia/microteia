@@ -22,6 +22,7 @@ import {
   grants,
   isUnrestricted as grantsEverything,
   memberPermissions,
+  pendingAccessUpgrades,
   planDeniedClosure,
   setAmbientPermissions,
 } from '../domain/schema/access';
@@ -188,11 +189,16 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
    *
    * Falhar é SILENCIOSO de propósito: ninguém pediu isto, e o que se perde ao falhar é exatamente o
    * que já se tinha. A tentativa volta na sessão seguinte.
+   *
+   * A atualização de acesso que o escritório ainda não recebeu (#29) entra pelo mesmo pedido: ela é
+   * marcada no documento do escritório, já assinado aqui, e não em membro nenhum — os gatilhos podem
+   * recarimbar todos os membros antes de alguém abrir o app.
    */
   useEffect(() => {
     if (!currentTenant || !member || planLoading) return;
     const planInStep = (member.permissionsPlan ?? '') === planStamp(currentPlan?.deniedPermissions ?? []);
-    if (member.permissionsCatalog === KERNEL_CATALOG_FINGERPRINT && planInStep) return;
+    const upgradesPending = pendingAccessUpgrades(currentTenant.accessUpgrades).length > 0;
+    if (member.permissionsCatalog === KERNEL_CATALOG_FINGERPRINT && planInStep && !upgradesPending) return;
     if (healedTenants.current.has(currentTenant.id)) return;
     healedTenants.current.add(currentTenant.id);
     void syncPermissions().catch(() => healedTenants.current.delete(currentTenant.id));

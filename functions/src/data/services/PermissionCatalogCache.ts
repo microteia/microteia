@@ -40,6 +40,7 @@ const screenOf = (id: string, data: Record<string, unknown>): CatalogScreenSourc
   ownerPluginId: text(data.ownerPluginId) ?? null,
   fields: Array.isArray(data.fields) ? (data.fields as FieldDefinition[]) : [],
   memberVisibility: data.memberVisibility as CatalogScreenSource['memberVisibility'],
+  allowImport: data.allowImport === true,
 });
 
 const declarationOf = (id: string, data: Record<string, unknown>) => ({

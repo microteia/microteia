@@ -12,6 +12,8 @@ export interface Tenant {
   plan: string | null;
   memberLimit: number | null;
   memberCount: number;
+  /** As atualizações de acesso que o escritório já recebeu. Ver `ACCESS_UPGRADES`. */
+  accessUpgrades?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

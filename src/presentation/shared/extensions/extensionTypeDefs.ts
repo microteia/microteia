@@ -1282,8 +1282,8 @@ const DATA_MODULE_DEFS = `declare module '@microteia/data' {
     isDeleting: boolean;
     /**
      * Bulk import INTO THIS TAB, or null. Present only when the screen declares allowImport, options.parent
-     * locks the list by ONE field that references a single record, and the person holds record-import.run
-     * plus create or update on the collection. RecordListSurface shows the Import button and EntityListModals the dialog by themselves;
+     * locks the list by ONE field that references a single record, and the person holds record-import.run,
+     * <collection>.import and create or update on the collection. RecordListSurface shows the Import button and EntityListModals the dialog by themselves;
      * a list drawn by hand calls open() and mounts EntityListModals. The server writes the parent link on
      * every row - it is never a column of the file - and refuses a row that would change a record linked to
      * another parent.

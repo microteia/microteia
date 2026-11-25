@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_RECORD_IMPORT_RUN } from '../../../domain/schema/access';
+import { PERMISSION_RECORD_IMPORT_RUN, importPermissionId } from '../../../domain/schema/access';
 import { importParentFieldIssue } from '../../../domain/schema/recordImportReference';
 import type { RecordImportParent } from '../../../domain/schema/recordImport';
 import { useSchemaContext } from '../useSchemaContext';
@@ -33,9 +33,9 @@ export interface ParentRecordImportSource {
 /**
  * Só a trava por UM campo de referência a um registro só: com vários campos, a linha não diria por qual
  * deles o pai entra; num `multi`, gravar o pai substituiria os outros ids da lista. Fora disso — na tela
- * filha que não declara `allowImport`, para quem não tem `record-import.run`, ou não pode criar NEM
- * alterar na coleção — não há botão: oferecer o que viria todo recusado é fazer a pessoa descobrir o
- * próprio acesso por tentativa.
+ * filha que não declara `allowImport`, para quem não tem `record-import.run` ou `<coleção>.import`, ou
+ * não pode criar NEM alterar na coleção — não há botão: oferecer o que viria todo recusado é fazer a
+ * pessoa descobrir o próprio acesso por tentativa.
  */
 export const useParentRecordImport = (source: ParentRecordImportSource): RecordListImport | null => {
   const { collection, parent, screenTitle, isAvailable, allowImport, canCreate, canUpdate } = source;
@@ -53,6 +53,7 @@ export const useParentRecordImport = (source: ParentRecordImportSource): RecordL
     && recordId !== ''
     && (canCreate || canUpdate)
     && can(PERMISSION_RECORD_IMPORT_RUN)
+    && can(importPermissionId(collection))
     && importParentFieldIssue(ctx, collection, fieldKey) === null;
 
   return useMemo(

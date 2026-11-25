@@ -61,6 +61,15 @@ export type CrudAction = (typeof CRUD_ACTIONS)[number];
 export const collectionPermissionId = (collection: string, action: CrudAction): string =>
   `${collection}.${action}`;
 
+/**
+ * Importar por arquivo NA coleção (#29). Não é uma das quatro: só a coleção cuja tela declara
+ * `allowImport` a rende, e ela se soma a `record-import.run` em vez de substituí-la — a do núcleo
+ * diz se a pessoa usa a importação; esta, em QUAL tela.
+ */
+export const IMPORT_ACTION = 'import';
+
+export const importPermissionId = (collection: string): string => `${collection}.${IMPORT_ACTION}`;
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 

@@ -2,6 +2,9 @@
 export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'action.create': 'Create',
   'action.delete': 'Delete',
+  'action.import': 'Import from a file',
+  'action.import.description':
+    'Create or update records of this screen in bulk from a CSV or JSON file. Also requires "Import records from a file", and each row still requires permission to create or to change records here.',
   'action.read': 'View',
   'action.read-all': 'View all records',
   'action.read-all.description':
@@ -246,7 +249,7 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
     'Replace, for this organization, the text of a portal page that came with an installed package — a law, the help, the terms of use — in each language, and bring back the package text. Every change goes to the audit log.',
   'permission.record-import.run': 'Import records from a file',
   'permission.record-import.run.description':
-    'Create or update many records of a screen at once from a CSV or JSON file. Each row still requires permission to create or to change records of that screen, and goes through the same checks as the form.',
+    'Create or update many records of a screen at once from a CSV or JSON file. Each screen that offers import also requires its own "Import from a file" permission, each row still requires permission to create or to change records of that screen, and every row goes through the same checks as the form.',
   'permission.reports.manage': 'Manage reports',
   'permission.reports.manage.description':
     'Create, edit and remove the reports of the organization. Reading each collection a report covers is still required to run it.',
@@ -482,4 +485,8 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'permission.mailboxes.manage': 'Manage e-mail mailboxes',
   'permission.mailboxes.manage.description': 'See, configure and disconnect the mailboxes of the organization and of every member, and connect them to any e-mail automation. Passwords are never shown.',
   'resource.mailboxes': 'E-mail mailboxes',
+  'upgrade.author': 'System update',
+  'upgrade.audit.title': 'Profiles updated by a system update',
+  'upgrade.audit.text':
+    '{roles} profile(s) received the permissions a system update started to require for what they could already do ({upgrades}). Nothing they could do was added or removed.',
 };

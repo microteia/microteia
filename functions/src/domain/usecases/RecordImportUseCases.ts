@@ -7,7 +7,7 @@ import type { CreateAuditLogUseCase } from './CreateAuditLogUseCase';
 import type { UpsertSpec } from '../schema/mutationSpec';
 import { resolveWritableTable } from '../schema/mutationSpec';
 import { resolveEntity, resolveRecordKeys } from '../schema/screenEntity';
-import { collectionPermissionId } from '../schema/access/permission';
+import { collectionPermissionId, importPermissionId } from '../schema/access/permission';
 import { grants, grantsAny } from '../schema/access/memberPermissions';
 import { readerSeesRecord, resolveMemberVisibility } from '../schema/memberVisibility';
 import {
@@ -107,6 +107,12 @@ const resolveImportTable = async (
   // chamada direta a esta porta entraria em qualquer coleção onde o membro pode criar.
   if (ctx.screens.get(collection)?.allowImport !== true) {
     throw new RecordImportRefusal('@core.records/import.error.not-allowed', { table });
+  }
+  // `record-import.run`, cobrada na callable, diz que a pessoa importa; esta diz ONDE (#29). Sem ela, quem
+  // importa numa tela importaria em toda tela que oferece a importação e onde ela pode gravar à mão.
+  const importId = importPermissionId(collection);
+  if (!grants(actor.permissions, importId)) {
+    throw new RecordImportRefusal('@core.access/permission.denied', { permission: importId });
   }
   const wanted = [collectionPermissionId(collection, 'create'), collectionPermissionId(collection, 'update')];
   if (!grantsAny(actor.permissions, wanted)) {

@@ -155,7 +155,7 @@ export const collectionPermissionResources = (
 
 export type CatalogScreenSource = ScreenPresentationSource
   & ScreenCollectionDeclaration
-  & Pick<ScreenDefinition, 'ownerPluginId' | 'memberVisibility'>;
+  & Pick<ScreenDefinition, 'ownerPluginId' | 'memberVisibility' | 'allowImport'>;
 
 /**
  * As coleções cuja leitura é por registro sem supervisão nomeada — as que ganham `<coleção>.read-all`.
@@ -168,6 +168,14 @@ const readAllCollections = (screens: readonly CatalogScreenSource[]): Set<string
       .filter((screen) => !isBoundScreen(screen) && derivesReadAllPermission(screen.memberVisibility))
       .map((screen) => screen.id),
   );
+
+/**
+ * As coleções que ganham `<coleção>.import` (#29). Basta UMA tela da coleção declarar `allowImport` — a
+ * vinculada inclusive —, a mesma soma que `importRecords` faz pelo schema: derivar por outra conta daria a
+ * permissão que a porta recusa, ou a porta aberta sem permissão que a conceda.
+ */
+const importCollections = (screens: readonly CatalogScreenSource[]): Set<string> =>
+  new Set(screens.filter((screen) => screen.allowImport === true).map(screenDataCollection));
 
 /**
  * Os recursos do catálogo de permissões que as COLEÇÕES do escritório rendem: listas de opções,
@@ -184,6 +192,7 @@ export const tenantCollectionPermissionResources = (
   tagLists: readonly SchemaTagList[],
 ): PermissionResource[] => {
   const readAll = readAllCollections(screens);
+  const importable = importCollections(screens);
   return [
     ...collectionPermissionResources(lookups, tagLists),
     ...presentedScreens(screens).map((screen) => ({
@@ -191,6 +200,7 @@ export const tenantCollectionPermissionResources = (
       name: screen.titlePlural || screen.titleSingular || screen.id,
       deriveCrud: true,
       ...(readAll.has(screenDataCollection(screen)) ? { deriveReadAll: true } : {}),
+      ...(importable.has(screenDataCollection(screen)) ? { deriveImport: true } : {}),
       ...(screen.ownerPluginId ? { source: screen.ownerPluginId } : {}),
     })),
   ];

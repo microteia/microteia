@@ -9,7 +9,7 @@ import { useRecordSearchReconcile } from '../../shared/entityScreen/useRecordSea
 import { useRecordKeyAdoptionNotice } from '../../shared/entityScreen/useRecordKeyAdoptionNotice';
 import { useMemberVisibilityNotice } from '../../shared/entityScreen/useMemberVisibilityNotice';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_RECORD_IMPORT_RUN } from '../../../domain/schema/access';
+import { PERMISSION_RECORD_IMPORT_RUN, importPermissionId } from '../../../domain/schema/access';
 
 export interface DynamicRecordListNotice {
   message: string;
@@ -20,9 +20,9 @@ export interface DynamicRecordListViewModel extends RecordListViewModel {
   /** O que o recálculo dos agregados e a adoção das chaves desta tela têm a dizer — ou nada. */
   notices: DynamicRecordListNotice[];
   /**
-   * A importação por arquivo: na tela que a declara (`allowImport`), para quem tem `record-import.run` e
-   * pode criar OU alterar nela. Cada linha ainda cobra a permissão do que ela fizer — aqui é só não
-   * oferecer o que viria todo recusado.
+   * A importação por arquivo: na tela que a declara (`allowImport`), para quem tem `record-import.run`,
+   * `<coleção>.import` e pode criar OU alterar nela. Cada linha ainda cobra a permissão do que ela fizer —
+   * aqui é só não oferecer o que viria todo recusado.
    */
   canImport: boolean;
   importOpen: boolean;
@@ -64,7 +64,10 @@ export const useDynamicRecordListViewModel = (tabKey: string): DynamicRecordList
   return {
     ...vm,
     notices,
-    canImport: definition?.allowImport === true && can(PERMISSION_RECORD_IMPORT_RUN) && (vm.canCreate || vm.canUpdate),
+    canImport: definition?.allowImport === true
+      && can(PERMISSION_RECORD_IMPORT_RUN)
+      && can(importPermissionId(vm.collection))
+      && (vm.canCreate || vm.canUpdate),
     importOpen,
     openImport,
     closeImport,

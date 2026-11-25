@@ -35,6 +35,7 @@ const mapTenant = (id: string, d: Record<string, unknown>): Tenant => ({
   plan: typeof d.plan === 'string' && d.plan !== '' ? d.plan : null,
   memberLimit: (d.memberLimit as number | null | undefined) ?? null,
   memberCount: (d.memberCount as number | undefined) ?? 0,
+  accessUpgrades: Array.isArray(d.accessUpgrades) ? (d.accessUpgrades as string[]) : [],
   createdAt: toDate(d.createdAt),
   updatedAt: toDate(d.updatedAt),
 });

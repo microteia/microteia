@@ -98,6 +98,8 @@ export interface Tenant {
   plan: string | null;
   memberLimit: number | null;
   memberCount: number;
+  /** As atualizações de acesso que o escritório já recebeu — só o servidor grava. Ver `ACCESS_UPGRADES`. */
+  accessUpgrades?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -115,7 +117,7 @@ export interface Tenant {
  * nome, como se lê qualquer campo customizado.
  */
 export type TenantUpdate =
-  Partial<Omit<Tenant, 'id' | 'ownerId' | 'createdAt'>> & Record<string, unknown>;
+  Partial<Omit<Tenant, 'id' | 'ownerId' | 'createdAt' | 'accessUpgrades'>> & Record<string, unknown>;
 
 export interface TenantMember {
   userId: string;
