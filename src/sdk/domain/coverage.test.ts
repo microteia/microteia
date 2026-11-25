@@ -174,6 +174,7 @@ const LACUNAS_CONFERIDAS = [
   'workflow-property\tchangedFields',
   'workflow-property\tmailFilter',
   'workflow-property\tsubscribable',
+  'workflow-property\taccess',
   'workflow-property\townerPluginIds',
   'workflow-property\tsourceId',
   'workflow-property\tsourceRev',

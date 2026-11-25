@@ -579,7 +579,8 @@ exigir `company.read` amanhã, e nenhuma Role gravada muda.
 Toda coleção do escritório (tela do Form Design, tela de extensão, lista de opções, conjunto de
 etiquetas) rende **quatro permissões de graça**: `<coleção>.read`, `.create`, `.update`, `.delete`.
 A tela que declara uma capacidade que precisa de dono rende mais uma, só ela: `<coleção>.read-all` (ver
-"Visibilidade por registro") e `<coleção>.import` (ver "Importação em massa de registros").
+"Visibilidade por registro") e `<coleção>.import` (ver "Importação em massa de registros"). O workflow
+chamável e o relatório restritos rendem a da porta deles (ver "A porta gera a própria permissão").
 É o que faz o RBAC valer para a tela que alguém criou cinco minutos atrás, sem plugin nenhum atrás
 dela.
 
@@ -596,6 +597,43 @@ contributes: [
 
 O plugin **não conhece perfil nenhum** — nem precisa. Ele declara capacidades; quem as agrupa é o
 escritório.
+
+### A porta gera a própria permissão — workflow chamável e relatório (#33)
+
+Uma tela gera o CRUD dela; o workflow e o relatório não geravam nada. Por isso não havia como dizer "este
+perfil roda ESTE fluxo" sem `automation.run` (que executa todos, por toda porta — botão, `runWorkflow`,
+MCP —, e o fluxo grava como automação, sem a permissão de coleção de quem clicou), nem "este perfil vê ESTE
+relatório" sem a leitura da entidade inteira. `domain/schema/access/artifactAccess.ts` (sincronizado):
+
+| Declaração | Deriva | Perfis mostram |
+|---|---|---|
+| workflow chamável com `access: { restricted: true }` | `workflow-<sourceId ?? id>.run`, que exige `automation.run` | "Executar" em "Automação: <nome>" |
+| relatório do escritório com `spec.access.restricted: true` | `report-<sourceId ?? id>.view` | "Abrir" em "Relatório: <título>" |
+
+- **O id nunca leva o nome.** Renomear não tira a permissão de ninguém; o rótulo é resolvido na tela
+  (`nameParams`, que `resolveParam` traduz quando o nome é `@ns/chave`). O `sourceId` faz a concessão
+  sobreviver a reinstalar a extensão dona. O recurso leva hífen, e nome de coleção não tem.
+- **`access.permission`** é a outra forma: uma permissão EXISTENTE, para quando o vínculo é real. As duas
+  só restringem.
+- **Uma lista só por porta**: `workflowRunPermissions` (base + a gerada + a escolhida) é o que
+  `runWorkflow`, `runAction`, o MCP (`list_workflows`, `describe_workflow`, `run_workflow`, `run_action`),
+  o botão da ação (`useActionRunGate`), o DataProcessor e o botão "Executar" do designer perguntam —
+  `requireAllPermissions` confere tudo numa leitura só do membro. A do relatório é `reportOpenPermissions`
+  (ver "O RBAC — onde um relatório vazaria dado").
+- **Ação e script não têm porta.** A ação é um botão que leva a um fluxo; o script só roda como passo de
+  um. Gate neles seria contornado pelo fluxo, ou falharia no meio da execução.
+- **A cobrança é na PORTA**: um `call-workflow` não pergunta de novo — quem montou o fluxo de fora decidiu
+  oferecer o de dentro. Fluxo de gatilho não tem porta: quem o aciona é quem produz o evento.
+- **`automation.manage` não concede executar a restrita.** O botão do designer segue a mesma lista: quem
+  gerencia e quer executar marca a permissão no próprio perfil, ou tira a restrição.
+
+As portas entram nas DUAS contas do catálogo (`AuthorizationStore`, `PermissionCatalogCache`, que consulta
+só `access.restricted == true` e `spec.access.restricted == true`), e na digital do catálogo
+(`KERNEL_CATALOG_FINGERPRINT` exercita a derivação). A recomposição acorda com
+`materializePermissionsOnWorkflowAccessChange` / `…OnReportAccessChange`, e só quando a MARCA troca —
+salvar um fluxo é o gesto mais comum do designer. O pacote que declara `access` num workflow precisa
+exigir kernel `ARTIFACT_ACCESS_SINCE_KERNEL` (o portão reprova: num anterior a marca seria ignorada e o
+fluxo ficaria aberto); o relatório restrito deriva o token `access.restricted` em `requires`.
 
 ### Somar ao fecho de uma permissão que não é sua — `access.requirement`
 
@@ -693,9 +731,10 @@ dessas restrições.
 > código. É um número só, vale só para a sessão que provou o fator, e nenhuma das quatro restrições se
 > aplica. O que diz SE o fator é exigido continua no documento de membro (`mfa`).
 
-A materialização é recalculada por sete gatilhos — membro (quando `roleIds` muda), perfil, tela,
-extensão instalada (os dois últimos mudam o catálogo), a troca de plano do escritório, o teto de um
-plano e a janela de instalação do escritório novo (ver "O teto do PLANO"). Ela **não grava quando o resultado é igual**,
+A materialização é recalculada por nove gatilhos — membro (quando `roleIds` muda), perfil, tela,
+extensão instalada, a marca de restrição de um workflow ou de um relatório (os quatro últimos mudam o
+catálogo), a troca de plano do escritório, o teto de um plano e a janela de instalação do escritório novo
+(ver "O teto do PLANO"). Ela **não grava quando o resultado é igual**,
 o que a torna idempotente e, sobretudo, impede o laço: gravar no documento de membro dispara o
 gatilho de membro, e a segunda passada não grava.
 
@@ -11946,6 +11985,41 @@ um hop declarando de menos. O executor de workflow não faz isso porque roda com
 **o relatório roda como o USUÁRIO**.
 
 O `spec` cru (pré-visualização da autoria) exige `reports.manage` **por cima** disso.
+
+**A exceção é a PORTA (#33) — e ela é avalizada.** O relatório do escritório com
+`spec.access.restricted: true` gera a própria permissão (`report-<id>.view`, "Abrir" em Perfis) e,
+AVALIZADO, abre para quem tem só ela: o Diretor vê a folha por departamento sem abrir a ficha de cada
+funcionário. A pergunta inteira mora em `reportOpenPermissions` (`domain/schema/report/reportDoor.ts`,
+sincronizado), e a callable, o drill, a série, a lista, o ⌘K e o MCP perguntam ali:
+
+| Relatório | Abrir exige |
+|---|---|
+| restrito e avalizado (spec atual == spec avalizado) | só a permissão dele — e roda SEM o recorte de visibilidade do leitor |
+| restrito sem aval, ou editado depois do aval | a permissão dele E a leitura de cada coleção |
+| do escritório sem restrição / pessoal | a leitura de cada coleção (e `access.permission`), como sempre |
+
+**Por que o aval, e por que no SALVAMENTO.** Se a permissão do relatório simplesmente substituísse a
+leitura, quem EDITA decidiria o que ele entrega: a Analista com `reports.manage` e sem acesso a
+Funcionários acrescentaria salário a "Vendas por mês" e veria a folha. Então a callable `vouchReport`
+confere, contra QUEM SALVA, `reportVouchPermissions` — a leitura de cada coleção tocada (inclusive por
+referência) e, onde a tela restringe por registro, a permissão que vê todos (`<coleção>.read-all` ou a
+`bypassPermission` declarada; sem ela, o vendedor que só vê as próprias vendas entregaria as de todo
+mundo) — e grava `vouch: { by, at, spec }`. Conferir na execução, contra quem salvou, quebraria o
+relatório de todos no dia em que o autor saísse do escritório; no salvamento, ele sobrevive ao autor, e
+quem vê é decidido em Perfis.
+
+**Só o servidor grava `vouch`** (`firestore.rules`): o cliente que editasse o spec por fora do designer
+deixa o aval para trás, e a porta fecha sozinha — falha fechada, sem migração nem gatilho. O relatório
+trazido por extensão é avalizado pela INSTALAÇÃO (`by: extension:<id>`): quem instala tem
+`extensions.manage`, que já instala fluxos que gravam em qualquer coleção. `reports.manage` continua não
+concedendo dado — `automation.manage` nunca prometeu isso, e por isso o workflow não precisa de aval.
+
+Na autoria, a aba Acesso tem as três respostas de "Quem pode abrir" (a gerada só no relatório do
+escritório); o aval é conferido ANTES de salvar (`reportVouchPermissions` contra o `can()` de quem edita,
+como problema da aba Acesso) e pedido ao servidor DEPOIS de cada salvamento — o spec mudou, e o aval antigo
+vale só para o que foi avalizado. O detalhamento é parte da porta: quem a abre vê os registros atrás de cada
+número, e por isso a tela avisa e ganhou o controle que o desliga (`drillDown.enabled`), para compartilhar só
+os totais.
 
 ### O teto, e por que ele é dito
 

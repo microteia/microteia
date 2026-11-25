@@ -1,3 +1,4 @@
+import type { ArtifactAccess } from '../schema/access/artifactAccess';
 import type { ParameterFillFrom } from '../schema/invocationSource';
 import type { FieldRules } from '../schema/fieldRules';
 import type { WorkflowLoopQuery } from '../schema/workflowLoopQuery';
@@ -285,6 +286,11 @@ export interface WorkflowDefinition extends WorkflowChangeFilter {
    * nem toda está pronta para receber o e-mail pessoal de qualquer um.
    */
   subscribable?: boolean | null;
+  /**
+   * Quem pode EXECUTAR este fluxo à mão, além de `automation.run` (#33). Só vale para fluxo chamável:
+   * o disparado por evento não tem porta — quem o aciona é quem produz o evento. Ver `artifactAccess.ts`.
+   */
+  access?: ArtifactAccess | null;
   // Presente quando o workflow foi materializado pela instalação de um plugin do Marketplace.
   // É a marca que a desinstalação usa para remover exatamente os artefatos daquele plugin, e o
   // sinal de que o registro é gerenciado (o usuário não deve editá-lo à mão). Ver "Fatia vertical

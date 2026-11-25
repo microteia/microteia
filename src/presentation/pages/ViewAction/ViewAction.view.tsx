@@ -135,6 +135,7 @@ export const ViewActionView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 placeholder={t('action.workflow.placeholder')}
               />
               <S.SectionHint>{t('action.workflow.hint')}</S.SectionHint>
+              {vm.workflowAccessNotice && <InfoBanner variant="info" message={vm.workflowAccessNotice} />}
             </S.Field>
             )}
             <S.Field>

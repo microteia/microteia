@@ -9,7 +9,13 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'action.read-all': 'View all records',
   'action.read-all.description':
     'See every record of this screen, including the ones that do not name you. Without it, you only see the records that name you in one of the fields the screen chose.',
+  'action.run': 'Run',
+  'action.run.description':
+    'Run this automation by hand: its button on a record, the automation list, or an AI agent. Without it, the automation still runs when its trigger fires.',
   'action.update': 'Edit',
+  'action.view': 'Open',
+  'action.view.description':
+    'Open this report and see what it shows, without permission to open the screens it reads. Whoever saved it answered for what it shows.',
   'diagnostic.permission.cycle':
     'The permissions depend on each other in a loop ({path}), so none of them can be granted.',
   'diagnostic.permission.duplicate':
@@ -292,7 +298,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'resource.members': 'Members',
   'resource.portal': 'Portal',
   'resource.record-import': 'Record import',
+  'resource.report': 'Report: {name}',
   'resource.reports': 'Reports',
+  'resource.workflow': 'Automation: {name}',
   'resource.document-templates': 'Document templates',
   'resource.downloads': 'Downloads',
   'resource.documents': 'Documents',

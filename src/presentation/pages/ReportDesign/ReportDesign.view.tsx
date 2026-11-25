@@ -524,6 +524,7 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 <S.Group>
                   <S.Legend>{vm.labels.drill}</S.Legend>
                   <S.Hint>{vm.labels.drillHint}</S.Hint>
+                  <Checkbox checked={vm.drillEnabled} onChange={vm.setDrillEnabled} label={vm.labels.drillEnabled} />
                   <MultiSearchSelect
                     options={vm.dimensions.map((dimension) => ({
                       value: dimension.key,
@@ -796,12 +797,20 @@ export const ReportDesignView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
               <S.Legend>{vm.labels.permission}</S.Legend>
               <S.Group>
                 <SearchSelect
-                  label={vm.labels.permissionField}
-                  options={vm.permissionOptions}
-                  value={vm.permission}
-                  onChange={vm.setPermission}
+                  options={vm.accessModeOptions}
+                  value={vm.accessMode}
+                  onChange={vm.setAccessMode}
                 />
-                <S.Hint>{vm.labels.permissionHint}</S.Hint>
+                {vm.accessMode === 'permission' && (
+                  <SearchSelect
+                    label={vm.labels.permissionField}
+                    options={vm.permissionOptions}
+                    value={vm.permission}
+                    onChange={vm.setPermission}
+                    placeholder={vm.labels.permissionPlaceholder}
+                  />
+                )}
+                <S.Hint>{vm.accessHint}</S.Hint>
               </S.Group>
             </S.Section>
           </S.Sections>

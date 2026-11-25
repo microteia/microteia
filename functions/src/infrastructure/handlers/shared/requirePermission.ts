@@ -128,6 +128,31 @@ export const requirePermission = async (
   throw new HttpsError('permission-denied', '@core.access/permission.denied', { permission });
 };
 
+/**
+ * TODAS as permissões, numa leitura só do documento de membro — o que uma PORTA exige (#33): a base
+ * (`automation.run`) e a própria do fluxo; a do relatório e a leitura de cada coleção que ele toca.
+ * Recusa nomeando a primeira que falta, que é a que a pessoa precisa pedir.
+ */
+export const requireAllPermissions = async (
+  tenantId: string,
+  caller: CallerAuth,
+  permissions: readonly string[],
+): Promise<string[]> => {
+  const access = await accessOf(tenantId, caller.uid);
+  const missing = permissions.filter((permission) => !(access && grants(access.permissions, permission)));
+  if (access && missing.length === 0) {
+    await assertMemberSession(access, caller);
+    return access.permissions;
+  }
+  if (await isSystemAdmin(caller.uid)) return [UNRESTRICTED_PERMISSION];
+  const ownerMayUse = !access || missing.every((permission) => !deniedByPlan(access.permissions, permission));
+  if (ownerMayUse && await isTenantOwner(tenantId, caller.uid)) {
+    if (access) await assertMemberSession(access, caller);
+    return ownerGranted(access);
+  }
+  throw new HttpsError('permission-denied', '@core.access/permission.denied', { permission: missing[0] ?? '' });
+};
+
 /** Basta UMA das permissões. Serve à callable que atende a mais de um gesto da tela. */
 export const requireAnyPermission = async (
   tenantId: string,

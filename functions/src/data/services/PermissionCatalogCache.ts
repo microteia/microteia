@@ -1,6 +1,8 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { Contribution, QualifiedContribution } from '../../domain/schema/plugin/contribution';
 import type { PermissionCatalog } from '../../domain/schema/access';
+import { restrictedReportSources } from '../../domain/schema/report/reportDoor';
+import type { ReportSpec } from '../../domain/schema/report/reportSpec';
 import type { FieldDefinition } from '../../domain/entities/entitySchemas';
 import type { CatalogScreenSource } from '../../domain/schema/tenantCollections';
 import {
@@ -14,6 +16,8 @@ import {
   ACCESS_RESOURCE_POINT,
   KERNEL_PERMISSIONS,
   KERNEL_PERMISSION_RESOURCES,
+  artifactAccessOf,
+  artifactPermissionResources,
   buildPermissionCatalog,
   declaredPermissionsOf,
   declaredRequirementsOf,
@@ -75,12 +79,30 @@ export class PermissionCatalogCache {
     const cached = this.entries.get(tenantId);
     if (cached && Date.now() - cached.loadedAt < this.ttlMs) return cached.catalog;
 
-    const [screenSnapshot, lookupSnapshot, tagSnapshot, extensionSnapshot] = await Promise.all([
+    const [screenSnapshot, lookupSnapshot, tagSnapshot, extensionSnapshot, workflowSnapshot, reportSnapshot] = await Promise.all([
       this.db.collection(`tenants/${tenantId}/screenDefinitions`).get(),
       this.db.collection(`tenants/${tenantId}/lookupDefinitions`).get(),
       this.db.collection(`tenants/${tenantId}/tagDefinitions`).get(),
       this.db.collection(`tenants/${tenantId}/installed_extensions`).get(),
+      // Só as PORTAS restritas (#33): ler toda automação e todo relatório para achar as poucas que geram
+      // permissão seria pagar a coleção inteira a cada recomposição.
+      this.db.collection(`tenants/${tenantId}/workflow_definitions`).where('access.restricted', '==', true).get(),
+      this.db.collection(`tenants/${tenantId}/reports`).where('spec.access.restricted', '==', true).get(),
     ]);
+
+    const restrictedWorkflows = workflowSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      sourceId: text(doc.data().sourceId) ?? null,
+      name: text(doc.data().name) ?? doc.id,
+      access: artifactAccessOf(doc.data().access),
+    }));
+    const restrictedReports = restrictedReportSources(reportSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      sourceId: text(doc.data().sourceId) ?? null,
+      ownerId: text(doc.data().ownerId) ?? null,
+      title: text(doc.data().title) ?? doc.id,
+      spec: doc.data().spec as ReportSpec,
+    })));
 
     const screens = screenSnapshot.docs.map((doc) => screenOf(doc.id, doc.data()));
     const lookups = tenantLookupCollections(
@@ -112,6 +134,7 @@ export class PermissionCatalogCache {
         // que um campo de tela referencia e as do núcleo: o seletor as oferecia e a emissão as
         // recusava como desconhecidas — no consentimento de OAuth, o acesso inteiro.
         ...tenantCollectionPermissionResources(screens, lookups, tagLists),
+        ...artifactPermissionResources(restrictedWorkflows, restrictedReports),
       ],
       // A soma ao fecho tem de entrar aqui TAMBÉM, e não é simetria: o que sai deste catálogo é o
       // campo materializado que as Security Rules leem. Somar só no navegador daria a tela que

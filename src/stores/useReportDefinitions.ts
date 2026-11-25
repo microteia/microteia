@@ -18,6 +18,8 @@ export interface ReportDefinitionStoreState {
   deleteReport: (reportId: string) => Promise<void>;
   /** Leva um relatório pessoal para os do escritório, com a chave `key`. */
   shareReport: (reportId: string, key: string) => Promise<void>;
+  /** Avaliza no servidor o relatório restrito do escritório (#33). */
+  vouchReport: (reportId: string) => Promise<void>;
   /** Executa no servidor. O `tenantId` é do escritório corrente — quem chama não o informa. */
   runReport: (input: Omit<RunReportInput, 'tenantId'>) => Promise<RunReportResult>;
   refresh: () => Promise<void>;

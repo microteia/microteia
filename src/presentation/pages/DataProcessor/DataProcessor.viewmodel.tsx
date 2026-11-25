@@ -4,7 +4,7 @@ import type { PDFDocumentProxy } from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_DATA_PROCESSOR_USE } from '../../../domain/schema/access';
+import { PERMISSION_DATA_PROCESSOR_USE, workflowRunPermissions } from '../../../domain/schema/access';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { useDI } from '../../../infrastructure/di/useDI';
@@ -419,9 +419,11 @@ export const useDataProcessorViewModel = (): DataProcessorViewModel => {
     if (runWorkflowId) openTab(`view-workflow:${runWorkflowId}::executions`);
   }, [openTab, runWorkflowId]);
 
+  // Só o que a pessoa pode executar (#33): `runWorkflow` cobra a porta de cada fluxo.
   const callableWorkflows = useMemo(
-    () => workflows.filter((w) => w.eventName === WORKFLOW_CALLED_EVENT && w.enabled),
-    [workflows],
+    () => workflows.filter((w) => w.eventName === WORKFLOW_CALLED_EVENT && w.enabled
+      && workflowRunPermissions(w).every((permission) => can(permission))),
+    [workflows, can],
   );
 
   const workflowChoices = useMemo<WorkflowChoice[]>(() => {

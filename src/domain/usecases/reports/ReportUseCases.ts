@@ -57,6 +57,14 @@ export const makeRunReportUseCase = (repo: IReportDefinitionRepository): RunRepo
   execute: (input) => repo.runReport(input),
 });
 
+export type VouchReportUseCase = {
+  execute: (tenantId: string, reportId: string) => Promise<void>;
+};
+
+export const makeVouchReportUseCase = (repo: IReportDefinitionRepository): VouchReportUseCase => ({
+  execute: (tenantId, reportId) => repo.vouch(tenantId, reportId),
+});
+
 export type SubscribeToPersonalReportsUseCase = {
   execute: (tenantId: string, ownerId: string, onUpdate: (reports: ReportDefinition[]) => void) => () => void;
 };

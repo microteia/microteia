@@ -1,3 +1,4 @@
+import type { ArtifactAccess } from '../schema/access/artifactAccess';
 import type { ParameterFillFrom } from '../schema/invocationSource';
 import type { FieldRules } from '../schema/fieldRules';
 import type { WorkflowLoopQuery } from '../schema/workflowLoopQuery';
@@ -280,6 +281,11 @@ export interface WorkflowDefinition extends WorkflowChangeFilter {
    * nem toda está pronta para receber o e-mail pessoal de qualquer um.
    */
   subscribable?: boolean | null;
+  /**
+   * Quem pode EXECUTAR este fluxo à mão, além de `automation.run` (#33). Só vale para fluxo chamável:
+   * o disparado por evento não tem porta — quem o aciona é quem produz o evento. Ver `artifactAccess.ts`.
+   */
+  access?: ArtifactAccess | null;
   enabled: boolean;
   version: number;
   condition: Condition;

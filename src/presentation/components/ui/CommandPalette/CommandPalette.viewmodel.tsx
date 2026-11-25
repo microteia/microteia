@@ -6,7 +6,8 @@ import { useScreenDefinitions } from '../../../../stores/useScreenDefinitions';
 import { useWorkflowStore } from '../../../../stores/useWorkflowStore';
 import { useReportDefinitions } from '../../../../stores/useReportDefinitions';
 import { useSchemaContext } from '../../../shared/useSchemaContext';
-import { reportAccessPermissions, snapshotSourceSpec } from '../../../../domain/schema/report/reportSnapshot';
+import { snapshotSourceSpec } from '../../../../domain/schema/report/reportSnapshot';
+import { reportOpenPermissions } from '../../../../domain/schema/report/reportDoor';
 import { useTheme } from '../../../../stores/useTheme';
 import { useAuth } from '../../../../stores/useAuth';
 import { useAuthorization } from '../../../../stores/useAuthorization';
@@ -65,7 +66,7 @@ export const useCommandPaletteViewModel = (): CommandPaletteViewModel => {
   const paletteReports = useMemo(
     () => reports.flatMap((report) => {
       // A série cobra as permissões da ORIGEM; sem origem, não há o que oferecer.
-      const permissions = reportAccessPermissions(report.spec, schema, snapshotSourceSpec(report.spec, reports));
+      const permissions = reportOpenPermissions(report, schema, snapshotSourceSpec(report.spec, reports));
       return permissions
         ? [{ key: report.key, title: report.title, covers: report.spec.dataset.table, permissions, enabled: report.enabled }]
         : [];

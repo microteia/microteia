@@ -8,7 +8,13 @@ export const CORE_ACCESS: Record<string, string> = {
   'action.read-all': 'Ver todos os registros',
   'action.read-all.description':
     'Ver todos os registros desta tela, inclusive os que não nomeiam você. Sem ela, você vê só os registros que nomeiam você num dos campos que a tela escolheu.',
+  'action.run': 'Executar',
+  'action.run.description':
+    'Executar esta automação à mão: o botão dela num registro, a lista de automações ou um agente de IA. Sem ela, a automação continua rodando quando o gatilho dela dispara.',
   'action.update': 'Editar',
+  'action.view': 'Abrir',
+  'action.view.description':
+    'Abrir este relatório e ver o que ele mostra, sem permissão para abrir as telas que ele lê. Quem o salvou respondeu pelo que ele mostra.',
   'diagnostic.permission.cycle':
     'As permissões dependem umas das outras em círculo ({path}), então nenhuma delas pode ser concedida.',
   'diagnostic.permission.duplicate':
@@ -287,7 +293,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'resource.members': 'Membros',
   'resource.portal': 'Portal',
   'resource.record-import': 'Importação de registros',
+  'resource.report': 'Relatório: {name}',
   'resource.reports': 'Relatórios',
+  'resource.workflow': 'Automação: {name}',
   'resource.document-templates': 'Modelos de documento',
   'resource.downloads': 'Downloads',
   'resource.documents': 'Documentos',

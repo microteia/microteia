@@ -1,3 +1,4 @@
+import { ARTIFACT_ACCESS_SINCE_KERNEL, artifactAccessOf } from '../../schema/access/artifactAccess';
 import { MAX_PARALLEL_BRANCHES, MIN_PARALLEL_BRANCHES, WORKFLOW_PARALLEL_SINCE_KERNEL } from '../../schema/workflowParallel';
 import type { MarketplacePlugin, WorkflowModuleTemplate } from '../../entities/MarketplacePlugin';
 import type { InputMapping, WorkflowStep } from '../../entities/Workflow';
@@ -412,6 +413,7 @@ const workflowIssues = (
     ...delayIssues(workflow, steps, ref, pkg),
     ...pagedLoopIssues(workflow, steps, ref, pkg),
     ...flowControlKernelIssues(workflow, steps, ref, pkg),
+    ...accessKernelIssues(workflow, ref, pkg),
     ...parallelKernelIssues(steps, ref, pkg),
     ...stepDefinitionKernelIssues(steps, ref, pkg),
     ...extractFieldsKernelIssues(steps, ref, pkg),
@@ -839,6 +841,23 @@ const flowControlKernelIssues = (
     messageParams: { feature, minimum: WORKFLOW_FLOW_CONTROL_SINCE_KERNEL },
   }));
 };
+
+/**
+ * Quem pode executar o fluxo (#33). Num kernel anterior o `access` seria ignorado e o fluxo restrito
+ * ficaria aberto a todos com `automation.run` — o pior jeito de falhar, porque nada acusa.
+ */
+const accessKernelIssues = (
+  workflow: WorkflowModuleTemplate,
+  ref: PackageRef,
+  pkg: MarketplacePlugin,
+): PackageValidationIssue[] =>
+  artifactAccessOf(workflow.access) && !rangeExcludesBelow(pkg.manifest?.kernel ?? '', ARTIFACT_ACCESS_SINCE_KERNEL)
+    ? [{
+        ref,
+        message: '@core.marketplace/issue.workflow.feature-kernel',
+        messageParams: { feature: 'access', minimum: ARTIFACT_ACCESS_SINCE_KERNEL },
+      }]
+    : [];
 
 /**
  * O nó `Parallel` e a concorrência do laço num pacote que admite kernel anterior: lá o nó seria um tipo de

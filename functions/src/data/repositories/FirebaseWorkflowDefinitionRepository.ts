@@ -1,3 +1,4 @@
+import { artifactAccessOf } from '../../domain/schema/access/artifactAccess';
 import { Timestamp } from 'firebase-admin/firestore';
 import type { Firestore, DocumentData } from 'firebase-admin/firestore';
 import type { IWorkflowDefinitionRepository } from '../../domain/repositories/IWorkflowDefinitionRepository';
@@ -33,6 +34,7 @@ export const mapWorkflowDefinition = (id: string, tenantId: string, data: Docume
   changedFields: Array.isArray(data.changedFields) ? data.changedFields : null,
   mailFilter: data.mailFilter ?? null,
   subscribable: data.subscribable === true,
+  access: artifactAccessOf(data.access),
   enabled: data.enabled ?? false,
   version: data.version ?? 1,
   condition: data.condition ?? { kind: 'AlwaysTrue' },

@@ -489,9 +489,16 @@ service cloud.firestore {
       // Relatórios do escritório. Todo membro LÊ a definição — a lista precisa mostrar o que existe,
       // e a definição não é o dado: executar um relatório cobra, no servidor, a leitura de cada
       // coleção que ele toca. Só quem gerencia relatórios escreve.
+      //
+      // O AVAL (`vouch`, #33) é só do servidor (`vouchReport`): é ele que faz o relatório restrito abrir
+      // sem a leitura das coleções, e o cliente que o escrevesse se avalizaria. Editar o spec sem tocar
+      // no aval é permitido — o aval fica para trás e a porta fecha sozinha.
       match /reports/{reportId} {
         allow read: if isMember(tenantId);
-        allow create, update, delete: if can(tenantId, 'reports.manage');
+        allow create: if can(tenantId, 'reports.manage') && !('vouch' in request.resource.data);
+        allow update: if can(tenantId, 'reports.manage')
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['vouch']);
+        allow delete: if can(tenantId, 'reports.manage');
       }
 
       // Relatórios PESSOAIS: só o autor lê, edita e apaga. A lista os pede por `ownerId == uid` — a regra

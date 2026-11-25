@@ -262,6 +262,17 @@ export const CORE_REPORTS: Record<string, string> = {
   'design.others': 'Juntar o restante em "Outros"',
   'design.permission': 'Quem pode abrir',
   'design.permission.hint': 'Uma permissão a mais exigida para ver este relatório, além da leitura do que ele cobre. Ela só restringe — nunca dá acesso a nada.',
+  'design.access.own': 'Só quem tiver a permissão deste relatório',
+  'design.access.permission': 'Só quem tiver uma permissão existente',
+  'design.access.own.hint':
+    'Perfis a mostram como "Abrir" em "Relatório: {name}". Quem a tem abre este relatório sem ler o que ele cobre — você responde pelo que ele mostra, e salvar confere que você lê tudo isso.',
+  'design.access.everyone.hint': 'Quem lê todas as telas que este relatório cobre pode abri-lo.',
+  'design.access.vouch-missing': 'Para abrir este relatório a outras pessoas você precisa ler tudo o que ele mostra. Falta: {permission}.',
+  'design.access.drill-opens-records':
+    'Quem abre este relatório também vê, no detalhamento, os registros atrás de cada número. Desligue o detalhamento em Apresentação para compartilhar só os totais.',
+  'design.permission.placeholder': 'Escolha a permissão',
+  'design.drill.enabled': 'Deixar o leitor abrir os registros atrás de um número',
+  'vouch.not-restricted': 'Só um relatório restrito do escritório pode ser avalizado.',
   'design.permission.none': 'Quem pode ler o que ele cobre',
   'design.prompt.default': 'Começa em',
   'design.prompt.period': 'Perguntar um período',

@@ -1,3 +1,4 @@
+import { useActionRunGate } from '../recordActions/useActionRunGate';
 import { useCallback, useMemo, useState } from 'react';
 import { useActions } from '../../../stores/useActions';
 import { useNotification } from '../../../stores/useNotification';
@@ -191,7 +192,11 @@ export const useScreenActions = (target: ScreenActionTarget): ScreenActions => {
   const [runningActionId, setRunningActionId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<ActionDefinition | null>(null);
 
-  const available = useMemo(() => getActionsByIds(actionIds), [getActionsByIds, actionIds]);
+  const missingToRun = useActionRunGate();
+  const available = useMemo(
+    () => getActionsByIds(actionIds).filter((action) => missingToRun(action) === null),
+    [getActionsByIds, actionIds, missingToRun],
+  );
 
   const exprContext = useMemo(() => ({
     values,

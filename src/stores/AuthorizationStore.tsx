@@ -7,12 +7,16 @@ import { useScreenDefinitions } from './useScreenDefinitions';
 import { useLookups } from './useLookups';
 import { useTags } from './useTags';
 import { useContributions } from './useKernel';
+import { useWorkflowStore } from './useWorkflowStore';
+import { useReportDefinitions } from './useReportDefinitions';
+import { restrictedReportSources } from '../domain/schema/report/reportDoor';
 import { usePlan } from './usePlan';
 import {
   ACCESS_PERMISSION_POINT,
   ACCESS_REQUIREMENT_POINT,
   ACCESS_RESOURCE_POINT,
   KERNEL_CATALOG_FINGERPRINT,
+  artifactPermissionResources,
   buildPermissionCatalog,
   declaredPermissionsOf,
   declaredRequirementsOf,
@@ -51,6 +55,8 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
   const { definitions, isLoading: screensLoading } = useScreenDefinitions();
   const { availableLookups } = useLookups();
   const { availableTagLists } = useTags();
+  const { workflows } = useWorkflowStore();
+  const { reports } = useReportDefinitions();
   const permissionContributions = useContributions(ACCESS_PERMISSION_POINT);
   const resourceContributions = useContributions(ACCESS_RESOURCE_POINT);
   const requirementContributions = useContributions(ACCESS_REQUIREMENT_POINT);
@@ -69,6 +75,8 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
     [
       ...declaredResourcesOf(resourceContributions),
       ...tenantCollectionPermissionResources(definitions, availableLookups, availableTagLists),
+      // As PORTAS restritas (#33) — a mesma conta do `PermissionCatalogCache`.
+      ...artifactPermissionResources(workflows, restrictedReportSources(reports)),
     ],
     declaredRequirementsOf(requirementContributions),
   ), [
@@ -78,6 +86,8 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
     definitions,
     availableLookups,
     availableTagLists,
+    workflows,
+    reports,
   ]);
 
   const member = useMemo(

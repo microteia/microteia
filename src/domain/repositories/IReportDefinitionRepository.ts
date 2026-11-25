@@ -4,9 +4,10 @@ import type { ReportSpec } from '../schema/report/reportSpec';
 import type { ReportSpecIssue } from '../schema/report/validateReportSpec';
 import type { ReportDrillResult, ReportDrillTarget } from '../schema/report/aggregateRows';
 
+/** Sem `vouch`: o aval é gravado só pelo servidor, e as regras recusam a escrita que o tocar. */
 export type ReportDefinitionInput = Omit<
   ReportDefinition,
-  'id' | 'tenantId' | 'createdAt' | 'updatedAt'
+  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'vouch'
 >;
 
 export interface RunReportInput {
@@ -52,4 +53,9 @@ export interface IReportDefinitionRepository {
    * coleção que o relatório toca é cobrada.
    */
   runReport(input: RunReportInput): Promise<RunReportResult>;
+  /**
+   * AVALIZA o relatório restrito (#33): o servidor confere que quem salva lê tudo o que ele toca e grava
+   * o aval — o campo que o cliente não escreve. Recusa nomeando a permissão que falta.
+   */
+  vouch(tenantId: string, reportId: string): Promise<void>;
 }

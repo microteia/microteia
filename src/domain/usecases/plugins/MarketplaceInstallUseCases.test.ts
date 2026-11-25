@@ -193,6 +193,8 @@ class FakeReports implements IReportDefinitionRepository {
     this.items = this.items.filter((item) => item.id !== id);
   }
   async runReport(): Promise<never> { throw new Error('a instalação não executa relatório'); }
+  readonly vouched: string[] = [];
+  async vouch(_t: string, id: string): Promise<void> { this.vouched.push(id); }
 }
 
 let screens: FakeScreens;
@@ -1544,6 +1546,18 @@ describe('Relatórios do pacote', () => {
       sourceId: 'vendas',
     });
     expect(reports.items[0].spec.dataset.table).toBe('produtos');
+  });
+
+  it('o relatório RESTRITO é avalizado pela instalação; o comum não pede aval (#33)', async () => {
+    const d = deps();
+    const plugin = reportPlugin('com.acme.vendas', ['vendas', 'margem']);
+    plugin.reports = (plugin.reports ?? []).map((report) => (report.templateId === 'margem'
+      ? { ...report, spec: { ...report.spec, access: { restricted: true } } }
+      : report));
+    await applyPackageArtifacts(d, plugin, actor);
+
+    const margem = reports.items.find((report) => report.sourceId === 'margem');
+    expect(reports.vouched).toEqual([margem?.id]);
   });
 
   it('reescreve a coleção quando a chave da tela ganhou SUFIXO na instalação', async () => {

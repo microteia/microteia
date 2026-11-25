@@ -2,8 +2,8 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { identifyActor } from '../workflow/identifyActor';
 import { toPublishedActor } from '../../domain/engine/workflowActor';
 import { getDI } from '../di/container';
-import { requirePermission } from './shared/requirePermission';
-import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access';
+import { requireAllPermissions, requirePermission } from './shared/requirePermission';
+import { PERMISSION_AUTOMATION_RUN, workflowRunPermissions } from '../../domain/schema/access';
 import { getDb } from '../firebase/initFirebase';
 import { publishEvent } from '../workflow/publishEvent';
 import { WORKFLOW_CALLED_EVENT } from '../../domain/schema/eventCatalog';
@@ -118,6 +118,8 @@ export const runWorkflow = onCall(
           '@core.admin/processor.workflow-not-callable',
         );
       }
+      // A PORTA do fluxo (#33): além da base, a permissão que ele gera ou escolhe.
+      await requireAllPermissions(tenantId, request.auth, workflowRunPermissions(definition));
 
       const params = definition.parameters ?? [];
       if (hasEntityReferenceDeep(params)) {

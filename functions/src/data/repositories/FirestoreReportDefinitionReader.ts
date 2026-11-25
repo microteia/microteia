@@ -1,6 +1,7 @@
 import type { DocumentSnapshot, Firestore } from 'firebase-admin/firestore';
 import type { IReportDefinitionReader, StoredReport } from '../../domain/repositories/IReportDefinitionReader';
 import type { ReportSpec } from '../../domain/schema/report/reportSpec';
+import { reportVouchOf } from '../../domain/schema/report/reportDoor';
 
 const toStored = (snapshot: DocumentSnapshot): StoredReport | null => {
   const data = snapshot.data();
@@ -11,6 +12,8 @@ const toStored = (snapshot: DocumentSnapshot): StoredReport | null => {
     key: typeof data.key === 'string' && data.key ? data.key : snapshot.id,
     title: typeof data.title === 'string' ? data.title : snapshot.id,
     spec,
+    sourceId: typeof data.sourceId === 'string' && data.sourceId ? data.sourceId : null,
+    vouch: reportVouchOf(data.vouch),
   };
 };
 

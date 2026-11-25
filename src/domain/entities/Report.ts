@@ -5,6 +5,7 @@
 
 import type { FieldOrigin } from '../schema/fieldRules';
 import type { ReportSpec } from '../schema/report/reportSpec';
+import type { ReportVouch } from '../schema/report/reportDoor';
 
 /**
  * O relatório como DOCUMENTO do escritório: `tenants/{tenantId}/reports/{id}`.
@@ -63,6 +64,12 @@ export interface ReportDefinition {
    * pessoas, e o relatório privado vazaria pela notificação.
    */
   ownerId?: string | null;
+  /**
+   * O AVAL do relatório restrito (#33): quem respondeu por ele e o spec que avalizou. Só o servidor o
+   * grava (`vouchReport`, `firestore.rules`); o cliente que editasse o spec deixaria o aval para trás, e
+   * o relatório voltaria a cobrar a leitura de quem o abre. Ver `reportDoor.ts`.
+   */
+  vouch?: ReportVouch | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,7 +77,7 @@ export interface ReportDefinition {
 /** Um relatório do pacote. `templateId` é o endereço estável antes de a instalação gerar o `id`. */
 export type ReportModuleTemplate = { templateId: string } & Omit<
   ReportDefinition,
-  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'createdBy' | 'ownerPluginId' | 'ownerPluginIds' | 'ownerId'
+  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'createdBy' | 'ownerPluginId' | 'ownerPluginIds' | 'ownerId' | 'vouch'
 > & {
   /**
    * A chave de uma view do MESMO pacote (`views[].key`) que desenha o corpo da aba do relatório no

@@ -466,6 +466,7 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                 (vm.isScheduleEvent && !!vm.scheduleError) ||
                 (vm.isDateReachedEvent && !!vm.dateReachedError) ||
                 (vm.isMailEvent && !!vm.mailFilterError) ||
+                !!vm.accessError ||
                 !!vm.triggerStepsError
               }
               title={t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
@@ -830,6 +831,28 @@ export const ViewWorkflowView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
                     onReplace={vm.replaceParameters}
                     fillFromAllowed
                   />
+                </InputGroup>
+              )}
+
+              {vm.isManualRunEvent && (
+                <InputGroup>
+                  <Label>{t('workflow.access.title')}</Label>
+                  <SearchSelect
+                    options={vm.accessModeOptions}
+                    value={vm.formData.accessMode}
+                    onChange={vm.setAccessMode}
+                  />
+                  {vm.formData.accessMode === 'own' && <S.FieldHint>{vm.accessOwnHint}</S.FieldHint>}
+                  {vm.formData.accessMode === 'permission' && (
+                    <SearchSelect
+                      options={vm.accessPermissionOptions}
+                      value={vm.formData.accessPermission}
+                      onChange={(accessPermission) => vm.setFormData({ accessPermission })}
+                      placeholder={t('workflow.access.permission.placeholder')}
+                    />
+                  )}
+                  {vm.accessError && <S.FieldError>{vm.accessError}</S.FieldError>}
+                  <S.FieldHint>{t('workflow.access.hint')}</S.FieldHint>
                 </InputGroup>
               )}
             </S.Form>

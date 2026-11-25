@@ -86,7 +86,20 @@ export interface PermissionResource {
    * declaração ela não existe — oferecer em Perfis o que a porta recusaria seria uma permissão sem efeito.
    */
   deriveImport?: boolean;
+  /**
+   * As ações que uma PORTA gera para si (#33): "Executar" do workflow restrito, "Abrir" do relatório
+   * restrito. O recurso é a porta, e a ação é o que ela concede — o mesmo desenho do CRUD de uma tela,
+   * com as ações que a porta tem em vez das quatro.
+   */
+  derivedActions?: DerivedResourceAction[];
   source?: string;
+}
+
+export interface DerivedResourceAction {
+  action: string;
+  name: string;
+  description?: string;
+  requires?: string[];
 }
 
 const ACTION_ORDER = new Map<string, number>(CRUD_ACTIONS.map((action, index) => [action, index]));
@@ -138,6 +151,20 @@ export const buildPermissionCatalog = (
       name: resource.name,
       ...(resource.nameParams ? { nameParams: resource.nameParams } : {}),
     });
+    for (const derived of resource.derivedActions ?? []) {
+      const id = `${resource.id}.${derived.action}`;
+      if (!parseAccessPermission(id)) continue;
+      byId.set(id, {
+        id,
+        name: derived.name,
+        ...(derived.description === undefined ? {} : { description: derived.description }),
+        requires: [...new Set(derived.requires ?? [])],
+        resource: resource.id,
+        action: derived.action,
+        source: resource.source ?? '',
+        derived: true,
+      });
+    }
     if (resource.deriveCrud !== true) continue;
     // Criar, editar e excluir EXIGEM ver. Não é conveniência: quem grava num registro que não pode
     // ler grava às cegas, e a tela que ele abriria para isso não tem como carregar. A dependência é

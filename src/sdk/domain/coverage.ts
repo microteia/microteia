@@ -461,6 +461,7 @@ const WORKFLOW_REACH: Record<keyof WorkflowModuleTemplate, string | null> = {
   changedFields: null,
   mailFilter: null,
   subscribable: null,
+  access: null,
   steps: 'the guard, the state write and the effects, in order — and, on a user-action flow, the map that answers '
     + 'the button',
   condition: 'the `from` of the transition',
@@ -480,6 +481,8 @@ const WORKFLOW_NOTES: Record<string, string> = {
     + 'connects, which the domain model does not describe',
   subscribable: 'lets a member connect their own mailbox to an email-triggered flow — a decision of the office, not '
     + 'of the model',
+  access: 'who may run a callable flow by hand, on top of automation.run: its own generated permission or an existing '
+    + 'one. Who is allowed is a decision of the office, granted in profiles, not of the model',
   ownerPluginIds: 'the refcount of extensions sharing the flow, set by the installation',
   sourceId: 'the universal identity of the flow — how an update recognises it across offices',
   sourceRev: 'the origin revision, stamped at packaging: an update of the owning extension rewrites unless it is LOWER, another extension only with a greater one',

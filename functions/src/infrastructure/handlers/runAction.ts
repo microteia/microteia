@@ -1,8 +1,8 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { identifyActor } from '../workflow/identifyActor';
 import { getDI } from '../di/container';
-import { requirePermission } from './shared/requirePermission';
-import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access';
+import { requireAllPermissions, requirePermission } from './shared/requirePermission';
+import { PERMISSION_AUTOMATION_RUN, workflowRunPermissions } from '../../domain/schema/access';
 import { getDb } from '../firebase/initFirebase';
 import { actionRunResponse } from './actionRunResponse';
 import type { RunActionResponse } from './actionRunResponse';
@@ -53,6 +53,11 @@ export const runAction = onCall(
     const action = snap.data() as { key?: string; title?: string; workflowId?: string; enabled?: boolean };
     if (action.enabled === false) return failure('@core.automation/handler.action.disabled');
     if (!action.workflowId) return failure('@core.automation/handler.action.no-workflow');
+
+    // A ação não tem porta própria (#33): ela é um botão que leva a um fluxo, e quem não pode executar o
+    // fluxo pela lista também não o executa pelo botão.
+    const target = await di.getWorkflowDefinitionRepository().findByRef(tenantId, action.workflowId);
+    if (target) await requireAllPermissions(tenantId, request.auth, workflowRunPermissions(target));
 
     await di.ensureWorkflowStepsRegistered();
 

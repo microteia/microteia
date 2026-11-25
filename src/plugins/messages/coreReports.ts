@@ -270,6 +270,17 @@ export const CORE_REPORTS_MESSAGES: Record<string, string> = {
   'design.others': 'Gather the rest as "Others"',
   'design.permission': 'Who can open it',
   'design.permission.hint': 'An extra permission required to see this report, on top of reading what it covers. It only restricts — it never grants access to anything.',
+  'design.access.own': "Only who holds this report's permission",
+  'design.access.permission': 'Only who holds an existing permission',
+  'design.access.own.hint':
+    'Profiles show it as "Open" under "Report: {name}". Whoever holds it opens this report without reading what it covers — you answer for what it shows, and saving checks that you read all of it.',
+  'design.access.everyone.hint': 'Whoever reads every screen this report covers can open it.',
+  'design.access.vouch-missing': 'To open this report to other people you must read everything it shows. Missing: {permission}.',
+  'design.access.drill-opens-records':
+    'Whoever opens this report also sees, in the drill-down, the records behind each number. Turn the drill-down off in Layout to share only the totals.',
+  'design.permission.placeholder': 'Choose the permission',
+  'design.drill.enabled': 'Let the reader open the records behind a number',
+  'vouch.not-restricted': 'Only a restricted report of the organization can be vouched for.',
   'design.permission.none': 'Whoever can read what it covers',
   'design.prompt.default': 'Starts at',
   'design.prompt.period': 'Ask for a period',

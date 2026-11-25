@@ -21,6 +21,7 @@ export { runScript } from './infrastructure/handlers/runScript';
 export { runAction } from './infrastructure/handlers/runAction';
 export { runReport } from './infrastructure/handlers/runReport';
 export { draftReport } from './infrastructure/handlers/draftReport';
+export { vouchReport } from './infrastructure/handlers/vouchReport';
 export { importRecords } from './infrastructure/handlers/importRecords';
 export { renderDocument } from './infrastructure/handlers/renderDocument';
 export { onDownloadDeleted } from './infrastructure/handlers/onDownloadDeleted';
@@ -63,6 +64,8 @@ export {
   materializePermissionsOnRoleChange,
   materializePermissionsOnScreenChange,
   materializePermissionsOnTenantPlanChange,
+  materializePermissionsOnWorkflowAccessChange,
+  materializePermissionsOnReportAccessChange,
 } from './infrastructure/handlers/materializeMemberPermissions';
 export { syncTenantPermissions } from './infrastructure/handlers/syncTenantPermissions';
 export { startDefaultExtensionsOnboarding } from './infrastructure/handlers/startDefaultExtensionsOnboarding';

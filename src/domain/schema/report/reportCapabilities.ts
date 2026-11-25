@@ -16,6 +16,7 @@ import type { ReportGroupLevel, ReportPrompt, ReportSpec } from './reportSpec';
  * ela nem chegou a usar.
  */
 export const REPORT_CAPABILITIES: readonly string[] = [
+  'access.restricted',
   'dataset.collection',
   'dataset.dimension.expression',
   'dataset.includeWhen',
@@ -77,6 +78,9 @@ export const deriveReportRequires = (spec: ReportSpec): string[] => {
   const required = new Set<string>();
 
   required.add(`dataset.${spec.dataset.kind ?? DEFAULT_REPORT_DATASET_KIND}`);
+  // A PORTA (#33). Um kernel que não a conhece roda o relatório como um comum — cobrando a leitura das
+  // coleções de quem abre, o que é seguro —, e o token faz ele dizer que a porta se perdeu.
+  if (spec.access?.restricted === true) required.add('access.restricted');
   // O filtro por expressão pede token PRÓPRIO, e sob `dataset.` de propósito: um kernel que não o
   // execute somaria justamente as linhas que ele exclui, com o mesmo rótulo no total.
   if ((spec.dataset.includeWhen ?? '').trim() !== '') required.add('dataset.includeWhen');

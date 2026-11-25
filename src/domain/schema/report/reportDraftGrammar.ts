@@ -87,6 +87,9 @@ export const REPORT_DRAFT_TEACHING: Readonly<Record<string, string | null>> = {
   // A série de instantâneos depende de uma automação que tire as fotos: o rascunho descreve uma pergunta
   // sobre os registros, e propor uma série sem fotos seria um relatório vazio.
   'dataset.snapshot': null,
+  // Quem pode abrir é decisão de quem administra o escritório, com aval no salvamento (#33) — nunca de um
+  // rascunho que a IA propõe a partir de uma frase.
+  'access.restricted': null,
   'export.csv': null,
   'export.filename': null,
   'export.pdf': null,

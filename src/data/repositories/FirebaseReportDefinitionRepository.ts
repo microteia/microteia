@@ -1,3 +1,4 @@
+import { reportVouchOf } from '../../domain/schema/report/reportDoor';
 import {
   addDoc,
   collection,
@@ -56,6 +57,7 @@ export const mapReport = (id: string, d: Record<string, unknown>, tenantId: stri
   sidebarOrder: (d.sidebarOrder as number | null | undefined) ?? null,
   createdBy: (d.createdBy as string | null | undefined) ?? null,
   ownerId: (d.ownerId as string | null | undefined) ?? null,
+  vouch: reportVouchOf(d.vouch),
   createdAt: toDate(d.createdAt),
   updatedAt: toDate(d.updatedAt),
 });
@@ -121,8 +123,9 @@ export class FirebaseReportDefinitionRepository implements IReportDefinitionRepo
   }
 
   async update(tenantId: string, reportId: string, data: Partial<ReportDefinitionInput>): Promise<void> {
-    const updatable = stripUndefined({ ...data });
+    const updatable = stripUndefined({ ...data }) as Partial<ReportDefinitionInput> & { vouch?: unknown };
     delete updatable.createdBy;
+    delete updatable.vouch;
     await updateDoc(doc(reportsRef(tenantId), reportId), { ...updatable, updatedAt: serverTimestamp() });
   }
 
@@ -134,5 +137,10 @@ export class FirebaseReportDefinitionRepository implements IReportDefinitionRepo
     const call = httpsCallable<RunReportInput, RunReportResult>(functions, 'runReport');
     const response = await call(input);
     return response.data;
+  }
+
+  async vouch(tenantId: string, reportId: string): Promise<void> {
+    const call = httpsCallable<{ tenantId: string; reportId: string }, { ok: true }>(functions, 'vouchReport');
+    await call({ tenantId, reportId });
   }
 }

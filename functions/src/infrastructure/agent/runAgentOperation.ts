@@ -3,10 +3,14 @@ import type { QueryPredicate, QuerySpec } from '../../domain/schema/querySpec';
 import { QUERY_OPERATORS_WITHOUT_VALUE } from '../../domain/schema/querySpec';
 import { PERSONAL_REPORTS_COLLECTION } from '../../domain/schema/report/personalReport';
 import type { ReportSpec } from '../../domain/schema/report/reportSpec';
-import { isSnapshotReport, reportAccessPermissions } from '../../domain/schema/report/reportSnapshot';
+import { isSnapshotReport } from '../../domain/schema/report/reportSnapshot';
+import { isReportDoor, reportOpenPermissions, reportVouchOf } from '../../domain/schema/report/reportDoor';
+import type { ReportDoorSource } from '../../domain/schema/report/reportDoor';
 import { FirestoreReportDefinitionReader } from '../../data/repositories/FirestoreReportDefinitionReader';
 import { FirestoreReportSnapshotRepository } from '../../data/repositories/FirestoreReportSnapshotRepository';
 import { grants } from '../../domain/schema/access/memberPermissions';
+import { workflowRunPermissions } from '../../domain/schema/access/artifactAccess';
+import type { WorkflowDoor } from '../../domain/schema/access/artifactAccess';
 import { WORKFLOW_CALLED_EVENT } from '../../domain/schema/eventCatalog';
 import type { RuleIssue } from '../../domain/schema/fieldRules';
 import { ruleIssueParams } from '../../domain/schema/fieldRules';
@@ -535,7 +539,7 @@ const renderAgentDocument = async (
 /**
  * O relatório, com a leitura cobrada do ACESSO e não do usuário.
  *
- * A lista é `reportAccessPermissions` — a mesma que `requireReportAccess` cobra, então o que é
+ * A lista é `reportOpenPermissions` — a mesma que `requireReportAccess` cobra, então o que é
  * exigido nunca divergirá: a permissão própria do relatório e as coleções, inclusive as alcançadas
  * por referência. O que muda é de
  * quem se cobra: aquela chama `requirePermission`, que responde pelo conjunto do USUÁRIO, e usá-la
@@ -632,20 +636,20 @@ const completeAgentTask = async (
  *
  * O do escritório vence a colisão, como na tela; depois, os PESSOAIS de quem emitiu o acesso.
  */
-const findAgentReport = async (session: AgentSession, reference: string): Promise<Record<string, unknown> | null> => {
+const findAgentReport = async (session: AgentSession, reference: string): Promise<{ id: string; data: Record<string, unknown> } | null> => {
   if (reference === '') return null;
   const tenant = getDb().collection('tenants').doc(session.tenantId);
   const shared = tenant.collection('reports');
   const byKey = await shared.where('key', '==', reference).limit(1).get();
-  if (!byKey.empty) return byKey.docs[0].data();
+  if (!byKey.empty) return { id: byKey.docs[0].id, data: byKey.docs[0].data() };
   const byId = await shared.doc(reference).get();
-  if (byId.exists) return byId.data() ?? null;
+  if (byId.exists) return { id: byId.id, data: byId.data() ?? {} };
 
   const personal = tenant.collection(PERSONAL_REPORTS_COLLECTION);
   const mineByKey = await personal.where('ownerId', '==', session.userId).where('key', '==', reference).limit(1).get();
-  if (!mineByKey.empty) return mineByKey.docs[0].data();
+  if (!mineByKey.empty) return { id: mineByKey.docs[0].id, data: mineByKey.docs[0].data() };
   const mineById = await personal.doc(reference).get();
-  return mineById.exists && mineById.get('ownerId') === session.userId ? mineById.data() ?? null : null;
+  return mineById.exists && mineById.get('ownerId') === session.userId ? { id: mineById.id, data: mineById.data() ?? {} } : null;
 };
 
 const runAgentReport = async (
@@ -658,13 +662,20 @@ const runAgentReport = async (
   const found = await findAgentReport(session, reportId);
   if (!found) return refuse(catalog, '@core.reports/handler.not-found', { id: reportId });
 
-  const spec = (found as { spec?: ReportSpec }).spec;
+  const spec = (found.data as { spec?: ReportSpec }).spec;
   if (!spec) return refuse(catalog, '@core.reports/handler.spec.missing');
+  const door: ReportDoorSource = {
+    id: found.id,
+    sourceId: typeof found.data.sourceId === 'string' ? found.data.sourceId : null,
+    ownerId: typeof found.data.ownerId === 'string' ? found.data.ownerId : null,
+    spec,
+    vouch: reportVouchOf(found.data.vouch),
+  };
 
   // A série cobra a leitura do relatório de ORIGEM; sem ele, recusa — falha fechada.
   const reports = new FirestoreReportDefinitionReader(getDb());
   const source = isSnapshotReport(spec) ? (await reports.find(session.tenantId, spec.dataset.table))?.spec : undefined;
-  const required = reportAccessPermissions(spec, schema, source);
+  const required = reportOpenPermissions(door, schema, source);
   if (required === null) return refuse(catalog, '@core.reports/snapshot.source-missing', { report: spec.dataset.table });
   for (const permission of required) {
     if (!grants(session.permissions, permission)) {
@@ -693,7 +704,9 @@ const runAgentReport = async (
     });
   }
 
-  const { context } = await agentRun(session, 'run_report');
+  const { context: agentContext } = await agentRun(session, 'run_report');
+  // A porta avalizada lê com a visão de quem a avalizou, como na callable (#33).
+  const context = isReportDoor(door) ? { ...agentContext, reader: undefined } : agentContext;
   const outcome = await runReportQuery({
     spec, context, deps: queryDeps(), prompts,
     series: { reports, snapshots: new FirestoreReportSnapshotRepository(getDb()) },
@@ -701,6 +714,19 @@ const runAgentReport = async (
   return outcome.ok
     ? { ok: true, value: outcome.value }
     : refuse(catalog, outcome.error, outcome.errorParams);
+};
+
+/**
+ * A PORTA do fluxo (#33): a mesma lista que `runWorkflow` e `runAction` cobram, sobre a INTERSEÇÃO do
+ * agente. `null` quando passa; a recusa nomeia a primeira permissão que falta.
+ */
+const workflowDoorRefusal = (
+  workflow: WorkflowDoor,
+  session: AgentSession,
+  catalog: MessageCatalog,
+): AgentOperationOutcome | null => {
+  const missing = workflowRunPermissions(workflow).find((permission) => !grants(session.permissions, permission));
+  return missing ? refuse(catalog, '@core.access/permission.denied', { permission: missing }) : null;
 };
 
 /**
@@ -723,6 +749,8 @@ const startAgentWorkflow = async (
   if (definition.eventName !== WORKFLOW_CALLED_EVENT) {
     return refuse(catalog, '@core.admin/processor.workflow-not-callable');
   }
+  const doorRefusal = workflowDoorRefusal(definition, session, catalog);
+  if (doorRefusal) return doorRefusal;
 
   const prepared = prepareParameters(definition.parameters, asRecord(input.params));
 
@@ -764,6 +792,12 @@ const describeWorkflowOperation = async (
   // A de gatilho também é descrita: `callable: false` e o `trigger` dizem que ela não se inicia, e o
   // relógio responde "quando roda?" e "rodou?". Quem a tentar iniciar continua recusado em `run_workflow`.
   if (!definition) return refuse(catalog, '@core.admin/processor.workflow-not-found');
+  // O fluxo restrito a quem não o pode executar não é descrito: a lista já o omite, e a descrição diria
+  // ao agente como montar uma chamada que a porta recusaria.
+  if (definition.eventName === WORKFLOW_CALLED_EVENT) {
+    const doorRefusal = workflowDoorRefusal(definition, session, catalog);
+    if (doorRefusal) return doorRefusal;
+  }
   return { ok: true, value: await describeAgentWorkflow(definition, schema, catalog) };
 };
 
@@ -832,6 +866,8 @@ const runAgentAction = async (
   const di = getDI();
   const target = await di.getWorkflowDefinitionRepository().findByRef(session.tenantId, action.workflowId);
   if (!target) return refuse(catalog, '@core.automation/handler.action.workflow-invalid');
+  const doorRefusal = workflowDoorRefusal(target, session, catalog);
+  if (doorRefusal) return doorRefusal;
 
   const system: Record<(typeof ACTION_SYSTEM_PARAMETERS)[number], unknown> = {
     action: action.key ?? '',

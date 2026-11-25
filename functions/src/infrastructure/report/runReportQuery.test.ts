@@ -209,6 +209,34 @@ describe('requireReportAccess — o RBAC no servidor', () => {
     permissionsByUser.ana = ['lancamentos.read', 'lancamentos.margem'];
     await expect(requireReportAccess(restrito, await schema(), 't1', { uid: 'ana', token: {} })).resolves.toBeDefined();
   });
+
+  describe('a PORTA (#33)', () => {
+    const door: ReportSpec = { ...spec, access: { restricted: true } };
+
+    it('avalizada, abre com a permissão dela sozinha — sem a leitura da coleção', async () => {
+      permissionsByUser.ana = ['report-r1.view'];
+      await expect(requireReportAccess(door, await schema(), 't1', { uid: 'ana', token: {} }, undefined, {
+        id: 'r1', vouch: { by: 'rh', spec: door },
+      })).resolves.toEqual(['report-r1.view']);
+    });
+
+    it('sem aval, ou com o spec mudado depois dele, cobra também a leitura', async () => {
+      permissionsByUser.ana = ['report-r1.view'];
+      const unvouched = await denied(requireReportAccess(door, await schema(), 't1', { uid: 'ana', token: {} }, undefined, { id: 'r1' }));
+      expect(unvouched.code).toBe('permission-denied');
+
+      const stale = await denied(requireReportAccess(door, await schema(), 't1', { uid: 'ana', token: {} }, undefined, {
+        id: 'r1', vouch: { by: 'rh', spec: { ...door, dataset: { ...door.dataset, scanLimit: 10 } } },
+      }));
+      expect(stale.code).toBe('permission-denied');
+    });
+
+    it('a pré-visualização (spec cru, sem identidade) nunca é porta', async () => {
+      permissionsByUser.ana = ['report-r1.view'];
+      const error = await denied(requireReportAccess(door, await schema(), 't1', { uid: 'ana', token: {} }));
+      expect(error.code).toBe('permission-denied');
+    });
+  });
 });
 
 describe('runReportQuery', () => {

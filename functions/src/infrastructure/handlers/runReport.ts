@@ -13,6 +13,8 @@ import type { ReportResult } from '../../domain/schema/report/reportResult';
 import type { ReportDrillResult, ReportDrillTarget } from '../../domain/schema/report/aggregateRows';
 import type { ReportSpecIssue } from '../../domain/schema/report/validateReportSpec';
 import { requireReportAccess, runReportQuery } from '../report/runReportQuery';
+import type { StoredReportIdentity } from '../report/runReportQuery';
+import { isReportDoor, reportVouchOf } from '../../domain/schema/report/reportDoor';
 import type { ReportSeriesDeps } from '../report/runReportQuery';
 import { FirestoreReportDefinitionReader } from '../../data/repositories/FirestoreReportDefinitionReader';
 import { FirestoreReportSnapshotRepository } from '../../data/repositories/FirestoreReportSnapshotRepository';
@@ -79,6 +81,7 @@ export const runReport = onCall(
     const db = getDb();
 
     let spec: ReportSpec;
+    let identity: StoredReportIdentity | undefined;
     if (rawSpec !== undefined) {
       // Quem escreve relatório pessoal também pré-visualiza: a leitura de cada coleção continua cobrada
       // logo abaixo, então a pré-visualização não lhe mostra nada que o relatório salvo não mostraria.
@@ -93,11 +96,18 @@ export const runReport = onCall(
       if (!snapshot.exists || foreign) {
         throw new HttpsError('not-found', '@core.reports/handler.not-found', { messageParams: { id: reportId ?? '' } });
       }
-      const stored = (snapshot.data() as { spec?: ReportSpec } | undefined)?.spec;
+      const data = snapshot.data() as { spec?: ReportSpec; sourceId?: unknown; ownerId?: unknown; vouch?: unknown } | undefined;
+      const stored = data?.spec;
       if (!stored) {
         throw new HttpsError('failed-precondition', '@core.reports/handler.spec.missing');
       }
       spec = stored;
+      identity = {
+        id: snapshot.id,
+        sourceId: typeof data?.sourceId === 'string' ? data.sourceId : null,
+        ownerId: personal === true ? userId : null,
+        vouch: reportVouchOf(data?.vouch),
+      };
     }
 
     const deps: WorkflowQueryDeps = {
@@ -118,7 +128,10 @@ export const runReport = onCall(
       reports: new FirestoreReportDefinitionReader(db),
       snapshots: new FirestoreReportSnapshotRepository(db),
     };
-    const permissions = await requireReportAccess(spec, schema, tenantId, request.auth, series.reports);
+    const permissions = await requireReportAccess(spec, schema, tenantId, request.auth, series.reports, identity);
+    // A PORTA avalizada (#33) lê com a visão de quem a avalizou, que via todos os registros: o recorte
+    // por registro do leitor tiraria da conta justamente o que o relatório existe para entregar.
+    const door = identity !== undefined && isReportDoor({ ...identity, spec });
 
     const logs: string[] = [];
     const logger: WorkflowLogger = {
@@ -142,7 +155,7 @@ export const runReport = onCall(
       actor: await identifyActor(userId, 'ui', permissions),
       // O relatório conta só o que quem o roda vê: um total que incluísse o registro que a regra lhe
       // esconde contaria o sigilo dele.
-      reader: { uid: userId, permissions },
+      ...(door ? {} : { reader: { uid: userId, permissions } }),
       input: prompts ?? {},
     };
 

@@ -1,3 +1,4 @@
+import { artifactAccessOf } from '../../domain/schema/access/artifactAccess';
 import {
   collection,
   doc,
@@ -49,6 +50,7 @@ const mapDefinition = (id: string, d: Record<string, unknown>, tenantId: string)
   changedFields: Array.isArray(d.changedFields) ? (d.changedFields as string[]) : null,
   mailFilter: (d.mailFilter as MailFilter | null | undefined) ?? null,
   subscribable: d.subscribable === true,
+  access: artifactAccessOf(d.access),
   ownerPluginId: (d.ownerPluginId as string | undefined) ?? undefined,
   ownerPluginIds: (d.ownerPluginIds as string[] | undefined) ?? undefined,
   sourceId: (d.sourceId as string | undefined) ?? undefined,

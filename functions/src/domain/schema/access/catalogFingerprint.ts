@@ -6,6 +6,7 @@
 
 import { buildPermissionCatalog } from './resolvePermissions';
 import { KERNEL_PERMISSIONS, KERNEL_PERMISSION_RESOURCES } from './kernelPermissions';
+import { artifactPermissionResources } from './artifactAccess';
 import { textFingerprint } from '../contentFingerprint';
 
 /**
@@ -34,7 +35,15 @@ const DERIVATION_PROBE = 'derivationProbe';
 const catalogShape = (): string => {
   const catalog = buildPermissionCatalog(
     KERNEL_PERMISSIONS.map((permission) => ({ permission, source: 'core.access' })),
-    [...KERNEL_PERMISSION_RESOURCES, { id: DERIVATION_PROBE, name: DERIVATION_PROBE, deriveCrud: true }],
+    [
+      ...KERNEL_PERMISSION_RESOURCES,
+      { id: DERIVATION_PROBE, name: DERIVATION_PROBE, deriveCrud: true },
+      // As PORTAS (#33) também derivam: o que "Executar: <fluxo>" arrasta muda no código, não no banco.
+      ...artifactPermissionResources(
+        [{ id: DERIVATION_PROBE, name: DERIVATION_PROBE, access: { restricted: true } }],
+        [{ id: DERIVATION_PROBE, title: DERIVATION_PROBE, restricted: true }],
+      ),
+    ],
   );
   return catalog.list
     .map((permission) => `${permission.id}<${[...permission.requires].sort().join(',')}`)

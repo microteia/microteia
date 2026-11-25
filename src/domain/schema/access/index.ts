@@ -69,6 +69,7 @@ export {
 export type {
   CatalogPermission,
   DeclaredPermission,
+  DerivedResourceAction,
   DeclaredRequirement,
   PermissionCatalog,
   PermissionResource,
@@ -116,3 +117,27 @@ export {
   pendingAccessUpgrades,
   upgradeRolePermissions,
 } from './accessUpgrades';
+
+export type {
+  AccessArtifact,
+  ArtifactAccess,
+  RestrictedReportSource,
+  RestrictedWorkflowSource,
+  WorkflowDoor,
+} from './artifactAccess';
+export {
+  ARTIFACT_ACCESS_SINCE_KERNEL,
+  REPORT_RESOURCE_PREFIX,
+  REPORT_VIEW_ACTION,
+  WORKFLOW_RESOURCE_PREFIX,
+  WORKFLOW_RUN_ACTION,
+  artifactAccessOf,
+  artifactPermissionResources,
+  chosenPermission,
+  isRestricted,
+  reportViewPermissionId,
+  reportViewResourceId,
+  workflowRunPermissionId,
+  workflowRunPermissions,
+  workflowRunResourceId,
+} from './artifactAccess';

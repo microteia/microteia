@@ -37,7 +37,9 @@ import { getScreenIconType } from '../../shared/screenIcons';
 import { getStepIcon as getStepIconType } from '../../shared/stepIcons';
 import { RiGitBranchLine, RiGitForkLine, RiLoopLeftLine, RiSignpostLine } from 'react-icons/ri';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_AUTOMATION_MANAGE } from '../../../domain/schema/access';
+import { PERMISSION_AUTOMATION_MANAGE, artifactAccessOf, chosenPermission, isRestricted, workflowRunPermissions } from '../../../domain/schema/access';
+import type { ArtifactAccess } from '../../../domain/schema/access';
+import { usePermissionOptions } from '../../shared/usePermissionOptions';
 import { WORKFLOW_CHANGE_TYPES } from '../../../domain/schema/workflowChangeFilter';
 import type { WorkflowChangeType } from '../../../domain/schema/workflowChangeFilter';
 import { generateDeepLink } from '../../../infrastructure/deeplink/deepLinkUtils';
@@ -181,7 +183,24 @@ export interface WorkflowFormData {
   /** Vazio = tanto faz. */
   mailAttachments: '' | 'with' | 'without';
   subscribable: boolean;
+  /** Quem pode executar à mão (#33). Só no gatilho chamável. */
+  accessMode: WorkflowAccessMode;
+  accessPermission: string;
 }
+
+export type WorkflowAccessMode = 'everyone' | 'own' | 'permission';
+
+const accessModeOf = (access: ArtifactAccess | null | undefined): WorkflowAccessMode => {
+  if (isRestricted(access)) return 'own';
+  return chosenPermission(access) ? 'permission' : 'everyone';
+};
+
+/** O `access` como a automação o grava. Fora do gatilho chamável não há porta, e o campo sai. */
+const accessOfForm = (form: WorkflowFormData, callable: boolean): ArtifactAccess | null => {
+  if (!callable) return null;
+  if (form.accessMode === 'own') return { restricted: true };
+  return artifactAccessOf(form.accessMode === 'permission' ? { permission: form.accessPermission } : null);
+};
 
 const sanitizeParameters = sanitizeWorkflowParameters;
 
@@ -217,6 +236,8 @@ const buildForm = (w: WorkflowDefinition | null): WorkflowFormData => ({
   mailSubjectSetting: w?.mailFilter?.subjectSetting ?? '',
   mailAttachments: w?.mailFilter?.hasAttachments === true ? 'with' : w?.mailFilter?.hasAttachments === false ? 'without' : '',
   subscribable: w?.subscribable === true,
+  accessMode: accessModeOf(w?.access),
+  accessPermission: chosenPermission(w?.access) ?? '',
 });
 
 /** O filtro do gatilho de e-mail como a automação o grava; sem termo nenhum, não há filtro. */
@@ -430,6 +451,14 @@ export interface ViewWorkflowViewModel {
   /** O gatilho é "Ao receber e-mail": o filtro de remetente/assunto/anexo e a marca de assinável aparecem. */
   isMailEvent: boolean;
   mailAttachmentOptions: { value: string; label: string }[];
+  /** O gatilho é chamável à mão (botão, lista, agente): só nele a seção "Quem pode executar" aparece. */
+  isManualRunEvent: boolean;
+  accessModeOptions: { value: WorkflowAccessMode; label: string }[];
+  accessPermissionOptions: { value: string; label: string }[];
+  /** Onde a permissão gerada aparece em Perfis — o nome dela, já com o nome do fluxo. */
+  accessOwnHint: string;
+  accessError: string | null;
+  setAccessMode: (value: string) => void;
   mailFilterError: string | null;
   isSenderTermValid: (term: string) => boolean;
   changeTypeOptions: { value: string; label: string }[];
@@ -1046,6 +1075,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
       const mailTrigger = formData.eventName === MAIL_RECEIVED_EVENT;
       const mailFilter = mailTrigger ? mailFilterOf(formData) : null;
       const subscribable = mailTrigger && formData.subscribable;
+      const access = accessOfForm(formData, isCalledEventName(formData.eventName));
 
       if (isNew) {
         const createData: Record<string, unknown> = {
@@ -1069,6 +1099,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         if (changedFields.length > 0) createData.changedFields = changedFields;
         if (mailFilter) createData.mailFilter = mailFilter;
         if (subscribable) createData.subscribable = true;
+        if (access) createData.access = access;
 
         const chosenId = withArtifactPrefix(
           artifactPrefix,
@@ -1093,6 +1124,7 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
         updateData.changedFields = changedFields;
         updateData.mailFilter = mailFilter;
         updateData.subscribable = subscribable;
+        updateData.access = access;
 
         await updateWorkflow(workflow.id, updateData as Parameters<typeof updateWorkflow>[1]);
         notify(t('workflow.saved'), 'success');
@@ -1535,6 +1567,25 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
   const isSavedEvent = isSavedEventName(formData.eventName);
   const isMailEvent = formData.eventName === MAIL_RECEIVED_EVENT;
 
+  const isManualRunEvent = isCalledEventName(formData.eventName);
+  const accessModeOptions = useMemo(
+    () => [
+      { value: 'everyone' as const, label: t('workflow.access.everyone') },
+      { value: 'own' as const, label: t('workflow.access.own') },
+      { value: 'permission' as const, label: t('workflow.access.permission') },
+    ],
+    [t],
+  );
+  const accessPermissionOptions = usePermissionOptions(formData.accessPermission || null);
+  const setAccessMode = useCallback((value: string) => {
+    const mode = accessModeOptions.find((option) => option.value === value)?.value ?? 'everyone';
+    setFormData({ accessMode: mode });
+  }, [accessModeOptions, setFormData]);
+  const accessOwnHint = t('workflow.access.own.hint', { name: label(formData.name) || t('workflow.access.unnamed') });
+  const accessError = isManualRunEvent && formData.accessMode === 'permission' && !chosenPermission({ permission: formData.accessPermission })
+    ? t('workflow.access.permission.missing')
+    : null;
+
   const mailAttachmentOptions = useMemo(
     () => [
       { value: '', label: t('trigger.mail.attachments.any') },
@@ -1593,9 +1644,16 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     }
   }, [currentTenant, workflowExecutionRepository, notify, t, label]);
 
+  // A porta do fluxo vale também aqui (#33): gerenciar automações não concede executar a restrita — o
+  // mesmo `runWorkflow` a recusaria, e o botão não pode prometer o que a porta nega.
+  const missingToRun = useMemo(
+    () => (workflow ? workflowRunPermissions(workflow).find((permission) => !can(permission)) ?? null : null),
+    [workflow, can],
+  );
+
   const canRunWorkflow = useMemo(
-    () => !!workflow && isCalledEventName(workflow.eventName),
-    [workflow],
+    () => !!workflow && isCalledEventName(workflow.eventName) && missingToRun === null,
+    [workflow, missingToRun],
   );
 
   const runWorkflowDisabledReason = useMemo(() => {
@@ -1603,8 +1661,9 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     if (!isCalledEventName(workflow.eventName)) {
       return t('workflow.run.only-callable');
     }
+    if (missingToRun) return label('@core.access/permission.denied', { permission: missingToRun });
     return null;
-  }, [workflow, t]);
+  }, [workflow, missingToRun, t, label]);
 
   const runModalParameters = useMemo(() => workflow?.parameters ?? [], [workflow]);
 
@@ -1820,6 +1879,12 @@ export const useViewWorkflowViewModel = (tabKey: string): ViewWorkflowViewModel 
     isSavedEvent,
     isMailEvent,
     mailAttachmentOptions,
+    isManualRunEvent,
+    accessModeOptions,
+    accessPermissionOptions,
+    accessOwnHint,
+    accessError,
+    setAccessMode,
     mailFilterError,
     isSenderTermValid,
     changeTypeOptions,

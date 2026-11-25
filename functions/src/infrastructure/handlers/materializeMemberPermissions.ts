@@ -144,3 +144,35 @@ export const materializePermissionsOnOnboardingChange = onDocumentWritten(
     await rebuild(event.params.tenantId);
   },
 );
+
+const flagOn = (snapshot: DocumentSnapshot | undefined, path: readonly string[]): boolean => {
+  if (!snapshot?.exists) return false;
+  let current: unknown = snapshot.data();
+  for (const key of path) current = current && typeof current === 'object' ? (current as Record<string, unknown>)[key] : undefined;
+  return current === true;
+};
+
+/**
+ * Um workflow passou a GERAR a própria permissão, ou deixou de gerar (#33) — o catálogo ganhou ou perdeu
+ * "Executar: <fluxo>". Só a troca da marca acorda: salvar um fluxo é o gesto mais comum do designer, e
+ * recompor o escritório inteiro a cada passo editado seria pagar a leitura de todos os membros por nada.
+ * O nome não entra: o rótulo é resolvido na tela, e renomear não muda o que ninguém tem.
+ */
+export const materializePermissionsOnWorkflowAccessChange = onDocumentWritten(
+  { document: 'tenants/{tenantId}/workflow_definitions/{workflowId}', region: REGION },
+  async (event: WriteEvent) => {
+    const path = ['access', 'restricted'];
+    if (flagOn(event.data?.before, path) === flagOn(event.data?.after, path)) return;
+    await rebuild(event.params.tenantId);
+  },
+);
+
+/** O mesmo, para o relatório do escritório que vira (ou deixa de ser) porta: "Abrir: <relatório>". */
+export const materializePermissionsOnReportAccessChange = onDocumentWritten(
+  { document: 'tenants/{tenantId}/reports/{reportId}', region: REGION },
+  async (event: WriteEvent) => {
+    const path = ['spec', 'access', 'restricted'];
+    if (flagOn(event.data?.before, path) === flagOn(event.data?.after, path)) return;
+    await rebuild(event.params.tenantId);
+  },
+);

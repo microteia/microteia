@@ -1,10 +1,14 @@
 import type { ReportSpec } from '../schema/report/reportSpec';
+import type { ReportVouch } from '../schema/report/reportDoor';
 
 export interface StoredReport {
   id: string;
   key: string;
   title: string;
   spec: ReportSpec;
+  /** O que a PORTA precisa (#33): o id estável e o aval. */
+  sourceId?: string | null;
+  vouch?: ReportVouch | null;
 }
 
 /**

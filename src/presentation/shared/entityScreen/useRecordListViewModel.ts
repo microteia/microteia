@@ -1,3 +1,4 @@
+import { useActionRunGate } from '../recordActions/useActionRunGate';
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useEnsureReferencedRecords } from '../useEnsureReferencedRecords';
 import { useServerRecordSearch } from '../useServerRecordSearch';
@@ -544,9 +545,10 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
     t,
   }), [collection, screenKey, definition, parent, lockFields, openTab, notify, updateRecord, recordTabKeys, openRecordDialog, t]);
 
+  const missingToRun = useActionRunGate();
   const cardActionDefs = useMemo(
-    () => getActionsByIds(definition?.cardActionIds ?? []),
-    [getActionsByIds, definition],
+    () => getActionsByIds(definition?.cardActionIds ?? []).filter((action) => missingToRun(action) === null),
+    [getActionsByIds, definition, missingToRun],
   );
 
   const parameterPrompt = useActionParameterPrompt();

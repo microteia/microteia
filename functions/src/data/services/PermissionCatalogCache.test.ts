@@ -4,17 +4,24 @@ import { PermissionCatalogCache } from './PermissionCatalogCache';
 
 type Docs = Record<string, Record<string, unknown>>;
 
+const valueAt = (data: Record<string, unknown>, path: string): unknown =>
+  path.split('.').reduce<unknown>((current, key) => (current && typeof current === 'object' ? (current as Record<string, unknown>)[key] : undefined), data);
+
 const fakeDb = (collections: Record<string, Docs>) => {
   const reads: string[] = [];
+  const snapshotOf = (path: string, keep: (data: Record<string, unknown>) => boolean) => async () => {
+    reads.push(path);
+    const name = path.split('/').pop() as string;
+    return {
+      docs: Object.entries(collections[name] ?? {})
+        .filter(([, data]) => keep(data))
+        .map(([id, data]) => ({ id, data: () => data })),
+    };
+  };
   const db = {
     collection: (path: string) => ({
-      get: async () => {
-        reads.push(path);
-        const name = path.split('/').pop() as string;
-        return {
-          docs: Object.entries(collections[name] ?? {}).map(([id, data]) => ({ id, data: () => data })),
-        };
-      },
+      get: snapshotOf(path, () => true),
+      where: (field: string, _op: string, value: unknown) => ({ get: snapshotOf(path, (data) => valueAt(data, field) === value) }),
     }),
   } as unknown as Firestore;
   return { db, reads };
@@ -39,6 +46,31 @@ describe('PermissionCatalogCache', () => {
     expect(catalogo.byId.has('consultas.read')).toBe(true);
     expect(catalogo.byId.has('especialidades.read')).toBe(true);
     expect(catalogo.byId.has('consultas_tags.create')).toBe(true);
+  });
+
+  it('cada porta restrita gera a própria permissão; a que não é restrita não gera nada (#33)', async () => {
+    const { db } = fakeDb({
+      workflow_definitions: {
+        wfA: { name: 'Adjust salary', access: { restricted: true } },
+        wfB: { name: 'Issue receipt' },
+        wfC: { name: 'From extension', sourceId: 'src1', access: { restricted: true } },
+      },
+      reports: {
+        repA: { title: 'Payroll', spec: { access: { restricted: true } } },
+        repB: { title: 'Mine', ownerId: 'u1', spec: { access: { restricted: true } } },
+        repC: { title: 'Sales', spec: {} },
+      },
+    });
+
+    const catalogo = await new PermissionCatalogCache(db).get('t1');
+
+    expect(catalogo.byId.get('workflow-wfA.run')?.requires).toEqual(['automation.run']);
+    expect(catalogo.byId.has('workflow-wfB.run')).toBe(false);
+    expect(catalogo.byId.has('workflow-src1.run')).toBe(true);
+    expect(catalogo.byId.has('report-repA.view')).toBe(true);
+    expect(catalogo.byId.has('report-repB.view')).toBe(false);
+    expect(catalogo.byId.has('report-repC.view')).toBe(false);
+    expect(catalogo.resourceLabels.get('workflow-wfA')).toEqual({ name: '@core.access/resource.workflow', nameParams: { name: 'Adjust salary' } });
   });
 
   it('`fresh` relê o banco mesmo com o cache válido', async () => {

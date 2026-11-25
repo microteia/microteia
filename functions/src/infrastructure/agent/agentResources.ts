@@ -1,12 +1,14 @@
 import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import { resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { ReportPrompt, ReportSpec } from '../../domain/schema/report/reportSpec';
-import { reportRequiredPermissions } from '../../domain/schema/report/reportSpec';
+import { reportOpenPermissions, reportVouchOf } from '../../domain/schema/report/reportDoor';
+import { isSnapshotReport, snapshotSourceSpec } from '../../domain/schema/report/reportSnapshot';
 import { PERSONAL_REPORTS_COLLECTION } from '../../domain/schema/report/personalReport';
 import { AGENT_ENFORCED, AGENT_UNENFORCED } from '../../domain/schema/agent/agentOps';
 import { WORKFLOW_CALLED_EVENT } from '../../domain/schema/eventCatalog';
 import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access/kernelPermissions';
 import { grants } from '../../domain/schema/access/memberPermissions';
+import { artifactAccessOf, workflowRunPermissions } from '../../domain/schema/access/artifactAccess';
 import type { WorkflowParameter } from '../../domain/entities/Workflow';
 import { describeParameters } from '../../domain/schema/agent/agentWorkflow';
 import type { SchemaContext } from '../../domain/schema/screenEntity';
@@ -69,8 +71,8 @@ const promptValueShape = (ctx: SchemaContext, table: string, prompt: ReportPromp
 /**
  * Os relatórios que este acesso pode rodar, e o que cada um pergunta antes de rodar.
  *
- * "Pode rodar" é a MESMA lista que `run_report` cobra (`reportRequiredPermissions`): a permissão
- * própria do relatório e a leitura de cada coleção. Listar um relatório que seria recusado é
+ * "Pode rodar" é a MESMA lista que `run_report` cobra (`reportOpenPermissions`): a permissão
+ * própria do relatório e a leitura de cada coleção — ou só a da porta avalizada (#33). Listar um relatório que seria recusado é
  * convidar o agente a tentar.
  */
 export const officeReports = async (
@@ -84,13 +86,24 @@ export const officeReports = async (
     getDI().getScreenDefinitionCache().getSchemaContext(session.tenantId),
   ]);
   const personalIds = new Set(personal.docs.map((doc) => doc.id));
+  const sharedReports = snapshot.docs.map((doc) => ({ key: String(doc.get('key') ?? doc.id), spec: doc.get('spec') as ReportSpec }));
 
   return [...snapshot.docs, ...personal.docs]
     .filter((doc) => doc.get('enabled') !== false)
     .filter((doc) => {
       const spec = doc.get('spec') as ReportSpec | undefined;
-      return spec?.dataset !== undefined
-        && reportRequiredPermissions(spec, ctx).every((permission) => grants(session.permissions, permission));
+      if (spec?.dataset === undefined) return false;
+      // A mesma pergunta de `run_report`, com a PORTA (#33). A série cuja origem não está à mão fica de
+      // fora: `run_report` a recusaria.
+      const source = isSnapshotReport(spec) ? snapshotSourceSpec(spec, sharedReports) : undefined;
+      const required = reportOpenPermissions({
+        id: doc.id,
+        sourceId: typeof doc.get('sourceId') === 'string' ? doc.get('sourceId') as string : null,
+        ownerId: personalIds.has(doc.id) ? session.userId : null,
+        spec,
+        vouch: reportVouchOf(doc.get('vouch')),
+      }, ctx, source);
+      return required !== null && required.every((permission) => grants(session.permissions, permission));
     })
     .map((doc) => {
       // Os filtros que o relatório PERGUNTA vivem em `presentation.prompts`, e o valor de cada um é
@@ -138,6 +151,12 @@ export const officeWorkflows = async (
 
   return snapshot.docs
     .filter((doc) => doc.get('enabled') !== false)
+    // A PORTA de cada fluxo (#33): o que este acesso não pode executar não aparece.
+    .filter((doc) => workflowRunPermissions({
+      id: doc.id,
+      sourceId: typeof doc.get('sourceId') === 'string' ? doc.get('sourceId') as string : null,
+      access: artifactAccessOf(doc.get('access')),
+    }).every((permission) => grants(session.permissions, permission)))
     .map((doc) => {
       // O parâmetro é gravado com `key`, e esta resposta lia `name`: todo parâmetro chegava ao
       // agente como `"name": ""`. A descrição agora é a MESMA de `describe_workflow`.

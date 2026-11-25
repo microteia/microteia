@@ -129,3 +129,14 @@ export {
   reportOf,
 } from './reportExtensionPoints';
 export type { ReportContributionMetadata } from './reportExtensionPoints';
+
+export type { ReportDoorSource, ReportVouch } from './reportDoor';
+export {
+  isReportDoor,
+  isRestrictedReport,
+  reportOpenPermissions,
+  reportVouchHolds,
+  reportVouchOf,
+  reportVouchPermissions,
+  restrictedReportSources,
+} from './reportDoor';

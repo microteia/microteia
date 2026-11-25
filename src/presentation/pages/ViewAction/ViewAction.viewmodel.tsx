@@ -5,7 +5,7 @@ import { withArtifactPrefix } from '../../../domain/schema/plugin/artifactPrefix
 import { useArtifactPrefix } from '../../shared/settings/useArtifactPrefix';
 import { useWorkflowStore } from '../../../stores/useWorkflowStore';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_AUTOMATION_MANAGE } from '../../../domain/schema/access';
+import { PERMISSION_AUTOMATION_MANAGE, chosenPermission, isRestricted } from '../../../domain/schema/access';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
 import { WORKFLOW_CALLED_EVENT } from '../../../domain/schema/eventCatalog';
@@ -90,6 +90,11 @@ export interface PromptableParameter {
 
 export interface ViewActionViewModel {
   isAdmin: boolean;
+  /**
+   * O fluxo escolhido restringe quem o executa (#33): o botão segue essa restrição, e a tela diz onde ela
+   * mora — a ação não tem permissão própria. `null` quando o fluxo é de todos.
+   */
+  workflowAccessNotice: string | null;
   isNew: boolean;
   /** O identificador do documento: editável só na inclusão, sugerido a partir do título. */
   /** O prefixo do escritório, fixo à frente do id na criação; `null` sem prefixo. */
@@ -205,6 +210,13 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
       .map((param) => ({ key: param.key, label: label(param.label) || param.key, required: !!param.required }));
   }, [workflows, formData.workflowId, label]);
 
+  const workflowAccessNotice = useMemo(() => {
+    if (formData.command) return null;
+    const workflow = workflows.find((candidate) => candidate.id === formData.workflowId);
+    if (!workflow || (!isRestricted(workflow.access) && !chosenPermission(workflow.access))) return null;
+    return t('workflow.access.action-follows', { name: label(workflow.name) });
+  }, [workflows, formData.workflowId, formData.command, label, t]);
+
   const setParameterDefault = useCallback((key: string, expression: string) => {
     setForm((prev) => ({
       ...prev,
@@ -296,6 +308,7 @@ export const useViewActionViewModel = (tabKey: string): ViewActionViewModel => {
 
   return {
     isAdmin: can(PERMISSION_AUTOMATION_MANAGE),
+    workflowAccessNotice,
     isNew,
     artifactPrefix,
     suggestedActionId,

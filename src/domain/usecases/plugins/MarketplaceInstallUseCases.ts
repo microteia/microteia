@@ -1,3 +1,4 @@
+import type { ReportSpec } from '../../schema/report/reportSpec';
 import type { LookupModuleTemplate, MarketplacePlugin, ScreenPatchTemplate } from '../../entities/MarketplacePlugin';
 import { planLookupSeed, type SeededLookupOptions } from '../../schema/lookupSeed';
 import type { IWorkflowDefinitionRepository } from '../../repositories/IWorkflowDefinitionRepository';
@@ -319,6 +320,20 @@ const materializeArtifacts = async (
  * o que existe é o gesto de duplicar para editar, que produz uma cópia `design` sem `ownerPluginIds`
  * e por isso invisível para este laço.
  */
+/**
+ * O relatório RESTRITO do pacote é avalizado pela instalação (#33): quem instala tem `extensions.manage`,
+ * que já instala fluxos que gravam em qualquer coleção. Sem o aval ele abre como um relatório comum — por
+ * isso a falha não derruba a instalação: o pior caso é a porta fechada, nunca aberta.
+ */
+const vouchIfRestricted = async (deps: ArtifactDeps, tenantId: string, reportId: string, spec: ReportSpec): Promise<void> => {
+  if (spec.access?.restricted !== true) return;
+  try {
+    await deps.reportRepository.vouch(tenantId, reportId);
+  } catch (error) {
+    console.error('[materializeReports] aval do relatório restrito:', reportId, error);
+  }
+};
+
 const materializeReports = async (
   deps: ArtifactDeps,
   plugin: MarketplacePlugin,
@@ -345,6 +360,7 @@ const materializeReports = async (
           ownerPluginIds: owners,
           ownerPluginId: existing.ownerPluginId ?? pluginId,
         });
+        await vouchIfRestricted(deps, tenantId, existing.id, input.spec);
       } else if (owners.length !== ownerSet(existing).length) {
         await deps.reportRepository.update(tenantId, existing.id, {
           ownerPluginIds: owners,
@@ -360,6 +376,7 @@ const materializeReports = async (
       installedArtifactId(template.templateId, template.title, takenReportIds),
     );
     takenReportIds.add(created.id);
+    await vouchIfRestricted(deps, tenantId, created.id, input.spec);
   }
 };
 

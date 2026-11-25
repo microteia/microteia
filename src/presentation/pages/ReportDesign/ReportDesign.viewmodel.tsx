@@ -36,6 +36,7 @@ import {
   REPORT_HIGHLIGHT_TONES,
   REPORT_SPEC_VERSION,
   isAggregateMeasure,
+  reportDrillEnabled,
 } from '../../../domain/schema/report/reportSpec';
 import { QUERY_OPERATORS } from '../../../domain/schema/querySpec';
 import type { QueryOperator, QueryPredicate } from '../../../domain/schema/querySpec';
@@ -57,6 +58,9 @@ import type {
   ReportTabularShape,
 } from '../../../domain/schema/report/reportSpec';
 import { hasBlockingReportIssue, validateReportSpec } from '../../../domain/schema/report/validateReportSpec';
+import type { ReportSpecIssue } from '../../../domain/schema/report/validateReportSpec';
+import { reportVouchPermissions } from '../../../domain/schema/report/reportDoor';
+import { usePermissionOptions } from '../../shared/usePermissionOptions';
 import {
   REPORT_SNAPSHOT_DATASET_KIND,
   isSnapshotReport,
@@ -74,6 +78,8 @@ import { errorParamsOf } from '../../../domain/errors/LocalizedError';
 import type { DesignerMetaItem } from '../../components/layout/DesignerShell';
 
 export type ReportShapeKindChoice = 'tabular' | 'summary' | 'matrix';
+
+export type ReportAccessMode = 'everyone' | 'own' | 'permission';
 
 /**
  * Um agrupamento como a TELA o mostra.
@@ -302,6 +308,10 @@ interface ReportDraft {
   drillColumns: string[];
   /** A ordem dos registros do detalhe (`drillDown.orderBy`). Vazio = a ordem estável do servidor. */
   drillOrder: ReportDrillOrder[];
+  /** O leitor abre os registros atrás de um número (`drillDown.enabled`). Ligado é o padrão do contrato. */
+  drillEnabled: boolean;
+  /** Quem abre o relatório (#33): quem lê o que ele cobre, só quem tem a permissão dele, ou uma existente. */
+  accessMode: ReportAccessMode;
   /** O total geral do resumo e do pivô. Ligado é o padrão do contrato. */
   grandTotal: boolean;
   /** Vazio = o padrão (o valor calculado). */
@@ -415,6 +425,12 @@ export interface ReportDesignViewModel {
   permission: string;
   setPermission: (value: string) => void;
   permissionOptions: { value: string; label: string }[];
+  /** Quem pode abrir (#33). "Só quem tiver a permissão deste relatório" só existe no do escritório. */
+  accessMode: ReportAccessMode;
+  setAccessMode: (value: string) => void;
+  accessModeOptions: { value: ReportAccessMode; label: string }[];
+  /** O que a escolha aberta significa — onde a permissão aparece, ou o que a permissão existente faz. */
+  accessHint: string;
   highlights: { label: string }[];
   highlightMeasure: string;
   setHighlightMeasure: (key: string) => void;
@@ -443,6 +459,8 @@ export interface ReportDesignViewModel {
   setGroupDimensions: (keys: string[]) => void;
   /** A série de instantâneos não tem registro atrás do número: o detalhe não se aplica. */
   drillAvailable: boolean;
+  drillEnabled: boolean;
+  setDrillEnabled: (enabled: boolean) => void;
   drillColumns: string[];
   setDrillColumns: (keys: string[]) => void;
   /** `<dimensão>:<asc|desc>` do primeiro critério; vazio = a ordem padrão. */
@@ -571,6 +589,8 @@ export interface ReportDesignViewModel {
     sectionAbout: string;
     sectionCoverage: string;
     permissionField: string;
+    permissionPlaceholder: string;
+    drillEnabled: string;
     tabIssues: (count: number) => string;
     previewEmpty: string;
     save: string;
@@ -622,7 +642,6 @@ export interface ReportDesignViewModel {
     scanLimit: string;
     scanLimitPlaceholder: string;
     permission: string;
-    permissionHint: string;
     highlight: string;
     highlightHint: string;
     highlightValue: string;
@@ -725,12 +744,15 @@ export const drillDownOf = (
   original: ReportDrillDown | undefined,
   columns: readonly string[],
   orderBy: readonly ReportDrillOrder[],
+  enabled?: boolean,
 ): ReportDrillDown | undefined => {
   const kept: ReportDrillDown = { ...(original ?? {}) };
   delete kept.columns;
   delete kept.orderBy;
+  if (enabled !== undefined) delete kept.enabled;
   const next: ReportDrillDown = {
     ...kept,
+    ...(enabled === false ? { enabled: false } : {}),
     ...(columns.length > 0 ? { columns: [...columns] } : {}),
     ...(orderBy.length > 0 ? { orderBy: [...orderBy] } : {}),
   };
@@ -840,6 +862,8 @@ const draftFromSpec = (spec: ReportSpec, title: string): ReportDraft => ({
   highlights: spec.presentation?.highlight ?? [],
   drillColumns: spec.presentation?.drillDown?.columns ?? [],
   drillOrder: spec.presentation?.drillDown?.orderBy ?? [],
+  drillEnabled: spec.presentation?.drillDown?.enabled !== false,
+  accessMode: spec.access?.restricted === true ? 'own' : spec.access?.permission ? 'permission' : 'everyone',
   grandTotal: !('grandTotal' in spec.shape) || spec.shape.grandTotal !== false,
   emptyCell: spec.shape.kind === 'matrix' ? (spec.shape.emptyCell ?? '') : '',
   scanLimit: spec.dataset.scanLimit !== undefined ? String(spec.dataset.scanLimit) : '',
@@ -859,7 +883,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const schema = useSchemaContext();
   const { dynamicScreens } = useScreenDefinitions();
   const {
-    reports, isLoading, getReport, createReport, updateReport, deleteReport, runReport,
+    reports, isLoading, getReport, createReport, updateReport,
+    vouchReport, deleteReport, runReport,
   } = useReportDefinitions();
   const { notify } = useNotification();
   const { currentTenant } = useTenant();
@@ -971,6 +996,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         highlights: [],
         drillColumns: [],
         drillOrder: [],
+        drillEnabled: true,
+        accessMode: 'everyone',
         grandTotal: true,
         emptyCell: '',
         scanLimit: '',
@@ -1489,29 +1516,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     [designMeasures],
   );
 
-  const { catalog: permissionCatalog } = useAuthorization();
-
   /** As permissões do escritório, com o nome QUALIFICADO — a ação sozinha não diz do quê. */
-  const permissionOptions = useMemo(() => {
-    const options = permissionCatalog.list.map((permission) => {
-      const resource = permissionCatalog.resourceLabels.get(permission.resource);
-      return {
-        value: permission.id,
-        label: label('@core.access/role.qualified-name', {
-          action: label(permission.name),
-          resource: resource ? label(resource.name, resource.nameParams) : permission.resource,
-        }),
-      };
-    });
-    // A permissão gravada que o catálogo não conhece mais continua visível — sumir com ela do seletor
-    // seria removê-la na próxima gravação sem ninguém ter pedido.
-    const stored = draft.permission;
-    return [
-      { value: '', label: t('design.permission.none') },
-      ...options,
-      ...(stored && !options.some((option) => option.value === stored) ? [{ value: stored, label: stored }] : []),
-    ];
-  }, [permissionCatalog, label, draft.permission, t]);
+  const permissionOptions = usePermissionOptions(draft.permission || null);
 
   const promptPathChoices = useMemo(
     () => promptPathOptions.map((option) => ({ value: option.value, label: option.label })),
@@ -1609,7 +1615,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     delete kept.prompts;
     delete kept.highlight;
     delete kept.drillDown;
-    const drillDown = drillDownOf(original?.presentation?.drillDown, draft.drillColumns, draft.drillOrder);
+    const drillDown = drillDownOf(original?.presentation?.drillDown, draft.drillColumns, draft.drillOrder, draft.drillEnabled);
     const presentation: ReportPresentation = {
       ...kept,
       ...(chart ? { chart } : {}),
@@ -1621,9 +1627,13 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     const scan = Number.parseInt(draft.scanLimit, 10);
     const keptAccess = { ...(original?.access ?? {}) };
     delete keptAccess.permission;
+    delete keptAccess.restricted;
+    // A porta é do relatório do ESCRITÓRIO: o pessoal só o autor abre, e não há o que conceder (#33).
+    const restricted = draft.accessMode === 'own' && visibility === 'tenant';
     const access = {
       ...keptAccess,
-      ...(draft.permission ? { permission: draft.permission } : {}),
+      ...(restricted ? { restricted: true } : {}),
+      ...(draft.accessMode === 'permission' && draft.permission ? { permission: draft.permission } : {}),
     };
 
     return {
@@ -1653,9 +1663,32 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       ...(Object.keys(access).length > 0 ? { access } : {}),
       ...(original?.schedule ? { schedule: original.schedule } : {}),
     };
-  }, [draft, editing, seriesSource]);
+  }, [draft, editing, seriesSource, visibility]);
 
-  const issues = useMemo(() => validateReportSpec(snapshotReportView(spec), { schema: designSchema }), [spec, designSchema]);
+  /**
+   * O AVAL, conferido antes de salvar (#33): quem abre o relatório a outras pessoas precisa ler tudo o que
+   * ele mostra. O servidor confere de novo ao avalizar; aqui é para a recusa aparecer na aba Acesso, antes
+   * do Salvar, e não depois.
+   */
+  const doorIssues = useMemo<ReportSpecIssue[]>(() => {
+    if (spec.access?.restricted !== true || visibility !== 'tenant' || isManaged) return [];
+    const required = reportVouchPermissions(spec, schema, seriesSource?.spec) ?? [];
+    const missing = required.filter((permission) => !can(permission));
+    return [
+      ...(missing.length > 0
+        ? [{ field: 'access.restricted', error: '@core.reports/design.access.vouch-missing', errorParams: { permission: missing.join(', ') } }]
+        : []),
+      // O detalhamento é parte da porta: quem a abre vê os registros atrás de cada número.
+      ...(reportDrillEnabled(spec)
+        ? [{ field: 'access.restricted', error: '@core.reports/design.access.drill-opens-records', severity: 'warning' as const }]
+        : []),
+    ];
+  }, [spec, visibility, isManaged, schema, seriesSource, can]);
+
+  const issues = useMemo(
+    () => [...validateReportSpec(snapshotReportView(spec), { schema: designSchema }), ...doorIssues],
+    [spec, designSchema, doorIssues],
+  );
 
   const errors = useMemo(
     () => issues
@@ -1729,8 +1762,10 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     if (hasBlockingReportIssue(issues) || draft.title.trim() === '') return;
     setIsSaving(true);
     try {
+      let savedId: string;
       if (editing) {
         await updateReport(editing.id, { title: draft.title.trim(), spec });
+        savedId = editing.id;
       } else {
         const taken = new Set(reports.map((report) => report.key));
         const key = uniqueReportKey(draft.title, taken, artifactPrefix);
@@ -1744,14 +1779,18 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
         }, key, { personal: visibility === 'personal' });
         // A partir daqui esta aba EDITA. Sem esta linha, cada Salvar seguinte criava outro relatório.
         setCreatedReport(created);
+        savedId = created.id;
       }
+      // Cada salvamento do relatório restrito pede o aval de novo (#33): o spec mudou, e o aval antigo
+      // vale só para o que foi avalizado.
+      if (spec.access?.restricted === true && visibility === 'tenant') await vouchReport(savedId);
       notify(t('save.done'), 'success');
     } catch (caught) {
       reportProblem(caught);
     } finally {
       setIsSaving(false);
     }
-  }, [artifactPrefix, issues, draft, spec, editing, reports, createReport, updateReport, notify, t, reportProblem, visibility]);
+  }, [artifactPrefix, issues, draft, spec, editing, reports, createReport, updateReport, vouchReport, notify, t, reportProblem, visibility]);
 
   const confirmDelete = useCallback(async () => {
     if (!editing) return;
@@ -1855,6 +1894,16 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     permission: draft.permission,
     setPermission: (permission) => change({ permission }),
     permissionOptions,
+    accessMode: draft.accessMode === 'own' && visibility !== 'tenant' ? 'everyone' : draft.accessMode,
+    setAccessMode: (value) => change({ accessMode: value === 'own' || value === 'permission' ? value : 'everyone' }),
+    accessModeOptions: [
+      { value: 'everyone', label: t('design.permission.none') },
+      ...(visibility === 'tenant' ? [{ value: 'own' as const, label: t('design.access.own') }] : []),
+      { value: 'permission', label: t('design.access.permission') },
+    ],
+    accessHint: draft.accessMode === 'own' && visibility === 'tenant'
+      ? t('design.access.own.hint', { name: draft.title.trim() || t('page.design') })
+      : draft.accessMode === 'permission' ? t('design.permission.hint') : t('design.access.everyone.hint'),
     highlights: draft.highlights.map((rule) => ({
       label: t('design.highlight.summary', {
         measure: measureName(rule.measure),
@@ -1889,6 +1938,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     groupDimensions: draft.groupDimensions,
     setGroupDimensions: (groupDimensions) => change({ groupDimensions }),
     drillAvailable: !seriesSource,
+    drillEnabled: draft.drillEnabled,
+    setDrillEnabled: (drillEnabled) => change({ drillEnabled }),
     drillColumns: draft.drillColumns,
     setDrillColumns: (drillColumns) => change({ drillColumns }),
     drillOrder: draft.drillOrder[0] ? `${draft.drillOrder[0].dimension}:${draft.drillOrder[0].dir}` : '',
@@ -2016,6 +2067,8 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       sectionAbout: t('design.section.about'),
       sectionCoverage: t('design.section.coverage'),
       permissionField: t('design.permission.extra'),
+      permissionPlaceholder: t('design.permission.placeholder'),
+      drillEnabled: t('design.drill.enabled'),
       tabIssues: (count) => t('design.tab.issues', { count: String(count) }),
       previewEmpty: t('design.preview.empty'),
       save: t('design.save'),
@@ -2067,7 +2120,6 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       scanLimit: t('design.scan-limit'),
       scanLimitPlaceholder: t('design.scan-limit.placeholder'),
       permission: t('design.permission'),
-      permissionHint: t('design.permission.hint'),
       highlight: t('design.highlight'),
       highlightHint: t('design.highlight.hint'),
       highlightValue: t('design.highlight.value'),

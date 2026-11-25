@@ -1,3 +1,4 @@
+import { useActionRunGate } from '../recordActions/useActionRunGate';
 import { useCallback } from 'react';
 import { useActions } from '../../../stores/useActions';
 import { useRecords } from '../../../stores/useRecords';
@@ -50,6 +51,7 @@ export const useRunRecordAction = (): ((request: RunRecordActionRequest) => Prom
   const { notify } = useNotification();
   const t = useT('core.records');
   const label = useLabel();
+  const missingToRun = useActionRunGate();
 
   return useCallback(async (request: RunRecordActionRequest): Promise<RunRecordActionResult> => {
     const { actionSourceId, actionId, collection, recordId, record, params } = request;
@@ -61,6 +63,8 @@ export const useRunRecordAction = (): ((request: RunRecordActionRequest) => Prom
     if (action.command) {
       return { ok: false, message: t('action.screen-command', { title: action.title }) };
     }
+    const missing = missingToRun(action);
+    if (missing) return { ok: false, message: label('@core.access/permission.denied', { permission: missing }) };
 
     try {
       const response = await runAction({
@@ -95,5 +99,5 @@ export const useRunRecordAction = (): ((request: RunRecordActionRequest) => Prom
       notify(t('action.run-failed'), 'error');
       return { ok: false, message: t('action.run-failed') };
     }
-  }, [actions, runAction, updateRecord, notify, t, label]);
+  }, [actions, runAction, updateRecord, notify, t, label, missingToRun]);
 };

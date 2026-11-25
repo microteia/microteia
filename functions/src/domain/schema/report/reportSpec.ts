@@ -466,6 +466,12 @@ export interface ReportAccess {
    * propósito, um gesto barato.
    */
   permission?: string;
+  /**
+   * O relatório GERA a própria permissão ("Abrir", em Perfis) e vira uma PORTA (#33): avalizado por quem
+   * lê o que ele toca, ele abre para quem tem só a permissão dele, sem a leitura das coleções. Só vale
+   * para relatório do escritório. Ver `reportDoor.ts`.
+   */
+  restricted?: boolean;
   /** O que essa permissão passa a exigir. Mesma semântica aditiva de `access.requirement`. */
   requires?: string[];
 }

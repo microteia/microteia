@@ -268,6 +268,9 @@ describe('o detalhe na autoria', () => {
 
   it('o detalhe desligado no .json sobrevive ao Salvar — a tela não tem esse controle', () => {
     expect(drillDownOf({ enabled: false, columns: ['mes'] }, [], [])).toEqual({ enabled: false });
+    // A tela agora LIGA e DESLIGA o detalhamento (#33): só os totais atravessam a porta.
+    expect(drillDownOf({ columns: ['mes'] }, ['mes'], [], false)).toEqual({ enabled: false, columns: ['mes'] });
+    expect(drillDownOf({ enabled: false }, [], [], true)).toBeUndefined();
   });
 
   it('trocar o critério mantém os desempates que vieram de fora, sem repetir a dimensão', () => {

@@ -10,6 +10,7 @@ import {
   makeDeleteReportUseCase,
   makeGetReportsUseCase,
   makeRunReportUseCase,
+  makeVouchReportUseCase,
   makeSubscribeToReportsUseCase,
   makeUpdateReportUseCase,
   makeCreatePersonalReportUseCase,
@@ -47,6 +48,7 @@ export const ReportDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     update: makeUpdateReportUseCase(reportRepository),
     delete: makeDeleteReportUseCase(reportRepository),
     run: makeRunReportUseCase(reportRepository),
+    vouch: makeVouchReportUseCase(reportRepository),
     getPersonal: makeGetPersonalReportsUseCase(personalReportRepository),
     subscribePersonal: makeSubscribeToPersonalReportsUseCase(personalReportRepository),
     createPersonal: makeCreatePersonalReportUseCase(personalReportRepository),
@@ -151,6 +153,11 @@ export const ReportDefinitionStoreProvider: React.FC<{ children: React.ReactNode
     storeEvents.emit(StoreEvents.REPORTS_UPDATED);
   }, [currentTenant, uc.sharePersonal]);
 
+  const vouchReport = useCallback(async (reportId: string) => {
+    if (!currentTenant) throw new LocalizedError('@core.ui/tenant.none-selected');
+    await uc.vouch.execute(currentTenant.id, reportId);
+  }, [currentTenant, uc.vouch]);
+
   // Quem chama passa o `report.id` que tem na mão; é aqui que se sabe de qual coleção ele é.
   const runReport = useCallback(async (input: Omit<RunReportInput, 'tenantId'>) => {
     if (!currentTenant) throw new LocalizedError('@core.ui/tenant.none-selected');
@@ -166,6 +173,7 @@ export const ReportDefinitionStoreProvider: React.FC<{ children: React.ReactNode
       updateReport,
       deleteReport,
       shareReport,
+      vouchReport,
       runReport,
       refresh,
     }}>

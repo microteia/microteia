@@ -23,6 +23,8 @@ import {
   snapshotSeriesRows,
 } from '../../domain/schema/report/reportSnapshot';
 import type { IReportDefinitionReader } from '../../domain/repositories/IReportDefinitionReader';
+import { reportOpenPermissions } from '../../domain/schema/report/reportDoor';
+import type { ReportDoorSource } from '../../domain/schema/report/reportDoor';
 import type { IReportSnapshotRepository } from '../../domain/repositories/IReportSnapshotRepository';
 import { aggregateReportRows, drillReportRows } from '../../domain/schema/report/aggregateRows';
 import type { ReportDrillResult, ReportDrillTarget } from '../../domain/schema/report/aggregateRows';
@@ -57,6 +59,9 @@ export type ReportOutcome =
   /** `error` é uma REFERÊNCIA de mensagem; `errorParams` traz o que a frase interpola. */
   | { ok: false; error: string; errorParams?: Record<string, string>; issues?: ReportSpecIssue[] };
 
+/** O que identifica um relatório SALVO — o que a porta precisa além do spec. */
+export type StoredReportIdentity = Omit<ReportDoorSource, 'spec'>;
+
 /**
  * Cobra, no SERVIDOR, tudo o que ver o relatório exige (`reportRequiredPermissions`): a permissão
  * PRÓPRIA dele, quando declarada, e a leitura de cada coleção que ele toca.
@@ -81,10 +86,12 @@ export const requireReportAccess = async (
   tenantId: string,
   caller: CallerAuth,
   reports?: IReportDefinitionReader,
+  stored?: StoredReportIdentity,
 ): Promise<string[]> => {
   // A série cobra as permissões do relatório de ORIGEM. Sem como lê-lo, recusa: falha fechada.
   const source = isSnapshotReport(spec) && reports ? (await reports.find(tenantId, spec.dataset.table))?.spec : undefined;
-  const required = reportAccessPermissions(spec, ctx, source);
+  // O relatório SALVO pode ser uma porta (#33); o spec cru da autoria nunca é — ninguém o avalizou.
+  const required = stored ? reportOpenPermissions({ ...stored, spec }, ctx, source) : reportAccessPermissions(spec, ctx, source);
   if (required === null) {
     throw new HttpsError('permission-denied', '@core.reports/snapshot.source-missing', { messageParams: { report: spec.dataset.table } });
   }

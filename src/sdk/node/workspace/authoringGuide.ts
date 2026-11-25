@@ -65,6 +65,12 @@ import {
 import { PORTAL_RECORDS_WINDOW } from '../../../domain/entities/Portal';
 import { RECORD_IMPORT_BATCH_SIZE, RECORD_IMPORT_MAX_ROWS } from '../../../domain/schema/recordImport';
 import { PERMISSION_RECORD_IMPORT_RUN } from '../../../domain/schema/access/kernelPermissions';
+import {
+  REPORT_RESOURCE_PREFIX,
+  REPORT_VIEW_ACTION,
+  WORKFLOW_RESOURCE_PREFIX,
+  WORKFLOW_RUN_ACTION,
+} from '../../../domain/schema/access/artifactAccess';
 import { AGGREGATION_OP_LABELS, NUMERIC_AGGREGATION_OPS } from '../../../domain/schema/fieldRules';
 import type { WidgetNodeType } from '../../../domain/schema/ui/widgetSpec';
 import { MAX_STEP_RETRIES, STEP_TYPES } from '../../../domain/entities/Workflow';
@@ -3969,6 +3975,24 @@ ${MAX_SOURCE_TEXT_CHARACTERS.toLocaleString('en-US')} characters is refused, nev
 parameter is an ordinary \`String\`. Each value at most once per workflow; needs kernel
 ${PARAMETER_FILL_FROM_SINCE_KERNEL} or later.
 
+**Who may run it — \`access\`.** Running a called workflow by hand — its action button, the automation list,
+an AI agent — takes \`automation.run\`. A flow that not everyone with that permission should run declares
+who else must agree:
+
+\`\`\`ts
+{ templateId: 'wf-adjust-salary', eventName: 'workflow.called', access: { restricted: true }, /* … */ }
+\`\`\`
+
+\`restricted: true\` makes the flow generate its OWN permission, \`${WORKFLOW_RESOURCE_PREFIX}<id>.${WORKFLOW_RUN_ACTION}\`, which the
+organization's profiles show as "Run" under "Automation: <name>" and grant like any other. \`<id>\` is the
+flow's \`sourceId\`, so the grant survives reinstalling your package and renaming the flow.
+\`access: { permission: '<id>' }\` asks for an existing permission instead — one of yours (§13) — when the link
+is real. Either one only restricts: \`automation.run\` is still required. An action has no permission of its
+own: its button follows the flow it fires, and disappears for whoever cannot run it. A script has none
+either: it runs inside a flow. The check happens at the door only — a flow this one calls through
+\`call-workflow\` is not checked again, so do not rely on a restricted flow staying unreachable from an
+unrestricted one you also ship. \`access\` means nothing on a flow with a trigger: nobody runs it by hand.
+
 ### Actions
 
 An action is a button on a record — on the list card, in the detail header, or inside a parent's tab.
@@ -4697,6 +4721,16 @@ A report may carry a permission of its OWN — \`spec.access.permission\`, with 
 depends on (§13). It only ever restricts: seeing the report takes that permission AND the read of
 every collection it touches. It cannot grant, and that is the whole reason creating a report is
 allowed to be cheap.
+
+A report can also be a DOOR — \`spec.access.restricted: true\`. It then generates its own permission,
+\`${REPORT_RESOURCE_PREFIX}<id>.${REPORT_VIEW_ACTION}\` ("Open" under "Report: <title>" in profiles), and whoever holds it opens the
+report WITHOUT the read of the collections it touches: the director sees the payroll by department
+without opening each employee. Someone has to answer for what it shows, so the door only opens once the
+report is vouched for: when a member saves it, the server checks that they read every collection it
+touches (and see every record, on a screen that restricts records per member); for a report your package
+installs, the installation is the vouch. Editing the spec afterwards without a new vouch turns it back
+into an ordinary report. Leave the drill-down off (\`presentation.drillDown.enabled: false\`) when only
+the totals should go through the door: the drill lists the records behind a number.
 
 **The scan ceiling.** The query is index-free by design, so it walks documents with a ceiling. A
 report covering more than that comes back marked partial, and the platform says so on screen, in the

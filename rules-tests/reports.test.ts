@@ -94,3 +94,39 @@ describe('a coleção é RESERVADA — o curinga das telas não a alcança', () 
     await assertFails(updateDoc(report('membro'), { title: 'Pelo curinga' }));
   });
 });
+
+describe('o aval do relatório restrito (#33)', () => {
+  const restricted = { key: 'folha', title: 'Folha', origin: 'design', spec: { access: { restricted: true } } };
+
+  it('o cliente não cria um relatório já avalizado — se avalizaria sozinho', async () => {
+    await assertFails(setDoc(doc(asUser(env, 'autor'), `tenants/${TENANT}/reports/folha`), {
+      ...restricted,
+      vouch: { by: 'autor', spec: restricted.spec },
+    }));
+    await assertSucceeds(setDoc(doc(asUser(env, 'autor'), `tenants/${TENANT}/reports/folha`), restricted));
+  });
+
+  it('nem grava, troca ou apaga o aval de um relatório que já existe', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `tenants/${TENANT}/reports/folha`), {
+        ...restricted,
+        vouch: { by: 'rh', spec: restricted.spec },
+      });
+    });
+    const folha = doc(asUser(env, 'autor'), `tenants/${TENANT}/reports/folha`);
+    await assertFails(updateDoc(folha, { vouch: { by: 'autor', spec: restricted.spec } }));
+    await assertFails(updateDoc(folha, { vouch: null }));
+  });
+
+  it('editar o spec sem tocar no aval continua permitido: o aval fica para trás e a porta fecha', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `tenants/${TENANT}/reports/folha`), {
+        ...restricted,
+        vouch: { by: 'rh', spec: restricted.spec },
+      });
+    });
+    await assertSucceeds(updateDoc(doc(asUser(env, 'autor'), `tenants/${TENANT}/reports/folha`), {
+      spec: { access: { restricted: true }, dataset: { table: 'funcionarios' } },
+    }));
+  });
+});
