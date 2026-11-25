@@ -11,6 +11,8 @@ import { useDI } from '../../../infrastructure/di/useDI';
 import { useTenant } from '../../../stores/useTenant';
 import { useWorkspace } from '../../../stores/useWorkspace';
 import { useNotification } from '../../../stores/useNotification';
+import { useAuthorization } from '../../../stores/useAuthorization';
+import { PERMISSION_AUTOMATION_MANAGE } from '../../../domain/schema/access';
 import { useScreenDefinitions } from '../../../stores/useScreenDefinitions';
 import { toSchemaScreens } from '../../../data/utils/recordRulesGate';
 import { useEntityReferenceOptions, useLookupCollectionOptions } from '../../shared/useParameterOptions';
@@ -122,6 +124,8 @@ export interface ViewScriptViewModel {
   isSaving: boolean;
   canSave: boolean;
   handleSave: () => Promise<void>;
+  /** Depurar manda o código do editor ao servidor: é autoria, de quem gerencia automações. */
+  canDebug: boolean;
   runModalOpen: boolean;
   openRunModal: () => void;
   closeRunModal: () => void;
@@ -394,6 +398,9 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     }
   }, [currentTenant, formData, isNew, script, scriptIdError, takenScriptIds, artifactPrefix, createScript, updateScript, notify, closeTab, tabKey, activePanelId, openTab, t]);
 
+  const { can } = useAuthorization();
+  const canDebug = can(PERMISSION_AUTOMATION_MANAGE);
+
   const openRunModal = useCallback(() => {
     const compiled = transpile(formData.sourceTs);
     if ('error' in compiled) {
@@ -497,6 +504,7 @@ export const useViewScriptViewModel = (tabKey: string): ViewScriptViewModel => {
     isSaving,
     canSave,
     handleSave,
+    canDebug,
     runModalOpen,
     openRunModal,
     closeRunModal,

@@ -9258,6 +9258,13 @@ O Step `script` executa **código JavaScript do usuário** dentro de um sandbox 
 
 **Ponte de consulta `query(spec)` (assíncrona).** O global `query` aceita um `QuerySpec` (`{ table, where:[{path,op,value}], orderBy?, limit, projections }`, mesmo formato do Step "Buscar Registros") e devolve `{ count, results, first, scanned, complete, hasMore, cursor }` (com `page: { after }`, lê em páginas — ver "Leitura em páginas"). Reúsa **integralmente** o pipeline do QueryStep, extraído para `functions/src/infrastructure/workflow/query/runWorkflowQuery.ts` (validação, `queryByEquality` enraizado em `tenants/{tenantId}/…`, hidratação de projeções, predicados em memória, ordenação e `limit`); a ponte apenas envolve cada `where[].value` como `InputMapping` `Literal`. **Busca pelo id do documento:** predicado `eq`/`in` sobre o `id` da raiz não desce como filtro de campo (o documento não guarda o próprio id — `id == X` voltava sempre vazio); vira leitura direta por `fetchByIds` (`getAll`), sem varredura nem índice, e os demais predicados do `where` passam a ser avaliados em memória sobre os registros lidos. Vários predicados de id se intersectam; `neq`/`exists` sobre `id` ficam em memória. Vale para todo chamador de `runRecordQuery` — passo, script, relatório, agente e documento. Segurança: escopo por `context.execution.tenantId` (nunca vindo do script), teto de `MAX_QUERIES` consultas por execução, e o deadline total acima. Implementação com `vm.newPromise()` + um loop de bombeamento que intercala `executePendingJobs()` com o `await` das consultas em voo.
 
+**Depurar é autoria — `runScript` cobra `automation.manage`.** O botão "Executar (Debug)" do editor manda
+ao servidor o `compiledJs` DO EDITOR, não o de um script salvo, e o sandbox lê e grava como automação, sem a
+permissão de coleção de quem clicou. Enquanto a callable cobrava `automation.run`, bastava poder executar
+automações para mandar código próprio contra qualquer coleção (GHSA-r7pr-g57x-rgcp). Executar um script
+SALVO continua sendo só pelo passo de um workflow — o script não tem porta própria, e por isso não tem
+permissão de execução própria.
+
 O script do usuário retorna um objeto (ex.: `main()` no final) que vira os `outputs` do Step. Deps novas: `quickjs-emscripten` (functions) e `sucrase` (frontend). Registro do Step como contribuição de `core.steps` + `container.ts` (recebe `IScriptRepository` e os repositórios de query já existentes).
 
 ---

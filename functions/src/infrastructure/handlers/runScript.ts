@@ -2,7 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { identifyActor } from '../workflow/identifyActor';
 import { getDI } from '../di/container';
 import { requirePermission } from './shared/requirePermission';
-import { PERMISSION_AUTOMATION_RUN } from '../../domain/schema/access';
+import { PERMISSION_AUTOMATION_MANAGE } from '../../domain/schema/access';
 import { getDb } from '../firebase/initFirebase';
 import { applyParameterDefaults } from '../../domain/schema/eventCatalog';
 import { ruleIssueParams } from '../../domain/schema/fieldRules';
@@ -101,7 +101,10 @@ export const runScript = onCall(
     }
 
     const di = getDI();
-    const actorPermissions = await requirePermission(tenantId, request.auth, PERMISSION_AUTOMATION_RUN);
+    // Depurar é AUTORIA: o código vem do cliente, não de um script salvo, e o sandbox lê e grava como
+    // automação. Com `automation.run` bastava executar automações para mandar código próprio contra
+    // qualquer coleção (GHSA-r7pr-g57x-rgcp).
+    const actorPermissions = await requirePermission(tenantId, request.auth, PERMISSION_AUTOMATION_MANAGE);
 
     const params = inputParams ?? [];
     const coerced = coerceProvidedParams(params, providedParams ?? {});

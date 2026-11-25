@@ -29,9 +29,11 @@ export const ViewScriptView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
           {vm.isNew ? t('script.new') : vm.displayName || t('script.fallback-name')}
         </S.HeaderTitle>
         <S.HeaderActions>
-          <S.RunBtn onClick={vm.openRunModal} title={t('script.run')}>
-            <RiPlayLine size={14} />
-          </S.RunBtn>
+          {vm.canDebug && (
+            <S.RunBtn onClick={vm.openRunModal} title={t('script.run')}>
+              <RiPlayLine size={14} />
+            </S.RunBtn>
+          )}
           <S.SaveBtn
             onClick={() => void vm.handleSave()}
             disabled={!vm.canSave}
