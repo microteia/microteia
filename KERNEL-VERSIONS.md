@@ -20,6 +20,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.301.0] — 2026-11-25
+
+- feat(access): profiles choose on which screens a person imports records from a file (#29)
+- feat(reports): report design follows the document template designer — full-height tabs, a Preview tab, header identity and problems counted on their tab (#32)
+- feat(access): a callable workflow or an organization report can generate its own permission — run this flow, open this report (#33)
+- fix(access): default extensions install before the plan ceiling applies to the new organization's owner (#28)
+- fix(audit): lines written by no person show "System" in the reader's language, and reference author names resolve everywhere (#30)
+- fix(automation): debugging a script requires managing automations (GHSA-r7pr-g57x-rgcp)
+- fix(ui): selectors show the title they are given, and an empty one reads in the reader's language (#31)
+
 #### [9.300.0] — 2026-11-23
 
 - feat(release): versions are decided at release time from Conventional Commits (#25)
