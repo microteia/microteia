@@ -12213,6 +12213,23 @@ todos os níveis e não precisa.
 | `presentation/components/ui/{ReportTable,ReportMatrix,ReportChart,ReportView}/` | o que desenha |
 | `presentation/pages/{Reports,ViewReport,ReportDesign}/` | a lista, a aba e a autoria |
 
+### A autoria — o casco da autoria de modelo de documento (#32)
+
+A autoria de relatório e a de modelo de documento são irmãs, e eram CÓPIAS: só a segunda evoluiu, e a
+primeira ficou com as configurações num teto de 55% da altura, a pré-visualização espremida embaixo, o
+cabeçalho sem identidade e os problemas do spec em faixas longe do campo. As duas desenham hoje o mesmo
+casco, `presentation/components/layout/DesignerShell/` — `DesignerHeader` (o tipo, o nome, a linha de
+identidade e os selos, com as ações à direita), `DesignerTabs` (o que cada aba declara e quantos problemas
+moram nela) e o `DS`, de que o `S` de cada tela parte. O que é só de uma continua no `S` dela.
+
+- **Cada aba ocupa a altura inteira**, e a pré-visualização do relatório é a ÚLTIMA aba, na largura
+  inteira — nunca ao lado: uma tabela larga não cabe na coluna que sobra (173cb0ed). Rodar continua
+  sendo um botão, porque cada execução lê até o teto de cobertura.
+- **O problema mora na aba do campo.** `reportIssueSection` leva o caminho que `validateReportSpec`
+  devolve (`dataset.measures[2].path`) à aba que o edita; a barra o conta e a aba o diz no alto dela.
+- **Toda configuração tem título**: a seção, por `Legend`, e o seletor, pelo `label` do `SearchSelect` —
+  que o ignorava até a #31.
+
 ### Três coisas que só falhariam no cliente
 
 1. **A coleção reescrita.** `dataset.table` de um relatório de pacote passa pelo `screenKeyMap`:

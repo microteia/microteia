@@ -37,6 +37,7 @@ import type { TemplateHelpGroup } from '../../shared/documents/templateHelp';
 import { templateHelpFor } from '../../shared/documents/templateHelp';
 import type { SearchSelectOption } from '../../components/ui/SearchSelect';
 import { useLabel, useT } from '../../shared/i18n/useT';
+import type { DesignerMetaItem } from '../../components/layout/DesignerShell';
 import { useArtifactPrefix } from '../../shared/settings/useArtifactPrefix';
 
 /**
@@ -85,6 +86,8 @@ export interface DocumentTemplateDesignViewModel {
   titleText: string;
   /** Tela (ou "dados") do modelo, para o cabeçalho; `null` antes de escolhida. */
   screenLabel: string | null;
+  /** A linha sob o nome no cabeçalho: chave • tela • formato. */
+  headerMeta: DesignerMetaItem[];
   state: DocumentTemplateRowState | null;
   outdated: boolean;
   extension: string | null;
@@ -641,8 +644,15 @@ export const useDocumentTemplateDesignViewModel = (tabKey: string): DocumentTemp
     ? t('source.payload')
     : form.collection ? row?.screenLabel ?? label(getDefinition(form.collection)?.titlePlural ?? form.collection) : null;
 
+  const headerMeta: DesignerMetaItem[] = [
+    ...(form.key ? [{ text: form.key, code: true }] : []),
+    ...(screenLabel ? [{ text: screenLabel }] : []),
+    { text: t(`format.${form.format}`) },
+  ];
+
   return {
     canManage: can(PERMISSION_DOCUMENT_TEMPLATES_MANAGE),
+    headerMeta,
     notFound,
     heading: label(form.title).trim() || t('template.new'),
     titleText: isEditable ? form.title : label(form.title),

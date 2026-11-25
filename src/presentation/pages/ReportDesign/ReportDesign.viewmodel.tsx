@@ -71,6 +71,7 @@ import type { WorkflowVariable } from '../../components/ui/ExpressionEditor/auto
 import type { CustomFieldValue, FieldDefinition } from '../../../domain/entities/entitySchemas';
 import type { ReportDefinition } from '../../../domain/entities/Report';
 import { errorParamsOf } from '../../../domain/errors/LocalizedError';
+import type { DesignerMetaItem } from '../../components/layout/DesignerShell';
 
 export type ReportShapeKindChoice = 'tabular' | 'summary' | 'matrix';
 
@@ -141,7 +142,7 @@ export interface ReportDesignPrompt {
  * se mexia no que o produz.
  */
 export const REPORT_DESIGN_SECTIONS = [
-  'general', 'fields', 'figures', 'layout', 'chart', 'filters', 'access',
+  'general', 'fields', 'figures', 'layout', 'chart', 'filters', 'access', 'preview',
 ] as const;
 export type ReportDesignSection = typeof REPORT_DESIGN_SECTIONS[number];
 
@@ -150,7 +151,36 @@ export interface ReportDesignTab {
   label: string;
   /** Quantos itens a seção declara — 0 não mostra contador. */
   count: number;
+  /** Quantos problemas do spec moram nos campos desta aba (#32). */
+  issueCount: number;
+  hasBlockingIssue: boolean;
 }
+
+/** Um problema do spec, já como frase, na aba que guarda o campo dele. */
+export interface ReportDesignIssueLine {
+  message: string;
+  blocking: boolean;
+}
+
+/**
+ * A aba que guarda o campo de um problema do spec (#32).
+ *
+ * Os problemas eram faixas entre as configurações e a pré-visualização, longe do campo que os causou: a
+ * pessoa lia "a medida 2 não tem campo" e precisava descobrir sozinha em que aba estava a medida. O
+ * caminho que o validador devolve já diz de onde ele vem.
+ */
+export const reportIssueSection = (field: string): ReportDesignSection => {
+  const under = (prefix: string): boolean => field === prefix || field.startsWith(`${prefix}.`) || field.startsWith(`${prefix}[`);
+  if (under('dataset.dimensions')) return 'fields';
+  if (under('dataset.measures') || under('presentation.highlight')) return 'figures';
+  if (under('shape') || under('presentation.drillDown')) return 'layout';
+  if (under('presentation.chart')) return 'chart';
+  if (under('dataset.where') || under('dataset.includeWhen') || under('dataset.related') || under('presentation.prompts')) {
+    return 'filters';
+  }
+  if (under('dataset.scanLimit') || under('access')) return 'access';
+  return 'general';
+};
 
 /** O operador do filtro do leitor, ou o controle de PERÍODO — que é escolhido no mesmo seletor. */
 export type ReportPromptChoice = QueryOperator | typeof REPORT_PROMPT_PERIOD_CONTROL;
@@ -288,9 +318,12 @@ export interface ReportDesignViewModel {
   tabs: ReportDesignTab[];
   activeTab: ReportDesignSection;
   setActiveTab: (key: ReportDesignSection) => void;
-  /** Recolher as configurações dá à pré-visualização a altura inteira da tela. */
-  settingsOpen: boolean;
-  toggleSettings: () => void;
+  /** Os problemas do spec que moram na aba aberta — ditos nela, perto do campo, e não longe dele. */
+  activeIssues: ReportDesignIssueLine[];
+  /** A linha sob o nome no cabeçalho: o que o relatório lê • de quem ele é. */
+  headerMeta: DesignerMetaItem[];
+  /** A extensão dona, para o selo do cabeçalho; `null` no relatório do escritório. */
+  extension: string | null;
   /** Editando um relatório que já existe, em vez de criando. */
   isEditing: boolean;
   editingNotice: string | null;
@@ -535,9 +568,11 @@ export interface ReportDesignViewModel {
     moveDown: string;
     preview: string;
     previewTitle: string;
+    sectionAbout: string;
+    sectionCoverage: string;
+    permissionField: string;
+    tabIssues: (count: number) => string;
     previewEmpty: string;
-    showSettings: string;
-    hideSettings: string;
     save: string;
     noGranularity: string;
     measureOp: string;
@@ -738,6 +773,7 @@ export const reportDesignSectionCounts = (
   draft: Pick<ReportDraft, 'dimensions' | 'measures' | 'highlights' | 'filters' | 'filterExpression' | 'related' | 'prompts'>,
 ): Record<ReportDesignSection, number> => ({
   general: 0,
+  preview: 0,
   fields: draft.dimensions.length,
   figures: draft.measures.length + draft.highlights.length,
   layout: 0,
@@ -968,17 +1004,7 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState<ReportDesignSection>('general');
-  const [settingsOpen, setSettingsOpen] = useState(true);
-  const toggleSettings = useCallback(() => setSettingsOpen((open) => !open), []);
-
-  const tabs = useMemo<ReportDesignTab[]>(() => {
-    const counts = reportDesignSectionCounts(draft);
-    return REPORT_DESIGN_SECTIONS.map((key) => ({
-      key,
-      label: t(`design.tab.${key}`),
-      count: counts[key],
-    }));
-  }, [draft, t]);
+  const sectionCounts = useMemo(() => reportDesignSectionCounts(draft), [draft]);
 
   /** A série é desenhada sobre o esquema com a coleção sintética das fotos do relatório de origem. */
   const seriesSource = useMemo(
@@ -1645,6 +1671,35 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     [issues, label],
   );
 
+  const issuesBySection = useMemo(() => {
+    const bySection = new Map<ReportDesignSection, ReportDesignIssueLine[]>();
+    for (const issue of issues) {
+      const section = reportIssueSection(issue.field);
+      const line = { message: label(issue.error, issue.errorParams), blocking: (issue.severity ?? 'error') === 'error' };
+      bySection.set(section, [...(bySection.get(section) ?? []), line]);
+    }
+    return bySection;
+  }, [issues, label]);
+
+  const tabs = useMemo<ReportDesignTab[]>(() => REPORT_DESIGN_SECTIONS.map((key) => {
+    const own = issuesBySection.get(key) ?? [];
+    return {
+      key,
+      label: t(`design.tab.${key}`),
+      count: sectionCounts[key],
+      issueCount: own.length,
+      hasBlockingIssue: own.some((line) => line.blocking),
+    };
+  }), [sectionCounts, issuesBySection, t]);
+
+  const headerMeta = useMemo<DesignerMetaItem[]>(() => {
+    const table = tableOptions.find((option) => option.value === draft.table)?.label ?? draft.table;
+    return [
+      ...(table ? [{ text: table }] : []),
+      { text: t(visibility === 'personal' ? 'design.meta.personal' : 'design.meta.tenant') },
+    ];
+  }, [tableOptions, draft.table, visibility, t]);
+
   const reportProblem = useCallback((caught: unknown) => {
     // Um `LocalizedError` traz a REFERÊNCIA na mensagem. Mostrá-la crua foi o que apareceu na tela
     // como `@core.reports/artifact.id-taken` — quem lê não tem o que fazer com isso.
@@ -1720,8 +1775,9 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
     tabs,
     activeTab,
     setActiveTab,
-    settingsOpen,
-    toggleSettings,
+    activeIssues: issuesBySection.get(activeTab) ?? [],
+    headerMeta,
+    extension: editing?.ownerPluginId ?? null,
     isEditing: editing !== undefined,
     // Só o de PACOTE: ele explica um bloqueio. Dizer "você está editando" a quem clicou em Editar
     // é ocupar a tela com o que a pessoa acabou de fazer.
@@ -1957,9 +2013,11 @@ export const useReportDesignViewModel = (tabKey: string): ReportDesignViewModel 
       moveDown: t('design.move-down'),
       preview: t('design.preview'),
       previewTitle: t('design.preview.title'),
+      sectionAbout: t('design.section.about'),
+      sectionCoverage: t('design.section.coverage'),
+      permissionField: t('design.permission.extra'),
+      tabIssues: (count) => t('design.tab.issues', { count: String(count) }),
       previewEmpty: t('design.preview.empty'),
-      showSettings: t('design.settings.show'),
-      hideSettings: t('design.settings.hide'),
       save: t('design.save'),
       noGranularity: t('design.no-granularity'),
       measureOp: t('design.measure-op'),

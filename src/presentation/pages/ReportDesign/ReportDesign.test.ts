@@ -7,6 +7,7 @@ import {
   movedDimensions,
   operatorNeedsValue,
   reportDesignSectionCounts,
+  reportIssueSection,
   tabularShapeOf,
   uniqueReportKey,
   withDrillOrder,
@@ -280,5 +281,28 @@ describe('o detalhe na autoria', () => {
 
   it('esvaziar o critério tira a ordem inteira', () => {
     expect(withDrillOrder([{ dimension: 'mes', dir: 'asc' }, { dimension: 'unidade', dir: 'asc' }], '', 'asc')).toEqual([]);
+  });
+});
+
+describe('reportIssueSection — o problema mora na aba do campo (#32)', () => {
+  it.each([
+    ['dataset.table', 'general'],
+    ['dataset.dimensions[0].granularity', 'fields'],
+    ['dataset.measures[2].path', 'figures'],
+    ['presentation.highlight[0].measure', 'figures'],
+    ['shape.groupBy[1].dimension', 'layout'],
+    ['presentation.drillDown.columns[0]', 'layout'],
+    ['presentation.chart.splitBy', 'chart'],
+    ['dataset.includeWhen', 'filters'],
+    ['presentation.prompts[0].default', 'filters'],
+    ['dataset.scanLimit', 'access'],
+    ['access.permission', 'access'],
+    ['requires', 'general'],
+  ])('%s → %s', (field, section) => {
+    expect(reportIssueSection(field)).toBe(section);
+  });
+
+  it('um prefixo não captura outro campo que só começa igual', () => {
+    expect(reportIssueSection('shapeless')).toBe('general');
   });
 });

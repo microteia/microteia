@@ -25,6 +25,7 @@ import { SearchSelect } from '../../components/ui/SearchSelect';
 import { InfoBanner } from '../../components/ui/InfoBanner';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ExtensionBadge } from '../../components/ui/ExtensionBadge';
+import { DesignerHeader, DesignerTabs } from '../../components/layout/DesignerShell';
 import { useT } from '../../shared/i18n/useT';
 import { AdvancedParametersEditor } from '../ViewWorkflow/components/AdvancedParametersEditor';
 import { TemplatePreview } from './components/TemplatePreview';
@@ -62,70 +63,64 @@ export const DocumentTemplateDesignView: React.FC<{ tabKey: string }> = ({ tabKe
 
   return (
     <S.Page>
-      <S.Header>
-        <S.HeaderMain>
-          <S.FormatIcon $format={form.format}>
-            {form.format === 'docx' ? <RiFileWordLine size={18} /> : <RiMarkdownLine size={18} />}
-          </S.FormatIcon>
-          <S.HeaderText>
-            <S.HeaderName>{vm.heading}</S.HeaderName>
-            <S.HeaderMeta>
-              {form.key && <S.MetaKey>{form.key}</S.MetaKey>}
-              {vm.screenLabel && <><S.MetaSeparator /><span>{vm.screenLabel}</span></>}
-              <S.MetaSeparator />
-              <span>{t(`format.${form.format}`)}</span>
-            </S.HeaderMeta>
-          </S.HeaderText>
-          {(vm.state === 'override' || vm.state === 'disabled') && !vm.isNew && (
-            <S.Pill $tone={vm.state === 'disabled' ? 'warning' : 'primary'}>{t(`state.${vm.state}`)}</S.Pill>
-          )}
-          {vm.outdated && <S.Pill $tone="warning"><S.Dot />{t('state.outdated')}</S.Pill>}
-          <ExtensionBadge owner={vm.extension} />
-        </S.HeaderMain>
-
-        {/* As ações no CABEÇALHO, à direita, no desenho da autoria de relatório; a do estado vai rotulada. */}
-        <S.HeaderActions>
-          {!vm.isNew && !vm.notFound && (
-            <S.IconBtn onClick={vm.clone} title={t('template.clone')}>
-              <RiFileCopyLine size={14} />
-            </S.IconBtn>
-          )}
-          {vm.state === 'plugin' && (
-            <S.IconBtn onClick={() => void vm.toggleDisabled()} title={t('template.disable')}>
-              <RiEyeOffLine size={14} />
-            </S.IconBtn>
-          )}
-          {vm.state === 'override' && (
-            <S.IconBtn onClick={vm.askRemove} title={t('template.restore.short')}>
-              <RiArrowGoBackLine size={14} />
-            </S.IconBtn>
-          )}
-          {vm.state === 'tenant' && !vm.isNew && (
-            <S.DeleteBtn onClick={vm.askRemove} title={t('template.delete')}>
-              <RiDeleteBinLine size={14} />
-            </S.DeleteBtn>
-          )}
-          {vm.state === 'plugin' && (
-            <Button variant="primary" size="sm" onClick={() => void vm.customize()}>
-              <RiEdit2Line size={14} /> {t('template.customize')}
-            </Button>
-          )}
-          {vm.state === 'disabled' && (
-            <Button variant="primary" size="sm" onClick={() => void vm.toggleDisabled()}>
-              <RiEyeLine size={14} /> {t('template.enable')}
-            </Button>
-          )}
-          {vm.isEditable && (
-            <S.SaveBtn
-              onClick={() => void vm.save()}
-              disabled={!vm.canSave}
-              title={t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
-            >
-              <RiSave3Line size={14} />
-            </S.SaveBtn>
-          )}
-        </S.HeaderActions>
-      </S.Header>
+      <DesignerHeader
+        icon={form.format === 'docx' ? <RiFileWordLine size={18} /> : <RiMarkdownLine size={18} />}
+        tone={form.format === 'docx' ? 'neutral' : 'primary'}
+        name={vm.heading}
+        meta={vm.headerMeta}
+        badges={(
+          <>
+            {(vm.state === 'override' || vm.state === 'disabled') && !vm.isNew && (
+              <S.Pill $tone={vm.state === 'disabled' ? 'warning' : 'primary'}>{t(`state.${vm.state}`)}</S.Pill>
+            )}
+            {vm.outdated && <S.Pill $tone="warning"><S.Dot />{t('state.outdated')}</S.Pill>}
+            <ExtensionBadge owner={vm.extension} />
+          </>
+        )}
+        actions={(
+          <>
+            {!vm.isNew && !vm.notFound && (
+              <S.IconBtn onClick={vm.clone} title={t('template.clone')}>
+                <RiFileCopyLine size={14} />
+              </S.IconBtn>
+            )}
+            {vm.state === 'plugin' && (
+              <S.IconBtn onClick={() => void vm.toggleDisabled()} title={t('template.disable')}>
+                <RiEyeOffLine size={14} />
+              </S.IconBtn>
+            )}
+            {vm.state === 'override' && (
+              <S.IconBtn onClick={vm.askRemove} title={t('template.restore.short')}>
+                <RiArrowGoBackLine size={14} />
+              </S.IconBtn>
+            )}
+            {vm.state === 'tenant' && !vm.isNew && (
+              <S.DeleteBtn onClick={vm.askRemove} title={t('template.delete')}>
+                <RiDeleteBinLine size={14} />
+              </S.DeleteBtn>
+            )}
+            {vm.state === 'plugin' && (
+              <Button variant="primary" size="sm" onClick={() => void vm.customize()}>
+                <RiEdit2Line size={14} /> {t('template.customize')}
+              </Button>
+            )}
+            {vm.state === 'disabled' && (
+              <Button variant="primary" size="sm" onClick={() => void vm.toggleDisabled()}>
+                <RiEyeLine size={14} /> {t('template.enable')}
+              </Button>
+            )}
+            {vm.isEditable && (
+              <S.SaveBtn
+                onClick={() => void vm.save()}
+                disabled={!vm.canSave}
+                title={t(vm.isSaving ? 'core.ui/saving' : 'core.ui/action.save')}
+              >
+                <RiSave3Line size={14} />
+              </S.SaveBtn>
+            )}
+          </>
+        )}
+      />
 
       {/* Os avisos valem para o modelo inteiro: ficam FORA das abas, e um só por estado. */}
       <S.Notices>
@@ -149,30 +144,13 @@ export const DocumentTemplateDesignView: React.FC<{ tabKey: string }> = ({ tabKe
         )}
       </S.Notices>
 
-      <S.TabBar role="tablist">
-        {vm.tabs.map((tab) => (
-          <S.TabBtn
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={tab.key === vm.activeTab}
-            aria-controls="document-template-panel"
-            $active={tab.key === vm.activeTab}
-            onClick={() => vm.setActiveTab(tab.key)}
-          >
-            {tab.label}
-            {tab.count > 0 && <S.TabCount $active={tab.key === vm.activeTab}>{tab.count}</S.TabCount>}
-            {tab.issueCount > 0 && (
-              <S.TabIssues
-                $blocking={tab.hasBlockingIssue}
-                title={t('tab.issues', { count: String(tab.issueCount) })}
-              >
-                {tab.issueCount}
-              </S.TabIssues>
-            )}
-          </S.TabBtn>
-        ))}
-      </S.TabBar>
+      <DesignerTabs
+        tabs={vm.tabs}
+        active={vm.activeTab}
+        onSelect={vm.setActiveTab}
+        panelId="document-template-panel"
+        issuesTitle={(count) => t('tab.issues', { count: String(count) })}
+      />
 
       {vm.activeTab !== 'content' && (
         <S.Settings id="document-template-panel" role="tabpanel">
