@@ -252,7 +252,7 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
   options,
   values,
   onChange,
-  placeholder = 'Selecionar...',
+  placeholder,
   disabled,
   onOpenSelected,
   onQueryChange,
@@ -390,7 +390,7 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
             ))}
           </SelectedPills>
         ) : (
-          <PlaceholderText>{placeholder}</PlaceholderText>
+          <PlaceholderText>{placeholder ?? t('select.placeholder')}</PlaceholderText>
         )}
         <TriggerRight>
           {(selectedOptions.length > 0 || orphanValues.length > 0) && !disabled && (

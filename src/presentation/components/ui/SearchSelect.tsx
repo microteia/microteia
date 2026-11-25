@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useId } from 'react';
 import ReactDOM from 'react-dom';
 import styled from 'styled-components';
 import type { IconType } from 'react-icons';
@@ -48,6 +48,18 @@ interface SearchSelectProps {
 
 const Wrapper = styled.div`
   position: relative;
+`;
+
+const Field = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.xs};
+`;
+
+const FieldLabel = styled.span`
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  font-weight: 500;
+  color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
 const TriggerButton = styled.button<{ $hasValue: boolean; $disabled?: boolean }>`
@@ -229,14 +241,16 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   options,
   value,
   onChange,
-  placeholder = 'Selecione...',
+  placeholder,
   disabled,
+  label,
   orphanMessage,
   onOpenSelected,
   onQueryChange,
   searchMatches,
 }) => {
   const t = useT('core.ui');
+  const labelId = useId();
   const orphanTitle = orphanMessage ?? t('reference.orphan.title');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -319,7 +333,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
     setActiveIdx(0);
   }, [query]);
 
-  return (
+  const control = (
     <Wrapper ref={wrapperRef}>
       <TriggerButton
         type="button"
@@ -328,6 +342,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
         onClick={handleOpen}
         disabled={disabled && !hasOpenShortcut}
         aria-disabled={disabled}
+        aria-labelledby={label ? labelId : undefined}
       >
         {isOrphan && <OrphanIcon title={orphanTitle}><RiErrorWarningLine size={14} /></OrphanIcon>}
         {selected?.color && <ColorDot $color={selected.color} />}
@@ -337,7 +352,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
             ? selected.label
             : isOrphan
               ? orphanMessage ?? t('reference.not-found', { id: value })
-              : placeholder}
+              : placeholder ?? t('select.placeholder')}
         </TriggerLabel>
         {hasOpenShortcut && (
           <OpenBtn onClick={handleOpenSelected} title={t('reference.open')}>
@@ -390,5 +405,15 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
         document.body
       )}
     </Wrapper>
+  );
+
+  // O título é do CAMPO, e não do botão: o leitor de tela o anuncia pelo `aria-labelledby`, e quem
+  // passava `label` contava com ele — 19 seletores ficavam sem título (#31).
+  if (!label) return control;
+  return (
+    <Field>
+      <FieldLabel id={labelId}>{label}</FieldLabel>
+      {control}
+    </Field>
   );
 };
