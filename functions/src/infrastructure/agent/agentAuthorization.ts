@@ -14,7 +14,8 @@ import { isVocabulary } from './describeScreen';
  * inclusive as alcançadas por referência, que nenhuma regra escrita aqui saberia enumerar.
  */
 export type PermissionCharge =
-  | { kind: 'charge'; permission: string }
+  /** `alternative`, quando há, também basta — a ferramenta que a regra libera por duas permissões. */
+  | { kind: 'charge'; permission: string; alternative?: string }
   | { kind: 'vocabulary' }
   | { kind: 'delegated' }
   | { kind: 'missing-collection' };
@@ -37,7 +38,10 @@ export const permissionCharge = (
   // do escritório só para um campo de seleção poder ser preenchido. A ESCRITA continua cobrada.
   if (action === 'read' && isVocabulary(ctx, collection)) return { kind: 'vocabulary' };
 
-  return { kind: 'charge', permission: collectionPermissionId(collection, action) };
+  const permission = collectionPermissionId(collection, action);
+  return tool.permission.orAction === undefined
+    ? { kind: 'charge', permission }
+    : { kind: 'charge', permission, alternative: `${collection}.${tool.permission.orAction}` };
 };
 
 export type AuthorizationOutcome =
@@ -52,9 +56,13 @@ export const authorizeOperation = (
     return { ok: false, error: '@core.automation/handler.tenant.missing' };
   }
   if (charge.kind === 'vocabulary' || charge.kind === 'delegated') return { ok: true };
-  return grants(session.permissions, charge.permission)
-    ? { ok: true }
-    : { ok: false, error: '@core.access/permission.denied', params: { permission: charge.permission } };
+  if (grants(session.permissions, charge.permission)) return { ok: true };
+  if (charge.alternative !== undefined && grants(session.permissions, charge.alternative)) return { ok: true };
+  return {
+    ok: false,
+    error: '@core.access/permission.denied',
+    params: { permission: charge.alternative === undefined ? charge.permission : `${charge.permission} | ${charge.alternative}` },
+  };
 };
 
 /**

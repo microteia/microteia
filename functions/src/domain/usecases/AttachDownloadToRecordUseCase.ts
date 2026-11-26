@@ -1,7 +1,7 @@
 import type { SchemaContext } from '../schema/pathResolver';
 import { resolveQueryTable } from '../schema/querySpec';
 import { grants, PERMISSION_DOWNLOADS_MANAGE } from '../schema/access';
-import { collectionPermissionId } from '../schema/access/permission';
+import { attachPermissionId, collectionPermissionId } from '../schema/access/permission';
 import { canSeeDownload } from '../schema/document/documentDownloads';
 import type { IScreenDefinitionProvider } from '../repositories/IScreenDefinitionProvider';
 import type { IDocumentRecordReader } from '../repositories/IDocumentGenerationPorts';
@@ -60,7 +60,7 @@ const screenOf = (schema: SchemaContext, collection: string) => schema.screens.g
  * de outra pessoa: ver não é poder apagar (a mesma regra do Firestore), e aí o item fica onde está.
  *
  * As recusas, na ordem da pergunta: o item existe e quem pede o vê (quem não o vê ouve "não existe",
- * como na regra); a tela existe; quem pede edita o registro; a tela tem a aba Documentos; o registro
+ * como na regra); a tela existe; quem pede altera o registro ou anexa a ele; a tela tem a aba Documentos; o registro
  * existe. Só então o arquivo é lido e anexado, e só depois de anexado o item sai de Downloads.
  */
 export const makeAttachDownloadToRecordUseCase = (deps: AttachDownloadDeps): AttachDownloadToRecordUseCase => ({
@@ -75,8 +75,12 @@ export const makeAttachDownloadToRecordUseCase = (deps: AttachDownloadDeps): Att
     if (!resolveQueryTable(request.collection, schema) || !screenOf(schema, request.collection)) {
       return failure('@core.automation/mutation.table.unknown', { table: request.collection });
     }
-    const permission = collectionPermissionId(request.collection, 'update');
-    if (!grants(request.permissions, permission)) return failure('@core.access/permission.denied', { permission });
+    // Anexar, e não alterar: `<coleção>.attach` (#35) basta, como na regra do Firestore.
+    const update = collectionPermissionId(request.collection, 'update');
+    const attach = attachPermissionId(request.collection);
+    if (!grants(request.permissions, update) && !grants(request.permissions, attach)) {
+      return failure('@core.access/permission.denied', { permission: `${update} | ${attach}` });
+    }
     if (screenOf(schema, request.collection)?.hasDocuments !== true) {
       return failure('@core.documents/render.documents-disabled', { collection: request.collection });
     }

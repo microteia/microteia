@@ -17,6 +17,7 @@ import { TEMPLATE_BLOCKS, TEMPLATE_LOOP_VARIABLES } from '../document/templateGr
 import { QUERY_OPERATORS } from '../querySpec';
 import { AGENT_DOCUMENT_MAX_MB } from './agentDocument';
 import type { CrudAction } from '../access/permission';
+import { ATTACH_ACTION } from '../access/permission';
 import type { WorkflowParameterType } from '../../entities/Workflow';
 import type { AuditAction, AuditSeverity, AuditType } from '../../entities/AuditLog';
 
@@ -77,8 +78,11 @@ export type AgentWorkflowTrigger = (typeof AGENT_WORKFLOW_TRIGGERS)[number];
  * consegue auditar de uma vez.
  */
 export type AgentPermissionRule =
-  /** `<coleção>.<ação>`, com a coleção vinda do argumento da chamada. */
-  | { kind: 'collection'; action: CrudAction }
+  /**
+   * `<coleção>.<ação>`, com a coleção vinda do argumento da chamada. `orAction` é a ação da coleção que
+   * também basta — anexar aceita `<coleção>.attach` (#35) além de `.update`, como a regra do Firestore.
+   */
+  | { kind: 'collection'; action: CrudAction; orAction?: string }
   /** Uma permissão fixa do catálogo. */
   | { kind: 'fixed'; id: string }
   /**
@@ -551,8 +555,9 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       ['collection', 'recordId', 'fileName', 'content'],
     ),
     // `update`, e não `create`: é o que `firestore.rules` cobra para anexar à aba Documentos de um
-    // registro. Anexar muda o registro; não cria um registro novo da coleção.
-    permission: { kind: 'collection', action: 'update' },
+    // registro. Anexar muda o registro; não cria um registro novo da coleção. Ou `attach` (#35), a
+    // permissão de quem só anexa — a mesma alternativa da regra.
+    permission: { kind: 'collection', action: 'update', orAction: ATTACH_ACTION },
     writes: true,
   },
   {
@@ -932,7 +937,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     name: 'render_document',
     description:
       'Generate a document from a template, exactly as the "Generate document" button does, and deliver it to '
-      + 'the record\'s Documents tab (destination "record", permanent, needs update permission on the collection) '
+      + 'the record\'s Documents tab (destination "record", permanent, needs update or attach permission on the collection) '
       + 'or to Downloads (destination "downloads", temporary, needs only read permission). '
       + 'Without destination, the template\'s default applies, and the Documents tab when it declares none. '
       + RECORD_OR_PAYLOAD_NOTE
@@ -953,7 +958,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
           type: 'string',
           description: 'Only for a payload template: the key of one of its single EntityReference parameters. The record '
             + 'that parameter points to owns the document: destination "record" attaches the file to it (needs update '
-            + 'permission on its collection and the Documents tab), and in Downloads it is remembered as the origin.',
+            + 'or attach permission on its collection and the Documents tab), and in Downloads it is remembered as the origin.',
         },
         destination: {
           type: 'string',

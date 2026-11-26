@@ -5,8 +5,12 @@ export type {
   ParsedAccessPermission,
 } from './permission';
 export {
+  ANNOTATE_ACTION,
+  ATTACH_ACTION,
   CRUD_ACTIONS,
   IMPORT_ACTION,
+  annotatePermissionId,
+  attachPermissionId,
   collectionPermissionId,
   importPermissionId,
   isValidAccessPermissionId,

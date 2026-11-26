@@ -4,7 +4,7 @@ import { resolveLabel } from '../../domain/schema/i18n/messageRef';
 import type { QualifiedContribution } from '../../domain/schema/plugin/contribution';
 import type { SchemaContext, SchemaScreen } from '../../domain/schema/screenEntity';
 import type { QueryOrderBy } from '../../domain/schema/querySpec';
-import { collectionPermissionId } from '../../domain/schema/access/permission';
+import { attachPermissionId, collectionPermissionId } from '../../domain/schema/access/permission';
 import { grants } from '../../domain/schema/access/memberPermissions';
 import { PERMISSION_DOCUMENT_TEMPLATES_MANAGE, PERMISSION_DOCUMENTS_GENERATE } from '../../domain/schema/access/kernelPermissions';
 import { FIELD_EXPRESSION_FUNCTION_NAMES } from '../../domain/schema/fieldExpression';
@@ -188,7 +188,9 @@ const agentSpec = (world: TemplateWorld, spec: DocumentTemplateSpec, catalog: Me
 const canRender = (session: AgentSession, spec: DocumentTemplateSpec, collection: string | null): boolean =>
   isPayloadTemplate(spec)
     ? grants(session.permissions, PERMISSION_DOCUMENTS_GENERATE)
-    : collection !== null && grants(session.permissions, collectionPermissionId(collection, 'update'));
+    : collection !== null
+      && (grants(session.permissions, collectionPermissionId(collection, 'update'))
+        || grants(session.permissions, attachPermissionId(collection)));
 
 const canManage = (session: AgentSession): boolean => grants(session.permissions, PERMISSION_DOCUMENT_TEMPLATES_MANAGE);
 

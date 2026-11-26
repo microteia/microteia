@@ -13,7 +13,7 @@ import { PERMISSION_DOCUMENTS_GENERATE } from '../schema/access';
 import type { DocumentDestination, DownloadOrigin, DownloadPolicy, DownloadVisibility } from '../schema/document/documentDownloads';
 import { downloadExpiresAt, resolveRetentionDays } from '../schema/document/documentDownloads';
 import { grants } from '../schema/access';
-import { collectionPermissionId } from '../schema/access/permission';
+import { attachPermissionId, collectionPermissionId } from '../schema/access/permission';
 import type { RenderIssue, TemplateEvaluator } from '../schema/document/templateGrammar';
 import { collectTemplatePaths, escapeMarkdownValue, parseTemplate, renderTemplate } from '../schema/document/templateGrammar';
 import type { WorkflowParameter } from '../entities/Workflow';
@@ -69,8 +69,8 @@ export interface RenderDocumentRequest {
    */
   portalShared?: boolean;
   /**
-   * Cobrar de `permissions` a permissão que o DESTINO exige: `<coleção>.update` para anexar ao
-   * registro, `<coleção>.read` para Downloads, que não altera o registro. É o caso de uso que cobra,
+   * Cobrar de `permissions` a permissão que o DESTINO exige: `<coleção>.update` ou `.attach` para anexar
+   * ao registro, `<coleção>.read` para Downloads, que não altera o registro. É o caso de uso que cobra,
    * e não a porta, porque só ele sabe o destino quando quem chama não o diz — o padrão é do modelo.
    * A automação sem pessoa não cobra: ela age como o motor, como em toda gravação de registro.
    */
@@ -226,6 +226,20 @@ const charge = (request: Omit<RenderDocumentRequest, 'author'>, permission: stri
     : null;
 
 /**
+ * Anexar ao registro: `<coleção>.update` OU `<coleção>.attach` (#35), a mesma alternativa da regra do
+ * Firestore. Gerar o documento na aba é anexar, e quem só anexa gera — mas não o compartilha no portal,
+ * que continua cobrando `.update` (ver `execute`).
+ */
+const chargeAttach = (request: Omit<RenderDocumentRequest, 'author'>, collection: string): Failure | null => {
+  if (!request.chargePermissions) return null;
+  const update = collectionPermissionId(collection, 'update');
+  const attach = attachPermissionId(collection);
+  return grants(request.permissions ?? [], update) || grants(request.permissions ?? [], attach)
+    ? null
+    : failure('@core.access/permission.denied', { permission: `${update} | ${attach}` });
+};
+
+/**
  * Tudo o que vem antes de montar o arquivo: as recusas, na ordem da pergunta que se faria à mão, e a
  * leitura dos dados. A geração e a pré-visualização partem DAQUI, e por isso o texto pré-visualizado
  * é o texto que o documento terá.
@@ -279,7 +293,7 @@ const prepareRecord = async (
     const destination = request.destination ?? template.destination ?? 'record';
     // A pré-visualização não entrega nada: cobra só a leitura, qualquer que seja o destino.
     const attaches = mode === 'render' && destination === 'record';
-    const denied = charge(request, collectionPermissionId(collection, attaches ? 'update' : 'read'));
+    const denied = attaches ? chargeAttach(request, collection) : charge(request, collectionPermissionId(collection, 'read'));
     if (denied) return denied;
     if (attaches && documentsScreen(schema, collection)?.hasDocuments !== true) {
       return failure('@core.documents/render.documents-disabled', { collection });
@@ -448,9 +462,9 @@ const preparePayload = async (
       const owner = homeParameter.value;
       const table = resolveQueryTable(owner.entityType ?? '', schema);
       if (!table) return failure('@core.automation/mutation.table.unknown', { table: owner.entityType ?? '' });
-      // Anexar altera o registro dono, e a cobrança é a do gesto: `<coleção>.update` e a aba Documentos.
+      // Anexar ao registro dono, e a cobrança é a do gesto: `<coleção>.update` ou `.attach`, e a aba Documentos.
       if (attaches) {
-        const denied = charge(request, collectionPermissionId(table.physicalCollection, 'update'));
+        const denied = chargeAttach(request, table.physicalCollection);
         if (denied) return denied;
         if (documentsScreen(schema, table.physicalCollection)?.hasDocuments !== true) {
           return failure('@core.documents/render.documents-disabled', { collection: table.physicalCollection });
@@ -525,6 +539,10 @@ export const makeRenderDocumentUseCase = (deps: RenderDocumentDeps): RenderDocum
 
     if (request.portalShared) {
       if (prepared.value.destination !== 'record') return failure('@core.documents/render.portal-shared-destination');
+      // Compartilhar é editar o registro (a regra do Firestore e `ShareRecordDocumentsUseCase`): quem só
+      // anexa (`.attach`) gera o documento, e não o entrega ao portal.
+      const denied = home ? charge(request, collectionPermissionId(home.collection, 'update')) : null;
+      if (denied) return denied;
       if (home && !(await deps.portalShowsDocuments?.(request.tenantId, home.collection))) {
         return failure('@core.documents/share.portal-off', { collection: home.collection });
       }

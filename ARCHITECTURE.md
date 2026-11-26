@@ -579,10 +579,44 @@ exigir `company.read` amanhã, e nenhuma Role gravada muda.
 Toda coleção do escritório (tela do Form Design, tela de extensão, lista de opções, conjunto de
 etiquetas) rende **quatro permissões de graça**: `<coleção>.read`, `.create`, `.update`, `.delete`.
 A tela que declara uma capacidade que precisa de dono rende mais uma, só ela: `<coleção>.read-all` (ver
-"Visibilidade por registro") e `<coleção>.import` (ver "Importação em massa de registros"). O workflow
+"Visibilidade por registro"), `<coleção>.import` (ver "Importação em massa de registros"),
+`<coleção>.attach` e `<coleção>.annotate` (ver "Completar o registro sem alterá-lo"). O workflow
 chamável e o relatório restritos rendem a da porta deles (ver "A porta gera a própria permissão").
 É o que faz o RBAC valer para a tela que alguém criou cinco minutos atrás, sem plugin nenhum atrás
 dela.
+
+As ações derivadas de capacidade são UMA tabela (`CAPABILITY_ACTIONS` em `resolvePermissions.ts`):
+todas exigem `<coleção>.read`, e acrescentar outra é uma linha ali mais a soma por coleção em
+`tenantCollectionPermissionResources` — a mesma conta que o `AuthorizationStore` e o
+`PermissionCatalogCache` fazem.
+
+### Completar o registro sem alterá-lo — `<coleção>.attach` e `<coleção>.annotate` (#35, #36)
+
+Anexar à aba Documentos e escrever na aba Notas cobravam `<coleção>.update`. Isso amarrava duas
+decisões que o escritório precisa separar: há registro que só uma automação escreve (os campos são
+prova — um ofício emitido, uma nota fiscal, uma visita agendada) e que uma pessoa ainda COMPLETA com um
+anexo ou um comentário. Dar `.update` a ela para anexar era deixá-la editar todos os campos durante a
+janela de edição.
+
+A coleção cuja tela mostra a aba Documentos (`hasDocuments`) rende `<coleção>.attach` ("Anexar
+documentos"); a que mostra a aba Notas (`hasNotes`), `<coleção>.annotate` ("Escrever anotações"). As
+duas exigem `read`, somam-se por coleção como `allowImport` (basta uma tela, a vinculada inclusive), e
+**somam-se** a `.update` em vez de substituí-lo: quem altera continua anexando e anotando, e por isso
+nenhum perfil muda nem há atualização de acesso (`accessUpgrades`) a aplicar.
+
+| Ponto | Aceita `.update` OU |
+|---|---|
+| `firestore.rules`, `documents/{id}` `create` | `.attach` — com `portalShared` falso, sem `sha256` e `seesParentRecord`, como antes |
+| `storage.rules`, envio do arquivo do registro | `.attach` (`memberCanUploadRecordFile`, ainda UM documento lido) |
+| `firestore.rules`, `notes/{id}` `create` | `.annotate` |
+| MCP `attach_document` (`AgentPermissionRule.orAction`) e `describe_screen` | `.attach` |
+| `RenderDocumentUseCase` com destino `record`, `canRender` do MCP, "Gerar documento" | `.attach` |
+| `AttachDownloadToRecordUseCase` e o diálogo de Downloads | `.attach` |
+| Botões "Anexar documento" e "Nova anotação" (`DocumentsPanel.canAttach`, `NotesPanel.canAdd`) | `.attach` / `.annotate` — sem nenhuma das duas o botão some |
+
+O que **não** muda: compartilhar no portal (inclusive o `portalShared` de quem GERA o documento) continua
+`.update`; carimbar a exclusão e excluir documento ou nota continuam `.delete`; a janela de edição
+continua valendo para os documentos. Quem só anexa completa o registro, não o altera.
 
 Uma declaração explícita **sobrepõe** a derivada de mesmo id, e é assim que uma dependência entra no
 catálogo pela mão de quem é dono da permissão:

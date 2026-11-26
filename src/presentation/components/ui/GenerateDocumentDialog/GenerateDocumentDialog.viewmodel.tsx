@@ -7,7 +7,7 @@ import type { RecordDialogProps } from '../../../../stores/useRecordDialog';
 import type { DocumentOutputFormat } from '../../../../domain/schema/document/documentTemplate';
 import { templateOutputs, templatesForCollection } from '../../../../domain/schema/document/documentTemplate';
 import type { DocumentDestination } from '../../../../domain/schema/document/documentDownloads';
-import { collectionPermissionId } from '../../../../domain/schema/access/permission';
+import { attachPermissionId, collectionPermissionId } from '../../../../domain/schema/access/permission';
 import { useResolvedDocumentTemplates } from '../../../shared/documents/useResolvedDocumentTemplates';
 import { useLabel, useT } from '../../../shared/i18n/useT';
 import type { SearchSelectOption } from '../SearchSelect';
@@ -79,7 +79,9 @@ export const useGenerateDocumentDialogViewModel = (props: RecordDialogProps): Ge
 
   const hasDocuments = getDefinition(screenKey)?.hasDocuments === true;
   // O motor não troca o destino sozinho; quem oferece Downloads no lugar da aba é esta tela, à vista.
-  const canAttach = hasDocuments && can(collectionPermissionId(collection, 'update'));
+  // Anexar aceita `<coleção>.attach` (#35) além de `.update`, como a regra e o motor.
+  const canAttach = hasDocuments
+    && (can(collectionPermissionId(collection, 'update')) || can(attachPermissionId(collection)));
   const destinations = useMemo<DocumentDestination[]>(
     () => (canAttach ? ['record', 'downloads'] : ['downloads']),
     [canAttach],

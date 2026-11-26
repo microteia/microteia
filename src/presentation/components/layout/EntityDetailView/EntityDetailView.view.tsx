@@ -41,6 +41,10 @@ export interface EntityDetailViewProps {
   documentsLocked: boolean;
   /** Pode gerir a lista compartilhada de tipos de documento do escritório. */
   canManageDocumentTypes: boolean;
+  /** Pode anexar documento: `<coleção>.update` ou `.attach` (#35). */
+  canAttachDocuments: boolean;
+  /** Pode escrever anotação: `<coleção>.update` ou `.annotate` (#36). */
+  canAddNotes: boolean;
 
   avatar: React.ReactNode;
   title: React.ReactNode;
@@ -86,6 +90,8 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
   canDeleteRecordParts,
   documentsLocked,
   canManageDocumentTypes,
+  canAttachDocuments,
+  canAddNotes,
   avatar,
   title,
   subtitle,
@@ -209,7 +215,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
     <S.Content>
       {(activeTab === 'data' || isNew) && dataContent}
       {activeTab === 'notes' && !isNew && showNotesTab && (
-        <NotesPanel controller={notesController} canDelete={canDeleteRecordParts} />
+        <NotesPanel controller={notesController} canDelete={canDeleteRecordParts} canAdd={canAddNotes} />
       )}
       {activeTab === 'documents' && !isNew && showDocsTab && (
         <DocumentsPanel
@@ -217,6 +223,7 @@ export const EntityDetailView: React.FC<EntityDetailViewProps> = ({
           canDelete={canDeleteRecordParts}
           isLocked={documentsLocked}
           canManageTypes={canManageDocumentTypes}
+          canAttach={canAttachDocuments}
         />
       )}
       {!isNew && extraTabs?.find((tab) => tab.key === activeTab)?.content}

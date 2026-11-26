@@ -98,6 +98,8 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
       canDeleteRecordParts={vm.canDeleteRecordParts}
       documentsLocked={vm.isEditLocked}
       canManageDocumentTypes={vm.canManageDocumentTypes}
+      canAttachDocuments={vm.canAttachDocuments}
+      canAddNotes={vm.canAddNotes}
       avatar={vm.recordImageUrl
         ? <UserAvatar src={vm.recordImageUrl} name={vm.recordTitle} size={48} fallback={getScreenIcon(definition.icon, 22)} />
         : getScreenIcon(definition.icon, 22)}

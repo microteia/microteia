@@ -1,5 +1,11 @@
 /** Os textos do controle de acesso: o catálogo de permissões, os perfis e os diagnósticos deles. */
 export const CORE_ACCESS_MESSAGES: Record<string, string> = {
+  'action.annotate': 'Add notes',
+  'action.annotate.description':
+    'Write notes on the records of this screen without permission to change them. Deleting a note still requires permission to delete records here. Whoever can change these records adds notes without this.',
+  'action.attach': 'Attach documents',
+  'action.attach.description':
+    'Attach files to the Documents tab of the records of this screen, and generate documents into it, without permission to change the records. Deleting, replacing or sharing a document in the portal still requires the permissions it requires today. Whoever can change these records attaches without this.',
   'action.create': 'Create',
   'action.delete': 'Delete',
   'action.import': 'Import from a file',

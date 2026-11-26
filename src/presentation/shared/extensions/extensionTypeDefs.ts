@@ -831,6 +831,11 @@ const UI_MODULE_DEFS = `declare module '@microteia/ui' {
     isLocked?: boolean;
     /** May remove a document TYPE from the organization's shared list. */
     canManageTypes: boolean;
+    /**
+     * May attach: <collection>.update OR <collection>.attach (the permission of whoever only attaches,
+     * derived for every screen with the Documents tab). False hides the Attach button. Defaults to \`true\`.
+     */
+    canAttach?: boolean;
   }
   export function DocumentsPanel(props: DocumentsPanelProps): JSX.Element;
 

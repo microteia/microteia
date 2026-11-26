@@ -65,6 +65,7 @@ import {
 import { PORTAL_RECORDS_WINDOW } from '../../../domain/entities/Portal';
 import { RECORD_IMPORT_BATCH_SIZE, RECORD_IMPORT_MAX_ROWS } from '../../../domain/schema/recordImport';
 import { PERMISSION_RECORD_IMPORT_RUN } from '../../../domain/schema/access/kernelPermissions';
+import { ANNOTATE_ACTION, ATTACH_ACTION } from '../../../domain/schema/access/permission';
 import {
   REPORT_RESOURCE_PREFIX,
   REPORT_VIEW_ACTION,
@@ -5056,8 +5057,13 @@ Every screen collection you install gets four permissions for free:
 \`<collection>.read\`, \`.create\`, \`.update\`, \`.delete\` — and the three writing ones already depend on
 \`read\`. A screen with \`memberVisibility\` and no \`bypassPermission\` gets a fifth,
 \`<collection>.${READ_ALL_ACTION}\`, which lets a member read the records that do not name them (§8,
-"Record visibility"). Declare a permission only for a capability that is not one of those, or to add a
-dependency:
+"Record visibility"). A screen with \`hasDocuments\` gets \`<collection>.${ATTACH_ACTION}\` ("Attach
+documents"), and one with \`hasNotes\` gets \`<collection>.${ANNOTATE_ACTION}\` ("Add notes"): both require
+\`read\`, and let a person complete a record — attach a file, generate a document into its tab, write a note
+— WITHOUT changing its fields. They add to \`.update\`, which still attaches and writes notes, and they never
+delete, replace or share in the portal. That is what a record only an automation writes needs: no profile
+holds \`.update\`, and people still attach to it. Declare a permission only for a capability that is not
+one of those, or to add a dependency:
 
 \`\`\`ts
 import { accessPermissionContribution } from '@microteia/sdk';

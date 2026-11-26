@@ -126,3 +126,30 @@ describe('a decisão', () => {
       .toBe(false);
   });
 });
+
+describe('anexar sem alterar o registro (#35)', () => {
+  it('`attach_document` cobra `.update` e aceita `.attach` como alternativa', () => {
+    expect(permissionCharge(ctx, tool('attach_document'), { collection: 'clientes' }))
+      .toEqual({ kind: 'charge', permission: 'clientes.update', alternative: 'clientes.attach' });
+  });
+
+  it('quem só anexa passa; quem só altera continua passando', () => {
+    const charge = permissionCharge(ctx, tool('attach_document'), { collection: 'clientes' });
+    expect(authorizeOperation(session(['clientes.read', 'clientes.attach']), charge)).toEqual({ ok: true });
+    expect(authorizeOperation(session(['clientes.read', 'clientes.update']), charge)).toEqual({ ok: true });
+  });
+
+  it('sem nenhuma das duas, a recusa nomeia as duas', () => {
+    const charge = permissionCharge(ctx, tool('attach_document'), { collection: 'clientes' });
+    expect(authorizeOperation(session(['clientes.read']), charge)).toEqual({
+      ok: false,
+      error: '@core.access/permission.denied',
+      params: { permission: 'clientes.update | clientes.attach' },
+    });
+  });
+
+  it('`.attach` não abre `update_record`: a alternativa é só da ferramenta que a declara', () => {
+    const charge = permissionCharge(ctx, tool('update_record'), { collection: 'clientes' });
+    expect(authorizeOperation(session(['clientes.read', 'clientes.attach']), charge).ok).toBe(false);
+  });
+});

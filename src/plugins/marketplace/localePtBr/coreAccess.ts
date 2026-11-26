@@ -1,4 +1,10 @@
 export const CORE_ACCESS: Record<string, string> = {
+  'action.annotate': 'Escrever anotações',
+  'action.annotate.description':
+    'Escrever anotações nos registros desta tela sem permissão para alterá-los. Excluir uma anotação continua exigindo a permissão de excluir registros aqui. Quem altera estes registros anota sem precisar desta.',
+  'action.attach': 'Anexar documentos',
+  'action.attach.description':
+    'Anexar arquivos à aba Documentos dos registros desta tela, e gerar documentos nela, sem permissão para alterar os registros. Excluir, substituir ou compartilhar um documento no portal continua exigindo as permissões de hoje. Quem altera estes registros anexa sem precisar desta.',
   'action.create': 'Criar',
   'action.delete': 'Excluir',
   'action.import': 'Importar de um arquivo',

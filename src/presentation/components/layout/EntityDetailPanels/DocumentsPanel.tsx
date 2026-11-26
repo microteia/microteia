@@ -26,9 +26,15 @@ interface DocumentsPanelProps {
   isLocked?: boolean;
   /** Pode tirar um TIPO de documento da lista compartilhada do escritório. */
   canManageTypes: boolean;
+  /**
+   * Pode anexar: `<coleção>.update` ou `<coleção>.attach` (#35). Sem nenhuma das duas o botão some —
+   * antes ele aparecia, e a recusa só chegava depois de escolher o arquivo. Padrão `true` para a
+   * extensão que desenha a aba e ainda não passa a prop.
+   */
+  canAttach?: boolean;
 }
 
-export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, canDelete, isLocked = false, canManageTypes }) => {
+export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, canDelete, isLocked = false, canManageTypes, canAttach = true }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = useT('core.ui');
   const { formatLongDate } = useLocaleFormat();
@@ -45,17 +51,19 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ controller: vm, 
 
       {isLocked && <InfoBanner variant="info" message={t('documents.locked')} />}
 
-      <S.TabSectionHeader>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={vm.isUploadingDoc}
-        >
-          <RiUploadLine size={14} />
-          {t('documents.attach')}
-        </Button>
-      </S.TabSectionHeader>
+      {canAttach && (
+        <S.TabSectionHeader>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={vm.isUploadingDoc}
+          >
+            <RiUploadLine size={14} />
+            {t('documents.attach')}
+          </Button>
+        </S.TabSectionHeader>
+      )}
 
       {vm.pendingUploads.length > 0 && (
         <S.PendingList>

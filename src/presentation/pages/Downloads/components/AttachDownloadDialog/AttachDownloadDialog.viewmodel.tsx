@@ -6,7 +6,7 @@ import { useNotification } from '../../../../../stores/useNotification';
 import { useScreenDefinitions } from '../../../../../stores/useScreenDefinitions';
 import { useLookups } from '../../../../../stores/useLookups';
 import { storeEvents, StoreEvents } from '../../../../../infrastructure/events/StoreEventEmitter';
-import { collectionPermissionId } from '../../../../../domain/schema/access/permission';
+import { attachPermissionId, collectionPermissionId } from '../../../../../domain/schema/access/permission';
 import { screenDataCollection } from '../../../../../domain/services/screenDataCollection';
 import type { DownloadOrigin } from '../../../../../domain/schema/document/documentDownloads';
 import { useReferenceOptions } from '../../../../hooks/useReferenceOptions';
@@ -55,7 +55,7 @@ export const useAttachDownloadDialogViewModel = (props: AttachDownloadDialogProp
     for (const screen of dynamicScreens) {
       const collection = screenDataCollection(screen);
       if (!screen.hasDocuments || byCollection.has(collection)) continue;
-      if (!can(collectionPermissionId(collection, 'update'))) continue;
+      if (!can(collectionPermissionId(collection, 'update')) && !can(attachPermissionId(collection))) continue;
       byCollection.set(collection, { value: collection, label: label(screen.titlePlural), meta: collection });
     }
     return [...byCollection.values()].sort((left, right) => left.label.localeCompare(right.label));

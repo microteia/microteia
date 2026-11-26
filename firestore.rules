@@ -1283,12 +1283,16 @@ service cloud.firestore {
 
         // Anotações do registro: seguem a permissão da COLEÇÃO DO PAI — a nota é parte do registro,
         // não uma entidade com acesso próprio. `update` só carimba a autoria de exclusão.
+        // Anotar aceita também `<coleção>.annotate` (#36): o perfil que comenta um registro que só uma
+        // automação escreve, sem poder mexer nos campos dele. A permissão só existe na coleção cuja tela
+        // mostra a aba Notas, e não apaga nada — excluir continua com `.delete`.
         match /notes/{noteId} {
           allow read: if !isReservedCollection(screenCollection)
             && isMember(tenantId)
             && canOnCollection(screenCollection, 'read')
             && seesParentRecord(screenCollection, recordId);
-          allow create: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update')
+          allow create: if isWritableScreen(screenCollection)
+            && (canOnCollection(screenCollection, 'update') || canOnCollection(screenCollection, 'annotate'))
             && seesParentRecord(screenCollection, recordId);
           allow update: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'delete')
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedBy', 'deletedByName', 'deletedByPhotoURL'])
@@ -1302,12 +1306,15 @@ service cloud.firestore {
         // registro, e só mexe na marca: o arquivo, o nome e a autoria continuam de quem anexou — e por
         // isso passa depois da janela de edição, que só barra o carimbo de exclusão e a exclusão.
         // Nenhuma outra chave muda nunca: nome, tipo, arquivo e `sha256` são fixos desde o anexo.
+        // Anexar aceita também `<coleção>.attach` (#35), e SÓ anexar: compartilhar, carimbar a exclusão e
+        // excluir continuam cobrando o que cobravam — quem só anexa completa o registro, não o altera.
         match /documents/{documentId} {
           allow read: if !isReservedCollection(screenCollection)
             && isMember(tenantId)
             && canOnCollection(screenCollection, 'read')
             && seesParentRecord(screenCollection, recordId);
-          allow create: if isWritableScreen(screenCollection) && canOnCollection(screenCollection, 'update')
+          allow create: if isWritableScreen(screenCollection)
+            && (canOnCollection(screenCollection, 'update') || canOnCollection(screenCollection, 'attach'))
             && request.resource.data.get('portalShared', false) == false
             && omitsServerHash()
             && seesParentRecord(screenCollection, recordId);

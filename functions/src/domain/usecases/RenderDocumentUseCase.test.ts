@@ -324,7 +324,22 @@ describe('RenderDocumentUseCase', () => {
       expect(await useCase.execute(request({ ...charged, destination: 'downloads' })))
         .toMatchObject({ ok: true });
       expect(await useCase.execute(request({ ...charged, destination: 'record' })))
+        .toMatchObject({
+          ok: false,
+          error: '@core.access/permission.denied',
+          errorParams: { permission: 'contracts.update | contracts.attach' },
+        });
+    });
+
+    it('quem só anexa (`.attach`, #35) gera na aba, mas não entrega ao portal — compartilhar é editar', async () => {
+      const { useCase, attached } = setup();
+      const charged = { chargePermissions: true, permissions: ['contracts.read', 'contracts.attach'] };
+
+      expect(await useCase.execute(request({ ...charged, destination: 'record' })))
+        .toMatchObject({ ok: true, destination: 'record' });
+      expect(await useCase.execute(request({ ...charged, destination: 'record', portalShared: true })))
         .toMatchObject({ ok: false, error: '@core.access/permission.denied', errorParams: { permission: 'contracts.update' } });
+      expect(attached).toHaveLength(1);
     });
   });
 
@@ -469,7 +484,9 @@ describe('RenderDocumentUseCase', () => {
         const charged = { ...asked, belongsTo: 'contract', destination: 'record' as const, chargePermissions: true };
 
         expect(await useCase.execute(request({ ...charged, permissions: ['documents.generate', 'contracts.read'] })))
-          .toMatchObject({ ok: false, errorParams: { permission: 'contracts.update' } });
+          .toMatchObject({ ok: false, errorParams: { permission: 'contracts.update | contracts.attach' } });
+        expect(await useCase.execute(request({ ...charged, permissions: ['documents.generate', 'contracts.read', 'contracts.attach'] })))
+          .toMatchObject({ ok: true, destination: 'record' });
         expect(await useCase.execute(request({ ...charged, permissions: ['documents.generate', 'contracts.read', 'contracts.update'] })))
           .toMatchObject({ ok: true, destination: 'record' });
       });

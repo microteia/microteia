@@ -143,3 +143,46 @@ describe('a importação por tela no catálogo (#29)', () => {
   });
 });
 
+
+describe('anexar e anotar sem alterar o registro no catálogo (#35, #36)', () => {
+  it('a tela com a aba Documentos rende `<coleção>.attach`, que exige ver', () => {
+    const catalog = catalogoDe([tela({ hasDocuments: true })]);
+    expect(catalog.byId.get('consultas.attach')).toMatchObject({
+      requires: ['consultas.read'],
+      resource: 'consultas',
+      action: 'attach',
+      name: '@core.access/action.attach',
+      description: '@core.access/action.attach.description',
+      derived: true,
+    });
+    expect(catalog.byId.has('consultas.annotate')).toBe(false);
+  });
+
+  it('a tela com a aba Notas rende `<coleção>.annotate`, que exige ver', () => {
+    const catalog = catalogoDe([tela({ hasNotes: true })]);
+    expect(catalog.byId.get('consultas.annotate')).toMatchObject({
+      requires: ['consultas.read'],
+      resource: 'consultas',
+      action: 'annotate',
+      name: '@core.access/action.annotate',
+      description: '@core.access/action.annotate.description',
+      derived: true,
+    });
+    expect(catalog.byId.has('consultas.attach')).toBe(false);
+  });
+
+  it('sem a aba, a permissão não existe', () => {
+    const catalog = catalogoDe([tela({ hasDocuments: false, hasNotes: false })]);
+    expect(catalog.byId.has('consultas.attach')).toBe(false);
+    expect(catalog.byId.has('consultas.annotate')).toBe(false);
+  });
+
+  it('a aba da tela vinculada é a da coleção — a permissão sai na coleção, não na tela', () => {
+    const ancora = tela({ id: 'atendimentos', origin: 'builtin' });
+    const caixa = tela({ id: 'caixa', dataCollection: 'atendimentos', hasDocuments: true, hasNotes: true });
+    const catalog = catalogoDe([ancora, caixa]);
+    expect(catalog.byId.has('atendimentos.attach')).toBe(true);
+    expect(catalog.byId.has('atendimentos.annotate')).toBe(true);
+    expect(catalog.byId.has('caixa.attach')).toBe(false);
+  });
+});

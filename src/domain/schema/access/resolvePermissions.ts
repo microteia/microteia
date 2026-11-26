@@ -3,10 +3,11 @@ import { error } from '../plugin/diagnostics';
 import type { AccessPermission, AccessRequirement, CrudAction } from './permission';
 import { READ_ALL_ACTION, readAllPermissionId } from '../memberVisibility';
 import {
+  ANNOTATE_ACTION,
+  ATTACH_ACTION,
   CRUD_ACTIONS,
   IMPORT_ACTION,
   collectionPermissionId,
-  importPermissionId,
   parseAccessPermission,
   validateAccessPermission,
   validateAccessRequirement,
@@ -87,6 +88,13 @@ export interface PermissionResource {
    */
   deriveImport?: boolean;
   /**
+   * Uma tela da coleção mostra a aba Documentos (`hasDocuments`): o catálogo deriva `<coleção>.attach`
+   * (#35), que exige ver. Pela razão de `deriveImport`, sem a aba ela não existe.
+   */
+  deriveAttach?: boolean;
+  /** O mesmo de `deriveAttach` para a aba Notas (`hasNotes`): `<coleção>.annotate` (#36). */
+  deriveAnnotate?: boolean;
+  /**
    * As ações que uma PORTA gera para si (#33): "Executar" do workflow restrito, "Abrir" do relatório
    * restrito. O recurso é a porta, e a ação é o que ela concede — o mesmo desenho do CRUD de uma tela,
    * com as ações que a porta tem em vez das quatro.
@@ -125,6 +133,31 @@ const READ_ALL_DESCRIPTION = '@core.access/action.read-all.description';
 
 const IMPORT_NAME = '@core.access/action.import';
 const IMPORT_DESCRIPTION = '@core.access/action.import.description';
+
+/**
+ * As ações que uma tela rende além do CRUD por ter declarado uma capacidade — todas exigem ver, e a
+ * tabela é a única conta: acrescentar uma é uma linha aqui, e não mais um bloco copiado.
+ */
+const CAPABILITY_ACTIONS: readonly {
+  flag: 'deriveImport' | 'deriveAttach' | 'deriveAnnotate';
+  action: string;
+  name: string;
+  description: string;
+}[] = [
+  { flag: 'deriveImport', action: IMPORT_ACTION, name: IMPORT_NAME, description: IMPORT_DESCRIPTION },
+  {
+    flag: 'deriveAttach',
+    action: ATTACH_ACTION,
+    name: '@core.access/action.attach',
+    description: '@core.access/action.attach.description',
+  },
+  {
+    flag: 'deriveAnnotate',
+    action: ANNOTATE_ACTION,
+    name: '@core.access/action.annotate',
+    description: '@core.access/action.annotate.description',
+  },
+];
 
 /**
  * O catálogo unificado: o que as telas dão de graça mais o que os plugins declaram.
@@ -196,15 +229,16 @@ export const buildPermissionCatalog = (
         derived: true,
       });
     }
-    if (resource.deriveImport === true) {
-      const id = importPermissionId(resource.id);
+    for (const capability of CAPABILITY_ACTIONS) {
+      if (resource[capability.flag] !== true) continue;
+      const id = `${resource.id}.${capability.action}`;
       byId.set(id, {
         id,
-        name: IMPORT_NAME,
-        description: IMPORT_DESCRIPTION,
+        name: capability.name,
+        description: capability.description,
         requires: [readId],
         resource: resource.id,
-        action: IMPORT_ACTION,
+        action: capability.action,
         source: resource.source ?? '',
         derived: true,
       });

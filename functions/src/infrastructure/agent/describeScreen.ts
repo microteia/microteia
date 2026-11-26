@@ -7,7 +7,7 @@ import type { NativeFieldSpec } from '../../domain/schema/entityRegistry';
 import type { SchemaContext } from '../../domain/schema/screenEntity';
 import { resolveEntity } from '../../domain/schema/screenEntity';
 import type { CrudAction } from '../../domain/schema/access/permission';
-import { CRUD_ACTIONS, collectionPermissionId } from '../../domain/schema/access/permission';
+import { CRUD_ACTIONS, attachPermissionId, collectionPermissionId } from '../../domain/schema/access/permission';
 import { grants } from '../../domain/schema/access/memberPermissions';
 import { agentParameterPlaceholder } from '../../domain/schema/agent/agentOps';
 import type { AgentSession } from './authenticateAgent';
@@ -127,11 +127,13 @@ export const allowedOperations = (
   const operations = CRUD_ACTIONS.filter(permitido).map((action) => OPERATION_BY_ACTION[action]);
   if (ctx.screens.get(collection)?.hasDocuments !== true) return operations;
   // A aba Documentos segue a permissão da COLEÇÃO, como na regra do Firestore: ler o registro é ler
-  // os anexos dele, e anexar é alterá-lo.
+  // os anexos dele, e anexar é alterá-lo — ou só anexar, `<coleção>.attach` (#35).
   return [
     ...operations,
     ...(permitido('read') ? [DOCUMENT_OPERATION_BY_ACTION.read] : []),
-    ...(permitido('update') ? [DOCUMENT_OPERATION_BY_ACTION.update] : []),
+    ...(permitido('update') || grants(session.permissions, attachPermissionId(collection))
+      ? [DOCUMENT_OPERATION_BY_ACTION.update]
+      : []),
   ];
 };
 

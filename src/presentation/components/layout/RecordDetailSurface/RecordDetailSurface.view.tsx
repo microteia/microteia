@@ -31,6 +31,10 @@ export interface RecordDetailViewModel {
   isDirty: boolean;
   canDeleteRecordParts: boolean;
   canManageDocumentTypes: boolean;
+  /** `<coleção>.update` ou `.attach` (#35). */
+  canAttachDocuments: boolean;
+  /** `<coleção>.update` ou `.annotate` (#36). */
+  canAddNotes: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
   canDelete: boolean;
   /** A janela de edição do registro. `null` = a tela não declara prazo, ou o registro é novo. */
@@ -156,6 +160,8 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
       canDeleteRecordParts={vm.canDeleteRecordParts}
       documentsLocked={vm.isEditLocked}
       canManageDocumentTypes={vm.canManageDocumentTypes}
+      canAttachDocuments={vm.canAttachDocuments}
+      canAddNotes={vm.canAddNotes}
       avatar={vm.recordImageUrl
         ? <UserAvatar src={vm.recordImageUrl} name={vm.recordTitle} size={48} fallback={getScreenIcon(definition.icon, 22)} />
         : getScreenIcon(definition.icon, 22)}

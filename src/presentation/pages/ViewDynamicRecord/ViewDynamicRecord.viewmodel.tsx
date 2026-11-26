@@ -4,7 +4,7 @@ import { useRecords } from '../../../stores/useRecords';
 import { useRecordDemand } from '../../../stores/useRecordDemand';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_DOCUMENT_TYPES_MANAGE } from '../../../domain/schema/access';
+import { PERMISSION_DOCUMENT_TYPES_MANAGE, annotatePermissionId, attachPermissionId } from '../../../domain/schema/access';
 import { useAuth } from '../../../stores/useAuth';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetRecordByIdUseCase } from '../../../domain/usecases/records/GetRecordByIdUseCase';
@@ -66,6 +66,10 @@ export interface ViewDynamicRecordViewModel {
   canSave: boolean;
   canDeleteRecordParts: boolean;
   canManageDocumentTypes: boolean;
+  /** `<coleção>.update` ou `.attach` (#35). */
+  canAttachDocuments: boolean;
+  /** `<coleção>.update` ou `.annotate` (#36). */
+  canAddNotes: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
   canDelete: boolean;
   /** A janela de edição do registro. `null` = a tela não declara prazo, ou o registro é novo. */
@@ -146,6 +150,11 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const collectionDemand = useMemo(() => (collection ? [collection] : []), [collection]);
   useRecordDemand(collectionDemand);
   const canDeleteRecords = can(`${collection}.delete`);
+  // Anexar e anotar completam o registro sem alterá-lo: quem altera faz os dois, e quem só tem
+  // `.attach`/`.annotate` também — a mesma alternativa das regras.
+  const canUpdateRecords = can(`${collection}.update`);
+  const canAttachDocuments = canUpdateRecords || can(attachPermissionId(collection));
+  const canAddNotes = canUpdateRecords || can(annotatePermissionId(collection));
   const isBound = !!definition && isBoundScreen(definition);
   const boundFields = useEntityFormFields(isBound ? collection : '');
 
@@ -375,6 +384,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     canSave,
     canDeleteRecordParts: canDeleteRecords,
     canManageDocumentTypes,
+    canAttachDocuments,
+    canAddNotes,
     canDelete,
     editWindow,
     isEditLocked,

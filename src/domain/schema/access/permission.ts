@@ -64,6 +64,21 @@ export const IMPORT_ACTION = 'import';
 
 export const importPermissionId = (collection: string): string => `${collection}.${IMPORT_ACTION}`;
 
+/**
+ * Anexar à aba Documentos do registro (#35) e anotar na aba Notas (#36) SEM alterar o registro. Só a
+ * coleção cuja tela mostra a aba as rende, e elas SOMAM-SE a `<coleção>.update` em vez de a substituir:
+ * quem altera continua anexando e anotando, e nenhum perfil existente muda. Existem porque há registro
+ * que só uma automação escreve — e que uma pessoa ainda completa com anexo ou comentário.
+ *
+ * Nenhuma das duas apaga, troca, renomeia ou compartilha no portal: isso continua com `.update` e
+ * `.delete`, como hoje.
+ */
+export const ATTACH_ACTION = 'attach';
+export const ANNOTATE_ACTION = 'annotate';
+
+export const attachPermissionId = (collection: string): string => `${collection}.${ATTACH_ACTION}`;
+export const annotatePermissionId = (collection: string): string => `${collection}.${ANNOTATE_ACTION}`;
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 

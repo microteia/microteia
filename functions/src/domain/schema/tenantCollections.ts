@@ -161,7 +161,8 @@ export const collectionPermissionResources = (
 
 export type CatalogScreenSource = ScreenPresentationSource
   & ScreenCollectionDeclaration
-  & Pick<ScreenDefinition, 'ownerPluginId' | 'memberVisibility' | 'allowImport'>;
+  & Pick<ScreenDefinition, 'ownerPluginId' | 'memberVisibility' | 'allowImport'>
+  & Partial<Pick<ScreenDefinition, 'hasDocuments' | 'hasNotes'>>;
 
 /**
  * As coleções cuja leitura é por registro sem supervisão nomeada — as que ganham `<coleção>.read-all`.
@@ -184,6 +185,17 @@ const importCollections = (screens: readonly CatalogScreenSource[]): Set<string>
   new Set(screens.filter((screen) => screen.allowImport === true).map(screenDataCollection));
 
 /**
+ * As coleções que ganham `<coleção>.attach` (#35) e `<coleção>.annotate` (#36): a mesma soma por coleção
+ * de `importCollections`, a que o schema faz com `hasDocuments` e `hasNotes`. A aba que uma tela vinculada
+ * mostra É a da coleção — os anexos e as notas moram embaixo do registro, e não da tela.
+ */
+const documentCollections = (screens: readonly CatalogScreenSource[]): Set<string> =>
+  new Set(screens.filter((screen) => screen.hasDocuments === true).map(screenDataCollection));
+
+const noteCollections = (screens: readonly CatalogScreenSource[]): Set<string> =>
+  new Set(screens.filter((screen) => screen.hasNotes === true).map(screenDataCollection));
+
+/**
  * Os recursos do catálogo de permissões que as COLEÇÕES do escritório rendem: listas de opções,
  * conjuntos de etiquetas e telas, cada uma com o CRUD derivado.
  *
@@ -199,6 +211,8 @@ export const tenantCollectionPermissionResources = (
 ): PermissionResource[] => {
   const readAll = readAllCollections(screens);
   const importable = importCollections(screens);
+  const attachable = documentCollections(screens);
+  const annotatable = noteCollections(screens);
   return [
     ...collectionPermissionResources(lookups, tagLists),
     ...presentedScreens(screens).map((screen) => ({
@@ -207,6 +221,8 @@ export const tenantCollectionPermissionResources = (
       deriveCrud: true,
       ...(readAll.has(screenDataCollection(screen)) ? { deriveReadAll: true } : {}),
       ...(importable.has(screenDataCollection(screen)) ? { deriveImport: true } : {}),
+      ...(attachable.has(screenDataCollection(screen)) ? { deriveAttach: true } : {}),
+      ...(annotatable.has(screenDataCollection(screen)) ? { deriveAnnotate: true } : {}),
       ...(screen.ownerPluginId ? { source: screen.ownerPluginId } : {}),
     })),
   ];

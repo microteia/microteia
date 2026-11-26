@@ -20,16 +20,18 @@ interface NotesPanelProps {
   controller: EntityNotesController;
   /** Pode excluir uma anotação — a permissão de exclusão da coleção do registro. */
   canDelete: boolean;
+  /** Pode anotar: `<coleção>.update` ou `<coleção>.annotate` (#36). Sem nenhuma das duas, "Nova anotação" some. */
+  canAdd?: boolean;
 }
 
-export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, canDelete }) => {
+export const NotesPanel: React.FC<NotesPanelProps> = ({ controller: vm, canDelete, canAdd = true }) => {
   const t = useT('core.ui');
   const { formatLongDate } = useLocaleFormat();
 
   return (
   <>
     <S.TabSectionHeader>
-      {!vm.isNoteEditorOpen && (
+      {canAdd && !vm.isNoteEditorOpen && (
         <Button variant="secondary" size="sm" onClick={vm.openNoteEditor}>
           <RiAddLine size={14} />
           {t('notes.new')}

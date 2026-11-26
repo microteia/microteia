@@ -95,4 +95,12 @@ describe('AttachDownloadToRecordUseCase', () => {
       .toMatchObject({ ok: false, error: '@core.records/record.not-found' });
     expect(deleted).toEqual([]);
   });
+
+  it('quem só anexa (`.attach`, #35) anexa sem poder alterar o registro', async () => {
+    const { useCase, attached } = setup();
+
+    expect(await useCase.execute(request({ permissions: ['contracts.read', 'contracts.attach'] })))
+      .toMatchObject({ ok: true, document: { id: 'doc1' } });
+    expect(attached).toHaveLength(1);
+  });
 });

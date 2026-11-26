@@ -4,7 +4,7 @@ import { useRecords } from '../../../stores/useRecords';
 import { useRecordDemand } from '../../../stores/useRecordDemand';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_DOCUMENT_TYPES_MANAGE } from '../../../domain/schema/access';
+import { PERMISSION_DOCUMENT_TYPES_MANAGE, annotatePermissionId, attachPermissionId } from '../../../domain/schema/access';
 import { useAuth } from '../../../stores/useAuth';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetRecordByIdUseCase } from '../../../domain/usecases/records/GetRecordByIdUseCase';
@@ -74,6 +74,9 @@ export const useEntityDetailVM = (
   const collectionDemand = useMemo(() => (collection ? [collection] : []), [collection]);
   useRecordDemand(collectionDemand);
   const canDeleteRecords = can(`${collection}.delete`);
+  const canUpdateRecords = can(`${collection}.update`);
+  const canAttachDocuments = canUpdateRecords || can(attachPermissionId(collection));
+  const canAddNotes = canUpdateRecords || can(annotatePermissionId(collection));
   const isBound = !!definition && isBoundScreen(definition);
   const boundFields = useEntityFormFields(isBound ? collection : '');
 
@@ -240,6 +243,8 @@ export const useEntityDetailVM = (
     canSave,
     canDeleteRecordParts: canDeleteRecords,
     canManageDocumentTypes,
+    canAttachDocuments,
+    canAddNotes,
     canDelete,
     editWindow,
     isEditLocked,
