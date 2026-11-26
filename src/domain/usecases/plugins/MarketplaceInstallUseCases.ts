@@ -29,6 +29,7 @@ import type { ITagDefinitionRepository } from '../../repositories/ITagDefinition
 import { ENTITY_REGISTRY_LIST } from '../../schema/entityRegistry';
 import type { LocalizedIssue } from './pluginReferences';
 import { installCollisionIssues } from './installCollisions';
+import { actionReplacement, reportReplacement, scriptReplacement, workflowReplacement } from './artifactContent';
 
 /** Coleções de etiquetas declaradas em código — não recebem documento de declaração. */
 const BUILTIN_TAG_COLLECTIONS = new Set(
@@ -202,7 +203,7 @@ const materializeArtifacts = async (
       const owners = addOwner(ownerSet(existing), pluginId);
       if (shouldRewriteContent(template, existing, pluginId)) {
         await deps.scriptRepository.updateScript(tenantId, existing.id, {
-          ...scriptInputFromTemplate(template, pluginId),
+          ...scriptReplacement(scriptInputFromTemplate(template, pluginId)),
           ownerPluginIds: owners,
           ownerPluginId: existing.ownerPluginId ?? pluginId,
         });
@@ -244,7 +245,7 @@ const materializeArtifacts = async (
         const input = workflowInputFromTemplate(template, pluginId, scriptMap, screenEventMap, screenCollectionMap);
         // Reescreve o conteúdo mas PRESERVA o estado local do tenant (`enabled`) e o dono primário.
         await deps.workflowRepository.updateWorkflowDefinition(tenantId, existing.id, {
-          ...input,
+          ...workflowReplacement(input),
           enabled: existing.enabled,
           ownerPluginIds: owners,
           ownerPluginId: existing.ownerPluginId ?? pluginId,
@@ -285,7 +286,7 @@ const materializeArtifacts = async (
       const owners = addOwner(ownerSet(existing), pluginId);
       if (shouldRewriteContent(template, existing, pluginId)) {
         await deps.actionRepository.update(tenantId, existing.id, {
-          ...actionInputFromTemplate(template, pluginId, workflowMap, userId),
+          ...actionReplacement(actionInputFromTemplate(template, pluginId, workflowMap, userId)),
           ownerPluginIds: owners,
           ownerPluginId: existing.ownerPluginId ?? pluginId,
         });
@@ -356,7 +357,7 @@ const materializeReports = async (
       const owners = addOwner(ownerSet(existing), pluginId);
       if (shouldRewriteContent(template, existing, pluginId)) {
         await deps.reportRepository.update(tenantId, existing.id, {
-          ...input,
+          ...reportReplacement(input),
           ownerPluginIds: owners,
           ownerPluginId: existing.ownerPluginId ?? pluginId,
         });

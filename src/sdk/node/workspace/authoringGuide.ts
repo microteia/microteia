@@ -639,6 +639,19 @@ one, so nothing regresses), and another extension carrying the same artifact (sa
 replaces your copy only with a strictly greater \`sourceRev\`. Keeping \`sourceRev\` constant across
 versions is fine: the update still replaces the report or the automation.
 
+The replacement is WHOLE: a property the new version no longer declares — a \`confirmMessage\`, a
+\`hiddenWhen\`, an automation's \`description\` or \`access\` — is gone after the update, exactly as on a
+fresh install. The one thing an update keeps is the organization's own switch: an automation it turned
+off stays off.
+
+Screens are different, because the organization and other extensions write into them too. Your fields
+and screen properties are rewritten with the new version; the fields someone else added — the
+organization in the Form Design, or another extension through \`screenPatches\` — stay as they were. A
+new version that declares a field with the key of one of those is refused, naming the screen and the
+field, instead of silently replacing a definition that is not yours: the key is the name of the data in
+the record, and two definitions of it cannot coexist. Pick field keys that carry your prefix, and a
+collision is unlikely to begin with.
+
 ### References between your own artifacts
 
 Inside the package, artifacts point at each other by \`templateId\` (automations, actions, scripts) or

@@ -160,6 +160,8 @@ export const CORE_MARKETPLACE: Record<string, string> = {
   'issue.package.image.invalid': 'A imagem da extensão (manifest.image) precisa ser um data: URI em base64 de uma imagem PNG, JPEG, WebP ou SVG. Endereços da web não são aceitos: o pacote precisa levar tudo o que mostra.',
   'install.collision.screen': 'A extensão não foi instalada: ela cria a tela "{name}", e o escritório já usa esse nome para uma tela, uma lista de opções ou um conjunto de etiquetas. Nada foi alterado.',
   'install.collision.list': 'A extensão não foi instalada: ela declara a lista "{name}", que pertence a outra extensão ou é o nome de uma tela. Nada foi alterado.',
+  'install.collision.field': 'Esta versão da extensão não foi instalada: ela declara o campo "{field}" na tela "{screen}", e o escritório já acrescentou ali um campo com essa chave. Remova esse campo da tela e tente de novo — os valores já gravados nos registros são mantidos. Nada foi alterado.',
+  'install.collision.field.extension': 'Esta versão da extensão não foi instalada: ela declara o campo "{field}" na tela "{screen}", e a extensão "{extension}" já acrescentou ali um campo com essa chave. As duas gravariam o mesmo dado, então não podem ser instaladas juntas até que uma delas renomeie o campo. Nada foi alterado.',
   'install.prefix-changed': 'Esta versão troca o prefixo da extensão de "{from}" para "{to}", o que renomearia tudo o que ela criou. O prefixo de uma extensão nunca muda: esta versão não foi instalada.',
   'issue.prefix.invalid': 'O prefixo da extensão "{prefix}" não é válido. Use de 2 a 8 letras minúsculas ou dígitos, começando por letra: acme.',
   'issue.prefix.missing': 'O nome "{name}" precisa começar com "{head}": todo nome que esta extensão cria leva o prefixo dela.',

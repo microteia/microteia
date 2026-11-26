@@ -14266,6 +14266,25 @@ fica órfão.
 Desinstalar e instalar de novo perderia essas cinco coisas e renumeraria os artefatos. É por isso que
 "Atualizar" não é o par das duas operações, ainda que o resultado pareça o mesmo de fora.
 
+**Reescrever é SUBSTITUIR, não mesclar (#38).** Script, automação, ação e relatório da extensão saem da
+atualização iguais à instalação nova da versão que chegou, menos o `enabled` da automação. A gravação é
+um `updateDoc`, e o Firestore descarta `undefined`: a propriedade que a versão nova deixava de declarar
+nem chegava à gravação, e a da versão anterior ficava — o autor tirava o `confirmMessage` de uma ação e o
+diálogo continuava em todo escritório que atualizava, agora com a referência da mensagem crua, porque a
+chave tinha saído do catálogo. `artifactContent.ts` manda `null` para cada propriedade de conteúdo que o
+template não traz, e a lista dessas propriedades é um `Record` sobre as chaves do TIPO do template: a
+propriedade nova numa entidade não compila até entrar ali, que é o que impede o defeito de voltar pela
+próxima. A tela não precisou disso: `materializeScreen` já grava cada propriedade com `?? null`.
+
+**Campo de terceiros nunca é substituído calado.** Na tela, "o que é do escritório" é mais do que o campo
+do Form Design: o complemento de OUTRA extensão (`screenPatches`) também mora lá, com o dono dele, e os
+dois sobrevivem à atualização. O que não havia era a colisão: a versão nova que declarava um campo com a
+chave de um deles o substituía pela própria declaração, e o rótulo, o tipo, as opções e as regras que
+terceiros tinham escrito sumiam — o mesmo valendo para o complemento que caía sobre um campo da tela
+alvo. `fieldCollisionIssues` recusa as duas, antes de gravar, nomeando a tela, o campo e quem o pôs ali.
+A primeira instalação sobre uma tela do escritório (adoção) fica de fora: assumir os campos de mesma chave
+é o propósito dela.
+
 #### O identificador de uma automação, ação ou script
 
 Os três são artefatos de **id gerado** — diferente de uma tela, cuja chave é o nome da coleção. O id

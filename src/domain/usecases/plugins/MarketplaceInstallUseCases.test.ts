@@ -1661,3 +1661,121 @@ describe('Relatórios do pacote', () => {
     expect(reports.items.map((one) => one.id)).toEqual(['meu']);
   });
 });
+
+/**
+ * #38: a atualização SUBSTITUI o artefato da extensão. Os dublês mesclam como o `updateDoc` real
+ * (`{ ...atual, ...gravado }`), então a propriedade que a versão nova não manda fica — que era o defeito.
+ */
+describe('atualização substitui o artefato: o que a versão nova deixou de declarar sai (#38)', () => {
+  const version = (withExtras: boolean): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id: 'com.acme.requests', version: withExtras ? '1.0.0' : '1.1.0', kernel: '^2.0.0', name: 'R' },
+    screens: [{
+      key: 'pedidos', titleSingular: 'Pedido', titlePlural: 'Pedidos', icon: 'apps', titleFieldKey: 'nome',
+      fields: [{ key: 'nome', label: 'Nome', type: 'text', required: true, order: 0 }],
+    }],
+    scripts: [{
+      templateId: 'scr-normaliza', name: 'Normaliza', sourceTs: 'x', compiledJs: 'y', inputParams: [], outputParams: [],
+      ...(withExtras ? { description: 'v1' } : {}),
+    }],
+    workflows: [{
+      templateId: 'wf-refuse', name: 'Recusar', eventName: 'workflow.called', version: 1, condition: { kind: 'AlwaysTrue' }, steps: [],
+      parameters: [{ key: 'recordId', label: 'Registro', type: 'String', required: true }],
+      ...(withExtras ? { description: 'v1', access: { restricted: true } } : {}),
+    }],
+    actions: [{
+      templateId: 'act-refuse', key: 'refuse', title: 'Recusar', icon: 'closeCircle', workflowId: 'wf-refuse',
+      danger: true, enabled: true, order: 1,
+      ...(withExtras
+        ? { confirmMessage: '@acme.requests/action.refuse.confirm', hiddenWhen: 'status == "done"' }
+        : { promptParameters: true }),
+    }],
+    reports: [{
+      templateId: 'por-status', key: 'por-status', title: 'Por status', origin: 'plugin' as const,
+      spec: {
+        v: 1,
+        dataset: { table: 'pedidos', dimensions: [{ key: 'nome', path: 'nome' }], measures: [{ key: 'n', op: 'count' as const }] },
+        shape: { kind: 'summary' as const, groupBy: [{ dimension: 'nome' }], values: ['n'] },
+      },
+      ...(withExtras ? { description: 'v1', icon: 'chart' } : {}),
+    }],
+  });
+
+  it('a ação perde o confirmMessage que a 1.1.0 retirou e ganha o promptParameters que ela trouxe', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, version(true), actor);
+    await applyPackageArtifacts(d, version(false), actor);
+
+    const [action] = await actions.getAll('t1');
+    expect(action.promptParameters).toBe(true);
+    expect(action.confirmMessage ?? null).toBeNull();
+    expect(action.hiddenWhen ?? null).toBeNull();
+  });
+
+  it('workflow, script e relatório também deixam para trás o que a versão nova não declara', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, version(true), actor);
+    await applyPackageArtifacts(d, version(false), actor);
+
+    const [workflow] = await workflows.getWorkflowDefinitions('t1');
+    expect(workflow.description ?? null).toBeNull();
+    expect(workflow.access ?? null).toBeNull();
+    expect(workflow.parameters).toHaveLength(1);
+    expect((await scripts.getScripts('t1'))[0].description ?? null).toBeNull();
+    expect(reports.items[0].description ?? null).toBeNull();
+    expect(reports.items[0].icon ?? null).toBeNull();
+  });
+
+  it('o estado do escritório continua: a automação desligada segue desligada', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, version(true), actor);
+    const [workflow] = await workflows.getWorkflowDefinitions('t1');
+    await workflows.updateWorkflowDefinition('t1', workflow.id, { enabled: false });
+
+    await applyPackageArtifacts(d, version(false), actor);
+
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].enabled).toBe(false);
+  });
+});
+
+describe('atualização da tela: o que é da extensão é reescrito, o que é de terceiros fica intacto', () => {
+  const pedidos = (v: '1.0.0' | '1.1.0'): MarketplacePlugin => ({
+    summary: 'S',
+    manifest: { id: 'com.acme.requests', version: v, kernel: '^2.0.0', name: 'R' },
+    workflows: [],
+    screens: [{
+      key: 'pedidos', titleSingular: 'Pedido', titlePlural: v === '1.0.0' ? 'Pedidos' : 'Solicitações', icon: 'apps', titleFieldKey: 'nome',
+      hasNotes: v === '1.1.0',
+      fields: [
+        { key: 'nome', label: v === '1.0.0' ? 'Nome' : 'Título', type: 'text', required: v === '1.1.0', order: 0 },
+        ...(v === '1.1.0' ? [{ key: 'prazo', label: 'Prazo', type: 'date' as const, required: false, order: 1 }] : []),
+      ],
+    }],
+  });
+  const patcher: MarketplacePlugin = {
+    summary: 'S',
+    manifest: { id: 'com.other', version: '1.0.0', kernel: '^2.0.0', name: 'O' },
+    workflows: [],
+    screenPatches: [{ target: 'pedidos', fields: [{ key: 'nota', label: 'Nota', type: 'number', required: false, order: 9 }] }],
+  };
+
+  it('propriedades e campos novos chegam; o campo do escritório e o complemento de outra extensão continuam como estavam', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, pedidos('1.0.0'), actor);
+    await applyPackageArtifacts(d, patcher, actor);
+    const installed = screens.store.get('pedidos')!;
+    const officeField = { key: 'observacao', label: 'Observação do escritório', type: 'text' as const, required: true, order: 7, origin: 'design' as const, ownerPluginId: null };
+    screens.store.set('pedidos', { ...installed, fields: [...installed.fields, officeField] });
+
+    await applyPackageArtifacts(d, pedidos('1.1.0'), actor);
+
+    const after = screens.store.get('pedidos')!;
+    expect(after.titlePlural).toBe('Solicitações');
+    expect(after.hasNotes).toBe(true);
+    const byKey = new Map(after.fields.map((field) => [field.key, field]));
+    expect(byKey.get('nome')).toMatchObject({ label: 'Título', required: true, ownerPluginId: 'com.acme.requests' });
+    expect(byKey.get('prazo')).toMatchObject({ type: 'date', ownerPluginId: 'com.acme.requests' });
+    expect(byKey.get('observacao')).toEqual(officeField);
+    expect(byKey.get('nota')).toMatchObject({ label: 'Nota', type: 'number', ownerPluginId: 'com.other' });
+  });
+});
