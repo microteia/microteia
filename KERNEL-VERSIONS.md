@@ -20,6 +20,11 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.303.0] — 2026-11-26
+
+- feat(access): attach documents and add notes to a record without permission to edit it (#35, #36)
+- feat(access): apply tags to a record without permission to edit it (#37)
+
 #### [9.302.0] — 2026-11-26
 
 - feat(mail): several installations share one inbound mail domain — MAIL_INBOUND_SUFFIX routes forwarded e-mail straight to its installation, and the installation's .env explains each setting (#34)
