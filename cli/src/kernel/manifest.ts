@@ -16,6 +16,12 @@ export interface BackendParameter {
   name: string;
   /** Sem `default` no `defineString`, o firebase-functions EXIGE valor e recusa o deploy sem ele. */
   required: boolean;
+  /**
+   * A `description` do `defineString`, que vira o comentário da linha no `.env.<projectId>`. Viaja no
+   * manifesto pela mesma razão de `preLoginPoints`: o Console é versionado à parte, e o texto que explica um
+   * parâmetro do kernel tem de ser o da versão instalada. Ausente nos pacotes anteriores a ela.
+   */
+  description?: string;
 }
 
 export interface KernelManifest {
@@ -248,12 +254,15 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
       + 'that RECEIVES mail and an inbound mail provider in front of it that POSTs every message, raw and '
       + 'signed, to https://<region>-<projectId>.cloudfunctions.net/mailInbound. Choose a long random secret, '
       + 'write MAIL_INBOUND_DOMAIN=<domain> and MAIL_INBOUND_SECRET=<secret> in .env.<projectId> and run '
-      + 'microteia deploy --only functions (provision does not carry the platform\'s own settings). With '
-      + 'Cloudflare Email Routing, the reference Email Worker in integrations/cloudflare-email-worker of the '
-      + 'Microteia repository does the rest; note that Cloudflare runs a catch-all rule only on the zone\'s '
-      + 'apex domain, not on a subdomain. The step-by-step guide, the request contract for any other '
-      + 'provider and how to read the Worker log are at https://doc.microteia.com/forwarded-email. Without '
-      + 'these two settings nothing changes for anyone.',
+      + 'microteia deploy --only functions (provision does not carry the platform\'s own settings). When '
+      + 'several installations share the domain, give each one MAIL_INBOUND_SUFFIX=<lowercase letters and '
+      + 'digits>: its addresses become <code>_<suffix>@<domain>, and the adapter routes by the suffix instead '
+      + 'of asking every installation. With Cloudflare Email Routing, the reference Email Worker in '
+      + 'integrations/cloudflare-email-worker of the Microteia repository does the rest (one <SUFFIX>_URL and '
+      + '<SUFFIX>_SECRET pair per installation); note that Cloudflare runs a catch-all rule only on the '
+      + 'zone\'s apex domain, not on a subdomain. The step-by-step guide, the request contract for any other '
+      + 'provider and how to read the Worker log are at https://doc.microteia.com/#/forwarded-email. Without '
+      + 'the domain and the secret nothing changes for anyone.',
     optional: true,
   },
   {
@@ -271,7 +280,8 @@ export const MANUAL_PREREQUISITES: KernelPrerequisite[] = [
       + 'longer. Grant the functions\' runtime service account roles/storage.admin on THAT bucket only (it '
       + 'reads the bucket\'s retention settings and sets each day\'s retention, which the object roles '
       + 'do not cover), write AUDIT_ARCHIVE_BUCKET=<bucket> in .env.<projectId> '
-      + 'and run microteia deploy --only functions (provision does not carry the platform\'s own settings). What it protects against, and what it does not: a locked bucket stops '
+      + 'and run microteia deploy --only functions (provision does not carry the platform\'s own settings); '
+      + 'the guide is at https://doc.microteia.com/#/audit. What it protects against, and what it does not: a locked bucket stops '
       + 'deletion and rewriting of what was already archived; the chain makes any change visible on '
       + 'verification. A project owner can still alter or delete an audit line in Firestore BEFORE its day '
       + 'is exported (the export runs hourly, about an hour after midnight UTC), turn the archive off (that '
@@ -314,6 +324,13 @@ export const callableFunctionNames = (source: string): string[] =>
   [...source.matchAll(/export\s+const\s+([a-zA-Z0-9_]+)\s*=\s*(?:onCall|onRequest)\b/g)]
     .map((match) => match[1]);
 
+/** Só o literal de uma aspa só, simples ou dupla: concatenado ou montado, a descrição fica de fora. */
+const descriptionIn = (options: string): string | null => {
+  const match = options.match(/description:\s*(?:'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)")\s*[,}]/);
+  if (match === null) return null;
+  return (match[1] ?? match[2]).replace(/\\(.)/g, '$1').trim() || null;
+};
+
 /**
  * Os parâmetros que o backend declara com `defineString`. O `firebase-functions` os valida
  * GLOBALMENTE, e não por function: um parâmetro sem valor e sem default recusa o deploy de TODAS as
@@ -324,10 +341,15 @@ export const callableFunctionNames = (source: string): string[] =>
  * desatualizado quando esta função foi escrita.
  */
 export const declaredParametersIn = (source: string): BackendParameter[] =>
-  [...source.matchAll(/defineString\(\s*'([A-Z0-9_]+)'\s*(,\s*\{[^}]*\})?\s*\)/g)].map((match) => ({
-    name: match[1],
-    required: match[2] === undefined || !match[2].includes('default'),
-  }));
+  [...source.matchAll(/defineString\(\s*'([A-Z0-9_]+)'\s*(,\s*\{[^}]*\})?\s*\)/g)].map((match) => {
+    const description = descriptionIn(match[2] ?? '');
+    return {
+      name: match[1],
+      required: match[2] === undefined || !match[2].includes('default'),
+      ...(description ? { description } : {}),
+    };
+  });
+
 
 /** Comparação de versão suficiente para `minimumCliVersion`: três números, sem pré-lançamento. */
 export const compareVersions = (left: string, right: string): number => {

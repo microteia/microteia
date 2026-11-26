@@ -2,7 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import worker from '../integrations/cloudflare-email-worker/worker.js';
 import { inboundSignatureIssue } from '../functions/src/domain/services/mailInbound';
-import { MAIL_INBOUND_HEADERS, MAIL_INBOUND_TOKEN_LENGTH, mailInboundTokenOf } from '../src/domain/schema/mailbox';
+import {
+  MAIL_INBOUND_HEADERS,
+  MAIL_INBOUND_SUFFIX_PATTERN,
+  MAIL_INBOUND_SUFFIX_SEPARATOR,
+  MAIL_INBOUND_TOKEN_LENGTH,
+  mailInboundAddress,
+  mailInboundTokenOf,
+} from '../src/domain/schema/mailbox';
 
 /**
  * O Worker de referência é JavaScript para colar no painel do Cloudflare, e por isso não importa nada do
@@ -66,7 +73,7 @@ describe('Worker de referência do Cloudflare', () => {
       Math.floor(Date.now() / 1000),
     );
     expect(issue).toBeNull();
-    expect(mailInboundTokenOf(headers[MAIL_INBOUND_HEADERS.recipient], 'example.com')).toBe(CODE);
+    expect(mailInboundTokenOf(headers[MAIL_INBOUND_HEADERS.recipient], { domain: 'example.com', suffix: '' })).toBe(CODE);
   });
 
   it('o endereço que não é de caixa não sai do Cloudflare: vai para FALLBACK_TO ou é recusado', async () => {
@@ -106,8 +113,41 @@ describe('Worker de referência do Cloudflare', () => {
     expect(sent).toHaveLength(1);
   });
 
+  it('com sufixo, entrega direto à instalação que tem o nome dele — uma chamada só, assinada para ela', async () => {
+    const sent = stubFetch([{ status: 202, outcome: 'delivered' }]);
+    const recipient = mailInboundAddress(CODE, { domain: 'example.com', suffix: 'prod' });
+    const { message, calls } = fakeMessage(`${recipient.replace('@', '+gmail@')}`);
+    await worker.email(message, { ...env, QA_URL: 'https://qa.example.com/mailInbound', QA_SECRET: 's-qa' });
+
+    expect(sent.map((one) => one.url)).toEqual([env.PROD_URL]);
+    expect(calls.rejected).toBeNull();
+    const { headers, body } = sent[0];
+    expect(inboundSignatureIssue(
+      env.PROD_SECRET,
+      {
+        timestamp: headers[MAIL_INBOUND_HEADERS.timestamp],
+        recipient: headers[MAIL_INBOUND_HEADERS.recipient],
+        signature: headers[MAIL_INBOUND_HEADERS.signature],
+      },
+      body,
+      Math.floor(Date.now() / 1000),
+    )).toBeNull();
+    expect(mailInboundTokenOf(headers[MAIL_INBOUND_HEADERS.recipient], { domain: 'example.com', suffix: 'prod' })).toBe(CODE);
+  });
+
+  it('sufixo sem instalação com o nome dele: recusa sem chamar ninguém', async () => {
+    const sent = stubFetch([]);
+    const { message, calls } = fakeMessage(`${CODE}_outra@example.com`);
+    await worker.email(message, env);
+
+    expect(sent).toHaveLength(0);
+    expect(calls.rejected).toBe('Unknown address');
+  });
+
   it('o formato do endereço escrito no Worker é o do kernel', () => {
     const source = readFileSync('integrations/cloudflare-email-worker/worker.js', 'utf8');
     expect(source).toContain(`/^[a-z0-9]{${MAIL_INBOUND_TOKEN_LENGTH}}$/`);
+    expect(source).toContain(`const MAILBOX_SUFFIX = ${MAIL_INBOUND_SUFFIX_PATTERN.toString()};`);
+    expect(source).toContain(`.split('${MAIL_INBOUND_SUFFIX_SEPARATOR}')`);
   });
 });

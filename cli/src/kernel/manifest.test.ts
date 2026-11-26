@@ -11,6 +11,7 @@ import {
   parseKernelVersion,
 } from './manifest.js';
 import { repoRoot } from '../shared/paths.js';
+import type { BackendParameter } from './manifest.js';
 
 const read = (relative: string): string => readFileSync(join(repoRoot, relative), 'utf8');
 
@@ -163,8 +164,8 @@ describe('parâmetros do backend', () => {
     return found;
   };
 
-  const declared = (): { name: string; required: boolean }[] => {
-    const found = new Map<string, { name: string; required: boolean }>();
+  const declared = (): BackendParameter[] => {
+    const found = new Map<string, BackendParameter>();
     for (const source of functionSources()) {
       for (const parameter of declaredParametersIn(source)) {
         if (!found.has(parameter.name) || parameter.required) found.set(parameter.name, parameter);
@@ -183,6 +184,19 @@ describe('parâmetros do backend', () => {
     ]);
   });
 
+  it('leva a descrição literal, que vira o comentário da linha no .env da instalação', () => {
+    const parsed = declaredParametersIn([
+      "defineString('A', { default: '', description: 'Bucket for x. See https://doc.microteia.com/#/audit' });",
+      "defineString('B', {\n  default: '',\n  description: \"It\\'s quoted\",\n});",
+      "defineString('C', { description: 'Built ' + 'from parts' });",
+    ].join('\n'));
+    expect(parsed).toEqual([
+      { name: 'A', required: false, description: 'Bucket for x. See https://doc.microteia.com/#/audit' },
+      { name: 'B', required: false, description: "It's quoted" },
+      { name: 'C', required: true },
+    ]);
+  });
+
   /**
    * O kernel não declara parâmetro OBRIGATÓRIO, e isso é o estado CERTO — não uma lacuna. Os quatro que
    * existiam eram do Gmail, portanto da extensão de Pushes do Tribunal, e saíram junto com ela.
@@ -197,16 +211,27 @@ describe('parâmetros do backend', () => {
    *
    * `MAIL_INBOUND_DOMAIN` e `MAIL_INBOUND_SECRET`: a recepção de e-mail encaminhado. Só quem põe um
    * provedor de recepção na frente do domínio os preenche; sem eles, a caixa lida por IMAP continua.
+   * `MAIL_INBOUND_SUFFIX` só serve a quem divide o domínio com outras instalações.
    *
    * `SELF_SERVICE_TENANTS` saiu daqui: se a conta nova ganha escritório é decisão do `SYSTEM`, em Gestão
    * de Acessos (`system/registration`), e não de quem instala — no `.env`, mudar exigia redeploy.
    */
   it('o kernel não declara parâmetro de backend obrigatório — e os opcionais são estes', () => {
-    expect(declared()).toEqual([
+    expect(declared().map(({ name, required }) => ({ name, required }))).toEqual([
       { name: 'AUDIT_ARCHIVE_BUCKET', required: false },
       { name: 'MAIL_INBOUND_DOMAIN', required: false },
+      { name: 'MAIL_INBOUND_SUFFIX', required: false },
       { name: 'MAIL_INBOUND_SECRET', required: false },
     ]);
+  });
+
+  /**
+   * A descrição é o comentário da linha no `.env.<projectId>` — o único texto que quem instala lê sobre a
+   * variável. Um parâmetro do kernel sem ela, ou sem apontar para a documentação, nasce mudo lá.
+   */
+  it('todo parâmetro do kernel tem descrição literal apontando para a documentação', () => {
+    const silent = declared().filter((parameter) => !parameter.description?.includes('https://doc.microteia.com/#/'));
+    expect(silent.map((parameter) => parameter.name)).toEqual([]);
   });
 
   it('o .env.example do repositório documenta também os opcionais', () => {

@@ -82,7 +82,7 @@ describe('receiveInboundMail', () => {
     const delivered: MailDelivery[] = [];
     const recorded: Recorded[] = [];
     const outcome = await receiveInboundMail(
-      { domain: DOMAIN, recipient: RECIPIENT, raw: Buffer.from('x') },
+      { addressing: { domain: DOMAIN, suffix: '' }, recipient: RECIPIENT, raw: Buffer.from('x') },
       deps(forwardBox(), mail('a@tjba.jus.br', 'Intimação'), delivered, recorded),
     );
     expect(outcome).toBe('delivered');
@@ -95,7 +95,7 @@ describe('receiveInboundMail', () => {
   it('o que nenhuma automação quer não é entregue', async () => {
     const delivered: MailDelivery[] = [];
     const outcome = await receiveInboundMail(
-      { domain: DOMAIN, recipient: RECIPIENT, raw: Buffer.from('x') },
+      { addressing: { domain: DOMAIN, suffix: '' }, recipient: RECIPIENT, raw: Buffer.from('x') },
       deps(forwardBox(), mail('promo@loja.com', 'Ofertas'), delivered),
     );
     expect(outcome).toBe('ignored');
@@ -106,7 +106,7 @@ describe('receiveInboundMail', () => {
     const delivered: MailDelivery[] = [];
     const recorded: Recorded[] = [];
     const outcome = await receiveInboundMail(
-      { domain: DOMAIN, recipient: RECIPIENT, raw: Buffer.from('x') },
+      { addressing: { domain: DOMAIN, suffix: '' }, recipient: RECIPIENT, raw: Buffer.from('x') },
       deps(forwardBox(), mail('forwarding-noreply@google.com', '(#987654321) Gmail Forwarding Confirmation'), delivered, recorded),
     );
     expect(outcome).toBe('confirmation');
@@ -116,14 +116,22 @@ describe('receiveInboundMail', () => {
 
   it('destinatário desconhecido, de outro domínio ou de caixa lida por IMAP é descartado sem erro', async () => {
     const parsed = mail('a@tjba.jus.br', 'x');
-    expect(await receiveInboundMail({ domain: DOMAIN, recipient: `zyxwvutsrqponmlkjihgfedc@${DOMAIN}`, raw: Buffer.from('x') }, deps(forwardBox(), parsed))).toBe('unknown-recipient');
-    expect(await receiveInboundMail({ domain: DOMAIN, recipient: `${TOKEN}@outro.com`, raw: Buffer.from('x') }, deps(forwardBox(), parsed))).toBe('unknown-recipient');
+    expect(await receiveInboundMail({ addressing: { domain: DOMAIN, suffix: '' }, recipient: `zyxwvutsrqponmlkjihgfedc@${DOMAIN}`, raw: Buffer.from('x') }, deps(forwardBox(), parsed))).toBe('unknown-recipient');
+    expect(await receiveInboundMail({ addressing: { domain: DOMAIN, suffix: '' }, recipient: `${TOKEN}@outro.com`, raw: Buffer.from('x') }, deps(forwardBox(), parsed))).toBe('unknown-recipient');
     const imapBox = forwardBox({ settings: { ...forwardBox().settings, source: 'imap' } });
-    expect(await receiveInboundMail({ domain: DOMAIN, recipient: RECIPIENT, raw: Buffer.from('x') }, deps(imapBox, parsed))).toBe('unknown-recipient');
+    expect(await receiveInboundMail({ addressing: { domain: DOMAIN, suffix: '' }, recipient: RECIPIENT, raw: Buffer.from('x') }, deps(imapBox, parsed))).toBe('unknown-recipient');
+  });
+
+  it('com sufixo, recebe pelo endereço dela e pelo antigo, e ignora o de outra instalação', async () => {
+    const parsed = mail('a@tjba.jus.br', 'Intimação');
+    const addressing = { domain: DOMAIN, suffix: 'curatino' };
+    expect(await receiveInboundMail({ addressing, recipient: `${TOKEN}_curatino@${DOMAIN}`, raw: Buffer.from('x') }, deps(forwardBox(), parsed))).toBe('delivered');
+    expect(await receiveInboundMail({ addressing, recipient: RECIPIENT, raw: Buffer.from('x') }, deps(forwardBox(), parsed))).toBe('delivered');
+    expect(await receiveInboundMail({ addressing, recipient: `${TOKEN}_outra@${DOMAIN}`, raw: Buffer.from('x') }, deps(forwardBox(), parsed))).toBe('unknown-recipient');
   });
 
   it('caixa desligada não entrega', async () => {
     const box = forwardBox({ settings: { ...forwardBox().settings, enabled: false } });
-    expect(await receiveInboundMail({ domain: DOMAIN, recipient: RECIPIENT, raw: Buffer.from('x') }, deps(box, mail('a@tjba.jus.br', 'x')))).toBe('disabled');
+    expect(await receiveInboundMail({ addressing: { domain: DOMAIN, suffix: '' }, recipient: RECIPIENT, raw: Buffer.from('x') }, deps(box, mail('a@tjba.jus.br', 'x')))).toBe('disabled');
   });
 });

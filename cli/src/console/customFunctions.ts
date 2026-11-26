@@ -205,9 +205,11 @@ export const readFunctionSource = async (
     // sem `default`: é essa que recusa o deploy quando o valor falta, e a conservadora é a que avisa.
     for (const parameter of declaredParametersIn(source)) {
       const previous = parameters.get(parameter.name);
+      const description = previous?.description ?? parameter.description;
       parameters.set(parameter.name, {
         name: parameter.name,
         required: parameter.required || (previous?.required ?? false),
+        ...(description ? { description } : {}),
       });
     }
   }
@@ -300,9 +302,11 @@ export const officeFunctionsOf = (sources: FunctionSource[]): OfficeFunctions =>
   for (const source of sources) {
     for (const parameter of source.parameters) {
       const previous = parameters.get(parameter.name);
+      const description = previous?.description ?? parameter.description;
       parameters.set(parameter.name, {
         name: parameter.name,
         required: parameter.required || (previous?.required ?? false),
+        ...(description ? { description } : {}),
       });
     }
   }

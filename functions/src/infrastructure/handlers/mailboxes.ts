@@ -19,7 +19,7 @@ import {
   mailInboundAddress,
   mailboxSettingsIssue,
 } from '../../domain/schema/mailbox';
-import type { ForwardingRule, MailboxListing, MailboxSettings, MailboxView } from '../../domain/schema/mailbox';
+import type { ForwardingRule, MailInboundAddressing, MailboxListing, MailboxSettings, MailboxView } from '../../domain/schema/mailbox';
 import { mailInboundConfig } from '../settings/mailInbound';
 import { officeSettingValues } from '../settings/officeSettings';
 import { inboundSignatureIssue, receiveInboundMail } from '../../domain/services/mailInbound';
@@ -131,7 +131,7 @@ const viewOf = async (
   tenantId: string,
   mailbox: StoredMailbox,
   names: Map<string, string>,
-  inboundDomain: string | null,
+  inbound: MailInboundAddressing | null,
   forwardingRule: ForwardingRule | null,
 ): Promise<MailboxView> => {
   if (mailbox.ownerId && !names.has(mailbox.ownerId)) {
@@ -145,7 +145,7 @@ const viewOf = async (
     hasPassword: mailbox.hasPassword,
     nextPollAt: mailbox.nextPollAt ? mailbox.nextPollAt.toISOString() : null,
     health: mailbox.health,
-    address: mailbox.inboundToken && inboundDomain ? mailInboundAddress(mailbox.inboundToken, inboundDomain) : null,
+    address: mailbox.inboundToken && inbound ? mailInboundAddress(mailbox.inboundToken, inbound) : null,
     forwardingConfirmation: mailbox.forwardingConfirmation,
     forwardingRule,
   };
@@ -220,7 +220,7 @@ export const manageMailbox = onCall(
         const rules = await forwardingRules(tenantId, visible);
         return {
           mailboxes: await Promise.all(visible.map((mailbox) =>
-            viewOf(tenantId, mailbox, names, inbound?.domain ?? null, rules.get(mailbox.id) ?? null))),
+            viewOf(tenantId, mailbox, names, inbound, rules.get(mailbox.id) ?? null))),
           forwardingAvailable: inbound !== null,
         };
       }
@@ -321,7 +321,7 @@ export const mailInbound = onRequest(
     const repository = di.getMailboxRepository();
     try {
       const outcome = await receiveInboundMail(
-        { domain: config.domain, recipient, raw },
+        { addressing: config, recipient, raw },
         {
           findByInboundToken: (token) => repository.findByInboundToken(token),
           getMailbox: (ref) => repository.get(ref.tenantId, ref.id),

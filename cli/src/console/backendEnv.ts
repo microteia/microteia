@@ -45,6 +45,34 @@ const declaredNames = (content: string): Set<string> => new Set(
     .map((line) => line.slice(0, line.indexOf('=')).trim()),
 );
 
+const COMMENT_WIDTH = 100;
+
+/** Quebra em palavras, sem cortar nenhuma: uma URL partida ao meio deixa de ser clicável no editor. */
+const commentLines = (text: string): string[] => {
+  const lines: string[] = [];
+  let line = '#';
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (line !== '#' && line.length + 1 + word.length > COMMENT_WIDTH) {
+      lines.push(line);
+      line = '#';
+    }
+    line = `${line} ${word}`;
+  }
+  if (line !== '#') lines.push(line);
+  return lines;
+};
+
+/**
+ * A linha do parâmetro, precedida do que ele faz. O texto é a `description` do `defineString` — escrito por
+ * quem declara o parâmetro, na versão que está sendo instalada —, e não um texto do Console, que pode ser de
+ * outro contrato. Sem descrição, só a linha.
+ */
+const envEntry = (parameter: BackendParameter): string => [
+  ...(parameter.description ? commentLines(parameter.description) : []),
+  `${parameter.name}=`,
+  '',
+].join('\n');
+
 export interface EnsureEnvResult {
   path: string;
   created: boolean;
@@ -71,7 +99,7 @@ export const ensureOfficeEnv = async (
 
   if (previous !== null && missing.length === 0) return { path, created: false, added: [] };
 
-  const body = `${missing.map((parameter) => `${parameter.name}=`).join('\n')}\n`;
+  const body = missing.map(envEntry).join('\n');
 
   if (previous === null) {
     const header = `# Backend settings for ${projectId}.\n`

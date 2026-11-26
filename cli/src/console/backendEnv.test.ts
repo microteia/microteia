@@ -79,6 +79,40 @@ describe('a configuração de backend do escritório', () => {
     expect(await readFile(officeEnvPath(root, 'curatino'), 'utf8')).toBe(before);
   });
 
+  /**
+   * O `.env.<projectId>` é o único lugar em que quem instala lê o que cada variável faz — o `.env.example`
+   * do repositório não viaja no pacote. O texto é a `description` do `defineString`, que chega pelo manifesto.
+   */
+  it('escreve a descrição de cada parâmetro como comentário, quebrada sem partir a URL', async () => {
+    const url = 'https://doc.microteia.com/#/forwarded-email';
+    const description = `Domain whose MX points to the inbound mail provider; forwarded e-mail is addressed to <code>@<domain>. Empty: forwarding is unavailable. See ${url}`;
+    await ensureOfficeEnv(root, 'curatino', [
+      { name: 'MAIL_INBOUND_DOMAIN', required: false, description },
+      { name: 'SEM_DESCRICAO', required: false },
+    ]);
+
+    const content = await readFile(officeEnvPath(root, 'curatino'), 'utf8');
+    const lines = content.split('\n');
+    const at = lines.indexOf('MAIL_INBOUND_DOMAIN=');
+    const comment = [];
+    for (let index = at - 1; index >= 0 && lines[index].startsWith('# '); index -= 1) comment.unshift(lines[index]);
+    expect(comment.length).toBeGreaterThan(1);
+    expect(comment.every((line) => line.length <= 100)).toBe(true);
+    expect(comment.map((line) => line.slice(2)).join(' ')).toBe(description);
+    expect(comment.some((line) => line.endsWith(url))).toBe(true);
+    expect(lines[lines.indexOf('SEM_DESCRICAO=') - 1]).toBe('');
+  });
+
+  it('o parâmetro novo de uma versão nova chega com o comentário dele, sem tocar no resto', async () => {
+    await ensureOfficeEnv(root, 'curatino', [PARAMETERS[0]]);
+    const before = await readFile(officeEnvPath(root, 'curatino'), 'utf8');
+
+    await ensureOfficeEnv(root, 'curatino', [PARAMETERS[0], { name: 'NOVO', required: false, description: 'What it does.' }]);
+    const content = await readFile(officeEnvPath(root, 'curatino'), 'utf8');
+    expect(content.startsWith(before)).toBe(true);
+    expect(content.slice(before.length)).toBe('\n# What it does.\nNOVO=\n');
+  });
+
   it('um parâmetro comentado não conta como declarado', async () => {
     await writeFile(officeEnvPath(root, 'curatino'), '# GOOGLE_CLIENT_ID=nao-vale\n');
     const result = await ensureOfficeEnv(root, 'curatino', [PARAMETERS[0]]);

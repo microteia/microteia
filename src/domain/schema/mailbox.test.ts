@@ -9,6 +9,8 @@ import {
   forwardingRuleOf,
   mailFilterWithoutSettings,
   resolveMailFilter,
+  MAIL_INBOUND_SUFFIX_PATTERN,
+  mailInboundAddress,
   mailInboundTokenOf,
   hasMailFilter,
   mailAddressOf,
@@ -133,11 +135,38 @@ describe('mailboxSettingsIssue', () => {
 describe('encaminhamento — endereço e confirmação', () => {
   const token = 'abcdefghijklmnopqrstuvwx';
 
+  const plain = { domain: 'in.example.com', suffix: '' };
+  const suffixed = { domain: 'in.example.com', suffix: 'curatino' };
+
   it('lê o código do destinatário do envelope, com ou sem etiqueta, só no domínio da instalação', () => {
-    expect(mailInboundTokenOf(`${token}@in.example.com`, 'in.example.com')).toBe(token);
-    expect(mailInboundTokenOf(`<${token.toUpperCase()}+gmail@IN.example.com>`, 'in.example.com')).toBe(token);
-    expect(mailInboundTokenOf(`${token}@outro.com`, 'in.example.com')).toBeNull();
-    expect(mailInboundTokenOf('curto@in.example.com', 'in.example.com')).toBeNull();
+    expect(mailInboundTokenOf(`${token}@in.example.com`, plain)).toBe(token);
+    expect(mailInboundTokenOf(`<${token.toUpperCase()}+gmail@IN.example.com>`, plain)).toBe(token);
+    expect(mailInboundTokenOf(`${token}@outro.com`, plain)).toBeNull();
+    expect(mailInboundTokenOf('curto@in.example.com', plain)).toBeNull();
+  });
+
+  it('monta o endereço com o sufixo da instalação, e sem ele quando não há', () => {
+    expect(mailInboundAddress(token, plain)).toBe(`${token}@in.example.com`);
+    expect(mailInboundAddress(token, suffixed)).toBe(`${token}_curatino@in.example.com`);
+  });
+
+  it('com sufixo, aceita o endereço dela e o antigo sem sufixo — e recusa o sufixo de outra instalação', () => {
+    expect(mailInboundTokenOf(`${token}_curatino@in.example.com`, suffixed)).toBe(token);
+    expect(mailInboundTokenOf(`${token}_CURATINO+gmail@in.example.com`, suffixed)).toBe(token);
+    expect(mailInboundTokenOf(`${token}@in.example.com`, suffixed)).toBe(token);
+    expect(mailInboundTokenOf(`${token}_outra@in.example.com`, suffixed)).toBeNull();
+    expect(mailInboundTokenOf(`${token}_curatino@in.example.com`, plain)).toBeNull();
+    expect(mailInboundTokenOf(`${token}_@in.example.com`, suffixed)).toBeNull();
+    expect(mailInboundTokenOf(`${token}_@in.example.com`, plain)).toBeNull();
+  });
+
+  it('o sufixo é só letras minúsculas e dígitos', () => {
+    expect(MAIL_INBOUND_SUFFIX_PATTERN.test('curatino')).toBe(true);
+    expect(MAIL_INBOUND_SUFFIX_PATTERN.test('dev2')).toBe(true);
+    expect(MAIL_INBOUND_SUFFIX_PATTERN.test('')).toBe(false);
+    expect(MAIL_INBOUND_SUFFIX_PATTERN.test('cura_tino')).toBe(false);
+    expect(MAIL_INBOUND_SUFFIX_PATTERN.test('cura-tino')).toBe(false);
+    expect(MAIL_INBOUND_SUFFIX_PATTERN.test('Curatino')).toBe(false);
   });
 
   it('reconhece a confirmação de encaminhamento do Gmail, com o código e o link', () => {

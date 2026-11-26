@@ -3469,6 +3469,15 @@ têm a ver com aquele parâmetro. Foi assim que um parâmetro ausente derrubou o
 numa instalação nova. Por isso o Console escreve cada parâmetro declarado no `.env.<projectId>` da
 instalação, vazio: o valor é do escritório, mas a LINHA é obrigação de quem empacota.
 
+**A linha vem com o que ela faz.** A `description` literal do `defineString` viaja no manifesto
+(`BackendParameter.description`, lida por `declaredParametersIn`) e o Console a escreve como comentário logo
+acima da linha, quebrada em palavras para nunca partir uma URL. É o único texto sobre a variável que quem
+instala lê — o `functions/.env.example` não viaja —, e por isso vem de quem declara o parâmetro, na versão
+instalada, e não do Console, que é versionado à parte. Só a linha NOVA ganha comentário: o arquivo é do
+escritório, e o que já está nele não é reescrito. `manifest.test.ts` exige que todo parâmetro do kernel
+tenha descrição apontando para `https://doc.microteia.com/#/…`; a descrição concatenada ou montada fica de
+fora, então ela é sempre um literal só.
+
 **Segunda: preencher o arquivo não alcança function nenhuma.** O valor entra na function no deploy DELA,
 e o caso normal é preencher depois da instalação — a credencial só existe depois que alguém a cria no
 console do provedor. É o que `backend.parameters` no `microteia.yaml` resolve: um digest salgado por
@@ -10080,7 +10089,8 @@ um adaptador na frente do domínio.
 | Peça | O quê |
 |---|---|
 | `MAIL_INBOUND_DOMAIN`, `MAIL_INBOUND_SECRET` | parâmetros OPCIONAIS da instalação (`infrastructure/settings/mailInbound.ts`). Vazios, a fonte não é oferecida e nada mais muda; o Console os documenta no pré-requisito `mail-inbound` |
-| o endereço | `<código>@<domínio>`: 24 caracteres aleatórios, gerados uma vez ao salvar a caixa e nunca trocados (quebraria a regra que a pessoa criou). `+etiqueta` é aceita |
+| `MAIL_INBOUND_SUFFIX` | opcional: letras minúsculas e dígitos (`MAIL_INBOUND_SUFFIX_PATTERN`) que distinguem a instalação das outras que recebem pelo MESMO domínio. Inválido, DESLIGA o encaminhamento (`mailInboundConfig` registra o erro) em vez de ser ignorado: ignorado, a tela mostraria endereços que o adaptador mandaria para a instalação errada |
+| o endereço | `<código>[_<sufixo>]@<domínio>` (`mailInboundAddress`): 24 caracteres aleatórios, gerados uma vez ao salvar a caixa e nunca trocados (quebraria a regra que a pessoa criou). `+etiqueta` é aceita. Com sufixo, `mailInboundTokenOf` aceita também o endereço SEM ele — o que já está na regra de quem conectou antes — e recusa o sufixo de outra instalação |
 | `mail_inbound_addresses/{código}` | o índice código → `{tenantId, mailboxId}`, na RAIZ: a mensagem chega sem escritório, e uma consulta de grupo leria a coleção de todos. Mantido na mesma transação que grava a caixa |
 | `POST …/mailInbound` | corpo = a mensagem crua; `x-microteia-recipient` (o destinatário do ENVELOPE — o `To:` é o endereço da pessoa), `x-microteia-timestamp`, `x-microteia-signature` |
 
@@ -10113,6 +10123,16 @@ a regra aceitar qualquer e-mail (`gmailQuery: null`).
 
 A configuração de quem mantém a instalação — domínio, provedor, adaptador — não tem tela: é feita uma vez,
 fora do app, e está documentada no portal de documentação, com o adaptador de referência para o Cloudflare.
+
+**Várias instalações no mesmo domínio — o sufixo.** O Cloudflare só tem catch-all no domínio principal da
+zona (subdomínio não tem), e as regras dele aceitam endereço exato, nunca padrão: um domínio é UM catch-all e
+UM Worker, por mais instalações que o dividam. Sem sufixo, o Worker de referência
+(`integrations/cloudflare-email-worker/worker.js`) só podia perguntar a cada instalação, em ordem, mandando a
+mensagem inteira (até 20 MB) a cada pergunta — N instalações, até N envios e N subrequisições por e-mail.
+Com `MAIL_INBOUND_SUFFIX`, o endereço diz de quem é, e o Worker entrega direto ao par `<SUFIXO>_URL` /
+`<SUFIXO>_SECRET` (o sufixo em maiúsculas — é por isso que ele é só letras e dígitos, e o `_` é o
+separador). Sufixo sem par é recusado sem chamar ninguém; endereço sem sufixo mantém a pergunta em ordem.
+`scripts/cloudflareEmailWorker.test.ts` prende o formato do Worker ao do kernel.
 
 **O filtro que o escritório ajusta — `fromSetting`, `subjectSetting`.** A atualização de uma extensão
 reescreve a automação inteira (a edição à mão fica só no histórico de versões), então uma lista que o
@@ -10175,7 +10195,7 @@ até 50 mensagens só com cabeçalho, ou 20 com o texto cortado em 10.000 caract
 | `functions/src/data/services/ImapMailReader.ts` | a leitura IMAP (`imapflow`) |
 | `functions/src/data/services/mailParsing.ts` | a mensagem crua → `ParsedMail` (`mailparser`; o texto do HTML aninhado vem de `html-to-text`) |
 | `functions/src/domain/services/mailInbound.ts` | a assinatura e a decisão de quem recebe o encaminhado |
-| `functions/src/infrastructure/settings/mailInbound.ts` | os dois parâmetros da instalação |
+| `functions/src/infrastructure/settings/mailInbound.ts` | os três parâmetros da instalação (domínio, sufixo, segredo) |
 | `functions/src/data/repositories/FirestoreMailboxRepository.ts` | caixa, segredo, `claim`/`release`, a entrega transacional |
 | `functions/src/infrastructure/handlers/mailboxes.ts` | `pollMailboxes`, `manageMailbox`, `mailInbound` e `onMailMessageDeleted` (grupo `deploy:mail`) |
 | `functions/src/domain/services/mailSearch.ts` | o passo `mail-search` e quem pode ser consultado |

@@ -157,17 +157,39 @@ export const MAIL_INBOUND_HEADERS = {
 export const MAIL_INBOUND_TOKEN_LENGTH = 24;
 const INBOUND_TOKEN_PATTERN = new RegExp(`^[a-z0-9]{${MAIL_INBOUND_TOKEN_LENGTH}}$`);
 
-export const mailInboundAddress = (token: string, domain: string): string => `${token}@${domain}`;
+/**
+ * O que separa as instalações que dividem o MESMO domínio de recepção: `<código>_<sufixo>@<domínio>`. O
+ * provedor só tem um catch-all por domínio, e sem o sufixo o adaptador não sabe de quem é o endereço — tinha
+ * de perguntar a cada instalação, mandando a mensagem inteira a cada pergunta. Só letras e dígitos: o
+ * adaptador de referência o transforma em nome de variável (`<SUFIXO>_URL`), e o `_` é o separador.
+ */
+export const MAIL_INBOUND_SUFFIX_SEPARATOR = '_';
+export const MAIL_INBOUND_SUFFIX_PATTERN = /^[a-z0-9]{1,32}$/;
+
+/** Domínio e sufixo da instalação. Sufixo vazio é o endereço sem sufixo, o único que existia antes dele. */
+export interface MailInboundAddressing {
+  domain: string;
+  suffix: string;
+}
+
+export const mailInboundAddress = (token: string, addressing: MailInboundAddressing): string =>
+  `${token}${addressing.suffix ? `${MAIL_INBOUND_SUFFIX_SEPARATOR}${addressing.suffix}` : ''}@${addressing.domain}`;
 
 /**
- * O código da caixa a partir do destinatário do envelope: `<código>@<domínio da instalação>`, com ou sem
- * `+etiqueta`. `null` para qualquer outra coisa — inclusive um domínio que não é o da instalação.
+ * O código da caixa a partir do destinatário do envelope: `<código>[_<sufixo>]@<domínio da instalação>`, com
+ * ou sem `+etiqueta`. `null` para qualquer outra coisa — inclusive um domínio ou um sufixo que não são os da
+ * instalação. O endereço SEM sufixo continua aceito depois de a instalação ganhar um: é o que já está
+ * configurado no encaminhamento de quem conectou a caixa antes, e ele não pode parar de chegar em silêncio.
  */
-export const mailInboundTokenOf = (recipient: string, domain: string): string | null => {
+export const mailInboundTokenOf = (recipient: string, addressing: MailInboundAddressing): string | null => {
   const address = mailAddressOf(recipient);
   const at = address.lastIndexOf('@');
-  if (at <= 0 || address.slice(at + 1) !== domain.trim().toLowerCase()) return null;
-  const token = address.slice(0, at).split('+')[0];
+  if (at <= 0 || address.slice(at + 1) !== addressing.domain.trim().toLowerCase()) return null;
+  const local = address.slice(0, at).split('+')[0];
+  const suffix = addressing.suffix.trim().toLowerCase();
+  const separator = local.indexOf(MAIL_INBOUND_SUFFIX_SEPARATOR);
+  if (separator >= 0 && (!suffix || local.slice(separator + 1) !== suffix)) return null;
+  const token = separator >= 0 ? local.slice(0, separator) : local;
   return INBOUND_TOKEN_PATTERN.test(token) ? token : null;
 };
 

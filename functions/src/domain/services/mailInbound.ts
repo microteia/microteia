@@ -7,7 +7,7 @@ import {
   forwardingConfirmationOf,
   mailInboundTokenOf,
 } from '../schema/mailbox';
-import type { ForwardingConfirmation, MailboxHealth } from '../schema/mailbox';
+import type { ForwardingConfirmation, MailInboundAddressing, MailboxHealth } from '../schema/mailbox';
 import { deliverParsedMail, subscribedWorkflows, withResolvedFilters } from './mailboxPolling';
 
 export type InboundSignatureIssue = 'missing' | 'stale' | 'invalid';
@@ -61,10 +61,10 @@ export interface ReceiveInboundDeps {
  * sempre. A confirmação do Gmail não vai para automação nenhuma — vai para a tela da caixa.
  */
 export const receiveInboundMail = async (
-  input: { domain: string; recipient: string; raw: Buffer },
+  input: { addressing: MailInboundAddressing; recipient: string; raw: Buffer },
   deps: ReceiveInboundDeps,
 ): Promise<InboundOutcome> => {
-  const token = mailInboundTokenOf(input.recipient, input.domain);
+  const token = mailInboundTokenOf(input.recipient, input.addressing);
   const ref = token ? await deps.findByInboundToken(token) : null;
   const mailbox = ref ? await deps.getMailbox(ref) : null;
   if (!ref || !mailbox || mailbox.settings.source !== 'forward') return 'unknown-recipient';
