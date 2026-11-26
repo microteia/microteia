@@ -20,6 +20,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.302.0] — 2026-11-26
+
+- feat(mail): several installations share one inbound mail domain — MAIL_INBOUND_SUFFIX routes forwarded e-mail straight to its installation, and the installation's .env explains each setting (#34)
+
 #### [9.301.0] — 2026-11-25
 
 - feat(access): profiles choose on which screens a person imports records from a file (#29)

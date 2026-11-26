@@ -22,6 +22,10 @@
 - fix(command): what was broken, and what it did to whoever hit it.
 -->
 
+#### [2.49.0] — 2026-11-26
+
+- feat(mail): several installations share one inbound mail domain — MAIL_INBOUND_SUFFIX routes forwarded e-mail straight to its installation, and the installation's .env explains each setting (#34)
+
 #### [2.48.0] — 2026-11-23
 
 - feat(release): versions are decided at release time from Conventional Commits (#25)
