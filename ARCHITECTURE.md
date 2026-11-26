@@ -580,7 +580,7 @@ Toda coleção do escritório (tela do Form Design, tela de extensão, lista de 
 etiquetas) rende **quatro permissões de graça**: `<coleção>.read`, `.create`, `.update`, `.delete`.
 A tela que declara uma capacidade que precisa de dono rende mais uma, só ela: `<coleção>.read-all` (ver
 "Visibilidade por registro"), `<coleção>.import` (ver "Importação em massa de registros"),
-`<coleção>.attach` e `<coleção>.annotate` (ver "Completar o registro sem alterá-lo"). O workflow
+`<coleção>.attach`, `<coleção>.annotate` e `<coleção>.tag` (ver "Completar o registro sem alterá-lo"). O workflow
 chamável e o relatório restritos rendem a da porta deles (ver "A porta gera a própria permissão").
 É o que faz o RBAC valer para a tela que alguém criou cinco minutos atrás, sem plugin nenhum atrás
 dela.
@@ -590,7 +590,7 @@ todas exigem `<coleção>.read`, e acrescentar outra é uma linha ali mais a som
 `tenantCollectionPermissionResources` — a mesma conta que o `AuthorizationStore` e o
 `PermissionCatalogCache` fazem.
 
-### Completar o registro sem alterá-lo — `<coleção>.attach` e `<coleção>.annotate` (#35, #36)
+### Completar o registro sem alterá-lo — `<coleção>.attach`, `<coleção>.annotate` e `<coleção>.tag` (#35, #36, #37)
 
 Anexar à aba Documentos e escrever na aba Notas cobravam `<coleção>.update`. Isso amarrava duas
 decisões que o escritório precisa separar: há registro que só uma automação escreve (os campos são
@@ -604,6 +604,13 @@ duas exigem `read`, somam-se por coleção como `allowImport` (basta uma tela, a
 **somam-se** a `.update` em vez de substituí-lo: quem altera continua anexando e anotando, e por isso
 nenhum perfil muda nem há atualização de acesso (`accessUpgrades`) a aplicar.
 
+A tela com etiquetas (`hasTags`) rende, do mesmo jeito, `<coleção>.tag` ("Aplicar etiquetas", #37). A
+diferença é onde o dado mora: documento e nota são subcoleção, mas a etiqueta aplicada é um campo do
+PRÓPRIO registro (`tagIds`). Por isso `.tag` não abre um `create` noutra coleção: abre o `update` do
+registro só para a gravação que não toca mais nada (`touchesOnlyTags`: `tagIds` mais os carimbos
+`updatedAt`/`updatedVia`). Criar, renomear e excluir a etiqueta na lista continuam com as permissões da
+coleção de etiquetas.
+
 | Ponto | Aceita `.update` OU |
 |---|---|
 | `firestore.rules`, `documents/{id}` `create` | `.attach` — com `portalShared` falso, sem `sha256` e `seesParentRecord`, como antes |
@@ -613,10 +620,14 @@ nenhum perfil muda nem há atualização de acesso (`accessUpgrades`) a aplicar.
 | `RenderDocumentUseCase` com destino `record`, `canRender` do MCP, "Gerar documento" | `.attach` |
 | `AttachDownloadToRecordUseCase` e o diálogo de Downloads | `.attach` |
 | Botões "Anexar documento" e "Nova anotação" (`DocumentsPanel.canAttach`, `NotesPanel.canAdd`) | `.attach` / `.annotate` — sem nenhuma das duas o botão some |
+| `firestore.rules`, `update` do registro | `.tag` — e só quando a gravação toca `tagIds` e os carimbos (`touchesOnlyTags`) |
+| Botão "Gerenciar etiquetas" do cabeçalho (`canApplyTags`) e ação `manageTags` da lista (`requiresTags`) | `.tag` — sem nenhuma das duas, ou com a janela de edição fechada, o gesto some |
 
 O que **não** muda: compartilhar no portal (inclusive o `portalShared` de quem GERA o documento) continua
 `.update`; carimbar a exclusão e excluir documento ou nota continuam `.delete`; a janela de edição
-continua valendo para os documentos. Quem só anexa completa o registro, não o altera.
+continua valendo para os documentos e para as etiquetas (aplicar é alterar o registro, e a janela
+fechada recusa como recusaria `.update`). Quem só anexa, anota ou etiqueta completa o registro, não o
+altera. Os três ficam provados juntos em `rules-tests/completeRecord.test.ts`.
 
 Uma declaração explícita **sobrepõe** a derivada de mesmo id, e é assim que uma dependência entra no
 catálogo pela mão de quem é dono da permissão:

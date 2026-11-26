@@ -85,6 +85,15 @@ export const ANNOTATE_ACTION = 'annotate';
 export const attachPermissionId = (collection: string): string => `${collection}.${ATTACH_ACTION}`;
 export const annotatePermissionId = (collection: string): string => `${collection}.${ANNOTATE_ACTION}`;
 
+/**
+ * Aplicar e tirar etiquetas do registro (#37) sem alterar os campos dele. Diferente das duas acima, a
+ * etiqueta aplicada mora NO registro (`tagIds`), e por isso a regra de update a aceita só quando a
+ * gravação não toca mais nada. Não cria nem renomeia etiqueta: a lista é da coleção de etiquetas.
+ */
+export const TAG_ACTION = 'tag';
+
+export const tagPermissionId = (collection: string): string => `${collection}.${TAG_ACTION}`;
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 

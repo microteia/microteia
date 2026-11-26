@@ -18,6 +18,9 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'action.run': 'Run',
   'action.run.description':
     'Run this automation by hand: its button on a record, the automation list, or an AI agent. Without it, the automation still runs when its trigger fires.',
+  'action.tag': 'Apply tags',
+  'action.tag.description':
+    'Apply and remove tags on the records of this screen without permission to change their fields. Creating, renaming or deleting a tag still requires permission on the tag list. Whoever can change these records applies tags without this.',
   'action.update': 'Edit',
   'action.view': 'Open',
   'action.view.description':

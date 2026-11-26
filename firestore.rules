@@ -984,6 +984,14 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(screenMemberWritableFields(name).concat(['updatedAt', 'updatedVia']));
       }
+      // Aplicar e tirar etiquetas (#37): a etiqueta aplicada mora NO registro (`tagIds`), e por isso
+      // `<coleção>.tag` só vale para a gravação que não toca mais nada — é o que separa classificar de
+      // alterar. Os carimbos entram pelo mesmo motivo de `touchesOnlyMemberWritableFields`.
+      function touchesOnlyTags() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['tagIds', 'updatedAt', 'updatedVia'])
+          && request.resource.data.get('tagIds', []) is list;
+      }
       // A tela que declara `authorCanDelete` deixa quem escreveu apagar o que escreveu, mesmo sem a
       // permissão de exclusão da coleção: ali a autoria É a posse — um comentário, um recado.
       function screenAuthorCanDelete(name) {
@@ -1271,7 +1279,8 @@ service cloud.firestore {
           && leavesSearchTermsToServerOnUpdate()
           && respectsEditWindowOnUpdate(screenCollection)
           && (canOnCollection(screenCollection, 'update')
-              || (isMember(tenantId) && touchesOnlyMemberWritableFields(screenCollection)))
+              || (isMember(tenantId) && touchesOnlyMemberWritableFields(screenCollection))
+              || (canOnCollection(screenCollection, 'tag') && touchesOnlyTags()))
           && seesRecord(screenCollection, resource.data);
         allow delete: if isWritableScreen(screenCollection)
           && respectsEditWindowOnDelete(screenCollection)

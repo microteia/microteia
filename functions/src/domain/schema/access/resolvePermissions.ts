@@ -13,6 +13,7 @@ import {
   ATTACH_ACTION,
   CRUD_ACTIONS,
   IMPORT_ACTION,
+  TAG_ACTION,
   collectionPermissionId,
   parseAccessPermission,
   validateAccessPermission,
@@ -100,6 +101,8 @@ export interface PermissionResource {
   deriveAttach?: boolean;
   /** O mesmo de `deriveAttach` para a aba Notas (`hasNotes`): `<coleção>.annotate` (#36). */
   deriveAnnotate?: boolean;
+  /** O mesmo para as etiquetas (`hasTags`): `<coleção>.tag` (#37). */
+  deriveTag?: boolean;
   /**
    * As ações que uma PORTA gera para si (#33): "Executar" do workflow restrito, "Abrir" do relatório
    * restrito. O recurso é a porta, e a ação é o que ela concede — o mesmo desenho do CRUD de uma tela,
@@ -145,7 +148,7 @@ const IMPORT_DESCRIPTION = '@core.access/action.import.description';
  * tabela é a única conta: acrescentar uma é uma linha aqui, e não mais um bloco copiado.
  */
 const CAPABILITY_ACTIONS: readonly {
-  flag: 'deriveImport' | 'deriveAttach' | 'deriveAnnotate';
+  flag: 'deriveImport' | 'deriveAttach' | 'deriveAnnotate' | 'deriveTag';
   action: string;
   name: string;
   description: string;
@@ -162,6 +165,12 @@ const CAPABILITY_ACTIONS: readonly {
     action: ANNOTATE_ACTION,
     name: '@core.access/action.annotate',
     description: '@core.access/action.annotate.description',
+  },
+  {
+    flag: 'deriveTag',
+    action: TAG_ACTION,
+    name: '@core.access/action.tag',
+    description: '@core.access/action.tag.description',
   },
 ];
 

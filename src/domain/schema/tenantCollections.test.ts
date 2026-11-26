@@ -186,3 +186,29 @@ describe('anexar e anotar sem alterar o registro no catálogo (#35, #36)', () =>
     expect(catalog.byId.has('caixa.attach')).toBe(false);
   });
 });
+
+describe('aplicar etiquetas sem alterar o registro no catálogo (#37)', () => {
+  it('a tela com etiquetas rende `<coleção>.tag`, que exige ver', () => {
+    const catalog = catalogoDe([tela({ hasTags: true })]);
+    expect(catalog.byId.get('consultas.tag')).toMatchObject({
+      requires: ['consultas.read'],
+      resource: 'consultas',
+      action: 'tag',
+      name: '@core.access/action.tag',
+      description: '@core.access/action.tag.description',
+      derived: true,
+    });
+  });
+
+  it('sem etiquetas, a permissão não existe', () => {
+    expect(catalogoDe([tela({ hasTags: false })]).byId.has('consultas.tag')).toBe(false);
+  });
+
+  it('a etiqueta da tela vinculada mora no registro da coleção — a permissão sai na coleção', () => {
+    const ancora = tela({ id: 'atendimentos', origin: 'builtin' });
+    const caixa = tela({ id: 'caixa', dataCollection: 'atendimentos', hasTags: true });
+    const catalog = catalogoDe([ancora, caixa]);
+    expect(catalog.byId.has('atendimentos.tag')).toBe(true);
+    expect(catalog.byId.has('caixa.tag')).toBe(false);
+  });
+});

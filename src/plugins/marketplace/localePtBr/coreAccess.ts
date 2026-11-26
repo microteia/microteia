@@ -17,6 +17,9 @@ export const CORE_ACCESS: Record<string, string> = {
   'action.run': 'Executar',
   'action.run.description':
     'Executar esta automação à mão: o botão dela num registro, a lista de automações ou um agente de IA. Sem ela, a automação continua rodando quando o gatilho dela dispara.',
+  'action.tag': 'Aplicar etiquetas',
+  'action.tag.description':
+    'Aplicar e tirar etiquetas dos registros desta tela sem permissão para alterar os campos deles. Criar, renomear ou excluir uma etiqueta continua exigindo a permissão na lista de etiquetas. Quem altera estes registros aplica etiquetas sem precisar desta.',
   'action.update': 'Editar',
   'action.view': 'Abrir',
   'action.view.description':

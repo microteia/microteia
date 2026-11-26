@@ -31,7 +31,7 @@ import { readValueByPath, recordExpressionValues, resolveRecordImageUrl, resolve
 import { isBoundScreen, screenDataCollection } from '../../../domain/services/screenDataCollection';
 import { parentLinkRequired, parentLockRelation, pointsToParent } from '../../../domain/services/parentLock';
 import type { ParentLockField } from '../../../domain/services/parentLock';
-import { collectionPermissionId } from '../../../domain/schema/access';
+import { collectionPermissionId, tagPermissionId } from '../../../domain/schema/access';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
 import { useExprViewer } from '../useExprViewer';
 import { useActionReferences } from '../useActionReferences';
@@ -667,7 +667,11 @@ export const useRecordListViewModel = (source: RecordListSource): RecordListView
         || can(`${collection}.${action.metadata.requiresRecordPermission}`)
         || isAuthorOfRecord)
       .filter((action) => !closedByEditWindow(action.metadata.requiresRecordPermission))
-      .filter((action) => !action.metadata.requiresTags || !!definition?.hasTags)
+      // Etiquetar grava `tagIds` no registro: pede `update` ou `tag` (#37), e a janela fechada o recusa.
+      .filter((action) => !action.metadata.requiresTags
+        || (!!definition?.hasTags
+          && (can(collectionPermissionId(collection, 'update')) || can(tagPermissionId(collection)))
+          && !closedByEditWindow('update')))
       .filter((action) => !isActionHidden(action.metadata.hiddenWhen, exprContext))
       .map<RecordCardAction>((action) => ({
         key: action.metadata.key,

@@ -35,6 +35,8 @@ export interface RecordDetailViewModel {
   canAttachDocuments: boolean;
   /** `<coleção>.update` ou `.annotate` (#36). */
   canAddNotes: boolean;
+  /** `<coleção>.update` ou `.tag` (#37), com a janela de edição aberta. */
+  canApplyTags: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
   canDelete: boolean;
   /** A janela de edição do registro. `null` = a tela não declara prazo, ou o registro é novo. */
@@ -174,7 +176,7 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
       copyLinkDone={vm.copyLinkDone}
       onCopyLink={vm.handleCopyDeepLink}
       onClone={vm.handleClone}
-      showTagsAction={!vm.isNew && definition.hasTags}
+      showTagsAction={!vm.isNew && definition.hasTags && vm.canApplyTags}
       onManageTags={vm.openTagManager}
       onSave={() => void vm.handleSave()}
       canSave={vm.canSave}

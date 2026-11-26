@@ -112,7 +112,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
       copyLinkDone={vm.copyLinkDone}
       onCopyLink={vm.handleCopyDeepLink}
       onClone={vm.handleClone}
-      showTagsAction={!vm.isNew && definition.hasTags}
+      showTagsAction={!vm.isNew && definition.hasTags && vm.canApplyTags}
       onManageTags={vm.openTagManager}
       onSave={() => void vm.handleSave()}
       isSaving={vm.isSaving}

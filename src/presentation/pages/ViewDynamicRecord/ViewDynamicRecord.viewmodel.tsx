@@ -4,7 +4,7 @@ import { useRecords } from '../../../stores/useRecords';
 import { useRecordDemand } from '../../../stores/useRecordDemand';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_DOCUMENT_TYPES_MANAGE, annotatePermissionId, attachPermissionId } from '../../../domain/schema/access';
+import { PERMISSION_DOCUMENT_TYPES_MANAGE, annotatePermissionId, attachPermissionId, tagPermissionId } from '../../../domain/schema/access';
 import { useAuth } from '../../../stores/useAuth';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetRecordByIdUseCase } from '../../../domain/usecases/records/GetRecordByIdUseCase';
@@ -70,6 +70,8 @@ export interface ViewDynamicRecordViewModel {
   canAttachDocuments: boolean;
   /** `<coleção>.update` ou `.annotate` (#36). */
   canAddNotes: boolean;
+  /** `<coleção>.update` ou `.tag` (#37), com a janela de edição aberta. */
+  canApplyTags: boolean;
   /** Excluir é de admin — ou do autor, quando a tela declara `authorCanDelete`. */
   canDelete: boolean;
   /** A janela de edição do registro. `null` = a tela não declara prazo, ou o registro é novo. */
@@ -368,6 +370,8 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const editWindow = useEditWindow(definition?.editWindow, sourceRecord?.createdAt, detail.isNew);
   const isEditLocked = editWindow !== null && !editWindow.isOpen;
   const canSave = can(`${collection}.${detail.isNew ? 'create' : 'update'}`) && !isEditLocked;
+  // Etiquetar é gravar `tagIds` no registro: a janela fechada o recusa como recusa qualquer alteração.
+  const canApplyTags = (canUpdateRecords || can(tagPermissionId(collection))) && !isEditLocked;
 
   const canDelete = (canDeleteRecords
     || (!!definition?.authorCanDelete && !!sourceRecord && sourceRecord.createdBy === user?.id))
@@ -386,6 +390,7 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
     canManageDocumentTypes,
     canAttachDocuments,
     canAddNotes,
+    canApplyTags,
     canDelete,
     editWindow,
     isEditLocked,

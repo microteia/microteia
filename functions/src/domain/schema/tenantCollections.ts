@@ -162,7 +162,7 @@ export const collectionPermissionResources = (
 export type CatalogScreenSource = ScreenPresentationSource
   & ScreenCollectionDeclaration
   & Pick<ScreenDefinition, 'ownerPluginId' | 'memberVisibility' | 'allowImport'>
-  & Partial<Pick<ScreenDefinition, 'hasDocuments' | 'hasNotes'>>;
+  & Partial<Pick<ScreenDefinition, 'hasDocuments' | 'hasNotes' | 'hasTags'>>;
 
 /**
  * As coleções cuja leitura é por registro sem supervisão nomeada — as que ganham `<coleção>.read-all`.
@@ -195,6 +195,10 @@ const documentCollections = (screens: readonly CatalogScreenSource[]): Set<strin
 const noteCollections = (screens: readonly CatalogScreenSource[]): Set<string> =>
   new Set(screens.filter((screen) => screen.hasNotes === true).map(screenDataCollection));
 
+/** As que ganham `<coleção>.tag` (#37): os `tagIds` também moram no registro, e não na tela. */
+const taggedCollections = (screens: readonly CatalogScreenSource[]): Set<string> =>
+  new Set(screens.filter((screen) => screen.hasTags === true).map(screenDataCollection));
+
 /**
  * Os recursos do catálogo de permissões que as COLEÇÕES do escritório rendem: listas de opções,
  * conjuntos de etiquetas e telas, cada uma com o CRUD derivado.
@@ -213,6 +217,7 @@ export const tenantCollectionPermissionResources = (
   const importable = importCollections(screens);
   const attachable = documentCollections(screens);
   const annotatable = noteCollections(screens);
+  const taggable = taggedCollections(screens);
   return [
     ...collectionPermissionResources(lookups, tagLists),
     ...presentedScreens(screens).map((screen) => ({
@@ -223,6 +228,7 @@ export const tenantCollectionPermissionResources = (
       ...(importable.has(screenDataCollection(screen)) ? { deriveImport: true } : {}),
       ...(attachable.has(screenDataCollection(screen)) ? { deriveAttach: true } : {}),
       ...(annotatable.has(screenDataCollection(screen)) ? { deriveAnnotate: true } : {}),
+      ...(taggable.has(screenDataCollection(screen)) ? { deriveTag: true } : {}),
       ...(screen.ownerPluginId ? { source: screen.ownerPluginId } : {}),
     })),
   ];

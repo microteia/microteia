@@ -5,9 +5,10 @@ import { ref, uploadString, type FirebaseStorage } from 'firebase/storage';
 import { TENANT, asUser, seed, testEnv } from './helpers';
 
 /**
- * Completar o registro sem alterá-lo (#35, #36): `<coleção>.attach` anexa à aba Documentos e
- * `<coleção>.annotate` escreve na aba Notas, sem `<coleção>.update`. Nenhuma das duas altera o registro,
- * compartilha no portal, carimba exclusão nem exclui — e `.update` continua fazendo as duas coisas.
+ * Completar o registro sem alterá-lo (#35, #36, #37): `<coleção>.attach` anexa à aba Documentos,
+ * `<coleção>.annotate` escreve na aba Notas e `<coleção>.tag` aplica etiquetas, sem `<coleção>.update`.
+ * Nenhuma altera os campos do registro, compartilha no portal, carimba exclusão nem exclui — e `.update`
+ * continua fazendo as três coisas.
  */
 let env: RulesTestEnvironment;
 
@@ -20,12 +21,13 @@ beforeEach(async () => {
   await env.clearFirestore();
   await env.clearStorage();
   await seed(env, {
-    users: { anexador: {}, anotador: {}, editor: {}, leitor: {} },
+    users: { anexador: {}, anotador: {}, etiquetador: {}, editor: {}, leitor: {} },
     owners: { [TENANT]: 'dono' },
     members: {
       [TENANT]: {
         anexador: ['oficios.read', 'oficios.attach'],
         anotador: ['oficios.read', 'oficios.annotate'],
+        etiquetador: ['oficios.read', 'oficios.tag'],
         editor: ['oficios.read', 'oficios.update'],
         leitor: ['oficios.read'],
       },
@@ -37,13 +39,15 @@ beforeEach(async () => {
           fields: [],
           hasDocuments: true,
           hasNotes: true,
+          hasTags: true,
           editWindow: { minutes: 15 },
         },
       },
     },
     records: {
       [TENANT]: {
-        'oficios/o1': { numero: '1/2026', createdAt: JUST_NOW() },
+        'oficios/o1': { numero: '1/2026', tagIds: ['t1'], createdAt: JUST_NOW() },
+        'oficios/antigo': { numero: '0/2025', tagIds: [], createdAt: Timestamp.fromMillis(Date.now() - 3_600_000) },
         'oficios/o1/documents/d1': {
           name: 'laudo.pdf',
           url: 'https://example.test/laudo.pdf',
@@ -129,13 +133,48 @@ describe('`<coleção>.annotate` (#36)', () => {
   });
 });
 
-describe('quem já fazia continua fazendo', () => {
-  it('`.update` anexa e anota, como antes', async () => {
-    await assertSucceeds(setDoc(documentRef('editor', 'd2'), newDocument('editor')));
-    await assertSucceeds(setDoc(noteRef('editor', 'n2'), newNote('editor')));
+const recordRef = (uid: string, id = 'o1') => doc(asUser(env, uid), `tenants/${TENANT}/oficios/${id}`);
+const tagging = (tagIds: string[]) => ({ tagIds, updatedAt: serverTimestamp(), updatedVia: 'ui' });
+
+describe('`<coleção>.tag` (#37)', () => {
+  it('aplica e tira etiquetas sem `.update`', async () => {
+    await assertSucceeds(updateDoc(recordRef('etiquetador'), tagging(['t1', 't2'])));
+    await assertSucceeds(updateDoc(recordRef('etiquetador'), tagging([])));
   });
 
-  it('quem só lê não anexa nem anota', async () => {
+  it('não altera campo nenhum junto com as etiquetas', async () => {
+    await assertFails(updateDoc(recordRef('etiquetador'), { ...tagging(['t2']), numero: '2/2026' }));
+    await assertFails(updateDoc(recordRef('etiquetador'), { numero: '2/2026' }));
+  });
+
+  it('`tagIds` continua sendo uma lista', async () => {
+    await assertFails(updateDoc(recordRef('etiquetador'), { tagIds: 't2', updatedAt: serverTimestamp() }));
+  });
+
+  it('não passa por cima da janela de edição fechada', async () => {
+    await assertFails(updateDoc(recordRef('etiquetador', 'antigo'), tagging(['t1'])));
+  });
+
+  it('não anexa nem anota — classificar não é completar', async () => {
+    await assertFails(setDoc(documentRef('etiquetador', 'd2'), newDocument('etiquetador')));
+    await assertFails(setDoc(noteRef('etiquetador', 'n2'), newNote('etiquetador')));
+  });
+
+  it('quem anexa ou anota não etiqueta', async () => {
+    await assertFails(updateDoc(recordRef('anexador'), tagging(['t2'])));
+    await assertFails(updateDoc(recordRef('anotador'), tagging(['t2'])));
+  });
+});
+
+describe('quem já fazia continua fazendo', () => {
+  it('`.update` anexa, anota e etiqueta, como antes', async () => {
+    await assertSucceeds(setDoc(documentRef('editor', 'd2'), newDocument('editor')));
+    await assertSucceeds(setDoc(noteRef('editor', 'n2'), newNote('editor')));
+    await assertSucceeds(updateDoc(recordRef('editor'), tagging(['t2'])));
+  });
+
+  it('quem só lê não anexa, não anota nem etiqueta', async () => {
+    await assertFails(updateDoc(recordRef('leitor'), tagging(['t2'])));
     await assertFails(setDoc(documentRef('leitor', 'd2'), newDocument('leitor')));
     await assertFails(setDoc(noteRef('leitor', 'n2'), newNote('leitor')));
     await assertFails(uploadString(ref(storageOf('leitor'), `tenants/${TENANT}/oficios/o1/1700000003_x.pdf`), 'x'));

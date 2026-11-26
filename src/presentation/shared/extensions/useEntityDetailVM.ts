@@ -4,7 +4,7 @@ import { useRecords } from '../../../stores/useRecords';
 import { useRecordDemand } from '../../../stores/useRecordDemand';
 import { useTenant } from '../../../stores/useTenant';
 import { useAuthorization } from '../../../stores/useAuthorization';
-import { PERMISSION_DOCUMENT_TYPES_MANAGE, annotatePermissionId, attachPermissionId } from '../../../domain/schema/access';
+import { PERMISSION_DOCUMENT_TYPES_MANAGE, annotatePermissionId, attachPermissionId, tagPermissionId } from '../../../domain/schema/access';
 import { useAuth } from '../../../stores/useAuth';
 import { useDI } from '../../../infrastructure/di/useDI';
 import { makeGetRecordByIdUseCase } from '../../../domain/usecases/records/GetRecordByIdUseCase';
@@ -228,6 +228,8 @@ export const useEntityDetailVM = (
   const editWindow = useEditWindow(definition?.editWindow, sourceRecord?.createdAt, detail.isNew);
   const isEditLocked = editWindow !== null && !editWindow.isOpen;
   const canSave = can(`${collection}.${detail.isNew ? 'create' : 'update'}`) && !isEditLocked;
+  // Etiquetar é gravar `tagIds` no registro: a janela fechada o recusa como recusa qualquer alteração.
+  const canApplyTags = (canUpdateRecords || can(tagPermissionId(collection))) && !isEditLocked;
 
   const canDelete = (canDeleteRecords
     || (!!definition?.authorCanDelete && !!sourceRecord && sourceRecord.createdBy === user?.id))
@@ -245,6 +247,7 @@ export const useEntityDetailVM = (
     canManageDocumentTypes,
     canAttachDocuments,
     canAddNotes,
+    canApplyTags,
     canDelete,
     editWindow,
     isEditLocked,
