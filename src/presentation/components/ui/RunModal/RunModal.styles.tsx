@@ -162,8 +162,14 @@ export const S = {
     line-height: 1.6;
   `,
 
+  FieldError: styled.p`
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    color: ${({ theme }) => theme.colors.danger};
+  `,
+
   JsonError: styled.p`
     font-size: ${({ theme }) => theme.fontSizes.xs};
+    white-space: pre-line;
     color: ${({ theme }) => theme.colors.danger};
     font-family: ${({ theme }) => theme.fonts.mono};
   `,

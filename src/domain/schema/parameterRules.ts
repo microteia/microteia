@@ -99,3 +99,20 @@ export const collectRequiredIssues = (
   }
   return issues;
 };
+
+/**
+ * O que a ADMISSÃO de uma execução recusa — obrigatório vazio e `rules.validate` violada —, na ordem em
+ * que o executor confere (`WorkflowExecutor`). Serve a quem precisa recusar ANTES de enviar, sobre o mesmo
+ * objeto que será enviado: o formulário de parâmetros não pode recusar o que o servidor aceitaria, nem
+ * aceitar o contrário (#39). O parâmetro obrigatório que falta não ganha, além disso, a queixa da regra.
+ */
+export const parameterAdmissionIssues = (
+  parameters: WorkflowParameter[] | undefined,
+  data: Record<string, unknown>,
+  catalog: FieldRulePresetCatalog = CORE_FIELD_RULE_PRESET_CATALOG,
+): RuleIssue[] => {
+  const required = collectRequiredIssues(parameters, data);
+  const missing = new Set(required.map((issue) => issue.path));
+  const ruled = formatAndValidateParameters(parameters, data, '', catalog).issues.filter((issue) => !missing.has(issue.path));
+  return [...required, ...ruled];
+};

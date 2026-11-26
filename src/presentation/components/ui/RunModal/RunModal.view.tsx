@@ -58,6 +58,7 @@ export const RunModal: React.FC<RunModalProps> = (props) => {
                           value={vm.getValue(param.key)}
                           onChange={(value) => vm.setValue(param.key, value)}
                         />
+                        {vm.fieldError(param.key) && <S.FieldError>{vm.fieldError(param.key)}</S.FieldError>}
                       </S.Field>
                     ))
                   ) : (

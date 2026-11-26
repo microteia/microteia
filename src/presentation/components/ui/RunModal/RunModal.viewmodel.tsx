@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { WorkflowParameter } from '../../../../domain/entities/Workflow';
+import type { RuleIssue } from '../../../../domain/schema/fieldRules';
+import { parameterAdmissionIssues } from '../../../../domain/schema/parameterRules';
 
 import { useT, useLabel, type TranslateFn } from '../../../shared/i18n/useT';
 import { parameterForDisplay } from '../../../shared/parameterInputs';
@@ -194,6 +196,8 @@ export interface RunModalViewModel {
   jsonText: string;
   setJsonText: (value: string) => void;
   formError: string | null;
+  /** O problema do parâmetro, já na língua de quem lê; só depois da primeira tentativa de enviar. */
+  fieldError: (key: string) => string | null;
   phase: 'input' | 'result';
   running: boolean;
   result: RunModalResult | null;
@@ -237,11 +241,19 @@ export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel =>
   const [phase, setPhase] = useState<'input' | 'result'>('input');
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunModalResult | null>(null);
+  // Os erros aparecem depois do primeiro envio, e a partir daí acompanham a digitação: abrir o formulário
+  // já pintado de vermelho acusaria quem ainda não teve chance de preencher.
+  const [attempted, setAttempted] = useState(false);
   const followRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => followRef.current?.abort(), []);
 
   const outcome = buildProvidedParams(t, mode, jsonText, values, parameters);
+  const issues = outcome.ok ? parameterAdmissionIssues(parameters, outcome.params) : [];
+  const describeIssue = useCallback(
+    (issue: RuleIssue) => label(issue.error, { ...issue.errorParams, label: issue.label }),
+    [label],
+  );
 
   const getValue = useCallback((key: string) => values[key] ?? '', [values]);
 
@@ -253,6 +265,10 @@ export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel =>
     if (running) return;
     const built = buildProvidedParams(t, mode, jsonText, values, parameters);
     if (!built.ok) return;
+    if (parameterAdmissionIssues(parameters, built.params).length > 0) {
+      setAttempted(true);
+      return;
+    }
     // Só coleta: dispara e sai de cena. Esperar aqui deixaria o modal travado durante a execução,
     // sem nada a mostrar no fim — o retorno já é tratado por quem chamou.
     followRef.current?.abort();
@@ -304,7 +320,17 @@ export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel =>
 
   const status = result?.status ?? null;
   const outputsJson = result?.outputs != null ? JSON.stringify(result.outputs, null, 2) : '';
-  const formError = phase === 'input' && !outcome.ok ? outcome.error : null;
+  // No modo JSON não há campo onde apontar: o problema vai para a linha de erro, com o nome do parâmetro.
+  const issuesText = attempted && mode === 'json' && issues.length > 0
+    ? issues.map((issue) => label('@core.records/field.issue', { label: issue.label, reason: describeIssue(issue) })).join('\n')
+    : null;
+  const formError = phase === 'input' ? (!outcome.ok ? outcome.error : issuesText) : null;
+
+  const fieldError = useCallback((key: string): string | null => {
+    if (!attempted || mode !== 'form') return null;
+    const issue = issues.find((one) => one.path === key || one.path.startsWith(`${key}.`) || one.path.startsWith(`${key}[`));
+    return issue ? describeIssue(issue) : null;
+  }, [attempted, mode, issues, describeIssue]);
 
   return {
     parameters,
@@ -316,6 +342,7 @@ export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel =>
     jsonText,
     setJsonText,
     formError,
+    fieldError,
     phase,
     running,
     result,
