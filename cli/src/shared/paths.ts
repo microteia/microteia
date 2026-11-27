@@ -102,4 +102,4 @@ export const consoleRoot = resolve(here, '..', '..');
  * commit de trabalho. A linha abaixo precisa continuar sendo uma só: é por ela que o release acha a
  * versão atual e o commit que a fixou.
  */
-export const CLI_VERSION = '2.49.0';
+export const CLI_VERSION = '2.49.1';

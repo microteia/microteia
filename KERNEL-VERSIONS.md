@@ -20,6 +20,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.303.3] — 2026-11-27
+
+- perf(deploy): deploy Cloud Functions in batches over a single build, instead of one firebase deploy per function (#42)
+
 #### [9.303.2] — 2026-11-27
 
 - fix(access): a plan that denies editing a collection also denies attaching, annotating and tagging there (#41)
