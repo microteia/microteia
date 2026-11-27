@@ -9,6 +9,20 @@
   },
   "functions": {
     "source": "functions",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "src",
+      "scripts",
+      "*.md",
+      "*.map",
+      "*.test.js",
+      "tsconfig*.json",
+      "tsconfig.tsbuildinfo",
+      ".env.example"
+    ],
     "predeploy": [
       "npm --prefix \"$RESOURCE_DIR\" run build"
     ]

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import ts from 'typescript';
 import { readdirSync } from 'node:fs';
 import {
   MANUAL_PREREQUISITES,
@@ -16,23 +17,22 @@ import type { BackendParameter } from './manifest.js';
 const read = (relative: string): string => readFileSync(join(repoRoot, relative), 'utf8');
 
 /**
- * O manifesto declara quais Cloud Functions a instalação tem, e o Console deploya uma a uma a partir
- * dessa lista. Se ela divergir do que `functions/src/index.ts` exporta, uma function nova
+ * O manifesto declara quais Cloud Functions a instalação tem, e o Console deploya a partir dessa
+ * lista. Se ela divergir do que `functions/src/index.ts` exporta, uma function nova
  * simplesmente não sobe na casa do cliente — o mesmo defeito que `scripts/deployLists.test.ts` já
  * pegou duas vezes do lado de cá, com `runAction` e `recomputeAggregatesOnEntityChange`.
  */
 describe('manifesto do kernel', () => {
-  it('enxerga as mesmas functions que a lista guardada do deploy individual', () => {
-    const fromIndex = new Set(exportedFunctionNames(read('functions/src/index.ts')));
+  it('enxerga as mesmas functions que o compilador do TypeScript', () => {
+    const source = read('functions/src/index.ts');
+    const file = ts.createSourceFile('index.ts', source, ts.ScriptTarget.ES2022);
+    const fromCompiler = file.statements
+      .filter(ts.isExportDeclaration)
+      .flatMap((declaration) => (declaration.exportClause !== undefined && ts.isNamedExports(declaration.exportClause)
+        ? declaration.exportClause.elements.map((element) => element.name.text)
+        : []));
 
-    const block = read('scripts/deploy-functions-individually.cjs')
-      .match(/const ALL_FUNCTIONS = \[([\s\S]*?)\];/);
-    if (!block) throw new Error('ALL_FUNCTIONS não encontrado');
-    const guarded = [...block[1].matchAll(/'([^']+)'/g)].map((match) => match[1]);
-
-    const missing = guarded.filter((name) => !fromIndex.has(name));
-    expect(missing, `functions que o manifesto não veria: ${missing.join(', ')}`).toEqual([]);
-    expect(fromIndex.size).toBe(guarded.length);
+    expect(exportedFunctionNames(source)).toEqual(fromCompiler);
   });
 
   it('encontra as functions (guarda contra o parser silenciosamente vazio)', () => {

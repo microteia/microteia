@@ -1,5 +1,5 @@
 import { blank, info, success, warn } from '../shared/ui.js';
-import { deployFunctionsOneByOne } from './deployFunctions.js';
+import { deployFunctionList } from './deployFunctions.js';
 import type { FunctionDeployOptions, FunctionDeployReport } from './deployFunctions.js';
 import { listDeployedFunctions } from './regionOrphans.js';
 import type { DeployedFunction } from './regionOrphans.js';
@@ -134,7 +134,7 @@ export const deployFunctionsThatChanged = async (
   context: UpToDateContext,
 ): Promise<UpToDateReport> => {
   const plain = async (names: string[]): Promise<UpToDateReport> => ({
-    ...(await deployFunctionsOneByOne(names, options)),
+    ...(await deployFunctionList(names, options)),
     skipped: [],
     refreshed: new Map<string, string>(),
   });
@@ -164,7 +164,7 @@ export const deployFunctionsThatChanged = async (
   blank();
 
   // As sondas primeiro: é o que se aprende com elas que decide o resto.
-  const first = await deployFunctionsOneByOne([...probes, ...plan.unverifiable], options);
+  const first = await deployFunctionList([...probes, ...plan.unverifiable], options);
 
   const fresh = await listDeployedFunctions(options.projectId);
   const freshByName = new Map<string, DeployedFunction>();
@@ -212,7 +212,7 @@ export const deployFunctionsThatChanged = async (
   }
   blank();
 
-  const second = await deployFunctionsOneByOne(rest, options);
+  const second = await deployFunctionList(rest, options);
   return { ...merge(first, second), skipped, refreshed };
 };
 

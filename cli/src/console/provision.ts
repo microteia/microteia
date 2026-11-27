@@ -36,7 +36,13 @@ import {
 import { ENVIRONMENT_FILE, readEnvironment, writeEnvironment } from './environment.js';
 import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
-import { deployFunctionsOneByOne, reportFailures, reportNotices } from './deployFunctions.js';
+import {
+  DEFAULT_FUNCTION_BATCH,
+  deployFunctionList,
+  reportFailures,
+  reportNotices,
+  writeFunctionsDeployConfig,
+} from './deployFunctions.js';
 import { deployFunctionsThatChanged } from './functionsUpToDate.js';
 import { clearRegionOrphans, listDeployedFunctions } from './regionOrphans.js';
 import type { DeployedFunction } from './regionOrphans.js';
@@ -190,6 +196,8 @@ export interface ProvisionOptions {
   install: string;
   manifest: KernelManifest;
   delaySeconds: number;
+  /** Quantas functions por `firebase deploy`. Ausente: `DEFAULT_FUNCTION_BATCH`. */
+  batchSize?: number;
   prune: boolean;
   /** `--all`: ignora o carimbo e sobe toda function que as extensões instaladas exigem. */
   all?: boolean;
@@ -647,20 +655,32 @@ export const provisionBackend = async (options: ProvisionOptions): Promise<Provi
     // module" — inclusive nas que não usam a dependência. Com tudo em dia, o install leva segundos.
     info('  installing function dependencies…');
     await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: join(install, 'functions') });
+    // Uma compilação para a fila inteira, e não uma por function pelo `predeploy`. Aqui ela é refeita
+    // mesmo vindo do `deploy`: o `custom/` pode ter sido remontado logo acima.
+    await run('npm', ['run', 'build'], { cwd: join(install, 'functions') });
+    const config = await writeFunctionsDeployConfig(install);
 
     // A extensão que mudou de região deixa a cópia antiga para trás igual ao kernel, e ali o efeito
     // é o mesmo: deploy recusado em toda tentativa, e gatilho disparando em duas regiões.
     const standingCopies = await clearRegionOrphans(projectId, toDeploy, region, options.prune, await projectFunctions());
 
-    const deployOptions = { projectId, cwd: install, delaySeconds, force: false, standingCopies };
-    if (!probing) info(`  deploying ${toDeploy.length} function(s), one at a time…`);
+    const deployOptions = {
+      projectId,
+      cwd: install,
+      delaySeconds,
+      force: false,
+      standingCopies,
+      config,
+      batchSize: options.batchSize,
+    };
+    if (!probing) info(`  deploying ${toDeploy.length} function(s)…`);
     const report = probing
       ? await deployFunctionsThatChanged(toDeploy, deployOptions, {
         deployed: await projectFunctions(),
         region,
         all: options.all === true,
       })
-      : { ...await deployFunctionsOneByOne(toDeploy, deployOptions), skipped: [] as string[] };
+      : { ...await deployFunctionList(toDeploy, deployOptions), skipped: [] as string[] };
     skippedNow = report.skipped;
     outcome.deployed = report.deployed;
     outcome.failed.push(...report.failed.map((entry) => entry.name));
@@ -1301,6 +1321,7 @@ export const provision = async (args: ParsedArgs): Promise<void> => {
   const file = resolve(hasFlag(args, 'file') ? requiredFlag(args, 'file') : join(process.cwd(), ENVIRONMENT_FILE));
   const root = dirname(file);
   const delaySeconds = Number.parseInt(flagValue(args, 'delay') ?? '1', 10);
+  const batchSize = Number.parseInt(flagValue(args, 'batch') ?? String(DEFAULT_FUNCTION_BATCH), 10);
 
   const environment = await readEnvironment(file);
   const projectId = environment.firebase.projectId;
@@ -1337,6 +1358,7 @@ export const provision = async (args: ParsedArgs): Promise<void> => {
     install,
     manifest,
     delaySeconds,
+    batchSize,
     prune: hasFlag(args, 'prune'),
     all: hasFlag(args, 'all'),
     environmentFile: file,

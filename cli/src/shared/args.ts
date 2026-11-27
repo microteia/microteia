@@ -4,7 +4,7 @@ export interface ParsedArgs {
 }
 
 /**
- * Parser mínimo, na mesma linha do que `deploy-functions-individually.cjs` já faz à mão: aceita
+ * Parser mínimo, na mesma linha do que o antigo `deploy-functions-individually.cjs` fazia à mão: aceita
  * `--flag`, `--flag valor` e `--flag=valor`. Não há biblioteca de CLI no repositório e este milestone
  * não é motivo para introduzir uma.
  */

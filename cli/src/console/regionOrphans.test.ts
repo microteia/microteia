@@ -78,7 +78,7 @@ describe('a verificação acontece antes de deployar', () => {
   it('o provision faz o mesmo, porque a extensão também muda de região', () => {
     const provision = source('console/provision.ts');
     const cleared = provision.indexOf('clearRegionOrphans(');
-    const deployed_ = provision.indexOf('deployFunctionsOneByOne(toDeploy');
+    const deployed_ = provision.indexOf('deployFunctionList(toDeploy');
 
     expect(cleared).toBeGreaterThan(-1);
     expect(cleared).toBeLessThan(deployed_);

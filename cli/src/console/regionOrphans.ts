@@ -152,7 +152,7 @@ export const settleRegionOrphans = async (
  * CONTINUA de pé, ou `null` quando não deu para verificar — e não bloqueia o deploy em nenhum dos dois
  * casos, pela mesma razão de `listDeployedFunctions`.
  *
- * O conjunto é o que autoriza o `--force` pontual de `deployFunctionsOneByOne`: com ele o `firebase`
+ * O conjunto é o que autoriza o `--force` pontual de `deployFunctionList`: com ele o `firebase`
  * aceita a política de repetição E apaga sem perguntar a cópia de outra região, e essa segunda decisão
  * é do escritório, pedida com `--prune`. Não saber equivale a ter cópia.
  */

@@ -8,7 +8,7 @@ import { blank, bullets, failure, heading, info, step, success, warn } from '../
 import { ENVIRONMENT_FILE, isFirstDeploy, readEnvironment, writeEnvironment } from './environment.js';
 import type { Environment } from './environment.js';
 import { FIREBASE_BIN } from './firebaseCli.js';
-import { reportFailures, reportNotices } from './deployFunctions.js';
+import { DEFAULT_FUNCTION_BATCH, reportFailures, reportNotices, writeFunctionsDeployConfig } from './deployFunctions.js';
 import { clearRegionOrphans, listDeployedFunctions } from './regionOrphans.js';
 import { gateProblemsFor } from './functionGate.js';
 import { deployFunctionsThatChanged } from './functionsUpToDate.js';
@@ -47,6 +47,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   const root = dirname(file);
   const components = selectedComponents(args);
   const delaySeconds = Number.parseInt(flagValue(args, 'delay') ?? '1', 10);
+  const batchSize = Number.parseInt(flagValue(args, 'batch') ?? String(DEFAULT_FUNCTION_BATCH), 10);
 
   const environment = await readEnvironment(file);
   const projectId = environment.firebase.projectId;
@@ -147,6 +148,8 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
   // Segue `undefined` quando o passo de functions não rodou: ali não há conclusão a tirar, e um mapa
   // vazio diria a mesma coisa por acaso, e não por decisão.
   let refreshedStamps: Map<string, string> | undefined;
+  // O `firebase.json` sem `predeploy`, escrito depois da compilação única do passo de functions.
+  let functionsConfig: string | undefined;
 
   for (const component of components) {
     current += 1;
@@ -236,6 +239,12 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       info('  "engines" names the Cloud Functions runtime, and the notices come from Firebase\'s deps.');
       await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: join(install, 'functions') });
 
+      // Compilado UMA vez aqui, e não pelo `predeploy` a cada `firebase deploy` da sequência: o mesmo
+      // `custom/` era compilado de novo para cada function e para cada lote.
+      info('  compiling your functions once…');
+      await run('npm', ['run', 'build'], { cwd: join(install, 'functions') });
+      functionsConfig = await writeFunctionsDeployConfig(install);
+
       // Uma pergunta só ao projeto, e duas decisões a partir dela: qual cópia ficou numa região
       // abandonada, e o que ele já roda. Perguntar duas vezes não é caro, é ambíguo — as duas
       // respostas podem divergir, e aí a decisão passa a depender de qual delas o código olhou.
@@ -255,6 +264,8 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
         delaySeconds,
         force: firstInstall,
         standingCopies,
+        config: functionsConfig,
+        batchSize,
       }, { deployed: deployedNow, region, all: hasFlag(args, 'all') });
       refreshedStamps = report.refreshed;
       skippedFunctions = report.skipped.length;
@@ -366,6 +377,7 @@ export const deploy = async (args: ParsedArgs): Promise<void> => {
       install,
       manifest,
       delaySeconds,
+      batchSize,
       prune: hasFlag(args, 'prune'),
       all: hasFlag(args, 'all'),
       refreshedStamps,

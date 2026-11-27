@@ -3152,26 +3152,44 @@ export { executeCustomAction } from './infrastructure/handlers/executeCustomActi
 
 **Atualizar `package.json` raiz:**
 ```json
-"deploy:workflow": "npm run build:functions && firebase deploy --only functions:onWorkflowEventCreated,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions,functions:getWorkflowStepCatalog --project ${TARGET:-dev}"
+"deploy:workflow": "npm run build:cli && node cli/lib/index.js deploy-functions --only functions:onWorkflowEventCreated,functions:publishWorkflowEventOnEntityChange,functions:onNoteChange,functions:onDocumentChange,functions:getExpressionFunctions,functions:getWorkflowStepCatalog"
 ```
 
 ### Deploy
 
 ```bash
-# Deploy apenas do grupo alterado (mais rápido: 1-2min)
+# Deploy apenas do grupo alterado
 npm run deploy:workflow
 npm run deploy:audit
 npm run deploy:auth
 # ... etc
 
-# Deploy de todas as functions (5-8min)
+# Deploy de todas as functions, POR NOME (o dev tem functions de outro módulo que o código não declara)
 npm run deploy:functions
+
+# Direto, com as opções
+node cli/lib/index.js deploy-functions --only functions:runReport --batch 10 --all
 
 # Deploy completo (functions + hosting)
 npm run deploy
 ```
 
-**IMPORTANTE:** O script `deploy:[grupo]` já executa `npm run build:functions` automaticamente — nunca rode deploy sem compilar o TypeScript.
+Os grupos e o `deploy:functions` passam por `microteia deploy-functions` (`cli/src/vendor/
+deployOwnFunctions.ts`), que é o MESMO caminho do `microteia deploy` do Console: compila uma vez, sobe
+em lotes e pula o que o projeto já roda com o mesmo carimbo. Ele substituiu
+`scripts/deploy-functions-individually.cjs` e os `firebase deploy --only` dos grupos — eram três
+implementações do mesmo deploy, e o que se aprendia numa chegava às outras quando alguém lembrava.
+O alvo é o `TARGET` (`dev` por padrão), igual aos demais scripts.
+
+**IMPORTANTE:** o comando compila as functions sozinho, e apaga `functions/lib` antes: o `tsc` não apaga
+a saída de um módulo removido, e o `.js` órfão subia com todas as functions.
+
+**O que sobe de `functions/`** é decidido pelo `ignore` do `firebase.json`: `src/`, os testes compilados,
+os `.map`, os `tsconfig*` e a documentação ficam de fora. Tudo o que sobe entra no carimbo
+`firebase-functions-hash`, então editar o `DEPLOY.md` (ou um teste) fazia todas as functions parecerem
+alteradas. Atenção ao escrever um padrão ali: sem barra, o `firebase` casa com o NOME em qualquer
+profundidade (`minimatch` com `matchBase`), e quando o `ignore` existe ele substitui o padrão
+(`node_modules`, `.git`), que por isso está repetido na lista.
 
 **Todo comando acima vai para DESENVOLVIMENTO por padrão.** Ver "Dois ambientes" abaixo.
 
@@ -4250,11 +4268,40 @@ separem em silêncio, um teste confere a lista contra `REQUIRED_CONFIG_KEYS` do 
 Console carimbaria um arquivo que o kernel rejeita no boot, e isso só apareceria quando alguém
 abrisse a aplicação instalada.
 
-### Deploy das functions — uma a uma, e duas passadas
+### Deploy das functions — em lotes, e duas passadas
 
-Não é preferência: `firebase deploy --only functions` em lote estoura a quota de CPU do projeto. É a
-razão pela qual `scripts/deploy-functions-individually.cjs` existe deste lado, e o cliente bate
-exatamente na mesma parede — com a diferença de que ele não tem o script.
+`firebase deploy --only functions` inteiro estoura a quota de CPU do projeto, e foi por isso que o
+deploy nasceu uma a uma. Só que uma a uma, com mais de cem functions, cada `firebase deploy` pagava de
+novo o custo fixo de antes de tocar em qualquer function: o `predeploy` compilava tudo, o `firebase`
+carregava o código para descobrir as functions, compactava e enviava o diretório inteiro. Era a mesma
+fonte, compilada e enviada mais de cem vezes.
+
+Agora são **lotes** de `DEFAULT_FUNCTION_BATCH` functions por comando (`--batch` troca), sobre uma
+compilação ÚNICA: quem chama compila uma vez e passa `--config` com uma cópia do `firebase.json` sem o
+`predeploy` das functions (`writeFunctionsDeployConfig`, ao lado do original — o `firebase` resolve
+`source` e o `.firebaserc` a partir do diretório do arquivo).
+
+| Decisão | Por quê |
+|---|---|
+| o lote que falha devolve ao caminho de uma a uma SÓ as que não subiram | o `firebase` declara no ar cada function que terminou (`functions[nome(região)] Successful update operation.`); não achar a linha nunca vira "subiu" |
+| a function que sobra é tentada sozinha, na mesma passada | é ali que a falha tem nome e motivo, e é ali que a política de repetição se confirma com `--force` naquela function e só nela — no lote, o `--force` valeria para todas |
+| um lote recusado por inteiro (cópia em outra região, política de repetição) cai no mesmo caminho | o `firebase` recusa ANTES de deployar, então nada subiu e todas são tentadas sozinhas |
+| o tamanho vem de medição, não de palpite | o lote inteiro (`--only functions`) é o que estoura a quota; o número ficou registrado abaixo, com o que se viu no `microteia-dev` |
+
+**Medido no `microteia-dev` em 27/11/2026** (109 functions, `southamerica-east1`):
+
+| Cenário | Tempo |
+|---|---|
+| uma function sozinha | ~115 s |
+| lote de 10 | 170 s |
+| lote de 20 | 115 s |
+| lote de 40 | 161 s |
+| as 109, lotes de 40, 42 puladas pelo carimbo | 8 min, compilação incluída (uma a uma: ~3,5 h) |
+
+Nenhum lote esbarrou na quota até 40. O padrão é **20**, e não 40, porque a quota de um projeto de
+escritório não é a nossa e não foi medida: 20 deixa margem, e o lote que esbarra nela só devolve ao
+caminho de uma a uma as functions que não subiram. `--batch 40` é o que usamos nos nossos projetos
+quando há pressa.
 
 A segunda passada endereça a armadilha 2 da seção anterior: numa instalação nova, as identidades de
 serviço do Pub/Sub e do Eventarc são criadas **durante** o primeiro deploy e não propagam a tempo,
@@ -4316,6 +4363,24 @@ fora, pelo console do Google — memória, timeout, concorrência, política de 
 `--all`, em `deploy` e em `provision`. O alcance das callables (`callableAccess`) continua conferido em
 TODAS a cada deploy, inclusive nas que não subiram, e é ele que acusa uma concessão de IAM removida por
 fora — que é o caso desta classe que realmente aparece.
+
+#### O limite do carimbo — e por que não há impressão por function (ainda)
+
+O carimbo é UM para o diretório inteiro. Ele responde "nada mudou" com precisão, e é por isso que um
+`deploy` repetido sem troca de pacote sobe só as sondas. Mas todo upgrade de kernel muda algum byte de
+`functions/`, as sondas voltam com carimbo novo, e o grupo inteiro sobe — as mais de cem functions,
+mesmo que a versão tenha tocado num módulo só. Era isso que se via como "sempre sobem todas".
+
+A saída óbvia foi testada e MEDIDA antes de entrar: uma impressão por function, o hash do fecho de
+`require` do módulo que a exporta, no JavaScript compilado. O método é correto, e o resultado foi nulo:
+107 das 109 functions importam `infrastructure/di/container`, cujo fecho são 418 dos 689 módulos do
+kernel. Nos 57 commits mais recentes que mexeram no backend, a impressão mudaria em 107 functions em
+55 deles. O grafo de dependências diz, com razão, que quase toda function depende de quase tudo.
+
+Ignorando o contêiner — como se cada handler compusesse só o que usa —, a mediana cai para cerca de 20
+functions por commit. Por isso a impressão espera a divisão do contêiner (#43), e o código dela está
+guardado no branch `park/function-fingerprints`. Até lá, o que encurta o deploy é o custo fixo de cada
+comando: lotes e compilação única, na seção anterior.
 
 #### A function de extensão que ficou para trás
 
@@ -18645,9 +18710,9 @@ verdade mora. Mas duas classes de defeito já escaparam dela e ganharam rede pr�
   `Omit<ScreenDefinition, …>`, então acrescentar uma propriedade à entidade quebra a compilação do
   teste até ela ser declarada, e o teste falha até o mapper tratá-la.
 - **Listas manuais de deploy** — `scripts/deployLists.test.ts`. Os grupos `deploy:*` do
-  `package.json` e o `ALL_FUNCTIONS` de `deploy-functions-individually.cjs` enumeram functions à mão;
-  uma function nova fora deles não sobe, sem erro nenhum. Já aconteceu com `runAction` e
-  `recomputeAggregatesOnEntityChange`.
+  `package.json` enumeram functions à mão; uma function nova fora de todos eles só sobe no
+  `deploy:functions` inteiro, e quem deploya o grupo que mexeu acha que subiu. Já aconteceu com
+  `runAction` e `recomputeAggregatesOnEntityChange`.
 
 **Testes de hook/fluxo** (`@testing-library/react` + `jsdom`) são a exceção, não a regra: o ambiente
 global do Vitest continua `node`, e cada arquivo que precisa de DOM declara

@@ -36,6 +36,7 @@ import { SDK_TARBALL } from './pluginWorkspaceTemplates.js';
 import { stageExamples } from './exampleSources.js';
 import { assertReleased } from './release.js';
 import { firstPartyTemplates } from './firstPartyTemplates.js';
+import { cleanFunctionsBuild } from './deployOwnFunctions.js';
 import {
   packageCustomIndexTs,
   packageCustomTsconfig,
@@ -267,6 +268,7 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
   await run('npm', ['run', 'build'], { cwd: root, env: { TARGET: DISTRIBUTION_TARGET } });
 
   step(3, total, 'Compiling the Cloud Functions');
+  await cleanFunctionsBuild(root);
   await run('npm', ['run', 'build:functions'], { cwd: root });
 
   // Depois do `verify`, que já compilou o SDK — mas o `--skip-verify` existe, e um pacote sem SDK
@@ -316,10 +318,11 @@ export const pack = async (args: ParsedArgs): Promise<void> => {
 
   // Os `.js.map` ficam de fora: sem o `src/` que eles apontam são inúteis para quem instala, e
   // publicá-los entregaria a árvore interna de módulos do kernel — o desenho, ainda que não o
-  // código. (`sourcesContent` não é emitido, então o TypeScript em si nunca esteve neles.)
+  // código. (`sourcesContent` não é emitido, então o TypeScript em si nunca esteve neles.) Os testes
+  // compilados também: nenhuma function os carrega, e eles subiam com cada uma, em toda instalação.
   await cp(join(root, 'functions/lib'), join(stageDir, 'functions/lib'), {
     recursive: true,
-    filter: (source) => !source.endsWith('.map'),
+    filter: (source) => !source.endsWith('.map') && !source.endsWith('.test.js'),
   });
   await cp(join(root, 'functions/package-lock.json'), join(stageDir, 'functions/package-lock.json'));
   // O `.env.example` NÃO viaja. Dentro de `install/functions/` ele era uma armadilha: convidava a

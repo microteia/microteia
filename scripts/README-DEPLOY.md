@@ -1,114 +1,48 @@
-# Deploy Individual de Firebase Functions
+# Deploy das Cloud Functions nos nossos projetos
 
-Script que resolve o problema de limite de CPU ao fazer deploy de todas as Firebase Functions simultaneamente.
+O deploy das functions em `microteia-dev` e `curatino` é feito por `microteia deploy-functions`
+(`cli/src/vendor/deployOwnFunctions.ts`) — o mesmo caminho do `microteia deploy` do Console. Ele
+substituiu o `deploy-functions-individually.cjs`.
 
-## Problema
-
-Ao executar `firebase deploy --only functions`, o Firebase pode falhar com erro de limite de CPU quando há muitas functions sendo deployadas ao mesmo tempo.
-
-## Solução
-
-O script `deploy-functions-individually.cjs` faz deploy de cada function isoladamente, com delay configurável entre deploys.
-
-## Uso Básico
+## Uso
 
 ```bash
-# Deploy de todas as functions (delay padrão de 1 segundo)
-npm run deploy:functions:individual
+# Um grupo (a lista de cada um está no package.json)
+npm run deploy:workflow
 
-# Ou diretamente
-node scripts/deploy-functions-individually.cjs
+# Todas, por nome
+npm run deploy:functions
+
+# Produção
+TARGET=prod npm run deploy:portal
+
+# Direto, com as opções
+npm run build:cli
+node cli/lib/index.js deploy-functions --only functions:runReport,functions:draftReport
+node cli/lib/index.js deploy-functions --skip functions:agentMcp --batch 5
+node cli/lib/index.js deploy-functions --all          # não pergunta ao projeto o que ele já roda
 ```
 
-## Opções
+| Opção | O que faz |
+|---|---|
+| `--target dev\|prod` | o projeto; sem ela, o `TARGET` do ambiente, e `dev` por padrão |
+| `--only a,b` / `--skip a,b` | filtra as functions (com ou sem o prefixo `functions:`) |
+| `--batch <n>` | quantas functions por `firebase deploy`; o padrão é `DEFAULT_FUNCTION_BATCH` |
+| `--delay <s>` | espera entre um lote e o próximo |
+| `--all` | sobe todas, sem comparar o carimbo |
+| `--force` | repassa `--force` ao `firebase` (confirma política de repetição e APAGA cópias em outra região) |
 
-### Ajustar delay entre deploys
+## O que ele faz
 
-```bash
-# Aguardar 30 segundos entre cada deploy
-node scripts/deploy-functions-individually.cjs --delay 30
+1. Apaga `functions/lib` e compila UMA vez (`npm run build:functions`).
+2. Pergunta ao projeto o que ele roda e avisa de cópia em região abandonada.
+3. Sobe em lotes, com uma cópia do `firebase.json` sem o `predeploy`. O que um lote não subiu é tentado
+   sozinho, na mesma passada, para dizer o motivo; o que ainda falhar ganha uma segunda passada.
+4. Antes, sonda o carimbo: se o código que sobe é o mesmo que o projeto já roda, o grupo não sobe.
 
-# Aguardar 60 segundos (recomendado para evitar limites)
-node scripts/deploy-functions-individually.cjs --delay 60
-```
+Por que sempre por nome: o `microteia-dev` tem functions de outro módulo que este código não declara, e
+`firebase deploy --only functions` inteiro aborta pedindo para apagá-las.
 
-### Deployar apenas functions específicas
+Se a máquina estiver lenta e a análise do código estourar 10 s, use `FUNCTIONS_DISCOVERY_TIMEOUT=120`.
 
-```bash
-# Deploy apenas de callAIProxy e getUserInfo
-node scripts/deploy-functions-individually.cjs --only callAIProxy,getUserInfo
-```
-
-### Pular functions específicas
-
-```bash
-# Deployar todas exceto auditFlatEntityChange
-node scripts/deploy-functions-individually.cjs --skip auditFlatEntityChange
-
-# Pular múltiplas functions
-node scripts/deploy-functions-individually.cjs --skip auditFlatEntityChange,auditNestedEntityChange
-```
-
-### Combinar opções
-
-```bash
-# Delay de 45s, apenas workflow e AI
-node scripts/deploy-functions-individually.cjs --delay 45 --only callAIProxy,detectWorkflows,runWorkflow
-```
-
-## O que o script faz
-
-1. **Compila as functions** uma única vez (`npm run build:functions`)
-2. **Faz deploy individual** de cada function com `firebase deploy --only functions:nomeDaFunction`
-3. **Aguarda** o delay configurado entre cada deploy
-4. **Mostra progresso** detalhado de cada function
-5. **Salva log** em `.deploy-log.json` com resumo de sucessos e falhas
-6. **Retorna exit code** 0 se tudo passou, 1 se houve falhas
-
-## Exemplo de saída
-
-```
-═══════════════════════════════════════════════════════════
-  Deploy Individual de Firebase Functions — Microteia
-═══════════════════════════════════════════════════════════
-Total de functions: 30
-Delay entre deploys: 30s
-───────────────────────────────────────────────────────────
-
-🔧 Compilando functions...
-
-✅ Compilação concluída.
-
-───────────────────────────────────────────────────────────
-Iniciando deploys individuais...
-───────────────────────────────────────────────────────────
-
-[1/30] ━━━ callAIProxy
-[1/30] Iniciando deploy...
-[1/30] ✅ Deploy de callAIProxy concluído com sucesso
-
-⏳ Aguardando 30s antes do próximo deploy...
-
-[2/30] ━━━ copyPublicWorkflow
-...
-```
-
-## Tempo estimado
-
-Com delay de 30s entre deploys:
-- **30 functions × 30s = ~15 minutos** (apenas delays)
-- **+ tempo de deploy de cada function** (varia)
-- **Total: ~20-30 minutos**
-
-Com delay de 1s (padrão):
-- **Total: ~5-10 minutos**
-
-## Ajuda
-
-```bash
-node scripts/deploy-functions-individually.cjs --help
-```
-
-## Nota
-
-Se encontrar limites de CPU mesmo com este script, aumente o `--delay` para 60 ou 90 segundos.
+Detalhes: "Deploy das functions — em lotes, e duas passadas" no `ARCHITECTURE.md`.

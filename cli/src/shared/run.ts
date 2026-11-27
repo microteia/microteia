@@ -13,8 +13,8 @@ export interface CaptureResult {
 
 /**
  * O erro carrega o comando e a saída para que a falha seja legível sem ter que reproduzir a mão.
- * O `deploy-functions-individually.cjs` roda os deploys com `stdio: 'pipe'` e descarta a saída no
- * catch — a falha vira só "❌ Falha no deploy de X", e descobrir o motivo exige rodar de novo. Aqui
+ * O antigo `deploy-functions-individually.cjs` rodava os deploys com `stdio: 'pipe'` e descartava a saída no
+ * catch — a falha virava só "❌ Falha no deploy de X", e descobrir o motivo exigia rodar de novo. Aqui
  * a saída capturada é sempre reanexada ao erro.
  */
 export interface CommandError extends Error {

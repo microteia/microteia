@@ -7,6 +7,7 @@ import { pack } from './vendor/pack.js';
 import { packConsole } from './vendor/packConsole.js';
 import { publish } from './vendor/publish.js';
 import { release } from './vendor/release.js';
+import { deployOwnFunctions } from './vendor/deployOwnFunctions.js';
 import { init } from './console/init.js';
 import { connect } from './console/connect.js';
 import { unpack } from './console/unpack.js';
@@ -50,14 +51,14 @@ const COMMANDS: Command[] = [
   },
   {
     name: 'deploy',
-    usage: 'microteia deploy [--only rules,indexes,functions,hosting] [--delay <seconds>] [--prune] [--all]',
+    usage: 'microteia deploy [--only rules,indexes,functions,hosting] [--batch <n>] [--delay <seconds>] [--prune] [--all]',
     summary: 'Publish the package that is in place to the connected Firebase project.',
     audience: 'office',
     execute: deploy,
   },
   {
     name: 'provision',
-    usage: 'microteia provision [--prune] [--delay <seconds>] [--all]',
+    usage: 'microteia provision [--prune] [--batch <n>] [--delay <seconds>] [--all]',
     summary: 'Give the installed extensions the Cloud Functions and indexes they ask for.',
     audience: 'office',
     execute: provision,
@@ -103,6 +104,13 @@ const COMMANDS: Command[] = [
     summary: 'Build a standalone copy of this Console, to run outside the repository.',
     audience: 'publisher',
     execute: packConsole,
+  },
+  {
+    name: 'deploy-functions',
+    usage: 'microteia deploy-functions [--target dev|prod] [--only a,b] [--skip a,b] [--batch <n>] [--delay <seconds>] [--all] [--force]',
+    summary: 'Deploy the Cloud Functions of this repository to our own projects, in batches. TARGET picks the project.',
+    audience: 'publisher',
+    execute: deployOwnFunctions,
   },
   {
     name: 'publish',
