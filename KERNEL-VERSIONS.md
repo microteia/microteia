@@ -20,6 +20,12 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.303.1] — 2026-11-26
+
+- fix(marketplace): an extension update replaces its actions, workflows, scripts and reports, and never silently replaces a field someone else added (#38)
+- fix(automation): the parameter form does not submit with a required parameter empty or a rule broken (#39)
+- fix(marketplace): restoring an older extension version brings its artifacts back, and another extension's copy is replaced only by a newer revision (#40)
+
 #### [9.303.0] — 2026-11-26
 
 - feat(access): attach documents and add notes to a record without permission to edit it (#35, #36)
