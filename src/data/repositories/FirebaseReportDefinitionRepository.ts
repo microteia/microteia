@@ -51,6 +51,7 @@ export const mapReport = (id: string, d: Record<string, unknown>, tenantId: stri
   ownerPluginIds: (d.ownerPluginIds as string[] | null | undefined) ?? null,
   sourceId: (d.sourceId as string | null | undefined) ?? null,
   sourceRev: (d.sourceRev as number | null | undefined) ?? null,
+  contentPluginId: (d.contentPluginId as string | null | undefined) ?? null,
   managed: (d.managed as boolean | null | undefined) ?? null,
   enabled: (d.enabled as boolean | undefined) ?? true,
   hideFromSidebar: (d.hideFromSidebar as boolean | null | undefined) ?? null,

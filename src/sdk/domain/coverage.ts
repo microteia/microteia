@@ -443,7 +443,7 @@ const ACTION_NOTES: Record<string, string> = {
   order: 'HUMAN: the order gestures appear in',
   ownerPluginIds: 'the refcount of extensions sharing the action, set by the installation',
   sourceId: 'the universal identity of the action, like the screen\'s — how an update recognises it across offices',
-  sourceRev: 'the origin revision, stamped at packaging: an update of the owning extension rewrites unless it is LOWER, another extension only with a greater one',
+  sourceRev: 'the origin revision, stamped at packaging. The extension that wrote the copy always rewrites it, up or down (a history restore goes back); another extension carrying the same sourceId only with a strictly greater one',
 };
 
 const WORKFLOW_REACH: Record<keyof WorkflowModuleTemplate, string | null> = {
@@ -485,7 +485,7 @@ const WORKFLOW_NOTES: Record<string, string> = {
     + 'one. Who is allowed is a decision of the office, granted in profiles, not of the model',
   ownerPluginIds: 'the refcount of extensions sharing the flow, set by the installation',
   sourceId: 'the universal identity of the flow — how an update recognises it across offices',
-  sourceRev: 'the origin revision, stamped at packaging: an update of the owning extension rewrites unless it is LOWER, another extension only with a greater one',
+  sourceRev: 'the origin revision, stamped at packaging. The extension that wrote the copy always rewrites it, up or down (a history restore goes back); another extension carrying the same sourceId only with a strictly greater one',
 };
 
 const propertyItems = (

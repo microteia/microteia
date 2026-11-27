@@ -159,7 +159,7 @@ export interface ScreenPatchTemplate {
  */
 export type WorkflowModuleTemplate = { templateId: string } & Omit<
   WorkflowDefinition,
-  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'ownerPluginId' | 'enabled' | 'contentOrigin'
+  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'ownerPluginId' | 'enabled' | 'contentOrigin' | 'contentPluginId'
 >;
 
 /**
@@ -175,7 +175,7 @@ export type WorkflowModuleTemplate = { templateId: string } & Omit<
 export type ActionModuleTemplate = { templateId: string } & Omit<
   ActionDefinition,
   | 'id' | 'tenantId' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy' | 'updatedByName' | 'updatedByPhotoURL'
-  | 'ownerPluginId' | 'workflowId' | 'command'
+  | 'ownerPluginId' | 'contentPluginId' | 'workflowId' | 'command'
 > & (
   | { workflowId: string; command?: null }
   | { command: string; workflowId?: string | null }
@@ -193,7 +193,7 @@ export type ReportModuleTemplate = ReportModuleTemplateType;
 /** Um script do pacote, referenciado por `step.configuration.scriptId` de workflows via `templateId`. */
 export type ScriptModuleTemplate = { templateId: string } & Omit<
   Script,
-  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'ownerPluginId' | 'contentOrigin'
+  'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'ownerPluginId' | 'contentOrigin' | 'contentPluginId'
 >;
 
 /**

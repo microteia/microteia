@@ -43,6 +43,8 @@ const mapScript = (id: string, d: Record<string, unknown>, tenantId: string): Sc
   ownerPluginId: (d.ownerPluginId as string | null | undefined) ?? null,
   ownerPluginIds: (d.ownerPluginIds as string[] | null | undefined) ?? null,
   sourceId: (d.sourceId as string | null | undefined) ?? null,
+  sourceRev: (d.sourceRev as number | null | undefined) ?? null,
+  contentPluginId: (d.contentPluginId as string | null | undefined) ?? null,
   createdAt: toDate(d.createdAt),
   updatedAt: toDate(d.updatedAt),
 });

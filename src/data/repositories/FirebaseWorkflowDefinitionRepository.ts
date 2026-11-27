@@ -54,6 +54,8 @@ const mapDefinition = (id: string, d: Record<string, unknown>, tenantId: string)
   ownerPluginId: (d.ownerPluginId as string | undefined) ?? undefined,
   ownerPluginIds: (d.ownerPluginIds as string[] | undefined) ?? undefined,
   sourceId: (d.sourceId as string | undefined) ?? undefined,
+  sourceRev: (d.sourceRev as number | null | undefined) ?? null,
+  contentPluginId: (d.contentPluginId as string | null | undefined) ?? null,
   enabled: (d.enabled as boolean) ?? false,
   version: (d.version as number) ?? 1,
   condition: (d.condition as WorkflowDefinition['condition']) ?? { kind: 'AlwaysTrue' },

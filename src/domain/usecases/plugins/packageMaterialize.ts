@@ -63,6 +63,7 @@ export const scriptInputFromTemplate = (template: ScriptModuleTemplate, pluginId
   const rest = withoutTemplateId(template);
   return stripUndefined({
     ...rest, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null,
+    contentPluginId: pluginId,
     contentOrigin: { kind: 'extension', pluginId, sourceRev: template.sourceRev ?? null },
   });
 };
@@ -136,7 +137,7 @@ export const workflowInputFromTemplate = (
       ? childRecordEventName(childParent, child.kind, child.action)
       : rest.eventName;
   return stripUndefined({
-    ...rest, steps, eventName, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null, enabled: true,
+    ...rest, steps, eventName, ownerPluginId: pluginId, ownerPluginIds: [pluginId], sourceId: template.templateId, sourceRev: template.sourceRev ?? null, contentPluginId: pluginId, enabled: true,
     // A versão que esta gravação gerar é DA EXTENSÃO, nesta revisão — é o que o histórico mostra.
     contentOrigin: { kind: 'extension', pluginId, sourceRev: template.sourceRev ?? null },
   });
@@ -159,6 +160,7 @@ export const actionInputFromTemplate = (
     ownerPluginIds: [pluginId],
     sourceId: template.templateId,
     sourceRev: template.sourceRev ?? null,
+    contentPluginId: pluginId,
     createdBy,
   }) as ActionDefinitionInput;
 };

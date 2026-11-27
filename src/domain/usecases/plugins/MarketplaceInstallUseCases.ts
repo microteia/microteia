@@ -124,34 +124,33 @@ const unionIds = (base: string[] = [], extra: string[] = []): string[] => {
  * Reescrever, ou não, o conteúdo já materializado de um artefato de id gerado (script, workflow,
  * action, relatório) com o que o pacote traz.
  *
- * A revisão de origem existe para o caso de DUPLICIDADE: duas extensões carregando o mesmo artefato
- * (mesmo `sourceId`), e a mais velha não pode sobrescrever a cópia mais nova que o escritório já
- * tem. Ela decide, portanto, quando há revisão dos DOIS lados para comparar — e, para a extensão
- * DONA do artefato, só impede a regressão.
+ * Quem gravou o conteúdo atual decide. Se foi esta mesma extensão, o pacote que chega é a verdade dela
+ * e o artefato converge para ele EM QUALQUER DIREÇÃO: atualizar sobe, e voltar uma versão pelo
+ * histórico — ou importar de propósito um pacote antigo — desce. Antes, uma revisão menor da própria
+ * dona ficava de fora "para não regredir", e a volta pelo histórico deixava os relatórios na versão
+ * nova enquanto a tela de extensões mostrava a velha instalada (#40).
  *
- * Sem revisão do lado materializado, reescreve. Era aqui que "Atualizar" não atualizava: o catálogo
- * embutido é escrito à mão e não carimba revisão em workflow, action nem script, então os dois lados
- * ficavam em `0` e a comparação `0 > 0` congelava o artefato na PRIMEIRA instalação — para sempre. O
- * botão aparecia (ele compara o CONTEÚDO do pacote), dizia "Extensão atualizada" e não reescrevia
- * nada; só desinstalar e instalar de novo resolvia. As telas nunca tiveram essa trava — sempre
- * foram reescritas com a mescla do que é do escritório —, e é esse o comportamento que vale aqui.
+ * A revisão de origem só arbitra a DUPLICIDADE: outra extensão carregando o mesmo artefato (mesmo
+ * `sourceId`) e a mais velha não pode sobrescrever a cópia mais nova. Sem revisão do lado materializado,
+ * reescreve; sem revisão no pacote que chega, não sobrescreve uma cópia versionada; com as duas, só a
+ * estritamente maior.
+ *
+ * O autor do conteúdo é `contentPluginId`, e não `ownerPluginId`: o dono primário é quem instalou
+ * primeiro e não muda quando outra extensão reescreve. Um autor que já não está entre os donos (foi
+ * desinstalado) não conta, e o artefato gravado antes do campo existir cai no dono primário — que era
+ * o que a regra anterior já supunha.
  */
 const shouldRewriteContent = (
   template: { sourceRev?: number | null },
-  existing: { sourceRev?: number | null; ownerPluginId?: string | null },
+  existing: { sourceRev?: number | null; contentPluginId?: string | null; ownerPluginId?: string | null; ownerPluginIds?: string[] | null },
   pluginId: string,
 ): boolean => {
+  const owners = ownerSet(existing);
+  const writer = existing.contentPluginId && owners.includes(existing.contentPluginId)
+    ? existing.contentPluginId
+    : existing.ownerPluginId ?? null;
+  if (writer === pluginId) return true;
   if (existing.sourceRev == null) return true;
-  // A DONA atualizando o próprio artefato: o pacote que chega é a versão nova do mesmo autor, e só uma
-  // revisão MENOR — reimportar um pacote antigo — fica de fora, para não regredir. Antes, revisão igual
-  // também ficava: o autor que mantinha `sourceRev` fixo (ou o esquecia) mudava o relatório e o
-  // escritório que ATUALIZAVA ficava com o antigo para sempre, enquanto a tela de extensões mostrava a
-  // versão nova instalada e nada dizia o contrário (#11).
-  if (existing.ownerPluginId === pluginId) {
-    return template.sourceRev == null || template.sourceRev >= existing.sourceRev;
-  }
-  // Outra extensão com o mesmo artefato: sem revisão não sobrescreve uma cópia versionada — não há como
-  // saber qual é a mais nova —, e com revisão só a estritamente maior.
   if (template.sourceRev == null) return false;
   return template.sourceRev > existing.sourceRev;
 };

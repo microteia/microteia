@@ -302,7 +302,7 @@ const actionToTemplate = (action: ActionDefinition, refs: ReadonlyMap<string, st
   stripUndefined({
     templateId: templateIdOf(action),
     ...omit(action, [
-      'id', 'tenantId', 'ownerPluginId',
+      'id', 'tenantId', 'ownerPluginId', 'contentPluginId',
       'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'updatedByName', 'updatedByPhotoURL',
     ]),
     ...(action.workflowId ? { workflowId: outgoingRef(action.workflowId, refs) } : {}),
@@ -312,7 +312,7 @@ const actionToTemplate = (action: ActionDefinition, refs: ReadonlyMap<string, st
 const workflowToTemplate = (workflow: WorkflowDefinition, refs: ReadonlyMap<string, string>): WorkflowModuleTemplate =>
   stripUndefined({
     templateId: templateIdOf(workflow),
-    ...omit(workflow, ['id', 'tenantId', 'ownerPluginId', 'enabled', 'createdAt', 'updatedAt']),
+    ...omit(workflow, ['id', 'tenantId', 'ownerPluginId', 'contentPluginId', 'enabled', 'createdAt', 'updatedAt']),
     steps: mapSteps(workflow.steps, (step) => rewriteStepRefs(step, refs)),
     sourceRev: workflow.updatedAt.getTime(),
   }) as WorkflowModuleTemplate;
@@ -320,7 +320,7 @@ const workflowToTemplate = (workflow: WorkflowDefinition, refs: ReadonlyMap<stri
 const scriptToTemplate = (script: Script): ScriptModuleTemplate =>
   stripUndefined({
     templateId: templateIdOf(script),
-    ...omit(script, ['id', 'tenantId', 'ownerPluginId', 'createdAt', 'updatedAt']),
+    ...omit(script, ['id', 'tenantId', 'ownerPluginId', 'contentPluginId', 'createdAt', 'updatedAt']),
     sourceRev: script.updatedAt.getTime(),
   }) as ScriptModuleTemplate;
 

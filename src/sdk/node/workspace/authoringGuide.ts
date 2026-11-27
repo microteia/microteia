@@ -633,11 +633,13 @@ or the field you touched. An extension changed without a new version is an exten
 the organizations that already have it: the version is the whole of how an update is recognised.
 
 On an update, what the package manages — scripts, automations, actions, reports — is rewritten with the
-new version. \`sourceRev\` on any of them is optional, and it only ever holds content back in two cases:
-re-importing an OLDER version of your own extension (a lower \`sourceRev\` does not overwrite a higher
-one, so nothing regresses), and another extension carrying the same artifact (same \`sourceId\`), which
-replaces your copy only with a strictly greater \`sourceRev\`. Keeping \`sourceRev\` constant across
-versions is fine: the update still replaces the report or the automation.
+new version — and going back works the same way: restoring an older version from the extension's
+history, or importing an older package on purpose, brings its artifacts back down. \`sourceRev\` on any
+of them is optional, and it only ever holds content back in one case: another extension carrying the
+same artifact (same \`sourceId\`). Each artifact records which extension wrote its current content; that
+extension always rewrites it, while any other replaces it only with a strictly greater \`sourceRev\`.
+Keeping \`sourceRev\` constant across versions is fine: the update still replaces the report or the
+automation.
 
 The replacement is WHOLE: a property the new version no longer declares — a \`confirmMessage\`, a
 \`hiddenWhen\`, an automation's \`description\` or \`access\` — is gone after the update, exactly as on a
@@ -4333,8 +4335,9 @@ folded, what is counted. Declare one in \`reports\` and it shows up in the organ
 the moment your extension is installed.
 
 An update of your extension replaces the reports it installed — they are read-only in the organization's
-designer, so there is no local edit to keep. \`sourceRev\` only stops a re-import of an older version
-from bringing an older report back (see "Every change to an extension raises \`manifest.version\`").
+designer, so there is no local edit to keep. Restoring an older version from the history brings the
+older reports back; \`sourceRev\` only matters when another extension carries the same report (see
+"Every change to an extension raises \`manifest.version\`").
 
 \`\`\`ts
 reports: [{

@@ -45,12 +45,13 @@ export interface ReportDefinition {
   ownerPluginIds?: string[] | null;
   /** Id UNIVERSAL de origem — chave de deduplicação na instalação. */
   sourceId?: string | null;
-  /**
-   * Revisão de ORIGEM do artefato, carimbada no empacotamento. A atualização da extensão DONA reescreve
-   * o conteúdo, a não ser que a revisão que chega seja MENOR (reimportar um pacote antigo não regride);
-   * outra extensão com o mesmo `sourceId` só o reescreve com revisão estritamente maior.
-   */
+  /** Revisão de ORIGEM do artefato, carimbada no empacotamento. Só arbitra entre extensões DIFERENTES
+   * com o mesmo `sourceId`: a outra só o reescreve com revisão estritamente maior. Ver `contentPluginId`. */
   sourceRev?: number | null;
+  /** A extensão cujo pacote gravou o conteúdo atual. Quando é ela que reinstala, o conteúdo converge para o
+   * pacote em qualquer direção — é o que faz a volta pelo histórico voltar de fato (#40). `ownerPluginId`
+   * não serve: é quem instalou primeiro, e não muda quando outra extensão reescreve o artefato. */
+  contentPluginId?: string | null;
   /**
    * O relatório é GERENCIADO pela extensão dona: o spec é somente-leitura na autoria.
    *
@@ -84,6 +85,7 @@ export interface ReportDefinition {
 export type ReportModuleTemplate = { templateId: string } & Omit<
   ReportDefinition,
   'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'createdBy' | 'ownerPluginId' | 'ownerPluginIds' | 'ownerId' | 'vouch'
+  | 'contentPluginId'
 > & {
   /**
    * A chave de uma view do MESMO pacote (`views[].key`) que desenha o corpo da aba do relatório no

@@ -58,6 +58,7 @@ export const reportInputFromTemplate = (
     ownerPluginIds: [pluginId],
     sourceId: template.sourceId ?? templateId,
     sourceRev: template.sourceRev ?? null,
+    contentPluginId: pluginId,
     managed: true,
     enabled: template.enabled ?? true,
     createdBy: userId ?? null,

@@ -14285,6 +14285,19 @@ alvo. `fieldCollisionIssues` recusa as duas, antes de gravar, nomeando a tela, o
 A primeira instalação sobre uma tela do escritório (adoção) fica de fora: assumir os campos de mesma chave
 é o propósito dela.
 
+**Voltar uma versão também converge (#40).** "Voltar para esta versão", no histórico da extensão, entrega
+o pacote guardado à MESMA `install` — não há caminho de rollback separado. A regra de `sourceRev`
+segurava a revisão MENOR da própria dona "para não regredir", e a volta deixava os relatórios na versão
+nova enquanto a tela de extensões mostrava a velha instalada. Para ação, automação e script a trava nem
+chegava a valer: os mapeadores do Firestore descartavam o `sourceRev` na leitura, e a proteção entre
+extensões também não existia — os dublês em memória devolviam o objeto inteiro e os testes passavam. Hoje
+cada artefato grava `contentPluginId`, a extensão cujo pacote escreveu o conteúdo atual. Quando é ela que
+reinstala, converge em qualquer direção; outra extensão só reescreve com revisão estritamente maior. Não
+dava para usar `ownerPluginId`: é quem instalou primeiro, e não muda quando outra extensão reescreve —
+deixar o dono primário sempre reescrever desfaria a cópia mais nova da outra. Autor desinstalado (fora de
+`ownerPluginIds`) não conta, e o artefato gravado antes do campo cai no dono primário.
+`artifactProvenanceMapping.test.ts` prova que os quatro mapeadores devolvem a procedência.
+
 #### O identificador de uma automação, ação ou script
 
 Os três são artefatos de **id gerado** — diferente de uma tela, cuja chave é o nome da coleção. O id
@@ -14581,9 +14594,10 @@ e a mais velha não pode regredir a mais nova.
 maior também da extensão DONA do artefato. O autor que mantinha `sourceRev` fixo entre versões mudava o
 relatório, e o escritório que atualizava ficava com o antigo para sempre — quem instalava do zero via o
 novo, e a tela de extensões mostrava a versão nova instalada. Hoje, quando a extensão aplicada é a dona
-principal (`ownerPluginId`), só uma revisão MENOR segura o conteúdo — reimportar um pacote antigo não
-regride; igual, ou sem revisão, reescreve. Entre extensões DIFERENTES a regra é a de antes. Vale para os
-quatro artefatos de id gerado (script, workflow, action, relatório); a tela nunca teve a trava.
+principal (`ownerPluginId`), só uma revisão MENOR segurava o conteúdo; igual, ou sem revisão, reescreve.
+Desde a #40 nem a menor segura: quem gravou o conteúdo (`contentPluginId`) converge em qualquer direção,
+e a revisão só arbitra entre extensões DIFERENTES. Vale para os quatro artefatos de id gerado (script,
+workflow, action, relatório); a tela nunca teve a trava.
 
 O MESMO pacote também é distribuível como `.json` em `extension-templates/`, para escritórios que não
 rodam este bundle. O arquivo é **gerado**, nunca editado à mão:

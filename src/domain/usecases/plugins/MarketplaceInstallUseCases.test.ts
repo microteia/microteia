@@ -871,7 +871,7 @@ describe('Identificador legível — o templateId do pacote vira o id do artefat
   });
 });
 
-describe('Atualização por sourceRev — reescrita in-place, sem duplicar nem regredir', () => {
+describe('Atualização por sourceRev — reescrita in-place, sem duplicar', () => {
   // `com.b` depende de `com.a`: é o compartilhamento legítimo, que continua fundindo.
   const rev = (id: string, sourceRev: number | undefined, name: string): MarketplacePlugin => ({
     summary: 'S',
@@ -903,14 +903,71 @@ describe('Atualização por sourceRev — reescrita in-place, sem duplicar nem r
     expect((await scripts.getScripts('t1'))[0].name).toBe('V2-s');
   });
 
-  it('revisão IGUAL ou MENOR mantém o conteúdo (não regride)', async () => {
+  /**
+   * #40: voltar uma versão pelo histórico passa pela mesma instalação. A revisão menor da própria dona
+   * ficava de fora "para não regredir", e a extensão aparecia na versão velha com o conteúdo da nova.
+   */
+  it('a DONA voltando a uma revisão MENOR converge para ela — é a volta pelo histórico (#40)', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V1'), actor);
+    await applyPackageArtifacts(d, rev('com.a', 200, 'V2'), actor);
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V1'), actor);
+
+    const [wf] = await workflows.getWorkflowDefinitions('t1');
+    expect(wf.name).toBe('V1');
+    expect(wf.sourceRev).toBe(100);
+    expect((await actions.getAll('t1'))[0].title).toBe('V1');
+    expect((await scripts.getScripts('t1'))).toHaveLength(1);
+    expect((await scripts.getScripts('t1'))[0].name).toBe('V1-s');
+  });
+
+  it('o artefato guarda QUEM gravou o conteúdo, e é a outra extensão quando ela o reescreve', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V1'), actor);
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].contentPluginId).toBe('com.a');
+
+    await applyPackageArtifacts(d, rev('com.b', 300, 'DA B'), actor);
+    const [wf] = await workflows.getWorkflowDefinitions('t1');
+    expect(wf.name).toBe('DA B');
+    expect(wf.contentPluginId).toBe('com.b');
+    expect(wf.ownerPluginId).toBe('com.a');
+    expect((await actions.getAll('t1'))[0].contentPluginId).toBe('com.b');
+    expect((await scripts.getScripts('t1'))[0].contentPluginId).toBe('com.b');
+  });
+
+  it('a DONA não desfaz a cópia mais nova que OUTRA extensão gravou — o dono primário não basta', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V1'), actor);
+    await applyPackageArtifacts(d, rev('com.b', 300, 'DA B'), actor);
+
+    await applyPackageArtifacts(d, rev('com.a', 200, 'V2'), actor);
+
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].name).toBe('DA B');
+    expect((await actions.getAll('t1'))[0].title).toBe('DA B');
+    expect((await scripts.getScripts('t1'))[0].name).toBe('DA B-s');
+  });
+
+  it('desinstalada a extensão que gravou, a dona volta a convergir em qualquer direção', async () => {
+    const d = deps();
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V1'), actor);
+    await applyPackageArtifacts(d, rev('com.b', 300, 'DA B'), actor);
+    await releasePackageArtifacts(d, 'com.b', actor);
+
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V1'), actor);
+
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].name).toBe('V1');
+    expect((await actions.getAll('t1'))[0].title).toBe('V1');
+  });
+
+  it('o artefato gravado antes do campo existir tem o dono primário como autor', async () => {
     const d = deps();
     await applyPackageArtifacts(d, rev('com.a', 200, 'V2'), actor);
-    await applyPackageArtifacts(d, rev('com.a', 100, 'ANTIGO'), actor);
+    const [wf] = await workflows.getWorkflowDefinitions('t1');
+    await workflows.updateWorkflowDefinition('t1', wf.id, { contentPluginId: null });
 
-    expect((await workflows.getWorkflowDefinitions('t1'))[0].name).toBe('V2');
-    expect((await actions.getAll('t1'))[0].title).toBe('V2');
-    expect((await scripts.getScripts('t1'))).toHaveLength(1);
+    await applyPackageArtifacts(d, rev('com.a', 100, 'V1'), actor);
+
+    expect((await workflows.getWorkflowDefinitions('t1'))[0].name).toBe('V1');
   });
 
   it('artefato compartilhado por duas extensões atualiza para AMBAS quando a revisão sobe', async () => {
@@ -1587,7 +1644,7 @@ describe('Relatórios do pacote', () => {
    * Issue #11: a versão nova da extensão mudava o relatório e mantinha `sourceRev`. Quem instalava do
    * zero via a nova; quem ATUALIZAVA ficava com a antiga para sempre, sem aviso nenhum.
    */
-  it('a atualização da DONA com a mesma revisão troca o relatório; uma revisão menor não regride (#11)', async () => {
+  it('a atualização da DONA com a mesma revisão troca o relatório (#11); voltar a uma revisão menor o volta (#40)', async () => {
     const d = deps();
     const versao = (title: string, sourceRev: number): MarketplacePlugin => {
       const plugin = reportPlugin('com.acme.vendas');
@@ -1599,8 +1656,11 @@ describe('Relatórios do pacote', () => {
     expect(reports.items[0].title).toBe('V2');
 
     await applyPackageArtifacts(d, versao('V3', 2), actor);
-    await applyPackageArtifacts(d, versao('ANTIGO', 1), actor);
-    expect(reports.items[0].title).toBe('V3');
+    await applyPackageArtifacts(d, versao('V2', 1), actor);
+    expect(reports.items).toHaveLength(1);
+    expect(reports.items[0].title).toBe('V2');
+    expect(reports.items[0].sourceRev).toBe(1);
+    expect(reports.items[0].contentPluginId).toBe('com.acme.vendas');
   });
 
   it('a dependente trazendo o MESMO relatório da dependência soma donos, sem duplicar', async () => {
