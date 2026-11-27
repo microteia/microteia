@@ -2,7 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDI } from '../di/container';
 import { KERNEL_CATALOG_FINGERPRINT, pendingAccessUpgrades } from '../../domain/schema/access';
 import type { Tenant } from '../../domain/entities/Tenant';
-import { planStamp } from '../../domain/schema/plans';
+import { pendingPlanAccessUpgrades, planStamp, type PlanDefinition } from '../../domain/schema/plans';
 import { isOfficeMember } from './shared/requirePermission';
 
 /**
@@ -33,11 +33,12 @@ import { isOfficeMember } from './shared/requirePermission';
  * **E a atualização de acesso pendente** (#29, `ACCESS_UPGRADES`). Ela muda os PERFIS, não só o conjunto
  * materializado, e por isso é a única coisa aqui que grava fora do documento de membro — uma vez por
  * escritório, marcada no próprio escritório, e sem nada que quem chama possa escolher.
+ *
+ * **E a conversão pendente do PLANO** (#41, `PLAN_ACCESS_UPGRADES`). O plano é global: o primeiro membro
+ * de qualquer escritório dele que abrir o app depois do upgrade o converte para todos.
  */
-const wantedPlanStamp = async (tenant: Tenant | null): Promise<string> => {
-  const plan = tenant?.plan ? await getDI().getPlanRepository().getPlan(tenant.plan) : null;
-  return planStamp(plan?.deniedPermissions ?? []);
-};
+const tenantPlan = async (tenant: Tenant | null): Promise<PlanDefinition | null> =>
+  tenant?.plan ? getDI().getPlanRepository().getPlan(tenant.plan) : null;
 
 export const syncTenantPermissions = onCall(
   { region: 'southamerica-east1', cors: true },
@@ -56,9 +57,11 @@ export const syncTenantPermissions = onCall(
       getDI().getTenantMemberRepository().getMemberStamps(tenantId, uid),
       getDI().getTenantRepository().getById(tenantId),
     ]);
-    const wantedPlan = await wantedPlanStamp(tenant);
+    const plan = await tenantPlan(tenant);
+    const wantedPlan = planStamp(plan?.deniedPermissions ?? []);
     const upgradesPending = tenant !== null && pendingAccessUpgrades(tenant.accessUpgrades).length > 0;
-    if (stamps.catalog === KERNEL_CATALOG_FINGERPRINT && stamps.plan === wantedPlan && !upgradesPending) {
+    const planUpgradesPending = plan !== null && pendingPlanAccessUpgrades(plan.accessUpgrades).length > 0;
+    if (stamps.catalog === KERNEL_CATALOG_FINGERPRINT && stamps.plan === wantedPlan && !upgradesPending && !planUpgradesPending) {
       return { updated: 0 };
     }
 
@@ -69,6 +72,9 @@ export const syncTenantPermissions = onCall(
     }
 
     if (upgradesPending) await getDI().getApplyAccessUpgradesUseCase().execute(tenantId);
+    // Antes de materializar: a recomposição lê o plano de novo, já com o que a conversão negou. Os outros
+    // escritórios do plano ficam com o gatilho do plano, que acorda quando as negações mudam.
+    if (plan && planUpgradesPending) await getDI().getApplyPlanAccessUpgradesUseCase().execute(plan.id);
     getDI().getPermissionCatalogCache().invalidate(tenantId);
     const updated = await getDI().getMaterializeMemberPermissionsUseCase().execute({ tenantId });
     return { updated };

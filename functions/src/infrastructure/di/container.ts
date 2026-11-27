@@ -112,6 +112,8 @@ import { makeMaterializeMemberPermissionsUseCase } from '../../domain/usecases/M
 import type { MaterializeMemberPermissionsUseCase } from '../../domain/usecases/MaterializeMemberPermissionsUseCase';
 import { makeApplyAccessUpgradesUseCase } from '../../domain/usecases/ApplyAccessUpgradesUseCase';
 import type { ApplyAccessUpgradesUseCase } from '../../domain/usecases/ApplyAccessUpgradesUseCase';
+import { makeApplyPlanAccessUpgradesUseCase } from '../../domain/usecases/ApplyPlanAccessUpgradesUseCase';
+import type { ApplyPlanAccessUpgradesUseCase } from '../../domain/usecases/ApplyPlanAccessUpgradesUseCase';
 import { makeCreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
 import { SYSTEM_ACTOR_NAME } from '../../domain/repositories/IUserProfileLookupService';
 import type { CreateAuditLogUseCase } from '../../domain/usecases/CreateAuditLogUseCase';
@@ -916,6 +918,10 @@ class DIContainer {
 
   getApplyAccessUpgradesUseCase(): ApplyAccessUpgradesUseCase {
     return makeApplyAccessUpgradesUseCase(getDb(), this.getPermissionCatalogCache(), this.getCreateAuditLogUseCase());
+  }
+
+  getApplyPlanAccessUpgradesUseCase(): ApplyPlanAccessUpgradesUseCase {
+    return makeApplyPlanAccessUpgradesUseCase(getDb());
   }
 
   getStartDefaultExtensionsOnboardingUseCase(): StartDefaultExtensionsOnboardingUseCase {

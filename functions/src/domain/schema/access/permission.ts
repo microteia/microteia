@@ -94,6 +94,20 @@ export const TAG_ACTION = 'tag';
 
 export const tagPermissionId = (collection: string): string => `${collection}.${TAG_ACTION}`;
 
+/**
+ * As ações que uma ação MAIOR da mesma coleção já concede (#41). Quem altera o registro anexa, anota e
+ * etiqueta — as regras aceitam `update` OU a menor —, mas a menor não DEPENDE da maior: é o que deixa um
+ * perfil anexar sem editar (#35). Por isso não é `requires`, que no perfil traria a maior junto.
+ *
+ * No perfil, que lista o que PODE, a relação não pede nada: a ação nova nasce negada. No plano, que lista
+ * o que NÃO pode, ela nasce liberada — e o plano que negava editar passou a deixar anexar, anotar e
+ * etiquetar. É daqui que sai o que a negação da maior leva junto: na conversão única dos planos que já
+ * existiam e no editor de planos. Uma ação menor nova entra nesta lista, e não em mais lugar nenhum.
+ */
+export const CONTAINED_ACTIONS: Readonly<Record<string, readonly string[]>> = {
+  update: [ATTACH_ACTION, ANNOTATE_ACTION, TAG_ACTION],
+};
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 

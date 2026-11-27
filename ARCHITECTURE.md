@@ -602,7 +602,8 @@ A coleção cuja tela mostra a aba Documentos (`hasDocuments`) rende `<coleção
 documentos"); a que mostra a aba Notas (`hasNotes`), `<coleção>.annotate` ("Escrever anotações"). As
 duas exigem `read`, somam-se por coleção como `allowImport` (basta uma tela, a vinculada inclusive), e
 **somam-se** a `.update` em vez de substituí-lo: quem altera continua anexando e anotando, e por isso
-nenhum perfil muda nem há atualização de acesso (`accessUpgrades`) a aplicar.
+nenhum perfil muda nem há atualização de acesso (`accessUpgrades`) a aplicar. O PLANO, que lista o que nega,
+precisou de uma: ver "Ação CONTIDA em outra" no teto do plano (#41).
 
 A tela com etiquetas (`hasTags`) rende, do mesmo jeito, `<coleção>.tag` ("Aplicar etiquetas", #37). A
 diferença é onde o dado mora: documento e nota são subcoleção, mas a etiqueta aplicada é um campo do
@@ -889,6 +890,35 @@ plano apagado ficaria sem restrição em silêncio.
 (`<coleção>.read` …) nascem de cada tela do escritório, e um plano global não tem como falar delas — o
 seletor da aba Planos só as oferece filtradas (`PermissionPicker.restrictTo`). A tela de Perfis marca como
 "Fora do plano" o que o plano exclui: o perfil pode mantê-la, e ela volta a valer se o plano mudar.
+
+**Ação CONTIDA em outra — negar editar nega completar (#41).** As #35–#37 separaram de `<coleção>.update`
+três ações menores — `.attach`, `.annotate` e `.tag` — para um perfil completar o registro sem editá-lo.
+No perfil, que lista o que PODE, elas nasceram negadas e nada mudou. No plano, que lista o que NÃO pode,
+nasceram LIBERADAS: o dono (curinga `*`) de um plano que negava editar Pets passou a anexar, anotar e
+etiquetar ali, e `rules-tests/plans.test.ts` ficou vermelho no CI. `requires` não expressa isso: a menor não
+DEPENDE da maior — declarar `pets.attach` exigindo `pets.update` daria `update` a todo perfil que recebesse
+`attach`, desfazendo a #35. É outra relação, e ela é declarada num ponto só:
+
+| Peça | O que faz |
+|---|---|
+| `CONTAINED_ACTIONS` (`domain/schema/access/permission.ts`) | `update` contém `attach`, `annotate` e `tag` — uma ação menor nova entra aqui, e em mais lugar nenhum |
+| `containedPermissionIds` (`planCeiling.ts`) | o que negar uma permissão de COLEÇÃO leva junto; a do núcleo (`tenant.update`) não leva nada |
+| `PLAN_ACCESS_UPGRADES` + `upgradePlanDenied` (`domain/schema/plans.ts`) | a conversão ÚNICA de cada plano que já existia, marcada em `plans/{id}.accessUpgrades` |
+| `ApplyPlanAccessUpgradesUseCase` | grava a conversão em transação, chamado por `syncTenantPermissions` |
+| `planDeniedSelection` (`domain/usecases/plans/`) | o editor de planos: a negação nova de editar arrasta as contidas |
+
+A conversão é o par de `ACCESS_UPGRADES` (#29): lá a permissão nova nasce negada e a conversão CONCEDE o
+que o perfil já fazia; aqui nasce liberada e a conversão NEGA o que o plano já negava. Roda uma vez por
+plano — o primeiro membro de qualquer escritório dele que abrir o app a dispara (o `AuthorizationStore`
+vê a marca faltando e chama `syncTenantPermissions`), e o gatilho do plano recompõe os outros. Depois
+dela, as ações são independentes no teto também: o plano NOVO nasce marcado, e o `SYSTEM` que libera
+`.attach` num plano que nega `.update` é atendido. O editor só oferece o que é declarado, então a contida
+DERIVADA, que ele não mostra, acompanha a maior nos dois sentidos; a DECLARADA é arrastada pela negação
+nova e pode ser marcada de volta. O editor abre o plano ainda não convertido já convertido, e salvar dali
+grava a marca.
+
+O alcance real é o da frase acima: um plano só nega `<coleção>.update` quando uma extensão DECLARA essa
+permissão (a derivada não aparece no editor) ou quando o documento foi escrito à mão.
 
 **Migração dos planos fixos.** Ao abrir Gestão de Acessos, o `SYSTEM` roda
 `MigrateLegacyPlansUseCase`: cria documento só para os ids de plano que algum escritório USA (mesmo id,

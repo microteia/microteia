@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { IPlanRepository } from '../../repositories/IPlanRepository';
 import type { IRegistrationPolicyRepository } from '../../repositories/IRegistrationPolicyRepository';
 import type { Tenant } from '../../entities';
-import type { PlanDefinition } from '../../schema/plans';
+import { PLAN_ACCESS_UPGRADES, type PlanDefinition } from '../../schema/plans';
 import {
   makeCreatePlanUseCase,
   makeDeletePlanUseCase,
@@ -39,10 +39,12 @@ const tenantsOn = (...plans: Array<string | null>) => ({
 });
 
 describe('planos como dado (#24)', () => {
-  it('o plano nasce sem restrição e sem limite', async () => {
+  it('o plano nasce sem restrição e sem limite — e já convertido: não há escolha anterior a preservar (#41)', async () => {
     const { repo } = planRepo();
     await makeCreatePlanUseCase(repo).execute('  Starter ', 'sys');
-    expect(repo.createPlan).toHaveBeenCalledWith({ name: 'Starter', memberLimit: null, deniedPermissions: [], archived: false }, 'sys');
+    expect(repo.createPlan).toHaveBeenCalledWith({
+      name: 'Starter', memberLimit: null, deniedPermissions: [], archived: false, accessUpgrades: [...PLAN_ACCESS_UPGRADES],
+    }, 'sys');
   });
 
   it('nome vazio e limite abaixo de 1 são recusados antes de gravar', async () => {
@@ -82,7 +84,7 @@ describe('migração dos planos fixos de antes', () => {
     await makeMigrateLegacyPlansUseCase(fresh.repo, tenantsOn(), registrationRepo()).execute('sys');
     expect(fresh.created).toEqual([]);
 
-    const done = planRepo([{ id: 'solo', name: 'Básico', memberLimit: 2, deniedPermissions: [], archived: false }]);
+    const done = planRepo([{ id: 'solo', name: 'Básico', memberLimit: 2, deniedPermissions: [], archived: false, accessUpgrades: [] }]);
     const registration = registrationRepo();
     await makeMigrateLegacyPlansUseCase(done.repo, tenantsOn('solo'), registration).execute('sys');
     expect(done.created).toEqual([]);

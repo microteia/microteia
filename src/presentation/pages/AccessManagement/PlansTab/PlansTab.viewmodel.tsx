@@ -15,8 +15,13 @@ import {
 import type { PlanInput } from '../../../../domain/repositories/IPlanRepository';
 import type { Plan } from '../../../../domain/entities';
 import type { CatalogPermission } from '../../../../domain/schema/access';
-import { planDeniedClosure } from '../../../../domain/schema/access';
-import { PLAN_ESSENTIAL_PERMISSIONS } from '../../../../domain/schema/plans';
+import { planDeniedSelection } from '../../../../domain/usecases/plans/planDeniedSelection';
+import {
+  PLAN_ACCESS_UPGRADES,
+  PLAN_ESSENTIAL_PERMISSIONS,
+  pendingPlanAccessUpgrades,
+  upgradePlanDenied,
+} from '../../../../domain/schema/plans';
 import { errorParamsOf } from '../../../../domain/errors/LocalizedError';
 import type { SearchSelectOption } from '../../../components/ui/SearchSelect';
 import { useLabel, useT } from '../../../shared/i18n/useT';
@@ -251,7 +256,9 @@ export const usePlansTabViewModel = (): PlansTabViewModel => {
   const openPermissions = useCallback((planId: string) => {
     const plan = plans.find((candidate) => candidate.id === planId);
     if (!plan) return;
-    setDeniedDraft(plan.deniedPermissions);
+    // O plano que o servidor ainda não converteu (#41) abre como vai valer: salvar daqui grava a marca, e
+    // a conversão nunca mais roda sobre o que o SYSTEM decidir nesta tela.
+    setDeniedDraft(upgradePlanDenied(pendingPlanAccessUpgrades(plan.accessUpgrades), plan.deniedPermissions) ?? plan.deniedPermissions);
     setEditingId(planId);
   }, [plans]);
 
@@ -262,24 +269,14 @@ export const usePlansTabViewModel = (): PlansTabViewModel => {
     return offerableIds.filter((id) => !denied.has(id));
   }, [offerableIds, deniedDraft]);
 
-  /**
-   * Desmarcar uma permissão desmarca também o que DEPENDE dela — a tela mostra o teto que vai valer,
-   * e não um que a materialização corrigiria em silêncio. Marcar traz o que ela exige (o seletor já
-   * faz isso). As negadas que este catálogo não conhece — de uma extensão que não está instalada no
-   * escritório aberto — continuam negadas: o plano é global, e este catálogo, não.
-   */
   const setAllowedPermissions = useCallback((ids: string[]) => {
-    const allowed = new Set(ids);
-    const offerable = new Set(offerableIds);
-    const explicit = offerableIds.filter((id) => !allowed.has(id));
-    const closed = planDeniedClosure(catalog, explicit).filter((id) => offerable.has(id));
-    setDeniedDraft((prev) => [...new Set([...prev.filter((id) => !offerable.has(id)), ...closed])].sort());
+    setDeniedDraft((prev) => planDeniedSelection(catalog, offerableIds, ids, prev));
   }, [offerableIds, catalog]);
 
   const savePermissions = useCallback(async () => {
     if (!editingId) return;
     setSavingPermissions(true);
-    const saved = await patchPlan(editingId, { deniedPermissions: deniedDraft });
+    const saved = await patchPlan(editingId, { deniedPermissions: deniedDraft, accessUpgrades: [...PLAN_ACCESS_UPGRADES] });
     setSavingPermissions(false);
     if (saved) setEditingId(null);
   }, [editingId, deniedDraft, patchPlan]);

@@ -2,7 +2,7 @@ import type { IPlanRepository, PlanInput } from '../../repositories/IPlanReposit
 import type { ITenantRepository } from '../../repositories/ITenantRepository';
 import type { IRegistrationPolicyRepository } from '../../repositories/IRegistrationPolicyRepository';
 import { LocalizedError } from '../../errors/LocalizedError';
-import { MIN_PLAN_MEMBER_LIMIT, type PlanDefinition } from '../../schema/plans';
+import { MIN_PLAN_MEMBER_LIMIT, PLAN_ACCESS_UPGRADES, type PlanDefinition } from '../../schema/plans';
 
 export const PLAN_NAME_MAX = 80;
 
@@ -41,7 +41,9 @@ export type CreatePlanUseCase = { execute: (name: string, updatedBy: string) => 
 export const makeCreatePlanUseCase = (repo: IPlanRepository): CreatePlanUseCase => ({
   execute: async (name, updatedBy) => {
     const { name: valid } = normalized({ name });
-    return repo.createPlan({ name: valid as string, memberLimit: null, deniedPermissions: [], archived: false }, updatedBy);
+    return repo.createPlan({
+      name: valid as string, memberLimit: null, deniedPermissions: [], archived: false, accessUpgrades: [...PLAN_ACCESS_UPGRADES],
+    }, updatedBy);
   },
 });
 
@@ -109,7 +111,8 @@ export const makeMigrateLegacyPlansUseCase = (
     for (const legacy of LEGACY_PLANS) {
       if (!inUse.has(legacy.id) || known.has(legacy.id)) continue;
       const { id, ...input } = legacy;
-      if (await plans.createPlanIfMissing(id, { ...input, deniedPermissions: [], archived: false }, updatedBy)) {
+      const fresh = { ...input, deniedPermissions: [], archived: false, accessUpgrades: [...PLAN_ACCESS_UPGRADES] };
+      if (await plans.createPlanIfMissing(id, fresh, updatedBy)) {
         created += 1;
         if (id === LEGACY_DEFAULT_PLAN) createdDefault = true;
       }

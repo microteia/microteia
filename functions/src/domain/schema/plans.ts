@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { PERMISSION_MEMBERS_MANAGE, PERMISSION_ROLES_MANAGE } from './access/kernelPermissions';
+import { containedPermissionIds } from './access/planCeiling';
 
 /**
  * PLANOS — o que o `SYSTEM` vende, como DADO da instalação (#24).
@@ -44,6 +45,8 @@ export interface PlanDefinition {
   /** Só o que foi MARCADO. O que cai junto por dependência é recalculado — ver `planDeniedClosure`. */
   deniedPermissions: string[];
   archived: boolean;
+  /** As conversões de `PLAN_ACCESS_UPGRADES` que este plano já recebeu. */
+  accessUpgrades: string[];
 }
 
 const deniedOf = (value: unknown): string[] =>
@@ -66,6 +69,9 @@ export const planDefinitionOf = (id: string, data: unknown): PlanDefinition => {
     memberLimit: memberLimitOf(fields.memberLimit),
     deniedPermissions: deniedOf(fields.deniedPermissions),
     archived: fields.archived === true,
+    accessUpgrades: Array.isArray(fields.accessUpgrades)
+      ? fields.accessUpgrades.filter((id): id is string => typeof id === 'string')
+      : [],
   };
 };
 
@@ -84,3 +90,40 @@ export const planStamp = (denied: readonly string[]): string => [...new Set(deni
  * a decisão é do `SYSTEM` —, mas a tela avisa antes, porque o efeito não aparece para quem bloqueia.
  */
 export const PLAN_ESSENTIAL_PERMISSIONS: readonly string[] = [PERMISSION_MEMBERS_MANAGE, PERMISSION_ROLES_MANAGE];
+
+/**
+ * As vezes em que o KERNEL dividiu uma permissão e o plano que já existia precisa negar a parte nova, UMA
+ * vez — o par de `ACCESS_UPGRADES`, que faz o mesmo nos perfis (#29). Lá a permissão nova nasce negada e
+ * a conversão CONCEDE o que o perfil já fazia; aqui ela nasce liberada, e a conversão NEGA o que o plano
+ * já negava.
+ *
+ * Rodar de novo não pode: depois da primeira vez, liberar `pets.attach` num plano que nega `pets.update`
+ * é escolha do `SYSTEM` — é o que permite "bloqueia editar, deixa anexar", o caso das #35–#37 —, e
+ * devolvê-la a cada versão desfaria a escolha em silêncio. Por isso o plano guarda as que já recebeu, e o
+ * plano NOVO nasce com todas.
+ */
+export const PLAN_ACCESS_UPGRADES = ['contained-record-actions'] as const;
+
+export type PlanAccessUpgradeId = (typeof PLAN_ACCESS_UPGRADES)[number];
+
+export const pendingPlanAccessUpgrades = (applied: readonly string[]): PlanAccessUpgradeId[] => {
+  const done = new Set(applied);
+  return PLAN_ACCESS_UPGRADES.filter((id) => !done.has(id));
+};
+
+/** #41: o plano que negava editar a coleção nega também anexar, anotar e etiquetar nela. */
+const containedRecordActions = (denied: readonly string[]): string[] => denied.flatMap(containedPermissionIds);
+
+const PLAN_ADDITIONS: Record<PlanAccessUpgradeId, (denied: readonly string[]) => string[]> = {
+  'contained-record-actions': containedRecordActions,
+};
+
+/** O que o plano nega depois das conversões pendentes, ou `null` quando nada muda. */
+export const upgradePlanDenied = (
+  upgrades: readonly PlanAccessUpgradeId[],
+  denied: readonly string[],
+): string[] | null => {
+  const next = new Set(denied);
+  for (const upgrade of upgrades) for (const id of PLAN_ADDITIONS[upgrade]([...next])) next.add(id);
+  return next.size === new Set(denied).size ? null : [...next].sort();
+};

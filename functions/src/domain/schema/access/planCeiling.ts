@@ -5,6 +5,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type { PermissionCatalog } from './resolvePermissions';
+import { CONTAINED_ACTIONS, parseAccessPermission } from './permission';
+import { KERNEL_PERMISSIONS } from './kernelPermissions';
 
 /**
  * O TETO do plano sobre o conjunto concedido (#24).
@@ -86,4 +88,18 @@ export const applyPlanCeiling = (granted: readonly string[], deniedClosure: read
     ...base.filter((permission) => !denied.has(permission)),
     ...[...denied].sort().map(planDenialEntry),
   ];
+};
+
+const KERNEL_PERMISSION_IDS = new Set(KERNEL_PERMISSIONS.map((permission) => permission.id));
+
+/**
+ * O que negar `permission` leva junto por CONTENÇÃO (ver `CONTAINED_ACTIONS`), e não por dependência
+ * (ver `planDeniedClosure`). Só a permissão de COLEÇÃO conta: `tenant.update` é do núcleo, e um
+ * `tenant.attach` seria a negação de algo que não existe.
+ */
+export const containedPermissionIds = (permission: string): string[] => {
+  if (KERNEL_PERMISSION_IDS.has(permission)) return [];
+  const parsed = parseAccessPermission(permission);
+  if (!parsed) return [];
+  return (CONTAINED_ACTIONS[parsed.action] ?? []).map((action) => `${parsed.resource}.${action}`);
 };

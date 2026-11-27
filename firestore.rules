@@ -246,7 +246,7 @@ service cloud.firestore {
       allow get: if request.auth != null;
       allow list: if isSystemAdmin();
       allow create, update: if isSystemAdmin()
-        && request.resource.data.keys().hasOnly(['name', 'memberLimit', 'deniedPermissions', 'archived', 'createdAt', 'updatedAt', 'updatedBy'])
+        && request.resource.data.keys().hasOnly(['name', 'memberLimit', 'deniedPermissions', 'archived', 'accessUpgrades', 'createdAt', 'updatedAt', 'updatedBy'])
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 80
@@ -255,6 +255,10 @@ service cloud.firestore {
         && request.resource.data.get('deniedPermissions', []) is list
         && request.resource.data.get('deniedPermissions', []).size() <= 500
         && request.resource.data.get('archived', false) is bool
+        // As conversões que o plano já recebeu (#41). O SYSTEM as grava ao criar e ao salvar o teto pela
+        // tela, que mostra o plano já convertido; o servidor, quando converte sozinho.
+        && request.resource.data.get('accessUpgrades', []) is list
+        && request.resource.data.get('accessUpgrades', []).size() <= 50
         && request.resource.data.updatedBy == request.auth.uid;
       allow delete: if isSystemAdmin();
     }

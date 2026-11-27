@@ -13,6 +13,7 @@ export type {
 export {
   ANNOTATE_ACTION,
   ATTACH_ACTION,
+  CONTAINED_ACTIONS,
   CRUD_ACTIONS,
   IMPORT_ACTION,
   TAG_ACTION,
@@ -105,6 +106,7 @@ export {
 export {
   PLAN_DENIAL_PREFIX,
   applyPlanCeiling,
+  containedPermissionIds,
   deniedByPlan,
   grantedEntries,
   isPlanDenialEntry,

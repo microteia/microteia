@@ -30,7 +30,7 @@ import {
   planDeniedClosure,
   setAmbientPermissions,
 } from '../domain/schema/access';
-import { planStamp } from '../domain/schema/plans';
+import { pendingPlanAccessUpgrades, planStamp } from '../domain/schema/plans';
 import { onboardingPlanWindowDeadline, type DefaultExtensionsOnboarding } from '../domain/schema/plugin/defaultExtensions';
 import { makeSubscribeDefaultExtensionsOnboardingUseCase } from '../domain/usecases/plugins/DefaultExtensionsOnboardingUseCases';
 import { useDI } from '../infrastructure/di/useDI';
@@ -202,12 +202,14 @@ export const AuthorizationStoreProvider: React.FC<{ children: React.ReactNode }>
    *
    * A atualização de acesso que o escritório ainda não recebeu (#29) entra pelo mesmo pedido: ela é
    * marcada no documento do escritório, já assinado aqui, e não em membro nenhum — os gatilhos podem
-   * recarimbar todos os membros antes de alguém abrir o app.
+   * recarimbar todos os membros antes de alguém abrir o app. A conversão que o PLANO ainda não recebeu
+   * (#41) também: ela é marcada no plano, que é de vários escritórios.
    */
   useEffect(() => {
     if (!currentTenant || !member || planLoading) return;
     const planInStep = (member.permissionsPlan ?? '') === planStamp(currentPlan?.deniedPermissions ?? []);
-    const upgradesPending = pendingAccessUpgrades(currentTenant.accessUpgrades).length > 0;
+    const upgradesPending = pendingAccessUpgrades(currentTenant.accessUpgrades).length > 0
+      || (currentPlan !== null && pendingPlanAccessUpgrades(currentPlan.accessUpgrades).length > 0);
     if (member.permissionsCatalog === KERNEL_CATALOG_FINGERPRINT && planInStep && !upgradesPending) return;
     if (healedTenants.current.has(currentTenant.id)) return;
     healedTenants.current.add(currentTenant.id);
