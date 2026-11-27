@@ -4364,23 +4364,37 @@ fora, pelo console do Google — memória, timeout, concorrência, política de 
 TODAS a cada deploy, inclusive nas que não subiram, e é ele que acusa uma concessão de IAM removida por
 fora — que é o caso desta classe que realmente aparece.
 
-#### O limite do carimbo — e por que não há impressão por function (ainda)
+#### O limite do carimbo — e por que não há impressão por function
 
 O carimbo é UM para o diretório inteiro. Ele responde "nada mudou" com precisão, e é por isso que um
 `deploy` repetido sem troca de pacote sobe só as sondas. Mas todo upgrade de kernel muda algum byte de
 `functions/`, as sondas voltam com carimbo novo, e o grupo inteiro sobe — as mais de cem functions,
 mesmo que a versão tenha tocado num módulo só. Era isso que se via como "sempre sobem todas".
 
-A saída óbvia foi testada e MEDIDA antes de entrar: uma impressão por function, o hash do fecho de
-`require` do módulo que a exporta, no JavaScript compilado. O método é correto, e o resultado foi nulo:
-107 das 109 functions importam `infrastructure/di/container`, cujo fecho são 418 dos 689 módulos do
-kernel. Nos 57 commits mais recentes que mexeram no backend, a impressão mudaria em 107 functions em
-55 deles. O grafo de dependências diz, com razão, que quase toda function depende de quase tudo.
+A saída óbvia — uma impressão POR function, o hash do fecho de `require` do módulo que a exporta, no
+JavaScript compilado — foi implementada, MEDIDA e descartada (#42, #43). O método é correto; o grafo de
+dependências é que não deixa nada a pular, e com razão:
 
-Ignorando o contêiner — como se cada handler compusesse só o que usa —, a mediana cai para cerca de 20
-functions por commit. Por isso a impressão espera a divisão do contêiner (#43), e o código dela está
-guardado no branch `park/function-fingerprints`. Até lá, o que encurta o deploy é o custo fixo de cada
-comando: lotes e compilação única, na seção anterior.
+| Unidade de deploy | Com o contêiner de hoje | Com o contêiner dividido (melhor caso) |
+|---|---|---|
+| por commit (nosso `dev`) | 107 de 109 | mediana 44, p75 86 |
+| por versão de kernel (o que o escritório deploya) | 109 de 109 | mediana 102 |
+
+- 107 das 109 functions importam `infrastructure/di/container`, cujo fecho são 418 dos 689 módulos.
+- Dividi-lo não basta. Simulado no melhor caso — cada membro arrastando só os imports que usa —, ainda
+  sobram dois nós centrais, e os dois são legítimos: o esquema compartilhado (`domain/schema`, 72
+  módulos no fecho de 80 ou mais functions, e quase toda feature mexe nele) e o motor de automações (o
+  registro de passos puxa IA, HTTP, e-mail, documentos, portal, notificações e busca; as functions de
+  portal, agente e automação ficam com 340 a 370 módulos de qualquer jeito).
+- Um escritório deploya por VERSÃO, que junta vários commits: a união dos fechos fica perto do total.
+
+O que a medição contou foi o JavaScript que muda de fato — cada arquivo alterado recompilado antes e
+depois —, então mudança só de tipo ou de comentário não entrou na conta. O ganho seria de uns 4 minutos
+por deploy no `dev`, contra refatorar a injeção de dependências inteira do backend. Não compensa.
+
+**O que encurtou o deploy foi o custo fixo por comando** — lotes e compilação única, na seção anterior:
+as 109 em cerca de 8 minutos, contra cerca de 3,5 horas. Se um dia a pergunta voltar, a medida a refazer
+é a da segunda linha da tabela, por versão: é ela que descreve o escritório.
 
 #### A function de extensão que ficou para trás
 
