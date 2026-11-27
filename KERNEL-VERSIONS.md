@@ -20,6 +20,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.303.2] — 2026-11-27
+
+- fix(access): a plan that denies editing a collection also denies attaching, annotating and tagging there (#41)
+
 #### [9.303.1] — 2026-11-26
 
 - fix(marketplace): an extension update replaces its actions, workflows, scripts and reports, and never silently replaces a field someone else added (#38)
