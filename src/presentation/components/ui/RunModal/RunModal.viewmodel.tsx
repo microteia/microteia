@@ -248,8 +248,14 @@ export const useRunModalViewModel = (props: RunModalProps): RunModalViewModel =>
 
   useEffect(() => () => followRef.current?.abort(), []);
 
-  const outcome = buildProvidedParams(t, mode, jsonText, values, parameters);
-  const issues = outcome.ok ? parameterAdmissionIssues(parameters, outcome.params) : [];
+  const outcome = useMemo(
+    () => buildProvidedParams(t, mode, jsonText, values, parameters),
+    [t, mode, jsonText, values, parameters],
+  );
+  const issues = useMemo(
+    () => (outcome.ok ? parameterAdmissionIssues(parameters, outcome.params) : []),
+    [outcome, parameters],
+  );
   const describeIssue = useCallback(
     (issue: RuleIssue) => label(issue.error, { ...issue.errorParams, label: issue.label }),
     [label],
