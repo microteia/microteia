@@ -664,6 +664,7 @@ export const CORE_UI: Record<string, string> = {
   'icon.sparkling': 'Inteligência Artificial',
   'icon.more': 'Mais opções',
   'preset.digits': 'Somente números',
+  'preset.alphanumeric': 'Somente letras e números (maiúsculas)',
   'preset.trim': 'Remover espaços das pontas',
   'preset.upper': 'MAIÚSCULAS',
   'preset.lower': 'minúsculas',

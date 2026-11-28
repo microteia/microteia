@@ -97,15 +97,29 @@ const slotCount = (template: string): number =>
   [...template].filter(isSlot).length;
 
 /**
+ * O template recebe o conteúdo INTEIRO, na ordem: cada caractere cabe no slot seguinte. Contar só o
+ * tamanho não bastava quando os templates diferem no TIPO do slot — num campo CPF ou CNPJ, "12A" tem
+ * 3 caracteres e cabia no CPF por tamanho, cujo slot de dígito engolia a letra do CNPJ alfanumérico
+ * (#52): não havia como digitá-lo.
+ */
+const holdsContent = (template: string, content: string[]): boolean => {
+  const slots = [...template].filter(isSlot);
+  return content.length <= slots.length && content.every((char, index) => matchesSlot(char, slots[index]));
+};
+
+/**
  * Um mesmo campo pode ter mais de um formato válido conforme o tamanho — telefone com 10 ou 11
  * dígitos, CPF ou CNPJ no mesmo campo. Em vez de um `if` de tamanho no kernel, a escolha é
- * declarada: vence o primeiro template que comporta o conteúdo, e o último quando nenhum comporta.
+ * declarada: vence o primeiro template que comporta o conteúdo (tamanho e tipo de cada caractere),
+ * depois o primeiro que o comporta só no tamanho, e o último quando nenhum comporta.
  */
 const pickTemplate = (value: string, templates: string[]): string | undefined => {
   const available = templates.filter((template) => template.length > 0);
   if (available.length === 0) return undefined;
-  const length = onlyAlphanumeric(value).length;
-  return available.find((template) => slotCount(template) >= length) ?? available[available.length - 1];
+  const content = [...onlyAlphanumeric(value)];
+  return available.find((template) => holdsContent(template, content))
+    ?? available.find((template) => slotCount(template) >= content.length)
+    ?? available[available.length - 1];
 };
 
 /**
@@ -215,15 +229,25 @@ export const isValidCpf = (value: string): boolean => {
   return digit === Number(cpf.charAt(10));
 };
 
+/**
+ * O CNPJ só com letras e dígitos, em maiúsculas — a forma que a conta e a chave de registro usam.
+ * Desde a IN RFB 2.229/2024 as 12 primeiras posições aceitam A–Z; o dígito verificador continua
+ * numérico. Tirar só os dígitos (o que havia) encurtava o CNPJ alfanumérico e o recusava (#52).
+ */
+export const normalizeCnpj = (value: string): string => value.toUpperCase().replace(/[^0-9A-Z]/g, '');
+
+/** O valor do caractere na conta do dígito: o código ASCII menos 48 — 0–9 valem 0–9, A–Z valem 17–42. */
+const cnpjCharValue = (char: string): number => char.charCodeAt(0) - 48;
+
 export const isValidCnpj = (value: string): boolean => {
-  const cnpj = onlyDigits(value);
-  if (cnpj.length !== 14) return false;
-  if (/^(\d)\1{13}$/.test(cnpj)) return false;
+  const cnpj = normalizeCnpj(value);
+  if (!/^[0-9A-Z]{12}\d{2}$/.test(cnpj)) return false;
+  if (/^(.)\1{13}$/.test(cnpj)) return false;
 
   let sum = 0;
   let weight = 5;
   for (let index = 0; index < 12; index += 1) {
-    sum += Number(cnpj.charAt(index)) * weight;
+    sum += cnpjCharValue(cnpj.charAt(index)) * weight;
     weight = weight === 2 ? 9 : weight - 1;
   }
   let digit = sum % 11 < 2 ? 0 : 11 - (sum % 11);
@@ -232,7 +256,7 @@ export const isValidCnpj = (value: string): boolean => {
   sum = 0;
   weight = 6;
   for (let index = 0; index < 13; index += 1) {
-    sum += Number(cnpj.charAt(index)) * weight;
+    sum += cnpjCharValue(cnpj.charAt(index)) * weight;
     weight = weight === 2 ? 9 : weight - 1;
   }
   digit = sum % 11 < 2 ? 0 : 11 - (sum % 11);
@@ -272,6 +296,13 @@ export const iso7064Mod97 = (value: string): number | null => {
  */
 export const CORE_FIELD_RULE_PRESETS: FieldRulePreset[] = [
   { key: 'digits', label: '@core.ui/preset.digits', format: [{ op: 'digits' }] },
+  // A normalização de chave que não perde letra: o CNPJ alfanumérico, uma placa, um código de produto.
+  // `digits` sobre um desses encurta o valor, e dois diferentes passam a colidir na mesma chave (#52).
+  {
+    key: 'alphanumeric',
+    label: '@core.ui/preset.alphanumeric',
+    format: [{ op: 'alphanumeric' }, { op: 'upper' }],
+  },
   { key: 'trim', label: '@core.ui/preset.trim', format: [{ op: 'trim' }] },
   { key: 'upper', label: '@core.ui/preset.upper', format: [{ op: 'upper' }] },
   { key: 'lower', label: '@core.ui/preset.lower', format: [{ op: 'lower' }] },

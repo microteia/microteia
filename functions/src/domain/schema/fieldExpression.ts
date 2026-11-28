@@ -10,7 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { Parser } from 'expr-eval';
-import { isEmptyRuleValue, isValidCnpj, isValidCpf, iso7064Mod97, onlyDigits } from './fieldRulePresets';
+import { isEmptyRuleValue, isValidCnpj, isValidCpf, iso7064Mod97, normalizeCnpj, onlyDigits } from './fieldRulePresets';
 import {
   ambientInstant,
   ambientTimeZone,
@@ -305,9 +305,9 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
     return clean.length === 11 ? clean.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : asText(value);
   },
   formatCNPJ: (value) => {
-    const clean = onlyDigits(asText(value));
-    return clean.length === 14
-      ? clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+    const clean = normalizeCnpj(asText(value));
+    return /^[0-9A-Z]{12}\d{2}$/.test(clean)
+      ? clean.replace(/(.{2})(.{3})(.{3})(.{4})(\d{2})/, '$1.$2.$3/$4-$5')
       : asText(value);
   },
   round: (value, decimals) => {

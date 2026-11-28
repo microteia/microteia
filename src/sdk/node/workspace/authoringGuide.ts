@@ -2430,7 +2430,7 @@ must not repeat, or when you need a scope, a comparison, or a value that is requ
 | \`kind: 'primary'\` | that, plus the key is an ADDRESS: a write with no \`id\` can find the record by it, and repeating it changes the record instead of being refused (see "A primary key as an address" below). At most one per screen, and never optional |
 | \`fields\` | keys of fields of THIS screen, in order — and the order is part of the value |
 | \`scope: 'tenant' \\| 'parent'\` | \`tenant\` (default) is the whole organization; \`parent\` is unique WITHIN one parent record — the item numbered 1 of EACH order — and it needs \`parentFieldKey\` |
-| \`normalize\` | how two values count as the same: \`trim\` (on by default), \`caseInsensitive\`, and \`formatPreset\` — \`digits\` makes \`123.456\` and \`123456\` one value |
+| \`normalize\` | how two values count as the same: \`trim\` (on by default), \`caseInsensitive\`, and \`formatPreset\` — \`digits\` makes \`123.456\` and \`123456\` one value; \`alphanumeric\` keeps letters too (uppercased), which is what a code that may carry letters needs — a Brazilian CNPJ is alphanumeric since 2026, and \`digits\` would make two of them collide |
 | \`sparse\` | on by default: a record with no value reserves nothing, so forty records with an empty field do not collide in the void. \`false\` makes the value required |
 | \`message\` | the reference of what the person reads on the conflict |
 

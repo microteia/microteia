@@ -1,7 +1,9 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
 import { LocalizedError } from '../../../errors/LocalizedError';
-import { iso7064Mod97 } from '../../../schema/fieldRulePresets';
+// O CNPJ é o MESMO das expressões de campo: uma cópia própria aqui era a que ainda tirava as letras do
+// CNPJ alfanumérico (#52) depois de a conta compartilhada já aceitá-lo.
+import { isValidCnpj, iso7064Mod97, normalizeCnpj } from '../../../schema/fieldRulePresets';
 
 const isValidCPF = (cpf: string): boolean => {
   const clean = cpf.replace(/\D/g, '');
@@ -23,30 +25,6 @@ const isValidCPF = (cpf: string): boolean => {
   digit = 11 - (sum % 11);
   if (digit >= 10) digit = 0;
   return parseInt(clean.charAt(10)) === digit;
-};
-
-const isValidCNPJ = (cnpj: string): boolean => {
-  const clean = cnpj.replace(/\D/g, '');
-  if (clean.length !== 14) return false;
-  if (/^(\d)\1{13}$/.test(clean)) return false;
-
-  let sum = 0;
-  let multiplier = 5;
-  for (let i = 0; i < 12; i++) {
-    sum += parseInt(clean.charAt(i)) * multiplier;
-    multiplier = multiplier === 2 ? 9 : multiplier - 1;
-  }
-  let digit = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-  if (parseInt(clean.charAt(12)) !== digit) return false;
-
-  sum = 0;
-  multiplier = 6;
-  for (let i = 0; i < 13; i++) {
-    sum += parseInt(clean.charAt(i)) * multiplier;
-    multiplier = multiplier === 2 ? 9 : multiplier - 1;
-  }
-  digit = sum % 11 < 2 ? 0 : 11 - (sum % 11);
-  return parseInt(clean.charAt(13)) === digit;
 };
 
 const isValidEmail = (email: string): boolean => {
@@ -72,11 +50,11 @@ export const isCNPJFn: ExpressionFunction = {
   name: 'isCNPJ',
   call: ([value]) => {
     if (typeof value !== 'string') return false;
-    return isValidCNPJ(value);
+    return isValidCnpj(value);
   },
   description: '@core.automation/expr.isCNPJ.description',
   signature: 'isCNPJ(text)',
-  example: 'isCNPJ("12.345.678/0001-90")',
+  example: 'isCNPJ("12.ABC.345/01DE-35")',
   category: '@core.automation/expr.category.conditional',
   minArgs: 1,
   maxArgs: 1,
@@ -122,11 +100,11 @@ export const formatCNPJFn: ExpressionFunction = {
     if (typeof value !== 'string') {
       throw new LocalizedError('@core.automation/expr.arg.string', { fn: 'formatCNPJ' });
     }
-    const clean = value.replace(/\D/g, '');
-    if (clean.length !== 14) {
+    const clean = normalizeCnpj(value);
+    if (!/^[0-9A-Z]{12}\d{2}$/.test(clean)) {
       throw new LocalizedError('@core.automation/expr.arg.cnpj-length', { fn: 'formatCNPJ' });
     }
-    return clean.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    return clean.replace(/(.{2})(.{3})(.{3})(.{4})(\d{2})/, '$1.$2.$3/$4-$5');
   },
   description: '@core.automation/expr.formatCNPJ.description',
   signature: 'formatCNPJ(text)',

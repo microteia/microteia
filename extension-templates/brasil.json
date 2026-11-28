@@ -1,7 +1,7 @@
 {
   "manifest": {
     "id": "com.microteia.brasil",
-    "version": "1.2.1",
+    "version": "1.3.0",
     "kernel": "^2.44.0",
     "name": "Brasil",
     "description": "Documentos, telefone, CEP e busca de endereço do Brasil — as regras de país que o sistema não embute.",
@@ -49,18 +49,22 @@
           "label": "CNPJ (00.000.000/0000-00)",
           "mask": {
             "templates": [
-              "##.###.###/####-##"
+              "**.***.***/****-##"
             ],
-            "inputMode": "numeric"
+            "placeholder": "00.000.000/0000-00",
+            "inputMode": "text"
           },
           "format": [
             {
-              "op": "digits"
+              "op": "alphanumeric"
+            },
+            {
+              "op": "upper"
             },
             {
               "op": "mask",
               "templates": [
-                "##.###.###/####-##"
+                "**.***.***/****-##"
               ]
             }
           ],
@@ -80,19 +84,22 @@
           "mask": {
             "templates": [
               "###.###.###-##",
-              "##.###.###/####-##"
+              "**.***.***/****-##"
             ],
-            "inputMode": "numeric"
+            "inputMode": "text"
           },
           "format": [
             {
-              "op": "digits"
+              "op": "alphanumeric"
+            },
+            {
+              "op": "upper"
             },
             {
               "op": "mask",
               "templates": [
                 "###.###.###-##",
-                "##.###.###/####-##"
+                "**.***.***/****-##"
               ]
             }
           ],

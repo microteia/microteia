@@ -53,7 +53,7 @@ const bundle = (namespace: string, messages: Record<string, string>): MessageBun
  *
  * Mudou o conteúdo, a impressão muda; o gate para e cobra o `version` junto.
  */
-export const PT_BR_MESSAGES_FINGERPRINT = 'e5d3e349fa12';
+export const PT_BR_MESSAGES_FINGERPRINT = 'ab62ef09b343';
 
 export const localePtBrPlugin: MarketplacePlugin = {
   summary:

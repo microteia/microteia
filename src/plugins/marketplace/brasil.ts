@@ -19,12 +19,17 @@ import type { LookupProviderSpec } from '../../domain/schema/lookupProviderSpec'
  * gravados continuam válidos: muda quem responde pelo significado da chave, não a chave.
  */
 /**
- * Os TEMPLATES das máscaras do país. `#` é dígito, e o motor genérico do kernel
- * (`applyMaskTemplate`) os aplica — ele não sabe o que é um CPF, só sabe preencher um template.
- * Vários templates na mesma máscara alternam pelo tamanho: telefone fixo e celular, CPF e CNPJ.
+ * Os TEMPLATES das máscaras do país. `#` é dígito, `*` é letra ou dígito, e o motor genérico do
+ * kernel (`applyMaskTemplate`) os aplica — ele não sabe o que é um CPF, só sabe preencher um
+ * template. Vários templates na mesma máscara alternam pelo tamanho e pelo tipo do que foi digitado:
+ * telefone fixo e celular, CPF e CNPJ.
+ *
+ * O CNPJ aceita letra nas 12 primeiras posições desde a IN RFB 2.229/2024 (emitido a partir de
+ * julho de 2026); o dígito verificador continua numérico. O numérico de sempre cabe no mesmo
+ * template, porque `*` também aceita dígito.
  */
 export const CPF_TEMPLATE = '###.###.###-##';
-export const CNPJ_TEMPLATE = '##.###.###/####-##';
+export const CNPJ_TEMPLATE = '**.***.***/****-##';
 export const PHONE_TEMPLATES = ['(##) ####-####', '(##) #####-####'];
 export const CEP_TEMPLATE = '#####-###';
 export const CNJ_TEMPLATE = '#######-##.####.#.##.####';
@@ -55,15 +60,15 @@ export const BR_FIELD_RULE_PRESETS: FieldRulePreset[] = [
   {
     key: 'cnpj',
     label: 'CNPJ (00.000.000/0000-00)',
-    mask: { templates: [CNPJ_TEMPLATE], inputMode: 'numeric' },
-    format: [{ op: 'digits' }, { op: 'mask', templates: [CNPJ_TEMPLATE] }],
+    mask: { templates: [CNPJ_TEMPLATE], placeholder: '00.000.000/0000-00', inputMode: 'text' },
+    format: [{ op: 'alphanumeric' }, { op: 'upper' }, { op: 'mask', templates: [CNPJ_TEMPLATE] }],
     validate: { expression: 'isCNPJ(value)', message: 'CNPJ inválido' },
   },
   {
     key: 'cpfCnpj',
     label: 'CPF ou CNPJ',
-    mask: { templates: [CPF_TEMPLATE, CNPJ_TEMPLATE], inputMode: 'numeric' },
-    format: [{ op: 'digits' }, { op: 'mask', templates: [CPF_TEMPLATE, CNPJ_TEMPLATE] }],
+    mask: { templates: [CPF_TEMPLATE, CNPJ_TEMPLATE], inputMode: 'text' },
+    format: [{ op: 'alphanumeric' }, { op: 'upper' }, { op: 'mask', templates: [CPF_TEMPLATE, CNPJ_TEMPLATE] }],
     validate: { expression: 'isCPF(value) or isCNPJ(value)', message: 'CPF ou CNPJ inválido' },
   },
   {
@@ -106,7 +111,7 @@ const VIACEP: LookupProviderSpec = {
 export const brasilPlugin: MarketplacePlugin = {
   manifest: {
     id: 'com.microteia.brasil',
-    version: '1.2.1',
+    version: '1.3.0',
     kernel: '^2.44.0',
     name: 'Brasil',
     description: 'Documentos, telefone, CEP e busca de endereço do Brasil — as regras de país que o sistema não embute.',

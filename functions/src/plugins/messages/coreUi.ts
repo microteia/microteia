@@ -671,6 +671,7 @@ export const CORE_UI_MESSAGES: Record<string, string> = {
   'icon.sparkling': 'Artificial Intelligence',
   'icon.more': 'More options',
   'preset.digits': 'Digits only',
+  'preset.alphanumeric': 'Letters and digits only (uppercase)',
   'preset.trim': 'Trim surrounding spaces',
   'preset.upper': 'UPPERCASE',
   'preset.lower': 'lowercase',

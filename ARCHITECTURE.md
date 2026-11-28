@@ -7105,7 +7105,7 @@ existiam:
 | `cnj` | `data.field.preset` | — (nasceu na extensão, sobre o `mod97` do kernel) |
 | `viacep` | `data.external.lookup` | `CORE_LOOKUP_PROVIDERS` |
 
-O que **fica** no núcleo é o que vale em qualquer lugar: `digits`, `trim`, `upper`, `lower` — e o
+O que **fica** no núcleo é o que vale em qualquer lugar: `digits`, `alphanumeric` (letras e dígitos, em maiúsculas — a normalização de chave que não perde letra), `trim`, `upper`, `lower` — e o
 motor que executa tudo (template de máscara, pipeline de formatação, avaliador de expressão) mais as
 garantias da busca externa (`https` obrigatório, timeout com teto, resposta com tamanho máximo,
 nenhuma credencial). `CORE_LOOKUP_PROVIDERS` ficou **vazio**: o ponto continua ali para o dia em que
@@ -7127,6 +7127,16 @@ segue sem conhecer país nenhum.
 **Resíduos assumidos:** `isCPF`/`isCNPJ` (avaliador de expressões, front) e `formatCPF`/`formatCNPJ`
 (catálogo de expressões do backend) continuam no kernel, ao lado de `length` e `upper`. São FUNÇÕES
 de um catálogo, e expandi-lo por extensão é uma frente própria — quando existir, elas saem por ela.
+
+**CNPJ alfanumérico (#52).** Desde a IN RFB 2.229/2024 as 12 primeiras posições do CNPJ aceitam A–Z,
+e o dígito verificador continua numérico, calculado com o valor do caractere = código ASCII − 48
+(dígito vale ele mesmo, então o CNPJ numérico dá a mesma conta de antes). `isValidCnpj` normaliza com
+`normalizeCnpj` (maiúsculas, só `0-9A-Z`) em vez de `onlyDigits`, que encurtava o alfanumérico e o
+recusava; `formatCNPJ` segue igual. A máscara de CNPJ da extensão Brasil passou a `**.***.***/****-##`
+(`*` é letra ou dígito) e o `format` a `alphanumeric` + `upper` + máscara. Para o campo CPF ou CNPJ
+funcionar, `pickTemplate` passou a escolher pelo TIPO de cada caractere, não só pelo tamanho: "12A"
+cabia no CPF por tamanho, e o slot de dígito engolia a letra. Chave de registro sobre CNPJ normaliza
+com o preset `alphanumeric`, nunca `digits` — dois CNPJs que diferem só nas letras colidiriam.
 O `formatPhone` local de `pages/Profile` é o outro: o telefone do próprio usuário ainda é um campo
 em código, fora do caminho declarativo.
 
