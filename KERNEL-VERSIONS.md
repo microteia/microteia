@@ -20,6 +20,17 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.304.0] — 2026-11-28
+
+- feat(screens): a screen declares the title of a new record as a whole phrase, so languages with grammatical gender read right (#45)
+- feat(documents): a document template can produce a fixed-layout text file (TXT or XML), in the encoding and line ending the receiving program requires (#47)
+- feat(agent): an AI agent access can follow every collection of the organization, including ones created after it was issued (#50)
+- fix(forms): field labels name their controls, so screen readers and getByLabel find every field (#44)
+- fix(records): a record created by the agent's create_record or by the bulk import starts with the declared defaultValue, as in the form (#51)
+- fix(fields): the alphanumeric CNPJ (IN RFB 2.229/2024) is accepted by isCNPJ, the cnpj/cpfCnpj presets and record keys (#52)
+- fix(sdk): generate_artifact_plan plans a field whose relationship is stored as a lookup as a select over the list, never as a reference (#49)
+- fix(documents): padLeft/padRight also work in workflow expressions, and the backend copies of the text-template schema are in sync (#47)
+
 #### [9.303.3] — 2026-11-27
 
 - perf(deploy): deploy Cloud Functions in batches over a single build, instead of one firebase deploy per function (#42)
