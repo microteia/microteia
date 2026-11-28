@@ -4,7 +4,7 @@ import { requirePermission } from './shared/requirePermission';
 import { identifyActor } from '../workflow/identifyActor';
 import { collectionPermissionId } from '../../domain/schema/access/permission';
 import type { DocumentOutputFormat } from '../../domain/schema/document/documentTemplate';
-import { DOCUMENT_OUTPUT_FORMATS } from '../../domain/schema/document/documentTemplate';
+import { DOCUMENT_OUTPUT_FORMATS, DOCUMENT_RENDER_TIMEOUT_SECONDS } from '../../domain/schema/document/documentTemplate';
 import type { DocumentDestination } from '../../domain/schema/document/documentDownloads';
 import { isDocumentDestination, isRetentionDays } from '../../domain/schema/document/documentDownloads';
 import { PERMISSION_DOCUMENTS_GENERATE } from '../../domain/schema/access';
@@ -50,7 +50,9 @@ const textOf = (value: unknown): string => (typeof value === 'string' ? value.tr
  * Falha de geração volta em `error` e não lança, como `runAction`: a tela mostra a frase do motivo.
  */
 export const renderDocument = onCall(
-  { region: 'southamerica-east1', cors: true, memory: '512MiB' },
+  // Não os 60 s do padrão: um arquivo de leiaute (#47) lê as listas em páginas, até
+  // `DOCUMENT_TEXT_DATASET_MAX_ROWS` itens, e a hidratação das referências de cada página soma.
+  { region: 'southamerica-east1', cors: true, memory: '512MiB', timeoutSeconds: DOCUMENT_RENDER_TIMEOUT_SECONDS },
   async (request): Promise<RenderDocumentResponse> => {
     if (!request.auth) throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
 

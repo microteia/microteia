@@ -19,6 +19,8 @@ import {
   DOCUMENT_OUTPUT_FORMATS,
   DOCUMENT_PARAMETER_TYPES,
   DOCUMENT_TEMPLATE_SOURCES,
+  DOCUMENT_DATASET_MAX_ROWS,
+  DOCUMENT_TEXT_DATASET_MAX_ROWS,
 } from '../document/documentTemplate';
 import { DOCUMENT_DESTINATIONS, DOWNLOAD_RETENTION_MAX_DAYS } from '../document/documentDownloads';
 import { TEMPLATE_BLOCKS, TEMPLATE_LOOP_VARIABLES } from '../document/templateGrammar';
@@ -402,7 +404,14 @@ const TEMPLATE_DATASETS = {
           + 'break ties. Empty values go last; equal items fall to the creation date, then the record id.',
       },
       direction: { type: 'string', enum: ['asc', 'desc'], description: 'Only with orderBy as a single field.' },
-      limit: { type: 'integer', minimum: 1, maximum: 100, description: 'At most 100 items.' },
+      limit: {
+        type: 'integer',
+        minimum: 1,
+        maximum: DOCUMENT_TEXT_DATASET_MAX_ROWS,
+        description: `At most ${DOCUMENT_DATASET_MAX_ROWS} items. In a "text" template the list is read in full, up to `
+          + `${DOCUMENT_TEXT_DATASET_MAX_ROWS} records — more than that refuses the file instead of cutting it — and `
+          + 'limit only keeps the first ones after orderBy.',
+      },
     },
     ['name', 'from', 'via'],
   ),

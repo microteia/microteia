@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { documentTemplateIssues, templateOutputs, textDocumentContent } from './documentTemplate';
+import {
+  DOCUMENT_DATASET_MAX_ROWS,
+  DOCUMENT_TEXT_DATASET_MAX_ROWS,
+  DOCUMENT_TEXT_PAGED_SINCE_KERNEL,
+  datasetRowCeiling,
+  documentTemplateIssues,
+  templateOutputs,
+  textDocumentContent,
+} from './documentTemplate';
 import type { DocumentTemplateSpec } from './documentTemplate';
 import { evaluateFieldExpression } from '../fieldExpression';
 import { packageDocumentTemplateIssues } from '../../usecases/plugins/pluginDocumentTemplates';
@@ -73,5 +81,38 @@ describe('o pacote com modelo de texto declara o kernel que o entende (#47)', ()
     expect(packageDocumentTemplateIssues(pkg('^2.36.0')).map((one) => one.message))
       .toContain('@core.marketplace/issue.document.text.kernel');
     expect(packageDocumentTemplateIssues(pkg('^2.151.0'))).toEqual([]);
+  });
+});
+
+describe('listas longas no arquivo de leiaute (#47, fase 2)', () => {
+  it('o teto da lista depende do formato: texto lê até 10.000, o resto segue em 100', () => {
+    expect(datasetRowCeiling({ format: 'text' })).toBe(DOCUMENT_TEXT_DATASET_MAX_ROWS);
+    expect(datasetRowCeiling({ format: 'markdown' })).toBe(DOCUMENT_DATASET_MAX_ROWS);
+    expect(datasetRowCeiling({ format: 'docx' })).toBe(DOCUMENT_DATASET_MAX_ROWS);
+  });
+
+  const pkg = (kernel: string, withDatasets: boolean): MarketplacePlugin => ({
+    manifest: {
+      id: 'com.acme.files',
+      kernel,
+      contributes: [{
+        point: 'document.template',
+        id: 'monthly-file',
+        metadata: spec(withDatasets
+          ? { body: '{{#each invoices}}|C100|{{/each}}', datasets: [{ name: 'invoices', from: 'invoices', via: 'company' }] }
+          : {}),
+      }],
+    },
+  } as unknown as MarketplacePlugin);
+  const messages = (kernel: string, withDatasets: boolean) =>
+    packageDocumentTemplateIssues(pkg(kernel, withDatasets)).map((one) => one.message);
+
+  it('modelo de texto COM datasets exige o kernel que lê em páginas — o anterior cortaria em 100 calado', () => {
+    expect(messages('^2.151.0', true)).toContain('@core.marketplace/issue.document.text.datasets.kernel');
+    expect(messages(`^${DOCUMENT_TEXT_PAGED_SINCE_KERNEL}`, true)).toEqual([]);
+  });
+
+  it('sem datasets, o kernel do formato basta', () => {
+    expect(messages('^2.151.0', false)).toEqual([]);
   });
 });

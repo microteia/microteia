@@ -6,8 +6,8 @@ import type {
   RecordReadOutcome,
 } from '../../domain/repositories/IDocumentGenerationPorts';
 import type { DocumentTemplateDataset } from '../../domain/schema/document/documentTemplate';
-import { datasetOrder } from '../../domain/schema/document/documentTemplate';
-import type { QuerySpec } from '../../domain/schema/querySpec';
+import { DOCUMENT_DATASET_MAX_ROWS, datasetOrder } from '../../domain/schema/document/documentTemplate';
+import type { QueryOrderBy, QuerySpec } from '../../domain/schema/querySpec';
 import { resolveQueryTable } from '../../domain/schema/querySpec';
 import { parsePath, resolvePath } from '../../domain/schema/pathResolver';
 import type { PathRoot, SchemaContext } from '../../domain/schema/pathResolver';
@@ -15,15 +15,22 @@ import { applyDerivedFields, collectDerivedFieldKeys } from '../../domain/schema
 import { withAmbientTimeZone } from '../../domain/schema/clockGate';
 import { withAmbientBusinessCalendars } from '../../domain/schema/time/businessDaysGate';
 import type { BusinessCalendarSet } from '../../domain/schema/time/businessDays';
-import { DEFAULT_WORKFLOW_QUERY_LIMITS, hydrateRecords, runRecordQuery } from '../workflow/query/runWorkflowQuery';
+import {
+  DEFAULT_WORKFLOW_QUERY_LIMITS,
+  applyDeterministicOrdering,
+  hydrateRecords,
+  runRecordQuery,
+} from '../workflow/query/runWorkflowQuery';
+import type { RecordQueryScope, WorkflowQueryDeps } from '../workflow/query/runWorkflowQuery';
 import { readerFetcher } from '../workflow/query/readerScope';
 import type { RecordReader } from '../../domain/schema/memberVisibility';
 
 /**
- * O teto de filhos de um documento: o mesmo de "Buscar Registros". Uma lista de parcelas que passe
- * disso é um relatório, não um documento.
+ * O tamanho da página quando a lista passa do teto de uma consulta (o arquivo de leiaute, #47). Cada
+ * página é uma consulta de igualdade com cursor pelo id — a mesma do `page` da automação —, e por isso
+ * não pede índice composto: a ordem declarada é aplicada depois, sobre a lista inteira.
  */
-const MAX_CHILDREN = 100;
+const PAGE_SIZE = 500;
 
 /**
  * Só os caminhos que resolvem A PARTIR DESTA raiz. Dentro de um laço a gramática não sabe se um nome
@@ -91,28 +98,82 @@ export class WorkflowDocumentRecordReader implements IDocumentRecordReader {
     timeZone: string,
     businessCalendars?: BusinessCalendarSet | null,
     reader?: RecordReader | null,
+    ceiling: number = DOCUMENT_DATASET_MAX_ROWS,
   ): Promise<RecordReadOutcome<Record<string, unknown>[]>> {
     const ctx = await this.screens.getSchemaContext(tenantId);
     const table = resolveQueryTable(dataset.from, ctx);
     if (!table) return { ok: false, error: '@core.automation/mutation.table.unknown', errorParams: { table: dataset.from } };
 
     const orderBy = datasetOrder(dataset);
+    const limit = Math.min(Math.max(dataset.limit ?? ceiling, 1), ceiling);
+    const projections = reachable(ctx, table.root, paths);
+    const where: QuerySpec['where'] = [{ path: dataset.via, op: 'eq', value: { kind: 'Literal', value: parentId } }];
+    const scope: RecordQueryScope = { tenantId, timeZone, reader, ...(businessCalendars !== undefined ? { businessCalendars } : {}) };
+    const deps: WorkflowQueryDeps = { queryRepository: this.queryRepository, fetcher: this.fetcher, screenProvider: this.screens };
+
+    if (ceiling <= DOCUMENT_DATASET_MAX_ROWS) {
+      const outcome = await runRecordQuery(
+        { table: dataset.from, where, ...(orderBy.length > 0 ? { orderBy } : {}), limit, projections },
+        [parentId],
+        scope,
+        deps,
+        DEFAULT_WORKFLOW_QUERY_LIMITS,
+        { deterministicOrder: true },
+      );
+      if (!outcome.ok) return outcome;
+      return { ok: true, value: outcome.value.results };
+    }
+
+    const all = await this.everyChild(dataset, where, orderBy, projections, parentId, scope, deps, ceiling);
+    if (!all.ok) return all;
+    const ordered = orderBy.length > 0 ? applyDeterministicOrdering(all.value, orderBy) : all.value;
+    return { ok: true, value: ordered.slice(0, limit) };
+  }
+
+  /**
+   * TODOS os filhos, página a página. A ordem declarada só pode ser aplicada sobre a lista inteira —
+   * a página segue o id, e o `limit` com ordem decide QUAIS entram —, e por isso o teto vale para o
+   * que existe, não para o que o modelo pede: passar dele é recusa, não um arquivo pela metade.
+   */
+  private async everyChild(
+    dataset: DocumentTemplateDataset,
+    where: QuerySpec['where'],
+    orderBy: QueryOrderBy[],
+    projections: string[],
+    parentId: string,
+    scope: RecordQueryScope,
+    deps: WorkflowQueryDeps,
+    ceiling: number,
+  ): Promise<RecordReadOutcome<Record<string, unknown>[]>> {
     const spec: QuerySpec = {
       table: dataset.from,
-      where: [{ path: dataset.via, op: 'eq', value: { kind: 'Literal', value: parentId } }],
-      ...(orderBy.length > 0 ? { orderBy } : {}),
-      limit: Math.min(Math.max(dataset.limit ?? MAX_CHILDREN, 1), MAX_CHILDREN),
-      projections: reachable(ctx, table.root, paths),
+      where,
+      limit: PAGE_SIZE,
+      projections: [...new Set([...projections, ...orderBy.map((order) => order.path)])],
+      page: {},
     };
-    const outcome = await runRecordQuery(
-      spec,
-      [parentId],
-      { tenantId, timeZone, reader, ...(businessCalendars !== undefined ? { businessCalendars } : {}) },
-      { queryRepository: this.queryRepository, fetcher: this.fetcher, screenProvider: this.screens },
-      DEFAULT_WORKFLOW_QUERY_LIMITS,
-      { deterministicOrder: true },
-    );
-    if (!outcome.ok) return outcome;
-    return { ok: true, value: outcome.value.results };
+    const rows: Record<string, unknown>[] = [];
+    let after: string | null = null;
+    do {
+      const page = await runRecordQuery(
+        spec,
+        [parentId],
+        scope,
+        deps,
+        { maxScan: PAGE_SIZE, maxResults: PAGE_SIZE },
+        { pageAfter: after ?? undefined },
+      );
+      if (!page.ok) return page;
+      rows.push(...page.value.results);
+      if (rows.length > ceiling) {
+        return {
+          ok: false,
+          error: '@core.documents/render.dataset-too-large',
+          errorParams: { name: dataset.name, max: String(ceiling) },
+        };
+      }
+      after = page.value.cursor ?? null;
+    } while (after !== null);
+    return { ok: true, value: rows };
   }
 }

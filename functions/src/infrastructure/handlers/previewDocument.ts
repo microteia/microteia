@@ -3,7 +3,12 @@ import { getDI } from '../di/container';
 import { requirePermission } from './shared/requirePermission';
 import { PERMISSION_DOCUMENT_TEMPLATES_MANAGE } from '../../domain/schema/access';
 import type { DocumentOutputFormat, DocumentTemplateSpec } from '../../domain/schema/document/documentTemplate';
-import { DOCUMENT_OUTPUT_FORMATS, documentTemplateIssues, isGrammarIssue } from '../../domain/schema/document/documentTemplate';
+import {
+  DOCUMENT_OUTPUT_FORMATS,
+  DOCUMENT_RENDER_TIMEOUT_SECONDS,
+  documentTemplateIssues,
+  isGrammarIssue,
+} from '../../domain/schema/document/documentTemplate';
 
 interface PreviewDocumentRequest {
   tenantId: string;
@@ -38,7 +43,9 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
  * exemplo aponta) — escrever modelos não dá acesso a registro nenhum.
  */
 export const previewDocument = onCall(
-  { region: 'southamerica-east1', cors: true, memory: '512MiB' },
+  // Não os 60 s do padrão: um arquivo de leiaute (#47) lê as listas em páginas, até
+  // `DOCUMENT_TEXT_DATASET_MAX_ROWS` itens, e a hidratação das referências de cada página soma.
+  { region: 'southamerica-east1', cors: true, memory: '512MiB', timeoutSeconds: DOCUMENT_RENDER_TIMEOUT_SECONDS },
   async (request): Promise<PreviewDocumentResponse> => {
     if (!request.auth) throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
 

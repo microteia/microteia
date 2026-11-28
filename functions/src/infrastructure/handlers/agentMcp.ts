@@ -2,6 +2,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import type { MessageCatalog } from '../../domain/schema/i18n/messages';
 import type { AgentResourceUri } from '../../domain/schema/agent/agentOps';
 import { AGENT_RESOURCES, AGENT_TOOLS, agentToolByName } from '../../domain/schema/agent/agentOps';
+import { DOCUMENT_RENDER_TIMEOUT_SECONDS } from '../../domain/schema/document/documentTemplate';
 import { getDI } from '../di/container';
 import type { AgentAuthRefusal, AgentSession } from '../agent/authenticateAgent';
 import { agentAuthDeps, authenticateAgent } from '../agent/authenticateAgent';
@@ -108,7 +109,9 @@ const readResource = async (
 export const agentMcp = onRequest(
   // 512 MiB e não o padrão: `attach_document` recebe até 20 MB em base64 (~27 MB de texto), e o
   // corpo, o texto e o arquivo decodificado coexistem na memória durante a gravação.
-  { region: REGION, cors: true, memory: '512MiB' },
+  // O teto do `renderDocument`, pela mesma razão: o `render_document` de um arquivo de leiaute lê as
+  // listas inteiras, em páginas.
+  { region: REGION, cors: true, memory: '512MiB', timeoutSeconds: DOCUMENT_RENDER_TIMEOUT_SECONDS },
   async (request, response): Promise<void> => {
     // Só POST. A spec prevê um GET que abre um fluxo de mensagens iniciadas pelo servidor, e este
     // servidor não inicia nenhuma — dizer 405 é mais honesto que abrir um fluxo que nunca fala.

@@ -214,6 +214,38 @@ export const DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL = '2.58.0';
  */
 export const DOCUMENT_TEXT_SINCE_KERNEL = '2.151.0';
 
+/**
+ * O teto de itens de uma lista filha (`datasets`) num documento: o mesmo de "Buscar Registros". Uma
+ * lista de parcelas que passe disso, num contrato ou num recibo, é um relatório, não um documento.
+ */
+export const DOCUMENT_DATASET_MAX_ROWS = 100;
+
+/**
+ * O teto no arquivo de LEIAUTE FIXO (#47, fase 2), lido em páginas. Ali a lista longa é a regra — um
+ * arquivo fiscal tem uma linha por nota do mês, uma remessa bancária uma por título —, e um arquivo
+ * cortado em silêncio é pior que nenhum: o programa oficial aceita o que chegou e o resto some. Por
+ * isso, acima do teto o documento é RECUSADO, nunca gerado pela metade.
+ */
+export const DOCUMENT_TEXT_DATASET_MAX_ROWS = 10_000;
+
+/**
+ * O kernel que lê as listas do modelo `text` em páginas. Um anterior entende o formato, mas corta cada
+ * lista em `DOCUMENT_DATASET_MAX_ROWS` sem avisar — o pacote cujo modelo de texto tem `datasets`
+ * declara `kernel` a partir desta.
+ */
+export const DOCUMENT_TEXT_PAGED_SINCE_KERNEL = '2.152.0';
+
+/**
+ * Quanto a geração e a prévia de um documento podem levar, em segundos. Mora no domínio porque são DUAS
+ * pontas: a callable no backend e o `httpsCallable` no navegador, que desiste aos 70 s se ninguém
+ * disser outro número — e a lista longa do arquivo de leiaute passa disso.
+ */
+export const DOCUMENT_RENDER_TIMEOUT_SECONDS = 300;
+
+/** Quantos itens uma lista do modelo pode trazer, pelo formato dele. */
+export const datasetRowCeiling = (spec: Pick<DocumentTemplateSpec, 'format'>): number =>
+  spec.format === 'text' ? DOCUMENT_TEXT_DATASET_MAX_ROWS : DOCUMENT_DATASET_MAX_ROWS;
+
 /** O kernel que entende `source: 'payload'`, `parameters` e `sample`. Um anterior descarta o modelo sem tela. */
 export const DOCUMENT_PAYLOAD_SINCE_KERNEL = '2.48.0';
 

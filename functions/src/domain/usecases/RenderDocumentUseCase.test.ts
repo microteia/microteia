@@ -71,6 +71,8 @@ const setup = (
   const saved: DownloadFileInput[] = [];
   const downloads = fakeDownloads(saved);
   const childrenPaths: string[][] = [];
+  const ceilings: (number | undefined)[] = [];
+  const childrenOutcome: { next: Awaited<ReturnType<IDocumentRecordReader['children']>> | null } = { next: null };
 
   const renderer: IDocumentRenderer = {
     templateText: (one) => one.body ?? '',
@@ -82,9 +84,10 @@ const setup = (
   const records: IDocumentRecordReader = {
     record: async (_tenantId, _collection, recordId) =>
       ({ ok: true, value: recordId === 'c1' ? { id: 'c1', name: 'Ana/Bia', fee: 1500 } : null }),
-    children: async (_tenantId, _dataset, _parentId, paths) => {
+    children: async (_tenantId, _dataset, _parentId, paths, _timeZone, _calendars, _reader, ceiling) => {
       childrenPaths.push([...paths]);
-      return { ok: true, value: [{ id: 'i1', amount: 10 }] };
+      ceilings.push(ceiling);
+      return childrenOutcome.next ?? { ok: true, value: [{ id: 'i1', amount: 10 }] };
     },
   };
   const writer: IRecordDocumentWriter = {
@@ -106,7 +109,7 @@ const setup = (
     timeZoneOf: async () => 'America/Sao_Paulo',
     portalShowsDocuments,
   };
-  return { useCase: makeRenderDocumentUseCase(deps), rendered, attached, childrenPaths, writer, saved, downloads };
+  return { useCase: makeRenderDocumentUseCase(deps), rendered, attached, childrenPaths, ceilings, childrenOutcome, writer, saved, downloads };
 };
 
 const request = (overrides: Partial<RenderDocumentRequest> = {}): RenderDocumentRequest => ({
@@ -539,5 +542,32 @@ describe('RenderDocumentUseCase', () => {
       expect(await useCase.preview({ ...asked, permissions: [] }))
         .toMatchObject({ ok: false, errorParams: { permission: 'contracts.read' } });
     });
+  });
+
+  it('o teto da lista vai pelo formato: 100 no Markdown, 10.000 no arquivo de leiaute (#47)', async () => {
+    const markdown = setup();
+    await markdown.useCase.execute(request());
+    expect(markdown.ceilings).toEqual([100]);
+
+    const text = setup([template({ format: 'text', outputs: ['txt'], body: '{{#each installments}}{{amount}}{{/each}}' })]);
+    await text.useCase.execute(request({ output: 'txt' }));
+    expect(text.ceilings).toEqual([10_000]);
+  });
+
+  it('a lista acima do teto chega com a frase própria, e nada é gerado (#47)', async () => {
+    const { useCase, childrenOutcome, rendered, attached } = setup();
+    childrenOutcome.next = {
+      ok: false,
+      error: '@core.documents/render.dataset-too-large',
+      errorParams: { name: 'installments', max: '10000' },
+    };
+
+    expect(await useCase.execute(request())).toMatchObject({
+      ok: false,
+      error: '@core.documents/render.dataset-too-large',
+      errorParams: { name: 'installments', max: '10000' },
+    });
+    expect(rendered).toEqual([]);
+    expect(attached).toEqual([]);
   });
 });

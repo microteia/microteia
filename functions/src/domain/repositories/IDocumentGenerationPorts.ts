@@ -49,5 +49,7 @@ export interface IDocumentRecordReader {
     timeZone: string,
     businessCalendars?: BusinessCalendarSet | null,
     reader?: RecordReader | null,
+    /** Quantos itens a lista pode ter (`datasetRowCeiling`); acima do teto de uma consulta, lê em páginas. */
+    ceiling?: number,
   ): Promise<RecordReadOutcome<Record<string, unknown>[]>>;
 }

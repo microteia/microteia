@@ -51,6 +51,7 @@ export const CORE_DOCUMENTS: Record<string, string> = {
   'render.documents-disabled': 'A tela "{collection}" não tem a aba Documentos, e por isso não há onde anexar o documento.',
   'render.docx-template': 'O modelo Word não pôde ser lido: {detail}',
   'render.dataset-invalid': 'A lista "{name}" do modelo não pôde ser lida: {detail}',
+  'render.dataset-too-large': 'A lista "{name}" tem mais de {max} registros, o máximo que um arquivo comporta. Nada foi gerado — um arquivo com parte da lista pareceria completo.',
   'render.too-large': 'O documento gerado passa de {limitMb} MB.',
   'render.request-invalid': 'O pedido para gerar o documento está incompleto.',
   'render.record-missing': 'O modelo "{key}" lê um registro: diga qual.',

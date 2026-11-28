@@ -104,7 +104,7 @@ const applyOrdering = (records: Record<string, unknown>[], orderBy: QueryOrderBy
     return 0;
   });
 
-const applyDeterministicOrdering = (
+export const applyDeterministicOrdering = (
   records: Record<string, unknown>[],
   orderBy: QueryOrderBy[],
 ): Record<string, unknown>[] =>

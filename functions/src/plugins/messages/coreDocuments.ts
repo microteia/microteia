@@ -58,6 +58,7 @@ export const CORE_DOCUMENTS_MESSAGES: Record<string, string> = {
   'render.documents-disabled': 'The screen "{collection}" has no Documents tab, so there is nowhere to attach the document.',
   'render.docx-template': 'The Word template could not be read: {detail}',
   'render.dataset-invalid': 'The list "{name}" of the template could not be read: {detail}',
+  'render.dataset-too-large': 'The list "{name}" has more than {max} records, the most one file can carry. Nothing was generated — a file with part of the list would look complete.',
   'render.too-large': 'The generated document goes beyond {limitMb} MB.',
   'render.request-invalid': 'The request to generate the document is incomplete.',
   'render.record-missing': 'The template "{key}" reads a record: say which one.',

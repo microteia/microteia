@@ -19,7 +19,10 @@ import type {
   PreviewDocumentResult,
 } from '../../domain/repositories/IDocumentTemplateRepository';
 import type { DocumentTemplate } from '../../domain/schema/document/documentTemplate';
-import { DOCUMENT_TEMPLATES_COLLECTION } from '../../domain/schema/document/documentTemplate';
+import { DOCUMENT_RENDER_TIMEOUT_SECONDS, DOCUMENT_TEMPLATES_COLLECTION } from '../../domain/schema/document/documentTemplate';
+
+/** A folga sobre o teto da callable: quem desiste primeiro tem de ser o servidor, com a frase do motivo. */
+const CALL_OPTIONS = { timeout: (DOCUMENT_RENDER_TIMEOUT_SECONDS + 10) * 1000 };
 
 const templatesRef = (tenantId: string) => collection(db, 'tenants', tenantId, DOCUMENT_TEMPLATES_COLLECTION);
 
@@ -59,13 +62,13 @@ export class FirebaseDocumentTemplateRepository implements IDocumentTemplateRepo
   }
 
   async generate(input: GenerateDocumentInput): Promise<GenerateDocumentResult> {
-    const call = httpsCallable<GenerateDocumentInput, GenerateDocumentResult>(functions, 'renderDocument');
+    const call = httpsCallable<GenerateDocumentInput, GenerateDocumentResult>(functions, 'renderDocument', CALL_OPTIONS);
     const response = await call(input);
     return response.data;
   }
 
   async preview(input: PreviewDocumentInput): Promise<PreviewDocumentResult> {
-    const call = httpsCallable<PreviewDocumentInput, PreviewDocumentResult>(functions, 'previewDocument');
+    const call = httpsCallable<PreviewDocumentInput, PreviewDocumentResult>(functions, 'previewDocument', CALL_OPTIONS);
     return (await call(input)).data;
   }
 }

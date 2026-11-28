@@ -6,7 +6,13 @@ import type { SchemaContext } from '../schema/pathResolver';
 import { resolveQueryTable } from '../schema/querySpec';
 import { agentDocumentName, AGENT_DOCUMENT_MAX_BYTES } from '../schema/agent/agentDocument';
 import type { DocumentOutputFormat, DocumentTemplateSpec, ResolvedDocumentTemplate } from '../schema/document/documentTemplate';
-import { DOCUMENT_PAYLOAD_MAX_BYTES, isPayloadTemplate, isSingleRecordParameter, templateOutputs } from '../schema/document/documentTemplate';
+import {
+  DOCUMENT_PAYLOAD_MAX_BYTES,
+  datasetRowCeiling,
+  isPayloadTemplate,
+  isSingleRecordParameter,
+  templateOutputs,
+} from '../schema/document/documentTemplate';
 import type { TemplatePaths } from '../schema/document/templateGrammar';
 import { collectRequiredIssues, formatAndValidateParameters } from '../schema/parameterRules';
 import { PERMISSION_DOCUMENTS_GENERATE } from '../schema/access';
@@ -131,6 +137,9 @@ export interface RenderDocumentUseCase {
 }
 
 type Failure = { ok: false; error: string; errorParams?: Record<string, string> };
+
+/** A lista que passou do teto do formato: a frase própria chega a quem gerou, sem virar "lista inválida". */
+const DATASET_TOO_LARGE = '@core.documents/render.dataset-too-large';
 
 const failure = (error: string, errorParams?: Record<string, string>): Failure =>
   errorParams ? { ok: false, error, errorParams } : { ok: false, error };
@@ -341,7 +350,9 @@ const prepareRecord = async (
         timeZone,
         businessCalendars,
         request.reader,
+        datasetRowCeiling(template),
       );
+      if (!children.ok && children.error === DATASET_TOO_LARGE) return failure(children.error, children.errorParams);
       if (!children.ok) {
         return failure('@core.documents/render.dataset-invalid', {
           name: dataset.name,

@@ -103,3 +103,77 @@ describe('WorkflowDocumentRecordReader.children — ordem do dataset', () => {
     expect(await idsOf(movements, {})).toEqual(['m1', 'm2', 'm3', 'm4', 'm5', 'm6']);
   });
 });
+
+/**
+ * #47, fase 2: o arquivo de leiaute lê a lista INTEIRA, em páginas. O banco falso responde como o
+ * Firestore com cursor: ordem do id, a partir do `after`, no máximo `limit` por pedido.
+ */
+describe('WorkflowDocumentRecordReader.children — lista longa do arquivo de leiaute (#47)', () => {
+  const many = (count: number) => Array.from({ length: count }, (_, index) => {
+    const n = String(index + 1).padStart(5, '0');
+    // A data corre AO CONTRÁRIO do id: a ordem declarada não pode sair de graça da paginação.
+    return row(`r${n}`, { date: `2026-${String(12 - (index % 12)).padStart(2, '0')}-01`, descricao: n });
+  });
+
+  const pagedReader = (rows: WorkflowQueryRow[]) => {
+    const calls: number[] = [];
+    const queryRepository: IWorkflowQueryRepository = {
+      queryByEquality: async (_tenantId, _collection, _filters, limit, page) => {
+        const sorted = [...rows].sort((a, b) => a.id.localeCompare(b.id));
+        const from = page?.after ? sorted.findIndex((one) => one.id > page.after!) : 0;
+        const slice = from < 0 ? [] : sorted.slice(from, from + limit);
+        calls.push(slice.length);
+        return slice;
+      },
+    };
+    const fetcher: IWorkflowRecordFetcher = {
+      fetchByIds: async (_tenantId, _collection, ids) => new Map(ids.map((id) => [id, null])),
+    };
+    return { calls, reader: new WorkflowDocumentRecordReader(fetcher, fakeScreenProvider([movementsScreen, casesScreen]), queryRepository) };
+  };
+
+  const read = async (rows: WorkflowQueryRow[], dataset: Partial<DocumentTemplateDataset>, ceiling: number) => {
+    const { calls, reader } = pagedReader(rows);
+    const outcome = await reader.children(
+      't1',
+      { name: 'movimentacoes', from: 'movimentos', via: 'processo', ...dataset },
+      'p1',
+      ['descricao', 'date'],
+      'America/Sao_Paulo',
+      undefined,
+      null,
+      ceiling,
+    );
+    return { calls, outcome };
+  };
+
+  it('passa das 100 e traz cada registro uma vez, página a página', async () => {
+    const { calls, outcome } = await read(many(1234), {}, 10_000);
+    if (!outcome.ok) throw new Error(outcome.error);
+    expect(outcome.value).toHaveLength(1234);
+    expect(new Set(outcome.value.map((record) => record.id)).size).toBe(1234);
+    expect(calls.length).toBeGreaterThan(2);
+  });
+
+  it('a ordem declarada vale para a lista INTEIRA, e o limit corta só depois dela', async () => {
+    const { outcome } = await read(many(1234), { orderBy: [{ path: 'date', dir: 'asc' }], limit: 3 }, 10_000);
+    if (!outcome.ok) throw new Error(outcome.error);
+    expect(outcome.value.map((record) => record.date)).toEqual(['2026-01-01', '2026-01-01', '2026-01-01']);
+  });
+
+  it('acima do teto recusa com a frase própria — nunca um arquivo com parte da lista', async () => {
+    const { outcome } = await read(many(1234), {}, 1000);
+    expect(outcome).toMatchObject({
+      ok: false,
+      error: '@core.documents/render.dataset-too-large',
+      errorParams: { name: 'movimentacoes', max: '1000' },
+    });
+  });
+
+  it('no teto de sempre (100) continua uma consulta só, cortando no limit', async () => {
+    const { calls, outcome } = await read(many(1234), {}, 100);
+    if (!outcome.ok) throw new Error(outcome.error);
+    expect(outcome.value).toHaveLength(100);
+    expect(calls).toHaveLength(1);
+  });
+});

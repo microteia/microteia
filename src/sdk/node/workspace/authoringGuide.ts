@@ -150,6 +150,9 @@ import {
   DOCUMENT_PAYLOAD_MAX_BYTES,
   DOCUMENT_PAYLOAD_SINCE_KERNEL,
   DOCUMENT_TEMPLATE_SINCE_KERNEL,
+  DOCUMENT_DATASET_MAX_ROWS,
+  DOCUMENT_TEXT_DATASET_MAX_ROWS,
+  DOCUMENT_TEXT_PAGED_SINCE_KERNEL,
   DOCUMENT_TEXT_SINCE_KERNEL,
   DOWNLOAD_RETENTION_MAX_DAYS,
   TEMPLATE_BLOCKS,
@@ -5022,8 +5025,8 @@ grammar adds only what an expression cannot say: ${DOCUMENT_BLOCKS}.
 
 A loop repeats a list. A list field of the record works as is; records of ANOTHER screen that point
 here come from \`datasets\`, in the vocabulary of an aggregated field: \`from\` (the child screen), \`via\`
-(its reference field to this record), \`orderBy\`, \`limit\` (at most 100 — more than that is a report,
-§11). Address \`from\` by \`fromSourceId\` for the same reason as the screen.
+(its reference field to this record), \`orderBy\`, \`limit\` (at most ${DOCUMENT_DATASET_MAX_ROWS} — more than that is a report,
+§11; a fixed-layout text template reads more, see below). Address \`from\` by \`fromSourceId\` for the same reason as the screen.
 
 \`orderBy\` is one field with \`direction\` (\`orderBy: 'dueDate', direction: 'desc'\`), or a list of keys in the
 form of an aggregation's \`orderBy\` — the first decides, the next break ties:
@@ -5067,8 +5070,14 @@ defaults to a space) and cut what is longer, so one long value never shifts the 
 {{/each}}|9999|{{length(invoices) + 2}}|
 \`\`\`
 
-Datasets keep their usual limit; a file of thousands of lines over one list is a later phase.
-Requires kernel \`^${DOCUMENT_TEXT_SINCE_KERNEL}\` — \`check\` refuses the package otherwise.
+In a text template every dataset is read IN FULL, in pages, up to ${DOCUMENT_TEXT_DATASET_MAX_ROWS} records — a
+month of invoices is the normal case here. \`orderBy\` is applied to the whole list and \`limit\` then keeps
+the first ones, so leave \`limit\` out to write every record. A list with more than
+${DOCUMENT_TEXT_DATASET_MAX_ROWS} records refuses the file instead of cutting it: the receiving program would accept
+a file with part of the list as if it were complete.
+
+Requires kernel \`^${DOCUMENT_TEXT_SINCE_KERNEL}\`, and \`^${DOCUMENT_TEXT_PAGED_SINCE_KERNEL}\` when the template has
+\`datasets\` — an older kernel cuts each list at ${DOCUMENT_DATASET_MAX_ROWS}. \`check\` refuses the package otherwise.
 
 ### Who wins
 

@@ -4,6 +4,7 @@ import type { DocumentTemplateDataset } from '../../schema/document/documentTemp
 import {
   DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL,
   DOCUMENT_TEMPLATE_POINT,
+  DOCUMENT_TEXT_PAGED_SINCE_KERNEL,
   DOCUMENT_TEXT_SINCE_KERNEL,
   datasetOrder,
   datasetOrderIssues,
@@ -91,14 +92,24 @@ export const packageDocumentTemplateIssues = (pkg: MarketplacePlugin): Localized
 
 /**
  * O modelo de leiaute fixo (`format: 'text'`, #47) exige um kernel que conheça o formato: um anterior
- * o aceitaria na instalação e recusaria ao gerar, no escritório do cliente.
+ * o aceitaria na instalação e recusaria ao gerar, no escritório do cliente. Com `datasets`, exige o que
+ * lê as listas em páginas — o anterior gera o arquivo, mas com cada lista cortada em 100, sem aviso.
  */
 const textFormatKernelIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
-  const textTemplate = (pkg.manifest.contributes ?? [])
+  const textTemplates = (pkg.manifest.contributes ?? [])
     .filter((contribution) => contribution?.point === DOCUMENT_TEMPLATE_POINT)
-    .map((contribution) => contribution.metadata as { key?: unknown; format?: unknown } | undefined)
-    .find((metadata) => metadata?.format === 'text');
-  if (!textTemplate || rangeExcludesBelow(pkg.manifest.kernel ?? '', DOCUMENT_TEXT_SINCE_KERNEL)) return [];
+    .map((contribution) => contribution.metadata as { key?: unknown; format?: unknown; datasets?: unknown } | undefined)
+    .filter((metadata) => metadata?.format === 'text');
+  const kernel = pkg.manifest.kernel ?? '';
+  const paged = textTemplates.find((metadata) => Array.isArray(metadata?.datasets) && metadata.datasets.length > 0);
+  if (paged && !rangeExcludesBelow(kernel, DOCUMENT_TEXT_PAGED_SINCE_KERNEL)) {
+    return [{
+      message: '@core.marketplace/issue.document.text.datasets.kernel',
+      messageParams: { template: String(paged.key ?? ''), minimum: DOCUMENT_TEXT_PAGED_SINCE_KERNEL },
+    }];
+  }
+  const textTemplate = textTemplates[0];
+  if (!textTemplate || rangeExcludesBelow(kernel, DOCUMENT_TEXT_SINCE_KERNEL)) return [];
   return [{
     message: '@core.marketplace/issue.document.text.kernel',
     messageParams: { template: String(textTemplate.key ?? ''), minimum: DOCUMENT_TEXT_SINCE_KERNEL },

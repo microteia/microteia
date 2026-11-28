@@ -13085,7 +13085,8 @@ A gramática acrescenta só o que uma expressão não diz — repetir e incluir 
 
 **Listas filhas — `datasets`.** `{ name, from, via, orderBy?, direction?, limit? }` é o vocabulário do
 campo agregado (`from`/`via`), porque é a mesma pergunta: os registros de outra tela cujo vínculo aponta
-para este. Teto de 100 por lista, o mesmo do passo "Buscar Registros" — mais que isso é relatório.
+para este. Teto de `DOCUMENT_DATASET_MAX_ROWS` (100) por lista, o mesmo do passo "Buscar Registros" — mais
+que isso é relatório. A exceção é o modelo `text`, abaixo: `datasetRowCeiling(spec)` decide pelo formato.
 
 ### Os formatos — e o que NÃO existe
 
@@ -13104,9 +13105,25 @@ um `|` mudaria o dado que a outra ponta lê). `encoding` (`utf8` | `latin1`) e `
 `crlf`) são do modelo, porque programas oficiais exigem Latin-1 e CRLF; o caractere que Latin-1 não
 tem vira `?` em vez do byte baixo dele, que daria outro caractere em silêncio. A coluna de largura fixa
 é `padLeft`/`padRight` do catálogo de expressões de campo (vale também numa regra de campo), e CORTA o
-que passa da largura — um valor longo empurraria todas as colunas seguintes. Fica para uma fase 2 o
-dataset lido em páginas, acima do teto de itens de hoje: é ali que mora o custo (tempo de execução e
-índice). O pacote que usa `text` declara `kernel` a partir de `DOCUMENT_TEXT_SINCE_KERNEL`.
+que passa da largura — um valor longo empurraria todas as colunas seguintes. O pacote que usa `text`
+declara `kernel` a partir de `DOCUMENT_TEXT_SINCE_KERNEL`.
+
+**Listas longas no arquivo de leiaute (#47, fase 2).** No modelo `text` a lista longa é a regra — uma linha
+por nota do mês —, e o teto passa a `DOCUMENT_TEXT_DATASET_MAX_ROWS` (10.000). Quatro decisões:
+
+- **A lista é lida INTEIRA, em páginas** (`WorkflowDocumentRecordReader.everyChild`, 500 por página), pelo
+  mesmo `page` da automação: igualdade no `via` com cursor pelo id. Por isso não há índice novo — a
+  página não leva `orderBy` (a consulta em páginas o recusa), e a ordem declarada é aplicada DEPOIS, sobre
+  a lista toda, com o desempate fixo do `latest`. O `limit` só corta depois da ordem.
+- **Acima do teto, recusa** (`render.dataset-too-large`), nunca um arquivo pela metade: o programa oficial
+  aceita o arquivo que chegou como se estivesse completo, e as linhas que faltam somem sem ninguém ver.
+  Os outros formatos seguem cortando em 100, como sempre — ali o `limit` é escolha de quem desenha.
+- **Tempo:** `renderDocument`, `previewDocument` e `agentMcp` sobem para `DOCUMENT_RENDER_TIMEOUT_SECONDS`
+  (300 s), e o `httpsCallable` do navegador recebe o mesmo número com folga — sem isso ele desiste aos 70 s
+  e a tela mostra um erro genérico enquanto o servidor ainda trabalha.
+- **Contrato:** o kernel anterior entende `text`, mas corta a lista em 100 calado; o pacote cujo modelo de
+  texto tem `datasets` declara `kernel` a partir de `DOCUMENT_TEXT_PAGED_SINCE_KERNEL` (2.152.0), e o
+  `check` cobra (`issue.document.text.datasets.kernel`).
 
 **DOCX → PDF não existe**, e a recusa é na AUTORIA (`DOCUMENT_OUTPUTS_BY_FORMAT`): converter Word exige
 um motor de escritório (LibreOffice), que não cabe numa Cloud Function. Oferecer a combinação e falhar
