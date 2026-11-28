@@ -20,6 +20,16 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.305.2] — 2026-11-28
+
+- fix(schema): the backend sees a screen change within seconds — a child saved right after its parent gains an aggregate recomputes it, and the agent accepts a just-created collection (#58)
+- fix(agent): an agent grant gains the create permission of a just-created screen within seconds — the permission catalog checks the same revision stamp as the screen cache (#58)
+- fix(expressions): a date field compared with today() compares as days — "overdue" and "due from today" reports return their rows instead of nothing (#53)
+- fix(reports): a member referenced in a report, document or automation is named — `assignee.name` falls back to display name and e-mail, one group per person instead of one empty group (#54)
+- fix(portal): the portal's form controls speak the guest's language — "Select…", the search box and the other kernel component texts come translated (#57)
+- fix(portal): the portal's create button and form heading use the screen's titleNew, as the office does — "Nova resposta", not "Novo: Resposta" (#56)
+- fix(portal): a record titled by a select field shows the option label in the portal, not the stored key — "In review", not in_review (#55)
+
 #### [9.305.1] — 2026-11-28
 
 - fix(expressions): money computes as decimals — 0.1 + 0.2 == 0.3, aggregate sums match their lines to the cent, and round(1.005, 2) is 1.01 (#48)
