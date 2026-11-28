@@ -931,6 +931,8 @@ export const CORE_AUTOMATION: Record<string, string> = {
   'expr.sqrtFunction.description': 'Calcula a raiz quadrada de um número',
   'expr.startsWith.description': 'Verifica se o texto começa com um prefixo',
   'expr.substring.description': 'Extrai parte de um texto entre dois índices',
+  'expr.padLeft.description': 'Completa um texto à esquerda até uma largura fixa, cortando o que passar dela',
+  'expr.padRight.description': 'Completa um texto à direita até uma largura fixa, cortando o que passar dela',
   'expr.subtract.description': 'Subtrai o segundo número do primeiro',
   'expr.subtract.name': 'Subtração',
   'expr.sum.description': 'Soma todos os números em um array',

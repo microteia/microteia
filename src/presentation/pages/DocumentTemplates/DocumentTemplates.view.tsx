@@ -8,7 +8,6 @@ import {
   RiEyeOffLine,
   RiFileCopyLine,
   RiFileTextLine,
-  RiFileTextLine,
   RiFileWordLine,
   RiMarkdownLine,
   RiPencilLine,

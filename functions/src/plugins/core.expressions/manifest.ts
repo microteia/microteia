@@ -11,7 +11,7 @@ import {
 import { ifFn } from '../../domain/engine/expression/builtins/ifFn';
 import {
   concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn,
-  splitFn, joinFn, interpolateFn, onlyNumberFn, formatMoneyFn,
+  splitFn, joinFn, interpolateFn, onlyNumberFn, formatMoneyFn, padLeftFn, padRightFn,
 } from '../../domain/engine/expression/builtins/stringFns';
 import { getVarFn } from '../../domain/engine/expression/builtins/getVarFn';
 import { hasPermissionFn } from '../../domain/engine/expression/builtins/accessFns';
@@ -43,7 +43,7 @@ const BUILTIN_FUNCTIONS: ExpressionFunction[] = [
   ifFn,
   hasPermissionFn,
   concatFn, lowerFn, upperFn, lengthFn, trimFn, replaceFn, substringFn, startsWithFn, endsWithFn,
-  splitFn, joinFn, interpolateFn, onlyNumberFn, formatMoneyFn,
+  splitFn, joinFn, interpolateFn, onlyNumberFn, formatMoneyFn, padLeftFn, padRightFn,
   getVarFn,
   roundFn, minFn, maxFn, sumFn, avgFn,
   firstFn, lastFn, containsFn, indexOfFn, mapFn,

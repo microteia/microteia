@@ -66,10 +66,14 @@ const FUNCOES_DE_DIAS_UTEIS = ['addBusinessDays', 'businessDaysBetween', 'isBusi
 /** O resto ISO 7064 mod 97-10, o verbo por trás do número CNJ e do IBAN — também dos dois catálogos. */
 const FUNCOES_DE_DIGITO_VERIFICADOR = ['mod97'];
 
+/** A coluna de largura fixa do arquivo de leiaute (#47) — dos dois catálogos. */
+const FUNCOES_DE_LARGURA_FIXA = ['padLeft', 'padRight'];
+
 const FUNCOES_ESPERADAS = [
   ...FUNCOES_ANTES_DA_MIGRACAO.filter((name) => !REMOVIDAS_POR_SEREM_INALCANCAVEIS.includes(name)),
   ...FUNCOES_DE_DIAS_UTEIS,
   ...FUNCOES_DE_DIGITO_VERIFICADOR,
+  ...FUNCOES_DE_LARGURA_FIXA,
 ].sort();
 
 describe('plugins do backend — carga', () => {

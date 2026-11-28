@@ -103,6 +103,45 @@ export const substringFn: ExpressionFunction = {
   maxArgs: 3,
 };
 
+const asText = (value: unknown): string => (value === null || value === undefined ? '' : String(value));
+
+/**
+ * Mesma conta do `padLeft`/`padRight` das expressões de campo (#47): completa até `width` e CORTA o que
+ * passar, porque num arquivo de leiaute fixo um valor maior que a coluna empurra todas as seguintes.
+ */
+const fitWidth = (fn: string, [value, width, fill]: unknown[], side: 'start' | 'end'): string => {
+  if (typeof width !== 'number') {
+    throw new LocalizedError('@core.automation/expr.arg.second.number', { fn });
+  }
+  const text = asText(value);
+  if (!Number.isInteger(width) || width < 0) return text;
+  const pad = asText(fill) === '' ? ' ' : asText(fill).charAt(0);
+  const cut = text.slice(0, width);
+  return side === 'start' ? cut.padStart(width, pad) : cut.padEnd(width, pad);
+};
+
+export const padLeftFn: ExpressionFunction = {
+  name: 'padLeft',
+  call: (args) => fitWidth('padLeft', args, 'start'),
+  description: '@core.automation/expr.padLeft.description',
+  signature: 'padLeft(value, width, fill?)',
+  example: 'padLeft(42, 6, "0")',
+  category: '@core.automation/expr.category.text',
+  minArgs: 2,
+  maxArgs: 3,
+};
+
+export const padRightFn: ExpressionFunction = {
+  name: 'padRight',
+  call: (args) => fitWidth('padRight', args, 'end'),
+  description: '@core.automation/expr.padRight.description',
+  signature: 'padRight(value, width, fill?)',
+  example: 'padRight("Microteia", 12)',
+  category: '@core.automation/expr.category.text',
+  minArgs: 2,
+  maxArgs: 3,
+};
+
 export const startsWithFn: ExpressionFunction = {
   name: 'startsWith',
   call: ([text, prefix]) => {

@@ -935,6 +935,8 @@ export const CORE_AUTOMATION_MESSAGES: Record<string, string> = {
   'expr.sqrtFunction.description': 'Computes the square root of a number',
   'expr.startsWith.description': 'Checks whether the text starts with a prefix',
   'expr.substring.description': 'Extracts part of a text between two indexes',
+  'expr.padLeft.description': 'Fills a text on the left up to a fixed width, cutting what goes beyond it',
+  'expr.padRight.description': 'Fills a text on the right up to a fixed width, cutting what goes beyond it',
   'expr.subtract.description': 'Subtracts the second number from the first',
   'expr.subtract.name': 'Subtraction',
   'expr.sum.description': 'Sums every number in an array',
