@@ -11,6 +11,7 @@ import {
   RiEyeOffLine,
   RiFileCopyLine,
   RiFileSearchLine,
+  RiFileTextLine,
   RiFileWordLine,
   RiMagicLine,
   RiMarkdownLine,
@@ -64,7 +65,7 @@ export const DocumentTemplateDesignView: React.FC<{ tabKey: string }> = ({ tabKe
   return (
     <S.Page>
       <DesignerHeader
-        icon={form.format === 'docx' ? <RiFileWordLine size={18} /> : <RiMarkdownLine size={18} />}
+        icon={form.format === 'docx' ? <RiFileWordLine size={18} /> : vm.isLayoutText ? <RiFileTextLine size={18} /> : <RiMarkdownLine size={18} />}
         tone={form.format === 'docx' ? 'neutral' : 'primary'}
         name={vm.heading}
         meta={vm.headerMeta}
@@ -213,7 +214,7 @@ export const DocumentTemplateDesignView: React.FC<{ tabKey: string }> = ({ tabKe
                     options={vm.formatOptions}
                     value={form.format}
                     disabled={vm.isReadOnly}
-                    onChange={(format) => vm.setForm({ format: format === 'docx' ? 'docx' : 'markdown' })}
+                    onChange={vm.setFormat}
                   />
                   <Issues lines={vm.issuesFor('format')} />
                 </S.Field>
@@ -245,6 +246,33 @@ export const DocumentTemplateDesignView: React.FC<{ tabKey: string }> = ({ tabKe
                   />
                 </S.Field>
               </S.Section>
+
+              {vm.isLayoutText && (
+                <S.Section>
+                  <S.Legend>{t('section.text-file')}</S.Legend>
+                  <S.Field>
+                    <Label>{t('field.encoding')}</Label>
+                    <SearchSelect
+                      options={vm.encodingOptions}
+                      value={form.encoding ?? 'utf8'}
+                      disabled={vm.isReadOnly}
+                      onChange={(encoding) => vm.setForm({ encoding: encoding === 'latin1' ? 'latin1' : 'utf8' })}
+                    />
+                    <S.Hint>{t('field.encoding.hint')}</S.Hint>
+                    <Issues lines={vm.issuesFor('encoding')} />
+                  </S.Field>
+                  <S.Field>
+                    <Label>{t('field.line-ending')}</Label>
+                    <SearchSelect
+                      options={vm.lineEndingOptions}
+                      value={form.lineEnding ?? 'lf'}
+                      disabled={vm.isReadOnly}
+                      onChange={(lineEnding) => vm.setForm({ lineEnding: lineEnding === 'crlf' ? 'crlf' : 'lf' })}
+                    />
+                    <Issues lines={vm.issuesFor('lineEnding')} />
+                  </S.Field>
+                </S.Section>
+              )}
 
               <S.Section>
                 <S.Legend>{t('section.destination')}</S.Legend>
@@ -422,12 +450,12 @@ export const DocumentTemplateDesignView: React.FC<{ tabKey: string }> = ({ tabKe
                 </Button>
               )}
             </S.PaneHeader>
-            {form.format === 'markdown' ? (
+            {form.format !== 'docx' ? (
               <S.TemplateText
                 value={form.body ?? ''}
                 readOnly={vm.isReadOnly}
                 spellCheck={false}
-                placeholder={t('field.body.placeholder')}
+                placeholder={t(vm.isLayoutText ? 'field.body.placeholder.text' : 'field.body.placeholder')}
                 onChange={(e) => vm.setForm({ body: e.target.value })}
               />
             ) : (

@@ -61,7 +61,9 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = (props) => {
       {!vm.isLoading && vm.text !== null && (
         <S.Desk>
           <S.Paper>
-            {vm.isWord ? (
+            {vm.isLayoutText ? (
+              <S.LayoutText>{vm.text}</S.LayoutText>
+            ) : vm.isWord ? (
               <S.PlainText>{vm.text}</S.PlainText>
             ) : (
               <ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml>{vm.text}</ReactMarkdown>

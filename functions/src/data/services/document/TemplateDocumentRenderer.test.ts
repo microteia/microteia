@@ -116,3 +116,61 @@ describe('TemplateDocumentRenderer', () => {
     })).rejects.toMatchObject({ reference: '@core.documents/render.docx-template' });
   });
 });
+
+/**
+ * Issue #47: o arquivo de LEIAUTE FIXO — cabeçalho, uma linha por filho, rodapé — que integrações pedem.
+ * A gramática é a mesma; o valor sai como está, na codificação e na quebra de linha declaradas.
+ */
+describe('modelo de texto de leiaute fixo (#47)', () => {
+  const text = (body: string, extra: Partial<DocumentTemplateSpec> = {}): DocumentTemplateSpec => ({
+    key: 'monthly-file',
+    title: 'Arquivo mensal',
+    collection: 'companies',
+    format: 'text',
+    body,
+    ...extra,
+  });
+  const scope = {
+    taxId: '12.ABC.345/01DE-35',
+    invoices: [{ number: 42, customer: 'Ação & Cia *Ltda*' }, { number: 7, customer: 'B' }],
+  };
+  const body = '|0000|{{taxId}}|\n{{#each invoices}}|C100|{{padLeft(number, 5, "0")}}|{{padRight(customer, 8)}}|\n{{/each}}|9999|{{length(invoices) + 2}}|';
+
+  it('mescla cabeçalho, uma linha por item e rodapé, sem escapar nada', async () => {
+    const result = await renderer.render({ template: text(body), output: 'txt', scope, evaluate });
+    expect(result.contentType).toBe('text/plain; charset=utf-8');
+    expect(result.extension).toBe('txt');
+    expect(result.data.toString('utf8')).toBe(
+      '|0000|12.ABC.345/01DE-35|\n|C100|00042|Ação & C|\n|C100|00007|B       |\n|9999|4|',
+    );
+    expect(result.issues).toEqual([]);
+  });
+
+  it('CRLF e Latin-1 são honrados; o caractere que o Latin-1 não tem sai como "?"', async () => {
+    const result = await renderer.render({
+      template: text('A{{name}}\nB', { encoding: 'latin1', lineEnding: 'crlf' }),
+      output: 'txt',
+      scope: { name: 'ção€' },
+      evaluate,
+    });
+    expect(result.contentType).toBe('text/plain; charset=iso-8859-1');
+    expect([...result.data]).toEqual([0x41, 0xe7, 0xe3, 0x6f, 0x3f, 0x0d, 0x0a, 0x42]);
+  });
+
+  it('XML é a mesma mesclagem, com o tipo de arquivo do XML', async () => {
+    const result = await renderer.render({
+      template: text('<a>{{taxId}}</a>'),
+      output: 'xml',
+      scope,
+      evaluate,
+    });
+    expect(result.contentType).toBe('application/xml; charset=utf-8');
+    expect(result.extension).toBe('xml');
+    expect(result.data.toString('utf8')).toBe('<a>12.ABC.345/01DE-35</a>');
+  });
+
+  it('o texto não produz PDF', async () => {
+    await expect(renderer.render({ template: text('x'), output: 'pdf', scope: {}, evaluate }))
+      .rejects.toBeInstanceOf(DocumentRenderError);
+  });
+});

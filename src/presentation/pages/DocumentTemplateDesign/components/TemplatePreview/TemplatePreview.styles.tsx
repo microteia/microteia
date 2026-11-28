@@ -102,6 +102,14 @@ export const S = {
     white-space: pre-wrap;
   `,
 
+  LayoutText: styled.pre`
+    margin: 0;
+    overflow-x: auto;
+    white-space: pre;
+    font-family: ${({ theme }) => theme.fonts.mono};
+    font-size: ${({ theme }) => theme.fontSizes.sm};
+  `,
+
   Center: styled.div`
     display: flex;
     justify-content: center;

@@ -167,6 +167,8 @@ const agentSpec = (world: TemplateWorld, spec: DocumentTemplateSpec, catalog: Me
   ...(spec.destination ? { destination: spec.destination } : {}),
   ...(spec.retentionDays !== undefined ? { retentionDays: spec.retentionDays } : {}),
   format: spec.format,
+  ...(spec.encoding ? { encoding: spec.encoding } : {}),
+  ...(spec.lineEnding ? { lineEnding: spec.lineEnding } : {}),
   outputs: templateOutputs(spec),
   ...(spec.fileName ? { fileName: spec.fileName } : {}),
   ...(spec.documentType ? { documentType: spec.documentType } : {}),
@@ -320,7 +322,7 @@ export const getAgentDocumentTemplate = async (
       version,
       ...(original ? { extension: original.pluginId } : {}),
       ...(state === 'customized' && own && original && isTemplateCopyOutdated(own, original.spec) ? { outdated: true } : {}),
-      ...(spec.format === 'markdown' ? { body: spec.body ?? '' } : {}),
+      ...(spec.format !== 'docx' ? { body: spec.body ?? '' } : {}),
       ...(spec.format === 'docx' && read.ok ? { text: read.text } : {}),
       ...(spec.format === 'docx' && input.includeContent === true ? { content: spec.content ?? '' } : {}),
       ...(read.ok
@@ -433,7 +435,7 @@ const normalizedContent = (value: unknown): string | undefined =>
   (typeof value === 'string' ? value.replace(/^data:[^,]*,/, '').replace(/\s+/g, '') : undefined);
 
 const SPEC_FIELDS = [
-  'title', 'description', 'format', 'body', 'outputs', 'fileName', 'documentType',
+  'title', 'description', 'format', 'body', 'encoding', 'lineEnding', 'outputs', 'fileName', 'documentType',
   'source', 'parameters', 'sample', 'destination', 'retentionDays',
 ] as const;
 

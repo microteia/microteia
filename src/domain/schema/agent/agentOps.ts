@@ -4,9 +4,11 @@ import {
   PERMISSION_DOCUMENT_TEMPLATES_MANAGE,
 } from '../access/kernelPermissions';
 import {
+  DOCUMENT_LINE_ENDINGS,
   DOCUMENT_OUTPUTS_BY_FORMAT,
   DOCUMENT_TEMPLATE_FORMATS,
   DOCUMENT_TEMPLATE_KEY_MAX_LENGTH,
+  DOCUMENT_TEXT_ENCODINGS,
   DOCUMENT_TEMPLATE_MAX_BYTES,
   DOCUMENT_OUTPUT_FORMATS,
   DOCUMENT_PARAMETER_TYPES,
@@ -869,8 +871,22 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
           maximum: DOWNLOAD_RETENTION_MAX_DAYS,
           description: 'Days a file stays in Downloads; 0 = never expires. Omit for the office setting.',
         },
-        format: { type: 'string', enum: [...DOCUMENT_TEMPLATE_FORMATS], description: 'markdown (text in "body") or docx (a Word file in "content").' },
-        body: { type: 'string', description: 'The Markdown text of the template, when format is markdown.' },
+        format: {
+          type: 'string',
+          enum: [...DOCUMENT_TEMPLATE_FORMATS],
+          description: 'markdown (text in "body"), docx (a Word file in "content") or text (a fixed-layout TXT/XML file, text in "body", merged values written as they are).',
+        },
+        body: { type: 'string', description: 'The text of the template, when format is markdown or text.' },
+        encoding: {
+          type: 'string',
+          enum: [...DOCUMENT_TEXT_ENCODINGS],
+          description: 'Only for format text: the file encoding. utf8 (default) or latin1 — official programs often require latin1.',
+        },
+        lineEnding: {
+          type: 'string',
+          enum: [...DOCUMENT_LINE_ENDINGS],
+          description: 'Only for format text: lf (default) or crlf.',
+        },
         content: { type: 'string', description: `The .docx file as base64, when format is docx. At most ${DOCUMENT_TEMPLATE_MAX_KB} KB.` },
         outputs: {
           type: 'array',

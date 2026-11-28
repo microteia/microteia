@@ -150,6 +150,7 @@ import {
   DOCUMENT_PAYLOAD_MAX_BYTES,
   DOCUMENT_PAYLOAD_SINCE_KERNEL,
   DOCUMENT_TEMPLATE_SINCE_KERNEL,
+  DOCUMENT_TEXT_SINCE_KERNEL,
   DOWNLOAD_RETENTION_MAX_DAYS,
   TEMPLATE_BLOCKS,
   TEMPLATE_LOOP_VARIABLES,
@@ -3021,7 +3022,7 @@ logical negation. On top of them:
 | Group | |
 |---|---|
 | Logic | \`if(cond, a, b)\`, \`coalesce(...)\`, \`isEmpty(v)\`, \`isNull(v)\`, \`isNotNull(v)\` |
-| Text | \`concat(...)\`, \`lower\`, \`upper\`, \`trim\`, \`length\`, \`contains(v, s)\`, \`startsWith\`, \`endsWith\`, \`indexOf\`, \`substring(v, start, end)\`, \`replace(v, s, r)\`, \`split(v, sep)\`, \`join(a, sep)\`, \`interpolate(template, ...)\` |
+| Text | \`concat(...)\`, \`lower\`, \`upper\`, \`trim\`, \`length\`, \`contains(v, s)\`, \`startsWith\`, \`endsWith\`, \`indexOf\`, \`substring(v, start, end)\`, \`replace(v, s, r)\`, \`split(v, sep)\`, \`join(a, sep)\`, \`interpolate(template, ...)\`, \`padLeft(v, width, fill)\` / \`padRight(v, width, fill)\` — a fixed-width column, cut when longer |
 | Numbers | \`round(v, decimals)\`, \`sum(a)\`, \`avg(a)\`, \`min\`, \`max\`, \`abs\`, \`ceil\`, \`floor\`, \`sqrt\` |
 | Dates | \`today()\`, \`now()\`, \`addDays(v, n)\`, \`formatDate(v, fmt, timeZone?)\`, \`dateDiff(a, b, unit)\`, \`dayOfWeek\`, \`isWeekend\`, \`year\`, \`month\`, \`day\` |
 | Business days | \`addBusinessDays(v, n, calendars)\`, \`businessDaysBetween(a, b, calendars)\`, \`isBusinessDay(v, calendars)\`, \`nextBusinessDay(v, calendars)\` — see below |
@@ -5051,6 +5052,23 @@ A Word template carries the \`.docx\` in base64 (\`content\`, at most ${DOCUMENT
 decoded) and the fields are written inside the document itself, with the same grammar. Converting Word
 to PDF needs an office engine the platform does not run, so that pair is refused when you declare it,
 not when someone generates.
+
+A **fixed-layout text** template (\`format: 'text'\`) produces a file another program reads — a tax
+file, a bank remittance, an EDI message, XML: \`body\` uses the same grammar, but nothing is interpreted
+as markup and every merged value is written exactly as it is. \`encoding\` is \`'utf8'\` (default) or
+\`'latin1'\` — official programs often require it; a character Latin-1 does not have is written as
+\`?\`. \`lineEnding\` is \`'lf'\` (default) or \`'crlf'\`, and every line break of the body becomes it.
+\`padLeft(value, width, fill)\` and \`padRight(value, width, fill)\` fill a fixed-width column (\`fill\`
+defaults to a space) and cut what is longer, so one long value never shifts the columns after it:
+
+\`\`\`text
+|0000|{{taxId}}|{{formatDate(today(), "DDMMYYYY")}}|
+{{#each invoices}}|C100|{{padLeft(number, 9, "0")}}|{{padRight(customer.name, 40)}}|
+{{/each}}|9999|{{length(invoices) + 2}}|
+\`\`\`
+
+Datasets keep their usual limit; a file of thousands of lines over one list is a later phase.
+Requires kernel \`^${DOCUMENT_TEXT_SINCE_KERNEL}\` — \`check\` refuses the package otherwise.
 
 ### Who wins
 

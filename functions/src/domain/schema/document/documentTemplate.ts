@@ -28,9 +28,28 @@ import type { QueryOrderBy } from '../querySpec';
  * "voltar ao modelo da extensão" ser apagar a cópia.
  */
 
-export type DocumentTemplateFormat = 'markdown' | 'docx';
+/**
+ * `text` é o arquivo de LEIAUTE FIXO — linhas delimitadas ou de largura fixa, XML — que integrações
+ * pedem (arquivo fiscal, remessa bancária, EDI). A mesma gramática dos outros, sem nenhuma marcação
+ * interpretada: o valor mesclado é escrito como está, e o arquivo sai como foi escrito (#47).
+ */
+export type DocumentTemplateFormat = 'markdown' | 'docx' | 'text';
 
-export type DocumentOutputFormat = 'pdf' | 'docx';
+export type DocumentOutputFormat = 'pdf' | 'docx' | 'txt' | 'xml';
+
+/**
+ * A codificação do arquivo `text`. Programas oficiais costumam exigir Latin-1; ausente = UTF-8. O
+ * caractere que Latin-1 não representa sai como `?` — escrever o byte baixo dele daria outro caractere
+ * em silêncio.
+ */
+export type DocumentTextEncoding = 'utf8' | 'latin1';
+
+export const DOCUMENT_TEXT_ENCODINGS: readonly DocumentTextEncoding[] = ['utf8', 'latin1'];
+
+/** A quebra de linha do arquivo `text`. Ausente = `lf`; programas de Windows costumam exigir `crlf`. */
+export type DocumentLineEnding = 'lf' | 'crlf';
+
+export const DOCUMENT_LINE_ENDINGS: readonly DocumentLineEnding[] = ['lf', 'crlf'];
 
 /**
  * De onde vêm os dados que o modelo mescla.
@@ -50,9 +69,9 @@ export const DOCUMENT_TEMPLATE_SOURCES: readonly DocumentTemplateSource[] = ['re
 /** O teto do payload, em bytes de JSON. Mais que isso não é um documento, é uma carga de dados. */
 export const DOCUMENT_PAYLOAD_MAX_BYTES = 256 * 1024;
 
-export const DOCUMENT_TEMPLATE_FORMATS: readonly DocumentTemplateFormat[] = ['markdown', 'docx'];
+export const DOCUMENT_TEMPLATE_FORMATS: readonly DocumentTemplateFormat[] = ['markdown', 'docx', 'text'];
 
-export const DOCUMENT_OUTPUT_FORMATS: readonly DocumentOutputFormat[] = ['pdf', 'docx'];
+export const DOCUMENT_OUTPUT_FORMATS: readonly DocumentOutputFormat[] = ['pdf', 'docx', 'txt', 'xml'];
 
 /**
  * O que cada formato de modelo sabe produzir.
@@ -64,6 +83,7 @@ export const DOCUMENT_OUTPUT_FORMATS: readonly DocumentOutputFormat[] = ['pdf', 
 export const DOCUMENT_OUTPUTS_BY_FORMAT: Record<DocumentTemplateFormat, readonly DocumentOutputFormat[]> = {
   markdown: ['pdf', 'docx'],
   docx: ['docx'],
+  text: ['txt', 'xml'],
 };
 
 /**
@@ -110,8 +130,12 @@ export interface DocumentTemplateSpec {
    */
   screenSourceId?: string;
   format: DocumentTemplateFormat;
-  /** O texto do modelo, quando `format` é `markdown`. */
+  /** O texto do modelo, quando `format` é `markdown` ou `text`. */
   body?: string;
+  /** A codificação do arquivo, só em `text`. Ver `DocumentTextEncoding`. */
+  encoding?: DocumentTextEncoding;
+  /** A quebra de linha do arquivo, só em `text`. Ver `DocumentLineEnding`. */
+  lineEnding?: DocumentLineEnding;
   /** O arquivo `.docx` em base64, quando `format` é `docx`. */
   content?: string;
   /** Ausente = tudo o que o formato sabe produzir. */
@@ -183,6 +207,12 @@ export const DOCUMENT_TEMPLATE_SINCE_KERNEL = '2.36.0';
  * kernel antigo recusa a instalação pelo intervalo.
  */
 export const DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL = '2.58.0';
+
+/**
+ * O kernel que entende `format: 'text'` (e `encoding`, `lineEnding`). Um anterior recusaria o formato
+ * ao gerar, no escritório do cliente — por isso o pacote que o usa declara `kernel` a partir desta.
+ */
+export const DOCUMENT_TEXT_SINCE_KERNEL = '2.151.0';
 
 /** O kernel que entende `source: 'payload'`, `parameters` e `sample`. Um anterior descarta o modelo sem tela. */
 export const DOCUMENT_PAYLOAD_SINCE_KERNEL = '2.48.0';
@@ -390,7 +420,7 @@ export const documentTemplateIssues = (spec: Partial<DocumentTemplateSpec>): Doc
     return issues;
   }
 
-  if (format === 'markdown') {
+  if (format === 'markdown' || format === 'text') {
     if (typeof spec.body !== 'string' || !spec.body.trim()) push('body', '@core.documents/template.body.missing');
     else issues.push(...at('body', parseTemplate(spec.body).issues));
   } else {
@@ -401,6 +431,19 @@ export const documentTemplateIssues = (spec: Partial<DocumentTemplateSpec>): Doc
       push('content', '@core.documents/template.content.too-large', {
         maxKb: String(DOCUMENT_TEMPLATE_MAX_BYTES / 1024),
       });
+    }
+  }
+
+  if (spec.encoding !== undefined || spec.lineEnding !== undefined) {
+    if (format !== 'text') {
+      push('encoding', '@core.documents/template.text-only', { format });
+    } else {
+      if (spec.encoding !== undefined && !DOCUMENT_TEXT_ENCODINGS.includes(spec.encoding)) {
+        push('encoding', '@core.documents/template.encoding.invalid', { encoding: String(spec.encoding) });
+      }
+      if (spec.lineEnding !== undefined && !DOCUMENT_LINE_ENDINGS.includes(spec.lineEnding)) {
+        push('lineEnding', '@core.documents/template.line-ending.invalid', { lineEnding: String(spec.lineEnding) });
+      }
     }
   }
 
@@ -667,3 +710,18 @@ export const templatesForCollection = (
   collection: string,
 ): ResolvedDocumentTemplate[] =>
   templates.filter((template) => !isPayloadTemplate(template) && template.collection === collection);
+
+/**
+ * O texto do arquivo `text` como ele vai para o disco: as quebras do modelo (o editor grava `\n`, um
+ * modelo colado do Windows traz `\r\n`) viram TODAS a quebra declarada, e em Latin-1 o caractere que a
+ * codificação não tem vira `?`. O passo seguinte — os bytes — é do renderizador.
+ */
+export const textDocumentContent = (
+  text: string,
+  options: { encoding?: DocumentTextEncoding; lineEnding?: DocumentLineEnding },
+): string => {
+  const lines = text.replace(/\r\n?/g, '\n');
+  const ended = options.lineEnding === 'crlf' ? lines.replace(/\n/g, '\r\n') : lines;
+  if (options.encoding !== 'latin1') return ended;
+  return [...ended].map((char) => ((char.codePointAt(0) ?? 0) > 0xff ? '?' : char)).join('');
+};

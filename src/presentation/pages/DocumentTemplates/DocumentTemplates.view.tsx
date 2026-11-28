@@ -8,6 +8,7 @@ import {
   RiEyeOffLine,
   RiFileCopyLine,
   RiFileTextLine,
+  RiFileTextLine,
   RiFileWordLine,
   RiMarkdownLine,
   RiPencilLine,
@@ -70,7 +71,7 @@ export const DocumentTemplatesView: React.FC = () => {
                 {vm.rows.map((row) => (
                   <S.Row key={row.key} onClick={() => vm.open(row)}>
                     <S.FormatIcon $format={row.format}>
-                      {row.format === 'docx' ? <RiFileWordLine size={18} /> : <RiMarkdownLine size={18} />}
+                      {row.format === 'docx' ? <RiFileWordLine size={18} /> : row.format === 'text' ? <RiFileTextLine size={18} /> : <RiMarkdownLine size={18} />}
                     </S.FormatIcon>
                     <S.RowInfo>
                       <S.RowName>{row.title}</S.RowName>

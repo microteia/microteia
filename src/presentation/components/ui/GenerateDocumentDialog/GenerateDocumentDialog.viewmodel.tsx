@@ -33,6 +33,8 @@ export interface GenerateDocumentDialogViewModel {
 const OUTPUT_LABELS: Record<DocumentOutputFormat, string> = {
   pdf: 'output.pdf',
   docx: 'output.docx',
+  txt: 'output.txt',
+  xml: 'output.xml',
 };
 
 const DESTINATION_LABELS: Record<DocumentDestination, string> = {

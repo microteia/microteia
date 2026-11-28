@@ -14,7 +14,10 @@ import type {
   DocumentTemplateSpec,
 } from '../../../domain/schema/document/documentTemplate';
 import {
+  DOCUMENT_LINE_ENDINGS,
+  DOCUMENT_TEMPLATE_FORMATS,
   DOCUMENT_TEMPLATE_MAX_BYTES,
+  DOCUMENT_TEXT_ENCODINGS,
   datasetOrder,
   documentTemplateIssues,
   isGrammarIssue,
@@ -98,6 +101,11 @@ export interface DocumentTemplateDesignViewModel {
   isReadOnly: boolean;
   form: DocumentTemplateSpec;
   setForm: (patch: Partial<DocumentTemplateSpec>) => void;
+  /** Trocar o formato tira a codificação e a quebra de linha, que só o arquivo de leiaute (`text`) tem. */
+  setFormat: (format: string) => void;
+  isLayoutText: boolean;
+  encodingOptions: SearchSelectOption[];
+  lineEndingOptions: SearchSelectOption[];
   /** O prefixo do escritório, fixo à frente da chave de um modelo novo; `null` sem prefixo. */
   artifactPrefix: string | null;
   /** A chave sem o prefixo — o pedaço que a pessoa digita num modelo novo. */
@@ -268,6 +276,19 @@ export const useDocumentTemplateDesignViewModel = (tabKey: string): DocumentTemp
     [form],
   );
 
+  const setFormat = useCallback(
+    (value: string) => {
+      const format = DOCUMENT_TEMPLATE_FORMATS.find((one) => one === value) ?? 'markdown';
+      const next: DocumentTemplateSpec = { ...form, format };
+      if (format !== 'text') {
+        delete next.encoding;
+        delete next.lineEnding;
+      }
+      setDraft(next);
+    },
+    [form],
+  );
+
   const keyRest = withoutArtifactPrefix(artifactPrefix, 'artifact', form.key);
   const setKeyRest = useCallback(
     (rest: string) => setForm({ key: withArtifactPrefix(artifactPrefix, 'artifact', rest) }),
@@ -390,7 +411,18 @@ export const useDocumentTemplateDesignViewModel = (tabKey: string): DocumentTemp
     () => [
       { value: 'markdown', label: t('format.markdown') },
       { value: 'docx', label: t('format.docx') },
+      { value: 'text', label: t('format.text') },
     ],
+    [t],
+  );
+
+  const encodingOptions = useMemo(
+    () => DOCUMENT_TEXT_ENCODINGS.map((value) => ({ value, label: t(`encoding.${value}`) })),
+    [t],
+  );
+
+  const lineEndingOptions = useMemo(
+    () => DOCUMENT_LINE_ENDINGS.map((value) => ({ value, label: t(`line-ending.${value}`) })),
     [t],
   );
 
@@ -674,6 +706,10 @@ export const useDocumentTemplateDesignViewModel = (tabKey: string): DocumentTemp
     screenOptions,
     childScreenOptions,
     formatOptions,
+    setFormat,
+    isLayoutText: form.format === 'text',
+    encodingOptions,
+    lineEndingOptions,
     documentTypeOptions,
     destinationOptions,
     orderDirectionOptions,

@@ -240,6 +240,13 @@ const businessDaysEnvironment = (): BusinessDaysEnvironment => ({
   timeZone: ambientTimeZone(),
 });
 
+const fitWidth = (text: string, width: number, fill: unknown, side: 'start' | 'end'): string => {
+  if (!Number.isInteger(width) || width < 0) return text;
+  const pad = fill === undefined || fill === null || asText(fill) === '' ? ' ' : asText(fill).charAt(0);
+  const cut = text.slice(0, width);
+  return side === 'start' ? cut.padStart(width, pad) : cut.padEnd(width, pad);
+};
+
 const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown> = {
   if: (condition, whenTrue, whenFalse) => (condition ? whenTrue : whenFalse),
   concat: (...args) => args.map(asText).join(''),
@@ -266,6 +273,10 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
       : asText(value).indexOf(asText(search)),
   substring: (value, start, end) =>
     asText(value).substring(Number(start) || 0, end === undefined ? undefined : Number(end)),
+  // Campo de LARGURA FIXA (arquivo de leiaute, #47): completa até `width` com `fill` (padrão espaço) e
+  // corta o que passar — um campo maior que a largura empurraria todas as colunas seguintes da linha.
+  padLeft: (value, width, fill) => fitWidth(asText(value), Number(width), fill, 'start'),
+  padRight: (value, width, fill) => fitWidth(asText(value), Number(width), fill, 'end'),
   replace: (value, search, replacement) =>
     asText(value).split(asText(search)).join(asText(replacement)),
   split: (value, separator) => asText(value).split(asText(separator)),

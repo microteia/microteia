@@ -37,6 +37,8 @@ export interface TemplatePreviewViewModel {
   text: string | null;
   /** O texto é de um Word: sai como texto corrido, sem o leiaute do documento. */
   isWord: boolean;
+  /** O arquivo é de LEIAUTE FIXO: sai em fonte monoespaçada e sem quebra, para as colunas alinharem. */
+  isLayoutText: boolean;
   fileName: string;
   error: string | null;
   emptyFields: string[];
@@ -136,6 +138,7 @@ export const useTemplatePreviewViewModel = (props: TemplatePreviewProps): Templa
     isLoading: canAsk && shown === null,
     text: shown?.text ?? null,
     isWord: template.format === 'docx',
+    isLayoutText: template.format === 'text',
     fileName: shown?.fileName ?? '',
     error: shown?.error ?? null,
     emptyFields: shown?.emptyFields ?? [],

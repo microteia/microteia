@@ -67,7 +67,7 @@ export const S = {
   `,
 
   /** O Word em `info`, o texto em `primary`: o formato se lê antes do título. */
-  FormatIcon: styled.div<{ $format: 'markdown' | 'docx' }>`
+  FormatIcon: styled.div<{ $format: 'markdown' | 'docx' | 'text' }>`
     width: 36px;
     height: 36px;
     border-radius: ${({ theme }) => theme.borderRadius.md};

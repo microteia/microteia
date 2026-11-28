@@ -13094,6 +13094,19 @@ para este. Teto de 100 por lista, o mesmo do passo "Buscar Registros" — mais q
 | `markdown` | PDF | `marked` → blocos neutros → `pdfmake` (fontes PADRÃO do PDF: Times/Courier, Latin-1) |
 | `markdown` | DOCX | `marked` → blocos neutros → `docx` |
 | `docx` | DOCX | `docxtemplater`, ensinado a ler `{{#each}}`/`{{#if}}` |
+| `text` | TXT, XML | a gramática, sem `write` — o valor sai como está — e `textDocumentContent` (quebra de linha e Latin-1) |
+
+**Texto de leiaute fixo (#47).** Integração pede arquivo de leiaute — arquivo fiscal com cabeçalho,
+uma linha por nota e por item e rodapé; remessa bancária; EDI; XML — e o caminho era Cloud Function
+(aprovação, provisionamento) ou view que monta o arquivo no navegador. O formato `text` é a mesma
+gramática com outra saída: nada é marcação, então o renderizador NÃO escapa o valor (escapar um `*` ou
+um `|` mudaria o dado que a outra ponta lê). `encoding` (`utf8` | `latin1`) e `lineEnding` (`lf` |
+`crlf`) são do modelo, porque programas oficiais exigem Latin-1 e CRLF; o caractere que Latin-1 não
+tem vira `?` em vez do byte baixo dele, que daria outro caractere em silêncio. A coluna de largura fixa
+é `padLeft`/`padRight` do catálogo de expressões de campo (vale também numa regra de campo), e CORTA o
+que passa da largura — um valor longo empurraria todas as colunas seguintes. Fica para uma fase 2 o
+dataset lido em páginas, acima do teto de itens de hoje: é ali que mora o custo (tempo de execução e
+índice). O pacote que usa `text` declara `kernel` a partir de `DOCUMENT_TEXT_SINCE_KERNEL`.
 
 **DOCX → PDF não existe**, e a recusa é na AUTORIA (`DOCUMENT_OUTPUTS_BY_FORMAT`): converter Word exige
 um motor de escritório (LibreOffice), que não cabe numa Cloud Function. Oferecer a combinação e falhar

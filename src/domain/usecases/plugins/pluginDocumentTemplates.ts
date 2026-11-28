@@ -4,6 +4,7 @@ import type { DocumentTemplateDataset } from '../../schema/document/documentTemp
 import {
   DOCUMENT_DATASET_ORDER_LIST_SINCE_KERNEL,
   DOCUMENT_TEMPLATE_POINT,
+  DOCUMENT_TEXT_SINCE_KERNEL,
   datasetOrder,
   datasetOrderIssues,
   usesDatasetOrderList,
@@ -85,5 +86,21 @@ export const packageDocumentTemplateIssues = (pkg: MarketplacePlugin): Localized
       }]
     : [];
 
-  return [...shape, ...unknown, ...kernel];
+  return [...shape, ...unknown, ...kernel, ...textFormatKernelIssues(pkg)];
+};
+
+/**
+ * O modelo de leiaute fixo (`format: 'text'`, #47) exige um kernel que conheça o formato: um anterior
+ * o aceitaria na instalação e recusaria ao gerar, no escritório do cliente.
+ */
+const textFormatKernelIssues = (pkg: MarketplacePlugin): LocalizedIssue[] => {
+  const textTemplate = (pkg.manifest.contributes ?? [])
+    .filter((contribution) => contribution?.point === DOCUMENT_TEMPLATE_POINT)
+    .map((contribution) => contribution.metadata as { key?: unknown; format?: unknown } | undefined)
+    .find((metadata) => metadata?.format === 'text');
+  if (!textTemplate || rangeExcludesBelow(pkg.manifest.kernel ?? '', DOCUMENT_TEXT_SINCE_KERNEL)) return [];
+  return [{
+    message: '@core.marketplace/issue.document.text.kernel',
+    messageParams: { template: String(textTemplate.key ?? ''), minimum: DOCUMENT_TEXT_SINCE_KERNEL },
+  }];
 };
