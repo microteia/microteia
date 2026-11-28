@@ -2181,6 +2181,14 @@ view dela. Três decisões fazem disso algo seguro, e todas vêm de o convidado 
 | **Outro mapa de módulos** (`PORTAL_HOST_MODULES`) | `@microteia/data` supõe os stores do escritório e quebraria na tela do convidado. A view recebe as primitivas (ui, i18n, format, theme) e `@microteia/portal`, que lê só as projeções; importar o resto falha NA COMPILAÇÃO (`compileComponentWith`), com a mensagem |
 | **Os textos vêm junto** (`getPortalContext.bundles`) | o catálogo do escritório não chega ao portal; `LocaleProvider.extraBundles` os acrescenta |
 
+**O vocabulário dos componentes também vem junto (#57).** O pacote de idioma que traduz o núcleo não tem
+view de portal, e o convidado não lê as extensões instaladas: o `SearchSelect`, o `DateInput` e os outros
+componentes do formulário falavam inglês num portal em português — o "Select…" de `core.ui` ao lado do
+"Escolha…" de `core.tenant`, que viaja com o próprio plugin. `InstalledExtensionCache` separa, de toda
+extensão LIGADA, as traduções dos namespaces de `PORTAL_KERNEL_MESSAGE_NAMESPACES` (hoje só `core.ui`), e
+`getPortalContext` as entrega em `bundles` com ou sem view de extensão. O resto do catálogo do kernel é
+texto do escritório, e continua sem sair dele.
+
 A navegação (`PortalNavigationProvider`) mora num contexto, e não no ViewModel da casca, porque a view
 navega também: `usePortalNavigation()` abre, volta e cria na mesma pilha que a casca mostra. O "Voltar"
 em volta da view de detalhe é da casca. `examples/portal-example` é o molde.

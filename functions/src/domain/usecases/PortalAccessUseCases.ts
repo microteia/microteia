@@ -752,6 +752,11 @@ export type GetPortalContextUseCase = {
     extensionViews?: {
       views: PortalContextView[];
       bundles: PortalContext['bundles'];
+      /**
+       * As traduções do vocabulário dos componentes do kernel (#57), de toda extensão ligada — vão ao
+       * portal com ou sem view de extensão, porque o formulário e a lista do portal são do kernel.
+       */
+      kernelBundles?: PortalContext['bundles'];
       /** Os cartões da home declarados — de toda extensão ligada, sem a régua de confiança de código. */
       widgets?: PortalWidgetSpecDescriptor[];
       /** As páginas do menu declaradas — pela mesma régua dos cartões. */
@@ -952,7 +957,10 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
 
     return {
       views,
-      bundles: views.length > 0 ? extensionViews?.bundles ?? [] : [],
+      bundles: [
+        ...(extensionViews?.kernelBundles ?? []),
+        ...(views.length > 0 ? extensionViews?.bundles ?? [] : []),
+      ],
       themes,
       home: {
         welcome: settings.welcome,

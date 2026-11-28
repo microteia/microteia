@@ -43,6 +43,8 @@ interface CacheEntry {
   portalViews: PortalViewDescriptor[];
   /** Os textos das extensões que trazem view de portal — o portal não lê o catálogo do escritório. */
   portalBundles: MessageBundle[];
+  /** As traduções do vocabulário dos componentes (`PORTAL_KERNEL_MESSAGE_NAMESPACES`), de toda extensão ligada. */
+  portalKernelBundles: MessageBundle[];
   /** Os cartões da home DECLARADOS das extensões ligadas — não são código, e não pedem confiança. */
   portalWidgetSpecs: PortalWidgetSpecDescriptor[];
   /** As páginas do menu DECLARADAS das extensões ligadas — pela mesma régua dos cartões declarados. */
@@ -63,6 +65,16 @@ interface CacheEntry {
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
 
 const DEFAULT_TTL_MS = 5 * 60_000;
+
+/**
+ * Os namespaces do KERNEL que o portal desenha, e cuja tradução ele recebe de qualquer extensão ligada
+ * (#57). O convidado não lê as extensões instaladas, e o pacote de idioma que traduz o núcleo não tem
+ * view de portal: o `SearchSelect`, o `DateInput` e os outros componentes falavam inglês num portal em
+ * português — o "Select…" ao lado do "Escolha…" de um texto que viaja com o próprio plugin. Só o
+ * vocabulário dos componentes atravessa: o resto do catálogo é texto do escritório, que o portal não
+ * mostra e que não precisa sair dele.
+ */
+export const PORTAL_KERNEL_MESSAGE_NAMESPACES: ReadonlySet<string> = new Set(['core.ui']);
 
 /**
  * O que as extensões instaladas declaram e o KERNEL precisa saber em execução.
@@ -143,6 +155,7 @@ export class InstalledExtensionCache {
   async portalViews(tenantId: string): Promise<{
     views: PortalViewDescriptor[];
     bundles: MessageBundle[];
+    kernelBundles: MessageBundle[];
     widgets: PortalWidgetSpecDescriptor[];
     pages: PortalPageSpecDescriptor[];
   }> {
@@ -150,6 +163,7 @@ export class InstalledExtensionCache {
     return {
       views: entry.portalViews,
       bundles: entry.portalBundles,
+      kernelBundles: entry.portalKernelBundles,
       widgets: entry.portalWidgetSpecs,
       pages: entry.portalPageSpecs,
     };
@@ -249,14 +263,16 @@ export class InstalledExtensionCache {
       }
     }
 
+    const messageBundles = messageBundlesOf(contributions);
     const entry: CacheEntry = {
       claimedFunctions,
       deactivatedPluginIds,
-      messageBundles: messageBundlesOf(contributions),
+      messageBundles,
       documentTemplates: sortContributions(documentTemplates),
       businessCalendarCollections: businessCalendarCollectionsOf(contributions),
       portalViews,
       portalBundles: messageBundlesOf(portalBundleContributions),
+      portalKernelBundles: messageBundles.filter((bundle) => PORTAL_KERNEL_MESSAGE_NAMESPACES.has(bundle.namespace)),
       portalWidgetSpecs,
       portalPageSpecs,
       themes: sortContributions(themes),

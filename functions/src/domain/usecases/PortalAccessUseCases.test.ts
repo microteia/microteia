@@ -464,6 +464,20 @@ describe('contexto do portal', () => {
     expect(context.bundles).toHaveLength(1);
   });
 
+  it('entrega a tradução dos componentes do kernel mesmo sem view de extensão (#57)', async () => {
+    const fake = makeFakePortalRepository(CITY_SCREENS);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+    const coreUi = { locale: 'pt-BR', namespace: 'core.ui', messages: { 'select.placeholder': 'Selecione...' } };
+
+    const context = await makeGetPortalContextUseCase(fake.repo).execute({
+      tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
+      extensionViews: { views: [], bundles: [{ locale: 'pt-BR', namespace: 'com.acme', messages: {} }], kernelBundles: [coreUi] },
+    });
+
+    expect(context.views).toEqual([]);
+    expect(context.bundles).toEqual([coreUi]);
+  });
+
   it('entrega os temas instalados, mesmo sem view de extensão', async () => {
     const fake = makeFakePortalRepository(CITY_SCREENS);
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
