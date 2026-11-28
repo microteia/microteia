@@ -20,6 +20,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.305.1] — 2026-11-28
+
+- fix(expressions): money computes as decimals — 0.1 + 0.2 == 0.3, aggregate sums match their lines to the cent, and round(1.005, 2) is 1.01 (#48)
+
 #### [9.305.0] — 2026-11-28
 
 - feat(documents): a fixed-layout text template reads its child lists in full, in pages, up to 10,000 records, and refuses the file instead of cutting it (#47)
