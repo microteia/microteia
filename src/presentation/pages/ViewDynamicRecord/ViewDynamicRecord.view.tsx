@@ -11,9 +11,11 @@ import { EntityDetailView } from '../../components/layout/EntityDetailView';
 import { getScreenIcon } from '../../shared/screenIcons';
 
 import { useLabel, useT } from '../../shared/i18n/useT';
+import { useNewRecordTitle } from '../../shared/entityScreen/useNewRecordTitle';
 export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) => {
   const t = useT('core.records');
   const label = useLabel();
+  const newRecordTitle = useNewRecordTitle();
   const vm = useViewDynamicRecordViewModel(tabKey);
   const definition = vm.definition;
 
@@ -104,7 +106,7 @@ export const ViewDynamicRecordView: React.FC<{ tabKey: string }> = ({ tabKey }) 
         ? <UserAvatar src={vm.recordImageUrl} name={vm.recordTitle} size={48} fallback={getScreenIcon(definition.icon, 22)} />
         : getScreenIcon(definition.icon, 22)}
       title={vm.isNew
-        ? t('record.new.title', { entity: label(definition.titleSingular) })
+        ? newRecordTitle(definition)
         : (vm.recordTitle || label(definition.titleSingular))}
       subtitle={!vm.isNew && vm.recordSubtitle ? vm.recordSubtitle : undefined}
       tags={appliedTags}

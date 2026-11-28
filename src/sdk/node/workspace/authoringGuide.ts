@@ -1589,7 +1589,7 @@ What the organization *typed* — a screen they named, a list option they added 
 passes through untranslated, always.
 
 Everything declarative takes a reference: a field's \`label\`, \`placeholder\`, \`section\` and
-\`listLabel\`, a lookup's \`label\`, a screen's \`titleSingular\` and \`titlePlural\`, a nav entry's
+\`listLabel\`, a lookup's \`label\`, a screen's \`titleSingular\`, \`titlePlural\` and \`titleNew\`, a nav entry's
 \`label\`, an action's \`title\` and \`confirmMessage\`, a migration's \`name\`, \`summary\`, and every
 string in an \`overview\`. Inside a *view*
 the equivalent is \`useT\` from \`@microteia/i18n\`, reading the same bundles.
@@ -2638,6 +2638,7 @@ every member who reads the collection would read every record, so \`check\` refu
 | \`dataCollection\` | install the screen over a collection that already exists, instead of creating one. \`fields\` is still the complete schema of it |
 | \`eventPrefix\` | the prefix of the events this collection emits, which is what workflows subscribe to (§10) |
 | \`listActions\`, \`viewActionIds\`, \`cardActionIds\` | the platform's own record gestures by key; your \`actions\` by \`templateId\` |
+| \`titleNew\` | the title of a record being created — the tab, the form heading and the list's create button — as a whole phrase. Absent = the platform's "New" followed by \`titleSingular\`, which reads wrong for half the nouns of a language with grammatical gender ("Novo Empresa"). Declare it as a reference, translated in each bundle like the other titles. An update of your package that does not declare it keeps the phrase the organization wrote in Form Design |
 | \`allowImport\` | the list of this screen — and its tab inside the parent — offers **Import** from a file. Absent = not offered, and the server refuses the import. See "Bulk import" below |
 | \`memberWritableFields\` | fields ANY member may write on a record someone else created — the door for per-person state (read, liked, saved) that the default permission would close |
 | \`authorCanDelete\` | whoever created the record deletes it, without an administrator |

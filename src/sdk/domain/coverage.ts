@@ -333,6 +333,7 @@ const SCREEN_REACH: Record<keyof ScreenModuleTemplate, string | null> = {
   sourceRev: null,
   titleSingular: 'the entity name — as a raw name, which still has to become a message reference',
   titlePlural: 'idem',
+  titleNew: null,
   icon: null,
   fields: 'the entity\'s fields, translated',
   keys: 'entity.keys — and field.unique, which is the one-field shorthand for the same thing',
@@ -389,6 +390,8 @@ const SCREEN_NOTES: Record<string, string> = {
     + 'cannot make on behalf of the organization',
   portal: 'what an outside guest sees of this collection, and through which link to the subject record. Authorization '
     + 'again, and an exposure decision the model cannot make on behalf of the organization',
+  titleNew: 'the phrase for a NEW record, when "New" plus the singular name reads wrong in a language with grammatical '
+    + 'gender. It is grammar of one language, and the model carries the name, not its gender',
   listActions: 'the built-in gestures of the card, in the order it shows them — copy link, manage tags, delete',
   sidebarOrder: 'HUMAN: an order is a statement about what matters most here',
   allowImport: 'whether the list offers bulk import from a file. Which records arrive in bulk is a fact about how '

@@ -154,6 +154,9 @@ export const materializeScreen = (
     origin: 'plugin',
     titleSingular: template.titleSingular,
     titlePlural: template.titlePlural,
+    // Nulo quando o pacote não declara: na atualização, a ausência deixa valer a frase que o
+    // escritório pôs no Form Design (`upsertPluginScreens`).
+    titleNew: template.titleNew ?? null,
     icon: template.icon,
     fields,
     keys: keys.length > 0 ? keys : null,

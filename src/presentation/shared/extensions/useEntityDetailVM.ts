@@ -29,6 +29,7 @@ import { isBoundScreen, screenDataCollection } from '../../../domain/services/sc
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../useEntityFormFields';
 
 import { useLabel, useT } from '../i18n/useT';
+import { useNewRecordTitle } from '../entityScreen/useNewRecordTitle';
 
 type Values = Record<string, CustomFieldValue>;
 
@@ -51,6 +52,7 @@ export const useEntityDetailVM = (
 ): RecordDetailViewModel => {
   const t = useT('core.records');
   const label = useLabel();
+  const newRecordTitle = useNewRecordTitle();
   const { dynamicScreens, isLoading: isLoadingDefinition } = useScreenDefinitions();
   const { recordsByCollection, createRecord, newRecordId, updateRecord, deleteRecord } = useRecords();
   const { currentTenant } = useTenant();
@@ -122,12 +124,12 @@ export const useEntityDetailVM = (
   const resolveTabTitle = useCallback(
     (record: EntityRecord | null, isNew: boolean) => {
       if (!definition) return null;
-      if (isNew) return t('record.new.title', { entity: label(definition.titleSingular) });
+      if (isNew) return newRecordTitle(definition);
       if (!record) return null;
       return label(identity.titleOf(record) || identity.subtitleOf(record)
         || resolveRecordTitle(record, titleFieldKey));
     },
-    [definition, identity, titleFieldKey, t, label],
+    [definition, identity, titleFieldKey, newRecordTitle, label],
   );
 
   const resolveTitleFromValues = useCallback(

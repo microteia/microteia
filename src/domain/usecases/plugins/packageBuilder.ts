@@ -116,6 +116,7 @@ const screenToTemplate = (screen: ScreenDefinition): ScreenModuleTemplate =>
     sourceRev: screen.updatedAt.getTime(),
     titleSingular: screen.titleSingular,
     titlePlural: screen.titlePlural,
+    titleNew: screen.titleNew ?? undefined,
     icon: screen.icon,
     fields: screen.fields.map((field) => omit(field, ['ownerPluginId'])) as unknown as ScreenModuleTemplate['fields'],
     keys: screen.keys?.length

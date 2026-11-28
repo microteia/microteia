@@ -15,6 +15,7 @@ import { useListRowResolver } from '../../../shared/listRows';
 import { useCardTemplateResolvers } from '../../../shared/entityScreen/useCardTemplateResolvers';
 import { readCardTemplate } from '../../../../domain/schema/ui/cardTemplate';
 import { useLabel, useT } from '../../../shared/i18n/useT';
+import { useNewRecordTitle } from '../../../shared/entityScreen/useNewRecordTitle';
 import type { RecordListViewModel } from '../../../shared/entityScreen/useRecordListViewModel';
 import type { EntityRecord, ScreenDefinition } from '../../../../domain/entities';
 
@@ -76,6 +77,7 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
   // O título da tela é DECLARATIVO: referência numa tela de extensão, texto digitado numa do
   // escritório. `resolveLabel` atende os dois.
   const label = useLabel();
+  const newRecordTitle = useNewRecordTitle();
   const openRecord = onOpenRecord ?? vm.openRecord;
   const openNewRecord = onNewRecord ?? vm.openNewRecord;
   const modals = <EntityListModals vm={vm} />;
@@ -124,7 +126,7 @@ export const RecordListSurface: React.FC<RecordListSurfaceProps> = ({ vm, defini
       titleIcon={getScreenIcon(definition.icon, 22)}
       onNew={openNewRecord}
       canCreate={canCreate ?? vm.canCreate}
-      newTitle={t('record.new.title', { entity: label(definition.titleSingular) })}
+      newTitle={newRecordTitle(definition)}
       filterDefs={vm.filterDefs}
       filterTokens={vm.filterTokens}
       onFilterChange={vm.setFilterTokens}

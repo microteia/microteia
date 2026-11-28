@@ -130,6 +130,7 @@ const LACUNAS_CONFERIDAS = [
   // que aconteceu —, e o plano passou a emiti-la (id da extensão + coleção), com o valor já registrado
   // tendo precedência sobre qualquer derivação. Ver `SCREEN_SOURCE_ID_PRECEDENCE`.
   'screen-property\tsourceRev',
+  'screen-property\ttitleNew',
   'screen-property\ticon',
   'screen-property\tsubtitleFieldKey',
   'screen-property\timageFieldKey',

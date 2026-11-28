@@ -44,6 +44,7 @@ import { parentLinkValue } from '../../../domain/services/parentLock';
 import { autoValueFields, generateAutoValue } from '../../../domain/services/autoValue';
 import { screenForDisplay, useEntityFormFields, useResolvedFields } from '../../shared/useEntityFormFields';
 import { useLabel, useT } from '../../shared/i18n/useT';
+import { useNewRecordTitle } from '../../shared/entityScreen/useNewRecordTitle';
 import type {
   CustomFieldValue,
   EntityRecord,
@@ -120,6 +121,7 @@ type Values = Record<string, CustomFieldValue>;
 export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecordViewModel => {
   const t = useT('core.records');
   const label = useLabel();
+  const newRecordTitle = useNewRecordTitle();
   const { getDefinition, isLoading: isLoadingDefinition } = useScreenDefinitions();
   const { recordsByCollection, createRecord, newRecordId, updateRecord, deleteRecord } = useRecords();
   const { currentTenant } = useTenant();
@@ -215,12 +217,12 @@ export const useViewDynamicRecordViewModel = (tabKey: string): ViewDynamicRecord
   const resolveTabTitle = useCallback(
     (record: EntityRecord | null, isNew: boolean) => {
       if (!definition) return null;
-      if (isNew) return t('record.new.title', { entity: label(definition.titleSingular) });
+      if (isNew) return newRecordTitle(definition);
       if (!record) return null;
       return label(identity.titleOf(record) || identity.subtitleOf(record)
         || resolveRecordTitle(record, titleFieldKey));
     },
-    [definition, identity, titleFieldKey, t, label],
+    [definition, identity, titleFieldKey, newRecordTitle, label],
   );
 
   const resolveTitleFromValues = useCallback(

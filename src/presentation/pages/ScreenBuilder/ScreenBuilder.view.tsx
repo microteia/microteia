@@ -277,6 +277,15 @@ const ScreenEditor: React.FC<{ vm: ScreenBuilderViewModel }> = ({ vm }) => {
                 />
               </InputGroup>
               <InputGroup>
+                <Label>{t('screen.title-new')}</Label>
+                <LabelInput
+                  value={vm.screenForm.titleNew}
+                  onChange={(titleNew) => vm.updateScreenForm({ titleNew })}
+                  placeholder={vm.titleNewPlaceholder}
+                />
+                <S.FieldHint>{t('screen.title-new.hint')}</S.FieldHint>
+              </InputGroup>
+              <InputGroup>
                 <Label>{t('screen.key')}</Label>
                 {vm.screenModalIsEdit ? (
                   <Input value={vm.screenForm.screenKey} disabled />

@@ -38,6 +38,8 @@ export interface ScreenModuleTemplate {
   sourceRev?: number | null;
   titleSingular: string;
   titlePlural: string;
+  /** O título do registro novo, como frase inteira. Ver `ScreenDefinition.titleNew`. */
+  titleNew?: string | null;
   icon: string;
   /** Sem `origin`: a instalação carimba `plugin` em cada campo. */
   fields: TemplateField[];

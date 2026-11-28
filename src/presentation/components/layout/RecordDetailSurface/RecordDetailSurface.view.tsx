@@ -15,6 +15,7 @@ import type { TagStoreAdapter } from '../../ui/TagManager';
 import type { CustomFieldValue, EntityRecord, FieldDefinition, ScreenDefinition } from '../../../../domain/entities';
 
 import { useLabel, useT } from '../../../shared/i18n/useT';
+import { useNewRecordTitle } from '../../../shared/entityScreen/useNewRecordTitle';
 /**
  * A superfície do DETALHE (criar/editar) de uma tela de registros — o par do `RecordDetailSurface`
  * para `RecordListSurface`. Renderiza a `EntityDetailView` (cabeçalho com salvar/excluir/clonar/
@@ -94,6 +95,7 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
   const { definition } = vm;
   const t = useT('core.ui');
   const label = useLabel();
+  const newRecordTitle = useNewRecordTitle();
 
   if (!vm.isAvailable || !definition) {
     return (
@@ -168,7 +170,7 @@ export const RecordDetailSurface: React.FC<RecordDetailSurfaceProps> = ({ vm, re
         ? <UserAvatar src={vm.recordImageUrl} name={vm.recordTitle} size={48} fallback={getScreenIcon(definition.icon, 22)} />
         : getScreenIcon(definition.icon, 22)}
       title={vm.isNew
-        ? t('core.records/record.new.title', { entity: label(definition.titleSingular) })
+        ? newRecordTitle(definition)
         : (vm.recordTitle || label(definition.titleSingular))}
       subtitle={!vm.isNew && vm.recordSubtitle ? vm.recordSubtitle : undefined}
       tags={appliedTags}

@@ -54,6 +54,9 @@ export const CORE_RECORDS_MESSAGES: Record<string, string> = {
   'screen.error.link-field-required': 'Choose the link field of "{label}".',
   'screen.title-singular': 'Title (singular) *',
   'screen.title-plural': 'Title (plural) *',
+  'screen.title-new': 'Title of a new record',
+  'screen.title-new.hint':
+    'Shown on the tab and the form heading while a record is being created. Empty = "New" followed by the singular title. Write the whole phrase when your language needs another form, such as gender agreement.',
   'screen.icon': 'Icon',
   'screen.icon.placeholder': 'Choose an icon',
   'screen.title-field': 'Title field',

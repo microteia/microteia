@@ -47,6 +47,9 @@ export const CORE_RECORDS: Record<string, string> = {
   'screen.error.link-field-required': 'Escolha o campo de vínculo de "{label}".',
   'screen.title-singular': 'Título (singular) *',
   'screen.title-plural': 'Título (plural) *',
+  'screen.title-new': 'Título do registro novo',
+  'screen.title-new.hint':
+    'Aparece na aba e no cabeçalho do formulário enquanto o registro é criado. Vazio = "Novo" seguido do título no singular. Escreva a frase inteira quando o idioma pedir outra forma, como a concordância de gênero ("Nova empresa").',
   'screen.icon': 'Ícone',
   'screen.icon.placeholder': 'Escolha um ícone',
   'screen.title-field': 'Campo Título',

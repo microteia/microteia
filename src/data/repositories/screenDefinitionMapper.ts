@@ -53,6 +53,7 @@ export const mapScreenDefinition = (
   origin: screenOrigin(id, d),
   titleSingular: (d.titleSingular as string | undefined) ?? '',
   titlePlural: (d.titlePlural as string | undefined) ?? '',
+  titleNew: typeof d.titleNew === 'string' && d.titleNew.trim() !== '' ? d.titleNew : null,
   icon: (d.icon as string | undefined) ?? 'apps',
   fields: mapFields(d.fields, screenOrigin(id, d)),
   keys: (d.keys as ScreenDefinition['keys']) ?? null,

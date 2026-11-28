@@ -425,6 +425,9 @@ const upsertPluginScreens = async (
           // Pela mesma razão das ações: a importação que o escritório ligou sobrevive à versão que não
           // diz nada sobre ela. A que DECLARA — ligando ou desligando — vence.
           allowImport: input.allowImport ?? existing.allowImport ?? null,
+          // É o caso que trouxe a declaração (#45): o escritório corrige no Form Design a concordância
+          // da extensão de terceiro, e a versão seguinte, que não diz nada sobre ela, não a desfaz.
+          titleNew: input.titleNew ?? existing.titleNew ?? null,
           // A janela que o PACOTE declara vence; sem declaração, fica a que já valia — inclusive a que
           // o escritório pôs no Form Design. Retirar uma trava de prova é gesto de pessoa, com
           // `screens.edit-window`, nunca efeito colateral de atualizar uma extensão.

@@ -598,6 +598,25 @@ describe('Upgrade — atualização de versão', () => {
     expect(screens.store.get(KEY_A)!.cardTemplate).toEqual({ body: [{ type: 'title' }] });
   });
 
+  it('o título do registro novo que o escritório corrigiu sobrevive à atualização que não o declara (#45)', async () => {
+    await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
+    expect(screens.store.get(KEY_A)!.titleNew).toBeNull();
+    screens.store.set(KEY_A, { ...screens.store.get(KEY_A)!, titleNew: 'Nova empresa' });
+
+    await applyPackageArtifacts(deps(), version('1.1.0', [screenT('a')]), actor);
+
+    expect(screens.store.get(KEY_A)!.titleNew).toBe('Nova empresa');
+  });
+
+  it('o título do registro novo que o PACOTE declara vence o que estava (#45)', async () => {
+    await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
+    screens.store.set(KEY_A, { ...screens.store.get(KEY_A)!, titleNew: 'Nova empresa' });
+
+    await applyPackageArtifacts(deps(), version('1.1.0', [{ ...screenT('a'), titleNew: '@acme.crm/company.new' }]), actor);
+
+    expect(screens.store.get(KEY_A)!.titleNew).toBe('@acme.crm/company.new');
+  });
+
   it('a janela de edição que o escritório pôs sobrevive à atualização que não declara nenhuma', async () => {
     await applyPackageArtifacts(deps(), version('1.0.0', [screenT('a')]), actor);
     screens.store.set(KEY_A, { ...screens.store.get(KEY_A)!, editWindow: { minutes: 15, delete: true } });

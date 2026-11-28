@@ -216,6 +216,16 @@ export interface ScreenDefinition {
   origin: FieldOrigin;
   titleSingular: string;
   titlePlural: string;
+  /**
+   * O título do registro NOVO — a aba e o cabeçalho do formulário —, como frase inteira. Ausente (o
+   * normal) = "Novo" + `titleSingular`, montado pelo catálogo do núcleo.
+   *
+   * A frase montada erra a concordância em metade dos substantivos de quem tem gênero gramatical
+   * ("Novo Empresa", "Nuevo Factura"), e só quem declara o substantivo sabe o gênero dele (#45).
+   * Frase inteira, e não um `gender`, porque a regra muda de idioma para idioma e o núcleo não a
+   * conhece. Referência `@namespace/chave` na extensão; texto do escritório no Form Design.
+   */
+  titleNew?: string | null;
   icon: string;
   fields: FieldDefinition[];
   /**

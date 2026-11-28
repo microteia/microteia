@@ -120,6 +120,7 @@ import {
 import type { ColorSwatchOption } from '../../components/ui/ColorSwatchPicker';
 
 import { useLabel, useT, type TranslateFn } from '../../shared/i18n/useT';
+import { useNewRecordTitle } from '../../shared/entityScreen/useNewRecordTitle';
 import { useExtensionName } from '../../shared/extensions/useExtensionName';
 
 export interface BuiltinScreenRow {
@@ -166,6 +167,8 @@ export interface ScreenFormState {
   screenKey: string;
   titleSingular: string;
   titlePlural: string;
+  /** A frase do registro novo (`ScreenDefinition.titleNew`); vazio = a montada pelo núcleo. */
+  titleNew: string;
   icon: string;
   hasNotes: boolean;
   hasDocuments: boolean;
@@ -482,6 +485,8 @@ export interface ScreenBuilderViewModel {
   setScreenViewActionIds: (ids: string[]) => void;
   setScreenCardActionIds: (ids: string[]) => void;
   screenForm: ScreenFormState;
+  /** O que aparece com o campo vazio — a frase montada, para quem decide se precisa escrever outra. */
+  titleNewPlaceholder: string | undefined;
   updateScreenForm: (patch: Partial<ScreenFormState>) => void;
   updateEditWindowForm: (patch: Partial<EditWindowFormState>) => void;
   updateCardTemplateForm: (patch: Partial<CardTemplateFormState>) => void;
@@ -709,6 +714,7 @@ const EMPTY_SCREEN_FORM: ScreenFormState = {
   screenKey: '',
   titleSingular: '',
   titlePlural: '',
+  titleNew: '',
   icon: 'apps',
   hasNotes: false,
   hasDocuments: false,
@@ -1073,6 +1079,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const label = useLabel();
   const extensionName = useExtensionName();
   const t = useT('core.records');
+  const newRecordTitle = useNewRecordTitle();
 
   /** Os slots cujas ações só fazem sentido numa tela com etiquetas — declarado, não presumido. */
   const tagDependentSlots = useMemo(
@@ -1108,6 +1115,12 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
   const toggleScreenModalMaximized = useCallback(() => setScreenModalMaximized((previous) => !previous), []);
   const [fieldModalTab, setFieldModalTab] = useState<FieldModalTab>('general');
   const [screenForm, setScreenForm] = useState<ScreenFormState>(EMPTY_SCREEN_FORM);
+  const titleNewPlaceholder = useMemo(
+    () => (screenForm.titleSingular.trim()
+      ? newRecordTitle({ titleSingular: screenForm.titleSingular.trim(), titleNew: null })
+      : undefined),
+    [screenForm.titleSingular, newRecordTitle],
+  );
   const [savingScreen, setSavingScreen] = useState(false);
   /** Se o usuário já editou o identificador à mão — a partir daí ele para de seguir o título. */
   const screenKeyTouchedRef = useRef(false);
@@ -1440,6 +1453,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       screenKey: def.id,
       titleSingular: def.titleSingular,
       titlePlural: def.titlePlural,
+      titleNew: def.titleNew ?? '',
       icon: def.icon,
       hasNotes: def.hasNotes,
       hasDocuments: def.hasDocuments,
@@ -2032,6 +2046,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           ...toSaveInput(def),
           titleSingular: screenForm.titleSingular.trim(),
           titlePlural: screenForm.titlePlural.trim(),
+          titleNew: screenForm.titleNew.trim() || null,
           icon: screenForm.icon,
           hasNotes: screenForm.hasNotes,
           hasDocuments: screenForm.hasDocuments,
@@ -2108,6 +2123,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
           origin: 'design',
           titleSingular: screenForm.titleSingular.trim(),
           titlePlural: screenForm.titlePlural.trim(),
+          titleNew: screenForm.titleNew.trim() || null,
           icon: screenForm.icon,
           fields: [nameField],
           titleFieldKey: nameField.key,
@@ -3207,6 +3223,7 @@ export const useScreenBuilderViewModel = (): ScreenBuilderViewModel => {
       })
       : t(screenModal?.screenKey ? 'screen.modal.edit' : 'screen.modal.new'),
     screenForm,
+    titleNewPlaceholder,
     updateScreenForm,
     toggleListAction,
     moveListAction,
