@@ -98,6 +98,7 @@ export {
   reconcileAggregates,
 } from './infrastructure/handlers/aggregateBackfill';
 export { seedExtensionRecords } from './infrastructure/handlers/screenSeeds';
+export { stampSchemaRevisionOnScreenChange } from './infrastructure/handlers/schemaRevision';
 export {
   deriveRecordSearchOnEntityChange,
   runRecordSearchJob,

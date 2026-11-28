@@ -136,6 +136,7 @@ npm run verify          # typecheck + lint + verify-schemas
 | Reserva de chave (unicidade de registro) | `tenants/{tenantId}/recordKeys/{keyId}` — o `keyId` deriva do valor, e criá-lo É a trava | Sim |
 | Adoção de chave (registros antigos) | `tenants/{tenantId}/record_key_adoptions/{coleção}` — só o servidor grava | Sim |
 | Busca de registros (backfill e propagação) | `tenants/{tenantId}/record_search_jobs/{backfill:<coleção> \| propagate:<coleção>:<id>}` — só o servidor grava | Sim |
+| Carimbo da declaração (#58) | `tenants/{tenantId}/settings/schema_revision` — `revision` sobe a cada gravação de tela; só o servidor grava (a regra de `settings` não o libera) | Sim |
 | Endereço de contato já alcançado pelo `notify` e o descadastro dele (EV-11) | `tenants/{tenantId}/notification_contacts/{bilhete}` — o id é o HMAC do endereço | Sim (só servidor; nenhuma regra a libera) |
 | Credencial do provedor de SMS | `tenants/{tenantId}/secrets/notification-sms` | Sim (só servidor; `manageNotificationSms` é a porta) |
 | Chave dos bilhetes de descadastro (da instalação) | `kernel_secrets/notification-contacts` | Não (raiz; só servidor) |
@@ -8706,8 +8707,16 @@ Histórico: até a 9.108.1 o coletor não enxergava os `fields[].value` de um `m
 plano e o espelho do prazo na agenda passou a gravar o processo inteiro no lugar do id.
 
 As `ScreenDefinition`s do tenant vêm do `ScreenDefinitionCache` (`functions/src/data/services/`),
-cache em memória da instância com TTL de 5 min + invalidação best-effort quando o trigger de
-escrita observa mudança em `screenDefinitions`. Caminho que não resolve no schema gera `WARN`
+cache em memória da instância com TTL de 5 min, conferido contra um **carimbo de revisão** (#58).
+Toda gravação em `screenDefinitions` — do Form Design, do pacote, do MCP ou do Console — dispara
+`stampSchemaRevisionOnScreenChange`, que soma 1 em `tenants/{id}/settings/schema_revision`. A cada
+`SCREEN_CACHE_REVALIDATE_MS` (5 s) a instância lê esse documento — uma leitura — e só relê a
+declaração inteira quando o número mudou. Sem isso, a instância quente agia até cinco minutos sobre a
+tela de antes: o filho gravado logo depois de a tela ganhar um agregado não recalculava o pai (e o
+backfill, que roda na gravação da tela, não o cobria, porque o pai ainda não existia), e o agente
+recusava a coleção recém-criada. O carimbo é lido ANTES das telas, nunca em paralelo, para que uma
+cópia velha nunca fique marcada com o número novo. O TTL continua sendo o teto para o que não move o
+carimbo: as listas (`lookupDefinitions`) e os presets das extensões ligadas. Caminho que não resolve no schema gera `WARN`
 no log (fim da falha silenciosa); documento inexistente materializa `{ id }`. O log da execução
 registra a `SCHEMA_VERSION` usada na hidratação. Profundidade além do limite é rejeitada no
 plano e também protegida no editor.
