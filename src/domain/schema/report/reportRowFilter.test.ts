@@ -151,3 +151,29 @@ describe('reportRowScope', () => {
     expect(reportRowScope({ vencimento: at }, ['vencimento'])).toEqual({ vencimento: at });
   });
 });
+
+describe('filterReportRows — data do Firestore contra today() (#53)', () => {
+  // O campo `date` lido do Firestore chega como `Date` (o dia ao meio-dia UTC); `today()` é texto.
+  const faturas: Record<string, unknown>[] = [
+    { id: 'vencida', vencimento: new Date('2026-11-07T12:00:00Z') },
+    { id: 'hoje', vencimento: new Date('2026-11-10T12:00:00Z') },
+    { id: 'futura', vencimento: new Date('2026-11-20T12:00:00Z') },
+  ];
+  const kept = (includeWhen: string): string[] => {
+    const outcome = filterReportRows({
+      spec: specWith(includeWhen),
+      rows: faturas,
+      now: new Date('2026-11-10T15:00:00Z'),
+      timeZone: 'America/Sao_Paulo',
+    });
+    if (!outcome.ok) throw new Error(outcome.error);
+    return outcome.rows.map((row) => row.id as string);
+  };
+
+  it('"vencidas" e "a partir de hoje" devolvem as linhas certas, e não uma lista vazia', () => {
+    expect(kept('vencimento < today()')).toEqual(['vencida']);
+    expect(kept('vencimento >= today()')).toEqual(['hoje', 'futura']);
+    expect(kept('vencimento <= addDays(today(), 10)')).toEqual(['vencida', 'hoje', 'futura']);
+    expect(kept('vencimento < addDays(today(), 10)')).toEqual(['vencida', 'hoje']);
+  });
+});

@@ -7,6 +7,8 @@
 import type { Expression, Parser } from 'expr-eval';
 import { readAsStored } from './storedReference';
 import { settleIfNumber } from './decimalPrecision';
+import { ambientTimeZone } from './clockGate';
+import { dayInTimeZone } from './i18n/timeZone';
 
 /**
  * As três garantias de avaliação que a linguagem promete e o `expr-eval` cru não dá — num lugar só,
@@ -70,6 +72,35 @@ const DECIMAL_OPERATORS = ['+', '-', '*', '/', '%', '^'];
  */
 const COMPARISON_OPERATORS = ['==', '!=', '<', '<=', '>', '>='];
 
+const DAY_TEXT = /^\d{4}-\d{2}-\d{2}$/;
+
+const instantOf = (value: unknown): Date | null => {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (value && typeof value === 'object' && typeof (value as { toDate?: unknown }).toDate === 'function') {
+    return instantOf((value as { toDate: () => unknown }).toDate());
+  }
+  return null;
+};
+
+const isDayText = (value: unknown): value is string => typeof value === 'string' && DAY_TEXT.test(value);
+
+/**
+ * Os dois operandos na MESMA forma antes da comparação (#53). Um campo de data chega ao servidor como
+ * `Date` — é o que a leitura do Firestore entrega ao `includeWhen` e à condição da automação —, e
+ * `today()` devolve o texto do dia: entre um objeto e um texto, todo operador relacional respondia
+ * `false`, e o relatório de "vencidos" voltava vazio sem aviso. Diante de um dia, o instante vira o dia
+ * em que cai no fuso do escritório, o mesmo que `today()` usa. Dois instantes comparam pelo momento:
+ * `==` entre dois `Date` comparava a referência e nunca era verdadeiro.
+ */
+const comparable = (left: unknown, right: unknown): [unknown, unknown] => {
+  const leftInstant = instantOf(left);
+  const rightInstant = instantOf(right);
+  if (leftInstant && rightInstant) return [leftInstant.getTime(), rightInstant.getTime()];
+  if (leftInstant && isDayText(right)) return [dayInTimeZone(leftInstant, ambientTimeZone()), right];
+  if (rightInstant && isDayText(left)) return [left, dayInTimeZone(rightInstant, ambientTimeZone())];
+  return [settleIfNumber(left), settleIfNumber(right)];
+};
+
 export const installSafeMemberOperator = (parser: Parser): void => {
   const { binaryOps: operators, unaryOps } = parser as unknown as {
     binaryOps: Record<string, BinaryOperator>;
@@ -87,7 +118,7 @@ export const installSafeMemberOperator = (parser: Parser): void => {
   }
   for (const symbol of COMPARISON_OPERATORS) {
     const compare = operators[symbol];
-    if (compare) operators[symbol] = (left, right) => compare(settleIfNumber(left), settleIfNumber(right));
+    if (compare) operators[symbol] = (left, right) => compare(...comparable(left, right));
   }
 };
 

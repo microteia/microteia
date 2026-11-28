@@ -5,6 +5,7 @@ import { registerExpressionFunctionsFromPlugins } from '../../../infrastructure/
 import { operatorRegistry } from './OperatorRegistry';
 import { NOT_OPERATOR } from '../../schema/expressionSyntax';
 import { installSafeMemberOperator, withSafeEvaluation } from '../../schema/expressionEvaluation';
+import { withAmbientTimeZone } from '../../schema/clockGate';
 import { LocalizedError } from '../../errors/LocalizedError';
 import { toExpressionActor } from '../workflowActor';
 import {
@@ -226,9 +227,11 @@ class ExpressionEngineImpl implements ExpressionEngine {
       // expr-eval originalmente suporta apenas number/string/function/object
       // mas estendemos para Date, boolean e outros tipos via nossas funções customizadas
       const parsed = withSafeEvaluation(parser.parse(expression));
+      // No fuso do escritório, o mesmo de `today()`: a comparação entre um campo de data e um dia lê
+      // o instante no fuso ambiente (#53), e fora dele a automação compararia num fuso e contaria no
+      // outro.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = parsed.evaluate(variables as any);
-      return result;
+      return withAmbientTimeZone(context.services?.timeZone, () => parsed.evaluate(variables as any));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       

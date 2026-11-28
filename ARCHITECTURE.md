@@ -6427,6 +6427,14 @@ Todo campo — `FieldDefinition` (customizado) e `NativeFieldSpec` (fixo) — ac
   (`aggregateByEquality`) assenta pela mesma regra, ou os dois caminhos de total discordariam. `round`
   arredonda o decimal ESCRITO, metade para longe do zero (`roundDecimal`: `round(1.005, 2)` = `1.01`,
   `round(-2.5)` = `-3`). Fica de fora o Script: é JavaScript puro, e quem o escreve conta em centavos.
+- **Data comparada com dia (#53) — os operandos na mesma forma.** No servidor, um campo de data chega à
+  expressão como `Date` (é o que a leitura do Firestore entrega ao `includeWhen` do relatório e à condição
+  da automação), e `today()` devolve o texto do dia: entre os dois, todo operador relacional dava `false`,
+  e o relatório de "vencidos" voltava vazio sem aviso. `installSafeMemberOperator` normaliza antes de
+  comparar: instante diante de um dia (`YYYY-MM-DD`) vira o dia em que cai **no fuso do escritório**
+  (`ambientTimeZone()`, o mesmo de `today()`); dois instantes comparam pelo momento (`==` entre dois
+  `Date` comparava a referência). Para isso o motor do Workflow avalia dentro de
+  `withAmbientTimeZone(context.services.timeZone)`, como a expressão de campo já fazia.
 - **Datas nas expressões de campo:** `toDate` aceita `Date`, `Timestamp`, milissegundos e texto; o texto de **dia** (`YYYY-MM-DD`, o que `today()` devolve e o que um campo de data guarda) vira meia-noite **local**, não UTC, para que o dia que entra seja o dia que sai. `addDays` preserva a **forma da entrada** — dia entra, dia sai; instante entra, instante sai (ISO) —, então `addDays(today(), 15)` cai direto num campo de data. As funções deste lado são **lenientes** (coerção e `null`/`''` no erro) onde as do Workflow lançam: aqui o throw é engolido pelos slots tolerantes e viraria um `false` mudo.
 - **Escopo das expressões:** mapa **plano por chave de campo** (nativos e customizados na raiz), montado por `buildRecordFieldScope` (`recordRules.ts`); `value`/`self` = valor do próprio campo. A mesma expressão referencia os campos por `key` nos dois lados. Nos slots front-only o escopo ganha também a **situação** do formulário (`isNew`) — ver "A SITUAÇÃO do formulário no escopo do campo" abaixo.
 - **Validação:** `formatAndValidateRecord` (`recordRules.ts`) roda um passo extra que avalia `logic.validate` de cada campo do schema e acrescenta `RuleIssue`. Coexiste com `required` e `FieldRules`. Enforcement automático via o choke point único: front (`recordRulesGate`) e back (`runWorkflowMutation`, `ValidateStep`).

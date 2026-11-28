@@ -203,3 +203,48 @@ describe('a conta decimal é a mesma na tela e na automação (#48)', () => {
     expect(naAutomacao(expression)).toBe(expected);
   });
 });
+
+describe('um campo de data comparado com um dia é comparado como dia, na tela e na automação (#53)', () => {
+  // O dia que um campo `date` guarda chega do Firestore como meio-dia UTC; `today()` é um texto.
+  const vencimento = new Date('2026-11-01T12:00:00Z');
+  const agora = new Date('2026-11-10T15:00:00Z');
+  const timeZone = 'America/Sao_Paulo';
+  const naTela = (expression: string, data: Record<string, unknown>): unknown =>
+    evaluateFieldExpression(expression, { value: null, data, timeZone, at: agora });
+  const naAutomacao = (expression: string, payload: Record<string, unknown>): unknown =>
+    expressionEngine.evaluate(expression.replace(/\b(dueDate|startDate|endDate)\b/g, 'event.$1'), {
+      event: { payload }, input: {}, outputs: {}, variables: {},
+      services: { now: () => agora, timeZone },
+    } as unknown as WorkflowContext);
+
+  it.each([
+    ['dueDate < today()', true],
+    ['dueDate >= today()', false],
+    ['dueDate <= "2026-11-01"', true],
+    ['dueDate == "2026-11-01"', true],
+    ['dueDate != "2026-11-01"', false],
+    ['"2026-11-02" > dueDate', true],
+  ])('%s', (expression, expected) => {
+    expect(naTela(expression, { dueDate: vencimento })).toBe(expected);
+    expect(naAutomacao(expression, { dueDate: vencimento })).toBe(expected);
+  });
+
+  it('o instante perto da meia-noite cai no dia do ESCRITÓRIO, não no de UTC', () => {
+    // 01:30 UTC do dia 2 ainda é dia 1 em São Paulo.
+    const tarde = new Date('2026-11-02T01:30:00Z');
+    expect(naTela('dueDate == "2026-11-01"', { dueDate: tarde })).toBe(true);
+    expect(naAutomacao('dueDate == "2026-11-01"', { dueDate: tarde })).toBe(true);
+  });
+
+  it('dois campos de data comparam pelo instante — `==` deixa de comparar a referência', () => {
+    const data = { startDate: new Date('2026-11-01T12:00:00Z'), endDate: new Date('2026-11-01T12:00:00Z') };
+    expect(naTela('startDate == endDate', data)).toBe(true);
+    expect(naAutomacao('startDate == endDate', data)).toBe(true);
+    expect(naTela('startDate < endDate', data)).toBe(false);
+  });
+
+  it('texto contra texto continua como era', () => {
+    expect(naTela('dueDate < today()', { dueDate: '2026-11-01' })).toBe(true);
+    expect(naTela('formatDate(dueDate, "YYYY-MM-DD") < today()', { dueDate: vencimento })).toBe(true);
+  });
+});
