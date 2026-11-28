@@ -62,11 +62,16 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
     hasOnAdd,
     hasOnRecolor,
     hasOnDelete,
+    triggerId,
+    valueId,
+    ariaLabelledBy,
   } = useDynamicSelectViewModel(props);
 
   return (
     <S.Wrapper ref={wrapperRef}>
       <S.TriggerButton
+        id={triggerId}
+        aria-labelledby={ariaLabelledBy}
         type="button"
         $hasValue={multiSelect ? selectedOptions.length > 0 : !!selectedOption}
         $disabled={disabled}
@@ -77,7 +82,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
         {multiSelect ? (
           <>
             {selectedOptions.length > 0 ? (
-              <S.SelectedPills>
+              <S.SelectedPills id={valueId}>
                 {selectedOptions.map(opt => (
                   <S.SelectedPill
                     key={opt.value}
@@ -101,7 +106,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
                 ))}
               </S.SelectedPills>
             ) : (
-              <S.TriggerLabel>{placeholder}</S.TriggerLabel>
+              <S.TriggerLabel id={valueId}>{placeholder}</S.TriggerLabel>
             )}
             <S.TriggerRight>
               {selectedOptions.length > 0 && !disabled && (
@@ -120,6 +125,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = (props) => {
               ? <S.OrphanIcon title={orphanTitle}><RiErrorWarningLine size={14} /></S.OrphanIcon>
               : selectedOption?.color && <S.ColorDot $color={selectedOption.color} />}
             <S.TriggerLabel
+              id={valueId}
               $orphan={selectedOption?.isOrphan}
               title={selectedOption?.isOrphan ? orphanTitle : undefined}
             >

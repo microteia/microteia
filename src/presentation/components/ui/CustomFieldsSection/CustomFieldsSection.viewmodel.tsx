@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useReferenceSearch } from '../../../shared/useReferenceSearch';
 import { useEnsureReferencedRecords } from '../../../shared/useEnsureReferencedRecords';
 import { useTheme } from 'styled-components';
@@ -124,6 +124,16 @@ export interface CustomFieldsSectionViewModel {
   /** Campo aguardando uma busca externa (ex.: endereço pelo CEP). */
   isFieldLoading: (fieldKey: string) => boolean;
   fileUpload: FieldFileUpload | null;
+  /**
+   * O `id` do controle e o do rótulo de cada campo. O rótulo desenhado ao lado não nomeava nada: o
+   * leitor de tela anunciava campos sem nome e `getByLabel` não achava nenhum (#44).
+   */
+  fieldIds: (field: FieldDefinition) => FieldControlIds;
+}
+
+export interface FieldControlIds {
+  controlId: string;
+  labelId: string;
 }
 
 export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps): CustomFieldsSectionViewModel => {
@@ -145,6 +155,7 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
   useEnsureReferencedRecords(referencedFrom, fields);
   const theme = useTheme();
   const label = useLabel();
+  const idPrefix = useId();
 
   const canDeleteOption = can(PERMISSION_SCREENS_MANAGE);
 
@@ -439,6 +450,15 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     [values, isNew, label],
   );
 
+  // Prefixo por formulário: duas instâncias na mesma página (a aba e o modal) não podem dividir ids.
+  const fieldIds = useCallback(
+    (field: FieldDefinition): FieldControlIds => ({
+      controlId: `${idPrefix}field-${field.key}`,
+      labelId: `${idPrefix}label-${field.key}`,
+    }),
+    [idPrefix],
+  );
+
   return {
     groups,
     disabled,
@@ -463,5 +483,6 @@ export const useCustomFieldsSectionViewModel = (props: CustomFieldsSectionProps)
     fieldHint,
     isFieldLoading,
     fileUpload: props.fileUpload ?? null,
+    fieldIds,
   };
 };

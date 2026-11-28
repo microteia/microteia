@@ -6,6 +6,7 @@ interface CheckboxProps {
   onChange: (checked: boolean) => void;
   label: string;
   disabled?: boolean;
+  id?: string;
   /**
    * Parte do conjunto marcada — o estado de um grupo com alguns itens dentro.
    *
@@ -98,10 +99,12 @@ export const Checkbox: React.FC<CheckboxProps> = ({
   label,
   disabled = false,
   indeterminate = false,
+  id,
 }) => {
   return (
     <StyledCheckboxLabel $disabled={disabled}>
       <StyledCheckboxInput
+        id={id}
         type="checkbox"
         checked={checked}
         $indeterminate={!checked && indeterminate}

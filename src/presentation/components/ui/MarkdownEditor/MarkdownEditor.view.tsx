@@ -89,6 +89,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = (props) => {
         <S.ContentArea $mode={vm.mode} ref={contentAreaRef}>
           <S.EditPane $flex={editFlex} $visible={showEdit}>
             <S.Textarea
+              id={props.id}
               ref={textareaRef}
               value={props.value}
               onChange={vm.handleTextareaChange}

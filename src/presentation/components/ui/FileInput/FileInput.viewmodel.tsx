@@ -14,6 +14,8 @@ export interface FileInputProps {
   upload?: (file: File) => Promise<string>;
   config?: FieldFileConfig | null;
   disabled?: boolean;
+  /** O id do input, quando um rótulo de fora (o do formulário) precisa apontar para ele. */
+  id?: string;
 }
 
 export interface FileInputViewModel {
@@ -51,7 +53,8 @@ export const useFileInputViewModel = (props: FileInputProps): FileInputViewModel
   const { value, onChange, upload, config, disabled } = props;
   const { notify } = useNotification();
   const t = useT('core.ui');
-  const inputId = useId();
+  const generatedId = useId();
+  const inputId = props.id ?? generatedId;
   const [isUploading, setIsUploading] = useState(false);
 
   const { extensions, maxSizeMb } = useMemo(() => resolveFileConfig(config), [config]);

@@ -36,6 +36,13 @@ interface MultiSearchSelectProps {
    * o que foi digitado: o registro pode ter sido achado pelo número, pelo CPF, pelo nome de uma parte.
    */
   searchMatches?: ReadonlySet<string>;
+  /**
+   * O id do botão e o do rótulo de fora que o nomeia — o do formulário (#44). Juntos, o nome do
+   * controle passa a ser o rótulo seguido do valor exibido: só o rótulo calaria a escolha atual, e só
+   * o valor (o que havia) não diz de que campo ela é.
+   */
+  id?: string;
+  labelledBy?: string;
 }
 
 const Wrapper = styled.div`
@@ -257,9 +264,12 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
   onOpenSelected,
   onQueryChange,
   searchMatches,
+  id,
+  labelledBy,
 }) => {
   const t = useT('core.ui');
   const orphanTitle = t('reference.orphan.title');
+  const valueId = id ? `${id}-value` : undefined;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
@@ -350,15 +360,17 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
   return (
     <Wrapper ref={wrapperRef}>
       <TriggerButton
+        id={id}
         type="button"
         $hasValue={selectedOptions.length > 0 || orphanValues.length > 0}
         $disabled={disabled}
         onClick={handleOpen}
         disabled={disabled && !hasOpenShortcut}
         aria-disabled={disabled}
+        aria-labelledby={labelledBy && valueId ? `${labelledBy} ${valueId}` : labelledBy}
       >
         {selectedOptions.length > 0 || orphanValues.length > 0 ? (
-          <SelectedPills>
+          <SelectedPills id={valueId}>
             {selectedOptions.map((opt) => (
               <SelectedPill key={opt.value} $color={opt.color}>
                 {opt.label}
@@ -390,7 +402,7 @@ export const MultiSearchSelect: React.FC<MultiSearchSelectProps> = ({
             ))}
           </SelectedPills>
         ) : (
-          <PlaceholderText>{placeholder ?? t('select.placeholder')}</PlaceholderText>
+          <PlaceholderText id={valueId}>{placeholder ?? t('select.placeholder')}</PlaceholderText>
         )}
         <TriggerRight>
           {(selectedOptions.length > 0 || orphanValues.length > 0) && !disabled && (

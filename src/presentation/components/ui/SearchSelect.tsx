@@ -44,6 +44,13 @@ interface SearchSelectProps {
    * o que foi digitado: o registro pode ter sido achado pelo número, pelo CPF, pelo nome de uma parte.
    */
   searchMatches?: ReadonlySet<string>;
+  /**
+   * O id do botão e o do rótulo de fora que o nomeia — o do formulário (#44). Juntos, o nome do
+   * controle passa a ser o rótulo seguido do valor exibido: só o rótulo calaria a escolha atual, e só
+   * o valor (o que havia) não diz de que campo ela é.
+   */
+  id?: string;
+  labelledBy?: string;
 }
 
 const Wrapper = styled.div`
@@ -248,9 +255,15 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   onOpenSelected,
   onQueryChange,
   searchMatches,
+  id,
+  labelledBy,
 }) => {
   const t = useT('core.ui');
   const labelId = useId();
+  const valueId = id ? `${id}-value` : undefined;
+  const nameSources = [labelledBy ?? (label ? labelId : undefined), labelledBy ? valueId : undefined]
+    .filter(Boolean)
+    .join(' ');
   const orphanTitle = orphanMessage ?? t('reference.orphan.title');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -336,18 +349,19 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   const control = (
     <Wrapper ref={wrapperRef}>
       <TriggerButton
+        id={id}
         type="button"
         $hasValue={!!selected}
         $disabled={disabled}
         onClick={handleOpen}
         disabled={disabled && !hasOpenShortcut}
         aria-disabled={disabled}
-        aria-labelledby={label ? labelId : undefined}
+        aria-labelledby={nameSources || undefined}
       >
         {isOrphan && <OrphanIcon title={orphanTitle}><RiErrorWarningLine size={14} /></OrphanIcon>}
         {selected?.color && <ColorDot $color={selected.color} />}
         {selected?.icon && <OptionIcon><selected.icon size={14} /></OptionIcon>}
-        <TriggerLabel $orphan={isOrphan} title={isOrphan ? orphanTitle : undefined}>
+        <TriggerLabel id={valueId} $orphan={isOrphan} title={isOrphan ? orphanTitle : undefined}>
           {selected
             ? selected.label
             : isOrphan

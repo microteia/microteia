@@ -23,11 +23,13 @@ import { useT } from '../../../shared/i18n/useT';
 export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSectionViewModel }> = ({ field, vm }) => {
   const isDisabled = vm.isFieldDisabled(field);
   const fileUpload = vm.fileUpload;
+  const ids = vm.fieldIds(field);
   const t = useT('core.ui');
   switch (field.type) {
     case 'textarea':
       return (
         <Textarea
+          id={ids.controlId}
           value={vm.getString(field.key)}
           onChange={(e) => vm.setValue(field.key, e.target.value)}
           placeholder={field.placeholder ?? undefined}
@@ -37,6 +39,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     case 'number':
       return (
         <Input
+          id={ids.controlId}
           type="number"
           value={vm.getString(field.key)}
           onChange={(e) => vm.setValue(field.key, e.target.value)}
@@ -47,6 +50,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     case 'currency':
       return (
         <CurrencyInput
+          id={ids.controlId}
           value={vm.getCurrency(field.key)}
           onChange={(value) => vm.setValue(field.key, value)}
           placeholder={field.placeholder ?? undefined}
@@ -56,6 +60,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     case 'date':
       return (
         <DateInput
+          id={ids.controlId}
           value={vm.getString(field.key)}
           onChange={(value) => vm.setValue(field.key, value)}
           disabled={isDisabled}
@@ -64,6 +69,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     case 'time':
       return (
         <TimeInput
+          id={ids.controlId}
           value={vm.getString(field.key)}
           onChange={(value) => vm.setValue(field.key, value)}
           disabled={isDisabled}
@@ -72,6 +78,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     case 'checkbox':
       return (
         <Checkbox
+          id={ids.controlId}
           label={field.placeholder ?? t('answer.yes')}
           checked={vm.getBoolean(field.key)}
           onChange={(next) => vm.setValue(field.key, next)}
@@ -81,6 +88,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     case 'masked':
       return (
         <MaskedInput
+          id={ids.controlId}
           mask={field.mask ?? 'cpf'}
           value={vm.getString(field.key)}
           onChange={(value) => vm.setValue(field.key, value)}
@@ -91,6 +99,8 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     case 'select':
       return (
         <DynamicSelect
+          id={ids.controlId}
+          labelledBy={ids.labelId}
           staticOptions={vm.staticSelectOptions(field)}
           dynamicOptions={vm.dynamicSelectOptions(field)}
           multiSelect={field.multi}
@@ -115,6 +125,8 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
       const openReferenced = vm.referenceOpener(field);
       return field.multi ? (
         <MultiSearchSelect
+          id={ids.controlId}
+          labelledBy={ids.labelId}
           options={vm.referenceOptions(field)}
           values={vm.getStringArray(field.key)}
           onChange={(values) => vm.setValue(field.key, values)}
@@ -126,6 +138,8 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
         />
       ) : (
         <SearchSelect
+          id={ids.controlId}
+          labelledBy={ids.labelId}
           options={vm.referenceOptions(field)}
           value={vm.getString(field.key)}
           onChange={(value) => vm.setValue(field.key, value)}
@@ -140,6 +154,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     case 'file':
       return (
         <FileInput
+          id={ids.controlId}
           value={vm.getString(field.key)}
           onChange={(value) => vm.setValue(field.key, value)}
           upload={fileUpload ? (file) => fileUpload.upload(field.key, file) : undefined}
@@ -150,6 +165,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     case 'markdown':
       return (
         <MarkdownEditor
+          id={ids.controlId}
           value={vm.getString(field.key)}
           onChange={(value) => vm.setValue(field.key, value)}
           placeholder={field.placeholder ?? undefined}
@@ -159,6 +175,7 @@ export const FieldControl: React.FC<{ field: FieldDefinition; vm: CustomFieldsSe
     default:
       return (
         <Input
+          id={ids.controlId}
           type="text"
           value={vm.getString(field.key)}
           onChange={(e) => vm.setValue(field.key, e.target.value)}

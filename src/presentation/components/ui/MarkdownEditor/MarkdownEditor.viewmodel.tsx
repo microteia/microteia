@@ -23,6 +23,7 @@ export interface MarkdownEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   readOnly?: boolean;
+  id?: string;
 }
 
 export interface MentionState {

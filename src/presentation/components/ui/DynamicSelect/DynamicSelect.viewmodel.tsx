@@ -36,6 +36,13 @@ export interface DynamicSelectProps {
   onDelete?: (value: string) => Promise<void>;
   deleteConfirmTitle?: string;
   deleteConfirmMessage?: string;
+  /**
+   * O id do botão e o do rótulo de fora que o nomeia — o do formulário (#44). Juntos, o nome do
+   * controle passa a ser o rótulo seguido do valor exibido: só o rótulo calaria a escolha atual, e só
+   * o valor (o que havia) não diz de que campo ela é.
+   */
+  id?: string;
+  labelledBy?: string;
 }
 
 export interface DynamicSelectViewModel {
@@ -81,6 +88,10 @@ export interface DynamicSelectViewModel {
   hasOnAdd: boolean;
   hasOnRecolor: boolean;
   hasOnDelete: boolean;
+  triggerId: string | undefined;
+  /** O elemento que mostra a escolha atual (ou o placeholder) — a segunda parte do nome do botão. */
+  valueId: string | undefined;
+  ariaLabelledBy: string | undefined;
 }
 
 export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSelectViewModel => {
@@ -101,7 +112,10 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     onDelete,
     deleteConfirmTitle = t('dynamic-select.option.delete.title'),
     deleteConfirmMessage: deleteConfirmMessageProp,
+    id,
+    labelledBy,
   } = props;
+  const valueId = id ? `${id}-value` : undefined;
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -349,5 +363,8 @@ export const useDynamicSelectViewModel = (props: DynamicSelectProps): DynamicSel
     hasOnAdd: !!onAdd,
     hasOnRecolor: !!onRecolor,
     hasOnDelete: !!onDelete,
+    triggerId: id,
+    valueId,
+    ariaLabelledBy: labelledBy && valueId ? `${labelledBy} ${valueId}` : labelledBy,
   };
 };

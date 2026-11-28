@@ -46,9 +46,10 @@ export const FieldInput: React.FC<FieldInputProps> = ({
     fileUpload,
   });
   const shownError = vm.fieldError(field);
+  const ids = vm.fieldIds(field);
   return (
     <InputGroup $fullWidth={field.type === 'textarea' || field.type === 'markdown'}>
-      {showLabel && <Label>{field.label}{field.required ? ' *' : ''}</Label>}
+      {showLabel && <Label id={ids.labelId} htmlFor={ids.controlId}>{field.label}{field.required ? ' *' : ''}</Label>}
       <FieldControl field={field} vm={vm} />
       {shownError && <ErrorMessage>{shownError}</ErrorMessage>}
     </InputGroup>
