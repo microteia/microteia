@@ -4,7 +4,7 @@ import { useLocaleFormat, useT } from '../../shared/i18n/useT';
 import { resolveColor } from '../../../shared/styles/colorUtils';
 import { usePortal } from '../../../stores/usePortal';
 import { evaluatePortalCondition } from '../../../domain/schema/portal';
-import type { PortalRecord, PortalScreenInfo } from '../../../domain/entities/Portal';
+import { portalRecordDisplayTitle, type PortalRecord, type PortalScreenInfo } from '../../../domain/entities/Portal';
 import { DEFAULT_PORTAL_CARD_BODY, type PortalTemplateSurface } from '../../../domain/schema/ui/portalTemplate';
 import type { PortalFieldView, PortalRecordCard } from './Portal.viewmodel';
 import { resolvePortalNodes, type PortalTemplateAnswers } from './resolvePortalTemplate';
@@ -90,7 +90,7 @@ export const usePortalRecordFormat = () => {
       return surface === 'card' ? { ...formatted, href: null } : formatted;
     };
     return {
-      title: record.title || t('portal.record.untitled'),
+      title: portalRecordDisplayTitle(screen, record) || t('portal.record.untitled'),
       field: (fieldKey) => {
         const field = screen.fields.find((candidate) => candidate.key === fieldKey);
         return field ? view(field) : null;
@@ -111,7 +111,7 @@ export const usePortalRecordFormat = () => {
     return {
       collection: screen.collection,
       id: record.id,
-      title: record.title || t('portal.record.untitled'),
+      title: portalRecordDisplayTitle(screen, record) || t('portal.record.untitled'),
       summary: summaryOf(screen, record),
       updatedAt: updatedOf(record),
       // Com o cartão declarado só pelo arranjo, o conteúdo é o padrão ESCRITO NA DSL: um desenhista só.

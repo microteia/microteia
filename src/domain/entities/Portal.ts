@@ -35,6 +35,8 @@ export interface PortalScreenInfo {
   titlePlural: string;
   /** A frase do registro novo (`titleNew`), já no idioma do convidado. Ausente, "Novo: <singular>". */
   titleNew?: string;
+  /** O campo de título, quando exposto. Ver `portalRecordDisplayTitle`. */
+  titleFieldKey?: string;
   icon: string;
   documents: boolean;
   /** A tela registra no servidor cada abertura de registro do convidado (`portal.trackViews`). */
@@ -224,6 +226,23 @@ export const canEditPortalRecord = (
   userId: string | null,
 ): boolean =>
   !!screen?.edit && record.editable && (!screen.edit.onlyOwn || (!!userId && record.portalOwner === userId));
+
+/**
+ * O título do registro como o convidado o lê (#55). A projeção guarda o VALOR do campo de título, e de
+ * um `select` o valor é a chave da opção: o cartão dizia `in_review` logo acima de "Status: Em análise".
+ * O rótulo vem das opções que o contexto já entrega no idioma do convidado — as mesmas do resumo.
+ */
+export const portalRecordDisplayTitle = (
+  screen: Pick<PortalScreenInfo, 'titleFieldKey' | 'fields'> | null | undefined,
+  record: Pick<PortalRecord, 'title' | 'data'>,
+): string => {
+  const field = screen?.titleFieldKey ? screen.fields.find((one) => one.key === screen.titleFieldKey) : undefined;
+  if (field?.type !== 'select') return record.title;
+  const raw = record.data[field.key];
+  if (raw === undefined || raw === null || raw === '') return record.title;
+  const labelOf = (key: unknown): string => field.options?.find((option) => option.key === key)?.label ?? String(key);
+  return Array.isArray(raw) ? raw.map(labelOf).join(', ') : labelOf(raw);
+};
 
 export interface PortalDocument {
   id: string;

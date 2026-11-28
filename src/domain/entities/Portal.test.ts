@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fillPortalWelcome, orderPortalRecords, portalWelcomeValues } from './Portal';
-import type { PortalRecord } from './Portal';
+import { fillPortalWelcome, orderPortalRecords, portalRecordDisplayTitle, portalWelcomeValues } from './Portal';
+import type { PortalRecord, PortalScreenInfo } from './Portal';
 
 const base = { accountName: '', email: 'ana@exemplo.com', office: 'Souza Advogados' };
 
@@ -53,5 +53,27 @@ describe('orderPortalRecords', () => {
 
   it('`updatedAt` é o carimbo da projeção', () => {
     expect(ids(orderPortalRecords(records, [{ path: 'updatedAt', dir: 'asc' }]))).toEqual(['a', 'c', 'b']);
+  });
+});
+
+describe('portalRecordDisplayTitle (#55)', () => {
+  const screen = {
+    titleFieldKey: 'status',
+    fields: [{ key: 'status', label: 'Status', type: 'select', options: [{ key: 'in_review', label: 'Em análise' }, { key: 'done', label: 'Concluída' }] }],
+  } as unknown as PortalScreenInfo;
+
+  it('título por `select`: o rótulo da opção, e os rótulos de uma lista múltipla', () => {
+    expect(portalRecordDisplayTitle(screen, { title: 'in_review', data: { status: 'in_review' } })).toBe('Em análise');
+    expect(portalRecordDisplayTitle(screen, { title: '', data: { status: ['in_review', 'done'] } })).toBe('Em análise, Concluída');
+  });
+
+  it('opção que o contexto não conhece fica com a chave; vazio fica com o título projetado', () => {
+    expect(portalRecordDisplayTitle(screen, { title: 'old', data: { status: 'old' } })).toBe('old');
+    expect(portalRecordDisplayTitle(screen, { title: '', data: {} })).toBe('');
+  });
+
+  it('título de texto, ou tela sem o campo de título exposto, é o da projeção', () => {
+    expect(portalRecordDisplayTitle({ fields: screen.fields }, { title: 'in_review', data: { status: 'in_review' } })).toBe('in_review');
+    expect(portalRecordDisplayTitle(null, { title: 'T', data: {} })).toBe('T');
   });
 });

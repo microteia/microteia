@@ -2586,6 +2586,13 @@ rótulo do apontado cujo título é OUTRA referência ficava vazio (um salto só
 que o apontado mostra" abaixo. A lista do portal mostra "Sem título" no lugar do id — que nunca disse
 nada ao convidado.
 
+**Nem a chave crua de uma opção (#55).** O campo de título que é `select` grava a CHAVE da opção
+(`in_review`), e a projeção — que é uma só para todos os idiomas — guarda esse valor. O rótulo é
+resolvido na casca: `getPortalContext` manda o `titleFieldKey` da tela (só quando o campo está entre os
+expostos), e `portalRecordDisplayTitle` (`domain/entities/Portal.ts`) troca a chave pelo rótulo das
+opções que o contexto já entrega no idioma do convidado — as mesmas do resumo do cartão. Vale para o
+cartão, o registro aberto, a busca da aba de filhos e o `title` que uma view de portal recebe.
+
 **Qual tela dá o nome — `referenceTitleScreen`.** A coleção apontada costuma ter duas telas, a da
 extensão e a âncora das rules, e as duas carregam o `titleFieldKey`. Vale a que DECLARA o campo de
 título, porque é ela que sabe se ele é texto ou outra referência; a âncora sozinha também serve.

@@ -39,3 +39,25 @@ describe('o desenho padrão do portal e o campo fora dele (#12)', () => {
     expect(answers.field('code')?.value).toBe('X-9');
   });
 });
+
+describe('o título por campo de lista (#55)', () => {
+  const steps = {
+    ...screen,
+    id: 'steps', collection: 'steps', titleFieldKey: 'status',
+    fields: [
+      { key: 'status', label: 'Status', type: 'select', options: [{ key: 'in_review', label: 'Em análise' }] },
+      { key: 'date', label: 'Date', type: 'date' },
+    ],
+  } as unknown as PortalScreenInfo;
+  const step = {
+    ...record, id: 'steps__1', collection: 'steps', screenId: 'steps', title: 'in_review',
+    data: { status: 'in_review', date: '2026-11-01' },
+  } as unknown as PortalRecord;
+
+  it('o cartão e o registro aberto mostram o RÓTULO da opção, como o resumo', () => {
+    const { result } = renderHook(() => usePortalRecordFormat());
+    expect(result.current.cardOf(steps, step).title).toBe('Em análise');
+    expect(result.current.answersOf(steps, step, 'detail').title).toBe('Em análise');
+    expect(result.current.cardOf(steps, step).summary).toBe('Status: Em análise · Date: 2026-11-01');
+  });
+});

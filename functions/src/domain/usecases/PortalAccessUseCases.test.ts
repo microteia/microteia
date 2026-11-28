@@ -464,6 +464,23 @@ describe('contexto do portal', () => {
     expect(context.screens.find((screen) => screen.id === 'companies')).not.toHaveProperty('titleNew');
   });
 
+  it('o campo de título vai à casca só quando está entre os expostos (#55)', async () => {
+    const screens = CITY_SCREENS.map((one) => {
+      if (one.id === 'invoices') return { ...one, titleFieldKey: 'number' };
+      if (one.id === 'companies') return { ...one, titleFieldKey: 'secretField' };
+      return one;
+    });
+    const fake = makeFakePortalRepository(screens);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+
+    const context = await makeGetPortalContextUseCase(fake.repo).execute({
+      tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR', resolve: (value) => value,
+    });
+
+    expect(context.screens.find((screen) => screen.id === 'invoices')?.titleFieldKey).toBe('number');
+    expect(context.screens.find((screen) => screen.id === 'companies')).not.toHaveProperty('titleFieldKey');
+  });
+
   it('entrega só as views de extensão de coleções expostas', async () => {
     const fake = makeFakePortalRepository(CITY_SCREENS);
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });

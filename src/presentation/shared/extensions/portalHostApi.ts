@@ -4,7 +4,7 @@ import { usePortal } from '../../../stores/usePortal';
 import { useNotification, type NotificationVariant } from '../../../stores/useNotification';
 import { PortalNavigationContext, usePortalNavigation as useNavigationStore } from '../../../stores/usePortalNavigation';
 import { portalRecordDocId, portalSubjectKey } from '../../../domain/schema/portal';
-import { canEditPortalRecord, type PortalDocument, type PortalRecord, type PortalScreenInfo } from '../../../domain/entities/Portal';
+import { canEditPortalRecord, portalRecordDisplayTitle, type PortalDocument, type PortalRecord, type PortalScreenInfo } from '../../../domain/entities/Portal';
 import { usePortalShellViewModel } from '../../pages/Portal/components/PortalShell/PortalShell.viewmodel';
 import { PortalBrand } from '../../pages/Portal/components/PortalBrand';
 import { PortalUserMenu } from '../../pages/Portal/components/PortalUserMenu';
@@ -27,7 +27,7 @@ export interface PortalViewRecord {
 const toViewRecord = (record: PortalRecord, screen: PortalScreenInfo | null, userId: string | null): PortalViewRecord => ({
   collection: record.collection,
   recordId: record.recordId,
-  title: record.title,
+  title: portalRecordDisplayTitle(screen, record),
   data: record.data,
   labels: record.labels,
   updatedAt: record.updatedAt,

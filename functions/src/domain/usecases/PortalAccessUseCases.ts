@@ -668,6 +668,11 @@ export interface PortalContextScreen {
    * formulário a usam como o escritório usa. Ausente, vale "Novo: <singular>".
    */
   titleNew?: string;
+  /**
+   * O campo de título, só quando ele está entre os expostos (#55): a projeção guarda o VALOR dele, e de
+   * um `select` o valor é a chave da opção — a casca o troca pelo rótulo, no idioma do convidado.
+   */
+  titleFieldKey?: string;
   icon: string;
   documents: boolean;
   /** A casca avisa o servidor quando o convidado abre um registro desta tela (`portal.trackViews`). */
@@ -1020,6 +1025,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
           titleSingular: resolve(screen.titleSingular),
           titlePlural: resolve(screen.titlePlural),
           ...(screen.titleNew ? { titleNew: resolve(screen.titleNew) } : {}),
+          ...(screen.titleFieldKey && exposed.has(screen.titleFieldKey) ? { titleFieldKey: screen.titleFieldKey } : {}),
           icon: screen.icon,
           documents: screen.portal?.documents === true,
           trackViews: portalTracksViews(screen),

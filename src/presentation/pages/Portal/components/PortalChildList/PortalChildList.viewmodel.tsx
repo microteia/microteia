@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePortal } from '../../../../../stores/usePortal';
 import { useT } from '../../../../shared/i18n/useT';
-import { orderPortalRecords } from '../../../../../domain/entities/Portal';
+import { orderPortalRecords, portalRecordDisplayTitle } from '../../../../../domain/entities/Portal';
 import type { PortalRecord } from '../../../../../domain/entities/Portal';
 import type { FilterDef, FilterToken } from '../../../../components/ui/CompositeFilter';
 import type { PortalChildSection, PortalRecordCard } from '../../Portal.viewmodel';
@@ -89,7 +89,7 @@ export const usePortalChildListViewModel = ({ child, onOpen, onCreate }: PortalC
     const picks = tokens.filter((token) => token.key !== SEARCH && token.values.length > 0);
     return records.filter((record) => {
       if (search) {
-        const text = [record.title, ...child.screen.fields.map((field) => formatValue(field, record).value)]
+        const text = [portalRecordDisplayTitle(child.screen, record), ...child.screen.fields.map((field) => formatValue(field, record).value)]
           .join(' ')
           .toLowerCase();
         if (!text.includes(search)) return false;

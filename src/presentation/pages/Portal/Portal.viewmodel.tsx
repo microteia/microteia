@@ -4,7 +4,7 @@ import { useAuth } from '../../../stores/useAuth';
 import { usePortal } from '../../../stores/usePortal';
 import { usePortalNavigation } from '../../../stores/usePortalNavigation';
 import { useLocaleFormat, useT } from '../../shared/i18n/useT';
-import { canEditPortalRecord, fillPortalWelcome, orderPortalRecords, portalWelcomeValues, type PortalDocument, type PortalScreenInfo } from '../../../domain/entities/Portal';
+import { canEditPortalRecord, fillPortalWelcome, orderPortalRecords, portalRecordDisplayTitle, portalWelcomeValues, type PortalDocument, type PortalScreenInfo } from '../../../domain/entities/Portal';
 import { portalSubjectKey } from '../../../domain/schema/portal';
 import { portalTemplatePlaces } from '../../../domain/schema/ui/portalTemplate';
 import { portalTenantPath } from './portalPaths';
@@ -329,7 +329,7 @@ export const usePortalViewModel = (): PortalViewModel => {
     const editLabel = canEditPortalRecord(topScreen, topRecord, portal.userId) ? t('portal.edit.open') : null;
     const detailBody = topScreen.template?.detail?.body;
     return {
-      title: topRecord.title || t('portal.record.untitled'),
+      title: portalRecordDisplayTitle(topScreen, topRecord) || t('portal.record.untitled'),
       fields: topScreen.fields.map((field) => formatValue(field, topRecord)).filter((field) => field.value !== ''),
       hasDocuments: topScreen.documents,
       documents: documents.map((document) => ({
