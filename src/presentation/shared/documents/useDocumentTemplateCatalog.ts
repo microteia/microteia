@@ -64,6 +64,8 @@ export const specOf = (template: DocumentTemplateSpec): DocumentTemplateSpec => 
   collection: template.collection,
   ...(template.screenSourceId ? { screenSourceId: template.screenSourceId } : {}),
   format: template.format,
+  ...(template.encoding ? { encoding: template.encoding } : {}),
+  ...(template.lineEnding ? { lineEnding: template.lineEnding } : {}),
   ...(template.body !== undefined ? { body: template.body } : {}),
   ...(template.content !== undefined ? { content: template.content } : {}),
   ...(template.outputs ? { outputs: template.outputs } : {}),

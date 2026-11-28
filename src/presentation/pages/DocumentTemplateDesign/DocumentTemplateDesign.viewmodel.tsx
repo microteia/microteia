@@ -182,7 +182,7 @@ type TemplateSettingsTab = Exclude<TemplateDesignTab, 'content'>;
 /** Os campos que cada aba de configuração desenha. O que não está em nenhuma é da aba de conteúdo. */
 const TAB_FIELDS: Record<TemplateSettingsTab, readonly string[]> = {
   general: ['title', 'key', 'source', 'collection', 'format'],
-  output: ['fileName', 'documentType', 'destination', 'retentionDays'],
+  output: ['encoding', 'lineEnding', 'fileName', 'documentType', 'destination', 'retentionDays'],
   data: ['datasets', 'parameters', 'sample'],
 };
 
