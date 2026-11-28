@@ -148,8 +148,10 @@ export interface UpsertOptions {
   enforceRequired?: boolean;
   /**
    * Na CRIAÇÃO, o campo que o pedido não traz nasce com o `defaultValue` declarado, como no formulário
-   * (`seedFieldDefaults`). Fora disto o `upsert` grava só o que recebeu — de propósito: a automação que
-   * sempre gravou sem o padrão não passa a gravá-lo. Alterar não semeia nada.
+   * (`seedFieldDefaults`). Pedem o portal, a semente de extensão, o `create_record` do agente e a
+   * importação — quem cria em nome de uma pessoa. Fora disto o `upsert` grava só o que recebeu — de
+   * propósito: a automação e o Script que sempre gravaram sem o padrão não passam a gravá-lo. Alterar
+   * não semeia nada.
    */
   seedDefaults?: boolean;
   /**

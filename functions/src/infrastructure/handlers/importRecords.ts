@@ -52,6 +52,9 @@ const importUpsertFor = async (tenantId: string, actor: RecordImportActor): Prom
       matchPrimaryKey: true,
       requireCollectionPermission: true,
       enforceRequired: true,
+      // A linha nova nasce como no formulário — a coluna que a planilha não traz recebe o padrão
+      // declarado (#51). A linha que casa com um registro existente não é semeada: alterar não semeia.
+      seedDefaults: true,
       dryRun,
       ...(parent ? { lockedTo: parent } : {}),
     });

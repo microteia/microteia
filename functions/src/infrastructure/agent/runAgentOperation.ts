@@ -337,10 +337,14 @@ export const runAgentOperation = async (
       if (isUpdate && id === '') return refuse(catalog, '@core.records/record.not-found');
 
       const { context } = await agentRun(session, tool.name);
+      // O agente cria em nome de uma pessoa, como o formulário: o campo que ele não manda nasce com o
+      // `defaultValue` declarado. Sem isso o registro do agente ficava sem o valor que o do formulário
+      // tem, e toda regra que lê `active == true` o tratava como falso (#51).
       const outcome = await runWorkflowUpsert(
         { table: asText(input.collection), ...(id === '' ? {} : { id }), data: asRecord(input.data) },
         context,
         mutationDeps(),
+        { seedDefaults: true },
       );
       return outcome.ok
         ? { ok: true, value: { id: outcome.value.id, created: outcome.value.created, record: outcome.value.record } }
