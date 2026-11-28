@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ENTITY_REGISTRY, ENTITY_REGISTRY_LIST, getEntityByCollection, getEntityDisplayName } from './entityRegistry';
+import { ENTITY_REGISTRY, ENTITY_REGISTRY_LIST, getEntityByCollection, getEntityDisplayName, withEntityDisplayName } from './entityRegistry';
 import { LOOKUP_REGISTRY } from './lookupRegistry';
 import {
   ENTITY_FK_SCHEMA,
@@ -101,5 +101,25 @@ describe('helpers do registry', () => {
     expect(getEntityDisplayName(members, { email: 'ana@escritorio.com' })).toBe('ana@escritorio.com');
     expect(getEntityDisplayName(members, { name: 'Ana', email: 'ana@escritorio.com' })).toBe('Ana');
     expect(getEntityDisplayName(members, {})).toBeUndefined();
+  });
+});
+
+describe('withEntityDisplayName (#54)', () => {
+  it('membro sem `name` ganha o nome pela regra declarada, sem perder o resto', () => {
+    expect(withEntityDisplayName('members', { email: 'ana@example.com', roleIds: ['r1'] }))
+      .toEqual({ email: 'ana@example.com', roleIds: ['r1'], name: 'ana@example.com' });
+    expect(withEntityDisplayName('members', { name: '  ', displayName: 'Bia', email: 'b@example.com' }).name).toBe('Bia');
+  });
+
+  it('o nome preenchido é mantido, e o mesmo objeto volta', () => {
+    const data = { name: 'Caio', displayName: 'C. Lima' };
+    expect(withEntityDisplayName('members', data)).toBe(data);
+  });
+
+  it('entidade sem segunda opção de nome, ou coleção que não é do kernel, passa intacta', () => {
+    const tenant = { email: 'office@example.com' };
+    expect(withEntityDisplayName('tenant', tenant)).toBe(tenant);
+    const record = { titulo: '' };
+    expect(withEntityDisplayName('chamados', record)).toBe(record);
   });
 });

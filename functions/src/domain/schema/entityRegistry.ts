@@ -236,3 +236,25 @@ export const getEntityDisplayName = (
   }
   return undefined;
 };
+
+/**
+ * O registro apontado com o PRIMEIRO campo de nome preenchido pela regra da entidade (#54).
+ *
+ * O membro convidado por e-mail não tem `name` — o kernel grava `displayName` e `email` —, e quem lê
+ * `responsavel.name` num relatório ou num documento recebia vazio: um grupo "(vazio)" juntando todos
+ * os membros sem nome, enquanto o campo de referência do formulário mostrava o e-mail de cada um. A
+ * regra de nome é a declarada (`displayNameFields`), a mesma do formulário; o campo só é preenchido
+ * quando vem vazio, e nada é gravado.
+ */
+export const withEntityDisplayName = (
+  collection: string,
+  data: Record<string, unknown>,
+): Record<string, unknown> => {
+  const entity = getEntityByCollection(collection);
+  const [first, ...rest] = entity?.displayNameFields ?? [];
+  if (!entity || !first || rest.length === 0) return data;
+  const own = data[first];
+  if (typeof own === 'string' && own.trim()) return data;
+  const name = getEntityDisplayName(entity, data);
+  return name ? { ...data, [first]: name } : data;
+};

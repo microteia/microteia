@@ -8685,6 +8685,12 @@ da execução e **apenas para os caminhos que a automação realmente referencia
    arrays (cap de 50 itens), navegáveis de duas formas: por índice, que fixa um item
    (`event.activePole.0.name`), ou pelo NOME do campo, que atravessa todos eles e colhe um valor
    por apontado (`event.activePole.name` → `['Maria', 'João']`); `old.*` também é hidratado.
+5. **O registro de uma entidade do KERNEL chega com nome (#54).** Antes de entrar no cache, o registro
+   apontado passa por `withEntityDisplayName` (`entityRegistry.ts`): o primeiro campo de
+   `displayNameFields` vazio é preenchido pelos seguintes — para `members`, `name` → `displayName` →
+   `email`, a mesma regra do campo de referência do formulário. O membro convidado por e-mail não tem
+   `name`, e `responsavel.name` vinha vazio: num relatório, todos os membros sem nome no MESMO grupo.
+   Vale aqui e em `hydrateRecords` (consulta, relatório, documento), e nada é gravado.
 
 #### Referência lida sozinha é o id
 

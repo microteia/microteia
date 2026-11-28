@@ -5,6 +5,7 @@ import type { IScreenDefinitionProvider } from '../repositories/IScreenDefinitio
 import { createSchemaContext, joinSegments, parsePath, stripEventPrefix } from '../schema/pathResolver';
 import type { PathRoot, ResolveOptions } from '../schema/pathResolver';
 import { buildHydrationPlan } from '../schema/hydrationPlan';
+import { withEntityDisplayName } from '../schema/entityRegistry';
 import { collectHopRecordRefs, materializeHops, recordKey } from '../schema/materialize';
 import { eventNameToRoot } from '../schema/eventCatalog';
 import { extractExpressionPaths } from '../schema/expressionPaths';
@@ -129,7 +130,9 @@ export class WorkflowContextHydrator {
       }
       for (const [collection, ids] of idsByCollection) {
         const fetched = await this.fetcher.fetchByIds(event.tenantId, collection, ids);
-        fetched.forEach((data, id) => cache.set(recordKey(collection, id), data));
+        // O membro apontado com nome, como a consulta o entrega (#54): `event.responsavel.name` e
+        // `responsavel.name` no relatório não podem responder coisas diferentes.
+        fetched.forEach((data, id) => cache.set(recordKey(collection, id), data && withEntityDisplayName(collection, data)));
       }
 
       hydratedPayload = materializeHops(hydratedPayload, hops, cache);

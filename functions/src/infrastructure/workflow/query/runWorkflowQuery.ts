@@ -6,6 +6,7 @@ import { resolveMapping } from '../../../domain/engine/InputMapping';
 import { getValueAtPath, parsePath, resolvePath } from '../../../domain/schema/pathResolver';
 import type { PathResolution, PathRoot, SchemaContext } from '../../../domain/schema/pathResolver';
 import { buildHydrationPlan } from '../../../domain/schema/hydrationPlan';
+import { withEntityDisplayName } from '../../../domain/schema/entityRegistry';
 import { collectHopRecordRefs, materializeHops, recordKey } from '../../../domain/schema/materialize';
 import type { QueryOrderBy, QueryPredicate, QuerySpec } from '../../../domain/schema/querySpec';
 import { QUERY_MAX_RESULTS, QUERY_MAX_SCAN, resolveQueryTable, validateQuerySpec } from '../../../domain/schema/querySpec';
@@ -250,7 +251,7 @@ export const hydrateRecords = async (
     }
     for (const [collection, ids] of idsByCollection) {
       const fetched = await fetcher.fetchByIds(tenantId, collection, [...ids]);
-      fetched.forEach((data, id) => cache.set(recordKey(collection, id), data));
+      fetched.forEach((data, id) => cache.set(recordKey(collection, id), data && withEntityDisplayName(collection, data)));
     }
 
     records = records.map((record) => materializeHops(record, hops, cache));
