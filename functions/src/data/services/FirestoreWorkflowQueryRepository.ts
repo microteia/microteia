@@ -9,6 +9,9 @@ import type {
   WorkflowQueryRow,
 } from '../../domain/repositories/IWorkflowQueryRepository';
 import { normalizeFirestoreValue } from '../../domain/services/normalizeFirestoreValue';
+import { settleDecimal } from '../../domain/schema/decimalPrecision';
+
+const settleNullable = (value: number | null): number | null => (value === null ? null : settleDecimal(value));
 
 const toFieldPath = (path: string): string | FieldPath => {
   const segments = path.split('.').filter(Boolean);
@@ -70,7 +73,9 @@ export class FirestoreWorkflowQueryRepository implements IWorkflowQueryRepositor
       count,
       values: Object.fromEntries(measures.map((measure, index) => [
         measure.key,
-        measure.op === 'count' ? count : (data[`m${index}`] ?? null),
+        // O Firestore soma em binário, como o `reduce` fazia: o total do relatório assenta no decimal
+        // pela mesma regra do total calculado em memória (#48), ou os dois caminhos discordariam.
+        measure.op === 'count' ? count : settleNullable(data[`m${index}`] ?? null),
       ])),
     };
   }

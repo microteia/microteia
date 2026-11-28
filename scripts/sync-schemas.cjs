@@ -24,6 +24,7 @@ const SHARED_FILES = [
   'domain/schema/fieldRulePresets.ts',
   'domain/schema/lookupProviderSpec.ts',
   'domain/schema/clockGate.ts',
+  'domain/schema/decimalPrecision.ts',
   'domain/schema/time/businessDays.ts',
   'domain/schema/time/businessDaysGate.ts',
   'domain/schema/time/extensionPoints.ts',

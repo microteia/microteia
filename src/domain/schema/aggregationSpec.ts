@@ -3,6 +3,7 @@
 // GERADA por scripts/sync-schemas.cjs (npm run sync-schemas). Nunca edite a cópia.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import { settleDecimal, sumDecimal } from './decimalPrecision';
 import type { FieldDefinition } from '../entities/entitySchemas';
 import { evaluateFieldBoolean } from './fieldExpression';
 import type { AggregationOp, FieldAggregation, NumericAggregationOp } from './fieldRules';
@@ -143,9 +144,9 @@ export const applyAggregationOp = (op: NumericAggregationOp, values: unknown[]):
 
   switch (op) {
     case 'sum':
-      return numbers.reduce((total, value) => total + value, 0);
+      return sumDecimal(numbers);
     case 'avg':
-      return numbers.reduce((total, value) => total + value, 0) / numbers.length;
+      return settleDecimal(sumDecimal(numbers) / numbers.length);
     case 'min':
       return Math.min(...numbers);
     case 'max':

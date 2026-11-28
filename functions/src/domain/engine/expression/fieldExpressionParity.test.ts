@@ -180,3 +180,26 @@ describe('as diferenças declaradas entre a tela e a automação', () => {
     expect(naTela('formatMoney(1234.5, "en-US")')).toContain('1,234.50');
   });
 });
+
+/** #48: a conta com dinheiro assenta no decimal nas DUAS pontas, com a mesma resposta. */
+describe('a conta decimal é a mesma na tela e na automação (#48)', () => {
+  const naAutomacao = (expression: string): unknown =>
+    expressionEngine.evaluate(expression, { event: { payload: {} }, input: {}, outputs: {}, variables: {} } as unknown as WorkflowContext);
+  const naTela = (expression: string): unknown =>
+    evaluateFieldExpression(expression, { value: null, data: {} });
+
+  it.each([
+    ['0.1 + 0.2', 0.3],
+    ['0.1 + 0.2 == 0.3', true],
+    ['19.99 * 3', 59.97],
+    ['1 - 0.9', 0.1],
+    ['round(1.005, 2)', 1.01],
+    ['round(-2.5)', -3],
+    ['sum([0.1, 0.2, 0.3])', 0.6],
+    ['avg([0.1, 0.2])', 0.15],
+    ['0.654 * 3', 1.962],
+  ])('%s', (expression, expected) => {
+    expect(naTela(expression)).toBe(expected);
+    expect(naAutomacao(expression)).toBe(expected);
+  });
+});

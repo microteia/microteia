@@ -1,5 +1,6 @@
 import type { Expression, Parser } from 'expr-eval';
 import { readAsStored } from './storedReference';
+import { settleIfNumber } from './decimalPrecision';
 
 /**
  * As três garantias de avaliação que a linguagem promete e o `expr-eval` cru não dá — num lugar só,
@@ -49,6 +50,20 @@ const readMember = (target: unknown, key: unknown): unknown =>
 
 type BinaryOperator = (left: unknown, right: unknown) => unknown;
 
+/**
+ * Os operadores cujo resultado é ASSENTADO no decimal (#48): `0.1 + 0.2 == 0.3` é verdadeiro nas duas
+ * pontas, e `totalDebit == totalCredit` não depende de quem lembrou de `round`. Mora aqui, e não em
+ * cada motor, pela mesma razão das outras garantias: a tela e o Workflow avaliam a mesma linguagem.
+ */
+const DECIMAL_OPERATORS = ['+', '-', '*', '/', '%', '^'];
+
+/**
+ * As comparações assentam os OPERANDOS: o valor pode chegar com o resíduo já gravado — um total salvo
+ * antes da #48, um número que um Script calculou —, e `0.30000000000000004 == 0.3` tem de ser verdade
+ * mesmo sem conta nenhuma na expressão.
+ */
+const COMPARISON_OPERATORS = ['==', '!=', '<', '<=', '>', '>='];
+
 export const installSafeMemberOperator = (parser: Parser): void => {
   const { binaryOps: operators, unaryOps } = parser as unknown as {
     binaryOps: Record<string, BinaryOperator>;
@@ -60,6 +75,14 @@ export const installSafeMemberOperator = (parser: Parser): void => {
   operators[SAFE_MEMBER_OPERATOR] = readMember;
   operators[STORED_MEMBER_OPERATOR] = (target, key) => readAsStored(readMember(target, key));
   if (readIndex) operators[STORED_INDEX_OPERATOR] = (target, index) => readAsStored(readIndex(target, index));
+  for (const symbol of DECIMAL_OPERATORS) {
+    const operate = operators[symbol];
+    if (operate) operators[symbol] = (left, right) => settleIfNumber(operate(left, right));
+  }
+  for (const symbol of COMPARISON_OPERATORS) {
+    const compare = operators[symbol];
+    if (compare) operators[symbol] = (left, right) => compare(settleIfNumber(left), settleIfNumber(right));
+  }
 };
 
 const NAVIGATING_READ: Record<string, ExprToken> = {

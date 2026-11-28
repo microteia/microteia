@@ -1,6 +1,7 @@
 import type { ExpressionFunction } from '../FunctionRegistry';
 
 import { LocalizedError } from '../../../errors/LocalizedError';
+import { roundDecimal, settleDecimal } from '../../../schema/decimalPrecision';
 /**
  * `floor`, `ceil` e `abs` NÃO moram aqui: são operadores unários do `expr-eval` e o parser os resolve
  * antes de consultar as funções registradas — as implementações daqui nunca eram chamadas. Continuam
@@ -21,8 +22,7 @@ export const roundFn: ExpressionFunction = {
     if (typeof decimals !== 'number') {
       throw new LocalizedError('@core.automation/expr.arg.second.number', { fn: 'round' });
     }
-    const multiplier = Math.pow(10, decimals);
-    return Math.round(value * multiplier) / multiplier;
+    return roundDecimal(value, decimals);
   },
   description: '@core.automation/expr.round.description',
   signature: 'round(number, decimalPlaces?)',
@@ -84,7 +84,7 @@ export const sumFn: ExpressionFunction = {
       if (typeof value !== 'number') {
         throw new LocalizedError('@core.automation/expr.arg.all-items.numbers', { fn: 'sum' });
       }
-      return acc + value;
+      return settleDecimal(acc + value);
     }, 0);
   },
   description: '@core.automation/expr.sum.description',
@@ -108,9 +108,9 @@ export const avgFn: ExpressionFunction = {
       if (typeof value !== 'number') {
         throw new LocalizedError('@core.automation/expr.arg.all-items.numbers', { fn: 'avg' });
       }
-      return acc + value;
+      return settleDecimal(acc + value);
     }, 0);
-    return sum / array.length;
+    return settleDecimal(sum / array.length);
   },
   description: '@core.automation/expr.avg.description',
   signature: 'avg(array)',

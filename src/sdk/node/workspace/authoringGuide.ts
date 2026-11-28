@@ -1,3 +1,4 @@
+import { DECIMAL_SIGNIFICANT_DIGITS } from '../../../domain/schema/decimalPrecision';
 import { FIELD_SURFACES, FIELD_VISIBLE_IN_SINCE_KERNEL } from '../../../domain/schema/fieldVisibility';
 import { WORKFLOW_PARALLEL_SINCE_KERNEL } from '../../../domain/schema/workflowParallel';
 import { MAX_SOURCE_TEXT_CHARACTERS, PARAMETER_FILL_FROM_SINCE_KERNEL } from '../../../domain/schema/invocationSource';
@@ -3034,6 +3035,14 @@ logical negation. On top of them:
 | Check digits | \`mod97(text)\` — the ISO 7064 mod 97-10 remainder, computed over the text so a 20-digit number keeps every digit; letters A–Z count 10–35, anything else (or empty) is \`null\`. Move the check digits to the end first: \`mod97(concat(substring(d, 0, 7), substring(d, 9, 20), substring(d, 7, 9))) == 1\` checks a CNJ number, \`98 - mod97(base + "00")\` computes them |
 | Objects | \`object(k, v, ...)\`, \`delete(key, target)\` |
 | Access | \`hasPermission(pattern)\` |
+
+Numbers compute as decimals, on a screen and in a workflow alike: the result of \`+ - * / % ^\`, of
+\`sum\`/\`avg\` and of an aggregated field is settled to ${DECIMAL_SIGNIFICANT_DIGITS} significant digits, so
+\`0.1 + 0.2 == 0.3\` is true and \`totalDebit == totalCredit\` holds for amounts equal to the cent — no
+\`round\` needed. Comparisons settle their operands too, so a total stored with a binary residue still
+compares equal. Nothing is rounded to cents: \`0.654\` stays \`0.654\`. \`round(v, decimals)\` rounds the written
+decimal half away from zero — \`round(1.005, 2)\` is \`1.01\`, \`round(-2.5)\` is \`-3\`. A Script is plain
+JavaScript and keeps binary arithmetic: compute money there in integer cents.
 
 An empty value never makes an expression fail, on a screen or in a workflow: a member of \`null\` is
 \`null\`, so \`isEmpty(output.query.first.title)\` over a query that found nothing is \`true\`. A path

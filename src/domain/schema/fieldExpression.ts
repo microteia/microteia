@@ -32,6 +32,7 @@ import { matchesPermission } from './access/permissionPattern';
 import { currencyForLocale, formatMoneyFor } from './i18n/localeFormat';
 import { NOT_OPERATOR } from './expressionSyntax';
 import { installSafeMemberOperator, withSafeEvaluation } from './expressionEvaluation';
+import { roundDecimal, settleDecimal, sumDecimal } from './decimalPrecision';
 import {
   addBusinessDays,
   businessDaysBetween,
@@ -319,13 +320,12 @@ const FIELD_EXPRESSION_FUNCTIONS: Record<string, (...args: unknown[]) => unknown
     const amount = asNumber(value);
     if (!Number.isFinite(amount)) return null;
     const places = decimals === undefined ? 0 : asNumber(decimals);
-    const multiplier = Math.pow(10, Number.isFinite(places) ? places : 0);
-    return Math.round(amount * multiplier) / multiplier;
+    return roundDecimal(amount, Number.isFinite(places) ? places : 0);
   },
-  sum: (array) => numbersOf(array).reduce((total, item) => total + item, 0),
+  sum: (array) => sumDecimal(numbersOf(array)),
   avg: (array) => {
     const numbers = numbersOf(array);
-    return numbers.length === 0 ? 0 : numbers.reduce((total, item) => total + item, 0) / numbers.length;
+    return numbers.length === 0 ? 0 : settleDecimal(sumDecimal(numbers) / numbers.length);
   },
   first: (array) => (Array.isArray(array) && array.length > 0 ? array[0] : null),
   last: (array) => (Array.isArray(array) && array.length > 0 ? array[array.length - 1] : null),
