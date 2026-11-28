@@ -20,6 +20,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.304.1] — 2026-11-28
+
+- fix(documents): the template designer keeps the encoding and line ending of a text template, instead of showing UTF-8/LF and erasing them on save (#47)
+
 #### [9.304.0] — 2026-11-28
 
 - feat(screens): a screen declares the title of a new record as a whole phrase, so languages with grammatical gender read right (#45)
