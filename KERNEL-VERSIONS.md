@@ -20,6 +20,10 @@
 - fix(scope): what was broken, and what it did to whoever hit it.
 -->
 
+#### [9.305.0] — 2026-11-28
+
+- feat(documents): a fixed-layout text template reads its child lists in full, in pages, up to 10,000 records, and refuses the file instead of cutting it (#47)
+
 #### [9.304.1] — 2026-11-28
 
 - fix(documents): the template designer keeps the encoding and line ending of a text template, instead of showing UTF-8/LF and erasing them on save (#47)
