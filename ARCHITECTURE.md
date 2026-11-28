@@ -742,6 +742,12 @@ só alcança a instância em que eles rodam. Por isso `issueAgentGrant` usa
 `PermissionCatalogCache.fresh()` — a emissão é rara, e recusar a tela criada há um minuto é pior que
 três leituras a mais.
 
+A CHAMADA do agente, que acontece a cada ferramenta, não pode pagar o catálogo inteiro — e por isso o
+cache confere o carimbo de revisão das telas a cada 5 s (#58, mesmo `RevisionedTenantCache` do
+`ScreenDefinitionCache`, ver "Publicação automática de eventos"). Antes dele, o teto de um acesso
+`collectionActions` só ganhava o `<coleção>.create` de uma tela nova quando a cópia vencia: o agente
+recusava por até cinco minutos a coleção que o escritório acabara de criar.
+
 ### Não confundir com `manifest.permissions`
 
 `manifest.permissions` (`data:cases:read`, `workflow:run`) continua existindo e é **outro eixo**: é o
@@ -8710,13 +8716,15 @@ As `ScreenDefinition`s do tenant vêm do `ScreenDefinitionCache` (`functions/src
 cache em memória da instância com TTL de 5 min, conferido contra um **carimbo de revisão** (#58).
 Toda gravação em `screenDefinitions` — do Form Design, do pacote, do MCP ou do Console — dispara
 `stampSchemaRevisionOnScreenChange`, que soma 1 em `tenants/{id}/settings/schema_revision`. A cada
-`SCREEN_CACHE_REVALIDATE_MS` (5 s) a instância lê esse documento — uma leitura — e só relê a
+`SCHEMA_REVISION_CHECK_MS` (5 s) a instância lê esse documento — uma leitura — e só relê a
 declaração inteira quando o número mudou. Sem isso, a instância quente agia até cinco minutos sobre a
 tela de antes: o filho gravado logo depois de a tela ganhar um agregado não recalculava o pai (e o
 backfill, que roda na gravação da tela, não o cobria, porque o pai ainda não existia), e o agente
 recusava a coleção recém-criada. O carimbo é lido ANTES das telas, nunca em paralelo, para que uma
 cópia velha nunca fique marcada com o número novo. O TTL continua sendo o teto para o que não move o
-carimbo: as listas (`lookupDefinitions`) e os presets das extensões ligadas. Caminho que não resolve no schema gera `WARN`
+carimbo: as listas (`lookupDefinitions`) e os presets das extensões ligadas. A conferência mora em
+`RevisionedTenantCache` (`schemaRevision.ts`), e o `PermissionCatalogCache` a usa também — o catálogo
+de permissões deriva das mesmas telas. Caminho que não resolve no schema gera `WARN`
 no log (fim da falha silenciosa); documento inexistente materializa `{ id }`. O log da execução
 registra a `SCHEMA_VERSION` usada na hidratação. Profundidade além do limite é rejeitada no
 plano e também protegida no editor.
@@ -8909,7 +8917,7 @@ Excluir um nó Condição remove seus ramos em cascata. `EditWorkflowStep` edita
 - `functions/src/domain/engine/expression/ExpressionEngine.ts` — motor de avaliação de expressões
 - `functions/src/domain/engine/expression/FunctionRegistry.ts` — registry de funções de expressão
 - `functions/src/data/services/FirestoreWorkflowRecordFetcher.ts` — fetch em lote (`db.getAll`) para a hidratação
-- `functions/src/data/services/ScreenDefinitionCache.ts` — cache de `ScreenDefinition` (TTL + invalidação)
+- `functions/src/data/services/ScreenDefinitionCache.ts` — cache de `ScreenDefinition` (TTL + carimbo de revisão, `schemaRevision.ts`)
 - `functions/src/infrastructure/handlers/onWorkflowEventCreated.ts` — gatilho do motor (Event Bus)
 - `functions/src/infrastructure/handlers/publishWorkflowEventOnEntityChange.ts` — publica os eventos `saved`/`deleted` com payload cru
 - `functions/src/infrastructure/handlers/syncWorkflowStepCatalog.ts` — `onCall` que sincroniza `workflow_step_catalog` sob demanda (chamado pelo builder ao abrir uma automação, já que o catálogo não pode depender de um evento real ter ocorrido)

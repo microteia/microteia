@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import type { Firestore } from 'firebase-admin/firestore';
 import { PermissionCatalogCache } from './PermissionCatalogCache';
 
@@ -9,6 +9,7 @@ const valueAt = (data: Record<string, unknown>, path: string): unknown =>
 
 const fakeDb = (collections: Record<string, Docs>) => {
   const reads: string[] = [];
+  const stamp = { revision: 1 };
   const snapshotOf = (path: string, keep: (data: Record<string, unknown>) => boolean) => async () => {
     reads.push(path);
     const name = path.split('/').pop() as string;
@@ -23,8 +24,9 @@ const fakeDb = (collections: Record<string, Docs>) => {
       get: snapshotOf(path, () => true),
       where: (field: string, _op: string, value: unknown) => ({ get: snapshotOf(path, (data) => valueAt(data, field) === value) }),
     }),
+    doc: () => ({ get: async () => ({ exists: true, get: () => stamp.revision }) }),
   } as unknown as Firestore;
-  return { db, reads };
+  return { db, reads, stamp };
 };
 
 const TELA_COM_LISTA = {
@@ -83,5 +85,34 @@ describe('PermissionCatalogCache', () => {
     await cache.fresh('t1');
 
     expect(reads.length).toBe(lidasComCache * 2);
+  });
+
+  describe('a tela criada em outra instância (#58)', () => {
+    afterEach(() => { vi.useRealTimers(); });
+
+    it('carimbo novo: a permissão da coleção recém-criada entra no catálogo em segundos, não em minutos', async () => {
+      vi.useFakeTimers();
+      const screens: Docs = { ...TELA_COM_LISTA };
+      const { db, stamp } = fakeDb({ screenDefinitions: screens });
+      const cache = new PermissionCatalogCache(db, 300_000, 5_000);
+      expect((await cache.get('t1')).byId.has('lancamentos.create')).toBe(false);
+
+      screens.lancamentos = { origin: 'design', titleSingular: 'Entry', titlePlural: 'Entries', fields: [] };
+      stamp.revision = 2;
+      vi.advanceTimersByTime(6_000);
+
+      expect((await cache.get('t1')).byId.has('lancamentos.create')).toBe(true);
+    });
+
+    it('carimbo igual: mantém o catálogo sem reler as seis fontes', async () => {
+      vi.useFakeTimers();
+      const { db, reads } = fakeDb({ screenDefinitions: TELA_COM_LISTA });
+      const cache = new PermissionCatalogCache(db, 300_000, 5_000);
+      await cache.get('t1');
+      const lidas = reads.length;
+      vi.advanceTimersByTime(6_000);
+      await cache.get('t1');
+      expect(reads.length).toBe(lidas);
+    });
   });
 });

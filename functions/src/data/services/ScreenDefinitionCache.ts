@@ -15,30 +15,13 @@ import {
   DATA_FIELD_RULE_PRESET_POINT,
   fieldRulePresetOf,
 } from '../../domain/schema/dataExtensionPoints';
-import { SCHEMA_REVISION_FIELD, schemaRevisionPath } from './schemaRevision';
+import { RevisionedTenantCache, SCHEMA_CACHE_TTL_MS, SCHEMA_REVISION_CHECK_MS } from './schemaRevision';
 
 interface CacheEntry {
   screens: SchemaScreen[];
   lookups: SchemaLookup[];
   fieldRulePresets: FieldRulePreset[];
-  /** O carimbo lido ANTES das telas; `null` enquanto nenhuma tela foi gravada depois do #58. */
-  revision: number | null;
-  loadedAt: number;
-  checkedAt: number;
 }
-
-/**
- * O teto da cópia em memória. Continua valendo porque nem tudo o que o cache lê move o carimbo: as
- * listas e os presets das extensões ligadas ainda esperam por ele.
- */
-export const SCREEN_CACHE_TTL_MS = 5 * 60_000;
-
-/**
- * De quanto em quanto tempo a instância confere o carimbo (#58). É a janela em que uma tela recém
- * gravada ainda pode passar despercebida — somada à demora do gatilho —, ao preço de uma leitura de
- * documento por escritório nesse intervalo.
- */
-export const SCREEN_CACHE_REVALIDATE_MS = 5_000;
 
 /**
  * As chaves declaradas na tela, como estão gravadas. Só fica a entrada que tem a forma mínima que a
@@ -56,13 +39,15 @@ const recordKeysOf = (value: unknown): RecordKeySpec[] | null => {
 };
 
 export class ScreenDefinitionCache implements IScreenDefinitionProvider {
-  private readonly entries = new Map<string, CacheEntry>();
+  private readonly cache: RevisionedTenantCache<CacheEntry>;
 
   constructor(
     private readonly db: Firestore,
-    private readonly ttlMs = SCREEN_CACHE_TTL_MS,
-    private readonly revalidateMs = SCREEN_CACHE_REVALIDATE_MS,
-  ) {}
+    ttlMs = SCHEMA_CACHE_TTL_MS,
+    checkMs = SCHEMA_REVISION_CHECK_MS,
+  ) {
+    this.cache = new RevisionedTenantCache(db, (tenantId) => this.read(tenantId), ttlMs, checkMs);
+  }
 
   async getScreens(tenantId: string): Promise<SchemaScreen[]> {
     return (await this.load(tenantId)).screens;
@@ -78,21 +63,11 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
     return createSchemaContext(entry.screens, entry.lookups, [], entry.fieldRulePresets);
   }
 
-  private async load(tenantId: string): Promise<CacheEntry> {
-    const cached = this.entries.get(tenantId);
-    const fresh = cached !== undefined && Date.now() - cached.loadedAt < this.ttlMs;
-    if (fresh && Date.now() - cached.checkedAt < this.revalidateMs) return cached;
+  private load(tenantId: string): Promise<CacheEntry> {
+    return this.cache.get(tenantId);
+  }
 
-    // O carimbo vem ANTES das telas, nunca junto: lido em paralelo, ele poderia já trazer o número
-    // novo enquanto a consulta das telas devolvia a versão de antes — e a cópia velha ficaria marcada
-    // como atual. Na ordem, o pior caso é o inverso: uma releitura a mais.
-    const revision = await this.readRevision(tenantId);
-    if (fresh && revision === cached.revision) {
-      const confirmed: CacheEntry = { ...cached, checkedAt: Date.now() };
-      this.entries.set(tenantId, confirmed);
-      return confirmed;
-    }
-
+  private async read(tenantId: string): Promise<CacheEntry> {
     const [snapshot, lookupSnapshot, extensionSnapshot] = await Promise.all([
       this.db.collection(`tenants/${tenantId}/screenDefinitions`).get(),
       this.db.collection(`tenants/${tenantId}/lookupDefinitions`).get(),
@@ -156,16 +131,7 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
         .filter((preset): preset is FieldRulePreset => preset !== undefined);
     });
 
-    const loadedAt = Date.now();
-    const entry: CacheEntry = { screens, lookups, fieldRulePresets, revision, loadedAt, checkedAt: loadedAt };
-    this.entries.set(tenantId, entry);
-    return entry;
-  }
-
-  private async readRevision(tenantId: string): Promise<number | null> {
-    const snapshot = await this.db.doc(schemaRevisionPath(tenantId)).get();
-    const value: unknown = snapshot.exists ? snapshot.get(SCHEMA_REVISION_FIELD) : null;
-    return typeof value === 'number' ? value : null;
+    return { screens, lookups, fieldRulePresets };
   }
 
   async getScreen(tenantId: string, screenKey: string): Promise<SchemaScreen | undefined> {
@@ -174,6 +140,6 @@ export class ScreenDefinitionCache implements IScreenDefinitionProvider {
   }
 
   invalidate(tenantId: string): void {
-    this.entries.delete(tenantId);
+    this.cache.invalidate(tenantId);
   }
 }

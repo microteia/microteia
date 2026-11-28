@@ -23,13 +23,7 @@ import {
   declaredRequirementsOf,
   declaredResourcesOf,
 } from '../../domain/schema/access';
-
-const DEFAULT_TTL_MS = 5 * 60_000;
-
-interface CacheEntry {
-  catalog: PermissionCatalog;
-  loadedAt: number;
-}
+import { RevisionedTenantCache, SCHEMA_CACHE_TTL_MS, SCHEMA_REVISION_CHECK_MS } from './schemaRevision';
 
 const text = (value: unknown): string | undefined =>
   typeof value === 'string' && value !== '' ? value : undefined;
@@ -71,17 +65,23 @@ const qualify = (contributes: unknown, pluginId: string): QualifiedContribution[
  * host só para ler doze declarações estáticas seria custo por simetria.
  */
 export class PermissionCatalogCache {
-  private readonly entries = new Map<string, CacheEntry>();
+  // O catálogo deriva das telas — `<coleção>.create` nasce com a tela —, e por isso confere o mesmo
+  // carimbo (#58): sem ele, o teto do acesso de agente recusava por cinco minutos a coleção nova.
+  private readonly cache: RevisionedTenantCache<PermissionCatalog>;
 
   constructor(
     private readonly db: Firestore,
-    private readonly ttlMs = DEFAULT_TTL_MS,
-  ) {}
+    ttlMs = SCHEMA_CACHE_TTL_MS,
+    checkMs = SCHEMA_REVISION_CHECK_MS,
+  ) {
+    this.cache = new RevisionedTenantCache(db, (tenantId) => this.read(tenantId), ttlMs, checkMs);
+  }
 
-  async get(tenantId: string): Promise<PermissionCatalog> {
-    const cached = this.entries.get(tenantId);
-    if (cached && Date.now() - cached.loadedAt < this.ttlMs) return cached.catalog;
+  get(tenantId: string): Promise<PermissionCatalog> {
+    return this.cache.get(tenantId);
+  }
 
+  private async read(tenantId: string): Promise<PermissionCatalog> {
     const [screenSnapshot, lookupSnapshot, tagSnapshot, extensionSnapshot, workflowSnapshot, reportSnapshot] = await Promise.all([
       this.db.collection(`tenants/${tenantId}/screenDefinitions`).get(),
       this.db.collection(`tenants/${tenantId}/lookupDefinitions`).get(),
@@ -147,7 +147,6 @@ export class PermissionCatalogCache {
       ),
     );
 
-    this.entries.set(tenantId, { catalog, loadedAt: Date.now() });
     return catalog;
   }
 
@@ -162,6 +161,6 @@ export class PermissionCatalogCache {
   }
 
   invalidate(tenantId: string): void {
-    this.entries.delete(tenantId);
+    this.cache.invalidate(tenantId);
   }
 }
