@@ -14,6 +14,8 @@ export type { PortalReprojectionState };
 export interface PortalScreen extends PortalScreenLike {
   titleSingular: string;
   titlePlural: string;
+  /** O título do registro novo como frase inteira (`titleNew`, #45), quando a tela o declara. */
+  titleNew?: string | null;
   icon: string;
   fields: Array<{
     key: string;

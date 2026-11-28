@@ -31,6 +31,8 @@ export interface PortalCreateFormProps {
 
 export interface PortalCreateFormViewModel {
   isEditing: boolean;
+  /** O cabeçalho: a frase declarada do registro novo (`titleNew`), ou "Novo: <singular>". */
+  title: string;
   fields: PortalFieldInfo[];
   values: Record<string, unknown>;
   setValue: (key: string, value: unknown) => void;
@@ -237,8 +239,13 @@ export const usePortalCreateFormViewModel = ({ screen, fixedLinkRecordId, editin
     }
   }, [editing, linkRecordId, missingRequired, values, fields, candidateOf, tRecords, updateRecord, submitRecord, screen.collection, onSubmitted]);
 
+  const title = isEditing
+    ? t('portal.edit.title', { screen: screen.titleSingular })
+    : screen.titleNew ?? t('portal.create.title', { screen: screen.titleSingular });
+
   return {
     isEditing,
+    title,
     fields,
     values,
     setValue,

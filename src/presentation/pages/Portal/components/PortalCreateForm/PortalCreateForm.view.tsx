@@ -88,11 +88,7 @@ export const PortalCreateForm: React.FC<PortalCreateFormProps> = (props) => {
 
   return (
     <S.Form onSubmit={(event) => { event.preventDefault(); void vm.submit(); }}>
-      <S.Title>
-        {vm.isEditing
-          ? t('portal.edit.title', { screen: props.screen.titleSingular })
-          : t('portal.create.title', { screen: props.screen.titleSingular })}
-      </S.Title>
+      <S.Title>{vm.title}</S.Title>
 
       {vm.linkLoading ? (
         <Spinner size={20} />

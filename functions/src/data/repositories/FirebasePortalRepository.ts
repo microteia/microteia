@@ -78,6 +78,7 @@ const toScreen = (id: string, data: DocumentData): PortalScreen => ({
   titleFieldKey: asString(data.titleFieldKey) || null,
   titleSingular: asString(data.titleSingular, id),
   titlePlural: asString(data.titlePlural, id),
+  titleNew: asString(data.titleNew) || null,
   icon: asString(data.icon),
   parentEntity: asString(data.parentEntity) || null,
   parentFieldKey: asString(data.parentFieldKey) || null,

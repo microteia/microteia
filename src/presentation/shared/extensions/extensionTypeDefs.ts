@@ -1631,6 +1631,12 @@ const PORTAL_MODULE_DEFS = `declare module '@microteia/portal' {
     collection: string;
     titleSingular: string;
     titlePlural: string;
+    /**
+     * The whole "new record" phrase the screen declares (\`titleNew\`), already in the guest's language —
+     * what the portal's create button and form heading show. Absent when the screen declares none, and on
+     * older kernels: fall back to your own phrase around \`titleSingular\`.
+     */
+    titleNew?: string;
     icon: string;
     documents: boolean;
     /**

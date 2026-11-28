@@ -320,7 +320,7 @@ export const usePortalViewModel = (): PortalViewModel => {
         title: child.titlePlural,
         screen: child,
         parentKey,
-        createLabel: child.create ? t('portal.create.new', { screen: child.titleSingular }) : null,
+        createLabel: child.create ? child.titleNew ?? t('portal.create.new', { screen: child.titleSingular }) : null,
       }));
     const tabs: PortalRecordTab[] = [
       ...children.map((child) => ({ key: child.collection, label: child.title })),
@@ -506,7 +506,7 @@ export const usePortalViewModel = (): PortalViewModel => {
     records,
     recordsArrangement: portalCardArrangement(rootScreen),
     recordsLoading: rootCollection ? isCollectionLoading(rootCollection) : false,
-    rootCreateLabel: rootScreen?.create ? t('portal.create.new', { screen: rootScreen.titleSingular }) : null,
+    rootCreateLabel: rootScreen?.create ? rootScreen.titleNew ?? t('portal.create.new', { screen: rootScreen.titleSingular }) : null,
     emptyScreens: !!portal.context && menuEntries.length === 0,
     selected,
     recordActions,

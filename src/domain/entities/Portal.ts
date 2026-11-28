@@ -33,6 +33,8 @@ export interface PortalScreenInfo {
   public?: boolean;
   titleSingular: string;
   titlePlural: string;
+  /** A frase do registro novo (`titleNew`), já no idioma do convidado. Ausente, "Novo: <singular>". */
+  titleNew?: string;
   icon: string;
   documents: boolean;
   /** A tela registra no servidor cada abertura de registro do convidado (`portal.trackViews`). */

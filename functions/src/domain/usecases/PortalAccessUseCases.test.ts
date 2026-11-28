@@ -450,6 +450,20 @@ describe('contexto do portal', () => {
     expect(context.screens.find((screen) => screen.id === 'companies')?.parent).toBeNull();
   });
 
+  it('a frase do registro novo (`titleNew`) vai no idioma do convidado; sem ela, nada (#56)', async () => {
+    const screens = CITY_SCREENS.map((one) => (one.id === 'invoices' ? { ...one, titleNew: '@acme/invoice.new' } : one));
+    const fake = makeFakePortalRepository(screens);
+    fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });
+
+    const context = await makeGetPortalContextUseCase(fake.repo).execute({
+      tenantId: TENANT, userId: 'ana', tenant: { name: 'Salvador', logoURL: null }, locale: 'pt-BR',
+      resolve: (value) => (value === '@acme/invoice.new' ? 'Nova fatura' : value),
+    });
+
+    expect(context.screens.find((screen) => screen.id === 'invoices')?.titleNew).toBe('Nova fatura');
+    expect(context.screens.find((screen) => screen.id === 'companies')).not.toHaveProperty('titleNew');
+  });
+
   it('entrega só as views de extensão de coleções expostas', async () => {
     const fake = makeFakePortalRepository(CITY_SCREENS);
     fake.users.set('ana', { userId: 'ana', email: 'ana@acme.com', displayName: 'Ana', subjectKeys: ['companies/acme'] });

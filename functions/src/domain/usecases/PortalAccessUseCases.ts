@@ -663,6 +663,11 @@ export interface PortalContextScreen {
   collection: string;
   titleSingular: string;
   titlePlural: string;
+  /**
+   * A frase do registro novo (`titleNew`, #45) no idioma do convidado — o botão e o cabeçalho do
+   * formulário a usam como o escritório usa. Ausente, vale "Novo: <singular>".
+   */
+  titleNew?: string;
   icon: string;
   documents: boolean;
   /** A casca avisa o servidor quando o convidado abre um registro desta tela (`portal.trackViews`). */
@@ -1014,6 +1019,7 @@ export const makeGetPortalContextUseCase = (repo: IPortalRepository): GetPortalC
           collection: screen.collection,
           titleSingular: resolve(screen.titleSingular),
           titlePlural: resolve(screen.titlePlural),
+          ...(screen.titleNew ? { titleNew: resolve(screen.titleNew) } : {}),
           icon: screen.icon,
           documents: screen.portal?.documents === true,
           trackViews: portalTracksViews(screen),
