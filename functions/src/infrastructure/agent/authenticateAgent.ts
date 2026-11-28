@@ -1,5 +1,6 @@
 import type { AgentGrant } from '../../domain/schema/agent/agentGrant';
 import {
+  agentCeiling,
   effectiveAgentPermissions,
   grantRefusal,
   hashAgentSecret,
@@ -53,6 +54,8 @@ export interface AgentAuthDeps {
   readGrant: (tenantId: string, grantId: string) => Promise<AgentGrant | null>;
   claimsFunction: (tenantId: string, functionName: string) => Promise<boolean>;
   granted: (tenantId: string, userId: string) => Promise<string[]>;
+  /** O catálogo de permissões do escritório — só lido quando o acesso acompanha coleções (#50). */
+  catalog: (tenantId: string) => Promise<readonly { id: string; action: string; derived: boolean }[]>;
   now: () => Date;
 }
 
@@ -92,10 +95,10 @@ export const authenticateAgent = async (
   const refusal = grantRefusal(grant, deps.now());
   if (refusal !== null) return { ok: false, refusal };
 
-  const permissions = effectiveAgentPermissions(
-    await deps.granted(parsed.tenantId, grant.userId),
-    grant.permissions,
-  );
+  const ceiling = grant.collectionActions.length > 0
+    ? agentCeiling(grant, await deps.catalog(parsed.tenantId))
+    : [...grant.permissions];
+  const permissions = effectiveAgentPermissions(await deps.granted(parsed.tenantId, grant.userId), ceiling);
   if (permissions.length === 0) return { ok: false, refusal: 'no-access' };
 
   return {
@@ -106,7 +109,7 @@ export const authenticateAgent = async (
       grantId: grant.id,
       grantName: grant.name,
       permissions,
-      ceiling: [...grant.permissions],
+      ceiling,
       expiresAt: grant.expiresAt,
       lastUsedAt: grant.lastUsedAt,
     },
@@ -119,5 +122,9 @@ export const agentAuthDeps = (): AgentAuthDeps => ({
   claimsFunction: (tenantId, functionName) =>
     getDI().getInstalledExtensionCache().claimsFunction(tenantId, functionName),
   granted: grantedPermissions,
+  // O catálogo do CACHE (minutos), e não o recém-lido: esta leitura acontece a cada chamada do agente,
+  // e uma coleção nova levar alguns minutos para entrar no teto é o preço de não ler o Firestore a
+  // cada ferramenta.
+  catalog: async (tenantId) => (await getDI().getPermissionCatalogCache().get(tenantId)).list,
   now: () => new Date(),
 });

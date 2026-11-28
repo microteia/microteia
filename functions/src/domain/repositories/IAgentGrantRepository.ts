@@ -1,10 +1,12 @@
-import type { AgentGrant, AgentGrantOrigin } from '../schema/agent/agentGrant';
+import type { AgentCollectionAction, AgentGrant, AgentGrantOrigin } from '../schema/agent/agentGrant';
 
 /** O que a emissão precisa informar. O `id`, o hash e os carimbos de tempo são do repositório. */
 export interface NewAgentGrant {
   name: string;
   userId: string;
   permissions: string[];
+  /** As ações acompanhadas em toda coleção (#50). Ausente = nenhuma. */
+  collectionActions?: AgentCollectionAction[];
   secretHash: string;
   expiresAt: Date | null;
   createdBy: string;

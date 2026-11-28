@@ -7,6 +7,8 @@ interface CreateAgentGrantRequest {
   tenantId: string;
   name: string;
   permissions: string[];
+  /** As ações acompanhadas em toda coleção, inclusive nas criadas depois (#50). */
+  collectionActions?: string[];
   /** Ausente ou nulo = sem expiração. A revogação continua sendo o caminho garantido. */
   expiresInDays?: number | null;
 }
@@ -31,13 +33,14 @@ export const createAgentGrant = onCall(
       throw new HttpsError('unauthenticated', '@core.automation/handler.unauthenticated');
     }
 
-    const { tenantId, name, permissions, expiresInDays } = request.data as CreateAgentGrantRequest;
+    const { tenantId, name, permissions, collectionActions, expiresInDays } = request.data as CreateAgentGrantRequest;
     return issueAgentGrant({
       tenantId,
       userId: request.auth.uid,
       session: request.auth.token,
       name,
       permissions,
+      collectionActions,
       expiresInDays,
       origin: 'manual',
     });

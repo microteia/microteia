@@ -2,6 +2,8 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { AGENT_MCP_FUNCTION } from '../../domain/schema/agent/agentBackend';
 import type { AgentGrantOrigin } from '../../domain/schema/agent/agentGrant';
 import {
+  AGENT_COLLECTION_ACTIONS,
+  readCollectionActions,
   buildAgentToken,
   generateAgentSecret,
   hashAgentSecret,
@@ -38,6 +40,8 @@ export interface IssueAgentGrantInput {
   session: Record<string, unknown>;
   name: string;
   permissions: string[];
+  /** As ações acompanhadas em toda coleção, inclusive as criadas depois (#50). Ausente = nenhuma. */
+  collectionActions?: unknown;
   expiresInDays?: number | null;
   origin?: AgentGrantOrigin;
   accessExpiresAt?: Date | null;
@@ -88,7 +92,18 @@ export const issueAgentGrant = async (input: IssueAgentGrantInput): Promise<Issu
   const declared = [...new Set(Array.isArray(input.permissions) ? input.permissions : [])]
     .filter((one): one is string => typeof one === 'string' && one.trim() !== '')
     .map((one) => one.trim());
-  if (declared.length === 0) {
+  // O valor que não é uma das quatro ações é RECUSADO, não filtrado: filtrar entregaria um acesso
+  // menor do que quem emitiu escolheu, sem dizer por quê.
+  const followed = readCollectionActions(input.collectionActions);
+  const asked = Array.isArray(input.collectionActions) ? input.collectionActions : [];
+  const unknownAction = asked.find((action) => !(AGENT_COLLECTION_ACTIONS as readonly unknown[]).includes(action));
+  if (input.collectionActions !== undefined && input.collectionActions !== null
+    && (!Array.isArray(input.collectionActions) || unknownAction !== undefined)) {
+    throw new HttpsError('invalid-argument', '@core.access/agent.collection-actions.invalid', {
+      action: String(unknownAction ?? ''),
+    });
+  }
+  if (declared.length === 0 && followed.length === 0) {
     throw new HttpsError('invalid-argument', '@core.access/agent.permissions.required');
   }
   // Um teto que se declara irrestrito não é um teto. Quem quer conceder tudo lista tudo, e a lista
@@ -122,6 +137,7 @@ export const issueAgentGrant = async (input: IssueAgentGrantInput): Promise<Issu
     name: label,
     userId,
     permissions: declared,
+    collectionActions: followed,
     secretHash: await hashAgentSecret(secret),
     expiresAt,
     createdBy: userId,

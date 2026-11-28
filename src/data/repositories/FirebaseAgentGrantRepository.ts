@@ -2,7 +2,7 @@ import { Timestamp, collection, deleteDoc, doc, onSnapshot, orderBy, query } fro
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../infrastructure/firebase/config';
 import type { AgentGrant } from '../../domain/schema/agent/agentGrant';
-import { AGENT_GRANTS_COLLECTION } from '../../domain/schema/agent/agentGrant';
+import { AGENT_GRANTS_COLLECTION, readCollectionActions } from '../../domain/schema/agent/agentGrant';
 import {
   AGENT_CREATE_GRANT_FUNCTION,
   AGENT_REVOKE_GRANT_FUNCTION,
@@ -24,6 +24,7 @@ const mapGrant = (id: string, tenantId: string, data: Record<string, unknown>): 
   userId: typeof data.userId === 'string' ? data.userId : '',
   name: typeof data.name === 'string' ? data.name : '',
   permissions: Array.isArray(data.permissions) ? (data.permissions as string[]) : [],
+  collectionActions: readCollectionActions(data.collectionActions),
   // O hash NÃO é segredo — o segredo é o que o gera. Mas ele também não serve à tela para nada, e
   // por isso não desce: o que não é usado não precisa atravessar a rede.
   secretHash: '',

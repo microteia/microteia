@@ -20,6 +20,7 @@ const acesso = async (sobrepondo: Partial<AgentGrant> = {}): Promise<AgentGrant>
   userId: 'membro1',
   name: 'Claude no terminal',
   permissions: ['clientes.read', 'clientes.create'],
+  collectionActions: [],
   secretHash: await hashAgentSecret(SEGREDO),
   expiresAt: null,
   revokedAt: null,
@@ -37,6 +38,7 @@ const deps = (sobrepondo: Partial<AgentAuthDeps> = {}): AgentAuthDeps => ({
   readGrant: async () => acesso(),
   claimsFunction: async () => true,
   granted: async () => ['clientes.read', 'clientes.create', 'processos.read'],
+  catalog: async () => [],
   now: () => AGORA,
   ...sobrepondo,
 });
@@ -159,5 +161,54 @@ describe('as recusas — uma a uma, e nenhuma devolve sessão', () => {
     const orfao = deps({ readGrant: async () => acesso({ userId: '' }), granted });
     expect(await authenticateAgent(TOKEN, orfao)).toEqual({ ok: false, refusal: 'unknown' });
     expect(granted).not.toHaveBeenCalled();
+  });
+});
+
+
+/**
+ * Issue #50: o acesso que ACOMPANHA coleções ganha as ações escolhidas em toda coleção do catálogo
+ * atual — inclusive na criada depois da emissão —, sem nunca passar de quem o emitiu.
+ */
+describe('o acesso que acompanha as coleções do escritório (#50)', () => {
+  const catalogo = async () => [
+    { id: 'clientes.read', action: 'read', derived: true },
+    { id: 'clientes.update', action: 'update', derived: true },
+    { id: 'devolucoes.read', action: 'read', derived: true },
+    { id: 'devolucoes.import', action: 'import', derived: true },
+    { id: 'automation.run', action: 'run', derived: false },
+    { id: 'relatorios.read', action: 'read', derived: false },
+  ];
+
+  it('a coleção que apareceu depois entra no teto, nas ações acompanhadas', async () => {
+    const resultado = await authenticateAgent(TOKEN, deps({
+      readGrant: async () => acesso({ permissions: [], collectionActions: ['read'] }),
+      granted: async () => [UNRESTRICTED_PERMISSION],
+      catalog: catalogo,
+    }));
+    expect(resultado.ok && resultado.session.permissions).toEqual(['clientes.read', 'devolucoes.read']);
+  });
+
+  it('só a permissão DERIVADA de coleção é acompanhada — a declarada com o mesmo formato, não', async () => {
+    const resultado = await authenticateAgent(TOKEN, deps({
+      readGrant: async () => acesso({ permissions: [], collectionActions: ['read'] }),
+      granted: async () => [UNRESTRICTED_PERMISSION],
+      catalog: catalogo,
+    }));
+    expect(resultado.ok && resultado.session.permissions).not.toContain('relatorios.read');
+  });
+
+  it('nunca passa de quem emitiu: a coleção que ele não vê fica fora', async () => {
+    const resultado = await authenticateAgent(TOKEN, deps({
+      readGrant: async () => acesso({ permissions: [], collectionActions: ['read', 'update'] }),
+      granted: async () => ['clientes.read'],
+      catalog: catalogo,
+    }));
+    expect(resultado.ok && resultado.session.permissions).toEqual(['clientes.read']);
+  });
+
+  it('o acesso que não acompanha nada nem lê o catálogo — o comportamento de antes', async () => {
+    const catalog = vi.fn(catalogo);
+    await authenticateAgent(TOKEN, deps({ catalog }));
+    expect(catalog).not.toHaveBeenCalled();
   });
 });

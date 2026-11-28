@@ -241,6 +241,12 @@ const FieldLabel = styled.label`
   color: ${({ theme }) => theme.colors.text};
 `;
 
+const CheckboxRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
 const FieldHint = styled.span`
   font-size: ${({ theme }) => theme.fontSizes.xs};
   color: ${({ theme }) => theme.colors.textMuted};
@@ -284,5 +290,6 @@ export const S = {
   Field,
   FieldLabel,
   FieldHint,
+  CheckboxRow,
   ModalActions,
 };

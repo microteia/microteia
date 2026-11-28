@@ -41,6 +41,15 @@ export interface AgentGrant {
    * do usuário, recalculada a cada chamada — ver `effectiveAgentPermissions`.
    */
   permissions: string[];
+  /**
+   * As ações que este acesso ganha em TODA coleção que o escritório tiver no momento da chamada —
+   * inclusive as que uma extensão criar depois da emissão (#50). Vazio (o normal, e o de todo acesso
+   * gravado antes do campo) = só o que `permissions` lista.
+   *
+   * Continua sendo TETO: a interseção com o conjunto de quem emitiu vale como sempre, então o acesso
+   * nunca passa do que a pessoa pode — ele só deixa de ficar para trás quando o escritório cresce.
+   */
+  collectionActions: AgentCollectionAction[];
   secretHash: string;
   expiresAt: Date | null;
   revokedAt: Date | null;
@@ -70,6 +79,37 @@ export interface AgentGrant {
 }
 
 export type AgentGrantOrigin = 'manual' | 'oauth';
+
+/** As ações de coleção que um acesso pode acompanhar — as quatro que toda coleção rende de graça. */
+export const AGENT_COLLECTION_ACTIONS = ['read', 'create', 'update', 'delete'] as const;
+
+export type AgentCollectionAction = (typeof AGENT_COLLECTION_ACTIONS)[number];
+
+/** O valor gravado, como o acesso o entende: só as quatro ações, sem repetição, na ordem canônica. */
+export const readCollectionActions = (value: unknown): AgentCollectionAction[] =>
+  Array.isArray(value) ? AGENT_COLLECTION_ACTIONS.filter((action) => value.includes(action)) : [];
+
+/**
+ * O TETO do acesso nesta chamada: o que ele lista mais, para cada ação acompanhada, a permissão
+ * daquela ação em toda coleção do catálogo atual. A coleção vem do CATÁLOGO, e não de uma lista
+ * guardada no acesso: é ele que sabe quais coleções o escritório tem agora, e é por isso que a
+ * criada depois da emissão entra sem reemitir nada.
+ *
+ * `derived` com uma das quatro ações é exatamente a permissão de COLEÇÃO: só coleção rende CRUD
+ * (`deriveCrud`); um artefato rende "Executar"/"Abrir", e a permissão que uma extensão declara com o
+ * mesmo formato não é derivada — acompanhá-la concederia o que ninguém escolheu.
+ */
+export const agentCeiling = (
+  grant: Pick<AgentGrant, 'permissions' | 'collectionActions'>,
+  catalog: readonly { id: string; action: string; derived: boolean }[],
+): string[] => {
+  const actions = new Set<string>(grant.collectionActions);
+  if (actions.size === 0) return [...grant.permissions];
+  const followed = catalog
+    .filter((permission) => permission.derived && actions.has(permission.action))
+    .map((permission) => permission.id);
+  return [...new Set([...grant.permissions, ...followed])];
+};
 
 export interface ParsedAgentToken {
   tenantId: string;

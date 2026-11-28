@@ -1,10 +1,15 @@
-import type { AgentGrant } from '../schema/agent/agentGrant';
+import type { AgentCollectionAction, AgentGrant } from '../schema/agent/agentGrant';
 
 /** O que a tela informa ao emitir. O segredo, o hash e o id são do servidor. */
 export interface AgentGrantInput {
   name: string;
   /** O TETO — ids do catálogo de permissões do escritório. Nunca o curinga. */
   permissions: string[];
+  /**
+   * As ações que o acesso ganha em toda coleção, inclusive nas que uma extensão criar depois (#50).
+   * Vazio = só o teto listado em `permissions`.
+   */
+  collectionActions: AgentCollectionAction[];
   /** `null` = sem expiração. A revogação continua sendo o caminho garantido. */
   expiresInDays: number | null;
 }

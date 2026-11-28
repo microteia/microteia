@@ -94,6 +94,14 @@ export const CORE_ACCESS_MESSAGES: Record<string, string> = {
   'agent.form.permissions.hint':
     'Only the permissions you hold are offered. Choose the fewest that get the job done: the access '
     + 'can do everything you release to it, and nothing else.',
+  'agent.form.follow-collections': 'Also on every collection, including new ones',
+  'agent.form.follow-collections.hint': 'What you tick here applies to every collection the organization has when the agent calls, including collections an extension adds later, so the access does not need to be issued again. It never goes beyond what you can do yourself.',
+  'agent.collection-action.read': 'View',
+  'agent.collection-action.create': 'Create',
+  'agent.collection-action.update': 'Edit',
+  'agent.collection-action.delete': 'Delete',
+  'agent.meta.follows-collections': 'every collection: {actions}',
+  'agent.collection-actions.invalid': 'Unknown collection action "{action}". Use read, create, update or delete.',
   'agent.form.expiry': 'Validity',
   'agent.form.cancel': 'Cancel',
   'agent.form.confirm': 'Issue',

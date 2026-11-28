@@ -6,7 +6,7 @@ import type {
   RotatedAgentGrant,
 } from '../../domain/repositories/IAgentGrantRepository';
 import type { AgentGrant, AgentGrantOrigin } from '../../domain/schema/agent/agentGrant';
-import { AGENT_GRANTS_COLLECTION } from '../../domain/schema/agent/agentGrant';
+import { AGENT_GRANTS_COLLECTION, readCollectionActions } from '../../domain/schema/agent/agentGrant';
 
 const asDate = (value: unknown): Date | null =>
   value instanceof Timestamp ? value.toDate() : value instanceof Date ? value : null;
@@ -35,6 +35,7 @@ export class FirebaseAgentGrantRepository implements IAgentGrantRepository {
       userId,
       name: typeof data.name === 'string' ? data.name : '',
       permissions: Array.isArray(data.permissions) ? (data.permissions as string[]) : [],
+      collectionActions: readCollectionActions(data.collectionActions),
       secretHash,
       expiresAt: asDate(data.expiresAt),
       revokedAt: asDate(data.revokedAt),
@@ -56,6 +57,7 @@ export class FirebaseAgentGrantRepository implements IAgentGrantRepository {
       userId: grant.userId,
       name: grant.name,
       permissions: grant.permissions,
+      collectionActions: grant.collectionActions ?? [],
       secretHash: grant.secretHash,
       expiresAt: grant.expiresAt === null ? null : Timestamp.fromDate(grant.expiresAt),
       revokedAt: null,

@@ -8,8 +8,8 @@ import { useNotification } from '../../../../stores/useNotification';
 import { httpFunctionUrl } from '../../../../infrastructure/firebase/config';
 import { AGENT_MCP_FUNCTION } from '../../../../domain/schema/agent/agentBackend';
 import { PERMISSION_AGENT_MANAGE } from '../../../../domain/schema/access';
-import type { AgentGrant } from '../../../../domain/schema/agent/agentGrant';
-import { grantRefusal } from '../../../../domain/schema/agent/agentGrant';
+import type { AgentCollectionAction, AgentGrant } from '../../../../domain/schema/agent/agentGrant';
+import { AGENT_COLLECTION_ACTIONS, grantRefusal } from '../../../../domain/schema/agent/agentGrant';
 import type { AgentAvailability } from '../../../../domain/usecases/agent/agentAvailability';
 import { agentAvailability } from '../../../../domain/usecases/agent/agentAvailability';
 import {
@@ -37,6 +37,11 @@ export interface AgentGrantRow {
    * esta linha que diz qual é qual a quem precisa decidir se reconhece o acesso.
    */
   signedInFrom: string | null;
+  /**
+   * As ações que o acesso ganha em toda coleção, inclusive nas criadas depois (#50), já como frase —
+   * ou `null` no acesso que só tem o teto listado.
+   */
+  followsCollections: string | null;
   expiresAt: Date | null;
   lastUsedAt: Date | null;
   createdAt: Date;
@@ -89,6 +94,9 @@ export interface AgentTabViewModel {
   setName: (value: string) => void;
   selectedPermissions: string[];
   setSelectedPermissions: (values: string[]) => void;
+  /** As ações acompanhadas em toda coleção, com o rótulo e se estão marcadas. */
+  collectionActionChoices: { action: AgentCollectionAction; label: string; checked: boolean }[];
+  toggleCollectionAction: (action: AgentCollectionAction) => void;
   expiryDays: number | null;
   setExpiryDays: (days: number | null) => void;
   canSubmit: boolean;
@@ -135,6 +143,7 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [name, setName] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [collectionActions, setCollectionActions] = useState<AgentCollectionAction[]>([]);
   const [expiryDays, setExpiryDays] = useState<number | null>(AGENT_DEFAULT_EXPIRY_DAYS);
   const [isIssuing, setIsIssuing] = useState(false);
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
@@ -201,6 +210,11 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
         state,
         isOwn,
         signedInFrom: grant.origin === 'oauth' ? grant.name : null,
+        followsCollections: grant.collectionActions.length > 0
+          ? t('agent.meta.follows-collections', {
+            actions: grant.collectionActions.map((action) => t(`agent.collection-action.${action}`)).join(', '),
+          })
+          : null,
         expiresAt: grant.expiresAt,
         lastUsedAt: grant.lastUsedAt,
         createdAt: grant.createdAt,
@@ -208,7 +222,7 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
         canRemove: state !== 'active' && mayAct,
       };
     }),
-    [grants, user?.id, canManageOthers],
+    [grants, user?.id, canManageOthers, t],
   );
   const activeRows = useMemo(() => rows.filter((row) => row.state === 'active'), [rows]);
   const inactiveRows = useMemo(() => rows.filter((row) => row.state !== 'active'), [rows]);
@@ -230,6 +244,7 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
   const openForm = useCallback(() => {
     setName('');
     setSelectedPermissions([]);
+    setCollectionActions([]);
     setExpiryDays(AGENT_DEFAULT_EXPIRY_DAYS);
     setIsFormOpen(true);
   }, []);
@@ -243,6 +258,7 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
       const issued = await issueUC.execute(tenantId, {
         name: name.trim(),
         permissions: selectedPermissions,
+        collectionActions,
         expiresInDays: expiryDays,
       });
       setIsFormOpen(false);
@@ -254,7 +270,23 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
     } finally {
       setIsIssuing(false);
     }
-  }, [tenantId, issueUC, name, selectedPermissions, expiryDays, report]);
+  }, [tenantId, issueUC, name, selectedPermissions, collectionActions, expiryDays, report]);
+
+  const toggleCollectionAction = useCallback((action: AgentCollectionAction) => {
+    setCollectionActions((current) => {
+      const next = current.includes(action) ? current.filter((one) => one !== action) : [...current, action];
+      return AGENT_COLLECTION_ACTIONS.filter((one) => next.includes(one));
+    });
+  }, []);
+
+  const collectionActionChoices = useMemo(
+    () => AGENT_COLLECTION_ACTIONS.map((action) => ({
+      action,
+      label: t(`agent.collection-action.${action}`),
+      checked: collectionActions.includes(action),
+    })),
+    [collectionActions, t],
+  );
 
   const copyIssuedToken = useCallback(async () => {
     if (issuedToken === null) return;
@@ -314,9 +346,11 @@ export const useAgentTabViewModel = (): AgentTabViewModel => {
     setName,
     selectedPermissions,
     setSelectedPermissions,
+    collectionActionChoices,
+    toggleCollectionAction,
     expiryDays,
     setExpiryDays,
-    canSubmit: name.trim() !== '' && selectedPermissions.length > 0 && !isIssuing,
+    canSubmit: name.trim() !== '' && (selectedPermissions.length > 0 || collectionActions.length > 0) && !isIssuing,
     isIssuing,
     submit,
     issuedToken,

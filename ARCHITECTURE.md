@@ -14009,6 +14009,23 @@ também o nome da pessoa). Distinguir que foi O AGENTE é o papel de `createdVia
 parte; distinguir QUAL acesso de agente gravou exigiria um campo de ator próprio no registro de
 auditoria, não um valor enfiado no campo de autor de um documento de negócio.
 
+### O acesso que acompanha as coleções novas (#50)
+
+O teto de um acesso era só a lista escolhida na emissão, e a coleção que uma extensão criava depois não
+entrava: o `list_screens` a omitia em silêncio e o único conserto era emitir outro token e trocá-lo em
+todo lugar (segredo de CI, `.env`). `AgentGrant.collectionActions` (`read` | `create` | `update` |
+`delete`, vazio por padrão) diz quais ações o acesso ganha em TODA coleção — e a coleção não é guardada
+no acesso: `agentCeiling` a lê do catálogo de permissões a cada chamada (do cache de minutos, porque
+roda em toda ferramenta), e por isso a criada depois entra sozinha. Entra só a permissão `derived` com
+uma das quatro ações, que é exatamente a de coleção — artefato rende "Executar"/"Abrir", e a permissão
+que uma extensão declara com o mesmo formato não é derivada.
+
+Continua TETO: a interseção com o conjunto de quem emitiu (`effectiveAgentPermissions`) vale como
+sempre, então o acesso nunca passa da pessoa — ele só deixa de ficar para trás quando o escritório
+cresce. Por isso não há permissão nova para emitir: acompanhar coleções não concede nada que quem emite
+já não tenha. A emissão aceita um acesso só com ações acompanhadas (sem lista) e recusa a ação
+desconhecida em vez de filtrá-la; o OAuth continua emitindo só com lista.
+
 ### As duas metades: o que é do kernel e o que é da extensão
 
 | | Onde | Por quê |

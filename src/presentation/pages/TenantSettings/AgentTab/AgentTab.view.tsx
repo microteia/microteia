@@ -19,6 +19,7 @@ import { Spinner } from '../../../components/ui/Spinner';
 import { InfoBanner } from '../../../components/ui/InfoBanner';
 import { SearchSelect } from '../../../components/ui/SearchSelect';
 import { PermissionPicker } from '../../../components/ui/PermissionPicker';
+import { Checkbox } from '../../../components/ui/Checkbox';
 import { useT } from '../../../shared/i18n/useT';
 import { formatDate } from '../../../../utils/formatters';
 
@@ -54,6 +55,7 @@ export const AgentTabView: React.FC = () => {
           {row.lastUsedAt === null && row.state === 'active' && ` · ${t('agent.meta.never-used')}`}
           {row.signedInFrom !== null
             && ` · ${t('agent.meta.signed-in-as', { client: row.signedInFrom })}`}
+          {row.followsCollections !== null && ` · ${row.followsCollections}`}
           {!row.isOwn && ` · ${t('agent.meta.of-another')}`}
         </S.RowMeta>
       </S.RowMain>
@@ -149,6 +151,21 @@ export const AgentTabView: React.FC = () => {
                 onChange={vm.setSelectedPermissions}
               />
               <S.FieldHint>{t('agent.form.permissions.hint')}</S.FieldHint>
+            </S.Field>
+
+            <S.Field>
+              <S.FieldLabel>{t('agent.form.follow-collections')}</S.FieldLabel>
+              <S.CheckboxRow>
+                {vm.collectionActionChoices.map((choice) => (
+                  <Checkbox
+                    key={choice.action}
+                    label={choice.label}
+                    checked={choice.checked}
+                    onChange={() => vm.toggleCollectionAction(choice.action)}
+                  />
+                ))}
+              </S.CheckboxRow>
+              <S.FieldHint>{t('agent.form.follow-collections.hint')}</S.FieldHint>
             </S.Field>
 
             <S.Field>

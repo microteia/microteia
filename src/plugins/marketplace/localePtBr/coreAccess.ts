@@ -93,6 +93,14 @@ export const CORE_ACCESS: Record<string, string> = {
   'agent.form.permissions.hint':
     'Só as permissões que você tem são oferecidas. Escolha as menos possíveis para o que precisa: o '
     + 'acesso pode tudo o que você liberar a ele, e nada além.',
+  'agent.form.follow-collections': 'Também em toda coleção, inclusive nas novas',
+  'agent.form.follow-collections.hint': 'O que você marcar aqui vale em toda coleção que o escritório tiver quando o agente chamar, inclusive nas que uma extensão criar depois, sem precisar emitir o acesso de novo. Nunca passa do que você mesmo pode.',
+  'agent.collection-action.read': 'Visualizar',
+  'agent.collection-action.create': 'Criar',
+  'agent.collection-action.update': 'Editar',
+  'agent.collection-action.delete': 'Excluir',
+  'agent.meta.follows-collections': 'toda coleção: {actions}',
+  'agent.collection-actions.invalid': 'Ação de coleção desconhecida "{action}". Use read, create, update ou delete.',
   'agent.form.expiry': 'Validade',
   'agent.form.cancel': 'Cancelar',
   'agent.form.confirm': 'Emitir',
