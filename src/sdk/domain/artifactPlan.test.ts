@@ -403,3 +403,55 @@ describe('a duplicação declarada não é perguntada duas vezes', () => {
     expect(twice.exceptions).toHaveLength(1);
   });
 });
+
+/**
+ * Issue #49: um campo servido por lista de opções, declarado `semanticType: "reference"` (o que o
+ * vínculo significa) com o relacionamento `storage: "lookup"`, era planejado como `reference` — contra
+ * a tabela de armazenamento (`lookup` → `select` + `lookupCollection`). Com a tela instalada como
+ * `select`, o plano seguinte travava em `field-type-immutable`.
+ */
+describe('relacionamento guardado como lista de opções (#49)', () => {
+  const orderModel = (): DomainModel => ({
+    version: 1,
+    target: 'extension',
+    extensionId: 'com.acme.orders',
+    entities: [
+      {
+        name: 'Order', kind: 'entity', collection: 'acme_order', titleField: 'number',
+        fields: [
+          { key: 'number', label: 'Number', semanticType: 'scalar', type: 'text', required: true },
+          { key: 'status', label: 'Status', semanticType: 'reference', type: 'select', target: 'OrderStatus', lookup: 'acme_statuses', required: true },
+        ],
+      },
+      { name: 'OrderStatus', kind: 'lookup', collection: 'acme_statuses', fields: [] },
+    ],
+    relationships: [
+      { sourceEntity: 'Order', targetEntity: 'OrderStatus', sourceField: 'status', type: 'many-to-one', storage: 'lookup', ownership: 'association', required: true },
+    ],
+  } as DomainModel);
+
+  const statusOf = (plan: ArtifactPlan) =>
+    plan.screens.find((one) => one.collection === 'acme_order')?.fields.find((one) => one.key === 'status');
+
+  it('o campo é planejado como select sobre a lista, sem refEntity', () => {
+    const plan = buildArtifactPlan(orderModel(), EMPTY);
+    expect(statusOf(plan)).toMatchObject({ operation: 'create', type: 'select', lookupCollection: 'acme_statuses' });
+    expect(statusOf(plan)?.refEntity).toBeUndefined();
+  });
+
+  it('sem `lookup` no campo, a lista é a coleção da entidade apontada', () => {
+    const model = orderModel();
+    delete (model.entities[0].fields[1] as { lookup?: string }).lookup;
+    expect(statusOf(buildArtifactPlan(model, EMPTY))).toMatchObject({ type: 'select', lookupCollection: 'acme_statuses' });
+  });
+
+  it('a tela instalada como a tabela manda (select) não trava o plano seguinte', () => {
+    const catalog = buildDomainCatalog([installedScreen('acme_order', [
+      platformField('number', 'text', { required: true }),
+      platformField('status', 'select', { required: true, lookupCollection: 'acme_statuses' }),
+    ])]);
+    const plan = buildArtifactPlan(orderModel(), catalog);
+    expect(plan.issues.map((one) => one.code)).not.toContain('domain.plan.field-type-immutable');
+    expect(fieldOps(plan, 'acme_order').status).toBe('unchanged');
+  });
+});

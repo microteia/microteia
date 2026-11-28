@@ -215,6 +215,23 @@ export const entityToScreenInput = (
    * para o registro — é isso que a faz seguir a origem.
    */
   const denormKeyByField = new Map(mine.flatMap((one) => (one.denormalize ? [[one.sourceField, one.denormalize.denormKey]] : [])));
+  /**
+   * O relacionamento guardado como `lookup` decide COMO o campo grava: `select` sobre a lista, como diz a
+   * tabela de armazenamento. O campo declarado `semanticType: "reference"` (que é o que o vínculo
+   * significa) era planejado como `reference`, e o plano seguinte, com a tela já instalada como
+   * `select`, travava em `field-type-immutable` (#49). A lista é a do campo ou, sem ela, a coleção da
+   * entidade apontada.
+   */
+  const listByField = new Map(mine.flatMap((one) => {
+    if (one.storage !== 'lookup') return [];
+    const declared = entity.fields.find((field) => field.key === one.sourceField)?.lookup;
+    const list = declared ?? resolve(one.targetEntity);
+    return list ? [[one.sourceField, list] as const] : [];
+  }));
+  const storedAs = (field: DomainField): DomainField => {
+    const list = listByField.get(field.key);
+    return list === undefined ? field : { ...field, semanticType: 'scalar', type: 'select', lookup: list };
+  };
 
   return {
     key: collection,
@@ -223,7 +240,7 @@ export const entityToScreenInput = (
     titleFieldKey: entity.titleField ?? '',
     ...(entity.keys && entity.keys.length > 0 ? { keys: entity.keys.map((key) => ({ ...key })) } : {}),
     fields: entity.fields.map((field, index) => {
-      const definition = fieldToDefinition(field, index, origin, resolve);
+      const definition = fieldToDefinition(storedAs(field), index, origin, resolve);
       const denormKey = definition.type === 'reference' ? denormKeyByField.get(field.key) : undefined;
       return {
         ...definition,
